@@ -62,8 +62,8 @@ class ModelList(Base, UserList):
             d.update(model.parameters)
             sl.append(Scenario(d))
         return sl
-    
-    def filter(self, expression:str):
+
+    def filter(self, expression: str):
         sl = self.to_scenario_list()
         filtered_sl = sl.filter(expression)
         return self.from_scenario_list(filtered_sl)
@@ -121,6 +121,7 @@ class ModelList(Base, UserList):
     def from_names(self, *args, **kwargs):
         """A a model list from a list of names"""
         from .model import Model
+
         if len(args) == 1 and isinstance(args[0], list):
             args = args[0]
         return ModelList([Model(model_name, **kwargs) for model_name in args])
@@ -129,6 +130,7 @@ class ModelList(Base, UserList):
     def from_available_models(self, available_models_list: "AvailableModels"):
         """Create a ModelList from an AvailableModels object"""
         from .model import Model
+
         return ModelList(
             [
                 Model(model.model_name, service_name=model.service_name)
@@ -139,49 +141,58 @@ class ModelList(Base, UserList):
     @classmethod
     def from_scenario_list(cls, scenario_list):
         """Create a ModelList from a ScenarioList containing model_name and service_name fields.
-        
+
         Args:
             scenario_list: ScenarioList with scenarios containing 'model_name' and 'service_name' fields
-            
+
         Returns:
             ModelList with instantiated Model objects
-            
+
         Example:
             >>> from edsl import Model
             >>> models_data = Model.available(service_name='openai')
             >>> model_list = ModelList.from_scenario_list(models_data)
         """
         from .model import Model
+
         models = []
         for scenario in scenario_list:
             # Check if scenario is already a Model-like object (from inference services)
-            if hasattr(scenario, 'model') and hasattr(scenario, '_inference_service_'):
+            if hasattr(scenario, "model") and hasattr(scenario, "_inference_service_"):
                 # Create a new Model object from the existing model-like object
-                models.append(Model(scenario.model, service_name=scenario._inference_service_))
+                models.append(
+                    Model(scenario.model, service_name=scenario._inference_service_)
+                )
                 continue
             elif isinstance(scenario, Model):
                 models.append(scenario)
                 continue
-                
+
             # Handle scenario dict-like objects
             try:
-                model_name = scenario['model_name'] if 'model_name' in scenario else None
-                service_name = scenario['service_name'] if 'service_name' in scenario else None
+                model_name = (
+                    scenario["model_name"] if "model_name" in scenario else None
+                )
+                service_name = (
+                    scenario["service_name"] if "service_name" in scenario else None
+                )
             except (TypeError, KeyError):
                 # Handle cases where scenario might not be dict-like
-                model_name = getattr(scenario, 'model_name', None)
-                service_name = getattr(scenario, 'service_name', None)
-            
+                model_name = getattr(scenario, "model_name", None)
+                service_name = getattr(scenario, "service_name", None)
+
             if model_name and service_name:
                 models.append(Model(model_name, service_name=service_name))
             else:
                 missing_fields = []
                 if not model_name:
-                    missing_fields.append('model_name')
+                    missing_fields.append("model_name")
                 if not service_name:
-                    missing_fields.append('service_name')
-                raise ValueError(f"Scenario missing required fields: {missing_fields}. Scenario: {scenario}")
-        
+                    missing_fields.append("service_name")
+                raise ValueError(
+                    f"Scenario missing required fields: {missing_fields}. Scenario: {scenario}"
+                )
+
         return cls(models)
 
     @classmethod
@@ -209,6 +220,7 @@ class ModelList(Base, UserList):
         """
 
         from .model import Model
+
         return cls([Model.example(randomize) for _ in range(3)])
 
     @classmethod
@@ -217,6 +229,7 @@ class ModelList(Base, UserList):
         Returns all available models.
         """
         from .model import Model
+
         available_models = Model.available()
         return cls.from_scenario_list(available_models)
 

@@ -8,12 +8,7 @@ from .results_utilities import (
     ResultsSQLList,
     ensure_fetched,
     ensure_ready,
-    NotReadyObject
+    NotReadyObject,
 )
 
-__all__ = [
-    "ResultsSQLList",
-    "ensure_fetched", 
-    "ensure_ready",
-    "NotReadyObject"
-] 
+__all__ = ["ResultsSQLList", "ensure_fetched", "ensure_ready", "NotReadyObject"]

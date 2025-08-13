@@ -20,9 +20,10 @@ if TYPE_CHECKING:
 
 APIToken = NewType("APIToken", str)
 
+
 class OpenAIParameterBuilder:
     """Helper class to construct API parameters based on model type."""
-    
+
     @staticmethod
     def build_params(model: str, messages: list, **model_params) -> dict:
         """Build API parameters, adjusting for specific model types."""
@@ -36,17 +37,23 @@ class OpenAIParameterBuilder:
             "frequency_penalty": model_params.get("frequency_penalty", 0),
             "presence_penalty": model_params.get("presence_penalty", 0),
             "logprobs": model_params.get("logprobs", False),
-            "top_logprobs": model_params.get("top_logprobs", 3) if model_params.get("logprobs", False) else None,
+            "top_logprobs": (
+                model_params.get("top_logprobs", 3)
+                if model_params.get("logprobs", False)
+                else None
+            ),
         }
-        
+
         # Special handling for reasoning models (o1, o3)
         if "o1" in model or "o3" in model:
             max_tokens = params.pop("max_tokens")
             # For reasoning models, use much higher completion tokens to allow for reasoning + response
-            reasoning_tokens = max(max_tokens, 5000)  # At least 5000 tokens for reasoning models
+            reasoning_tokens = max(
+                max_tokens, 5000
+            )  # At least 5000 tokens for reasoning models
             params["max_completion_tokens"] = reasoning_tokens
             params["temperature"] = 1
-            
+
         return params
 
 
@@ -213,16 +220,16 @@ class OpenAIService(InferenceServiceABC):
                 ] = None,  # TBD - can eventually be used for function-calling
             ) -> dict[str, Any]:
                 """Calls the OpenAI API and returns the API response."""
-                
+
                 # Use MessageBuilder to construct messages
                 message_builder = MessageBuilder(
                     model=self.model,
                     files_list=files_list,
                     user_prompt=user_prompt,
                     system_prompt=system_prompt,
-                    omit_system_prompt_if_empty=self.omit_system_prompt_if_empty
+                    omit_system_prompt_if_empty=self.omit_system_prompt_if_empty,
                 )
-                
+
                 client = self.async_client()
                 messages = message_builder.get_messages(sync_client=self.sync_client())
 
@@ -236,7 +243,7 @@ class OpenAIService(InferenceServiceABC):
                     frequency_penalty=self.frequency_penalty,
                     presence_penalty=self.presence_penalty,
                     logprobs=self.logprobs,
-                    top_logprobs=self.top_logprobs
+                    top_logprobs=self.top_logprobs,
                 )
                 try:
                     response = await client.chat.completions.create(**params)
@@ -247,5 +254,5 @@ class OpenAIService(InferenceServiceABC):
         # Ensure the class name is "LanguageModel" for proper serialization
         LLM.__name__ = "LanguageModel"
         LLM.__qualname__ = "LanguageModel"
-        
+
         return LLM

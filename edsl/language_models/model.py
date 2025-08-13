@@ -23,10 +23,10 @@ if TYPE_CHECKING:
 
 class Meta(type):
     """Metaclass for Model that provides helpful representation and usage information."""
-    
+
     def __repr__(cls) -> str:
         """Return a helpful string representation with usage examples.
-        
+
         Returns:
             A formatted string with usage examples.
         """
@@ -47,19 +47,20 @@ class Meta(type):
 
 class Model(metaclass=Meta):
     """Factory class for creating language model instances.
-    
+
     The Model class provides a unified interface for instantiating language models
     from various inference services. It uses a registry-based approach to manage
     model creation and service discovery.
-    
+
     Attributes:
         default_model: The default model name to use when none is specified.
-        
+
     Examples:
         model = Model()  # Uses default model
         model = Model('gpt-4', temperature=0.7)
         model = Model('claude-3', service_name='anthropic')
     """
+
     default_model = CONFIG.get("EDSL_DEFAULT_MODEL")
 
     _inference_service_registry = None  # Class-level registry storage
@@ -67,20 +68,23 @@ class Model(metaclass=Meta):
     @classmethod
     def get_inference_service_registry(cls) -> Any:
         """Get the current inference service registry or initialize with default if None.
-        
+
         Returns:
-            The current inference service registry instance. If none exists, 
+            The current inference service registry instance. If none exists,
             initializes with the default registry.
         """
         if cls._inference_service_registry is None:
-            from ..inference_services.inference_service_registry import InferenceServiceRegistry
+            from ..inference_services.inference_service_registry import (
+                InferenceServiceRegistry,
+            )
+
             cls._inference_service_registry = InferenceServiceRegistry()
         return cls._inference_service_registry
 
     @classmethod
     def set_inference_service_registry(cls, registry: Any) -> None:
         """Set a new inference service registry.
-        
+
         Args:
             registry: The new inference service registry to use.
         """
@@ -94,16 +98,16 @@ class Model(metaclass=Meta):
         **kwargs: Any,
     ) -> Optional[Any]:
         """Instantiate a new language model.
-        
+
         Args:
             model_name: The name of the model to instantiate. If None, uses the default model.
             service_name: Optional service name to use for the model.
             *args: Additional positional arguments passed to the model constructor.
             **kwargs: Additional keyword arguments passed to the model constructor.
-            
+
         Returns:
             A language model instance, or None if an error occurs in notebook environment.
-            
+
         Examples:
             Model()
             # Model(...)
@@ -120,11 +124,11 @@ class Model(metaclass=Meta):
         registry = cls.get_inference_service_registry()
         factory = registry.create_language_model(model_name, service_name=service_name)
         return factory(*args, **kwargs)
-      
+
     @classmethod
     def services(cls) -> "ScenarioList":
         """Returns a ScenarioList of services excluding 'test', sorted alphabetically.
-        
+
         Returns:
             A ScenarioList containing available service names, excluding the 'test' service,
             sorted in alphabetical order.
@@ -134,19 +138,19 @@ class Model(metaclass=Meta):
             # ScenarioList([...])
         """
         from ..scenarios import ScenarioList
-        
+
         registry = cls.get_inference_service_registry()
         all_services = registry.list_registered_services()
-        
+
         # Exclude 'test' service and sort alphabetically
-        filtered_services = sorted([s for s in all_services if s != 'test'])
-        
+        filtered_services = sorted([s for s in all_services if s != "test"])
+
         return ScenarioList.from_list("service", filtered_services)
- 
+
     @classmethod
     def services_with_local_keys(cls) -> Set[str]:
         """Returns a set of services for which the user has local API keys configured.
-        
+
         Returns:
             A set of service names that have local API keys available.
         """
@@ -155,10 +159,10 @@ class Model(metaclass=Meta):
     @classmethod
     def key_info(cls, obscure_api_key: bool = True) -> "Dataset":
         """Returns a dataset of local API key information.
-        
+
         Args:
             obscure_api_key: If True, obscures API keys by showing only first and last 4 characters.
-            
+
         Returns:
             A Dataset containing service information and API key details.
         """
@@ -178,80 +182,97 @@ class Model(metaclass=Meta):
         return sl.to_dataset()
 
     @classmethod
-    def search_models(cls, search_term: str, output_format: str = "model_list") -> Union["ModelList", "ScenarioList"]:
+    def search_models(
+        cls, search_term: str, output_format: str = "model_list"
+    ) -> Union["ModelList", "ScenarioList"]:
         """Search for models matching a pattern.
-        
+
         Args:
             search_term: Wildcard pattern to search for (e.g., 'gpt*', '*claude*')
             output_format: Output format, either "model_list" (default) or "scenario_list"
-            
+
         Returns:
             ModelList or ScenarioList with model_name and service_name fields
-            
+
         Raises:
             ValueError: If output_format is not "model_list" or "scenario_list"
         """
         from ..scenarios import ScenarioList
         from .model_list import ModelList
-        
+
         registry = cls.get_inference_service_registry()
         matches = registry.find_models(search_term)
-        
+
         # Add service information for each model
         model_service_pairs = []
         for model_name in matches:
             preferred_service = registry.get_service_for_model(model_name)
             if preferred_service:
                 model_service_pairs.append([model_name, preferred_service])
-        
+
         if not model_service_pairs:
             if output_format == "scenario_list":
                 return ScenarioList([])
             else:
                 return ModelList([])
-            
+
         model_names = [pair[0] for pair in model_service_pairs]
         service_names = [pair[1] for pair in model_service_pairs]
-        
-        scenario_list = ScenarioList.from_list("model_name", model_names).add_list("service_name", service_names)
-        
+
+        scenario_list = ScenarioList.from_list("model_name", model_names).add_list(
+            "service_name", service_names
+        )
+
         if output_format == "scenario_list":
             return scenario_list
         elif output_format == "model_list":
             return ModelList.from_scenario_list(scenario_list)
         else:
-            raise ValueError(f"Invalid output_format: {output_format}. Must be 'model_list' or 'scenario_list'")
+            raise ValueError(
+                f"Invalid output_format: {output_format}. Must be 'model_list' or 'scenario_list'"
+            )
 
     @classmethod
-    def available_with_local_keys(cls, output_format: str = "model_list") -> Union["ModelList", "ScenarioList"]:
+    def available_with_local_keys(
+        cls, output_format: str = "model_list"
+    ) -> Union["ModelList", "ScenarioList"]:
         """Get models available for services that have local API keys configured.
-        
+
         Args:
             output_format: Output format, either "model_list" (default) or "scenario_list"
-        
+
         Returns:
             ModelList or ScenarioList of models from services with local keys
-            
+
         Raises:
             ValueError: If output_format is not "model_list" or "scenario_list"
         """
         services_with_local_keys = set(cls.key_info().select("service").to_list())
-        all_models = cls.available(output_format="scenario_list")  # Get all models as scenario_list first
-        
+        all_models = cls.available(
+            output_format="scenario_list"
+        )  # Get all models as scenario_list first
+
         # Filter the ScenarioList by services with local keys
-        services_filter = " or ".join([f'service_name == "{service}"' for service in services_with_local_keys])
+        services_filter = " or ".join(
+            [f'service_name == "{service}"' for service in services_with_local_keys]
+        )
         if services_filter:
             filtered_scenario_list = all_models.filter(services_filter)
         else:
-            filtered_scenario_list = all_models.filter("False")  # No services with keys = empty result
-        
+            filtered_scenario_list = all_models.filter(
+                "False"
+            )  # No services with keys = empty result
+
         if output_format == "scenario_list":
             return filtered_scenario_list
         elif output_format == "model_list":
             from .model_list import ModelList
+
             return ModelList.from_scenario_list(filtered_scenario_list)
         else:
-            raise ValueError(f"Invalid output_format: {output_format}. Must be 'model_list' or 'scenario_list'")
+            raise ValueError(
+                f"Invalid output_format: {output_format}. Must be 'model_list' or 'scenario_list'"
+            )
 
     @classmethod
     def available(
@@ -290,15 +311,17 @@ class Model(metaclass=Meta):
             # ScenarioList([...])
         """
         from ..scenarios import ScenarioList
-        
+
         registry = cls.get_inference_service_registry()
-        
+
         if force_refresh:
             registry.refresh_model_info()
 
         # Validate service_name if provided
         if service_name is not None:
-            if service_name not in (available_services := registry.list_registered_services()):
+            if service_name not in (
+                available_services := registry.list_registered_services()
+            ):
                 raise LanguageModelValueError(
                     f"Service {service_name} not found in available services. Available services are: {available_services}"
                 )
@@ -310,14 +333,15 @@ class Model(metaclass=Meta):
             if search_term:
                 # Further filter by search term
                 filtered_models = [
-                    model for model in models_for_service
-                    if search_term in model
+                    model for model in models_for_service if search_term in model
                 ]
             else:
                 filtered_models = models_for_service
-                
+
             # Always return model name and service name
-            result = ScenarioList.from_list("model_name", filtered_models).add_list("service_name", [service_name] * len(filtered_models))
+            result = ScenarioList.from_list("model_name", filtered_models).add_list(
+                "service_name", [service_name] * len(filtered_models)
+            )
         else:
             # Get all models and filter by search term if provided
             if search_term:
@@ -325,43 +349,50 @@ class Model(metaclass=Meta):
             else:
                 # Get all models
                 matching_models = registry.get_all_model_names()
-            
+
             # Build result with service info
             model_service_pairs: List[Tuple[str, str]] = []
             for model_name in matching_models:
                 preferred_service = registry.get_service_for_model(model_name)
                 if preferred_service:
                     model_service_pairs.append([model_name, preferred_service])
-            
+
             model_names = [pair[0] for pair in model_service_pairs]
             service_names = [pair[1] for pair in model_service_pairs]
-            result = ScenarioList.from_list("model_name", model_names).add_list("service_name", service_names)
-        
+            result = ScenarioList.from_list("model_name", model_names).add_list(
+                "service_name", service_names
+            )
+
         # Apply local_only filter if requested
         if local_only:
             services_with_local_keys = cls.services_with_local_keys()
-            services_filter = " or ".join([f'service_name == "{service}"' for service in services_with_local_keys])
+            services_filter = " or ".join(
+                [f'service_name == "{service}"' for service in services_with_local_keys]
+            )
             if services_filter:
                 result = result.filter(services_filter)
-        
+
         if output_format == "scenario_list":
             return result
         elif output_format == "model_list":
             from .model_list import ModelList
+
             return ModelList.from_scenario_list(result)
         else:
-            raise ValueError(f"Invalid output_format: {output_format}. Must be 'model_list' or 'scenario_list'")
+            raise ValueError(
+                f"Invalid output_format: {output_format}. Must be 'model_list' or 'scenario_list'"
+            )
 
     # @classmethod
     # def check_models(cls, verbose: bool = False) -> None:
     #     """Check model availability and status.
-        
+
     #     Note:
     #         This method is deprecated and not supported in the new registry architecture.
-            
+
     #     Args:
     #         verbose: Whether to provide verbose output.
-            
+
     #     Raises:
     #         NotImplementedError: Always raised as this functionality is deprecated.
     #     """
@@ -376,23 +407,23 @@ class Model(metaclass=Meta):
         output_format: str = "model_list",
     ) -> Union["ModelList", "ScenarioList"]:
         """Check working models from Coop with optional filtering.
-        
+
         Args:
             service: Filter by service name (e.g., 'openai', 'anthropic').
             works_with_text: Filter by text processing capability.
             works_with_images: Filter by image processing capability.
             output_format: Output format, either "model_list" (default) or "scenario_list".
-            
+
         Returns:
             ModelList or ScenarioList of working models with their details including
             service, model name, capabilities, and pricing information.
-            
+
         Raises:
             ValueError: If output_format is not "model_list" or "scenario_list".
         """
         from ..coop import Coop
         from ..scenarios import ScenarioList
-        
+
         c = Coop()
         working_models = c.fetch_working_models()
 
@@ -412,31 +443,62 @@ class Model(metaclass=Meta):
                 return ScenarioList([])
             else:
                 from .model_list import ModelList
+
                 return ModelList([])
         else:
             # Create ScenarioList from working models data
-            sl = ScenarioList.from_list("service", [m["service"] for m in working_models])
+            sl = ScenarioList.from_list(
+                "service", [m["service"] for m in working_models]
+            )
             sl = sl.add_list("model", [m["model"] for m in working_models])
-            sl = sl.add_list("works_with_text", [m["works_with_text"] for m in working_models])
-            sl = sl.add_list("works_with_images", [m["works_with_images"] for m in working_models])
-            sl = sl.add_list("usd_per_1M_input_tokens", [m["usd_per_1M_input_tokens"] for m in working_models])
-            sl = sl.add_list("usd_per_1M_output_tokens", [m["usd_per_1M_output_tokens"] for m in working_models])
-            
+            sl = sl.add_list(
+                "works_with_text", [m["works_with_text"] for m in working_models]
+            )
+            sl = sl.add_list(
+                "works_with_images", [m["works_with_images"] for m in working_models]
+            )
+            sl = sl.add_list(
+                "usd_per_1M_input_tokens",
+                [m["usd_per_1M_input_tokens"] for m in working_models],
+            )
+            sl = sl.add_list(
+                "usd_per_1M_output_tokens",
+                [m["usd_per_1M_output_tokens"] for m in working_models],
+            )
+
             if output_format == "scenario_list":
                 return sl
             elif output_format == "model_list":
                 from .model_list import ModelList
+
                 # Create a proper scenario list with model_name and service_name for ModelList conversion
-                model_sl = ScenarioList.from_list("model_name", [m["model"] for m in working_models])
-                model_sl = model_sl.add_list("service_name", [m["service"] for m in working_models])
+                model_sl = ScenarioList.from_list(
+                    "model_name", [m["model"] for m in working_models]
+                )
+                model_sl = model_sl.add_list(
+                    "service_name", [m["service"] for m in working_models]
+                )
                 # Add additional metadata that might be useful
-                model_sl = model_sl.add_list("works_with_text", [m["works_with_text"] for m in working_models])
-                model_sl = model_sl.add_list("works_with_images", [m["works_with_images"] for m in working_models])
-                model_sl = model_sl.add_list("usd_per_1M_input_tokens", [m["usd_per_1M_input_tokens"] for m in working_models])
-                model_sl = model_sl.add_list("usd_per_1M_output_tokens", [m["usd_per_1M_output_tokens"] for m in working_models])
+                model_sl = model_sl.add_list(
+                    "works_with_text", [m["works_with_text"] for m in working_models]
+                )
+                model_sl = model_sl.add_list(
+                    "works_with_images",
+                    [m["works_with_images"] for m in working_models],
+                )
+                model_sl = model_sl.add_list(
+                    "usd_per_1M_input_tokens",
+                    [m["usd_per_1M_input_tokens"] for m in working_models],
+                )
+                model_sl = model_sl.add_list(
+                    "usd_per_1M_output_tokens",
+                    [m["usd_per_1M_output_tokens"] for m in working_models],
+                )
                 return ModelList.from_scenario_list(model_sl)
             else:
-                raise ValueError(f"Invalid output_format: {output_format}. Must be 'model_list' or 'scenario_list'")
+                raise ValueError(
+                    f"Invalid output_format: {output_format}. Must be 'model_list' or 'scenario_list'"
+                )
 
     @classmethod
     def example(cls, randomize: bool = False) -> "Model":
@@ -448,7 +510,7 @@ class Model(metaclass=Meta):
 
         Returns:
             A Model instance using the default model with specified temperature.
-            
+
         Examples:
             Model.example()
             # Model(...)

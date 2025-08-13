@@ -21,22 +21,23 @@ if TYPE_CHECKING:
     from ..results import Result
     from ..interviews import Interview
 
+
 @dataclass
 class InterviewBatch:
     """Container for a batch of interviews being processed."""
 
-    chunks: List[Tuple[int, 'Interview']]
-    results: List[Tuple['Result', 'Interview', int]]
-    failed: List[Tuple[int, 'Interview', Exception]]
+    chunks: List[Tuple[int, "Interview"]]
+    results: List[Tuple["Result", "Interview", int]]
+    failed: List[Tuple[int, "Interview", Exception]]
 
     @classmethod
-    def create(cls, chunks: List[Tuple[int, 'Interview']]) -> "InterviewBatch":
+    def create(cls, chunks: List[Tuple[int, "Interview"]]) -> "InterviewBatch":
         """Create a new InterviewBatch with empty results and failed lists.
-        
+
         Args:
         ----
             chunks: List of tuples containing interview indices and Interview objects
-            
+
         Returns:
         -------
             A new InterviewBatch instance
@@ -92,7 +93,7 @@ class AsyncInterviewRunner:
     @asynccontextmanager
     async def _interview_batch_processor(
         self,
-    ) -> AsyncIterator[AsyncGenerator[tuple['Result', 'Interview', int], None]]:
+    ) -> AsyncIterator[AsyncGenerator[tuple["Result", "Interview", int], None]]:
         """Context manager for processing batches of interviews.
 
         Handles initialization, cleanup, and error management for the entire
@@ -105,7 +106,7 @@ class AsyncInterviewRunner:
         try:
 
             async def process_batches() -> (
-                AsyncGenerator[tuple['Result', 'Interview', int], None]
+                AsyncGenerator[tuple["Result", "Interview", int], None]
             ):
                 while True:
                     chunk = self._get_next_chunk(interview_generator)
@@ -135,13 +136,14 @@ class AsyncInterviewRunner:
                 del interview_generator
 
     async def _run_single_interview(
-        self, interview: 'Interview', idx: int
-    ) -> Optional[Tuple['Result', 'Interview', int]]:
+        self, interview: "Interview", idx: int
+    ) -> Optional[Tuple["Result", "Interview", int]]:
         """Execute a single interview with error handling."""
         try:
             await interview.async_conduct_interview(self.run_config)
             # Create result and explicitly break reference to interview
             from ..results import Result
+
             result = Result.from_interview(interview)
             # Update the status
             self.run_config.environment.jobs_runner_status.add_completed_interview(
@@ -157,8 +159,8 @@ class AsyncInterviewRunner:
 
     @asynccontextmanager
     async def _process_chunk(
-        self, chunk: List[Tuple[int, 'Interview']]
-    ) -> AsyncIterator[List[Tuple['Result', 'Interview', int]]]:
+        self, chunk: List[Tuple[int, "Interview"]]
+    ) -> AsyncIterator[List[Tuple["Result", "Interview", int]]]:
         """Process a chunk of interviews concurrently."""
         tasks = [
             asyncio.create_task(self._run_single_interview(interview, idx))
@@ -225,8 +227,8 @@ class AsyncInterviewRunner:
                     yield interview
 
     def _get_next_chunk(
-        self, gen: Generator['Interview', None, None]
-    ) -> List[Tuple[int, 'Interview']]:
+        self, gen: Generator["Interview", None, None]
+    ) -> List[Tuple[int, "Interview"]]:
         """Take interviews from the generator up to MAX_CONCURRENT."""
         chunk = []
         while len(chunk) < self.MAX_CONCURRENT:
@@ -238,7 +240,7 @@ class AsyncInterviewRunner:
                 break
         return chunk
 
-    async def run(self) -> AsyncGenerator[tuple['Result', 'Interview', int], None]:
+    async def run(self) -> AsyncGenerator[tuple["Result", "Interview", int], None]:
         """Run all interviews asynchronously and yield results as they complete.
 
         This method orchestrates the parallel execution of interviews while

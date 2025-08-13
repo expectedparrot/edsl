@@ -16,14 +16,14 @@ from .exceptions import ResultsError
 
 class ResultsContainer:
     """Handles all list-like container behavior for Results objects.
-    
+
     This class provides the core container operations including indexing,
     slicing, length, insertion, extension, and combination of Results objects.
     """
 
     def __init__(self, results: "Results"):
         """Initialize the ResultsContainer with a reference to the Results object.
-        
+
         Args:
             results: The Results object to provide container behavior for
         """
@@ -31,27 +31,29 @@ class ResultsContainer:
 
     def __getitem__(self, i):
         """Get item(s) from the Results container.
-        
+
         Args:
             i: Index (int), slice, or string key for accessing data
-            
+
         Returns:
             Individual Result, new Results object, or dictionary value
-            
+
         Raises:
             ResultsError: If invalid argument type is provided
         """
         if isinstance(i, int):
             return self._results.data[i]
         if isinstance(i, slice):
-            return self._results.__class__(survey=self._results.survey, data=self._results.data[i])
+            return self._results.__class__(
+                survey=self._results.survey, data=self._results.data[i]
+            )
         if isinstance(i, str):
             return self._results.to_dict()[i]
         raise ResultsError("Invalid argument type for indexing Results object")
 
     def __setitem__(self, i, item):
         """Set item in the Results container.
-        
+
         Args:
             i: Index for setting the item
             item: Item to set at the given index
@@ -61,7 +63,7 @@ class ResultsContainer:
 
     def __delitem__(self, i):
         """Delete item from the Results container.
-        
+
         Args:
             i: Index of item to delete
         """
@@ -70,7 +72,7 @@ class ResultsContainer:
 
     def __len__(self):
         """Return the length of the Results container.
-        
+
         Returns:
             int: Number of Result objects in the container
         """
@@ -78,7 +80,7 @@ class ResultsContainer:
 
     def insert(self, index, item):
         """Insert item at the specified index.
-        
+
         Args:
             index: Index at which to insert the item
             item: Item to insert
@@ -88,7 +90,7 @@ class ResultsContainer:
 
     def extend(self, other):
         """Extend the Results list with items from another iterable.
-        
+
         Args:
             other: Iterable of items to extend with
         """
@@ -100,7 +102,7 @@ class ResultsContainer:
 
         This method preserves ordering based on 'order' attribute if present,
         otherwise falls back to 'iteration' attribute.
-        
+
         Args:
             other: Iterable of items to extend with
         """
@@ -177,7 +179,7 @@ class ResultsContainer:
                 # Combine two Results objects
                 r3 = r1 + r2
                 len(r3) == len(r1) + len(r2)  # True
-                
+
                 # Attempting to add incompatible Results raises ResultsError
         """
         if self._results.survey != other.survey:
@@ -200,4 +202,4 @@ class ResultsContainer:
             survey=self._results.survey,
             data=combined_data,
             created_columns=self._results.created_columns,
-        ) 
+        )

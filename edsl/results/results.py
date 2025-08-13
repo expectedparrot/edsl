@@ -79,6 +79,7 @@ from .exceptions import (
     ResultsInvalidNameError,
 )
 
+
 class Results(MutableSequence, ResultsOperationsMixin, Base):
     """A collection of Result objects with powerful data analysis capabilities.
 
@@ -154,14 +155,14 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     def __init__(
         self,
-        survey: Optional['Survey'] = None,
-        data: Optional[list['Result']] = None,
+        survey: Optional["Survey"] = None,
+        data: Optional[list["Result"]] = None,
         name: Optional[str] = None,
         created_columns: Optional[list[str]] = None,
-        cache: Optional['Cache'] = None,
+        cache: Optional["Cache"] = None,
         job_uuid: Optional[str] = None,
         total_results: Optional[int] = None,
-        task_history: Optional['TaskHistory'] = None,
+        task_history: Optional["TaskHistory"] = None,
         sort_by_iteration: bool = False,
         data_class: Optional[type] = list,  # ResultsSQLList,
     ):
@@ -250,6 +251,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def view(self) -> None:
         """View the results in a Jupyter notebook."""
         from ..widgets.results_viewer import ResultsViewerWidget
+
         return ResultsViewerWidget(results=self)
 
     @classmethod
@@ -367,12 +369,14 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def relevant_cache(self, cache: Cache) -> Cache:
         cache_keys = self._cache_keys()
         return cache.subset(cache_keys)
-    
-    def agent_answers_by_question(self, agent_key_fields: Optional[List[str]] = None, separator: str = ",") -> dict:
+
+    def agent_answers_by_question(
+        self, agent_key_fields: Optional[List[str]] = None, separator: str = ","
+    ) -> dict:
         """Returns a dictionary of agent answers.
-        
+
         The keys are the agent names and the values are the answers.
-        
+
         >>> result = Results.example().agent_answers_by_question()
         >>> sorted(result['how_feeling'].values())
         ['Great', 'OK', 'OK', 'Terrible']
@@ -380,7 +384,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         ['Good', 'Great', 'OK', 'Terrible']
         """
         return self._grouper.agent_answers_by_question(agent_key_fields, separator)
-
 
     def extend_sorted(self, other):
         """Extend the Results list with items from another iterable.
@@ -560,10 +563,10 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         full_dict: bool = False,
     ) -> dict[str, Any]:
         """Convert the Results object to a dictionary representation.
-        
+
         This method delegates to the ResultsSerializer class to handle the conversion
         of the Results object to a dictionary format suitable for serialization.
-        
+
         Args:
             sort: Whether to sort the results data by hash before serialization
             add_edsl_version: Whether to include the EDSL version in the output
@@ -571,7 +574,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             include_task_history: Whether to include task history in the output
             include_cache_info: Whether to include cache information in result data
             offload_scenarios: Whether to optimize scenarios before serialization
-            
+
         Returns:
             dict[str, Any]: Dictionary representation of the Results object
         """
@@ -604,6 +607,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     def initialize_cache_from_results(self):
         from ..caching import Cache, CacheEntry
+
         cache = Cache(data={})
 
         for result in self.data:
@@ -693,8 +697,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             True
         """
         return ResultsSerializer.from_dict(data)
-
-
 
     @property
     def columns(self) -> list[str]:
@@ -919,7 +921,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             Results: A new Results object containing the sampled data.
         """
         sampler = ResultsSampler(self)
-        return sampler.sample(n=n, frac=frac, with_replacement=with_replacement, seed=seed)
+        return sampler.sample(
+            n=n, frac=frac, with_replacement=with_replacement, seed=seed
+        )
 
     @ensure_ready
     def select(self, *columns: Union[str, list[str]]) -> "Dataset":
@@ -1019,7 +1023,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         if "." in column:
             return column.split(".", 1)
         return self._cache_manager.key_to_data_type[column], column
-    
+
     @ensure_ready
     def sort_by(self, *columns: str, reverse: bool = False) -> Results:
         """Sort the results by one or more columns.
@@ -1039,10 +1043,11 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> len(sorted_results) == len(r)
             True
         """
-        warnings.warn("sort_by is deprecated. Use order_by instead.", DeprecationWarning)
+        warnings.warn(
+            "sort_by is deprecated. Use order_by instead.", DeprecationWarning
+        )
         transformer = ResultsTransformer(self)
         return transformer.order_by(*columns, reverse=reverse)
-
 
     @ensure_ready
     def order_by(self, *columns: str, reverse: bool = False) -> Results:
@@ -1216,17 +1221,17 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     def spot_issues(self, models: Optional[ModelList] = None) -> Results:
         """Run a survey to spot issues and suggest improvements for prompts that had no model response.
-        
+
         This method delegates to the ResultsAnalyzer class to handle the analysis and debugging.
-        
+
         Args:
             models: Optional ModelList to use for the analysis. If None, uses the default model.
-            
+
         Returns:
             Results: A new Results object containing the analysis and suggestions for improvement.
-            
+
         Notes:
-            Future version: Allow user to optionally pass a list of questions to review, 
+            Future version: Allow user to optionally pass a list of questions to review,
             regardless of whether they had a null model response.
         """
         analyzer = ResultsAnalyzer(self)
@@ -1269,7 +1274,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     @property
     def shelf_keys(self) -> set:
         """Return a copy of the set of shelved result keys.
-        
+
         This property delegates to the ResultsSerializer class.
         """
         return self._properties.shelf_keys
@@ -1294,7 +1299,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     def insert_from_shelf(self) -> None:
         """Move all shelved results into memory using insert_sorted method.
-        
+
         This method delegates to the ResultsSerializer class to handle the shelf operations.
         Clears the shelf after successful insertion.
 

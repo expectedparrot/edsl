@@ -66,6 +66,7 @@ class ResultsExceptionsHandler:
         """Get remote logging setting from coop."""
         try:
             from ..coop.coop import Coop
+
             coop = Coop()
             return coop.edsl_settings["remote_logging"]
         except Exception:
@@ -97,6 +98,7 @@ class ResultsExceptionsHandler:
         # Handle remote logging if enabled
         if self.remote_logging:
             from ..scenarios import FileStore
+
             filestore = FileStore(filepath)
             coop_details = filestore.push(description="Exceptions Report")
             print(coop_details)

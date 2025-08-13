@@ -15,23 +15,23 @@ from .exceptions import ResultsError
 
 class ResultsRemoteFetcher:
     """Handles remote job polling and data fetching for Results objects.
-    
+
     This class encapsulates the functionality for polling remote job status,
     fetching completed results from remote servers, and updating Results objects
     with retrieved data.
-    
+
     Attributes:
         results: The Results object to update with remote data
     """
-    
+
     def __init__(self, results: "Results"):
         """Initialize the remote fetcher with a Results object.
-        
+
         Args:
             results: The Results object to manage remote fetching for
         """
         self.results = results
-    
+
     def fetch_remote(self, job_info: Any) -> bool:
         """Fetch remote Results object and update the Results instance with the data.
 
@@ -69,7 +69,7 @@ class ResultsRemoteFetcher:
 
             if remote_job_data.get("status") not in ["completed", "failed"]:
                 return False
-                
+
             results_uuid = remote_job_data.get("results_uuid")
             if not results_uuid:
                 raise ResultsError("No results_uuid found in remote job data")
@@ -148,4 +148,4 @@ class ResultsRemoteFetcher:
             return self.results
 
         except Exception as e:
-            raise ResultsError(f"Failed to fetch remote results: {str(e)}") 
+            raise ResultsError(f"Failed to fetch remote results: {str(e)}")

@@ -2076,7 +2076,10 @@ def error_cli(uuid: str = typer.Argument(..., help="UUID of the error to open"))
         console.print(f"[yellow]Manual URL: {url}[/yellow]")
 
 
-@app.command(name=".list", help="List objects from Coop by calling the list() method on an EDSL class")
+@app.command(
+    name=".list",
+    help="List objects from Coop by calling the list() method on an EDSL class",
+)
 def list_cli(class_name: str = typer.Argument(..., help="EDSL class name")):
     """List objects from Coop by calling the list() method on an EDSL class."""
     try:

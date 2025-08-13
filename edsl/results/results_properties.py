@@ -18,7 +18,7 @@ from .exceptions import ResultsError
 
 class ResultsProperties:
     """Handles all property methods for Results objects.
-    
+
     This class provides access to various metadata and derived collections
     from Results data, including agents, models, scenarios, column information,
     and other properties.
@@ -26,7 +26,7 @@ class ResultsProperties:
 
     def __init__(self, results: "Results"):
         """Initialize the ResultsProperties with a reference to the Results object.
-        
+
         Args:
             results: The Results object to provide properties for
         """
@@ -58,7 +58,8 @@ class ResultsProperties:
         answer_keys = self._results._cache_manager.data_type_to_keys["answer"]
         answer_keys = {k for k in answer_keys if "_comment" not in k}
         questions_text = [
-            self._results.survey._get_question_by_name(k).question_text for k in answer_keys
+            self._results.survey._get_question_by_name(k).question_text
+            for k in answer_keys
         ]
         short_question_text = [shorten_string(q, 80) for q in questions_text]
         initial_dict = dict(zip(answer_keys, short_question_text))
@@ -172,10 +173,10 @@ class ResultsProperties:
     @property
     def shelf_keys(self) -> set:
         """Return a copy of the set of shelved result keys.
-        
+
         This property delegates to the ResultsSerializer class.
         """
         from .results_serializer import ResultsSerializer
-        
+
         serializer = ResultsSerializer(self._results)
-        return serializer.shelf_keys 
+        return serializer.shelf_keys

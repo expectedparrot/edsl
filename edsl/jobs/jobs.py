@@ -18,12 +18,22 @@ who need to run complex simulations with language models.
 from __future__ import annotations
 import asyncio
 from importlib import import_module
-from typing import Optional, Union, Any, Literal, Sequence, Generator, Tuple, TYPE_CHECKING
+from typing import (
+    Optional,
+    Union,
+    Any,
+    Literal,
+    Sequence,
+    Generator,
+    Tuple,
+    TYPE_CHECKING,
+)
 
 from ..base import Base
 from ..utilities import remove_edsl_version
-#from ..scenarios import Scenario, ScenarioList
-#from ..surveys import Survey
+
+# from ..scenarios import Scenario, ScenarioList
+# from ..surveys import Survey
 
 from .exceptions import JobsValueError, JobsImplementationError
 from .jobs_pricing_estimation import JobsPrompts
@@ -37,7 +47,7 @@ from ..coop.exceptions import CoopServerResponseError
 
 def get_bucket_collection():
     """Get the BucketCollection class from the buckets module.
-    
+
     Returns
     -------
         The BucketCollection class.
@@ -49,7 +59,7 @@ def get_bucket_collection():
 
 def get_interview():
     """Get the Interview class from the interviews module.
-    
+
     Returns
     -------
         The Interview class.
@@ -280,7 +290,7 @@ class Jobs(Base):
     @property
     def models(self):
         """Get the models associated with this job.
-        
+
         Returns
         -------
             ModelList: The models for this job.
@@ -309,7 +319,7 @@ class Jobs(Base):
     @property
     def agents(self):
         """Get the agents associated with this job.
-        
+
         Returns
         -------
             AgentList: The agents for this job.
@@ -340,7 +350,7 @@ class Jobs(Base):
     @property
     def scenarios(self) -> ScenarioList:
         """Get the scenarios associated with this job.
-        
+
         Returns
         -------
             ScenarioList: The scenarios for this job.
@@ -456,7 +466,7 @@ class Jobs(Base):
         model: str,
     ) -> dict:
         """Estimate the cost of running the prompts.
-        
+
         :param iterations: the number of iterations to run
         :param system_prompt: the system prompt
         :param user_prompt: the user prompt
@@ -479,12 +489,12 @@ class Jobs(Base):
         self, price_lookup: dict, iterations: int = 1
     ) -> dict:
         """Estimate the cost of running the job using external price lookup.
-        
+
         Args:
         ----
             price_lookup: Dictionary containing price information.
             iterations: Number of iterations to run.
-            
+
         Returns:
         -------
             dict: Cost estimation details.
@@ -504,6 +514,7 @@ class Jobs(Base):
         from ..agents import Agent
         from ..language_models.model import Model
         from ..scenarios import Scenario
+
         self.agents = self.agents or [Agent()]
         self.models = self.models or [Model()]
         self.scenarios = self.scenarios or [Scenario()]
@@ -525,7 +536,7 @@ class Jobs(Base):
 
     def show_flow(self, filename: Optional[str] = None) -> None:
         """Visualize either the *Job* dependency/post-processing flow **or** the underlying survey flow.
-        
+
         The method automatically decides which flow to render:
 
         1. If the job has dependencies created via :py:meth:`Jobs.to` (i.e.
@@ -642,7 +653,7 @@ class Jobs(Base):
 
     def all_question_parameters(self) -> set:
         """Return all the fields in the questions in the survey.
-        
+
         >>> from edsl.jobs import Jobs
         >>> Jobs.example().all_question_parameters()
         {'period'}
@@ -651,7 +662,7 @@ class Jobs(Base):
 
     def use_remote_cache(self) -> bool:
         """Determine whether to use remote cache for this job.
-        
+
         Returns
         -------
             bool: True if remote cache should be used, False otherwise.
@@ -1232,7 +1243,7 @@ class Jobs(Base):
 
     def __len__(self) -> int:
         """Return the number of interviews that will be conducted for one iteration of this job.
-        
+
         An interview is the result of one survey, taken by one agent, with one model, with one scenario.
 
         >>> from edsl.jobs import Jobs
@@ -1317,7 +1328,7 @@ class Jobs(Base):
 
     def duplicate(self):
         """Create a duplicate copy of this Jobs instance.
-        
+
         Returns
         -------
             Jobs: A new Jobs instance that is a copy of this one.
@@ -1327,12 +1338,12 @@ class Jobs(Base):
 
     def to_dict(self, add_edsl_version=True, full_dict=None):
         """Convert the Jobs instance to a dictionary representation.
-        
+
         Args:
         ----
             add_edsl_version: Whether to include EDSL version information.
             full_dict: Additional dictionary to merge (currently unused).
-            
+
         Returns:
         -------
             dict: Dictionary representation of this Jobs instance.
@@ -1374,7 +1385,7 @@ class Jobs(Base):
 
     def table(self):
         """Return a table view of the job's prompts.
-        
+
         Returns
         -------
             Table representation of the job's prompts.

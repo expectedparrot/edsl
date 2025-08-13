@@ -153,4 +153,3 @@ class TogetherAIService(OpenAIService):
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         return response.json()
-

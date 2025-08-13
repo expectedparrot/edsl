@@ -254,9 +254,11 @@ class EDSLServiceFramework:
             params_info = {}
             for param_name, config in self.input_params.items():
                 param_info = {
-                    "type": config["type"].__name__
-                    if hasattr(config["type"], "__name__")
-                    else str(config["type"]),
+                    "type": (
+                        config["type"].__name__
+                        if hasattr(config["type"], "__name__")
+                        else str(config["type"])
+                    ),
                     "required": config.get("required", True),
                     "description": config.get("description", ""),
                 }

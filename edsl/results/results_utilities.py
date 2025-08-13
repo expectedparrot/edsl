@@ -17,14 +17,14 @@ from ..utilities import dict_hash
 
 class ResultsUtilities:
     """Handles all utility and helper methods for Results objects.
-    
+
     This class provides various utility operations including summary statistics,
     cache management, comparison operations, and other helper functions.
     """
 
     def __init__(self, results: "Results"):
         """Initialize the ResultsUtilities with a reference to the Results object.
-        
+
         Args:
             results: The Results object to provide utilities for
         """
@@ -92,10 +92,10 @@ class ResultsUtilities:
 
     def relevant_cache(self, cache: "Cache") -> "Cache":
         """Return a subset of the cache containing only relevant keys.
-        
+
         Args:
             cache: The Cache object to subset
-            
+
         Returns:
             Cache: A new Cache object containing only relevant entries
         """
@@ -104,10 +104,10 @@ class ResultsUtilities:
 
     def compare(self, other_results: "Results") -> dict:
         """Compare two Results objects and return the differences.
-        
+
         Args:
             other_results: Another Results object to compare with
-            
+
         Returns:
             dict: Dictionary containing differences between the two Results objects
         """
@@ -126,7 +126,7 @@ class ResultsUtilities:
 
     def __hash__(self) -> int:
         """Generate hash for the Results object.
-        
+
         Returns:
             int: Hash value for the Results object
         """
@@ -141,10 +141,10 @@ class ResultsUtilities:
 
     def __eq__(self, other) -> bool:
         """Check equality between Results objects.
-        
+
         Args:
             other: Another object to compare with
-            
+
         Returns:
             bool: True if objects are equal, False otherwise
         """
@@ -169,10 +169,10 @@ class ResultsUtilities:
 
     def _parse_column(self, column: str) -> tuple[str, str]:
         """Parse a column name into a data type and key.
-        
+
         Args:
             column: Column name to parse
-            
+
         Returns:
             tuple[str, str]: Data type and key components
         """
@@ -219,6 +219,6 @@ class ResultsUtilities:
             2
         """
         from .results_sampler import ResultsSampler
-        
+
         sampler = ResultsSampler(self._results)
-        return sampler.sample_legacy(n) 
+        return sampler.sample_legacy(n)

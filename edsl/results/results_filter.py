@@ -15,22 +15,22 @@ from .exceptions import ResultsFilterError
 
 class ResultsFilter:
     """Handles filtering operations for Results objects.
-    
+
     This class encapsulates all the filtering logic for Results objects,
     including expression validation and boolean evaluation against Result data.
-    
+
     Attributes:
         results: The Results object to filter
     """
-    
+
     def __init__(self, results: "Results"):
         """Initialize the filter with a Results object.
-        
+
         Args:
             results: The Results object to filter
         """
         self.results = results
-    
+
     @staticmethod
     def has_single_equals(expression: str) -> bool:
         """Check if an expression contains a single equals sign not part of ==, >=, or <=.
@@ -59,7 +59,7 @@ class ResultsFilter:
             .replace("!=", "")
         )
         return "=" in cleaned
-    
+
     def filter(self, expression: str) -> "Results":
         """Filter results based on a boolean expression.
 
@@ -94,7 +94,7 @@ class ResultsFilter:
         """
         # Import here to avoid circular imports
         from .results import Results
-        
+
         # Normalize expression by removing extra whitespace and newlines
         normalized_expression = " ".join(expression.strip().split())
 
@@ -120,6 +120,7 @@ class ResultsFilter:
             # Process one result at a time
             for result in self.results.data:
                 from .results_transformer import ResultsTransformer
+
                 evaluator = ResultsTransformer._create_evaluator(result)
                 result.check_expression(normalized_expression)  # check expression
                 if evaluator.eval(normalized_expression):

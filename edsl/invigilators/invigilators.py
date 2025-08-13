@@ -587,7 +587,9 @@ class InvigilatorFunctional(InvigilatorBase):
         # Get prior answers to make them available in the scenario context
         prior_answers_dict = self.prompt_constructor.prior_answers_dict()
         # Combine scenario with prior answers and agent traits like other invigilators
-        enriched_scenario = self.scenario | prior_answers_dict | {"agent": self.agent.traits}
+        enriched_scenario = (
+            self.scenario | prior_answers_dict | {"agent": self.agent.traits}
+        )
         answer = func(scenario=enriched_scenario, agent_traits=self.agent.traits)
 
         return EDSLResultObjectInput(

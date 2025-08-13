@@ -103,10 +103,10 @@ def estimate_tokens(model_name, width, height):
 class RequestTokenEstimator:
     """Estimate the number of tokens that will be required to run the focal task."""
 
-    def __init__(self, interview: 'Interview'):
+    def __init__(self, interview: "Interview"):
         self.interview = interview
 
-    def __call__(self, question: 'QuestionBase') -> float:
+    def __call__(self, question: "QuestionBase") -> float:
         """Estimate the number of tokens that will be required to run the focal task."""
 
         from ..jobs.fetch_invigilator import FetchInvigilator

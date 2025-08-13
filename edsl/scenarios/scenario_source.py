@@ -167,38 +167,38 @@ class URLSource(Source):
         import time
         from http.server import HTTPServer, BaseHTTPRequestHandler
         import socket
-        
+
         # Find an available port
         sock = socket.socket()
-        sock.bind(('', 0))
+        sock.bind(("", 0))
         port = sock.getsockname()[1]
         sock.close()
-        
+
         class TestHandler(BaseHTTPRequestHandler):
             def do_GET(self):
                 self.send_response(200)
-                self.send_header('Content-type', 'text/html')
+                self.send_header("Content-type", "text/html")
                 self.end_headers()
                 self.wfile.write(b"This is sample web content for testing")
-            
+
             def log_message(self, format, *args):
                 # Suppress log messages
                 pass
-        
+
         # Start the server in a daemon thread
-        server = HTTPServer(('localhost', port), TestHandler)
+        server = HTTPServer(("localhost", port), TestHandler)
         server_thread = threading.Thread(target=server.serve_forever, daemon=True)
         server_thread.start()
-        
+
         # Give the server a moment to start
         time.sleep(0.1)
-        
+
         # Create the URLSource instance
         instance = cls(urls=[f"http://localhost:{port}"], field_name="text")
-        
+
         # Store server reference for cleanup if needed
         instance._test_server = server
-        
+
         return instance
 
     def to_scenario_list(self):

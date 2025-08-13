@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from ...scenarios.file_store import FileStore as Files
 
 
-
 class AnthropicService(InferenceServiceABC):
     """Anthropic service class."""
 

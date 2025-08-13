@@ -33,11 +33,11 @@ class RunEnvironment:
         jobs_runner_status (JobsRunnerStatus, optional): Tracker for job execution progress
     """
 
-    cache: Optional['Cache'] = None
-    bucket_collection: Optional[
-        Any
-    ] = None  # Using Any to avoid circular import of BucketCollection
-    key_lookup: Optional['KeyLookup'] = None
+    cache: Optional["Cache"] = None
+    bucket_collection: Optional[Any] = (
+        None  # Using Any to avoid circular import of BucketCollection
+    )
+    key_lookup: Optional["KeyLookup"] = None
     jobs_runner_status: Optional["JobsRunnerStatus"] = None
 
 
@@ -89,13 +89,15 @@ class RunParameters(Base):
     fresh: bool = (
         False  # if True, will not use cache and will save new results to cache
     )
-    memory_threshold: Optional[
-        int
-    ] = None  # Threshold in bytes for Results SQLList memory management
-    new_format: bool = True  # if True, uses remote_inference_create, if False uses old_remote_inference_create
-    expected_parrot_api_key: Optional[
-        str
-    ] = None  # Custom EXPECTED_PARROT_API_KEY to use for this job run
+    memory_threshold: Optional[int] = (
+        None  # Threshold in bytes for Results SQLList memory management
+    )
+    new_format: bool = (
+        True  # if True, uses remote_inference_create, if False uses old_remote_inference_create
+    )
+    expected_parrot_api_key: Optional[str] = (
+        None  # Custom EXPECTED_PARROT_API_KEY to use for this job run
+    )
 
     def to_dict(self, add_edsl_version=False) -> dict:
         d = asdict(self)
@@ -155,7 +157,7 @@ class RunConfig:
         """
         self.environment.bucket_collection = bucket_collection
 
-    def add_cache(self, cache: 'Cache') -> None:
+    def add_cache(self, cache: "Cache") -> None:
         """
         Set or replace the cache in the environment.
 
@@ -164,7 +166,7 @@ class RunConfig:
         """
         self.environment.cache = cache
 
-    def add_key_lookup(self, key_lookup: 'KeyLookup') -> None:
+    def add_key_lookup(self, key_lookup: "KeyLookup") -> None:
         """
         Set or replace the key lookup in the environment.
 
@@ -227,9 +229,9 @@ class Answers(UserDict):
             self[question.question_name + "_comment"] = comment
 
         if getattr(response, "reasoning_summary", None):
-            self[
-                question.question_name + "_reasoning_summary"
-            ] = response.reasoning_summary
+            self[question.question_name + "_reasoning_summary"] = (
+                response.reasoning_summary
+            )
 
     def replace_missing_answers_with_none(self, survey: "Survey") -> None:
         """

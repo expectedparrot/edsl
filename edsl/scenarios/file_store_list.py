@@ -250,11 +250,11 @@ class FileStoreList(ScenarioList):
         """
         video_files = [fs for fs in self.data if fs.is_video()]
         return self.__class__(data=video_files, codebook=self.codebook)
-    
+
     @classmethod
     def example(cls) -> "FileStoreList":
         """Create an example FileStoreList for testing and demonstration.
-        
+
         Returns:
             A FileStoreList containing two FileStore objects.
         """
@@ -267,6 +267,7 @@ class FileStoreList(ScenarioList):
                 _ = f2.flush()
                 fs2 = FileStore(f2.name)
                 return cls([fs1, fs2])
+
 
 if __name__ == "__main__":
     import doctest

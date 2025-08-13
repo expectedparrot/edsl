@@ -92,6 +92,7 @@ class Conversation:
                     agent.model = default_model
                 else:
                     from .. import Model
+
                     agent.model = Model()
 
         self.verbose = verbose

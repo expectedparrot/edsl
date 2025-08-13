@@ -10,7 +10,14 @@ import random
 import json
 import re
 
-from pydantic import BaseModel, Field, create_model, ValidationError, model_validator, ConfigDict
+from pydantic import (
+    BaseModel,
+    Field,
+    create_model,
+    ValidationError,
+    model_validator,
+    ConfigDict,
+)
 from jinja2 import Template
 
 from .question_base import QuestionBase
@@ -210,14 +217,12 @@ def create_matrix_response(
                     "description"
                 ] = "Matrix responses for each item"
                 if "properties" in schema["properties"]["answer"]:
-                    for _, prop in schema["properties"]["answer"][
-                        "properties"
-                    ].items():
+                    for _, prop in schema["properties"]["answer"]["properties"].items():
                         prop["enum"] = list(question_options)
 
         model_config = ConfigDict(
             extra="allow" if permissive else "forbid",
-            json_schema_extra=_json_schema_extra
+            json_schema_extra=_json_schema_extra,
         )
 
     return MatrixResponse

@@ -49,7 +49,7 @@ from .coop_jobs_objects import CoopJobsObjects
 from .coop_prolific_filters import CoopProlificFilters
 from .ep_key_handling import ExpectedParrotKeyHandler
 
-#from ..inference_services.data_structures import ServiceToModelsMapping
+# from ..inference_services.data_structures import ServiceToModelsMapping
 
 
 class JobRunExpense(TypedDict):
@@ -3121,7 +3121,7 @@ class Coop(CoopFunctionsMixin):
         response = self._send_server_request(uri="api/v0/models", method="GET")
         self._resolve_server_response(response)
         data = response.json()
-        #return ServiceToModelsMapping(data)
+        # return ServiceToModelsMapping(data)
         return data
 
     def fetch_working_models(self) -> List[dict]:

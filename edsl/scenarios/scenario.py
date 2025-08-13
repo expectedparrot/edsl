@@ -703,11 +703,11 @@ class Scenario(Base, UserDict):
 
         Examples:
             Create a scenario from a URL (requires network access):
-            
+
             s = Scenario.from_url("https://example.com", testing=True)
             # Returns a Scenario with "url" and "text" fields
-            
-            s = Scenario.from_url("https://example.com", field_name="content", testing=True)  
+
+            s = Scenario.from_url("https://example.com", field_name="content", testing=True)
             # Returns a Scenario with "url", "html", and "content" fields
 
         Notes:
@@ -903,10 +903,10 @@ class Scenario(Base, UserDict):
 
         Examples:
             Create a scenario from HTML content (requires network access):
-            
+
             s = Scenario.from_html("https://example.com")
             # Returns a Scenario with "url", "html", and "text" fields
-            
+
             s = Scenario.from_html("https://example.com", field_name="content")
             # Returns a Scenario with "url", "html", and "content" fields
 

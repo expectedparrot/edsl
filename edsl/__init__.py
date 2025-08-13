@@ -31,7 +31,7 @@ __all__ = ["logger", "Config", "CONFIG", "__version__"]
 # Define modules for lazy loading
 _LAZY_MODULES = {
     "dataset",
-    "agents", 
+    "agents",
     "surveys",
     "questions",
     "scenarios",
@@ -50,6 +50,7 @@ _LAZY_MODULES = {
 # Cache for lazy-loaded modules
 _module_cache = {}
 
+
 def __getattr__(name):
     """Lazy loading of EDSL modules and their exports."""
     # Check if it's a module we should lazy-load
@@ -59,23 +60,25 @@ def __getattr__(name):
             if module is None:
                 module = importlib.import_module(f".{module_name}", package="edsl")
                 _module_cache[module_name] = module
-            
+
             # Check if the requested name is in this module
             if hasattr(module, name):
                 return getattr(module, name)
         except ImportError:
             continue
-    
+
     # Special handling for 'ext'
     if name == "ext":
         try:
             from edsl.extensions import ext
+
             return ext
         except Exception as e:
             logger.warning("Failed to import edsl.extensions.ext: %s", e)
             raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
-    
+
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
 
 # Configure logging from the config
 logger.configure_from_config()
