@@ -169,7 +169,6 @@ class ResultBuilder:
         core_components.update(self._create_model_sub_dict(self.data["model"]))
         core_components.update(self._iteration_sub_dict(self.data["iteration"]))
         return core_components
-
     def _build_question_components(self) -> dict:
         """Build question-related sub-dictionaries."""
         question_attribute_maps = {field: {} for field in QUESTION_FIELDS}
