@@ -9,10 +9,8 @@ The framework handles all the web service boilerplate.
 import inspect
 import json
 import logging
-import os
 import uvicorn
-from functools import wraps
-from typing import Dict, Any, List, Union, Optional, Type, get_type_hints
+from typing import Dict, Any, List, Union, Optional, Type
 from pathlib import Path
 
 try:
@@ -256,9 +254,11 @@ class EDSLServiceFramework:
             params_info = {}
             for param_name, config in self.input_params.items():
                 param_info = {
-                    "type": config["type"].__name__
-                    if hasattr(config["type"], "__name__")
-                    else str(config["type"]),
+                    "type": (
+                        config["type"].__name__
+                        if hasattr(config["type"], "__name__")
+                        else str(config["type"])
+                    ),
                     "required": config.get("required", True),
                     "description": config.get("description", ""),
                 }

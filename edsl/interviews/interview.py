@@ -16,7 +16,6 @@ the individual API calls to language models, with support for caching and distri
 from __future__ import annotations
 
 import asyncio
-import copy
 from dataclasses import dataclass
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Generator, List, Optional, Type
@@ -24,7 +23,6 @@ from typing import TYPE_CHECKING, Any, Generator, List, Optional, Type
 # Import data structures
 from ..jobs.data_structures import Answers
 from ..jobs.fetch_invigilator import FetchInvigilator
-from ..surveys import Survey
 from ..utilities.utilities import dict_hash
 
 # from interviews module
@@ -43,6 +41,7 @@ if TYPE_CHECKING:
     from ..tokens import InterviewTokenUsage
     from ..jobs.data_structures import RunConfig
     from .interview_status_log import InterviewStatusLog
+    from ..surveys import Survey
 
 
 def get_model_buckets():
@@ -96,9 +95,9 @@ class Interview:
 
     def __init__(
         self,
-        agent: Agent,
-        survey: Survey,
-        scenario: Scenario,
+        agent: "Agent",
+        survey: "Survey",
+        scenario: "Scenario",
         model: Type["LanguageModel"],
         iteration: int = 0,
         indices: dict = None,
@@ -170,7 +169,24 @@ class Interview:
         self.failed_questions = []
 
         self.indices = indices
-        self.initial_hash = hash(self)
+        # Lazy hash initialization - defer expensive computation until needed
+        self._initial_hash = None
+
+    @property
+    def initial_hash(self) -> int:
+        """
+        Lazy computation of the interview hash.
+
+        The hash is expensive to compute (involves serializing the entire interview
+        to dict and then JSON), so we defer it until it's actually needed.
+        This significantly improves Interview creation performance.
+
+        Returns:
+            int: The hash value for this interview configuration
+        """
+        if self._initial_hash is None:
+            self._initial_hash = hash(self)
+        return self._initial_hash
 
     @property
     def cache(self) -> "Cache":

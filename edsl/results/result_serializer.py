@@ -12,26 +12,22 @@ from typing import Any, TYPE_CHECKING
 from ..utilities import remove_edsl_version
 
 if TYPE_CHECKING:
-    from ..agents import Agent
-    from ..scenarios import Scenario
-    from ..language_models import LanguageModel
-    from ..prompts import Prompt
     from .result import Result
 
 
 class ResultSerializer:
     """Handles serialization and deserialization of Result objects.
-    
+
     This class encapsulates all the logic for converting Result objects to and from
-    dictionary representations, keeping the Result class focused on its core 
+    dictionary representations, keeping the Result class focused on its core
     responsibilities.
     """
 
     @staticmethod
     def to_dict(
-        result: "Result", 
-        add_edsl_version: bool = True, 
-        include_cache_info: bool = False
+        result: "Result",
+        add_edsl_version: bool = True,
+        include_cache_info: bool = False,
     ) -> dict[str, Any]:
         """Convert a Result object to a dictionary representation.
 
@@ -94,7 +90,7 @@ class ResultSerializer:
 
         return d
 
-    @classmethod  
+    @classmethod
     @remove_edsl_version
     def from_dict(cls, json_dict: dict) -> "Result":
         """Create a Result object from a dictionary representation.
@@ -125,8 +121,6 @@ class ResultSerializer:
         for prompt_name, prompt_obj in prompt_data.items():
             prompt_d[prompt_name] = Prompt.from_dict(prompt_obj)
 
-        from .results import Result
-
         result = Result(
             agent=Agent.from_dict(json_dict["agent"]),
             scenario=Scenario.from_dict(json_dict["scenario"]),
@@ -146,7 +140,7 @@ class ResultSerializer:
             indices=json_dict.get("indices", None),
             validated_dict=json_dict.get("validated_dict", {}),
         )
-        
+
         if "interview_hash" in json_dict:
             result.interview_hash = json_dict["interview_hash"]
 
@@ -154,4 +148,4 @@ class ResultSerializer:
         if "order" in json_dict:
             result.order = json_dict["order"]
 
-        return result 
+        return result

@@ -1,7 +1,7 @@
 from collections import UserDict
 from dataclasses import asdict
 
-from ..enums import service_to_api_keyname
+from ..base import service_to_api_keyname
 
 from .models import LanguageModelInput
 

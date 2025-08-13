@@ -12,7 +12,7 @@ Failure:
 
 from __future__ import annotations
 from typing import Union, Optional, Dict, List, Any, Type
-from pydantic import BaseModel, Field, create_model
+from pydantic import BaseModel, Field, create_model, ConfigDict
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from pathlib import Path
 import ast
@@ -90,10 +90,7 @@ def create_dict_response(
         comment: Optional[str] = None
         generated_tokens: Optional[Any] = Field(None)
 
-        class Config:
-            # If permissive=False, forbid extra keys in `answer`
-            # If permissive=True, allow them
-            extra = "allow" if permissive else "forbid"
+        model_config = ConfigDict(extra="allow" if permissive else "forbid")
 
     return DictResponse
 

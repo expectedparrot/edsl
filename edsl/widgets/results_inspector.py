@@ -6,7 +6,7 @@ with detailed views of the survey, individual results, and aggregate statistics.
 """
 
 import traitlets
-from typing import Any, Dict, List, Optional
+from typing import Dict
 from .inspector_widget import InspectorWidget
 
 

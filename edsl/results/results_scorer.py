@@ -14,24 +14,24 @@ if TYPE_CHECKING:
 class ResultsScorer:
     """
     Handles scoring operations for Results objects.
-    
+
     This class encapsulates methods for scoring Results objects using
     functions or answer keys, providing a clean separation of scoring
     logic from the main Results class.
     """
-    
+
     def __init__(self, results: "Results"):
         """
         Initialize the ResultsScorer with a Results object.
-        
+
         Args:
             results: The Results object to perform scoring operations on
         """
         self.results = results
-    
+
     def score(self, f: Callable) -> list:
         """Score the results using a function.
-        
+
         Applies a scoring function to each Result object in the Results collection
         and returns a list of scores.
 
@@ -53,7 +53,7 @@ class ResultsScorer:
 
     def score_with_answer_key(self, answer_key: dict) -> list:
         """Score the results using an answer key.
-        
+
         Applies an answer key dictionary to each Result object in the Results
         collection and returns a list of scores.
 
@@ -72,4 +72,4 @@ class ResultsScorer:
             >>> isinstance(scores, list)
             True
         """
-        return [r.score_with_answer_key(answer_key) for r in self.results.data] 
+        return [r.score_with_answer_key(answer_key) for r in self.results.data]

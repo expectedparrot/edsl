@@ -3,7 +3,7 @@ from typing import Optional, Any, List, Union
 import random
 import re
 
-from pydantic import BaseModel, Field, model_validator, ValidationError
+from pydantic import BaseModel, Field, model_validator, ValidationError, ConfigDict
 
 from .question_base import QuestionBase
 from .descriptors import (
@@ -170,19 +170,19 @@ def create_response_model(
 
             return self
 
-        class Config:
-            @staticmethod
-            def json_schema_extra(schema: dict, model: BaseModel) -> None:
-                # Add the list of choices to the schema for better documentation
-                for prop in schema.get("properties", {}).values():
-                    if prop.get("title") == "answer":
-                        prop["items"] = {
-                            "enum": (
-                                list(choices)
-                                if not isinstance(choices, range)
-                                else list(choices)
-                            )
-                        }
+        def _json_schema_extra(schema: dict, model_: BaseModel) -> None:
+            # Add the list of choices to the schema for better documentation
+            for prop in schema.get("properties", {}).values():
+                if prop.get("title") == "answer":
+                    prop["items"] = {
+                        "enum": (
+                            list(choices)
+                            if not isinstance(choices, range)
+                            else list(choices)
+                        )
+                    }
+
+        model_config = ConfigDict(json_schema_extra=_json_schema_extra)
 
     return RankResponse
 

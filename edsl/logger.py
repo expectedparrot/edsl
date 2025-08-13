@@ -7,7 +7,6 @@ It configures console and file logging with appropriate formatting.
 
 import logging
 import os
-import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 

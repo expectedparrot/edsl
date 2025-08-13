@@ -299,6 +299,7 @@ class FileStore(Scenario):
 
     def upload_google(self, refresh: bool = False) -> None:
         import google.generativeai as genai
+        import time
 
         try:
             genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
@@ -312,8 +313,72 @@ class FileStore(Scenario):
                     break
                 elif file_state == 10:  # "FAILED":
                     break
+                # Add a small delay to prevent busy-wait
+                time.sleep(0.5)
         except Exception as e:
             print(f"Error uploading to Google: {e}")
+            raise
+
+    async def async_upload_google(self, refresh: bool = False) -> dict:
+        """
+        Async version of upload_google that avoids blocking the event loop.
+
+        This method uploads a file to Google's Generative AI service asynchronously,
+        polls for activation status with exponential backoff, and returns the file info.
+
+        Args:
+            refresh: If True, force re-upload even if already uploaded
+
+        Returns:
+            Dictionary containing the Google file information
+
+        Raises:
+            Exception: If upload fails or file activation fails
+        """
+        import google.generativeai as genai
+        import asyncio
+
+        # Check if already uploaded and refresh not requested
+        if not refresh and "google" in self.external_locations:
+            return self.external_locations["google"]
+
+        try:
+            # Configure API key
+            genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+
+            # Upload file (still synchronous but run in executor)
+            loop = asyncio.get_event_loop()
+            # Use lambda to properly pass keyword arguments
+            google_info = await loop.run_in_executor(
+                None, lambda: genai.upload_file(self.path, mime_type=self.mime_type)
+            )
+
+            google_info_dict = google_info.to_dict()
+
+            # Poll for file activation with exponential backoff
+            max_attempts = 30
+            for attempt in range(max_attempts):
+                # Get file status in executor to avoid blocking
+                file_metadata = await loop.run_in_executor(
+                    None, genai.get_file, google_info.name
+                )
+                file_state = file_metadata.state
+
+                if file_state == 2:  # "ACTIVE"
+                    self.external_locations["google"] = google_info_dict
+                    return google_info_dict
+                elif file_state == 10:  # "FAILED"
+                    raise Exception(f"File upload failed with state: {file_state}")
+
+                # Exponential backoff: 0.5s, 1s, 2s, 4s, ..., max 10s
+                wait_time = min(0.5 * (2**attempt), 10.0)
+                await asyncio.sleep(wait_time)
+
+            # If we've exhausted all attempts
+            raise Exception(f"File upload timed out after {max_attempts} attempts")
+
+        except Exception as e:
+            print(f"Error in async_upload_google: {e}")
             raise
 
     @classmethod
@@ -403,7 +468,7 @@ class FileStore(Scenario):
                 if not self.binary and isinstance(content, bytes):
                     content = content.decode("utf-8")
                 f.write(content)
-                #print(f"File written to {filename}")
+                # print(f"File written to {filename}")
         except Exception as e:
             print(f"Error writing file: {e}")
             raise

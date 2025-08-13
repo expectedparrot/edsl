@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 class AgentInvigilator:
     """Manages invigilator creation and question answering for an Agent instance.
-    
+
     This class provides methods to create appropriate invigilators based on question
     and agent types, and handles the complete question answering workflow including
     async and sync variants.
@@ -33,7 +33,7 @@ class AgentInvigilator:
 
     def __init__(self, agent: "Agent"):
         """Initialize the invigilator manager for an agent.
-        
+
         Args:
             agent: The agent instance this manager will handle
         """
@@ -128,6 +128,7 @@ class AgentInvigilator:
 
         if cache is None:
             from ..caching import Cache
+
             cache = Cache()
 
         invigilator_class = self.get_invigilator_class(question)
@@ -200,7 +201,7 @@ class AgentInvigilator:
         self.agent.current_question = question
         model = model or Model()
         scenario = scenario or Scenario()
-        
+
         invigilator = self.create_invigilator(
             question=question,
             scenario=scenario,
@@ -213,13 +214,13 @@ class AgentInvigilator:
             raise_validation_errors=raise_validation_errors,
             key_lookup=key_lookup,
         )
-        
+
         # Transfer response validation settings if they exist
         if hasattr(self.agent, "validate_response"):
             invigilator.validate_response = self.agent.validate_response
         if hasattr(self.agent, "translate_response"):
             invigilator.translate_response = self.agent.translate_response
-            
+
         return invigilator
 
     async def async_answer_question(
@@ -343,8 +344,8 @@ class AgentInvigilator:
 
     def __repr__(self) -> str:
         """Return a string representation of the manager.
-        
+
         Returns:
             String representation showing the manager and agent
         """
-        return f"AgentInvigilator(agent={self.agent.name or 'unnamed'})" 
+        return f"AgentInvigilator(agent={self.agent.name or 'unnamed'})"

@@ -6,7 +6,6 @@ to select questions and display histograms, bar charts, or grouped comparisons.
 """
 
 import traitlets
-from typing import Any, Dict, List, Optional
 from .base_widget import EDSLBaseWidget
 
 

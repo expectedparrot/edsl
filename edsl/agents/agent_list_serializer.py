@@ -3,7 +3,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from ..utilities import remove_edsl_version
 
 if TYPE_CHECKING:
     from .agent_list import AgentList
