@@ -31,6 +31,8 @@ Pass the path to your *.ipynb* file to the constructor:
     notebook = Notebook("your_notebook.ipynb") # replace with your file path
 
 
+*Note:* You first need to save your notebook in order to pass the `path=<filename>` argument to the constructor.
+
 2. From a *.py* script
 ^^^^^^^^^^^^^^^^^^^^^^
 
