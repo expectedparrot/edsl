@@ -113,7 +113,7 @@ class RuleCollection(UserList):
         """
         self.append(rule)
         # Clear the rules cache when new rules are added
-        if hasattr(self, '_rules_cache'):
+        if hasattr(self, "_rules_cache"):
             self._rules_cache.clear()
 
     def show_rules(self) -> None:
@@ -172,16 +172,16 @@ class RuleCollection(UserList):
         """
         # Cache rules by position to avoid repeated filtering
         cache_key = (q_now, before_rule)
-        if not hasattr(self, '_rules_cache'):
+        if not hasattr(self, "_rules_cache"):
             self._rules_cache = {}
-        
+
         if cache_key not in self._rules_cache:
             self._rules_cache[cache_key] = [
                 rule
                 for rule in self
                 if rule.current_q == q_now and rule.before_rule == before_rule
             ]
-        
+
         return self._rules_cache[cache_key]
 
     def next_question(self, q_now: int, answers: dict[str, Any]) -> NextQuestion:

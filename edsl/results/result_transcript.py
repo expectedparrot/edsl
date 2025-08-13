@@ -14,15 +14,15 @@ if TYPE_CHECKING:
 
 class ResultTranscript:
     """Handles transcript generation for Result objects."""
-    
+
     def __init__(self, result: "Result"):
         """Initialize with a Result object.
-        
+
         Args:
             result: The Result object to generate transcripts for
         """
         self.result = result
-    
+
     def generate(self, format: str = "simple") -> str:
         """Return the questions and answers in a human-readable transcript.
 
@@ -47,7 +47,7 @@ class ResultTranscript:
 
         # Helper to extract question text, options, answer value
         def _components(q_name):
-            meta = self.result['question_to_attributes'].get(q_name, {})
+            meta = self.result["question_to_attributes"].get(q_name, {})
             q_text = meta.get("question_text", q_name)
             options = meta.get("question_options")
 
@@ -112,11 +112,11 @@ class ResultTranscript:
 
 def generate_transcript(result: "Result", format: str = "simple") -> str:
     """Convenience function to generate a transcript from a Result object.
-    
+
     Args:
         result: The Result object to generate a transcript for
         format: The format for the transcript ('simple' or 'rich')
-        
+
     Returns:
         The generated transcript as a string
     """

@@ -22,8 +22,13 @@ class TemplateManager:
     @lru_cache(maxsize=None)
     def get_template(self, question_type, template_name):
         if (question_type, template_name) not in self._template_cache:
-            template_file = resources.files(f"edsl.questions.templates.{question_type}") / template_name
-            self._template_cache[(question_type, template_name)] = template_file.read_text()
+            template_file = (
+                resources.files(f"edsl.questions.templates.{question_type}")
+                / template_name
+            )
+            self._template_cache[(question_type, template_name)] = (
+                template_file.read_text()
+            )
         return self._template_cache[(question_type, template_name)]
 
 

@@ -1021,13 +1021,15 @@ class LanguageModel(
         Returns:
             LanguageModel: A new model instance of the appropriate type
         """
-        from ..inference_services.inference_service_registry import InferenceServiceRegistry
+        from ..inference_services.inference_service_registry import (
+            InferenceServiceRegistry,
+        )
 
         # Create and use the inference service registry to create the language model
         registry = InferenceServiceRegistry()
         model_name = data["model"]
         service_name = data.get("inference_service", None)
-        
+
         # Handle canned_response in parameters for test models
         if (
             model_name == "test"
@@ -1043,10 +1045,14 @@ class LanguageModel(
                 params_copy["canned_response"] = canned_response
 
             # Create the instance using the registry (which returns a model class)
-            model_class = registry.create_language_model(model_name, service_name=service_name)
+            model_class = registry.create_language_model(
+                model_name, service_name=service_name
+            )
             return model_class(**params_copy)
 
-        model_class = registry.create_language_model(model_name, service_name=service_name)
+        model_class = registry.create_language_model(
+            model_name, service_name=service_name
+        )
         return model_class(**data)
 
     def __repr__(self) -> str:
@@ -1141,9 +1147,10 @@ class LanguageModel(
         if test_model:
             # Create a test model with predefined behavior
             m = Model(
-                model_name="test", 
+                model_name="test",
                 service_name="test",
-                canned_response=canned_response, throw_exception=throw_exception
+                canned_response=canned_response,
+                throw_exception=throw_exception,
             )
             return m
         else:

@@ -95,9 +95,9 @@ class Interview:
 
     def __init__(
         self,
-        agent: 'Agent',
-        survey: 'Survey',
-        scenario: 'Scenario',
+        agent: "Agent",
+        survey: "Survey",
+        scenario: "Scenario",
         model: Type["LanguageModel"],
         iteration: int = 0,
         indices: dict = None,

@@ -6,13 +6,16 @@ from .results import Results
 if TYPE_CHECKING:
     from ..agents import AgentList
 
-class ResultsList(ItemCollection): 
+
+class ResultsList(ItemCollection):
     item_class = Results
 
-    def create_agents(self, agent_name_fields: Optional[List[str]] = None, name: Optional[str] = None) -> 'AgentList':
+    def create_agents(
+        self, agent_name_fields: Optional[List[str]] = None, name: Optional[str] = None
+    ) -> "AgentList":
         # Lazy import to avoid circular dependency
         from ..agents import AgentList
-        
+
         if agent_name_fields is None:
             agent_name_fields = ["last_name", "first_name"]
 
@@ -28,14 +31,19 @@ class ResultsList(ItemCollection):
 
         if name is not None:
             joined_agents.name = name
-        elif hasattr(self, 'name') and self.name is not None:
+        elif hasattr(self, "name") and self.name is not None:
             joined_agents.name = "Created from " + self.name
-        
+
         return joined_agents
-    
-    def agent_answers_by_question(self, agent_key_fields: Optional[List[str]] = None, separator: str = ",") -> Dict[str, Dict[str, str]]:
+
+    def agent_answers_by_question(
+        self, agent_key_fields: Optional[List[str]] = None, separator: str = ","
+    ) -> Dict[str, Dict[str, str]]:
         """Returns a dictionary of agent answers.
-        
+
         The keys are the agent names and the values are the answers.
         """
-        return {item.name: item.agent_answers_by_question(agent_key_fields, separator) for item in self}
+        return {
+            item.name: item.agent_answers_by_question(agent_key_fields, separator)
+            for item in self
+        }

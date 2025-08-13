@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from ..agents import Agent
     from ..scenarios import Scenario
 
+
 class QuestionTemplateReplacementsBuilder:
 
     @classmethod
@@ -64,7 +65,7 @@ class QuestionTemplateReplacementsBuilder:
 
     def scenario_file_keys(self) -> list:
         return self._find_file_keys(self.scenario)
-    
+
     @staticmethod
     def get_jinja2_variables(template_str: str) -> Set[str]:
         """
@@ -102,6 +103,7 @@ class QuestionTemplateReplacementsBuilder:
         ['fs_file']
         """
         from ..scenarios import FileStore
+
         return [key for key, value in scenario.items() if isinstance(value, FileStore)]
 
     @staticmethod

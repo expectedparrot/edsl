@@ -59,27 +59,37 @@ class AzureAIService(InferenceServiceABC):
                 _, endpoint, azure_endpoint_key = data.split(":")
                 if "openai" not in endpoint:
                     model_id = endpoint.split(".")[0].replace("/", "")
-                    models_info.append({
-                        "id": model_id,
-                        "endpoint": f"https:{endpoint}",
-                        "type": "azure_non_openai",
-                        "azure_endpoint_key": azure_endpoint_key
-                    })
+                    models_info.append(
+                        {
+                            "id": model_id,
+                            "endpoint": f"https:{endpoint}",
+                            "type": "azure_non_openai",
+                            "azure_endpoint_key": azure_endpoint_key,
+                        }
+                    )
                 else:
                     if "/deployments/" in endpoint:
-                        start_idx = endpoint.index("/deployments/") + len("/deployments/")
-                        end_idx = endpoint.index("/", start_idx) if "/" in endpoint[start_idx:] else len(endpoint)
+                        start_idx = endpoint.index("/deployments/") + len(
+                            "/deployments/"
+                        )
+                        end_idx = (
+                            endpoint.index("/", start_idx)
+                            if "/" in endpoint[start_idx:]
+                            else len(endpoint)
+                        )
                         model_id = endpoint[start_idx:end_idx]
-                        models_info.append({
-                            "id": f"azure:{model_id}",
-                            "endpoint": f"https:{endpoint}",
-                            "type": "azure_openai",
-                            "azure_endpoint_key": azure_endpoint_key
-                        })
+                        models_info.append(
+                            {
+                                "id": f"azure:{model_id}",
+                                "endpoint": f"https:{endpoint}",
+                                "type": "azure_openai",
+                                "azure_endpoint_key": azure_endpoint_key,
+                            }
+                        )
             except Exception:
                 continue
         return models_info
-    
+
     @classmethod
     def available(cls):
         out = []

@@ -13,14 +13,14 @@ if TYPE_CHECKING:
 
 class AgentInstructions:
     """Handles instruction management for Agent instances.
-    
+
     This class provides methods to initialize and manage agent instructions,
     including handling default instructions and custom instruction validation.
     """
 
     def __init__(self, agent: "Agent"):
         """Initialize the AgentInstructions manager.
-        
+
         Args:
             agent: The agent instance this manager belongs to
         """
@@ -63,16 +63,16 @@ class AgentInstructions:
 
     def is_default_instruction(self) -> bool:
         """Check if the agent is using the default instruction.
-        
+
         Returns:
             True if using default instruction, False otherwise
-            
+
         Examples:
             >>> from edsl.agents import Agent
             >>> agent = Agent(traits={"age": 30})
             >>> agent.instructions.is_default_instruction()
             True
-            
+
             >>> agent_custom = Agent(traits={"age": 30}, instruction="Custom instruction")
             >>> agent_custom.instructions.is_default_instruction()
             False
@@ -81,10 +81,10 @@ class AgentInstructions:
 
     def update_instruction(self, new_instruction: str) -> None:
         """Update the agent's instruction.
-        
+
         Args:
             new_instruction: The new instruction to set
-            
+
         Examples:
             >>> from edsl.agents import Agent
             >>> agent = Agent(traits={"age": 30})
@@ -100,7 +100,7 @@ class AgentInstructions:
 
     def reset_to_default(self) -> None:
         """Reset the agent's instruction to the default.
-        
+
         Examples:
             >>> from edsl.agents import Agent
             >>> agent = Agent(traits={"age": 30}, instruction="Custom instruction")
@@ -116,14 +116,14 @@ class AgentInstructions:
 
     def get_effective_instruction(self) -> str:
         """Get the effective instruction that will be used.
-        
+
         This method provides a way to get the current instruction that will
         actually be used by the agent, which is useful for debugging and
         introspection.
-        
+
         Returns:
             The current instruction string
-            
+
         Examples:
             >>> from edsl.agents import Agent
             >>> agent = Agent(traits={"age": 30})
@@ -131,4 +131,4 @@ class AgentInstructions:
             >>> instruction == Agent.default_instruction
             True
         """
-        return self.agent.instruction 
+        return self.agent.instruction

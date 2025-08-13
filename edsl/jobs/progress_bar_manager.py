@@ -30,6 +30,7 @@ class ProgressBarManager:
 
         # Set up progress tracking
         from ..coop import Coop
+
         coop = Coop()
         endpoint_url = coop.get_progress_bar_url()
 

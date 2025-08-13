@@ -16,33 +16,37 @@ from . import services
 def load_all_service_classes():
     """Dynamically load all service classes from the services module."""
     from .inference_service_abc import InferenceServiceABC
-    
+
     service_classes = []
-    
+
     # Iterate through all modules in the services package
-    for importer, modname, ispkg in pkgutil.iter_modules(services.__path__, services.__name__ + "."):
+    for importer, modname, ispkg in pkgutil.iter_modules(
+        services.__path__, services.__name__ + "."
+    ):
         # Skip __init__ and message_builder modules
-        if modname.endswith('.__init__') or modname.endswith('.message_builder'):
+        if modname.endswith(".__init__") or modname.endswith(".message_builder"):
             continue
-            
+
         try:
             # Import the module
             module = importlib.import_module(modname)
-            
+
             # Look for classes that are subclasses of InferenceServiceABC
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)
                 # Check if it's a class, is a subclass of InferenceServiceABC, and is defined in this module
-                if (isinstance(attr, type) and 
-                    issubclass(attr, InferenceServiceABC) and
-                    attr is not InferenceServiceABC and  # Exclude the base class itself
-                    attr.__module__ == modname):
+                if (
+                    isinstance(attr, type)
+                    and issubclass(attr, InferenceServiceABC)
+                    and attr is not InferenceServiceABC  # Exclude the base class itself
+                    and attr.__module__ == modname
+                ):
                     service_classes.append(attr)
-                    
+
         except ImportError as e:
             # Skip modules that can't be imported (might have missing dependencies)
             continue
-            
+
     return service_classes
 
 

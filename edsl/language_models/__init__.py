@@ -12,10 +12,11 @@ __all__ = ["Model", "ModelList", "LanguageModelBadResponseError", "LanguageModel
 # Lazy loading to avoid circular imports during Survey import
 _LAZY_IMPORTS = {
     "LanguageModel": ".language_model",
-    "Model": ".model", 
+    "Model": ".model",
     "ModelList": ".model_list",
-    "LanguageModelBadResponseError": ".exceptions"
+    "LanguageModelBadResponseError": ".exceptions",
 }
+
 
 def __getattr__(name: str):
     """Lazy import for language_models module to avoid circular imports."""

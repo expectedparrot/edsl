@@ -105,7 +105,7 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
         if isinstance(text, Prompt):
             # make it idempotent w/ a prompt
             text = str(text)
-        
+
         # Create the string instance
         instance = str.__new__(cls, text)
         return instance
@@ -192,7 +192,6 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
             return self.__class__(str(self) + other_prompt)
         else:
             return self.__class__(str(self) + str(other_prompt))
-
 
     def __repr__(self):
         """Return the `Prompt` text.

@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 class AgentDirectAnswering:
     """Manages direct question answering functionality for an Agent instance.
-    
+
     This class provides methods to add, remove, and initialize direct question
     answering methods that allow agents to answer questions programmatically
     without using language models. Each Agent instance has its own manager.
@@ -30,7 +30,7 @@ class AgentDirectAnswering:
 
     def __init__(self, agent: "Agent"):
         """Initialize the direct answering manager for an agent.
-        
+
         Args:
             agent: The agent instance this manager will handle
         """
@@ -129,7 +129,7 @@ class AgentDirectAnswering:
             warnings.warn(
                 "Warning: overwriting existing answer_question_directly method",
                 UserWarning,
-                stacklevel=2
+                stacklevel=2,
             )
 
         self.agent.validate_response = validate_response
@@ -142,7 +142,7 @@ class AgentDirectAnswering:
                 raise AgentDirectAnswerFunctionError(
                     f"The method {method} does not have a '{argument}' parameter."
                 )
-        
+
         bound_method = types.MethodType(method, self.agent)
         setattr(self.agent, "answer_question_directly", bound_method)
         self.agent.answer_question_directly_function_name = bound_method.__name__
@@ -192,7 +192,7 @@ class AgentDirectAnswering:
             >>> def answer_func(self, question, scenario):
             ...     return "Transferred answer"
             >>> source.direct_answering.add_method(answer_func)
-            >>> 
+            >>>
             >>> target = Agent(traits={'age': 25})
             >>> source.direct_answering.transfer_to(target)
             >>> target.answer_question_directly(None, None)
@@ -237,13 +237,13 @@ class AgentDirectAnswering:
 
     def get_method(self):
         """Get the direct answering method if it exists.
-        
+
         Returns:
             The direct answering method if it exists, None otherwise
-            
+
         Examples:
             Get the method:
-            
+
             >>> from edsl.agents import Agent
             >>> agent3 = Agent(traits={'age': 30})
             >>> agent3.direct_answering.get_method() is None
@@ -259,10 +259,12 @@ class AgentDirectAnswering:
 
     def __repr__(self) -> str:
         """Return a string representation of the manager.
-        
+
         Returns:
             String representation showing the manager and whether it has a method
         """
         has_method = self.has_method()
         method_info = "with method" if has_method else "no method"
-        return f"AgentDirectAnswering(agent={self.agent.name or 'unnamed'}, {method_info})" 
+        return (
+            f"AgentDirectAnswering(agent={self.agent.name or 'unnamed'}, {method_info})"
+        )

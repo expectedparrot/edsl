@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class BasePlaceholder:
     """
     Base class for placeholder values used when a question is not yet answered.
@@ -283,7 +284,7 @@ class PromptConstructor:
         ).get_question_numerical_value(question_data, key)
 
     @cached_property
-    def agent_instructions_prompt(self) -> 'Prompt':
+    def agent_instructions_prompt(self) -> "Prompt":
         """
         Get the agent's core instruction prompt.
 
@@ -305,7 +306,7 @@ class PromptConstructor:
         return Prompt(text=self.agent.instruction)
 
     @cached_property
-    def agent_persona_prompt(self) -> 'Prompt':
+    def agent_persona_prompt(self) -> "Prompt":
         """
         Get the agent's persona characteristics prompt.
 
@@ -457,7 +458,7 @@ class PromptConstructor:
         ).question_file_keys()
 
     @cached_property
-    def question_instructions_prompt(self) -> 'Prompt':
+    def question_instructions_prompt(self) -> "Prompt":
         """
         >>> from edsl.invigilators.invigilators import InvigilatorBase
         >>> i = InvigilatorBase.example()
@@ -467,7 +468,7 @@ class PromptConstructor:
         """
         return self.build_question_instructions_prompt()
 
-    def build_question_instructions_prompt(self) -> 'Prompt':
+    def build_question_instructions_prompt(self) -> "Prompt":
         """
         Builds the question instructions prompt by combining question text, options, and formatting.
 
@@ -508,7 +509,7 @@ class PromptConstructor:
         return prompt
 
     @cached_property
-    def prior_question_memory_prompt(self) -> 'Prompt':
+    def prior_question_memory_prompt(self) -> "Prompt":
         """
         Get the prompt containing memory of prior questions and answers.
 
@@ -516,6 +517,7 @@ class PromptConstructor:
             Prompt: A prompt containing the relevant prior question memory
         """
         from ..prompts import Prompt
+
         memory_prompt = Prompt(text="")
         if self.memory_plan is not None:
             memory_prompt += self.create_memory_prompt(
@@ -523,7 +525,7 @@ class PromptConstructor:
             ).render(self.scenario | self.prior_answers_dict())
         return memory_prompt
 
-    def create_memory_prompt(self, question_name: str) -> 'Prompt':
+    def create_memory_prompt(self, question_name: str) -> "Prompt":
         """
         Create a memory prompt containing previous question answers for the agent.
 

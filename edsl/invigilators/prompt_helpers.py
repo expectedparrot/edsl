@@ -5,6 +5,7 @@ from collections import UserList
 if TYPE_CHECKING:
     from ..prompts import Prompt
 
+
 class PromptComponent(enum.Enum):
     AGENT_INSTRUCTIONS = "agent_instructions"
     AGENT_PERSONA = "agent_persona"
@@ -14,6 +15,7 @@ class PromptComponent(enum.Enum):
 
 class PromptList(UserList):
     from ..prompts import Prompt
+
     separator = Prompt("")
 
     def reduce(self):
@@ -113,7 +115,7 @@ class PromptPlan:
         combined = self.user_prompt_order + self.system_prompt_order
         return set(combined) == set(PromptComponent)
 
-    def arrange_components(self, **kwargs) -> Dict[PromptComponent, 'Prompt']:
+    def arrange_components(self, **kwargs) -> Dict[PromptComponent, "Prompt"]:
         """Arrange the components in the order specified by the plan."""
         # check is valid components passed
         component_strings = set([pc.value for pc in PromptComponent])
@@ -132,9 +134,10 @@ class PromptPlan:
         )
         return {"user_prompt": user_prompt, "system_prompt": system_prompt}
 
-    def get_prompts(self, **kwargs) -> Dict[str, 'Prompt']:
+    def get_prompts(self, **kwargs) -> Dict[str, "Prompt"]:
         """Get both prompts for the LLM call."""
         from ..prompts import Prompt
+
         prompts = self.arrange_components(**kwargs)
         return {
             "user_prompt": Prompt("".join(str(p) for p in prompts["user_prompt"])),

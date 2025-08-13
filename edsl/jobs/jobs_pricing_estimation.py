@@ -16,6 +16,7 @@ from .fetch_invigilator import FetchInvigilator
 
 logger = logging.getLogger(__name__)
 
+
 class PromptCostEstimator:
     CHARS_PER_TOKEN = 4
     OUTPUT_TOKENS_PER_INPUT_TOKEN = 0.75
@@ -32,6 +33,7 @@ class PromptCostEstimator:
         self.system_prompt = system_prompt
         self.user_prompt = user_prompt
         from ..language_models.price_manager import PriceRetriever
+
         self.price_retriever = PriceRetriever(price_lookup)
         self.inference_service = inference_service
         self.model = model
@@ -206,6 +208,7 @@ class JobsPrompts:
         Dataset(...)
         """
         from ..dataset import Dataset
+
         dataset_of_prompts = {k: [] for k in self.relevant_keys}
 
         interviews = self.interviews
@@ -350,6 +353,7 @@ class JobsPrompts:
 
         # Convert to credits
         from ..coop.utils import CostConverter
+
         converter = CostConverter()
         for group in detailed_costs:
             group["credits_hold"] = converter.usd_to_credits(group["cost_usd"])

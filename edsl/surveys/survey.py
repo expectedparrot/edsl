@@ -1171,7 +1171,17 @@ class Survey(Base):
             question, expression, next_question, before_rule=before_rule
         )
 
-    def by(self, *args: Union["Agent", "Scenario", "LanguageModel", "AgentList", "ScenarioList", "ModelList"]) -> "Jobs":
+    def by(
+        self,
+        *args: Union[
+            "Agent",
+            "Scenario",
+            "LanguageModel",
+            "AgentList",
+            "ScenarioList",
+            "ModelList",
+        ],
+    ) -> "Jobs":
         """Add components to the survey and return a runnable Jobs object.
 
         This method is the primary way to prepare a survey for execution. It adds the
@@ -1225,6 +1235,7 @@ class Survey(Base):
                 set(self.question_names),
             )
         from ..agents import Agent
+
         gold_agent = Agent()
 
         def f(self, question, scenario):

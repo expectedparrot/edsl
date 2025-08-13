@@ -2,6 +2,7 @@
 
 This module provides the foundation for all classes in the EDSL framework.
 """
+
 from edsl.base.item_collection_abc import ItemCollection
 
 from edsl.base.base_class import (

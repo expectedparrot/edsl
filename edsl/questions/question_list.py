@@ -464,13 +464,17 @@ class QuestionList(QuestionBase):
         """
         self.question_name = question_name
         self.question_text = question_text
-        
+
         # Validate min_list_items and max_list_items
         if min_list_items is not None and min_list_items < 0:
-            raise ValueError(f"min_list_items must be non-negative, got {min_list_items}")
+            raise ValueError(
+                f"min_list_items must be non-negative, got {min_list_items}"
+            )
         if max_list_items is not None and max_list_items < 0:
-            raise ValueError(f"max_list_items must be non-negative, got {max_list_items}")
-            
+            raise ValueError(
+                f"max_list_items must be non-negative, got {max_list_items}"
+            )
+
         self.max_list_items = max_list_items
         self.min_list_items = min_list_items
         self.permissive = permissive

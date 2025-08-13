@@ -74,7 +74,6 @@ class CheckSurveyScenarioCompatibility:
                     warnings.warn(message)
 
 
-
 if __name__ == "__main__":
     import doctest
 

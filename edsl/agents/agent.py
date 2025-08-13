@@ -55,7 +55,8 @@ from typing import (
 )
 
 from ..base import Base
-#from ..scenarios import Scenario
+
+# from ..scenarios import Scenario
 from ..data_transfer_models import AgentResponseDict
 
 from ..utilities import (
@@ -111,7 +112,9 @@ class DirectAnswerMethod(Protocol):
         The answer to the question
     """
 
-    def __call__(self, self_: A, question: 'QuestionBase', scenario: 'Scenario') -> Any: ...
+    def __call__(
+        self, self_: A, question: "QuestionBase", scenario: "Scenario"
+    ) -> Any: ...
 
 
 class Agent(Base):
@@ -233,16 +236,17 @@ class Agent(Base):
         """
         # Initialize basic attributes directly
         self.name = name
-        
+
         # Initialize current_question early to avoid issues during initialization
         self.current_question = None
-        
+
         # Initialize managers early
         from .agent_direct_answering import AgentDirectAnswering
         from .agent_traits_manager import AgentTraitsManager
         from .agent_prompt import AgentPrompt
         from .agent_instructions import AgentInstructions
         from .agent_table import AgentTable
+
         self.direct_answering = AgentDirectAnswering(self)
         # Lazy initialize invigilator to avoid importing language_models during Survey import
         self._invigilator = None
@@ -250,32 +254,36 @@ class Agent(Base):
         self.prompt_manager = AgentPrompt(self)
         self.instructions = AgentInstructions(self)
         self.table_manager = AgentTable(self)
-        
+
         # Maintain backward compatibility aliases
         self.trait_manager = self.traits_manager  # Alias for backward compatibility
         self.dynamic_traits = self.traits_manager  # Alias for backward compatibility
-        
+
         # Initialize traits and codebook using the unified traits manager
         self.traits_manager.initialize(traits, codebook)
-        
+
         # Initialize instruction using the manager
         self.instructions.initialize(instruction)
-        
+
         # Initialize dynamic traits function
         self.traits_manager.initialize_dynamic_function(
-            dynamic_traits_function, dynamic_traits_function_source_code, dynamic_traits_function_name
+            dynamic_traits_function,
+            dynamic_traits_function_source_code,
+            dynamic_traits_function_name,
         )
-        
+
         # Initialize direct answering method
         self.direct_answering.initialize_from_source_code(
             answer_question_directly_source_code, answer_question_directly_function_name
         )
-        
+
         self.traits_manager.validate_dynamic_function()
-        
+
         # Initialize traits presentation template
-        self.prompt_manager.initialize_traits_presentation_template(traits_presentation_template)
-        
+        self.prompt_manager.initialize_traits_presentation_template(
+            traits_presentation_template
+        )
+
         self.trait_categories = trait_categories or {}
 
     @property
@@ -283,6 +291,7 @@ class Agent(Base):
         """Lazily initialize the invigilator to avoid importing language_models during Survey import"""
         if self._invigilator is None:
             from .agent_invigilator import AgentInvigilator
+
             self._invigilator = AgentInvigilator(self)
         return self._invigilator
 
@@ -364,6 +373,7 @@ class Agent(Base):
             edsl.agents.exceptions.AgentErrors: ...
         """
         from .agent_operations import AgentOperations
+
         return AgentOperations.drop(self, *field_names)
 
     def keep(self, *field_names: Union[str, List[str]]) -> "Agent":
@@ -415,6 +425,7 @@ class Agent(Base):
             edsl.agents.exceptions.AgentErrors: ...
         """
         from .agent_operations import AgentOperations
+
         return AgentOperations.keep(self, *field_names)
 
     def duplicate(self) -> "Agent":
@@ -573,8 +584,6 @@ class Agent(Base):
         """
         return self.prompt_manager.prompt()
 
-
-
     @property
     def traits(self) -> dict[str, Any]:
         """Get the agent's traits, potentially using dynamic generation.
@@ -668,9 +677,8 @@ class Agent(Base):
             True
         """
         from .agent_operations import AgentOperations
+
         return AgentOperations.rename(self, old_name_or_dict, new_name)
-
-
 
     def __getitem__(self, key: str) -> Any:
         """Allow for accessing traits using the bracket notation.
@@ -789,11 +797,11 @@ class Agent(Base):
     async def async_answer_question(
         self,
         *,
-        question: 'QuestionBase',
-        cache: 'Cache',
-        scenario: Optional['Scenario'] = None,
-        survey: Optional['Survey'] = None,
-        model: Optional['LanguageModel'] = None,
+        question: "QuestionBase",
+        cache: "Cache",
+        scenario: Optional["Scenario"] = None,
+        survey: Optional["Survey"] = None,
+        model: Optional["LanguageModel"] = None,
         debug: bool = False,
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
@@ -862,11 +870,9 @@ class Agent(Base):
         """
         return self.traits_manager.drop_trait_if(bad_value)
 
-
-
     def old_keep(self, *traits: str) -> "Agent":
         """Legacy trait selection method (renamed from select).
-        
+
         Note: This method has data integrity issues and is kept for backward compatibility.
         Use select() or keep() instead, which provide better data consistency.
 
@@ -894,9 +900,7 @@ class Agent(Base):
             return {k: v for k, v in d.items() if v is not None}
 
         newagent = self.duplicate()
-        new_traits = {
-            trait: self.traits.get(trait, None) for trait in traits_to_select
-        }
+        new_traits = {trait: self.traits.get(trait, None) for trait in traits_to_select}
         newagent.trait_manager.set_all_traits(new_traits)
         newagent.codebook = _remove_none(
             {trait: self.codebook.get(trait, None) for trait in traits_to_select}
@@ -924,6 +928,7 @@ class Agent(Base):
             Agent(traits = {'height': 5.5})
         """
         from .agent_operations import AgentOperations
+
         return AgentOperations.select(self, *traits)
 
     def add(
@@ -959,11 +964,15 @@ class Agent(Base):
             A new agent containing the merged traits / codebooks.
         """
         from .agent_combination import AgentCombination
-        return AgentCombination.add(self, other_agent, conflict_strategy=conflict_strategy)
+
+        return AgentCombination.add(
+            self, other_agent, conflict_strategy=conflict_strategy
+        )
 
     def __add__(self, other_agent: Optional["Agent"] = None) -> "Agent":
         """Syntactic sugar – delegates to :pymeth:`add`."""
         from .agent_combination import AgentCombination
+
         return AgentCombination.add_with_plus_operator(self, other_agent)
 
     def __eq__(self, other: "Agent") -> bool:
@@ -984,12 +993,12 @@ class Agent(Base):
     @property
     def has_dynamic_traits_function(self) -> bool:
         """Whether the agent has a dynamic traits function.
-        
+
         This property provides backward compatibility for the old attribute access pattern.
-        
+
         Returns:
             True if the agent has a dynamic traits function, False otherwise
-            
+
         Examples:
             >>> agent = Agent(traits={'age': 30})
             >>> agent.has_dynamic_traits_function
@@ -1000,16 +1009,16 @@ class Agent(Base):
             True
         """
         return self.traits_manager.has_dynamic_function
-    
+
     @property
     def dynamic_traits_function(self) -> Optional[Callable]:
         """The dynamic traits function if one exists.
-        
+
         This property provides backward compatibility for the old attribute access pattern.
-        
+
         Returns:
             The dynamic traits function or None
-            
+
         Examples:
             >>> agent = Agent(traits={'age': 30})
             >>> agent.dynamic_traits_function is None
@@ -1020,16 +1029,16 @@ class Agent(Base):
             True
         """
         return self.traits_manager.dynamic_function
-    
+
     @property
     def dynamic_traits_function_name(self) -> str:
         """The name of the dynamic traits function.
-        
+
         This property provides backward compatibility for the old attribute access pattern.
-        
+
         Returns:
             The function name or empty string if no function
-            
+
         Examples:
             >>> agent = Agent(traits={'age': 30})
             >>> agent.dynamic_traits_function_name
@@ -1133,6 +1142,7 @@ class Agent(Base):
             True
         """
         from .agent_serialization import AgentSerialization
+
         return AgentSerialization.data(self)
 
     def __hash__(self) -> int:
@@ -1179,6 +1189,7 @@ class Agent(Base):
             'Agent'
         """
         from .agent_serialization import AgentSerialization
+
         return AgentSerialization.to_dict(self, add_edsl_version, full_dict)
 
     @classmethod
@@ -1197,6 +1208,7 @@ class Agent(Base):
             Agent(name = \"""Steve\""", traits = {'age': 10, 'hair': 'brown', 'height': 5.5})
         """
         from .agent_serialization import AgentSerialization
+
         return AgentSerialization.from_dict(agent_dict)
 
     def table(self) -> "Dataset":
@@ -1360,6 +1372,7 @@ class Agent(Base):
             >>> # agent = Agent.from_result(result)
         """
         from .agent_from_result import AgentFromResult
+
         return AgentFromResult.from_result(result, name)
 
 

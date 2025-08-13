@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from ...scenarios.file_store import FileStore as Files
     from ...invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
 
+
 class PerplexityService(OpenAIService):
     """Perplexity service class."""
 

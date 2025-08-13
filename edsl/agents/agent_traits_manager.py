@@ -20,32 +20,32 @@ if TYPE_CHECKING:
 
 class AgentTraitsManager:
     """Unified manager for all trait-related operations on an Agent instance.
-    
+
     This class provides comprehensive trait management including:
     - Static trait operations (add, remove, translate, search)
-    - Dynamic traits functionality 
+    - Dynamic traits functionality
     - Codebook management
     - Context management for safe trait modification
     - Validation and guarding logic
-    
+
     Each Agent instance has its own unified traits manager.
     """
 
     def __init__(self, agent: "Agent"):
         """Initialize the unified traits manager for an agent.
-        
+
         Args:
             agent: The agent instance this manager will handle
         """
         self.agent = agent
-        
+
         # Dynamic traits functionality
         self.dynamic_function: Optional[Callable] = None
         self.dynamic_function_name: str = ""
         self.has_dynamic_function: bool = False
 
     # ========== INITIALIZATION ==========
-    
+
     def initialize(self, traits: Optional[dict], codebook: Optional[dict]) -> None:
         """Initialize the agent's traits and codebook.
 
@@ -77,18 +77,18 @@ class AgentTraitsManager:
             {}
         """
         from .agent_traits import AgentTraits
-        
+
         # Sanitize traits and codebook for Jinja2 syntax
         if traits:
             traits = sanitize_jinja_syntax(traits, "traits")
         if codebook:
             codebook = sanitize_jinja_syntax(codebook, "codebook")
-            
+
         self.agent._traits = AgentTraits(traits or {}, parent=self.agent)
         self.agent.codebook = codebook or dict()
 
     # ========== DYNAMIC TRAITS ==========
-    
+
     def initialize_dynamic_function(
         self,
         dynamic_traits_function: Optional[Callable],
@@ -116,14 +116,18 @@ class AgentTraitsManager:
         """
         if dynamic_traits_function is not None:
             self.dynamic_function = dynamic_traits_function
-            self.dynamic_function_name = getattr(dynamic_traits_function, '__name__', 'dynamic_traits_function')
+            self.dynamic_function_name = getattr(
+                dynamic_traits_function, "__name__", "dynamic_traits_function"
+            )
             self.has_dynamic_function = True
         elif dynamic_traits_function_source_code is not None:
             self._initialize_from_source_code(
                 dynamic_traits_function_source_code, dynamic_traits_function_name
             )
 
-    def _initialize_from_source_code(self, source_code: str, function_name: Optional[str]) -> None:
+    def _initialize_from_source_code(
+        self, source_code: str, function_name: Optional[str]
+    ) -> None:
         """Initialize dynamic traits function from source code."""
         try:
             func_name = function_name or "dynamic_traits_function"
@@ -132,14 +136,16 @@ class AgentTraitsManager:
             self.dynamic_function_name = func_name
             self.has_dynamic_function = True
         except Exception as e:
-            raise AgentDynamicTraitsFunctionError(f"Error creating dynamic traits function: {e}")
+            raise AgentDynamicTraitsFunctionError(
+                f"Error creating dynamic traits function: {e}"
+            )
 
     def get_traits(self, current_question=None) -> dict[str, Any]:
         """Get the agent's traits, potentially using dynamic generation.
 
         This method provides access to the agent's traits, either from the stored
         traits dictionary or by calling a dynamic traits function if one is defined.
-        
+
         When no dynamic function is present, returns the actual AgentTraits object
         to support direct mutation (e.g., traits.update()). When a dynamic function
         is present, returns a new dict from the function.
@@ -161,7 +167,7 @@ class AgentTraitsManager:
             try:
                 # Check if the function expects a question parameter
                 sig = inspect.signature(self.dynamic_function)
-                
+
                 if "question" in sig.parameters:
                     # Call with the current question
                     return self.dynamic_function(question=current_question)
@@ -178,17 +184,17 @@ class AgentTraitsManager:
 
     def validate_dynamic_function(self) -> None:
         """Validate the dynamic traits function if one exists.
-        
+
         This method checks if the dynamic traits function (if present) has the correct
         parameter list. The function should either take no parameters or a single
         parameter named 'question'.
-        
+
         Raises:
             AgentDynamicTraitsFunctionError: If the function signature is invalid
         """
         if self.has_dynamic_function and self.dynamic_function:
             sig = inspect.signature(self.dynamic_function)
-            
+
             if "question" in sig.parameters:
                 # If it has 'question' parameter, it should be the only one
                 if len(sig.parameters) > 1:
@@ -203,10 +209,10 @@ class AgentTraitsManager:
                     )
 
     # ========== CONTEXT MANAGEMENT & GUARDING ==========
-    
+
     def check_before_modifying_traits(self) -> None:
         """Check if traits can be modified safely.
-        
+
         Raises:
             AgentErrors: If the agent has a dynamic traits function that prevents modification
         """
@@ -240,14 +246,17 @@ class AgentTraitsManager:
         finally:
             # re-wrap the possibly mutated mapping so future writes remain guarded
             from .agent_traits import AgentTraits
-            self.agent._traits = AgentTraits(dict(self.agent._traits), parent=self.agent)
+
+            self.agent._traits = AgentTraits(
+                dict(self.agent._traits), parent=self.agent
+            )
 
     def set_traits_safely(self, new_traits: dict[str, Any]) -> None:
         """Set traits using the safe context manager.
-        
+
         Args:
             new_traits: Dictionary of new traits to set
-            
+
         Examples:
             >>> from edsl.agents import Agent
             >>> agent = Agent(traits={'age': 30})
@@ -259,7 +268,7 @@ class AgentTraitsManager:
             self.agent._traits = new_traits
 
     # ========== TRAIT OPERATIONS ==========
-    
+
     def add_trait(
         self,
         trait_name_or_dict: Union[str, dict[str, Any]],
@@ -286,16 +295,16 @@ class AgentTraitsManager:
         """
         if isinstance(trait_name_or_dict, dict) and value is not None:
             raise AgentErrors("Cannot provide both a dictionary and a value")
-        
+
         new_agent = self.agent.duplicate()
-        
+
         if isinstance(trait_name_or_dict, dict):
             new_traits = dict(new_agent.traits)
             new_traits.update(trait_name_or_dict)
         else:
             new_traits = dict(new_agent.traits)
             new_traits[trait_name_or_dict] = value
-        
+
         new_agent.traits_manager.set_traits_safely(new_traits)
         return new_agent
 
@@ -324,10 +333,10 @@ class AgentTraitsManager:
 
     def set_all_traits(self, new_traits: dict[str, Any]) -> None:
         """Set all traits, replacing existing ones.
-        
+
         Args:
             new_traits: Dictionary of new traits
-            
+
         Examples:
             >>> from edsl.agents import Agent
             >>> agent = Agent(traits={'age': 30})
@@ -377,18 +386,18 @@ class AgentTraitsManager:
         """
         new_agent = self.agent.duplicate()
         new_traits = dict(new_agent.traits)
-        
+
         for trait_name, translation_dict in values_codebook.items():
             if trait_name in new_traits:
                 old_value = new_traits[trait_name]
                 if old_value in translation_dict:
                     new_traits[trait_name] = translation_dict[old_value]
-        
+
         new_agent.traits_manager.set_traits_safely(new_traits)
         return new_agent
 
     # ========== SEARCH ==========
-    
+
     def search_traits(self, search_string: str) -> "RankableItems":
         """Search the agent's traits for a string.
 
@@ -443,28 +452,38 @@ class AgentTraitsManager:
         search_lower = search_string.lower()
         exact_matches = []
         partial_matches = []
-        
+
         for trait_name, description, trait_value in trait_info:
             # Check if search string matches trait name or description
-            if search_lower == trait_name.lower() or search_lower == description.lower():
+            if (
+                search_lower == trait_name.lower()
+                or search_lower == description.lower()
+            ):
                 exact_matches.append((trait_name, description, 1.0))  # Perfect match
-            elif (search_lower in trait_name.lower() or 
-                  search_lower in description.lower() or 
-                  search_lower in str(trait_value).lower()):
+            elif (
+                search_lower in trait_name.lower()
+                or search_lower in description.lower()
+                or search_lower in str(trait_value).lower()
+            ):
                 # Calculate simple similarity based on substring match
                 name_match = search_lower in trait_name.lower()
                 desc_match = search_lower in description.lower()
-                
+
                 # Higher score for name/description matches than value matches
                 score = 0.8 if name_match or desc_match else 0.5
                 partial_matches.append((trait_name, description, score))
 
         # Combine results, exact matches first
-        all_matches = exact_matches + sorted(partial_matches, key=lambda x: x[2], reverse=True)
-        
+        all_matches = exact_matches + sorted(
+            partial_matches, key=lambda x: x[2], reverse=True
+        )
+
         # If no matches found, return all traits with low scores
         if not all_matches:
-            all_matches = [(trait_name, description, 0.1) for trait_name, description, _ in trait_info]
+            all_matches = [
+                (trait_name, description, 0.1)
+                for trait_name, description, _ in trait_info
+            ]
 
         # Create scenario list with results
         sl = ScenarioList([])
@@ -481,10 +500,10 @@ class AgentTraitsManager:
         return sl
 
     # ========== TRANSFER METHODS (for duplication) ==========
-    
+
     def transfer_to(self, new_agent: "Agent") -> None:
         """Transfer dynamic traits function to a new agent.
-        
+
         Args:
             new_agent: The agent to transfer the function to
         """
@@ -495,7 +514,7 @@ class AgentTraitsManager:
 
     # ========== BACKWARD COMPATIBILITY ALIASES ==========
     # These methods provide compatibility with the old AgentDynamicTraits interface
-    
+
     def initialize_from_function(
         self,
         dynamic_traits_function: Optional[Callable],
@@ -504,32 +523,34 @@ class AgentTraitsManager:
     ) -> None:
         """Backward compatibility alias for initialize_dynamic_function."""
         self.initialize_dynamic_function(
-            dynamic_traits_function, dynamic_traits_function_source_code, dynamic_traits_function_name
+            dynamic_traits_function,
+            dynamic_traits_function_source_code,
+            dynamic_traits_function_name,
         )
-    
+
     def validate_function(self) -> None:
         """Backward compatibility alias for validate_dynamic_function."""
         self.validate_dynamic_function()
-    
+
     def get_function(self) -> Optional[Callable]:
         """Get the dynamic traits function if one exists.
-        
+
         Returns:
             The dynamic traits function if it exists, None otherwise
-            
+
         Examples:
             Get the function:
-            
+
             >>> from edsl.agents import Agent
             >>> agent = Agent(traits={'age': 30})
             >>> agent.dynamic_traits.get_function() is None
             True
         """
         return self.dynamic_function
-    
+
     def remove_function(self) -> None:
         """Remove the dynamic traits function.
-        
+
         This clears the dynamic function, causing the agent to fall back
         to using stored traits.
 
@@ -550,19 +571,19 @@ class AgentTraitsManager:
         self.dynamic_function = None
         self.dynamic_function_name = ""
         self.has_dynamic_function = False
-    
+
     # Additional backward compatibility properties
     @property
     def has_function(self) -> bool:
         """Backward compatibility alias for has_dynamic_function."""
         return self.has_dynamic_function
-    
+
     @property
     def function(self) -> Optional[Callable]:
         """Backward compatibility alias for dynamic_function."""
         return self.dynamic_function
-    
+
     @property
     def function_name(self) -> str:
         """Backward compatibility alias for dynamic_function_name."""
-        return self.dynamic_function_name 
+        return self.dynamic_function_name

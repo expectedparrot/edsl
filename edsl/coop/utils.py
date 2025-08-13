@@ -19,7 +19,7 @@ EDSLObject = Union[
     AgentList,
     Cache,
     "LanguageModel",
-    "ModelList", 
+    "ModelList",
     Notebook,
     Type[QuestionBase],
     Results,
@@ -85,7 +85,7 @@ class ObjectRegistry:
     def _get_objects(cls):
         """Lazy import of language models to avoid circular imports"""
         from ..language_models import LanguageModel, ModelList
-        
+
         return [
             {"object_type": "agent", "edsl_class": Agent},
             {"object_type": "agent_list", "edsl_class": AgentList},
@@ -147,7 +147,9 @@ class ObjectRegistry:
             edsl_class_name = "QuestionBase"
 
         # Look up the object type
-        edsl_class_to_object_type = {o["edsl_class"].__name__: o["object_type"] for o in cls._get_objects()}
+        edsl_class_to_object_type = {
+            o["edsl_class"].__name__: o["object_type"] for o in cls._get_objects()
+        }
         object_type = edsl_class_to_object_type.get(edsl_class_name)
 
         if isinstance(edsl_object, Scenario):
@@ -177,7 +179,9 @@ class ObjectRegistry:
         Raises:
             ValueError: If no mapping exists for the provided object type
         """
-        object_type_to_edsl_class = {o["object_type"]: o["edsl_class"] for o in cls._get_objects()}
+        object_type_to_edsl_class = {
+            o["object_type"]: o["edsl_class"] for o in cls._get_objects()
+        }
         EDSL_class = object_type_to_edsl_class.get(object_type)
         if EDSL_class is None:
             from .exceptions import CoopValueError
