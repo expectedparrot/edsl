@@ -8,9 +8,8 @@ if TYPE_CHECKING:
 from .open_ai_service import OpenAIService
 
 if TYPE_CHECKING:
-    from ....scenarios.file_store import FileStore as Files
-    from ....invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
-
+    from ...scenarios.file_store import FileStore as Files
+    from ...invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
 
 class PerplexityService(OpenAIService):
     """Perplexity service class."""
@@ -18,7 +17,7 @@ class PerplexityService(OpenAIService):
     _inference_service_ = "perplexity"
     _env_key_name_ = "PERPLEXITY_API_KEY"
     _base_url_ = "https://api.perplexity.ai"
-    _models_list_cache: List[str] = []
+
     # default perplexity parameters
     _parameters_ = {
         "temperature": 0.5,
@@ -27,17 +26,6 @@ class PerplexityService(OpenAIService):
         "logprobs": False,
         "top_logprobs": 3,
     }
-
-    @classmethod
-    def available(cls) -> List[str]:
-        return [
-            "sonar-deep-research",
-            "sonar-reasoning-pro",
-            "sonar-reasoning",
-            "sonar-pro",
-            "sonar",
-            "r1-1776",
-        ]
 
     @classmethod
     def create_model(

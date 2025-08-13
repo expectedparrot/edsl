@@ -7,9 +7,7 @@ from ..inference_service_abc import InferenceServiceABC
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
-
-if TYPE_CHECKING:
-    from ....scenarios.file_store import FileStore
+    from ...scenarios.file_store import FileStore
 
 
 class AwsBedrockService(InferenceServiceABC):
@@ -23,15 +21,6 @@ class AwsBedrockService(InferenceServiceABC):
     input_token_name = "inputTokens"
     output_token_name = "outputTokens"
     usage_sequence = ["usage"]
-    model_exclude_list = [
-        "ai21.j2-grande-instruct",
-        "ai21.j2-jumbo-instruct",
-        "ai21.j2-mid",
-        "ai21.j2-mid-v1",
-        "ai21.j2-ultra",
-        "ai21.j2-ultra-v1",
-    ]
-    _models_list_cache: List[str] = []
 
     @classmethod
     def get_model_info(cls):
@@ -40,21 +29,21 @@ class AwsBedrockService(InferenceServiceABC):
         client = boto3.client("bedrock", region_name=region)
         return client.list_foundation_models()["modelSummaries"]
     
-    @classmethod
-    def available(cls):
-        """Fetch available models from AWS Bedrock."""
+    # @classmethod
+    # def available(cls):
+    #     """Fetch available models from AWS Bedrock."""
 
-        region = os.getenv("AWS_REGION", "us-east-1")
+    #     region = os.getenv("AWS_REGION", "us-east-1")
 
-        if not cls._models_list_cache:
-            client = boto3.client("bedrock", region_name=region)
-            all_models_ids = [
-                x["modelId"] for x in client.list_foundation_models()["modelSummaries"]
-            ]
-        else:
-            all_models_ids = cls._models_list_cache
+    #     if not cls._models_list_cache:
+    #         client = boto3.client("bedrock", region_name=region)
+    #         all_models_ids = [
+    #             x["modelId"] for x in client.list_foundation_models()["modelSummaries"]
+    #         ]
+    #     else:
+    #         all_models_ids = cls._models_list_cache
 
-        return [m for m in all_models_ids if m not in cls.model_exclude_list]
+    #     return [m for m in all_models_ids if m not in cls.model_exclude_list]
 
     @classmethod
     def create_model(
@@ -103,13 +92,6 @@ class AwsBedrockService(InferenceServiceABC):
                         "content": [{"text": user_prompt}],
                     }
                 ]
-                # We'll need to handle system prompt in the future
-                # Commented out to avoid unused variable warning
-                # system_content = [
-                #     {
-                #         "text": system_prompt,
-                #     }
-                # ]
                 try:
                     response = client.converse(
                         modelId=self._model_,

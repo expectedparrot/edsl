@@ -2,8 +2,11 @@ from typing import Dict, List, Any, Optional, Tuple, TYPE_CHECKING, Type, Tuple
 from datetime import datetime
 from collections import defaultdict
 import fnmatch
-from .model_info_fetcher import ModelInfoCoopRegular, ModelInfoCoopWorking, ModelInfoServices
 
+from .source_preference_handler import SourcePreferenceHandler
+
+if TYPE_CHECKING:
+    from .inference_service_abc import InferenceServiceABC
 
 class InferenceServiceRegistry:
     """
@@ -15,9 +18,12 @@ class InferenceServiceRegistry:
         service_preferences: Optional ordered tuple of preferred service names
     """
 
-    _default_service_preferences = ('anthropic', 'bedrock', 'azure', 'openai', 'deep_infra', 'deepseek', 'google', 'groq', 'mistral', 'ollama', 'openai_v2', 'perplexity', 'together', 'xai', 'open_router')
-        
-    def __init__(self, verbose: bool = False, service_preferences: Optional[Tuple[str, ...]] = None):
+    _default_service_preferences = ('anthropic', 'openai', 'deep_infra', 'deepseek', 'google', 'groq', 'mistral', 
+                                    'openai_v2', 'perplexity', 'together', 'xai', 'open_router', 'bedrock', 'azure', 'ollama')
+    
+    _default_source_preferences = ('coop_working', 'coop', 'archive', 'local')
+
+    def __init__(self, verbose: bool = False, service_preferences: Optional[Tuple[str, ...]] = None, source_preferences: Optional[Tuple[str, ...]] = None):
         self._services = {}
         self._registration_times = {}  # Track when services were registered
 
@@ -29,11 +35,15 @@ class InferenceServiceRegistry:
         self.verbose = verbose  # Enable verbose logging
         self._service_preferences = service_preferences if service_preferences else self._default_service_preferences  # Ordered tuple of preferred services
 
-        #if source_preference is None:
-        #    source_preference = ('coop', 'local', 'archive')
-        self._source_preference = ['coop','local', 'archive']
-
-        self._used_source = None
+        # Initialize source preference handler
+        if source_preferences is None:
+            source_preferences = self._default_source_preferences
+            
+        self._source_handler = SourcePreferenceHandler(
+            registry=self,
+            source_preferences=source_preferences,
+            verbose=verbose
+        )
 
 
     @property
@@ -77,33 +87,8 @@ class InferenceServiceRegistry:
     def model_info_data(self) -> dict:
         """Get the model data from the model info fetcher."""
         if self._model_info_data is None:
-            from .model_info_fetcher import ModelInfoFetcherABC
-            fetchers = ModelInfoFetcherABC.get_registered_fetchers()
-            for source in self._source_preference:
-                if source in fetchers:
-                    self._used_source = source
-                    model_info_fetcher = fetchers[source](self)
-                    try:
-                        model_info_fetcher.fetch()
-                    except Exception as e:
-                        if self.verbose:
-                            print(f"Error fetching model info from {source}: {e}")
-                        continue
-                    
-                    if len(model_info_fetcher) > 0:
-                        self._model_info_data = dict(model_info_fetcher)
-                    else:
-                        if self.verbose:
-                            print("Came back empty") 
-                        continue
-
-                    break
-                else:
-                    raise ValueError(f"No fetcher registered with name '{source}'. Available: {list(fetchers.keys())}")
-                
-        if self._model_info_data is None: 
-            raise ValueError("Could not build info from any source")    
-
+            self._model_info_data = self._source_handler.fetch_model_info_data()
+            
         return self._model_info_data
     
     def get_all_model_names(self):
@@ -136,7 +121,7 @@ class InferenceServiceRegistry:
             raise ValueError(f"""Model '{model_name}' not found in any service. 
                              Available models: {list(self.model_to_services.keys())}. 
                              Available services: {list(self.service_to_models.keys())}
-                            Used source: {self._used_source}
+                            Used source: {self._source_handler.used_source}
 """
                              )
                     
@@ -247,5 +232,28 @@ class InferenceServiceRegistry:
         
         service_instance = service_class()
         return service_instance.create_model(model_name, *args, **kwargs)
+    
+    def get_used_source(self) -> Optional[str]:
+        """Get the source that was used to fetch model information."""
+        return self._source_handler.used_source
+    
+    def get_source_preferences(self) -> List[str]:
+        """Get the current source preferences."""
+        return self._source_handler.get_source_preferences()
+    
+    def add_source_preference(self, source: str, position: Optional[int] = None) -> None:
+        """Add a new source to the preference list."""
+        self._source_handler.add_source_preference(source, position)
+        
+    def remove_source_preference(self, source: str) -> bool:
+        """Remove a source from the preference list."""
+        return self._source_handler.remove_source_preference(source)
+        
+    def refresh_model_info(self) -> None:
+        """Force refresh of model information from sources."""
+        self._model_info_data = None
+        self._model_to_services = None
+        self._service_to_models = None
+        self._source_handler.reset_used_source()
     
             

@@ -20,12 +20,10 @@ class AnthropicService(InferenceServiceABC):
     usage_sequence = ["usage"]
     input_token_name = "input_tokens"
     output_token_name = "output_tokens"
-    model_exclude_list = []
-
     available_models_url = "https://docs.anthropic.com/en/docs/about-claude/models"
 
     @classmethod
-    def get_model_info(cls, api_key: str = None):
+    def get_model_info(cls, api_key: Optional[str] = None):
         """Get raw model info without wrapping in ModelInfo."""
         import requests
 
@@ -35,10 +33,6 @@ class AnthropicService(InferenceServiceABC):
         response = requests.get("https://api.anthropic.com/v1/models", headers=headers)
         response.raise_for_status()
         return response.json()["data"]
-
-    @classmethod
-    def available(cls):
-        return cls.get_model_list()
 
     @classmethod
     def create_model(
@@ -107,7 +101,6 @@ class AnthropicService(InferenceServiceABC):
                                 },
                             }
                         )
-                # breakpoint()
                 client = AsyncAnthropic(api_key=self.api_token)
 
                 try:
