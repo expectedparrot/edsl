@@ -11,7 +11,6 @@ class TogetherAIService(OpenAIService):
     _inference_service_ = "together"
     _env_key_name_ = "TOGETHER_API_KEY"
     _base_url_ = "https://api.together.xyz/v1"
-    _models_list_cache: List[str] = []
 
     # These are non-serverless models. There was no api param to filter them
     model_exclude_list = [
@@ -155,15 +154,3 @@ class TogetherAIService(OpenAIService):
         response.raise_for_status()
         return response.json()
 
-    @classmethod
-    def available(cls) -> List[str]:
-        if not cls._models_list_cache:
-            try:
-                cls._models_list_cache = [
-                    m["id"]
-                    for m in cls.get_model_list()
-                    if m["id"] not in cls.model_exclude_list
-                ]
-            except Exception:
-                raise
-        return cls._models_list_cache

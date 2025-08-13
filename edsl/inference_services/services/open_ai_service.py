@@ -11,7 +11,6 @@ from .message_builder import MessageBuilder
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
 
-#from ..rate_limits_cache import rate_limits
 rate_limits = {}
 
 if TYPE_CHECKING:
@@ -20,17 +19,6 @@ if TYPE_CHECKING:
 
 
 APIToken = NewType("APIToken", str)
-
-
-def beautify_class_name(class_name: str, module_name: str):
-    """Decorator to give dynamically created classes nicer representations."""
-    def decorator(cls):
-        cls.__name__ = class_name
-        cls.__qualname__ = class_name
-        cls.__module__ = module_name
-        return cls
-    return decorator
-
 
 class OpenAIParameterBuilder:
     """Helper class to construct API parameters based on model type."""
@@ -110,25 +98,6 @@ class OpenAIService(InferenceServiceABC):
         client = cls._async_client_instances[api_key]
         return client
 
-    model_exclude_list = [
-        "whisper-1",
-        "davinci-002",
-        "dall-e-2",
-        "tts-1-hd-1106",
-        "tts-1-hd",
-        "dall-e-3",
-        "tts-1",
-        "babbage-002",
-        "tts-1-1106",
-        "text-embedding-3-large",
-        "text-embedding-3-small",
-        "text-embedding-ada-002",
-        "ft:davinci-002:mit-horton-lab::8OfuHgoo",
-        "gpt-3.5-turbo-instruct-0914",
-        "gpt-3.5-turbo-instruct",
-    ]
-    _models_list_cache: List[str] = []
-
     @classmethod
     def get_model_info(cls, api_key=None):
         """Get raw model info without wrapping in ModelInfo."""
@@ -142,20 +111,20 @@ class OpenAIService(InferenceServiceABC):
         else:
             return raw_list
 
-    @classmethod
-    def available(cls, api_token=None) -> List[str]:
-        if api_token is None:
-            api_token = os.getenv(cls._env_key_name_)
-        if not cls._models_list_cache:
-            try:
-                cls._models_list_cache = [
-                    m.id
-                    for m in cls.get_model_list(api_key=api_token)
-                    if m.id not in cls.model_exclude_list
-                ]
-            except Exception:
-                raise
-        return cls._models_list_cache
+    # @classmethod
+    # def available(cls, api_token=None) -> List[str]:
+    #     if api_token is None:
+    #         api_token = os.getenv(cls._env_key_name_)
+    #     if not cls._models_list_cache:
+    #         try:
+    #             cls._models_list_cache = [
+    #                 m.id
+    #                 for m in cls.get_model_list(api_key=api_token)
+    #                 if m.id not in cls.model_exclude_list
+    #             ]
+    #         except Exception:
+    #             raise
+    #     return cls._models_list_cache
 
     @classmethod
     def create_model(cls, model_name, model_class_name=None) -> "LanguageModel":

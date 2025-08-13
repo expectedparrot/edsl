@@ -31,6 +31,26 @@ verbose-off: ## Disable verbose mode by setting EDSL_VERBOSE_MODE=False in .env
 	fi
 	@echo "Verbose mode disabled (EDSL_VERBOSE_MODE=False)"
 
+keys-on: ## Enable API keys by removing # comments from key lines in .env
+	@if [ ! -f .env ]; then \
+		echo "No .env file found"; \
+		exit 1; \
+	fi
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^#\([A-Z_]*_API_KEY=\)/\1/' .env
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^#\(AWS_ACCESS_KEY_ID=\)/\1/' .env
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^#\(AWS_SECRET_ACCESS_KEY=\)/\1/' .env
+	@echo "API keys enabled (uncommented in .env)"
+
+keys-off: ## Disable API keys by adding # comments to key lines in .env
+	@if [ ! -f .env ]; then \
+		echo "No .env file found"; \
+		exit 1; \
+	fi
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^\([A-Z_]*_API_KEY=\)/#\1/' .env
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^\(AWS_ACCESS_KEY_ID=\)/#\1/' .env
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^\(AWS_SECRET_ACCESS_KEY=\)/#\1/' .env
+	@echo "API keys disabled (commented out in .env)"
+
 install: ## Install all project deps and create a venv (local)
 	make clean-all
 	@echo "Creating a venv from pyproject.toml and installing deps using poetry..."

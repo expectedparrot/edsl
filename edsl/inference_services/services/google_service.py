@@ -40,8 +40,6 @@ class GoogleService(InferenceServiceABC):
     input_token_name = "prompt_token_count"
     output_token_name = "candidates_token_count"
 
-    model_exclude_list = []
-
     available_models_url = (
         "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models"
     )
@@ -50,10 +48,6 @@ class GoogleService(InferenceServiceABC):
     def get_model_info(cls):
         """Get raw model info without wrapping in ModelInfo."""
         return list(genai.list_models())
-
-    @classmethod
-    def available(cls) -> List[str]:
-        return cls.get_model_list()
 
     @classmethod
     def create_model(
