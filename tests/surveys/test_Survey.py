@@ -284,6 +284,269 @@ class TestSurvey(unittest.TestCase):
             == "BlueGreenRedBlueRedGreenBlueRedGreenBlueGreenRedGreenRedBlueGreenBlueRedGreenBlueRedRedBlueGreenBlueRedGreenGreenBlueRed"
         )
 
+    def test_with_renamed_question_basic(self):
+        """Test basic question renaming functionality."""
+        s = self.gen_survey()
+        original_names = s.question_names
+        
+        # DEBUG: Check if method exists
+        print(f"Survey type: {type(s)}")
+        print(f"Survey module: {s.__class__.__module__}")
+        print(f"Has with_renamed_question: {hasattr(s, 'with_renamed_question')}")
+        
+        # Rename the first question
+        s_renamed = s.with_renamed_question("like_school", "school_preference")
+        
+        # Check that the question name was updated
+        self.assertEqual(s_renamed.question_names[0], "school_preference")
+        self.assertEqual(s_renamed.question_names[1:], original_names[1:])
+        
+        # Check that the renamed question can be retrieved
+        renamed_question = s_renamed.get("school_preference")
+        self.assertEqual(renamed_question.question_name, "school_preference")
+        self.assertEqual(renamed_question.question_text, "Do you like school?")
+        
+        # Check that the old name is no longer available
+        with self.assertRaises(Exception):
+            s_renamed.get("like_school")
+
+    def test_with_renamed_question_with_rules(self):
+        """Test that rules are updated when questions are renamed."""
+        from edsl.questions import QuestionFreeText
+        
+        q1 = QuestionFreeText(question_text="What is your name?", question_name="name")
+        q2 = QuestionFreeText(question_text="What is your age?", question_name="age")
+        q3 = QuestionFreeText(question_text="Any comments?", question_name="comments")
+        
+        s = Survey([q1, q2, q3])
+        
+        # Add rule with new format (Jinja2)
+        s = s.add_rule("name", "{{ name.answer }} == 'John'", "comments")
+        
+        # Verify rule before rename
+        rule_expressions_before = [rule.expression for rule in s.rule_collection if "name" in rule.expression]
+        self.assertTrue(any("{{ name.answer }}" in expr for expr in rule_expressions_before))
+        
+        # Rename the question
+        s_renamed = s.with_renamed_question("name", "full_name")
+        
+        # Verify rule after rename
+        rule_expressions_after = [rule.expression for rule in s_renamed.rule_collection if "full_name" in rule.expression]
+        self.assertTrue(any("{{ full_name.answer }}" in expr for expr in rule_expressions_after))
+        
+        # Verify old name is gone from rules
+        rule_expressions_old = [rule.expression for rule in s_renamed.rule_collection if "{{ name.answer }}" in rule.expression]
+        self.assertEqual(len(rule_expressions_old), 0)
+
+    def test_with_renamed_question_with_piping(self):
+        """Test that piping references are updated when questions are renamed."""
+        from edsl.questions import QuestionFreeText, QuestionMultipleChoice
+        
+        q1 = QuestionFreeText(question_text="What is your name?", question_name="user_name")
+        q2 = QuestionMultipleChoice(
+            question_text="Hello {{ user_name.answer }}, do you like surveys?",
+            question_options=["yes", "no"],
+            question_name="likes_surveys"
+        )
+        q3 = QuestionFreeText(
+            question_text="{{ user_name.answer }}, since you said {{ likes_surveys.answer }}, please explain.",
+            question_name="explanation"
+        )
+        
+        s = Survey([q1, q2, q3])
+        
+        # Verify piping before rename
+        self.assertIn("{{ user_name.answer }}", s.get("likes_surveys").question_text)
+        self.assertIn("{{ user_name.answer }}", s.get("explanation").question_text)
+        
+        # Rename the question
+        s_renamed = s.with_renamed_question("user_name", "participant_name")
+        
+        # Verify piping after rename
+        self.assertIn("{{ participant_name.answer }}", s_renamed.get("likes_surveys").question_text)
+        self.assertIn("{{ participant_name.answer }}", s_renamed.get("explanation").question_text)
+        
+        # Verify old name is gone from piping
+        self.assertNotIn("{{ user_name.answer }}", s_renamed.get("likes_surveys").question_text)
+        self.assertNotIn("{{ user_name.answer }}", s_renamed.get("explanation").question_text)
+
+    def test_with_renamed_question_with_memory_plan(self):
+        """Test that memory plans are updated when questions are renamed."""
+        s = self.gen_survey()
+        
+        # Add memory relationship
+        s = s.add_targeted_memory("favorite_subject", "like_school")
+        
+        # Verify memory plan before rename
+        memory_plan_before = dict(s.memory_plan)
+        self.assertIn("favorite_subject", memory_plan_before)
+        self.assertIn("like_school", memory_plan_before["favorite_subject"].data)
+        
+        # Rename the focal question
+        s_renamed = s.with_renamed_question("favorite_subject", "preferred_subject")
+        memory_plan_after = dict(s_renamed.memory_plan)
+        
+        # Verify focal question name updated
+        self.assertIn("preferred_subject", memory_plan_after)
+        self.assertNotIn("favorite_subject", memory_plan_after)
+        self.assertIn("like_school", memory_plan_after["preferred_subject"].data)
+        
+        # Rename the prior question
+        s_renamed2 = s_renamed.with_renamed_question("like_school", "school_preference")
+        memory_plan_final = dict(s_renamed2.memory_plan)
+        
+        # Verify prior question name updated
+        self.assertIn("school_preference", memory_plan_final["preferred_subject"].data)
+        self.assertNotIn("like_school", memory_plan_final["preferred_subject"].data)
+
+    def test_with_renamed_question_with_instructions(self):
+        """Test that instructions are updated when questions are renamed."""
+        from edsl.instructions import Instruction
+        
+        s = self.gen_survey()
+        
+        # Add instruction that references a question
+        instruction = Instruction(
+            text="Pay attention to your answer for {{ like_school.answer }} when answering later questions.",
+            name="attention"
+        )
+        s_with_instruction = s.add_instruction(instruction)
+        
+        # Verify instruction before rename
+        instruction_text_before = s_with_instruction._instruction_names_to_instructions["attention"].text
+        self.assertIn("{{ like_school.answer }}", instruction_text_before)
+        
+        # Rename the question
+        s_renamed = s_with_instruction.with_renamed_question("like_school", "school_preference")
+        
+        # Verify instruction after rename
+        instruction_text_after = s_renamed._instruction_names_to_instructions["attention"].text
+        self.assertIn("{{ school_preference.answer }}", instruction_text_after)
+        self.assertNotIn("{{ like_school.answer }}", instruction_text_after)
+
+    def test_with_renamed_question_error_conditions(self):
+        """Test error conditions for question renaming."""
+        s = self.gen_survey()
+        
+        # Test renaming non-existent question
+        with self.assertRaises(Exception) as context:
+            s.with_renamed_question("nonexistent", "new_name")
+        self.assertIn("not found", str(context.exception))
+        
+        # Test renaming to existing name
+        with self.assertRaises(Exception) as context:
+            s.with_renamed_question("like_school", "favorite_subject")
+        self.assertIn("already exists", str(context.exception))
+        
+        # Test invalid identifier
+        with self.assertRaises(Exception) as context:
+            s.with_renamed_question("like_school", "123invalid")
+        self.assertIn("not a valid Python identifier", str(context.exception))
+        
+        # Test invalid identifier with spaces
+        with self.assertRaises(Exception) as context:
+            s.with_renamed_question("like_school", "invalid name")
+        self.assertIn("not a valid Python identifier", str(context.exception))
+
+    def test_with_renamed_question_preserves_survey_structure(self):
+        """Test that renaming preserves overall survey structure."""
+        s = self.gen_survey()
+        original_question_count = len(s.questions)
+        original_question_texts = [q.question_text for q in s.questions]
+        
+        # Add some complexity
+        s = s.add_rule("like_school", "{{ like_school.answer }} == 'yes'", "manual")
+        s = s.add_targeted_memory("manual", "like_school")
+        
+        # Rename a question
+        s_renamed = s.with_renamed_question("like_school", "school_preference")
+        
+        # Verify structure preservation
+        self.assertEqual(len(s_renamed.questions), original_question_count)
+        renamed_question_texts = [q.question_text for q in s_renamed.questions]
+        self.assertEqual(renamed_question_texts, original_question_texts)
+        
+        # Verify that survey is still functional
+        next_q = s_renamed.next_question("school_preference", {"school_preference.answer": "yes"})
+        self.assertEqual(next_q.question_name, "manual")
+
+    def test_with_renamed_question_method_chaining(self):
+        """Test that with_renamed_question can be chained with other methods."""
+        s = self.gen_survey()
+        
+        # Test method chaining
+        s_chained = (s.with_renamed_question("like_school", "school_preference")
+                    .with_renamed_question("favorite_subject", "preferred_subject")
+                    .with_renamed_question("manual", "hands_on"))
+        
+        expected_names = ["school_preference", "preferred_subject", "hands_on"]
+        self.assertEqual(s_chained.question_names, expected_names)
+        
+        # Verify each question can be retrieved
+        for name in expected_names:
+            self.assertIsNotNone(s_chained.get(name))
+
+    def test_with_renamed_question_complex_scenario(self):
+        """Test renaming in a complex scenario with multiple interdependencies."""
+        from edsl.questions import QuestionFreeText, QuestionMultipleChoice
+        from edsl.instructions import Instruction
+        
+        # Create complex survey
+        q1 = QuestionFreeText(question_text="What is your name?", question_name="user_name")
+        q2 = QuestionMultipleChoice(
+            question_text="Hello {{ user_name.answer }}, do you like {{ user_name }} questions?",
+            question_options=["yes", "no"],
+            question_name="likes_questions"
+        )
+        q3 = QuestionFreeText(
+            question_text="{{ user_name.answer }}, you said {{ likes_questions.answer }}. Why?",
+            question_name="explanation"
+        )
+        
+        s = Survey([q1, q2, q3])
+        
+        # Add complex rule
+        s = s.add_rule("user_name", "{{ user_name.answer }} == 'Bob'", "explanation")
+        
+        # Add memory relationships
+        s = s.add_targeted_memory("explanation", "user_name")
+        s = s.add_targeted_memory("explanation", "likes_questions")
+        
+        # Add instruction
+        instruction = Instruction(
+            text="Remember that {{ user_name.answer }} should be consistent throughout.",
+            name="consistency"
+        )
+        s = s.add_instruction(instruction)
+        
+        # Rename the central question
+        s_renamed = s.with_renamed_question("user_name", "participant_name")
+        
+        # Verify all components were updated
+        # 1. Question text piping
+        q2_text = s_renamed.get("likes_questions").question_text
+        self.assertIn("{{ participant_name.answer }}", q2_text)
+        self.assertIn("{{ participant_name }}", q2_text)  # Test both formats
+        
+        # 2. Rules
+        rule_expressions = [rule.expression for rule in s_renamed.rule_collection if "participant_name" in rule.expression]
+        self.assertTrue(any("{{ participant_name.answer }}" in expr for expr in rule_expressions))
+        
+        # 3. Memory plan
+        memory_plan = dict(s_renamed.memory_plan)
+        self.assertIn("participant_name", memory_plan["explanation"].data)
+        
+        # 4. Instructions
+        instruction_text = s_renamed._instruction_names_to_instructions["consistency"].text
+        self.assertIn("{{ participant_name.answer }}", instruction_text)
+        
+        # 5. Verify no old references remain
+        all_texts = [q.question_text for q in s_renamed.questions]
+        all_texts.append(instruction_text)
+        all_texts.extend([rule.expression for rule in s_renamed.rule_collection])
+        
+        for text in all_texts:
+            self.assertNotIn("{{ user_name.answer }}", text)
 
 
 if __name__ == "__main__":
