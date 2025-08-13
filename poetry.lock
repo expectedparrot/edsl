@@ -6704,4 +6704,4 @@ services = ["fastapi", "uvicorn"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.1,<3.14"
-content-hash = "5113e1a6be0ed52a1e9567e2838969c93bcd7416b3bcba3f7c6695cb5cb57273"
+content-hash = "7e6cc5db4b4c4995fce4ce6244cb8d07bd50e61eafd3ce3c9430d7dc2fa5f60b"
