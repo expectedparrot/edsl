@@ -11,7 +11,6 @@ from itertools import product
 
 
 from collections import UserList
-from collections.abc import Iterable
 from typing import Any, List, Optional, Union, TYPE_CHECKING
 
 # simpleeval imports moved to agent_list_filter.py

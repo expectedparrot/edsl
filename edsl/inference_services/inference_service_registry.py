@@ -1,4 +1,4 @@
-from typing import Dict, List, Any, Optional, Tuple, TYPE_CHECKING, Type, Tuple
+from typing import Dict, List, Optional, TYPE_CHECKING, Tuple
 from datetime import datetime
 from collections import defaultdict
 import fnmatch
@@ -43,7 +43,7 @@ def load_all_service_classes():
                 ):
                     service_classes.append(attr)
 
-        except ImportError as e:
+        except ImportError:
             # Skip modules that can't be imported (might have missing dependencies)
             continue
 
