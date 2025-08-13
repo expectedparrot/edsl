@@ -42,7 +42,7 @@ jobs:
       - name: Run Docker Compose
         run: |
           cd /home/stefan/expectedparrot/coopr
-          docker-compose build backend && docker-compose up --wait
+          docker compose build backend && docker compose build remote_inference && docker compose up --wait
 
       - name: Fetch and checkout last commit in EDSL
         run: |
