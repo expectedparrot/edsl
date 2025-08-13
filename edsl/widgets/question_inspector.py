@@ -5,7 +5,7 @@ An interactive widget for inspecting EDSL Question objects, providing detailed v
 of question properties, validation rules, templates, and type-specific features.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 from .inspector_widget import InspectorWidget
 
 

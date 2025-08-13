@@ -97,7 +97,7 @@ class RuleCollection(UserList):
         """Add a rule to a survey.
 
         >>> rule_collection = RuleCollection()
-        >>> rule_collection.add_rule(Rule(current_q=1, expression="q1 == 'yes'", next_q=3, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}))
+        >>> rule_collection.add_rule(Rule(current_q=1, expression="{{ q1.answer }} == 'yes'", next_q=3, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}))
         >>> len(rule_collection)
         1
 
@@ -113,7 +113,7 @@ class RuleCollection(UserList):
         """
         self.append(rule)
         # Clear the rules cache when new rules are added
-        if hasattr(self, '_rules_cache'):
+        if hasattr(self, "_rules_cache"):
             self._rules_cache.clear()
 
     def show_rules(self) -> None:
@@ -162,7 +162,7 @@ class RuleCollection(UserList):
 
             rule_collection = RuleCollection.example()
             rule_collection.applicable_rules(1)
-            [Rule(current_q=1, expression="q1 == 'yes'", next_q=3, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}), Rule(current_q=1, expression="q1 == 'no'", next_q=2, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4})]
+            [Rule(current_q=1, expression="{{ q1.answer }} == 'yes'", next_q=3, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}), Rule(current_q=1, expression="{{ q1.answer }} == 'no'", next_q=2, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4})]
 
         More than one rule can apply. For example, suppose we are at node 1.
         We could have three rules:
@@ -172,16 +172,16 @@ class RuleCollection(UserList):
         """
         # Cache rules by position to avoid repeated filtering
         cache_key = (q_now, before_rule)
-        if not hasattr(self, '_rules_cache'):
+        if not hasattr(self, "_rules_cache"):
             self._rules_cache = {}
-        
+
         if cache_key not in self._rules_cache:
             self._rules_cache[cache_key] = [
                 rule
                 for rule in self
                 if rule.current_q == q_now and rule.before_rule == before_rule
             ]
-        
+
         return self._rules_cache[cache_key]
 
     def next_question(self, q_now: int, answers: dict[str, Any]) -> NextQuestion:
@@ -287,7 +287,7 @@ class RuleCollection(UserList):
         the current and destination nodes are also included as keys, as they will depend
         on the answer to the focal node as well.
 
-        For exmaple, if we have a rule that says "if q1 == 'yes', go to q3", then q3 depends on q1, but so does q2.
+        For exmaple, if we have a rule that says "if {{ q1.answer }} == 'yes', go to q3", then q3 depends on q1, but so does q2.
         So the DAG would be {3: [1], 2: [1]}.
 
         Example usage:
@@ -296,8 +296,8 @@ class RuleCollection(UserList):
 
             rule_collection = RuleCollection(num_questions=5)
             qn2i = {'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}
-            rule_collection.add_rule(Rule(current_q=1, expression="q1 == 'yes'", next_q=3, priority=1,  question_name_to_index = qn2i))
-            rule_collection.add_rule(Rule(current_q=1, expression="q1 == 'no'", next_q=2, priority=1, question_name_to_index = qn2i))
+            rule_collection.add_rule(Rule(current_q=1, expression="{{ q1.answer }} == 'yes'", next_q=3, priority=1,  question_name_to_index = qn2i))
+            rule_collection.add_rule(Rule(current_q=1, expression="{{ q1.answer }} == 'no'", next_q=2, priority=1, question_name_to_index = qn2i))
             rule_collection.dag
             {2: {1}, 3: {1}}
 

@@ -12,7 +12,6 @@ from .exceptions import (
     ServiceConnectionError,
     ServiceResponseError,
     ServiceConfigurationError,
-    ServiceDeserializationError,
 )
 
 logger = logging.getLogger(__name__)

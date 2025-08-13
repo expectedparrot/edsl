@@ -8,9 +8,7 @@ from ..inference_service_abc import InferenceServiceABC
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
-
-if TYPE_CHECKING:
-    from ....scenarios.file_store import FileStore
+    from ...scenarios.file_store import FileStore
 
 
 class MistralAIService(InferenceServiceABC):
@@ -30,8 +28,16 @@ class MistralAIService(InferenceServiceABC):
     _sync_client = Mistral
     _async_client = Mistral
 
-    _models_list_cache: List[str] = []
-    model_exclude_list = []
+    @classmethod
+    def get_model_info(cls):
+        """Get raw model info without wrapping in ModelInfo."""
+        api_key = os.environ.get("MISTRAL_API_KEY")
+        if not api_key:
+            raise ValueError("MISTRAL_API_KEY environment variable not set.")
+
+        client = Mistral(api_key=api_key)
+        models_response = client.models.list()
+        return models_response.data
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

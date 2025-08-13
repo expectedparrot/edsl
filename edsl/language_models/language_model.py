@@ -1017,28 +1017,26 @@ class LanguageModel(
         """Create a language model instance from a dictionary representation.
 
         This class method deserializes a model from its dictionary representation,
-        finding the correct model class based on the model identifier and service.
+        using the inference service registry to find the correct model class.
 
         Args:
             data: Dictionary containing the model configuration
 
         Returns:
             LanguageModel: A new model instance of the appropriate type
-
-        Note:
-            This method does not use the stored inference_service directly but
-            fetches the model class based on the model name and service name.
         """
-        from .model import get_model_class
-
-        # Determine the appropriate model class
-        model_class = get_model_class(
-            data["model"], service_name=data.get("inference_service", None)
+        from ..inference_services.inference_service_registry import (
+            InferenceServiceRegistry,
         )
+
+        # Create and use the inference service registry to create the language model
+        registry = InferenceServiceRegistry()
+        model_name = data["model"]
+        service_name = data.get("inference_service", None)
 
         # Handle canned_response in parameters for test models
         if (
-            data["model"] == "test"
+            model_name == "test"
             and "parameters" in data
             and "canned_response" in data["parameters"]
         ):
@@ -1046,15 +1044,19 @@ class LanguageModel(
             canned_response = data["parameters"]["canned_response"]
             params_copy = data.copy()
 
-            # Direct attribute will be set during initialization
             # Add it as a top-level parameter for model initialization
             if isinstance(params_copy, dict) and "parameters" in params_copy:
                 params_copy["canned_response"] = canned_response
 
-            # Create the instance with canned_response as a direct parameter
+            # Create the instance using the registry (which returns a model class)
+            model_class = registry.create_language_model(
+                model_name, service_name=service_name
+            )
             return model_class(**params_copy)
 
-        # For non-test models or test models without canned_response
+        model_class = registry.create_language_model(
+            model_name, service_name=service_name
+        )
         return model_class(**data)
 
     def __repr__(self) -> str:
@@ -1149,7 +1151,10 @@ class LanguageModel(
         if test_model:
             # Create a test model with predefined behavior
             m = Model(
-                "test", canned_response=canned_response, throw_exception=throw_exception
+                model_name="test",
+                service_name="test",
+                canned_response=canned_response,
+                throw_exception=throw_exception,
             )
             return m
         else:

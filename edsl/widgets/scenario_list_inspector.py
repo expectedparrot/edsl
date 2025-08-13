@@ -6,7 +6,7 @@ list format. Users can browse scenario cards and click to view detailed informat
 for individual scenarios.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 from .inspector_widget import InspectorWidget
 
 
