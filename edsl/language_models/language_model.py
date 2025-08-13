@@ -1021,9 +1021,10 @@ class LanguageModel(
         Returns:
             LanguageModel: A new model instance of the appropriate type
         """
-        from ..inference_services import inference_service_registry
+        from ..inference_services.inference_service_registry import InferenceServiceRegistry
 
-        # Use the inference service registry to create the language model
+        # Create and use the inference service registry to create the language model
+        registry = InferenceServiceRegistry()
         model_name = data["model"]
         service_name = data.get("inference_service", None)
         
@@ -1042,10 +1043,10 @@ class LanguageModel(
                 params_copy["canned_response"] = canned_response
 
             # Create the instance using the registry (which returns a model class)
-            model_class = inference_service_registry.create_language_model(model_name, service_name=service_name)
+            model_class = registry.create_language_model(model_name, service_name=service_name)
             return model_class(**params_copy)
 
-        model_class = inference_service_registry.create_language_model(model_name, service_name=service_name)
+        model_class = registry.create_language_model(model_name, service_name=service_name)
         return model_class(**data)
 
     def __repr__(self) -> str:

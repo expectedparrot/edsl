@@ -1,6 +1,6 @@
 import textwrap
 from random import random
-from typing import Optional, TYPE_CHECKING, Any, Union, Set
+from typing import Optional, TYPE_CHECKING, Any, Union, Set, List, Tuple
 
 
 from ..config import CONFIG
@@ -73,9 +73,8 @@ class Model(metaclass=Meta):
             initializes with the default registry.
         """
         if cls._inference_service_registry is None:
-            # Import lazily only when needed to avoid circular imports
-            from edsl.inference_services import inference_service_registry
-            cls._inference_service_registry = inference_service_registry
+            from ..inference_services.inference_service_registry import InferenceServiceRegistry
+            cls._inference_service_registry = InferenceServiceRegistry()
         return cls._inference_service_registry
 
     @classmethod
@@ -86,48 +85,6 @@ class Model(metaclass=Meta):
             registry: The new inference service registry to use.
         """
         cls._inference_service_registry = registry
-
-    @classmethod
-    def _handle_model_error(cls, model_name: str, error: Exception) -> Optional[Any]:
-        """Handle errors from model creation and execution with notebook-aware behavior.
-        
-        Args:
-            model_name: The name of the model that caused the error.
-            error: The exception that was raised.
-            
-        Returns:
-            None if in a notebook environment (error is printed), 
-            otherwise raises the appropriate exception.
-            
-        Raises:
-            InferenceServiceError: If the error is service-related and not in a notebook.
-            Exception: Re-raises the original error if not in a notebook.
-        """
-        if isinstance(error, InferenceServiceError):
-            registry = cls.get_inference_service_registry()
-            service_instances = registry.get_service_instances()
-            services = [getattr(s, '_inference_service_', s.__class__.__name__) for s in service_instances]
-            message = (
-                f"Model '{model_name}' not found in any services.\n"
-                "It is likely that our registry is just out of date.\n"
-                "Simply adding the service name to your model call should fix this.\n"
-                f"Available services are: {services}\n"
-                f"To specify a model with a service, use:\n"
-                f'Model("{model_name}", service_name="<service_name>")'
-            )
-        else:
-            message = f"An error occurred: {str(error)}"
-
-        # Check if we're in a notebook environment
-        try:
-            get_ipython()
-            print(message)
-            return None
-        except NameError:
-            # Not in a notebook, raise the exception
-            if isinstance(error, InferenceServiceError):
-                raise InferenceServiceError(message)
-            raise error
 
     def __new__(
         cls,
@@ -162,10 +119,7 @@ class Model(metaclass=Meta):
 
         registry = cls.get_inference_service_registry()
         factory = registry.create_language_model(model_name, service_name=service_name)
-        try:
-            return factory(*args, **kwargs)
-        except (InferenceServiceError, Exception) as e:
-            return cls._handle_model_error(model_name, e)
+        return factory(*args, **kwargs)
       
     @classmethod
     def services(cls) -> "ScenarioList":
@@ -269,51 +223,6 @@ class Model(metaclass=Meta):
             raise ValueError(f"Invalid output_format: {output_format}. Must be 'model_list' or 'scenario_list'")
 
     @classmethod
-    def all_known_models(cls, output_format: str = "model_list") -> Union["ModelList", "ScenarioList"]:
-        """Get all available models from the inference service registry.
-        
-        Args:
-            output_format: Output format, either "model_list" (default) or "scenario_list"
-        
-        Returns:
-            ModelList or ScenarioList with model_name and service_name fields for all known models
-            
-        Raises:
-            ValueError: If output_format is not "model_list" or "scenario_list"
-        """
-        from ..scenarios import ScenarioList
-        from .model_list import ModelList
-        
-        registry = cls.get_inference_service_registry()
-        registry.ensure_model_mappings()  # Ensure mappings are built
-        
-        # Build lists of model names and their preferred services
-        model_names = []
-        service_names = []
-        
-        for model_name, service_list in registry.get_model_to_services_mapping().items():
-            # Use the preferred service for each model
-            preferred_service = registry.get_service_for_model(model_name)
-            if preferred_service:
-                model_names.append(model_name)
-                service_names.append(preferred_service)
-        
-        if not model_names:
-            if output_format == "scenario_list":
-                return ScenarioList([])
-            else:
-                return ModelList([])
-            
-        scenario_list = ScenarioList.from_list("model_name", model_names).add_list("service_name", service_names)
-        
-        if output_format == "scenario_list":
-            return scenario_list
-        elif output_format == "model_list":
-            return ModelList.from_scenario_list(scenario_list)
-        else:
-            raise ValueError(f"Invalid output_format: {output_format}. Must be 'model_list' or 'scenario_list'")
-
-    @classmethod
     def available_with_local_keys(cls, output_format: str = "model_list") -> Union["ModelList", "ScenarioList"]:
         """Get models available for services that have local API keys configured.
         
@@ -327,10 +236,14 @@ class Model(metaclass=Meta):
             ValueError: If output_format is not "model_list" or "scenario_list"
         """
         services_with_local_keys = set(cls.key_info().select("service").to_list())
-        all_models = cls.all_known_models(output_format="scenario_list")  # Always get as scenario_list first
+        all_models = cls.available(output_format="scenario_list")  # Get all models as scenario_list first
         
         # Filter the ScenarioList by services with local keys
-        filtered_scenario_list = all_models.filter(lambda scenario: scenario["service_name"] in services_with_local_keys)
+        services_filter = " or ".join([f'service_name == "{service}"' for service in services_with_local_keys])
+        if services_filter:
+            filtered_scenario_list = all_models.filter(services_filter)
+        else:
+            filtered_scenario_list = all_models.filter("False")  # No services with keys = empty result
         
         if output_format == "scenario_list":
             return filtered_scenario_list
@@ -381,7 +294,7 @@ class Model(metaclass=Meta):
         registry = cls.get_inference_service_registry()
         
         if force_refresh:
-            registry.refresh_model_cache()
+            registry.refresh_model_info()
 
         # Validate service_name if provided
         if service_name is not None:
@@ -414,7 +327,7 @@ class Model(metaclass=Meta):
                 matching_models = registry.get_all_model_names()
             
             # Build result with service info
-            model_service_pairs = []
+            model_service_pairs: List[Tuple[str, str]] = []
             for model_name in matching_models:
                 preferred_service = registry.get_service_for_model(model_name)
                 if preferred_service:
@@ -439,20 +352,20 @@ class Model(metaclass=Meta):
         else:
             raise ValueError(f"Invalid output_format: {output_format}. Must be 'model_list' or 'scenario_list'")
 
-    @classmethod
-    def check_models(cls, verbose: bool = False) -> None:
-        """Check model availability and status.
+    # @classmethod
+    # def check_models(cls, verbose: bool = False) -> None:
+    #     """Check model availability and status.
         
-        Note:
-            This method is deprecated and not supported in the new registry architecture.
+    #     Note:
+    #         This method is deprecated and not supported in the new registry architecture.
             
-        Args:
-            verbose: Whether to provide verbose output.
+    #     Args:
+    #         verbose: Whether to provide verbose output.
             
-        Raises:
-            NotImplementedError: Always raised as this functionality is deprecated.
-        """
-        raise NotImplementedError("Service classes are not supported in the new registry.")
+    #     Raises:
+    #         NotImplementedError: Always raised as this functionality is deprecated.
+    #     """
+    #     raise NotImplementedError("Service classes are not supported in the new registry.")
 
     @classmethod
     def check_working_models(

@@ -1,19 +1,18 @@
 from abc import abstractmethod, ABC
 import re
 from datetime import datetime, timedelta
-from typing import Any, List, Dict
+from typing import Any, List, Dict, TYPE_CHECKING
 
-from ..config import CONFIG
-from .model_info import ModelInfo
+if TYPE_CHECKING:
+    from .model_info import ModelInfo
 #from .inference_service_registry import InferenceServiceRegistry
-
-from .registry import GLOBAL_REGISTRY as _GLOBAL_REGISTRY
+#from .registry import GLOBAL_REGISTRY as _GLOBAL_REGISTRY
 
 class InferenceServiceABC(ABC):
     """
     Abstract class for inference services.
     """
-
+    _registry = None
     _coop_config_vars = None
 
     def __init_subclass__(cls):
@@ -23,7 +22,10 @@ class InferenceServiceABC(ABC):
         - `model_exclude_list` attribute determines...
         """
         # Register the subclass in the global registry using the service name
-        _GLOBAL_REGISTRY.register(cls._inference_service_, cls)
+        # if cls._registry is None:
+        #     cls._registry = _GLOBAL_REGISTRY
+
+        # cls._registry.register(cls._inference_service_, cls)
         
         must_have_attributes = [
             "key_sequence",
@@ -67,11 +69,12 @@ class InferenceServiceABC(ABC):
         pass
     
     @classmethod
-    def get_model_list(cls) -> List[ModelInfo]:
+    def get_model_list(cls) -> List['ModelInfo']:
         """
         Returns a list of ModelInfo objects using the unified ModelInfo class.
         This method calls get_model_info() and wraps the results.
         """
+        from .model_info import ModelInfo
         raw_data = cls.get_model_info()
         return [ModelInfo.from_raw(item, cls._inference_service_) for item in raw_data]
         
@@ -141,8 +144,3 @@ class InferenceServiceABC(ABC):
             return TestInferenceService()
 
 
-if __name__ == "__main__":
-    #from .services import *
-    print(_GLOBAL_REGISTRY._services)
-    print("ID")
-    print(id(_GLOBAL_REGISTRY))

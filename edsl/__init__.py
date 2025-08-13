@@ -10,6 +10,8 @@ import time
 import importlib
 import pkgutil
 
+from edsl.language_models import Model
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 
