@@ -987,7 +987,8 @@ class Agent(Base):
         >>> a1 == a3
         False
         """
-        return self.data == other.data
+        #return self.data == other.data
+        return hash(self) == hash(other)
 
     # Backward compatibility properties for dynamic traits
     @property

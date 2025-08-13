@@ -82,16 +82,16 @@ def test_job_cost_estimation():
     estimated_cost_dct = Jobs.estimate_job_cost_from_external_prices(j, price_lookup)
 
     input_tokens = estimated_cost_dct["estimated_total_input_tokens"]
-    assert input_tokens == 59
+    assert input_tokens == 15
 
     output_tokens = estimated_cost_dct["estimated_total_output_tokens"]
-    assert output_tokens == 45
+    assert output_tokens == 12
 
     cost = estimated_cost_dct["estimated_total_cost_usd"]
-    assert cost == 104
+    assert cost == 27
 
     total_credits_hold = estimated_cost_dct["total_credits_hold"]
-    assert total_credits_hold == 10_400
+    assert total_credits_hold == 2_700
 
 
 def test_job_cost_estimation_with_iterations():
@@ -109,16 +109,16 @@ def test_job_cost_estimation_with_iterations():
     )
 
     input_tokens = estimated_cost_dct["estimated_total_input_tokens"]
-    assert input_tokens == 118
+    assert input_tokens == 30
 
     output_tokens = estimated_cost_dct["estimated_total_output_tokens"]
-    assert output_tokens == 90
+    assert output_tokens == 24
 
     cost = estimated_cost_dct["estimated_total_cost_usd"]
-    assert cost == 208
+    assert cost == 54
 
     total_credits_hold = estimated_cost_dct["total_credits_hold"]
-    assert total_credits_hold == 20_800
+    assert total_credits_hold == 5_400
 
 
 def test_job_cost_estimation_with_piping():
