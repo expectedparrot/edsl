@@ -37,6 +37,8 @@ jobs:
           git pull
           sed -i -E "s|edsl = \{git = \"https://github.com/expectedparrot/edsl.git\", rev = \".*\"\}|edsl = {git = \"https://github.com/expectedparrot/edsl.git\", rev = \"$COMMIT\"}|" pyproject.toml
           sed -i -E "s|edsl = \{git = \"https://github.com/expectedparrot/edsl.git\",branch = \".*\"\}|edsl = {git = \"https://github.com/expectedparrot/edsl.git\", rev = \"$COMMIT\"}|" pyproject.toml
+          # Update the Dockerfile_remote_inference.dev to use the same commit
+          sed -i -E "s|RUN pip install  git\+https://github.com/expectedparrot/edsl.git@[a-f0-9]+|RUN pip install  git+https://github.com/expectedparrot/edsl.git@$COMMIT|" remote_inference/Dockerfile_remote_inference.dev
           poetry lock
           
       - name: Run Docker Compose
