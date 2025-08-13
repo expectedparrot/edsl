@@ -71,27 +71,9 @@ version = "^0.9.0"
 version = "^0.30.6"
 optional = true
 
-[tool.poetry.dependencies.black]
-extras = [ "jupyter",]
-version = "^24.4.2"
-
-[tool.poetry.dependencies.typer]
-extras = [ "all",]
-version = "^0.9.0"
-
-[tool.pytest.ini_options]
-testpaths = ["tests", "edsl"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-# Exclude unused directory from test collection and discovery
-norecursedirs = [
-    "edsl/inference_services/unused/",
-    "unused/"
-]
-
-[tool.tomlsort.overrides."tool.poetry.dependencies"]
-table_keys = false
+[tool.poetry.extras]
+screenshots = ["playwright"]
+services = ["fastapi", "uvicorn"]
 
 [tool.poetry.group.dev.dependencies]
 click = "^8.0.0"
