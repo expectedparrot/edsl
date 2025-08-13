@@ -7,9 +7,6 @@ from ..config import CONFIG
 from .exceptions import LanguageModelValueError
 
 # Import only what's needed initially to avoid circular imports
-from ..inference_services import (
-    InferenceServiceError,
-)
 
 # The 'default' import will be imported lazily when needed
 

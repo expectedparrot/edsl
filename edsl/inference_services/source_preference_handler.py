@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Dict, List, Optional, TYPE_CHECKING
 from .model_info_fetcher import ModelInfoFetcherABC
 
 if TYPE_CHECKING:

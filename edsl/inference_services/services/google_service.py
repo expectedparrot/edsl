@@ -1,5 +1,5 @@
 # import os
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, Optional, TYPE_CHECKING
 import google
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig

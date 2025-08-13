@@ -19,13 +19,10 @@ information to questions in surveys.
 
 from __future__ import annotations
 import copy
-import os
 from collections import UserDict
-from typing import Union, List, Optional, TYPE_CHECKING, Collection, Dict, Any, Iterable, Mapping, overload
-from uuid import uuid4
+from typing import Union, List, Optional, TYPE_CHECKING, Dict, Any, Iterable, Mapping
 
 from ..base import Base
-from ..utilities import remove_edsl_version
 from .exceptions import ScenarioError
 
 if TYPE_CHECKING:

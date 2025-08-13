@@ -7,7 +7,7 @@ collection-style arguments and variable string arguments for maximum flexibility
 """
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Union, Iterable, List, Set, Any
+from typing import TYPE_CHECKING, Union, Iterable, List
 
 if TYPE_CHECKING:
     from .scenario import Scenario
