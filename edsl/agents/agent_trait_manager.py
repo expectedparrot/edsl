@@ -6,15 +6,16 @@ operations with proper codebook and trait_categories management.
 """
 
 from __future__ import annotations
-from typing import Union, List, Optional, Any, TYPE_CHECKING
+from typing import Union, Optional, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .agent import Agent
+    from ..utilities.similarity_rank import RankableItems
 
 
 class AgentTraitManager:
     """Manages trait manipulation operations for an Agent instance.
-    
+
     This class provides methods to add, remove, translate, and conditionally filter
     traits while properly managing associated codebooks and trait categories.
     Each Agent instance has its own trait manager.
@@ -22,7 +23,7 @@ class AgentTraitManager:
 
     def __init__(self, agent: "Agent"):
         """Initialize the trait manager for an agent.
-        
+
         Args:
             agent: The agent instance this manager will handle
         """
@@ -62,13 +63,13 @@ class AgentTraitManager:
         """
         from ..utilities import sanitize_jinja_syntax
         from .agent_traits import AgentTraits
-        
+
         # Sanitize traits and codebook for Jinja2 syntax
         if traits:
             traits = sanitize_jinja_syntax(traits, "traits")
         if codebook:
             codebook = sanitize_jinja_syntax(codebook, "codebook")
-            
+
         self.agent._traits = AgentTraits(traits or {}, parent=self.agent)
         self.agent.codebook = codebook or dict()
 
@@ -126,29 +127,38 @@ class AgentTraitManager:
         search_lower = search_string.lower()
         exact_matches = []
         partial_matches = []
-        
+
         for trait_name, description, trait_value in trait_info:
             # Check if search string matches trait name or description
-            if search_lower == trait_name.lower() or search_lower == description.lower():
+            if (
+                search_lower == trait_name.lower()
+                or search_lower == description.lower()
+            ):
                 exact_matches.append((trait_name, description, 1.0))  # Perfect match
-            elif (search_lower in trait_name.lower() or 
-                  search_lower in description.lower() or 
-                  search_lower in str(trait_value).lower()):
+            elif (
+                search_lower in trait_name.lower()
+                or search_lower in description.lower()
+                or search_lower in str(trait_value).lower()
+            ):
                 # Calculate simple similarity based on substring match
                 name_match = search_lower in trait_name.lower()
                 desc_match = search_lower in description.lower()
-                value_match = search_lower in str(trait_value).lower()
-                
+
                 # Higher score for name/description matches than value matches
                 score = 0.8 if name_match or desc_match else 0.5
                 partial_matches.append((trait_name, description, score))
 
         # Combine results, exact matches first
-        all_matches = exact_matches + sorted(partial_matches, key=lambda x: x[2], reverse=True)
-        
+        all_matches = exact_matches + sorted(
+            partial_matches, key=lambda x: x[2], reverse=True
+        )
+
         # If no matches found, return all traits with low scores
         if not all_matches:
-            all_matches = [(trait_name, description, 0.1) for trait_name, description, _ in trait_info]
+            all_matches = [
+                (trait_name, description, 0.1)
+                for trait_name, description, _ in trait_info
+            ]
 
         # Create scenario list with results
         sl = ScenarioList([])
@@ -198,7 +208,7 @@ class AgentTraitManager:
             True
         """
         from .exceptions import AgentErrors
-        
+
         if isinstance(trait_name_or_dict, dict) and value is None:
             newagent = self.agent.duplicate()
             newagent.traits = {**self.agent.traits, **trait_name_or_dict}
@@ -242,11 +252,13 @@ class AgentTraitManager:
         """
         newagent = self.agent.duplicate()
         newagent.traits = {k: v for k, v in self.agent.traits.items() if k != trait}
-        
+
         # Clean up codebook for removed trait
         if trait in newagent.codebook:
-            newagent.codebook = {k: v for k, v in newagent.codebook.items() if k != trait}
-        
+            newagent.codebook = {
+                k: v for k, v in newagent.codebook.items() if k != trait
+            }
+
         # Clean up trait_categories for removed trait
         new_categories = {}
         for category, trait_list in self.agent.trait_categories.items():
@@ -255,7 +267,7 @@ class AgentTraitManager:
                 new_categories[category] = updated_list
             # Skip empty categories
         newagent.trait_categories = new_categories
-        
+
         return newagent
 
     def translate_traits(self, values_codebook: dict[str, dict[Any, Any]]) -> "Agent":
@@ -307,7 +319,7 @@ class AgentTraitManager:
                 new_traits[key] = values_codebook[key].get(value, value)
             else:
                 new_traits[key] = value
-        
+
         newagent = self.agent.duplicate()
         newagent.traits = new_traits
         return newagent
@@ -339,20 +351,22 @@ class AgentTraitManager:
         """
         # Find traits to drop
         traits_to_drop = {k for k, v in self.agent.traits.items() if v == bad_value}
-        
+
         if not traits_to_drop:
             return self.agent.duplicate()  # No changes needed
-        
+
         new_agent = self.agent.duplicate()
-        
+
         # Drop the bad traits
-        new_agent.traits = {k: v for k, v in self.agent.traits.items() if v != bad_value}
-        
+        new_agent.traits = {
+            k: v for k, v in self.agent.traits.items() if v != bad_value
+        }
+
         # Clean up codebook for dropped traits
         new_agent.codebook = {
             k: v for k, v in self.agent.codebook.items() if k in new_agent.traits
         }
-        
+
         # Clean up trait_categories for dropped traits
         new_categories = {}
         for category, trait_list in self.agent.trait_categories.items():
@@ -362,7 +376,7 @@ class AgentTraitManager:
                 new_categories[category] = updated_list
             # Skip empty categories
         new_agent.trait_categories = new_categories
-        
+
         return new_agent
 
     def set_all_traits(self, traits: dict[str, Any]) -> None:
@@ -393,8 +407,8 @@ class AgentTraitManager:
 
     def __repr__(self) -> str:
         """Return a string representation of the manager.
-        
+
         Returns:
             String representation showing the manager and agent
         """
-        return f"AgentTraitManager(agent={self.agent.name or 'unnamed'})" 
+        return f"AgentTraitManager(agent={self.agent.name or 'unnamed'})"

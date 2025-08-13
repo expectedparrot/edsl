@@ -19,17 +19,17 @@ from .question_inspector import QuestionInspectorWidget
 from .survey_inspector import SurveyInspectorWidget
 
 __all__ = [
-    'EDSLBaseWidget',
-    'InspectorWidget',
-    'ResultsViewerWidget',
-    'AgentListManagerWidget',
-    'ObjectDocsViewerWidget',
-    'AgentInspectorWidget',
-    'AgentListInspectorWidget',
-    'ResultInspectorWidget',
-    'ResultsInspectorWidget',
-    'ScenarioInspectorWidget',
-    'ScenarioListInspectorWidget',
-    'QuestionInspectorWidget',
-    'SurveyInspectorWidget',
-] 
+    "EDSLBaseWidget",
+    "InspectorWidget",
+    "ResultsViewerWidget",
+    "AgentListManagerWidget",
+    "ObjectDocsViewerWidget",
+    "AgentInspectorWidget",
+    "AgentListInspectorWidget",
+    "ResultInspectorWidget",
+    "ResultsInspectorWidget",
+    "ScenarioInspectorWidget",
+    "ScenarioListInspectorWidget",
+    "QuestionInspectorWidget",
+    "SurveyInspectorWidget",
+]

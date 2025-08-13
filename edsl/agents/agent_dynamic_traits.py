@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 class AgentDynamicTraits:
     """Manages dynamic traits functionality for an Agent instance.
-    
+
     This class provides methods to initialize, validate, and execute dynamic traits
     functions that allow agents to generate traits dynamically based on questions
     or other context. Each Agent instance has its own manager.
@@ -26,7 +26,7 @@ class AgentDynamicTraits:
 
     def __init__(self, agent: "Agent"):
         """Initialize the dynamic traits manager for an agent.
-        
+
         Args:
             agent: The agent instance this manager will handle
         """
@@ -56,7 +56,7 @@ class AgentDynamicTraits:
             Initialize with a function object:
 
             >>> from edsl.agents import Agent
-            >>> def dynamic_func(): 
+            >>> def dynamic_func():
             ...     return {'age': 25, 'mood': 'dynamic'}
             >>> agent = Agent(traits={'age': 30})
             >>> agent.dynamic_traits.initialize_from_function(dynamic_func)
@@ -109,7 +109,7 @@ class AgentDynamicTraits:
             Valid function with 'question' parameter:
 
             >>> from edsl.agents import Agent
-            >>> def f(question): 
+            >>> def f(question):
             ...     return {"age": 10, "hair": "brown", "height": 5.5}
             >>> agent = Agent(traits={'age': 30})
             >>> agent.dynamic_traits.initialize_from_function(f)
@@ -117,14 +117,14 @@ class AgentDynamicTraits:
 
             Valid function with no parameters:
 
-            >>> def g(): 
+            >>> def g():
             ...     return {"age": 20}
             >>> agent.dynamic_traits.initialize_from_function(g)
             >>> agent.dynamic_traits.validate_function()
 
             Invalid function with extra parameters:
 
-            >>> def bad_func(question, extra): 
+            >>> def bad_func(question, extra):
             ...     return {"age": 10}
             >>> agent.dynamic_traits.initialize_from_function(bad_func)
             >>> try:
@@ -225,7 +225,7 @@ class AgentDynamicTraits:
 
             Prevent modification when dynamic function exists:
 
-            >>> def f(): 
+            >>> def f():
             ...     return {"age": 20}
             >>> agent.dynamic_traits.initialize_from_function(f)
             >>> try:
@@ -266,7 +266,9 @@ class AgentDynamicTraits:
             yield
         finally:
             # re-wrap the possibly mutated mapping so future writes remain guarded
-            self.agent._traits = AgentTraits(dict(self.agent._traits), parent=self.agent)
+            self.agent._traits = AgentTraits(
+                dict(self.agent._traits), parent=self.agent
+            )
 
     def transfer_to(self, target_agent: "Agent") -> None:
         """Transfer the dynamic traits function to another agent.
@@ -285,7 +287,7 @@ class AgentDynamicTraits:
             >>> def dynamic_func():
             ...     return {"age": 25, "transferred": True}
             >>> source.dynamic_traits.initialize_from_function(dynamic_func)
-            >>> 
+            >>>
             >>> target = Agent(traits={'age': 35})
             >>> source.dynamic_traits.transfer_to(target)
             >>> target.dynamic_traits.has_function
@@ -337,13 +339,13 @@ class AgentDynamicTraits:
 
     def get_function(self) -> Optional[Callable]:
         """Get the dynamic traits function if it exists.
-        
+
         Returns:
             The dynamic traits function if it exists, None otherwise
-            
+
         Examples:
             Get the function:
-            
+
             >>> from edsl.agents import Agent
             >>> agent = Agent(traits={'age': 30})
             >>> agent.dynamic_traits.get_function() is None
@@ -359,10 +361,12 @@ class AgentDynamicTraits:
 
     def __repr__(self) -> str:
         """Return a string representation of the manager.
-        
+
         Returns:
             String representation showing the manager and whether it has a function
         """
         has_func = self.has_function
-        func_info = f"with function '{self.function_name}'" if has_func else "no function"
-        return f"AgentDynamicTraits(agent={self.agent.name or 'unnamed'}, {func_info})" 
+        func_info = (
+            f"with function '{self.function_name}'" if has_func else "no function"
+        )
+        return f"AgentDynamicTraits(agent={self.agent.name or 'unnamed'}, {func_info})"

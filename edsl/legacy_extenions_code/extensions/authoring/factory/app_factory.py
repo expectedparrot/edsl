@@ -1,8 +1,10 @@
-from importlib import import_module
-
 # Standard library
-import time, secrets, inspect, logging, os
-from typing import Callable, Optional, Any, Dict, Union
+import time
+import secrets
+import inspect
+import logging
+import os
+from typing import Callable, Optional, Any, Dict
 from contextlib import contextmanager
 
 # Third-party
@@ -12,7 +14,7 @@ from fastapi.routing import APIRoute
 
 # Local imports
 from ..authoring import extract_bearer_token
-from ..authoring import ServiceBuilder, ServicesBuilder  # Add import for Services class
+from ..authoring import ServicesBuilder  # Add import for Services class
 
 from .config import Settings
 
@@ -94,9 +96,11 @@ def _deserialize_edsl_objects(
                         param_type,
                         param_name,
                         e,
-                        list(param_value.keys())
-                        if isinstance(param_value, dict)
-                        else str(type(param_value)),
+                        (
+                            list(param_value.keys())
+                            if isinstance(param_value, dict)
+                            else str(type(param_value))
+                        ),
                     )
                     logger.error("Full param_value: %s", param_value)
                     # Fall back to original value if deserialization fails

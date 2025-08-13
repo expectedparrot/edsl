@@ -14,14 +14,14 @@ if TYPE_CHECKING:
 
 class AgentPrompt:
     """Handles prompt generation and traits presentation for Agent instances.
-    
+
     This class provides methods to generate formatted prompts from agent traits,
     manage traits presentation templates, and handle codebook-based trait descriptions.
     """
 
     def __init__(self, agent: "Agent"):
         """Initialize the AgentPrompt manager.
-        
+
         Args:
             agent: The agent instance this manager belongs to
         """
@@ -102,7 +102,7 @@ class AgentPrompt:
             True
         """
         from ..questions import QuestionScenarioRenderError
-        
+
         # If using the default template and the codebook has been updated since initialization,
         # recreate the template to use the current codebook
         if not self.agent.set_traits_presentation_template and self.agent.codebook:
@@ -125,16 +125,16 @@ class AgentPrompt:
 
         # Create a dictionary with traits, a reference to all traits, and the codebook
         replacement_dict = (
-            self.agent.traits | {"traits": self.agent.traits} | {"codebook": self.agent.codebook}
+            self.agent.traits
+            | {"traits": self.agent.traits}
+            | {"codebook": self.agent.codebook}
         )
 
         # Get the agent persona
         agent_persona = self.agent_persona()
 
         # Check for any undefined variables in the template
-        if undefined := agent_persona.undefined_template_variables(
-            replacement_dict
-        ):
+        if undefined := agent_persona.undefined_template_variables(replacement_dict):
             raise QuestionScenarioRenderError(
                 f"Agent persona still has variables that were not rendered: {undefined}"
             )
@@ -212,4 +212,4 @@ class AgentPrompt:
                 # Use the standard dictionary format if no codebook
                 self.agent.traits_presentation_template = "Your traits: {{traits}}"
 
-            self.agent.set_traits_presentation_template = False 
+            self.agent.set_traits_presentation_template = False

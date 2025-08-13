@@ -106,13 +106,13 @@ def create_model(
 
     else:
         # Determine field constraints
-        field_kwargs = {"...": None}
+        field_kwargs = {}
 
         if min_list_items is not None:
-            field_kwargs["min_items"] = min_list_items
+            field_kwargs["min_length"] = min_list_items
 
         if max_list_items is not None:
-            field_kwargs["max_items"] = max_list_items
+            field_kwargs["max_length"] = max_list_items
 
         class ListResponse(BaseModel):
             """
@@ -158,7 +158,7 @@ def create_model(
                 'Apple, Cherry'
             """
 
-            answer: list[Any] = Field(**field_kwargs)
+            answer: list[Any] = Field(..., **field_kwargs)
             comment: Optional[str] = None
             generated_tokens: Optional[str] = None
 
@@ -464,13 +464,17 @@ class QuestionList(QuestionBase):
         """
         self.question_name = question_name
         self.question_text = question_text
-        
+
         # Validate min_list_items and max_list_items
         if min_list_items is not None and min_list_items < 0:
-            raise ValueError(f"min_list_items must be non-negative, got {min_list_items}")
+            raise ValueError(
+                f"min_list_items must be non-negative, got {min_list_items}"
+            )
         if max_list_items is not None and max_list_items < 0:
-            raise ValueError(f"max_list_items must be non-negative, got {max_list_items}")
-            
+            raise ValueError(
+                f"max_list_items must be non-negative, got {max_list_items}"
+            )
+
         self.max_list_items = max_list_items
         self.min_list_items = min_list_items
         self.permissive = permissive

@@ -16,49 +16,54 @@ from .exceptions import ResultsError
 
 class ResultsGrouper:
     """Handles all grouping and organizing operations for Results objects.
-    
+
     This class provides methods to group and organize Results data in various ways
     for analysis, including grouping by agents, questions, or arbitrary column values.
     """
 
     def __init__(self, results: "Results"):
         """Initialize the ResultsGrouper with a reference to the Results object.
-        
+
         Args:
             results: The Results object to provide grouping operations for
         """
         self._results = results
 
-    def agent_answers_by_question(self, agent_key_fields: Optional[List[str]] = None, separator: str = ",") -> dict:
+    def agent_answers_by_question(
+        self, agent_key_fields: Optional[List[str]] = None, separator: str = ","
+    ) -> dict:
         """Returns a dictionary of agent answers.
-        
+
         The keys are the agent names and the values are the answers.
-        
+
         Args:
             agent_key_fields: Optional list of agent fields to use as keys. If None, uses agent_name.
             separator: Separator to use when joining multiple agent key fields.
-            
+
         Returns:
             dict: Dictionary with question names as keys, each containing a dict of agent->answer mappings.
-        
+
         Examples:
             Access through Results instance:
                 result = Results.example().agent_answers_by_question()
                 sorted(result['how_feeling'].values())
                 # ['Great', 'OK', 'OK', 'Terrible']
-                sorted(result['how_feeling_yesterday'].values()) 
+                sorted(result['how_feeling_yesterday'].values())
                 # ['Good', 'Great', 'OK', 'Terrible']
         """
         d = {}
         if agent_key_fields is None:
-            agent_name_keys = self._results.select('agent.agent_name').to_list()
+            agent_name_keys = self._results.select("agent.agent_name").to_list()
         else:
-            agent_name_keys = [f"{separator}".join(x) for x in self._results.select(*agent_key_fields).to_list()]
+            agent_name_keys = [
+                f"{separator}".join(x)
+                for x in self._results.select(*agent_key_fields).to_list()
+            ]
 
         for question in self._results.survey.questions:
             question_name = question.question_name
             answers = self._results.select(question_name).to_list()
-            d[question_name] = {k:v for k,v in zip(agent_name_keys, answers)}
+            d[question_name] = {k: v for k, v in zip(agent_name_keys, answers)}
 
         return d
 
@@ -108,4 +113,4 @@ class ResultsGrouper:
                 key_values.append(value)
             buckets[tuple(key_values)].append(result)
 
-        return dict(buckets) 
+        return dict(buckets)

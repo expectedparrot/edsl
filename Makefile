@@ -3,13 +3,53 @@
 ###############
 GIT_ROOT ?= $(shell git rev-parse --show-toplevel)
 PROJECT_NAME ?= $(shell basename $(GIT_ROOT))
-.PHONY: bump docs docstrings find help integration model-report ruff-lint
+.PHONY: bump docs docs-check docstrings find help integration model-report ruff-lint
 
 ###############
 ##@Utils ⭐ 
 ###############
 help: ## Show this helpful message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[33m%-25s\033[0m %s\n", $$1, $$2} /^##@/ {printf "\n\033[0;32m%s\033[0m\n", substr($$0, 4)} ' $(MAKEFILE_LIST)
+
+verbose-on: ## Enable verbose mode by setting EDSL_VERBOSE_MODE=True in .env
+	@if [ ! -f .env ]; then touch .env; fi
+	@if [ ! -s .env ] || [ "$$(tail -c 1 .env)" != "" ]; then echo "" >> .env; fi
+	@if grep -q "^EDSL_VERBOSE_MODE=" .env; then \
+		sed -i '' 's/^EDSL_VERBOSE_MODE=.*/EDSL_VERBOSE_MODE=True/' .env; \
+	else \
+		echo "EDSL_VERBOSE_MODE=True" >> .env; \
+	fi
+	@echo "Verbose mode enabled (EDSL_VERBOSE_MODE=True)"
+
+verbose-off: ## Disable verbose mode by setting EDSL_VERBOSE_MODE=False in .env
+	@if [ ! -f .env ]; then touch .env; fi
+	@if [ ! -s .env ] || [ "$$(tail -c 1 .env)" != "" ]; then echo "" >> .env; fi
+	@if grep -q "^EDSL_VERBOSE_MODE=" .env; then \
+		sed -i '' 's/^EDSL_VERBOSE_MODE=.*/EDSL_VERBOSE_MODE=False/' .env; \
+	else \
+		echo "EDSL_VERBOSE_MODE=False" >> .env; \
+	fi
+	@echo "Verbose mode disabled (EDSL_VERBOSE_MODE=False)"
+
+keys-on: ## Enable API keys by removing # comments from key lines in .env
+	@if [ ! -f .env ]; then \
+		echo "No .env file found"; \
+		exit 1; \
+	fi
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^#\([A-Z_]*_API_KEY=\)/\1/' .env
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^#\(AWS_ACCESS_KEY_ID=\)/\1/' .env
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^#\(AWS_SECRET_ACCESS_KEY=\)/\1/' .env
+	@echo "API keys enabled (uncommented in .env)"
+
+keys-off: ## Disable API keys by adding # comments to key lines in .env
+	@if [ ! -f .env ]; then \
+		echo "No .env file found"; \
+		exit 1; \
+	fi
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^\([A-Z_]*_API_KEY=\)/#\1/' .env
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^\(AWS_ACCESS_KEY_ID=\)/#\1/' .env
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^\(AWS_SECRET_ACCESS_KEY=\)/#\1/' .env
+	@echo "API keys disabled (commented out in .env)"
 
 install: ## Install all project deps and create a venv (local)
 	make clean-all
@@ -169,6 +209,8 @@ benchmark-test: ## Test that benchmark scripts work properly
 
 bump: ## Bump the version of the package
 	@python scripts/bump_version.py $(filter-out $@,$(MAKECMDGOALS))
+
+# Catch-all rule to handle directory arguments for test-doctests and bump
 %:
 	@:
 
@@ -189,6 +231,22 @@ docs-view: ## View documentation
 docstrings: ## Check docstrings
 	pydocstyle edsl
 
+docs-check: ## Run pydocstyle and ruff documentation checks. Use 'make docs-check DIR' to check specific directory/file
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		target="$(filter-out $@,$(MAKECMDGOALS))"; \
+		echo "Running documentation checks on: $$target"; \
+		echo "Running pydocstyle..."; \
+		pydocstyle $$target; \
+		echo "Running ruff documentation checks..."; \
+		poetry run ruff check --select D $$target; \
+	else \
+		echo "Running documentation checks on entire project"; \
+		echo "Running pydocstyle..."; \
+		pydocstyle edsl; \
+		echo "Running ruff documentation checks..."; \
+		poetry run ruff check --select D edsl; \
+	fi
+
 style-report: ## Check docstrings and generate a report
 	python scripts/style_report.py --source edsl --output style_report
 	open style_report/index.html
@@ -201,8 +259,15 @@ format: ## Run code autoformatters (black).
 	pre-commit install
 	pre-commit run black-jupyter --all-files --all
 
-lint: ## Run code linters (flake8, pylint, mypy).
-	mypy edsl
+lint: ## Run ruff linter with --fix --verbose. Use 'make lint DIR' to lint specific directory/file
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		target="$(filter-out $@,$(MAKECMDGOALS))"; \
+		echo "Running ruff linter with --fix on: $$target"; \
+		poetry run ruff check --fix $$target; \
+	else \
+		echo "Running ruff linter with --fix on entire project"; \
+		poetry run ruff check --fix edsl; \
+	fi
 
 ruff-lint: ## Run ruff linter on all modules in sequence
 	poetry run ruff check edsl/instructions
@@ -235,9 +300,19 @@ visualize: ## Visualize the repo structure
 ###############
 ##@Testing 🐛
 ###############
-test: ## Run regular tests (no Coop tests) 
+github-tests-locally: ## Run tests on GitHub Actions
+	act
+
+test: ## Run regular tests (no Coop tests). Use 'make test DIR' to run tests from specific directory
 	make clean-test
-	pytest -xv tests --nocoop
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		dir="$(filter-out $@,$(MAKECMDGOALS))"; \
+		echo "Running tests for directory: $$dir"; \
+		pytest -xv $$dir --nocoop; \
+	else \
+		echo "Running all tests"; \
+		pytest -xv tests --nocoop; \
+	fi
 
 test-token-bucket: ## Run token bucket tests
 	make clean-test
@@ -247,9 +322,16 @@ test-coop: ## Run Coop tests (no regular tests, requires Coop local server runni
 	make clean-test
 	pytest -xv tests --coop
 
-test-coverage: ## Run regular tests and get a coverage report
+test-coverage: ## Run regular tests and get a coverage report. Use 'make test-coverage DIR' to generate coverage for specific directory
 	make clean-test
-	poetry run coverage run -m pytest tests --ignore=tests/stress --ignore=tests/coop && poetry run coverage html
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		dir="$(filter-out $@,$(MAKECMDGOALS))"; \
+		echo "Running coverage for directory: $$dir"; \
+		poetry run coverage run -m pytest $$dir --ignore=tests/stress --ignore=tests/coop && poetry run coverage html; \
+	else \
+		echo "Running coverage for all tests"; \
+		poetry run coverage run -m pytest tests --ignore=tests/stress --ignore=tests/coop && poetry run coverage html; \
+	fi
 	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
 		open htmlcov/index.html; \
 	else \
@@ -271,28 +353,38 @@ test-data: ## Create serialization test data for the current EDSL version
 	else \
 		python scripts/create_serialization_test_data.py; \
 	fi
-test-doctests: ## Run doctests
+test-doctests: ## Run doctests for a specific directory (e.g., make test-doctests edsl/agents) or all if no directory specified
 	make clean-test
-	#pytest --doctest-modules edsl/base.py
-	pytest --doctest-modules edsl/instructions
-	pytest --doctest-modules edsl/key_management
-	pytest --doctest-modules edsl/prompts
-	pytest --doctest-modules edsl/tasks
-	# Reordered to avoid circular import
-	pytest --doctest-modules edsl/results
-	pytest --doctest-modules edsl/dataset
-	pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets
-	pytest --doctest-modules edsl/interviews
-	pytest --doctest-modules edsl/tokens
-	pytest --doctest-modules edsl/jobs/
-	pytest --doctest-modules edsl/surveys
-	pytest --doctest-modules edsl/agents
-	pytest --doctest-modules edsl/scenarios
-	pytest --doctest-modules edsl/questions
-	pytest --doctest-modules edsl/utilities
-	pytest --doctest-modules edsl/language_models
-	pytest --doctest-modules edsl/caching
-	pytest --doctest-modules edsl/inference_services
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		dir="$(filter-out $@,$(MAKECMDGOALS))"; \
+		echo "Running doctests for directory: $$dir"; \
+		if [ "$$dir" = "edsl/buckets" ]; then \
+			pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py $$dir; \
+		else \
+			pytest --doctest-modules $$dir; \
+		fi; \
+	else \
+		echo "Running doctests for all directories"; \
+		pytest --doctest-modules edsl/instructions; \
+		pytest --doctest-modules edsl/key_management; \
+		pytest --doctest-modules edsl/prompts; \
+		pytest --doctest-modules edsl/tasks; \
+		pytest --doctest-modules edsl/results; \
+		pytest --doctest-modules edsl/dataset; \
+		pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets; \
+		pytest --doctest-modules edsl/interviews; \
+		pytest --doctest-modules edsl/tokens; \
+		pytest --doctest-modules edsl/jobs/; \
+		pytest --doctest-modules edsl/surveys; \
+		pytest --doctest-modules edsl/agents; \
+		pytest --doctest-modules edsl/scenarios; \
+		pytest --doctest-modules edsl/questions; \
+		pytest --doctest-modules edsl/utilities; \
+		pytest --doctest-modules edsl/language_models; \
+		pytest --doctest-modules edsl/caching; \
+		pytest --doctest-modules edsl/invigilators; \
+		pytest --doctest-modules edsl/inference_services; \
+	fi
 
 test-doctests-parallel: ## Run doctests in parallel
 	make clean-test

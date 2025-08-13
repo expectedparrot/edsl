@@ -35,7 +35,7 @@ async def create_survey_endpoint(
     Simulated external service endpoint for 'create_survey'.
     Receives forwarded parameters and returns a dummy success response.
     """
-    print(f"--- Test Service Endpoint Received Request ---")
+    print("--- Test Service Endpoint Received Request ---")
     print(f"Received data: {request_body.model_dump_json(indent=2)}")
 
     # Simulate processing and return a response similar to what an external service might
@@ -43,7 +43,7 @@ async def create_survey_endpoint(
     example_survey = Survey.example()
     response_data = {"survey": example_survey.to_dict()}
 
-    print(f"--- Test Service Endpoint Sending Response ---")
+    print("--- Test Service Endpoint Sending Response ---")
     print(f"Response data: {response_data}")
 
     return response_data
@@ -58,7 +58,7 @@ async def run_survey_endpoint(
     Receives forwarded parameters and returns a dummy success response.
     Reads API key from the Authorization header.
     """
-    print(f"--- Test Service Endpoint Received Request ---")
+    print("--- Test Service Endpoint Received Request ---")
     print(f"Received survey data (structure): {request_body.model_dump_json(indent=2)}")
     print(f"Received Authorization header: {authorization}")
 
@@ -74,7 +74,7 @@ async def run_survey_endpoint(
         )  # Changed to 401 Unauthorized
     else:
         # Set environment variable if key is present
-        print(f"Setting EXPECTED_PARROT_KEY environment variable.")
+        print("Setting EXPECTED_PARROT_KEY environment variable.")
         os.environ["EXPECTED_PARROT_KEY"] = ep_api_token
 
     # Simulate processing and return a dummy 'results' dictionary
@@ -84,7 +84,7 @@ async def run_survey_endpoint(
     results = survey.run(disable_remote_inference=False)
     response_data = {"results": results.to_dict()}
 
-    print(f"--- Test Service Endpoint Sending Response ---")
+    print("--- Test Service Endpoint Sending Response ---")
     print(f"Response data: {response_data}")
 
     return response_data

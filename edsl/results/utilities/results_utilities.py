@@ -10,25 +10,25 @@ from typing import Any, Callable, TYPE_CHECKING
 from functools import wraps
 
 if TYPE_CHECKING:
-    from ..result import Result
+    pass
 
 from ...db_list.sqlite_list import SQLiteList
 
 
 class ResultsSQLList(SQLiteList):
     """SQLite-backed list implementation for Results data storage.
-    
-    This class extends SQLiteList to provide specific serialization and 
+
+    This class extends SQLiteList to provide specific serialization and
     deserialization methods for Result objects, enabling efficient storage
     and retrieval of large Results collections.
     """
-    
+
     def serialize(self, obj):
         """Serialize a Result object to JSON string.
-        
+
         Args:
             obj: The object to serialize, typically a Result object
-            
+
         Returns:
             str: JSON string representation of the object
         """
@@ -36,14 +36,15 @@ class ResultsSQLList(SQLiteList):
 
     def deserialize(self, data):
         """Deserialize JSON string back to a Result object.
-        
+
         Args:
             data: JSON string to deserialize
-            
+
         Returns:
             Result: Deserialized Result object or raw data if deserialization fails
         """
         from ..result import Result
+
         return (
             Result.from_dict(json.loads(data))
             if hasattr(Result, "from_dict")
@@ -121,7 +122,7 @@ class NotReadyObject:
 
     This class returns itself for all attribute accesses and method calls,
     displaying a message about the job's running status when represented as a string.
-    
+
     This is used by the ensure_ready decorator to provide a consistent interface
     for Results objects that are still waiting for remote data to be available.
 
@@ -173,4 +174,4 @@ class NotReadyObject:
         Returns:
             NotReadyObject: Returns self for chaining.
         """
-        return self 
+        return self

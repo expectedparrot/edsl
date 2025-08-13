@@ -13,6 +13,7 @@ from .perplexity_service import PerplexityService
 from .test_service import TestService
 from .together_ai_service import TogetherAIService
 from .xai_service import XAIService
+from .open_router_service import OpenRouterService
 
 __all__ = [
     "AnthropicService",
@@ -30,4 +31,5 @@ __all__ = [
     "TestService",
     "TogetherAIService",
     "XAIService",
+    "OpenRouterService",
 ]

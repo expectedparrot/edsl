@@ -4,7 +4,7 @@ The key component is an expression specifiying the logic of the rule, which can 
 
 .. code-block:: python
 
-    "q1 == 'yes' or q2 == 'no'"
+    "{{ q1.answer }} == 'yes' or {{ q2.answer }} == 'no'"
 
 The expression must be about questions "before" the current question.
 

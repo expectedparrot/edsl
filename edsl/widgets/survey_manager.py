@@ -5,7 +5,6 @@ An anywidget for managing EDSL Surveys with pagination, deletion, and UUID copyi
 """
 
 import traitlets
-from typing import Dict, Any, List, Optional
 from .base_widget import EDSLBaseWidget
 
 
@@ -174,9 +173,9 @@ class SurveyManagerWidget(EDSLBaseWidget):
             # If we get here, deletion was successful - reload the current page
             self._load_surveys()
 
-        except ImportError as e:
+        except ImportError:
             self.error_message = (
-                f"EDSL not installed. Please install with: pip install edsl"
+                "EDSL not installed. Please install with: pip install edsl"
             )
         except AttributeError:
             self.error_message = (
