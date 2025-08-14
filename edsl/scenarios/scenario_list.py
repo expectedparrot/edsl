@@ -195,6 +195,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         Scenario({'a': 3})
         """
         return self.data[index]
+    
+    def sum(self, field: str) -> int:
+        """Sum the values of a field across all scenarios."""
+        return sum(scenario[field] for scenario in self)
 
     def unique(self) -> ScenarioList:
         """
@@ -371,6 +375,18 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 new_scenario["value"] = scenario[var]
                 new_scenarios.append(Scenario(new_scenario))
 
+        return new_scenarios
+    
+    def apply(self, func: Callable, field: str, new_name: Optional[str], replace:bool = False) -> ScenarioList:
+        """Apply a function to a field and return a new ScenarioList."""
+        new_scenarios = ScenarioList(data=[], codebook=self.codebook)
+        if new_name is None:
+            new_name = field
+        for scenario in self:
+            scenario[new_name] = func(scenario[field])
+            if replace:
+                del scenario[field]
+            new_scenarios.append(scenario)
         return new_scenarios
 
     @classmethod
