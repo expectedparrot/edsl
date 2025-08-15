@@ -349,7 +349,10 @@ class Result(Base, UserDict):
         return hash(self) == hash(other)
 
     def to_dict(
-        self, add_edsl_version: bool = True, include_cache_info: bool = False
+        self,
+        add_edsl_version: bool = True,
+        include_cache_info: bool = False,
+        full_dict: bool = False,
     ) -> dict[str, Any]:
         """Return a dictionary representation of the Result object.
 
