@@ -1359,9 +1359,15 @@ class Coop(CoopFunctionsMixin):
 
         current_page = content.get("current_page")
         total_pages = content.get("total_pages")
+        page_size = content.get("page_size")
+        total_count = content.get("total_count")
 
         return CoopRegularObjects(
-            objects, current_page=current_page, total_pages=total_pages
+            objects,
+            current_page=current_page,
+            total_pages=total_pages,
+            page_size=page_size,
+            total_count=total_count,
         )
 
     def get_metadata(self, url_or_uuid: Union[str, UUID]) -> dict:
