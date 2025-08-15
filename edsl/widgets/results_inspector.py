@@ -175,6 +175,11 @@ class ResultsInspectorWidget(InspectorWidget):
         start = self.current_page * self.page_size
         end = start + self.page_size
 
+        # This prevents an issue where the page size is changed but the current page is not reset to 0 as yet
+        # TODO: Fix this by combining the pagination data into a single traitlet
+        if start > len(self.object):
+            return
+
         results_subset = self.object[start:end]
 
         dataset = results_subset.to_dataset()
