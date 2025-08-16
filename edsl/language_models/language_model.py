@@ -764,17 +764,20 @@ class LanguageModel(
             **cache_call_params, remote_fetch=remote_fetch
         )
         try:
-            print(cache_key)
             if cached_response:
                 response = json.loads(cached_response)
-                if len(response["candidates"][0]["content"]["parts"]) == 0:
+
+                if (
+                    "candidates" in response
+                    and len(response["candidates"][0]["content"]["parts"]) == 0
+                ):
                     # If the cached response is empty, we need to make a new call
-                    print("Cached response is empty, executing model call", flush=True)
+                    # print("Cached response is empty, executing model call", flush=True)
                     cache_used = False
                 else:
                     # If we have a cached response, we can use it directly
                     cache_used = True
-                print("Using cached response for model call", flush=True)
+                # print("Using cached response for model call", flush=True)
             else:
                 # If we have a cached response, we can use it directly
                 cache_used = False
@@ -791,7 +794,7 @@ class LanguageModel(
         else:
             # Cache miss - make a new API call
             # Determine whether to use remote or local execution
-            print("Cache miss - executing model call", flush=True)
+            # print("Cache miss - executing model call", flush=True)
             f = (
                 self.remote_async_execute_model_call
                 if hasattr(self, "remote") and self.remote
