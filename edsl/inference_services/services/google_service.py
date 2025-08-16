@@ -145,7 +145,6 @@ class GoogleService(InferenceServiceABC):
                     combined_prompt.append(gen_ai_file)
 
                 try:
-                    # print("Making LLM api call")
                     response = await self.generative_model.generate_content_async(
                         combined_prompt, generation_config=generation_config
                     )
