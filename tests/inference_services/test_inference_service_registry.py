@@ -36,12 +36,26 @@ class TestInferenceServiceRegistry:
     @pytest.fixture
     def mock_source_handler(self):
         """Create a mock source preference handler."""
+        from edsl.inference_services.model_info import ModelInfo
+        
         handler = Mock(spec=SourcePreferenceHandler)
         handler.fetch_model_info_data.return_value = {
-            "service1": ["model1", "model2"],
-            "service2": ["model3", "model4"],
-            "anthropic": ["claude-3-opus", "claude-3-sonnet"],
-            "openai": ["gpt-4", "gpt-3.5-turbo"]
+            "service1": [
+                ModelInfo.from_raw({"id": "model1"}, "service1"),
+                ModelInfo.from_raw({"id": "model2"}, "service1")
+            ],
+            "service2": [
+                ModelInfo.from_raw({"id": "model3"}, "service2"),
+                ModelInfo.from_raw({"id": "model4"}, "service2")
+            ],
+            "anthropic": [
+                ModelInfo.from_raw({"id": "claude-3-opus"}, "anthropic"),
+                ModelInfo.from_raw({"id": "claude-3-sonnet"}, "anthropic")
+            ],
+            "openai": [
+                ModelInfo.from_raw({"id": "gpt-4"}, "openai"),
+                ModelInfo.from_raw({"id": "gpt-3.5-turbo"}, "openai")
+            ]
         }
         handler.used_source = "test_source"
         return handler
@@ -129,19 +143,23 @@ class TestInferenceServiceRegistry:
     def test_model_info_data_property(self, mock_handler_class, registry):
         """Test model_info_data property fetches data on first access."""
         mock_handler = Mock()
-        mock_handler.fetch_model_info_data.return_value = {"service1": ["model1"]}
+        from edsl.inference_services.model_info import ModelInfo
+        mock_handler.fetch_model_info_data.return_value = {
+            "service1": [ModelInfo.from_raw({"id": "model1"}, "service1")]
+        }
         mock_handler_class.return_value = mock_handler
         
         registry._source_handler = mock_handler
         
         # First access should fetch data
         data = registry.model_info_data
-        assert data == {"service1": ["model1"]}
+        expected_data = mock_handler.fetch_model_info_data.return_value
+        assert data == expected_data
         mock_handler.fetch_model_info_data.assert_called_once()
         
         # Second access should return cached data
         data2 = registry.model_info_data
-        assert data2 == {"service1": ["model1"]}
+        assert data2 == expected_data
         # Should not call fetch again
         mock_handler.fetch_model_info_data.assert_called_once()
     
@@ -161,12 +179,7 @@ class TestInferenceServiceRegistry:
             "gpt-3.5-turbo": ["openai"]
         }
         
-        expected_service_to_models = {
-            "service1": ["model1", "model2"],
-            "service2": ["model3", "model4"],
-            "anthropic": ["claude-3-opus", "claude-3-sonnet"],
-            "openai": ["gpt-4", "gpt-3.5-turbo"]
-        }
+        expected_service_to_models = mock_source_handler.fetch_model_info_data.return_value
         
         assert dict(registry._model_to_services) == expected_model_to_services
         assert registry._service_to_models == expected_service_to_models
@@ -188,7 +201,7 @@ class TestInferenceServiceRegistry:
         service_to_models = registry.service_to_models
         
         assert "service1" in service_to_models
-        assert "model1" in service_to_models["service1"]
+        assert any(model.id == "model1" for model in service_to_models["service1"])
         assert registry._service_to_models is not None
     
     def test_get_all_model_names(self, registry, mock_source_handler):
@@ -211,10 +224,11 @@ class TestInferenceServiceRegistry:
         registry._source_handler = mock_source_handler
         
         # Test that anthropic is preferred over openai for models available in both
+        from edsl.inference_services.model_info import ModelInfo
         mock_source_handler.fetch_model_info_data.return_value = {
-            "anthropic": ["shared_model"],
-            "openai": ["shared_model"],
-            "other": ["shared_model"]
+            "anthropic": [ModelInfo.from_raw({"id": "shared_model"}, "anthropic")],
+            "openai": [ModelInfo.from_raw({"id": "shared_model"}, "openai")],
+            "other": [ModelInfo.from_raw({"id": "shared_model"}, "other")]
         }
         registry._model_info_data = None  # Reset cache
         
@@ -226,8 +240,9 @@ class TestInferenceServiceRegistry:
         registry._source_handler = mock_source_handler
         
         # Model only available in service not in preferences
+        from edsl.inference_services.model_info import ModelInfo
         mock_source_handler.fetch_model_info_data.return_value = {
-            "uncommon_service": ["rare_model"]
+            "uncommon_service": [ModelInfo.from_raw({"id": "rare_model"}, "uncommon_service")]
         }
         registry._model_info_data = None  # Reset cache
         
@@ -248,10 +263,11 @@ class TestInferenceServiceRegistry:
         registry._source_handler = mock_source_handler
         
         # Add model to multiple services
+        from edsl.inference_services.model_info import ModelInfo
         mock_source_handler.fetch_model_info_data.return_value = {
-            "service1": ["shared_model"],
-            "service2": ["shared_model"],
-            "service3": ["other_model"]
+            "service1": [ModelInfo.from_raw({"id": "shared_model"}, "service1")],
+            "service2": [ModelInfo.from_raw({"id": "shared_model"}, "service2")],
+            "service3": [ModelInfo.from_raw({"id": "other_model"}, "service3")]
         }
         registry._model_info_data = None
         
