@@ -197,9 +197,8 @@ If you want to interact with the remote cache programatically, you can use the f
 Coop class
 ^^^^^^^^^^
 
-.. automodule:: edsl.coop.coop.Coop
+.. autoclass:: edsl.coop.coop.Coop
    :members:
    :undoc-members:
    :show-inheritance:
-   :special-members: __init__
-   :exclude-members: 
+   :special-members: __init__ 
