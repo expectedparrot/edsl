@@ -732,7 +732,7 @@ class LanguageModel(
         """
         # Add file hashes to the prompt if files are provided
         if files_list:
-            files_hash = "+".join([str(hash(file)) for file in files_list])
+            files_hash = "+".join(sorted([str(hash(file)) for file in files_list]))
             user_prompt_with_hashes = user_prompt + f" {files_hash}"
         else:
             user_prompt_with_hashes = user_prompt
