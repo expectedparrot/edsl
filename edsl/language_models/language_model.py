@@ -754,11 +754,10 @@ class LanguageModel(
         """
         # Add file hashes to the prompt if files are provided
         if files_list:
-            files_hash = "+".join([str(hash(file)) for file in files_list])
+            files_hash = "+".join(sorted([str(hash(file)) for file in files_list]))
             user_prompt_with_hashes = user_prompt + f" {files_hash}"
         else:
             user_prompt_with_hashes = user_prompt
-
         # Prepare parameters for cache lookup
         cache_parameters = self.parameters.copy()
         if self.model == "test":
@@ -784,10 +783,33 @@ class LanguageModel(
         cached_response, cache_key = cache.fetch(
             **cache_call_params, remote_fetch=remote_fetch
         )
-        if cache_used := cached_response is not None:
-            # Cache hit - use the cached response
-            response = json.loads(cached_response)
-        else:
+
+        # Validate cached response and handle edge cases
+        cache_used = False
+        response = None
+        if cached_response:
+            try:
+                response = json.loads(cached_response)
+                # Check for empty Google responses (no content parts)
+                try:
+                    is_empty_google = (
+                        "candidates" in response
+                        and response["candidates"]
+                        and "content" in response["candidates"][0]
+                        and "parts" in response["candidates"][0]["content"]
+                        and len(response["candidates"][0]["content"]["parts"]) == 0
+                    )
+                    if not is_empty_google:
+                        cache_used = True
+                except Exception as e:
+                    print(f"Error checking for empty Google response: {e}", flush=True)
+
+            except Exception as e:
+                # If there's an error accessing the cached response, treat it as a cache miss
+                print(f"Error accessing cached response: {e}", flush=True)
+                cached_response = None
+
+        if not cache_used:
             # Cache miss - make a new API call
             # Determine whether to use remote or local execution
             f = (
@@ -850,8 +872,6 @@ class LanguageModel(
 
             # Execute the model call with timeout
 
-            # print("####",time.time())
-            # print("RUN LLM CALL")
             response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
             # Store the response in the cache
             new_cache_key = cache.store(
@@ -1243,13 +1263,11 @@ class LanguageModel(
 
         # Create a deep copy of this model instance
         new_instance = deepcopy(self)
-        print("Cache entries", len(cache))
 
         # Filter the cache to only include entries for this model
         new_instance.cache = Cache(
             data={k: v for k, v in cache.items() if v.model == self.model}
         )
-        print("Cache entries with same model", len(new_instance.cache))
 
         # Store prompt lists for reference
         new_instance.user_prompts = [
