@@ -348,6 +348,7 @@ Links
    :hidden:
 
    contributing
+   logging
    interview
    jobs 
    interviews
