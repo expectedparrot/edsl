@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 class AgentFromResult:
     """Handles creating Agent instances from Result objects.
-    
+
     This class provides methods to convert Result objects into Agent instances,
     extracting traits from the answers, building codebooks from question metadata,
     and generating appropriate presentation templates for displaying the Q&A pairs.
@@ -83,18 +83,19 @@ class AgentFromResult:
 
         # Extract traits from the result answers
         traits = AgentFromResult._extract_traits(result)
-        
+
         # Build codebook from question metadata
         codebook = AgentFromResult._build_codebook(result)
-        
+
         # Generate presentation template for Q&A display
         traits_presentation_template = AgentFromResult._generate_presentation_template()
-        
+
         # Determine agent name
         agent_name = AgentFromResult._determine_name(result, name)
 
         # Create the agent
         from .agent import Agent
+
         return Agent(
             traits=traits,
             name=agent_name,
@@ -105,13 +106,13 @@ class AgentFromResult:
     @staticmethod
     def _extract_traits(result: "Result") -> dict[str, Any]:
         """Extract traits from the result's answers.
-        
+
         Args:
             result: The Result instance to extract traits from
-            
+
         Returns:
             Dictionary of traits (question keys mapped to answers)
-            
+
         Examples:
             >>> # If result.answer = {"age": 30, "name": "John"}
             >>> # Returns {"age": 30, "name": "John"}
@@ -122,23 +123,23 @@ class AgentFromResult:
     @staticmethod
     def _build_codebook(result: "Result") -> dict[str, str]:
         """Build a codebook mapping question keys to human-readable question text.
-        
+
         This improves prompt readability by using the actual question text instead
         of just the question keys. Falls back gracefully if information is missing.
-        
+
         Args:
             result: The Result instance to build codebook from
-            
+
         Returns:
             Dictionary mapping question keys to rendered question text
-            
+
         Examples:
             >>> # If result has question "What is your age?" with key "age"
             >>> # Returns {"age": "What is your age?"}
         """
         codebook: dict[str, str] = {}
         question_attrs = getattr(result, "question_to_attributes", None)
-        
+
         if question_attrs:
             from ..prompts import Prompt
 
@@ -159,27 +160,27 @@ class AgentFromResult:
                     rendered_qtext = qtext_template
 
                 codebook[qname] = rendered_qtext
-                
+
         return codebook
 
     @staticmethod
     def _generate_presentation_template() -> str:
         """Generate a presentation template for displaying Q&A pairs.
-        
+
         Creates a Jinja2 template that gracefully handles repeated observations
         (i.e. when a trait value is a list because the question was asked
         more than once).
-        
+
         Returns:
             Jinja2 template string for presenting the Q&A pairs
-            
+
         Examples:
             The template will render Q&A pairs like:
-            
+
             This person was asked the following questions – here are the answers:
             Q: What is your age?
             A: 30
-            
+
             Q: What is your favorite color?
             A: blue
         """
@@ -200,42 +201,41 @@ class AgentFromResult:
         return "\n".join(template_lines)
 
     @staticmethod
-    def _determine_name(result: "Result", explicit_name: Optional[str]) -> Optional[str]:
+    def _determine_name(
+        result: "Result", explicit_name: Optional[str]
+    ) -> Optional[str]:
         """Determine the appropriate name for the agent.
-        
+
         Uses the explicit name if provided, otherwise falls back to the name
         from the original agent in the result if available.
-        
+
         Args:
             result: The Result instance to extract name from
             explicit_name: Explicitly provided name (takes precedence)
-            
+
         Returns:
             The determined name for the agent, or None if no name available
-            
+
         Examples:
             >>> # If explicit_name is provided, use it
             >>> # AgentFromResult._determine_name(result, "John") -> "John"
-            
+
             >>> # If no explicit name, try to use result.agent.name
             >>> # AgentFromResult._determine_name(result, None) -> result.agent.name or None
         """
         if explicit_name is not None:
             return explicit_name
-            
+
         # Fallback to the name inside the original agent if not provided
-        if (
-            hasattr(result, "agent")
-            and getattr(result.agent, "name", None)
-        ):
+        if hasattr(result, "agent") and getattr(result.agent, "name", None):
             return result.agent.name
-            
+
         return None
 
     def __repr__(self) -> str:
         """Return a string representation of the class.
-        
+
         Returns:
             String representation of the AgentFromResult class
         """
-        return "AgentFromResult()" 
+        return "AgentFromResult()"

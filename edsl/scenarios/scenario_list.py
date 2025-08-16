@@ -195,6 +195,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         Scenario({'a': 3})
         """
         return self.data[index]
+    
+    def sum(self, field: str) -> int:
+        """Sum the values of a field across all scenarios."""
+        return sum(scenario[field] for scenario in self)
 
     def unique(self) -> ScenarioList:
         """
@@ -371,6 +375,18 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 new_scenario["value"] = scenario[var]
                 new_scenarios.append(Scenario(new_scenario))
 
+        return new_scenarios
+    
+    def apply(self, func: Callable, field: str, new_name: Optional[str], replace:bool = False) -> ScenarioList:
+        """Apply a function to a field and return a new ScenarioList."""
+        new_scenarios = ScenarioList(data=[], codebook=self.codebook)
+        if new_name is None:
+            new_name = field
+        for scenario in self:
+            scenario[new_name] = func(scenario[field])
+            if replace:
+                del scenario[field]
+            new_scenarios.append(scenario)
         return new_scenarios
 
     @classmethod
@@ -627,7 +643,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         >>> s1 = ScenarioList([Scenario({'a': 1}), Scenario({'a': 2})])
         >>> s2 = ScenarioList([Scenario({'b': 1}), Scenario({'b': 2})])
-        >>> s1.times(s2)
+        >>> s1 * s2
         ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2}), Scenario({'a': 2, 'b': 1}), Scenario({'a': 2, 'b': 2})])
         """
 
@@ -1700,8 +1716,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         Example:
 
         >>> import pandas as pd
+        >>> from edsl.scenarios.scenario_source import ScenarioSource
         >>> df = pd.DataFrame({'name': ['Alice', 'Bob'], 'age': [30, 25], 'location': ['New York', 'Los Angeles']})
-        >>> ScenarioList.from_pandas(df)
+        >>> ScenarioSource.from_source('pandas', df)
         ScenarioList([Scenario({'name': 'Alice', 'age': 30, 'location': 'New York'}), Scenario({'name': 'Bob', 'age': 25, 'location': 'Los Angeles'})])
         """
         from .scenario_source import PandasSource
@@ -1811,11 +1828,12 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ...         df2.to_excel(writer, sheet_name='Sheet2', index=False)
         ...     temp_filename = f.name
         >>> # Load all rows
-        >>> scenario_list = ScenarioList.from_excel(temp_filename, sheet_name='Sheet1')
+        >>> from edsl.scenarios.scenario_source import ScenarioSource
+        >>> scenario_list = ScenarioSource.from_source('excel', temp_filename, sheet_name='Sheet1')
         >>> len(scenario_list)
         3
         >>> # Skip the second row (index 1)
-        >>> scenario_list = ScenarioList.from_excel(temp_filename, sheet_name='Sheet1', skip_rows=[1])
+        >>> scenario_list = ScenarioSource.from_source('excel', temp_filename, sheet_name='Sheet1', skip_rows=[1])
         >>> len(scenario_list)
         2
         >>> scenario_list[0]['name']

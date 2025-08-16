@@ -1,29 +1,29 @@
 """Sampling and shuffling functionality for Results objects."""
+
 import random
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from .results import Results
 
 from .exceptions import ResultsError
-from .utilities import ensure_ready
 
 
 class ResultsSampler:
     """Handles random sampling and shuffling operations for Results objects.
-    
+
     This class encapsulates all randomization functionality including:
     - Shuffling results using Fisher-Yates algorithm
     - Random sampling with or without replacement
     - Legacy sampling for backward compatibility
-    
+
     The class maintains the same interface as the original Results methods
     but provides better separation of concerns for random operations.
     """
-    
+
     def __init__(self, results: "Results"):
         """Initialize the sampler with a Results object.
-        
+
         Args:
             results: The Results object to perform sampling operations on
         """
@@ -155,4 +155,4 @@ class ResultsSampler:
         """
         # The original legacy algorithm was designed for a different data structure
         # and is no longer compatible. Delegate to the main sample method instead.
-        return self.sample(n=n, with_replacement=False) 
+        return self.sample(n=n, with_replacement=False)

@@ -25,14 +25,12 @@ Typical usage::
 
 from typing import Any, Callable, Dict, List, Optional, Sequence
 import inspect
-import asyncio
 
 import gradio as gr
 
 from .authoring import (
     ServiceDefinition,
     ParameterDefinition,
-    ReturnDefinition,
 )
 from .exceptions import (
     ServiceParameterValidationError,
@@ -271,9 +269,9 @@ def register_service_gradio(
 
                     # Re-create *visual* components within the current context so
                     # they appear in the UI.  Keep the logical parameter order.
-                    component_refs: List[
-                        gr.components.Component
-                    ] = _build_input_components()
+                    component_refs: List[gr.components.Component] = (
+                        _build_input_components()
+                    )
 
                     # Build output component(s) **inside** the context so they render
                     output_refs = _output_component_for_returns(service_def)

@@ -1,5 +1,5 @@
 # import os
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, Optional, TYPE_CHECKING
 import google
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
@@ -11,8 +11,7 @@ from ..inference_service_abc import InferenceServiceABC
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
-    from ....scenarios.file_store import FileStore as Files
-# from ...coop import Coop
+    from ...scenarios.file_store import FileStore as Files
 
 safety_settings = [
     {
@@ -41,23 +40,14 @@ class GoogleService(InferenceServiceABC):
     input_token_name = "prompt_token_count"
     output_token_name = "candidates_token_count"
 
-    model_exclude_list = []
-
     available_models_url = (
         "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models"
     )
 
     @classmethod
-    def get_model_list(cls):
-        model_list = []
-        for m in genai.list_models():
-            if "generateContent" in m.supported_generation_methods:
-                model_list.append(m.name.split("/")[-1])
-        return model_list
-
-    @classmethod
-    def available(cls) -> List[str]:
-        return cls.get_model_list()
+    def get_model_info(cls):
+        """Get raw model info without wrapping in ModelInfo."""
+        return list(genai.list_models())
 
     @classmethod
     def create_model(

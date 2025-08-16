@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 class AgentOperations:
     """Handles trait manipulation operations for Agent instances.
-    
+
     This class provides methods to drop, keep, rename, and conditionally filter
     traits while properly managing associated codebooks and trait categories.
     """
@@ -59,7 +59,7 @@ class AgentOperations:
             True
         """
         from .exceptions import AgentErrors
-        
+
         # Handle different input formats
         if len(field_names) == 1 and isinstance(field_names[0], list):
             # Case: drop(["field1", "field2"])
@@ -88,7 +88,7 @@ class AgentOperations:
 
         # Track which traits are being dropped for codebook cleanup
         dropped_traits = []
-        
+
         # Drop all the fields
         for field_name in fields_to_drop:
             if field_name in d.get("traits", {}):
@@ -120,6 +120,7 @@ class AgentOperations:
                 d.pop("trait_categories", None)
 
         from .agent import Agent
+
         return Agent.from_dict(d)
 
     @staticmethod
@@ -164,7 +165,7 @@ class AgentOperations:
             {'age': 30}
         """
         from .exceptions import AgentErrors
-        
+
         # Handle different input formats
         if len(field_names) == 1 and isinstance(field_names[0], list):
             # Case: keep(["field1", "field2"])
@@ -204,8 +205,8 @@ class AgentOperations:
         # Fix: Keep only relevant codebook entries
         if "codebook" in d and requested_traits:
             relevant_codebook = {
-                trait: d["codebook"][trait] 
-                for trait in requested_traits 
+                trait: d["codebook"][trait]
+                for trait in requested_traits
                 if trait in d["codebook"]
             }
             if relevant_codebook:
@@ -229,6 +230,7 @@ class AgentOperations:
             new_d["edsl_class_name"] = d["edsl_class_name"]
 
         from .agent import Agent
+
         return Agent.from_dict(new_d)
 
     @staticmethod
@@ -266,9 +268,9 @@ class AgentOperations:
             {'years': 10, 'hair': 'brown', 'tall': 5.5}
         """
         from .exceptions import AgentErrors
-        
+
         agent.traits_manager.check_before_modifying_traits()
-        
+
         if isinstance(old_name_or_dict, dict) and new_name:
             raise AgentErrors(
                 f"You passed a dict: {old_name_or_dict} and a new name: {new_name}. You should pass only a dict."
@@ -299,31 +301,31 @@ class AgentOperations:
             AgentErrors: If any specified trait names don't exist
         """
         from .exceptions import AgentErrors
-        
+
         try:
             assert all(k in agent.traits for k in renaming_dict.keys())
         except AssertionError:
             raise AgentErrors(
                 f"The trait(s) {set(renaming_dict.keys()) - set(agent.traits.keys())} do not exist in the agent's traits, which are {agent.traits}."
             )
-        
+
         new_agent = agent.duplicate()
         new_agent.traits = {renaming_dict.get(k, k): v for k, v in agent.traits.items()}
-        
+
         # Fix: Update codebook keys for dict renames
         new_codebook = {}
         for old_key, description in agent.codebook.items():
             new_key = renaming_dict.get(old_key, old_key)
             new_codebook[new_key] = description
         new_agent.codebook = new_codebook
-        
+
         # Fix: Update trait_categories for dict renames
         new_categories = {}
         for category, trait_list in agent.trait_categories.items():
             new_trait_list = [renaming_dict.get(trait, trait) for trait in trait_list]
             new_categories[category] = new_trait_list
         new_agent.trait_categories = new_categories
-        
+
         return new_agent
 
     @staticmethod
@@ -342,14 +344,14 @@ class AgentOperations:
             AgentErrors: If the specified trait name doesn't exist
         """
         from .exceptions import AgentErrors
-        
+
         try:
             assert old_name in agent.traits
         except AssertionError:
             raise AgentErrors(
                 f"The trait '{old_name}' does not exist in the agent's traits, which are {agent.traits}."
             )
-        
+
         newagent = agent.duplicate()
         newagent.traits = {
             new_name if k == old_name else k: v for k, v in agent.traits.items()
@@ -357,11 +359,13 @@ class AgentOperations:
         newagent.codebook = {
             new_name if k == old_name else k: v for k, v in agent.codebook.items()
         }
-        
+
         # Fix: Update trait_categories for single renames
         new_categories = {}
         for category, trait_list in agent.trait_categories.items():
-            new_trait_list = [new_name if trait == old_name else trait for trait in trait_list]
+            new_trait_list = [
+                new_name if trait == old_name else trait for trait in trait_list
+            ]
             new_categories[category] = new_trait_list
         newagent.trait_categories = new_categories
 
@@ -370,7 +374,7 @@ class AgentOperations:
     @staticmethod
     def select(agent: "Agent", *traits: str) -> "Agent":
         """Select agents with only the referenced traits.
-        
+
         This method is implemented using the robust keep() logic but only operates
         on traits (not agent fields), maintaining backward compatibility with the
         original select() behavior while providing better data integrity.
@@ -386,7 +390,7 @@ class AgentOperations:
             Select specific traits from an agent:
 
             >>> from edsl.agents import Agent
-            >>> a = Agent(traits={"age": 30, "hair": "brown", "height": 5.5}, 
+            >>> a = Agent(traits={"age": 30, "hair": "brown", "height": 5.5},
             ...           codebook={'age': 'Age in years', 'hair': 'Hair color'})
             >>> selected = AgentOperations.select(a, "age", "hair")
             >>> selected.traits
@@ -410,18 +414,19 @@ class AgentOperations:
         """
         # Filter traits to only include those that exist in the agent
         existing_traits = [trait for trait in traits if trait in agent.traits]
-        
+
         if not existing_traits:
             # If no valid traits specified, return agent with empty traits but preserve structure
             from .agent import Agent
+
             return Agent(
                 traits={},
                 name=agent.name,
                 instruction=agent.instruction if agent.set_instructions else None,
                 codebook={},
-                trait_categories={}
+                trait_categories={},
             )
-        
+
         # Use the robust keep() implementation, but only pass trait names
         # This ensures proper codebook and trait_categories management
         return AgentOperations.keep(agent, *existing_traits)
@@ -454,18 +459,18 @@ class AgentOperations:
             {'age': 30, 'score2': 85}
         """
         new_agent = agent.duplicate()
-        
+
         # Find traits to drop
         traits_to_drop = [k for k, v in agent.traits.items() if v == bad_value]
-        
+
         # Drop the bad traits
         new_agent.traits = {k: v for k, v in agent.traits.items() if v != bad_value}
-        
+
         # Clean up codebook for dropped traits
         new_agent.codebook = {
             k: v for k, v in agent.codebook.items() if k in new_agent.traits
         }
-        
+
         # Fix: Clean up trait_categories for dropped traits
         new_categories = {}
         for category, trait_list in agent.trait_categories.items():
@@ -475,8 +480,8 @@ class AgentOperations:
                 new_categories[category] = updated_list
             # Skip empty categories
         new_agent.trait_categories = new_categories
-        
-        return new_agent 
+
+        return new_agent
 
     @staticmethod
     def add_trait(
@@ -514,7 +519,7 @@ class AgentOperations:
             True
         """
         from .exceptions import AgentErrors
-        
+
         if isinstance(trait_name_or_dict, dict) and value is None:
             newagent = agent.duplicate()
             newagent.traits = {**agent.traits, **trait_name_or_dict}
@@ -560,11 +565,13 @@ class AgentOperations:
         """
         newagent = agent.duplicate()
         newagent.traits = {k: v for k, v in agent.traits.items() if k != trait}
-        
+
         # Clean up codebook for removed trait
         if trait in newagent.codebook:
-            newagent.codebook = {k: v for k, v in newagent.codebook.items() if k != trait}
-        
+            newagent.codebook = {
+                k: v for k, v in newagent.codebook.items() if k != trait
+            }
+
         # Clean up trait_categories for removed trait
         new_categories = {}
         for category, trait_list in agent.trait_categories.items():
@@ -573,11 +580,13 @@ class AgentOperations:
                 new_categories[category] = updated_list
             # Skip empty categories
         newagent.trait_categories = new_categories
-        
+
         return newagent
 
     @staticmethod
-    def translate_traits(agent: "Agent", values_codebook: dict[str, dict[Any, Any]]) -> "Agent":
+    def translate_traits(
+        agent: "Agent", values_codebook: dict[str, dict[Any, Any]]
+    ) -> "Agent":
         """Translate traits to a new codebook.
 
         This method allows you to transform trait values according to translation
@@ -627,7 +636,7 @@ class AgentOperations:
                 new_traits[key] = values_codebook[key].get(value, value)
             else:
                 new_traits[key] = value
-        
+
         newagent = agent.duplicate()
         newagent.traits = new_traits
-        return newagent 
+        return newagent

@@ -31,7 +31,8 @@ class QuestionNumericalProcessor(QuestionAttributeProcessor):
 
         >>> from edsl import Scenario
         >>> scenario = Scenario({"age_min": 20, "age_max": 100})
-        >>> QuestionNumberProcessor._get_numerical_value_from_scenario(scenario, ("age_min",))
+        >>> processor = QuestionNumericalProcessor(scenario, {})
+        >>> processor._get_numerical_value_from_scenario(scenario, ("age_min",))
         20
 
 
@@ -58,9 +59,11 @@ class QuestionNumericalProcessor(QuestionAttributeProcessor):
         >>> q = Q.example()
         >>> q.answer = 35
         >>> prior_answers = {"age": q}
-        >>> QuestionNumericalProcessor._get_numerical_value_from_prior_answers(prior_answers, ("age",))
+        >>> from edsl import Scenario
+        >>> processor = QuestionNumericalProcessor(Scenario({}), prior_answers)
+        >>> processor._get_numerical_value_from_prior_answers(prior_answers, ("age",))
         35
-        >>> QuestionNumericalProcessor._get_numerical_value_from_prior_answers(prior_answers, ("wrong_key",)) is None
+        >>> processor._get_numerical_value_from_prior_answers(prior_answers, ("wrong_key",)) is None
         True
 
         Returns:
@@ -89,36 +92,36 @@ class QuestionNumericalProcessor(QuestionAttributeProcessor):
         >>> mpc = MockPromptConstructor()
         >>> from edsl import Scenario
         >>> mpc.scenario = Scenario({"age_min": 20, "age_max": 100})
-        >>> mpc.prior_answers_dict = lambda: {'q0': q0}
-        >>> processor = QuestionNumericalProcessor.from_prompt_constructor(mpc)
-
-        The basic case where the numerical value is directly provided:
-
-        >>> question_data = {"min_value": 35}
-        >>> processor.get_question_numerical_value(question_data)
-        35
-
-        The case where the numerical value is provided as a template string:
-
-        >>> question_data = {"min_value": "{{ scenario.age_min }}"}
-        >>> processor.get_question_numerical_value(question_data)
-        20
-
-        The case where there is a template string but it's in the prior answers:
-
         >>> class MockQuestion:
         ...     pass
         >>> q0 = MockQuestion()
         >>> q0.answer = 35
         >>> mpc.prior_answers_dict = lambda: {'q0': q0}
         >>> processor = QuestionNumericalProcessor.from_prompt_constructor(mpc)
+
+        The basic case where the numerical value is directly provided:
+
+        >>> question_data = {"min_value": 35}
+        >>> processor.get_question_numerical_value(question_data, "min_value")
+        35
+
+        The case where the numerical value is provided as a template string:
+
+        >>> question_data = {"min_value": "{{ scenario.age_min }}"}
+        >>> processor.get_question_numerical_value(question_data, "min_value")
+        20
+
+        The case where there is a template string but it's in the prior answers:
+
+        >>> mpc.prior_answers_dict = lambda: {'q0': q0}
+        >>> processor = QuestionNumericalProcessor.from_prompt_constructor(mpc)
         >>> question_data = {"min_value": "{{ q0.answer }}"}
-        >>> processor.get_question_numerical_value(question_data)
+        >>> processor.get_question_numerical_value(question_data, "min_value")
         35
 
         The case where no numerical value is found:
-        >>> processor.get_question_numerical_value({"min_value": "{{ poop }}"})
-        None
+        >>> processor.get_question_numerical_value({"min_value": "{{ poop }}"}, "min_value") is None
+        True
 
         """
         numerical_value = question_data.get(key)
