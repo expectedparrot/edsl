@@ -75,7 +75,7 @@ class JobsRunnerStatusBase(ABC):
         self,
         jobs: "Jobs",
         n: int,
-        refresh_rate: float = 10,
+        refresh_rate: float = 3,
         endpoint_url: Optional[str] = None,
         job_uuid: Optional[UUID] = None,
         api_key: str = None,
