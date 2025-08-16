@@ -469,16 +469,16 @@ class Survey(Base):
         return {q.question_name: i for i, q in enumerate(self.questions)}
 
     def to_long_format(
-        self, scenario_list: ScenarioList
+        self, scenario_list: 'ScenarioList'
     ) -> Tuple[List[QuestionBase], ScenarioList]:
         """Return a new survey with the questions in long format and the associated scenario list."""
 
-        from edsl.questions.loop_processor import LongSurveyLoopProcessor
+        from ..questions.loop_processor import LongSurveyLoopProcessor
 
         lp = LongSurveyLoopProcessor(self, scenario_list)
         return lp.process_templates_for_all_questions()
 
-    def to_dict(self, add_edsl_version=True) -> dict[str, Any]:
+    def to_dict(self, add_edsl_version:bool=True) -> dict[str, Any]:
         """Serialize the Survey object to a dictionary for storage or transmission.
 
         This method converts the entire survey structure, including questions, rules,
@@ -660,7 +660,7 @@ class Survey(Base):
         return temp
 
     @property
-    def parameters(self):
+    def parameters(self) -> set:
         """Return a set of parameters in the survey.
 
         >>> s = Survey.example()
@@ -670,7 +670,7 @@ class Survey(Base):
         return set.union(*[q.parameters for q in self.questions])
 
     @property
-    def parameters_by_question(self):
+    def parameters_by_question(self) -> dict[str, set]:
         """Return a dictionary of parameters by question in the survey.
         >>> from edsl import QuestionFreeText
         >>> q = QuestionFreeText(question_name = "example", question_text = "What is the capital of {{ country}}?")
