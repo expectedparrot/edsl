@@ -314,7 +314,15 @@ class Survey(Base):
 
         d = self.to_dict()
         d["questions"] = [q.to_dict() for q in new_questions]
-        return Survey.from_dict(d)
+        new_survey = Survey.from_dict(d)
+        # Preserve any non-serialized attributes from the new_questions
+        for i, new_question in enumerate(new_questions):
+            survey_question = new_survey.questions[i]
+            if hasattr(new_question, 'exception_to_throw'):
+                survey_question.exception_to_throw = new_question.exception_to_throw
+            if hasattr(new_question, 'override_answer'):
+                survey_question.override_answer = new_question.override_answer
+        return new_survey
 
     def _process_raw_questions(self, questions: Optional[List["QuestionType"]]) -> list:
         """Process the raw questions passed to the survey."""
