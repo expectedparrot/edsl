@@ -110,7 +110,7 @@ class InferenceServiceRegistry:
             source_preferences = self._default_source_preferences
 
         self._source_handler = SourcePreferenceHandler(
-            registry=self, source_preferences=source_preferences, verbose=verbose
+            registry=self, source_preferences=source_preferences, verbose=True
         )
 
         if classes_to_register is None:
@@ -178,6 +178,8 @@ class InferenceServiceRegistry:
 
         total_models = 0
         for service_name, models in self.model_info_data.items():
+            print(f"Service: {service_name}")
+            print(f"Models: {models}")
             self._service_to_models[service_name] = models
             total_models += len(models)
 
