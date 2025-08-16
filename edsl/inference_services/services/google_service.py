@@ -50,10 +50,11 @@ class GoogleService(InferenceServiceABC):
             raise ValueError("GOOGLE_API_KEY environment variable not set.")
 
         client = genai.Client(api_key=api_key)
-        model_list = client.models.list()
+        response = client.models.list()
+        model_list = list(response)
         print("CALLING GOOGLE SERVICE")
-        print(list(model_list))
-        return list(model_list)
+        print(model_list)
+        return model_list
 
     @classmethod
     def create_model(
@@ -99,7 +100,7 @@ class GoogleService(InferenceServiceABC):
                 client = genai.Client(api_key=self.api_token)
 
                 if system_prompt is not None and system_prompt != "":
-                    if self._model_ == "gemini-pro":
+                    if self._model_ != "gemini-pro":
                         system_instruction = system_prompt
                     else:
                         print(

@@ -69,7 +69,16 @@ class ModelInfo:
                 f"ModelInfo.raw_data expected dict, got {type(self.raw_data).__name__}: {repr(self.raw_data)}. "
                 f"Service: {self.service_name}, Original class: {self.original_class}"
             )
-        return self.raw_data.get("id") or self.raw_data.get("name", "")
+        if self.service_name == "bedrock":
+            return self.raw_data.get("modelId")
+        elif self.service_name == "google":
+            base_name = self.raw_data.get("name")
+            if isinstance(base_name, str):
+                return base_name.lstrip("models/")
+            else:
+                return base_name
+        else:
+            return self.raw_data.get("id")
 
     # def __repr__(self) -> str:
     #     return f"ModelInfo(service='{self.service_name}', id='{self.id}', class='{self.original_class}')"
