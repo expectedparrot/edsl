@@ -1264,17 +1264,17 @@ class Survey(Base):
 
         return Jobs(survey=self)
 
-    def show_prompts(self):
+    def show_prompts(self, all: bool = False) -> None:
         """Display the prompts that will be used when running the survey.
 
         This method converts the survey to a Jobs object and shows the prompts that
         would be sent to a language model. This is useful for debugging and understanding
         how the survey will be presented.
 
-        Returns:
-            The detailed prompts for the survey.
+        Args:
+            all: If True, show all prompt fields; if False (default), show only user_prompt and system_prompt.
         """
-        return self.to_jobs().show_prompts()
+        self.to_jobs().show_prompts(all=all)
 
     def __call__(
         self,
