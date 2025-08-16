@@ -766,7 +766,6 @@ class LanguageModel(
         # Validate cached response and handle edge cases
         cache_used = False
         response = None
-
         if cached_response:
             try:
                 response = json.loads(cached_response)
@@ -792,7 +791,6 @@ class LanguageModel(
         if not cache_used:
             # Cache miss - make a new API call
             # Determine whether to use remote or local execution
-            print("Cache miss - executing model call", flush=True)
             f = (
                 self.remote_async_execute_model_call
                 if hasattr(self, "remote") and self.remote
