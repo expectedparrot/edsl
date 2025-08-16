@@ -178,12 +178,10 @@ class InferenceServiceRegistry:
 
         total_models = 0
         for service_name, models in self.model_info_data.items():
-            print(f"Service: {service_name}")
-            print(f"Models: {models}")
             self._service_to_models[service_name] = models
             total_models += len(models)
 
-            # Build reverse mapping
+            # Build reverse mapping - all fetchers now return ModelInfo objects
             for model_info in models:
                 self._model_to_services[model_info.id].append(service_name)
 
@@ -216,7 +214,8 @@ class InferenceServiceRegistry:
 
     def get_models_for_service(self, service_name: str) -> List[str]:
         """Get all model names for a given service."""
-        return self.service_to_models.get(service_name, [])
+        model_infos = self.service_to_models.get(service_name, [])
+        return [model_info.id for model_info in model_infos]
 
     def find_services(self, pattern: str) -> List[str]:
         """Find services matching a wildcard pattern."""
@@ -235,7 +234,8 @@ class InferenceServiceRegistry:
             # Search within a specific service
             service_models = self.service_to_models.get(service_name, [])
             return [
-                model for model in service_models if fnmatch.fnmatch(model, pattern)
+                model_info.id for model_info in service_models 
+                if fnmatch.fnmatch(model_info.id, pattern)
             ]
         else:
             return [

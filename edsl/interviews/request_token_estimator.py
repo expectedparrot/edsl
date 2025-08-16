@@ -2,7 +2,6 @@ import math
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..scenarios import FileStore
     from .interview import Interview
     from ..questions import QuestionBase
 
