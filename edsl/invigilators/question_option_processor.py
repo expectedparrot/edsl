@@ -1,10 +1,12 @@
-from typing import Union
+from typing import Union, TYPE_CHECKING
 
-import edsl.scenarios.scenario  # noqa: F401
+
+#import edsl.scenarios.scenario  # noqa: F401
 from .question_attribute_processor import (
     QuestionAttributeProcessor,
 )
-
+if TYPE_CHECKING:
+    from ..scenarios import Scenario
 
 class QuestionOptionProcessor(QuestionAttributeProcessor):
     """
@@ -13,7 +15,7 @@ class QuestionOptionProcessor(QuestionAttributeProcessor):
     """
 
     def __init__(
-        self, scenario: "edsl.scenarios.scenario.Scenario", prior_answers_dict: dict
+        self, scenario: "Scenario", prior_answers_dict: dict
     ):
         # Call parent class constructor
         super().__init__(scenario, prior_answers_dict)
