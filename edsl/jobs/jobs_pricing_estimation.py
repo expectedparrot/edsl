@@ -172,7 +172,8 @@ class JobsPrompts:
         # Generate cache keys for each iteration
         files_list = prompts.get("files_list", None)
         if files_list:
-            files_hash = "+".join([str(hash(file)) for file in files_list])
+            # Sort hashes to ensure consistent cache keys regardless of file order
+            files_hash = "+".join(sorted([str(hash(file)) for file in files_list]))
             user_prompt_with_hashes = user_prompt + f" {files_hash}"
         cache_keys = []
 
