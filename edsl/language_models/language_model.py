@@ -849,7 +849,6 @@ class LanguageModel(
                 TIMEOUT = base_timeout
 
             # Execute the model call with timeout
-            import time
 
             # print("####",time.time())
             # print("RUN LLM CALL")
