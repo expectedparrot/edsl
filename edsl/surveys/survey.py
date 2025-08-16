@@ -304,9 +304,7 @@ class Survey(Base):
             self._seed = hash(self)
             random.seed(self._seed)  # type: ignore
 
-        if len(self.questions_to_randomize) == 0:
-            return self
-
+        # Always create new questions to avoid sharing state between interviews
         new_questions = []
         for question in self.questions:
             if question.question_name in self.questions_to_randomize:
@@ -443,7 +441,8 @@ class Survey(Base):
 
     def question_names_to_questions(self) -> dict:
         """Return a dictionary mapping question names to question attributes."""
-        return {q.question_name: q for q in self.questions}
+        return {q.question_name: q.duplicate() for q in self.questions}
+        #return {q.question_name: q for q in self.questions}
 
     @property
     def question_names(self) -> list[str]:
