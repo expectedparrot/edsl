@@ -184,8 +184,8 @@ class InferenceServiceRegistry:
             total_models += len(models)
 
             # Build reverse mapping
-            for model_name in models:
-                self._model_to_services[model_name].append(service_name)
+            for model_info in models:
+                self._model_to_services[model_info.id].append(service_name)
 
     def get_service_for_model(self, model_name: str) -> Optional[str]:
         """Get the preferred service for a given model name based on user preferences."""
