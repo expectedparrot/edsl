@@ -253,7 +253,15 @@ class QuestionBase(
             >>> original is copy
             False
         """
-        return self.from_dict(self.to_dict())
+        duplicated = self.from_dict(self.to_dict())
+        
+        # Preserve testing attributes that aren't serialized
+        if hasattr(self, 'exception_to_throw'):
+            duplicated.exception_to_throw = self.exception_to_throw
+        if hasattr(self, 'override_answer'):
+            duplicated.override_answer = self.override_answer
+            
+        return duplicated
 
     @property
     def fake_data_factory(self):

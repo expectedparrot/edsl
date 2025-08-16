@@ -77,27 +77,27 @@ class JobsRemoteInferenceHandler:
 
         if disable_remote_inference:
             return False
-        if not disable_remote_inference:
+        
+        try:
+            from ..coop import Coop
+
+            user_edsl_settings = Coop(api_key=self.api_key).edsl_settings
+            return user_edsl_settings.get("remote_inference", False)
+        except requests.ConnectionError:
+            pass
+        except (
+            Exception
+        ) as e:  # CoopServerResponseError will be imported when needed
             try:
-                from ..coop import Coop
+                from ..coop import CoopServerResponseError
 
-                user_edsl_settings = Coop(api_key=self.api_key).edsl_settings
-                return user_edsl_settings.get("remote_inference", False)
-            except requests.ConnectionError:
-                pass
-            except (
-                Exception
-            ) as e:  # CoopServerResponseError will be imported when needed
-                try:
-                    from ..coop import CoopServerResponseError
-
-                    if isinstance(e, CoopServerResponseError):
-                        pass
-                    else:
-                        raise
-                except ImportError:
-                    # If coop module is not available, re-raise the original exception
-                    raise e
+                if isinstance(e, CoopServerResponseError):
+                    pass
+                else:
+                    raise
+            except ImportError:
+                # If coop module is not available, re-raise the original exception
+                raise e
 
         return False
 
