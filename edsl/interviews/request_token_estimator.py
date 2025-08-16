@@ -110,6 +110,7 @@ class RequestTokenEstimator:
         """Estimate the number of tokens that will be required to run the focal task."""
 
         from ..jobs.fetch_invigilator import FetchInvigilator
+        from ..scenarios import FileStore
 
         invigilator = FetchInvigilator(self.interview)(question=question)
 
