@@ -217,3 +217,62 @@ class TestCheckTemplateSyntax:
         assert "Available questions:" in error_msg
         assert "question_one" in error_msg
         assert "question_two" in error_msg
+
+    def test_valid_agent_reference(self):
+        """Test that valid {{agent.field}} syntax passes validation."""
+        q = QuestionFreeText(
+            question_name="test_q",
+            question_text="You are a {{agent.persona}} person"
+        )
+        survey = Survey(questions=[q])
+        checker = CheckTemplateSyntax(survey)
+        
+        # Should not raise an exception
+        checker.check()
+    
+    def test_mixed_agent_and_scenario_references(self):
+        """Test that {{agent.field}} and {{scenario.field}} can coexist."""
+        q = QuestionFreeText(
+            question_name="test_q",
+            question_text="As a {{agent.persona}}, what do you think about {{scenario.topic}}?"
+        )
+        survey = Survey(questions=[q])
+        checker = CheckTemplateSyntax(survey)
+        
+        # Should not raise an exception
+        checker.check()
+    
+    def test_agent_scenario_question_mix(self):
+        """Test that agent, scenario, and question references work together."""
+        q1 = QuestionFreeText(
+            question_name="age",
+            question_text="What is your age?"
+        )
+        q2 = QuestionFreeText(
+            question_name="complex",
+            question_text="You are {{agent.persona}}, aged {{age.answer}}, discussing {{scenario.topic}}"
+        )
+        survey = Survey(questions=[q1, q2])
+        checker = CheckTemplateSyntax(survey)
+        
+        # Should not raise an exception
+        checker.check()
+    
+    def test_invalid_reference_suggests_agent_option(self):
+        """Test that invalid references now suggest agent as an option."""
+        q = QuestionFreeText(
+            question_name="test_q",
+            question_text="Invalid reference: {{invalid_var.field}}"
+        )
+        survey = Survey(questions=[q])
+        checker = CheckTemplateSyntax(survey)
+        
+        with pytest.raises(JobsCompatibilityError) as exc_info:
+            checker.check()
+        
+        error_msg = str(exc_info.value)
+        assert "Invalid template syntax" in error_msg
+        assert "invalid_var.field" in error_msg
+        assert "is not a valid reference" in error_msg
+        assert "{{scenario.field}}" in error_msg
+        assert "{{agent.field}}" in error_msg
