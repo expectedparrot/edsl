@@ -9,8 +9,11 @@ of the same file and handles concurrent access safely.
 import asyncio
 import hashlib
 import time
-from typing import Dict, Any
+from typing import Dict, Any, TYPE_CHECKING
 from threading import Lock
+
+if TYPE_CHECKING:
+    from .file_store import FileStore
 
 
 class FileUploadCache:
@@ -87,7 +90,7 @@ class FileUploadCache:
         return hashlib.sha256(content_to_hash.encode()).hexdigest()
 
     async def get_or_upload(
-        self, file_store, service: str = "google"
+        self, file_store: "FileStore", service: str = "google"
     ) -> Dict[str, Any]:
         """
         Get cached upload info or upload the file if not cached.
