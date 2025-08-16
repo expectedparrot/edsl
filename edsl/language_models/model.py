@@ -75,7 +75,9 @@ class Model(metaclass=Meta):
                 InferenceServiceRegistry,
             )
 
-            cls._inference_service_registry = InferenceServiceRegistry()
+            cls._inference_service_registry = InferenceServiceRegistry(
+                source_preferences=("local",)
+            )
         return cls._inference_service_registry
 
     @classmethod

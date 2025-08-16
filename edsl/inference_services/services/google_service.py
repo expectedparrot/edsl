@@ -1,4 +1,4 @@
-# import os
+import os
 from typing import Any, Dict, Optional, TYPE_CHECKING
 from google import genai
 from google.genai import types
@@ -45,7 +45,15 @@ class GoogleService(InferenceServiceABC):
     @classmethod
     def get_model_info(cls):
         """Get raw model info without wrapping in ModelInfo."""
-        return list(genai.list_models())
+        api_key = os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable not set.")
+
+        client = genai.Client(api_key=api_key)
+        model_list = client.models.list()
+        print("CALLING GOOGLE SERVICE")
+        print(list(model_list))
+        return list(model_list)
 
     @classmethod
     def create_model(
