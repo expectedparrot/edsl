@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 class AgentSerialization:
     """Handles serialization and deserialization of Agent instances.
-    
+
     This class provides methods to convert Agent instances to dictionary
     representations and create Agent instances from dictionaries, supporting
     various serialization options and backward compatibility.
@@ -25,9 +25,7 @@ class AgentSerialization:
 
     @staticmethod
     def to_dict(
-        agent: "Agent", 
-        add_edsl_version: bool = True, 
-        full_dict: bool = False
+        agent: "Agent", add_edsl_version: bool = True, full_dict: bool = False
     ) -> dict[str, Union[dict, bool, str]]:
         """Serialize an agent to a dictionary with EDSL info.
 
@@ -91,7 +89,7 @@ class AgentSerialization:
         """
         # Import locally to avoid circular imports
         from .agent import Agent
-        
+
         if "traits" in agent_dict:
             if "trait_categories" in agent_dict:
                 trait_categories = agent_dict.pop("trait_categories", {})
@@ -177,4 +175,4 @@ class AgentSerialization:
             if agent.trait_categories:
                 raw_data["trait_categories"] = agent.trait_categories
 
-        return raw_data 
+        return raw_data

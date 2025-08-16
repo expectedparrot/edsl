@@ -2,9 +2,8 @@ from typing import Dict, List, Optional, Callable, Any
 import inspect
 
 from .parameter_extraction import FunctionSignatureExtractor
-from .return_analyzer import ReturnAnalyzer, ReturnStructure
+from .return_analyzer import ReturnAnalyzer
 from .authoring import (
-    ParameterDefinition,
     ReturnDefinition,
     ServiceDefinition,
     CostDefinition,

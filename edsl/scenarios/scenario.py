@@ -19,13 +19,10 @@ information to questions in surveys.
 
 from __future__ import annotations
 import copy
-import os
 from collections import UserDict
-from typing import Union, List, Optional, TYPE_CHECKING, Collection, Dict, Any, Iterable, Mapping, overload
-from uuid import uuid4
+from typing import Union, List, Optional, TYPE_CHECKING, Dict, Any, Iterable, Mapping
 
 from ..base import Base
-from ..utilities import remove_edsl_version
 from .exceptions import ScenarioError
 
 if TYPE_CHECKING:
@@ -618,13 +615,13 @@ class Scenario(Base, UserDict):
             requests.exceptions.RequestException: If the URL cannot be accessed.
 
         Examples:
-            >>> s = Scenario.from_url("https://example.com", testing=True)
-            >>> "url" in s and "text" in s
-            True
+            Create a scenario from a URL (requires network access):
 
-            >>> s = Scenario.from_url("https://example.com", field_name="content", testing=True)
-            >>> "url" in s and "content" in s
-            True
+            s = Scenario.from_url("https://example.com", testing=True)
+            # Returns a Scenario with "url" and "text" fields
+
+            s = Scenario.from_url("https://example.com", field_name="content", testing=True)
+            # Returns a Scenario with "url", "html", and "content" fields
 
         Notes:
             - The method attempts to use BeautifulSoup and fake_useragent for better
@@ -763,13 +760,13 @@ class Scenario(Base, UserDict):
             requests.exceptions.RequestException: If the URL cannot be accessed.
 
         Examples:
-            >>> s = Scenario.from_html("https://example.com")
-            >>> all(key in s for key in ["url", "html", "text"])
-            True
+            Create a scenario from HTML content (requires network access):
 
-            >>> s = Scenario.from_html("https://example.com", field_name="content")
-            >>> all(key in s for key in ["url", "html", "content"])
-            True
+            s = Scenario.from_html("https://example.com")
+            # Returns a Scenario with "url", "html", and "text" fields
+
+            s = Scenario.from_html("https://example.com", field_name="content")
+            # Returns a Scenario with "url", "html", and "content" fields
 
         Notes:
             - Uses BeautifulSoup for HTML parsing when available

@@ -119,6 +119,10 @@ CONFIG_MAP = {
         "default": "False",
         "info": "This config var determines whether to use SQLite for ScenarioList instances.",
     },
+    "EDSL_VERBOSE_MODE": {
+        "default": "False",
+        "info": "This config var determines whether to enable verbose output mode throughout the application.",
+    },
 }
 
 

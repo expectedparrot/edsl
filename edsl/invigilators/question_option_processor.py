@@ -31,7 +31,8 @@ class QuestionOptionProcessor(QuestionAttributeProcessor):
 
         >>> from edsl import Scenario
         >>> scenario = Scenario({"options": ["Option 1", "Option 2"]})
-        >>> QuestionOptionProcessor._get_options_from_scenario(scenario, ("options",))
+        >>> processor = QuestionOptionProcessor(scenario, {})
+        >>> processor._get_options_from_scenario(scenario, ("options",))
         ['Option 1', 'Option 2']
 
 
@@ -54,9 +55,11 @@ class QuestionOptionProcessor(QuestionAttributeProcessor):
         >>> q = Q.example()
         >>> q.answer = ["Option 1", "Option 2"]
         >>> prior_answers = {"options": q}
-        >>> QuestionOptionProcessor._get_options_from_prior_answers(prior_answers, ("options",))
+        >>> from edsl import Scenario
+        >>> processor = QuestionOptionProcessor(Scenario({}), prior_answers)
+        >>> processor._get_options_from_prior_answers(prior_answers, ("options",))
         ['Option 1', 'Option 2']
-        >>> QuestionOptionProcessor._get_options_from_prior_answers(prior_answers, ("wrong_key",)) is None
+        >>> processor._get_options_from_prior_answers(prior_answers, ("wrong_key",)) is None
         True
 
         Returns:
@@ -83,6 +86,10 @@ class QuestionOptionProcessor(QuestionAttributeProcessor):
         >>> mpc = MockPromptConstructor()
         >>> from edsl import Scenario
         >>> mpc.scenario = Scenario({"options": ["Option 1", "Option 2"]})
+        >>> class MockQuestion:
+        ...     pass
+        >>> q0 = MockQuestion()
+        >>> q0.answer = ["Option 1", "Option 2"]
         >>> mpc.prior_answers_dict = lambda: {'q0': q0}
         >>> processor = QuestionOptionProcessor.from_prompt_constructor(mpc)
 
@@ -100,10 +107,6 @@ class QuestionOptionProcessor(QuestionAttributeProcessor):
 
         The case where there is a template string but it's in the prior answers:
 
-        >>> class MockQuestion:
-        ...     pass
-        >>> q0 = MockQuestion()
-        >>> q0.answer = ["Option 1", "Option 2"]
         >>> mpc.prior_answers_dict = lambda: {'q0': q0}
         >>> processor = QuestionOptionProcessor.from_prompt_constructor(mpc)
         >>> question_data = {"question_options": "{{ q0.answer }}"}

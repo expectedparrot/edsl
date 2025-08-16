@@ -7,7 +7,7 @@ for efficient storage and retrieval of cached data.
 """
 
 from sqlalchemy import Column, String
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 

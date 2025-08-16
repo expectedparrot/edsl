@@ -46,7 +46,7 @@ class SurveyExport:
     #     question_texts = "\n".join([q.question_text for q in self.survey._questions])
     #     q = QuestionFreeText(
     #         question_name="description",
-    #         question_text=f"""A survey was conducted with the following questions: 
+    #         question_text=f"""A survey was conducted with the following questions:
     #                          {question_texts}
     #                          Please write a description of the survey.
     #                          """,
@@ -258,8 +258,8 @@ class SurveyExport:
             If True, includes the internal ``question_name`` of each question in
             the rendered LaTeX.
         standalone : bool, default True
-            If True, a full LaTeX document is produced with ``\documentclass`` and
-            ``\begin{document}`` / ``\end{document}``. If False, only the snippet
+            If True, a full LaTeX document is produced with ``\\documentclass`` and
+            ``\\begin{document}`` / ``\\end{document}``. If False, only the snippet
             corresponding to the survey content is written (suitable for inclusion
             in a larger document).
 

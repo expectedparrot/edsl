@@ -15,14 +15,14 @@ if TYPE_CHECKING:
 
 class AgentTable:
     """Handles table generation and data presentation for Agent instances.
-    
+
     This class provides methods to create tabular representations of agent
     data, including trait tables and generic attribute tables.
     """
 
     def __init__(self, agent: "Agent"):
         """Initialize the AgentTable manager.
-        
+
         Args:
             agent: The agent instance this manager belongs to
         """
@@ -73,12 +73,12 @@ class AgentTable:
             table_data.append(
                 {"Trait": trait_name, "Description": trait_description, "Value": value}
             )
-        
+
         # Handle empty traits case
         if not table_data:
             # Add empty row to avoid Dataset creation issues
             table_data.append({"Trait": "", "Description": "", "Value": ""})
-        
+
         return table_data.to_dataset()
 
     def generic_table(self) -> tuple[list[dict], list[str]]:
@@ -116,13 +116,13 @@ class AgentTable:
 
     def traits_summary(self) -> dict:
         """Create a summary of the agent's traits.
-        
+
         This method provides a structured summary of the agent's traits,
         including counts and basic statistics.
-        
+
         Returns:
             Dictionary with trait summary information
-            
+
         Examples:
             >>> from edsl.agents import Agent
             >>> agent = Agent(traits={'age': 30, 'height': 5.5, 'occupation': 'doctor'})
@@ -134,15 +134,20 @@ class AgentTable:
         """
         traits = self.agent.traits
         trait_types = {}
-        
+
         for trait_name, trait_value in traits.items():
             value_type = type(trait_value).__name__
             trait_types[value_type] = trait_types.get(value_type, 0) + 1
-        
+
         return {
-            'total_traits': len(traits),
-            'trait_types': trait_types,
-            'has_codebook': len(self.agent.codebook) > 0,
-            'codebook_coverage': len([t for t in traits.keys() if t in self.agent.codebook]) / len(traits) if traits else 0,
-            'trait_names': list(traits.keys())
-        } 
+            "total_traits": len(traits),
+            "trait_types": trait_types,
+            "has_codebook": len(self.agent.codebook) > 0,
+            "codebook_coverage": (
+                len([t for t in traits.keys() if t in self.agent.codebook])
+                / len(traits)
+                if traits
+                else 0
+            ),
+            "trait_names": list(traits.keys()),
+        }

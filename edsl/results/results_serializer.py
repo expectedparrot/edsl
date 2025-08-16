@@ -5,7 +5,7 @@ deserialization operations for Results objects, including dictionary conversion,
 object reconstruction, shelve operations, and disk persistence.
 """
 
-from typing import TYPE_CHECKING, Any, Optional, Dict
+from typing import TYPE_CHECKING, Any, Dict
 from ..utilities import remove_edsl_version
 
 if TYPE_CHECKING:
@@ -17,23 +17,23 @@ from .exceptions import ResultsDeserializationError, ResultsError
 
 class ResultsSerializer:
     """Handles serialization and deserialization operations for Results objects.
-    
+
     This class encapsulates all the serialization logic for Results objects,
     including conversion to and from dictionary representations for storage
     and transmission.
-    
+
     Attributes:
         results: The Results object to serialize
     """
-    
+
     def __init__(self, results: "Results"):
         """Initialize the serializer with a Results object.
-        
+
         Args:
             results: The Results object to serialize
         """
         self.results = results
-    
+
     def to_dict(
         self,
         sort: bool = False,
@@ -44,7 +44,7 @@ class ResultsSerializer:
         offload_scenarios: bool = True,
     ) -> Dict[str, Any]:
         """Convert the Results object to a dictionary representation.
-        
+
         Args:
             sort: Whether to sort the results data by hash before serialization
             add_edsl_version: Whether to include the EDSL version in the output
@@ -52,7 +52,7 @@ class ResultsSerializer:
             include_task_history: Whether to include task history in the output
             include_cache_info: Whether to include cache information in result data
             offload_scenarios: Whether to optimize scenarios before serialization
-            
+
         Returns:
             Dict[str, Any]: Dictionary representation of the Results object
         """
@@ -61,7 +61,9 @@ class ResultsSerializer:
         if offload_scenarios:
             self.results.optimzie_scenarios()
         if sort:
-            data = sorted([result for result in self.results.data], key=lambda x: hash(x))
+            data = sorted(
+                [result for result in self.results.data], key=lambda x: hash(x)
+            )
         else:
             data = [result for result in self.results.data]
 
@@ -82,7 +84,9 @@ class ResultsSerializer:
                     "cache": (
                         Cache()
                         if not hasattr(self.results, "cache")
-                        else self.results.cache.to_dict(add_edsl_version=add_edsl_version)
+                        else self.results.cache.to_dict(
+                            add_edsl_version=add_edsl_version
+                        )
                     )
                 }
             )
@@ -90,7 +94,13 @@ class ResultsSerializer:
             d["name"] = self.results.name
 
         if self.results.task_history.has_unfixed_exceptions or include_task_history:
-            d.update({"task_history": self.results.task_history.to_dict(offload_content=True)})
+            d.update(
+                {
+                    "task_history": self.results.task_history.to_dict(
+                        offload_content=True
+                    )
+                }
+            )
 
         if add_edsl_version:
             from .. import __version__
@@ -99,7 +109,7 @@ class ResultsSerializer:
             d["edsl_class_name"] = "Results"
 
         return d
-    
+
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data: Dict[str, Any]) -> "Results":
@@ -148,7 +158,7 @@ class ResultsSerializer:
             "created_columns": created_columns,
             "cache": cache,
             "task_history": task_history,
-            "name": name
+            "name": name,
         }
 
         try:
@@ -300,18 +310,30 @@ class ResultsSerializer:
 
                 # 2. Create metadata.json
                 metadata = {
-                    "survey": self.results.survey.to_dict() if self.results.survey else None,
+                    "survey": (
+                        self.results.survey.to_dict() if self.results.survey else None
+                    ),
                     "created_columns": self.results.created_columns,
-                    "cache": self.results.cache.to_dict() if hasattr(self.results, "cache") else None,
+                    "cache": (
+                        self.results.cache.to_dict()
+                        if hasattr(self.results, "cache")
+                        else None
+                    ),
                     "task_history": (
                         self.results.task_history.to_dict()
                         if hasattr(self.results, "task_history")
                         else None
                     ),
                     "completed": self.results.completed,
-                    "job_uuid": self.results._job_uuid if hasattr(self.results, "_job_uuid") else None,
+                    "job_uuid": (
+                        self.results._job_uuid
+                        if hasattr(self.results, "_job_uuid")
+                        else None
+                    ),
                     "total_results": (
-                        self.results._total_results if hasattr(self.results, "_total_results") else None
+                        self.results._total_results
+                        if hasattr(self.results, "_total_results")
+                        else None
                     ),
                 }
 
@@ -408,4 +430,4 @@ class ResultsSerializer:
                 return results
 
         except Exception as e:
-            raise ResultsError(f"Error loading Results from disk: {str(e)}") 
+            raise ResultsError(f"Error loading Results from disk: {str(e)}")

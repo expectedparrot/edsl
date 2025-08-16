@@ -1,9 +1,9 @@
 import aiohttp
 import base64
 import json
+import os
 import requests
 import time
-import os
 
 from typing import (
     Any,
@@ -17,7 +17,6 @@ from typing import (
     TYPE_CHECKING,
 )
 from uuid import UUID
-from datetime import datetime, timezone
 
 from .. import __version__
 
@@ -26,7 +25,7 @@ from ..caching import CacheEntry
 
 if TYPE_CHECKING:
     from ..jobs import Jobs
-    from ..scenarios import ScenarioList
+    from ..scenarios import Scenario, ScenarioList
     from ..surveys import Survey
     from ..results import Results
 
@@ -50,7 +49,7 @@ from .coop_jobs_objects import CoopJobsObjects
 from .coop_prolific_filters import CoopProlificFilters
 from .ep_key_handling import ExpectedParrotKeyHandler
 
-from ..inference_services.data_structures import ServiceToModelsMapping
+# from ..inference_services.data_structures import ServiceToModelsMapping
 
 
 class JobRunExpense(TypedDict):
@@ -517,7 +516,6 @@ class Coop(CoopFunctionsMixin):
         :param edsl_auth_token: The EDSL auth token to use for login
         :param timeout: Maximum time to wait for login, in seconds (default: 120)
         """
-        import time
         from datetime import datetime
 
         start_poll_time = time.time()
@@ -1214,7 +1212,7 @@ class Coop(CoopFunctionsMixin):
             raise CoopObjectTypeError(
                 f"Expected {expected_object_type=} but got {object_type=}"
             )
-        edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
+        edsl_class = ObjectRegistry.get_edsl_class_by_object_type(object_type)
         object = edsl_class.from_dict(json.loads(json_string))
         if object_type == "results":
             object.initialize_cache_from_results()
@@ -1235,7 +1233,7 @@ class Coop(CoopFunctionsMixin):
         Raises:
             CoopValueError: If any object type is invalid
         """
-        valid_object_types = ObjectRegistry.object_type_to_edsl_class.keys()
+        valid_object_types = [o["object_type"] for o in ObjectRegistry._get_objects()]
         if isinstance(object_type, list):
             invalid_types = [t for t in object_type if t not in valid_object_types]
             if invalid_types:
@@ -1336,7 +1334,7 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         content = response.json()
         objects = []
-        for o in content:
+        for o in content.get("objects", []):
             object = Scenario(
                 {
                     "uuid": o.get("uuid"),
@@ -1359,7 +1357,18 @@ class Coop(CoopFunctionsMixin):
                 object["download_count"] = o.get("download_count")
             objects.append(object)
 
-        return CoopRegularObjects(objects)
+        current_page = content.get("current_page")
+        total_pages = content.get("total_pages")
+        page_size = content.get("page_size")
+        total_count = content.get("total_count")
+
+        return CoopRegularObjects(
+            objects,
+            current_page=current_page,
+            total_pages=total_pages,
+            page_size=page_size,
+            total_count=total_count,
+        )
 
     def get_metadata(self, url_or_uuid: Union[str, UUID]) -> dict:
         """
@@ -2526,7 +2535,7 @@ class Coop(CoopFunctionsMixin):
                 else:
                     results = results + question_results
             return results
-        except Exception as e:
+        except Exception:
             human_response_scenarios = []
             for response in human_responses:
                 response_uuid = response.get("response_uuid")
@@ -3086,7 +3095,7 @@ class Coop(CoopFunctionsMixin):
                 "Invalid EDSL_FETCH_TOKEN_PRICES value---should be 'True' or 'False'."
             )
 
-    def fetch_models(self) -> ServiceToModelsMapping:
+    def fetch_models(self) -> dict:
         """
         Fetch information about available language models from Expected Parrot.
 
@@ -3123,7 +3132,8 @@ class Coop(CoopFunctionsMixin):
         response = self._send_server_request(uri="api/v0/models", method="GET")
         self._resolve_server_response(response)
         data = response.json()
-        return ServiceToModelsMapping(data)
+        # return ServiceToModelsMapping(data)
+        return data
 
     def fetch_working_models(self) -> List[dict]:
         """
@@ -3608,8 +3618,6 @@ class Coop(CoopFunctionsMixin):
             )
 
         import secrets
-        import time
-        import os
         from dotenv import load_dotenv
         from .ep_key_handling import ExpectedParrotKeyHandler
         from ..utilities.utilities import write_api_key_to_env
@@ -3873,8 +3881,6 @@ class Coop(CoopFunctionsMixin):
             ) from exc
 
         import secrets
-        import time
-        import os
         from dotenv import load_dotenv
         from .ep_key_handling import ExpectedParrotKeyHandler
         from ..utilities.utilities import write_api_key_to_env

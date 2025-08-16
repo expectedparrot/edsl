@@ -17,7 +17,7 @@ A = TypeVar("A", bound="Agent")
 
 class AgentCombination:
     """Handles combination and merging of Agent instances.
-    
+
     This class provides methods to combine agents with different strategies
     for handling trait conflicts, including numeric suffixes, error raising,
     and repeated observation merging.
@@ -45,7 +45,7 @@ class AgentCombination:
 
         Raises:
             ValueError: If conflict_strategy is not one of the valid options
-            AgentCombinationError: If conflict_strategy is "error" and traits overlap, or if 
+            AgentCombinationError: If conflict_strategy is "error" and traits overlap, or if
                 "repeated_observation" is used with differing codebook descriptions
 
         Examples:
@@ -176,8 +176,7 @@ class AgentCombination:
 
     @staticmethod
     def add_with_plus_operator(
-        first_agent: "Agent", 
-        other_agent: Optional["Agent"] = None
+        first_agent: "Agent", other_agent: Optional["Agent"] = None
     ) -> "Agent":
         """Implement the + operator for agents using numeric conflict strategy.
 
@@ -199,4 +198,6 @@ class AgentCombination:
             >>> combined.traits
             {'age': 30, 'height': 5.5}
         """
-        return AgentCombination.add(first_agent, other_agent, conflict_strategy="numeric") 
+        return AgentCombination.add(
+            first_agent, other_agent, conflict_strategy="numeric"
+        )

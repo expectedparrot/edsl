@@ -468,7 +468,7 @@ class FileStore(Scenario):
                 if not self.binary and isinstance(content, bytes):
                     content = content.decode("utf-8")
                 f.write(content)
-                #print(f"File written to {filename}")
+                # print(f"File written to {filename}")
         except Exception as e:
             print(f"Error writing file: {e}")
             raise

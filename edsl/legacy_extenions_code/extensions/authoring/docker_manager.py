@@ -37,7 +37,7 @@ import shlex
 import subprocess
 import re
 from pathlib import Path
-from typing import Sequence, Optional
+from typing import Sequence
 
 from .authoring import ServicesBuilder
 

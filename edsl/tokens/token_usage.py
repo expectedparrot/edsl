@@ -1,4 +1,4 @@
-from ..enums import TokenPricing
+from ..base import TokenPricing
 from .exceptions import TokenUsageError
 
 
