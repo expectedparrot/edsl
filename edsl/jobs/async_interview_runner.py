@@ -13,6 +13,7 @@ import asyncio
 from .data_structures import RunConfig
 
 from ..config import Config
+from ..logger import get_logger
 
 config = Config()
 
@@ -79,6 +80,7 @@ class AsyncInterviewRunner:
         self.jobs = jobs
         self.run_config = run_config
         self._initialized = asyncio.Event()
+        self._logger = get_logger(__name__)
 
     @asynccontextmanager
     async def _manage_tasks(self, tasks: List[asyncio.Task]) -> AsyncIterator[None]:
@@ -108,22 +110,34 @@ class AsyncInterviewRunner:
             async def process_batches() -> (
                 AsyncGenerator[tuple["Result", "Interview", int], None]
             ):
+                import time
+                batch_count = 0
                 while True:
                     chunk = self._get_next_chunk(interview_generator)
                     if not chunk:
                         break
 
+                    batch_count += 1
+                    batch_start = time.time()
+                    self._logger.info(f"Processing batch {batch_count} with {len(chunk)} interviews")
+
                     async with self._process_chunk(chunk) as results:
                         for result_tuple in results:
                             # Yield the full tuple (result, interview, idx)
                             yield result_tuple
-
+                    
+                    batch_time = time.time() - batch_start
+                    self._logger.info(f"Batch {batch_count} completed in {batch_time:.3f}s "
+                                     f"({batch_time/len(chunk):.3f}s per interview)")
+                    
                     # Clean up chunk to help with garbage collection
                     for idx, interview in chunk:
                         # Explicitly clear any interview references when done with the chunk
                         if hasattr(interview, "clear_references"):
                             interview.clear_references()
                     del chunk
+                
+                self._logger.info(f"All {batch_count} batches processed")
 
             yield process_batches()
 
@@ -257,15 +271,33 @@ class AsyncInterviewRunner:
             Exception: If stop_on_exception is True and any interview fails
 
         """
+        import time
+        runner_start = time.time()
+        results_count = 0
+        
+        self._logger.info(f"Starting async interview runner with max concurrency: {self.MAX_CONCURRENT}")
+        
         async with self._interview_batch_processor() as processor:
             async for result_tuple in processor:
                 # For each result tuple in the processor
                 result, interview, idx = result_tuple
+                results_count += 1
+                
+                if results_count % 10 == 0:  # Log every 10 results to avoid spam
+                    elapsed = time.time() - runner_start
+                    self._logger.info(f"Processed {results_count} interviews in {elapsed:.3f}s "
+                                     f"(avg: {elapsed/results_count:.3f}s per interview)")
+                
                 # Yield a new tuple to break reference to the original tuple
                 yield result, interview, idx
 
                 # Help garbage collection by removing references
                 del result_tuple
+        
+        total_time = time.time() - runner_start
+        self._logger.info(f"Async interview runner completed: {results_count} interviews "
+                         f"in {total_time:.3f}s (avg: {total_time/results_count:.3f}s per interview)" 
+                         if results_count > 0 else f"in {total_time:.3f}s")
 
 
 if __name__ == "__main__":

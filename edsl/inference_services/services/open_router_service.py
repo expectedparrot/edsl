@@ -1,4 +1,3 @@
-from typing import List
 
 from .open_ai_service import OpenAIService
 

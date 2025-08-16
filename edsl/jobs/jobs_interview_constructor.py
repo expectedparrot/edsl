@@ -6,7 +6,6 @@ if TYPE_CHECKING:
     from .jobs import Jobs
     from ..caching import Cache
 
-import time
 
 
 class InterviewsConstructor:

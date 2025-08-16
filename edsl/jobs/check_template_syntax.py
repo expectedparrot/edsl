@@ -9,13 +9,13 @@ if TYPE_CHECKING:
 
 
 class CheckTemplateSyntax:
-    """Validates that templates use correct syntax for scenario references."""
+    """Validates that templates use correct syntax for scenario and agent references."""
 
     def __init__(self, survey: "Survey"):
         self.survey = survey
 
     def check(self) -> None:
-        """Check if templates use correct syntax ({{scenario.field}} not {{custom_name.field}}).
+        """Check if templates use correct syntax ({{scenario.field}}, {{agent.field}}, or {{question_name.field}}).
 
         Raises:
             JobsCompatibilityError: If incorrect template syntax is found
@@ -34,8 +34,8 @@ class CheckTemplateSyntax:
             matches = pattern.findall(text_to_check)
 
             for var_name, field_name in matches:
-                # Check if the variable name is not 'scenario' and not a question name
-                if var_name != "scenario" and var_name not in question_names:
+                # Check if the variable name is not 'scenario', 'agent', and not a question name
+                if var_name not in {"scenario", "agent"} and var_name not in question_names:
                     # Try to find a similar question name (likely misspelled)
                     closest_question = self._find_closest_question_name(
                         var_name, question_names
@@ -55,6 +55,8 @@ class CheckTemplateSyntax:
                             f"Problem: '{var_name}' is not a valid reference.\n\n"
                             f"If you're trying to reference a scenario field:\n"
                             f"  Use: '{{{{scenario.{field_name}}}}}'\n\n"
+                            f"If you're trying to reference an agent field:\n"
+                            f"  Use: '{{{{agent.{field_name}}}}}'\n\n"
                             f"If you're trying to reference a question answer:\n"
                             f"  Make sure the question name is spelled correctly and exists in the survey.\n"
                             f"  Available questions: {sorted(question_names)}"

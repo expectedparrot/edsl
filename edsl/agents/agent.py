@@ -475,6 +475,20 @@ class Agent(Base):
         self.traits_manager.transfer_to(new_agent)
 
         return new_agent
+    
+    def add_canned_response(self, question_name, response):
+        """Add a canned response to the agent."""
+        if not hasattr(self, "_canned_responses"):
+            self._canned_responses = {}
+        self._canned_responses[question_name] = response
+        def f(self, question, scenario):
+            if question.question_name in self._canned_responses:
+                return self._canned_responses[question.question_name]
+            else:
+                return None
+        self.remove_direct_question_answering_method()
+        self.add_direct_question_answering_method(f)
+
 
     def copy(self) -> "Agent":
         """Create a deep copy of this agent using serialization/deserialization.
@@ -1412,8 +1426,3 @@ if __name__ == "__main__":
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-    agent = Agent(
-        traits={"age": 10, "hair": "brown", "height": 5.5, "gender": "male"},
-        trait_categories={"demographics": ["age", "gender"]},
-    )
-    agent.with_categories("demographics")
