@@ -77,7 +77,7 @@ class JobsRemoteInferenceHandler:
 
         if disable_remote_inference:
             return False
-        
+
         try:
             from ..coop import Coop
 
@@ -85,9 +85,7 @@ class JobsRemoteInferenceHandler:
             return user_edsl_settings.get("remote_inference", False)
         except requests.ConnectionError:
             pass
-        except (
-            Exception
-        ) as e:  # CoopServerResponseError will be imported when needed
+        except Exception as e:  # CoopServerResponseError will be imported when needed
             try:
                 from ..coop import CoopServerResponseError
 
@@ -335,7 +333,6 @@ class JobsRemoteInferenceHandler:
         )
 
     def _sleep_for_a_bit(self, job_info: "RemoteJobInfo", status: str) -> None:
-
         time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
         job_info.logger.update(
             f"Job status: {status} - last update: {time_checked}",
@@ -482,9 +479,9 @@ class JobsRemoteInferenceHandler:
             model_cost_dict["input_cost_credits_with_cache"] = converter.usd_to_credits(
                 input_cost_with_cache
             )
-            model_cost_dict["output_cost_credits_with_cache"] = (
-                converter.usd_to_credits(output_cost_with_cache)
-            )
+            model_cost_dict[
+                "output_cost_credits_with_cache"
+            ] = converter.usd_to_credits(output_cost_with_cache)
         return list(expenses_by_model.values())
 
     def _fetch_results_and_log(
@@ -556,12 +553,25 @@ class JobsRemoteInferenceHandler:
         job_info: RemoteJobInfo,
         remote_job_data_fetcher: Callable,
         object_fetcher: Callable,
-    ) -> Union[None, "Results", Literal["continue"]]:
+    ) -> tuple[Union[None, "Results", Literal["continue"]], Optional[str]]:
         """Makes one attempt to fetch and process a remote job's status and results."""
         remote_job_data = remote_job_data_fetcher(job_info.job_uuid)
         self._update_interview_details(job_info, remote_job_data)
         status = remote_job_data.get("status")
         reason = remote_job_data.get("reason")
+
+        # Extract failure reason from latest_job_run_details for failed jobs
+        if status == "failed":
+            latest_job_run_details = remote_job_data.get("latest_job_run_details", {})
+            failure_reason = latest_job_run_details.get("failure_reason")
+            print(
+                f"DEBUG: status={status}, original_reason={reason}, failure_reason={failure_reason}",
+                flush=True,
+            )
+            if failure_reason:
+                reason = failure_reason
+                print(f"DEBUG: Updated reason to: {reason}", flush=True)
+
         if status == "cancelled":
             self._handle_cancelled_job(job_info)
             return None, reason
@@ -581,8 +591,10 @@ class JobsRemoteInferenceHandler:
                     remote_job_data=remote_job_data,
                     object_fetcher=object_fetcher,
                 )
+                print(f"DEBUG: Returning results with reason: {reason}", flush=True)
                 return results, reason
             else:
+                print(f"DEBUG: Returning None with reason: {reason}", flush=True)
                 return None, reason
 
         else:
@@ -593,8 +605,8 @@ class JobsRemoteInferenceHandler:
         self,
         job_info: RemoteJobInfo,
         testing_simulated_response=None,
-    ) -> Union[None, "Results"]:
-        """Polls a remote inference job for completion and returns the results."""
+    ) -> tuple[Union[None, "Results"], Optional[str]]:
+        """Polls a remote inference job for completion and returns the results and reason."""
 
         remote_job_data_fetcher = self._construct_remote_job_fetcher(
             testing_simulated_response
