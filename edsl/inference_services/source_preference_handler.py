@@ -34,7 +34,9 @@ class SourcePreferenceHandler:
         """Return the source that was successfully used to fetch data."""
         return self._used_source
 
-    def fetch_model_info_data(self) -> Dict[str, List[str]]:
+    def fetch_model_info_data(
+        self, source_preferences: Optional[List[str]] = None
+    ) -> Dict[str, List[str]]:
         """
         Iterate through source preferences to find and fetch model info data.
 
@@ -49,7 +51,12 @@ class SourcePreferenceHandler:
         """
         fetchers = ModelInfoFetcherABC.get_registered_fetchers()
 
-        for source in self.source_preferences:
+        if source_preferences is not None:
+            applicable_source_preferences = source_preferences
+        else:
+            applicable_source_preferences = self.source_preferences
+
+        for source in applicable_source_preferences:
             if source not in fetchers:
                 if self.verbose:
                     print(

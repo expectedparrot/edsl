@@ -110,7 +110,7 @@ class InferenceServiceRegistry:
             source_preferences = self._default_source_preferences
 
         self._source_handler = SourcePreferenceHandler(
-            registry=self, source_preferences=source_preferences, verbose=True
+            registry=self, source_preferences=source_preferences, verbose=verbose
         )
 
         if classes_to_register is None:
@@ -157,6 +157,15 @@ class InferenceServiceRegistry:
     def list_registered_services(self) -> list[str]:
         """Returns a list of all registered service names."""
         return list(self._services.keys())
+
+    def fetch_model_info_data(self, source_preferences: Optional[List[str]] = None):
+        """Refreshes the model info data and rebuilds the model-to-service and service-to-model mappings, taking source preferences into account."""
+        if self._model_info_data is None:
+            self._model_info_data = self._source_handler.fetch_model_info_data(
+                source_preferences
+            )
+
+        return self._model_info_data
 
     @property
     def model_info_data(self) -> dict:
@@ -234,7 +243,8 @@ class InferenceServiceRegistry:
             # Search within a specific service
             service_models = self.service_to_models.get(service_name, [])
             return [
-                model_info.id for model_info in service_models 
+                model_info.id
+                for model_info in service_models
                 if fnmatch.fnmatch(model_info.id, pattern)
             ]
         else:

@@ -52,8 +52,6 @@ class GoogleService(InferenceServiceABC):
         client = genai.Client(api_key=api_key)
         response = client.models.list()
         model_list = list(response)
-        print("CALLING GOOGLE SERVICE")
-        print(model_list)
         return model_list
 
     @classmethod
