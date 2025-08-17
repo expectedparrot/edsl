@@ -621,11 +621,13 @@ class Jobs(Base):
         BucketCollection(...)
         """
         BucketCollection = get_bucket_collection()
-        
+
         # Check if we should use infinity buckets for test/scripted models
         use_infinity_buckets = self._should_use_infinity_buckets()
-        
-        bc = BucketCollection.from_models(self.models, infinity_buckets=use_infinity_buckets)
+
+        bc = BucketCollection.from_models(
+            self.models, infinity_buckets=use_infinity_buckets
+        )
 
         if self.run_config.environment.key_lookup is not None:
             bc.update_from_key_lookup(self.run_config.environment.key_lookup)
@@ -633,27 +635,31 @@ class Jobs(Base):
 
     def _should_use_infinity_buckets(self) -> bool:
         """Determine if infinity buckets should be used for the models in this job.
-        
+
         Infinity buckets (no rate limiting) are used for:
         - Scripted response models (specific class type)
         - Models with _model_ attribute set to "scripted"
-        
+
         Returns:
             bool: True if infinity buckets should be used, False otherwise
         """
-        from ..language_models.scripted_response_model import ScriptedResponseLanguageModel
-        
+        from ..language_models.scripted_response_model import (
+            ScriptedResponseLanguageModel,
+        )
+
         for model in self.models:
             # Check for scripted response model by class
             if isinstance(model, ScriptedResponseLanguageModel):
-                self._logger.info(f"Using infinity buckets for scripted response model: {model}")
+                self._logger.info(
+                    f"Using infinity buckets for scripted response model: {model}"
+                )
                 return True
-            
+
             # Check for scripted model by _model_ attribute
-            if getattr(model, '_model_', None) == "scripted":
+            if getattr(model, "_model_", None) == "scripted":
                 self._logger.info(f"Using infinity buckets for scripted model: {model}")
                 return True
-        
+
         return False
 
     def html(self):
@@ -705,7 +711,7 @@ class Jobs(Base):
 
         if self.run_config.parameters.disable_remote_cache:
             return False
-        
+
         try:
             from ..coop import Coop
 
@@ -791,7 +797,7 @@ class Jobs(Base):
 
         execution_start = time.time()
         self._logger.info("Starting core interview execution logic")
-        
+
         assert isinstance(self.run_config.environment.cache, Cache)
 
         # Create the RunConfig for the job
@@ -846,7 +852,9 @@ class Jobs(Base):
                 include_traceback=not self.run_config.parameters.progress_bar
             ),
         )
-        self._logger.info(f"Interview runner setup completed in {time.time() - runner_start:.3f}s")
+        self._logger.info(
+            f"Interview runner setup completed in {time.time() - runner_start:.3f}s"
+        )
 
         # Execute interviews
         interview_start = time.time()
@@ -867,14 +875,18 @@ class Jobs(Base):
                         survey=self.survey, data=[], task_history=TaskHistory()
                     )
                 except Exception as e:
-                    self._logger.error(f"Exception during interview execution: {str(e)}")
+                    self._logger.error(
+                        f"Exception during interview execution: {str(e)}"
+                    )
                     if self.run_config.parameters.stop_on_exception:
                         raise
                     results = Results(
                         survey=self.survey, data=[], task_history=TaskHistory()
                     )
-        
-        self._logger.info(f"Interview execution completed in {time.time() - interview_start:.3f}s")
+
+        self._logger.info(
+            f"Interview execution completed in {time.time() - interview_start:.3f}s"
+        )
 
         # Process any exceptions in the results
         exception_start = time.time()
@@ -883,10 +895,14 @@ class Jobs(Base):
             ResultsExceptionsHandler(
                 results, self.run_config.parameters
             ).handle_exceptions()
-            self._logger.info(f"Exception handling completed in {time.time() - exception_start:.3f}s")
+            self._logger.info(
+                f"Exception handling completed in {time.time() - exception_start:.3f}s"
+            )
 
-        self._logger.info(f"Total execution time: {time.time() - execution_start:.3f}s, "
-                         f"final results count: {len(results) if results else 0}")
+        self._logger.info(
+            f"Total execution time: {time.time() - execution_start:.3f}s, "
+            f"final results count: {len(results) if results else 0}"
+        )
         return results
 
     @property
@@ -921,8 +937,9 @@ class Jobs(Base):
 
         """
         import time
+
         start_time = time.time()
-        
+
         self._logger.info("Starting job configuration transfer")
         # Apply configuration from input config to self.run_config
         for attr_name in [
@@ -940,20 +957,26 @@ class Jobs(Base):
 
         # Replace parameters with the ones from the config
         self.run_config.parameters = config.parameters
-        self._logger.info(f"Configuration transfer completed in {time.time() - start_time:.3f}s")
+        self._logger.info(
+            f"Configuration transfer completed in {time.time() - start_time:.3f}s"
+        )
 
         # Make sure all required objects exist
         setup_start = time.time()
         self._logger.info("Starting object validation and preparation")
         self.replace_missing_objects()
         self._prepare_to_run()
-        self._logger.info(f"Object validation completed in {time.time() - setup_start:.3f}s")
-        
+        self._logger.info(
+            f"Object validation completed in {time.time() - setup_start:.3f}s"
+        )
+
         if not self.run_config.parameters.disable_remote_inference:
             key_check_start = time.time()
             self._logger.info("Checking remote inference keys")
             self._check_if_remote_keys_ok()
-            self._logger.info(f"Remote key check completed in {time.time() - key_check_start:.3f}s")
+            self._logger.info(
+                f"Remote key check completed in {time.time() - key_check_start:.3f}s"
+            )
 
         # Setup caching
         cache_start = time.time()
@@ -974,9 +997,13 @@ class Jobs(Base):
         self._logger.info("Attempting remote execution")
         results, reason = self._remote_results(config)
         if results is not None:
-            self._logger.info(f"Remote execution successful in {time.time() - remote_start:.3f}s")
+            self._logger.info(
+                f"Remote execution successful in {time.time() - remote_start:.3f}s"
+            )
             return results, reason
-        self._logger.info(f"Remote execution check completed in {time.time() - remote_start:.3f}s, proceeding with local execution")
+        self._logger.info(
+            f"Remote execution check completed in {time.time() - remote_start:.3f}s, proceeding with local execution"
+        )
 
         # If we need to run locally, ensure keys and resources are ready
         local_prep_start = time.time()
@@ -991,7 +1018,9 @@ class Jobs(Base):
             self.run_config.environment.bucket_collection = (
                 self.create_bucket_collection()
             )
-            self._logger.info(f"Bucket collection created in {time.time() - bucket_start:.3f}s")
+            self._logger.info(
+                f"Bucket collection created in {time.time() - bucket_start:.3f}s"
+            )
         else:
             # Ensure models are properly added to the bucket collection
             self._logger.info("Adding models to existing bucket collection")
@@ -1007,9 +1036,13 @@ class Jobs(Base):
             self.run_config.environment.bucket_collection.update_from_key_lookup(
                 self.run_config.environment.key_lookup
             )
-        
-        self._logger.info(f"Local execution preparation completed in {time.time() - local_prep_start:.3f}s")
-        self._logger.info(f"Total _run method execution time: {time.time() - start_time:.3f}s")
+
+        self._logger.info(
+            f"Local execution preparation completed in {time.time() - local_prep_start:.3f}s"
+        )
+        self._logger.info(
+            f"Total _run method execution time: {time.time() - start_time:.3f}s"
+        )
 
         return None, reason
 
@@ -1214,10 +1247,12 @@ class Jobs(Base):
 
         """
         self._logger.info("Starting job execution")
-        self._logger.info(f"Job configuration: {self.num_interviews} total interviews, "
-                         f"remote_inference={'disabled' if config.parameters.disable_remote_inference else 'enabled'}, "
-                         f"progress_bar={config.parameters.progress_bar}")
-        
+        self._logger.info(
+            f"Job configuration: {self.num_interviews} total interviews, "
+            f"remote_inference={'disabled' if config.parameters.disable_remote_inference else 'enabled'}, "
+            f"progress_bar={config.parameters.progress_bar}"
+        )
+
         if self._depends_on is not None:
             self._logger.info("Checking job dependencies")
             prior_results = self._depends_on.run(config=config)
@@ -1228,7 +1263,9 @@ class Jobs(Base):
         potentially_completed_results, reason = self._run(config)
 
         if potentially_completed_results is not None:
-            self._logger.info("Job completed via remote execution, applying post-run methods")
+            self._logger.info(
+                "Job completed via remote execution, applying post-run methods"
+            )
             return self._apply_post_run_methods(potentially_completed_results)
 
         if reason == "insufficient funds":
@@ -1237,11 +1274,13 @@ class Jobs(Base):
 
         self._logger.info("Starting local execution with remote cache")
         results = asyncio.run(self._execute_with_remote_cache(run_job_async=False))
-        
+
         self._logger.info("Applying post-run methods to results")
         final_results = self._apply_post_run_methods(results)
-        
-        self._logger.info(f"Job execution completed successfully with {len(final_results) if final_results else 0} results")
+
+        self._logger.info(
+            f"Job execution completed successfully with {len(final_results) if final_results else 0} results"
+        )
         return final_results
 
     @with_config
