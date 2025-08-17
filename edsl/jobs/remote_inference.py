@@ -564,13 +564,8 @@ class JobsRemoteInferenceHandler:
         if status == "failed":
             latest_job_run_details = remote_job_data.get("latest_job_run_details", {})
             failure_reason = latest_job_run_details.get("failure_reason")
-            print(
-                f"DEBUG: status={status}, original_reason={reason}, failure_reason={failure_reason}",
-                flush=True,
-            )
             if failure_reason:
                 reason = failure_reason
-                print(f"DEBUG: Updated reason to: {reason}", flush=True)
 
         if status == "cancelled":
             self._handle_cancelled_job(job_info)
@@ -591,10 +586,8 @@ class JobsRemoteInferenceHandler:
                     remote_job_data=remote_job_data,
                     object_fetcher=object_fetcher,
                 )
-                print(f"DEBUG: Returning results with reason: {reason}", flush=True)
                 return results, reason
             else:
-                print(f"DEBUG: Returning None with reason: {reason}", flush=True)
                 return None, reason
 
         else:

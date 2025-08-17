@@ -996,7 +996,6 @@ class Jobs(Base):
         remote_start = time.time()
         self._logger.info("Attempting remote execution")
         results, reason = self._remote_results(config)
-        print(f"DEBUG jobs.py: received results={results}, reason={reason}", flush=True)
         if results is not None:
             self._logger.info(
                 f"Remote execution successful in {time.time() - remote_start:.3f}s"
@@ -1045,7 +1044,6 @@ class Jobs(Base):
             f"Total _run method execution time: {time.time() - start_time:.3f}s"
         )
 
-        print(f"DEBUG _run(): returning None, reason={reason}", flush=True)
         return None, reason
 
     def then(self, method_name, *args, **kwargs) -> "Jobs":
