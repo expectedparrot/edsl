@@ -158,6 +158,15 @@ class InferenceServiceRegistry:
         """Returns a list of all registered service names."""
         return list(self._services.keys())
 
+    def fetch_model_info_data(self, source_preferences: Optional[List[str]] = None):
+        """Refreshes the model info data and rebuilds the model-to-service and service-to-model mappings, taking source preferences into account."""
+        if self._model_info_data is None:
+            self._model_info_data = self._source_handler.fetch_model_info_data(
+                source_preferences
+            )
+
+        return self._model_info_data
+
     @property
     def model_info_data(self) -> dict:
         """Get the model data from the model info fetcher."""
@@ -181,9 +190,9 @@ class InferenceServiceRegistry:
             self._service_to_models[service_name] = models
             total_models += len(models)
 
-            # Build reverse mapping
-            for model_name in models:
-                self._model_to_services[model_name].append(service_name)
+            # Build reverse mapping - all fetchers now return ModelInfo objects
+            for model_info in models:
+                self._model_to_services[model_info.id].append(service_name)
 
     def get_service_for_model(self, model_name: str) -> Optional[str]:
         """Get the preferred service for a given model name based on user preferences."""
@@ -214,7 +223,8 @@ class InferenceServiceRegistry:
 
     def get_models_for_service(self, service_name: str) -> List[str]:
         """Get all model names for a given service."""
-        return self.service_to_models.get(service_name, [])
+        model_infos = self.service_to_models.get(service_name, [])
+        return [model_info.id for model_info in model_infos]
 
     def find_services(self, pattern: str) -> List[str]:
         """Find services matching a wildcard pattern."""
@@ -233,7 +243,9 @@ class InferenceServiceRegistry:
             # Search within a specific service
             service_models = self.service_to_models.get(service_name, [])
             return [
-                model for model in service_models if fnmatch.fnmatch(model, pattern)
+                model_info.id
+                for model_info in service_models
+                if fnmatch.fnmatch(model_info.id, pattern)
             ]
         else:
             return [
