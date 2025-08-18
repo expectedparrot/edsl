@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from ..dataset import Dataset
     from ..scenarios import ScenarioList
     from .model_list import ModelList
+    from ..inference_services.inference_service_registry import InferenceServiceRegistry
 
 
 class Meta(type):
@@ -63,7 +64,7 @@ class Model(metaclass=Meta):
     _inference_service_registry = None  # Class-level registry storage
 
     @classmethod
-    def get_inference_service_registry(cls) -> Any:
+    def get_inference_service_registry(cls) -> "InferenceServiceRegistry":
         """Get the current inference service registry or initialize with default if None.
 
         Returns:
@@ -313,6 +314,10 @@ class Model(metaclass=Meta):
 
         if force_refresh:
             registry.refresh_model_info()
+            if local_only:
+                registry.fetch_model_info_data(source_preferences=["local"])
+            else:
+                registry.fetch_model_info_data()
 
         # Validate service_name if provided
         if service_name is not None:

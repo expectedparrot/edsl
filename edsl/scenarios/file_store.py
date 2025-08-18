@@ -298,20 +298,26 @@ class FileStore(Scenario):
         return os.path.getsize(self.path)
 
     def upload_google(self, refresh: bool = False) -> None:
-        import google.generativeai as genai
+        from google import genai
+        from google.genai.types import UploadFileConfig
         import time
 
         try:
-            genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-            google_info = genai.upload_file(self.path, mime_type=self.mime_type)
-            self.external_locations["google"] = google_info.to_dict()
+            google_api_key = os.getenv("GOOGLE_API_KEY")
+            if google_api_key is None:
+                raise Exception("GOOGLE_API_KEY is not set.")
+            client = genai.Client(api_key=google_api_key)
+            google_file = client.files.upload(
+                file=self.path, config=UploadFileConfig(mime_type=self.mime_type)
+            )
+            self.external_locations["google"] = google_file.model_dump(mode="json")
             while True:
-                file_metadata = genai.get_file(name=google_info.name)
+                file_metadata = client.files.get(name=google_file.name)
                 file_state = file_metadata.state
 
-                if file_state == 2:  # "ACTIVE":
+                if file_state == "ACTIVE":  # "ACTIVE":
                     break
-                elif file_state == 10:  # "FAILED":
+                elif file_state == "FAILED":  # "FAILED":
                     break
                 # Add a small delay to prevent busy-wait
                 time.sleep(0.5)
@@ -335,7 +341,8 @@ class FileStore(Scenario):
         Raises:
             Exception: If upload fails or file activation fails
         """
-        import google.generativeai as genai
+        from google import genai
+        from google.genai.types import UploadFileConfig
         import asyncio
 
         # Check if already uploaded and refresh not requested
@@ -343,31 +350,36 @@ class FileStore(Scenario):
             return self.external_locations["google"]
 
         try:
-            # Configure API key
-            genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+            google_api_key = os.getenv("GOOGLE_API_KEY")
+            if google_api_key is None:
+                raise Exception("GOOGLE_API_KEY is not set.")
+            client = genai.Client(api_key=google_api_key)
 
             # Upload file (still synchronous but run in executor)
             loop = asyncio.get_event_loop()
             # Use lambda to properly pass keyword arguments
-            google_info = await loop.run_in_executor(
-                None, lambda: genai.upload_file(self.path, mime_type=self.mime_type)
+            google_file = await loop.run_in_executor(
+                None,
+                lambda: client.files.upload(
+                    file=self.path, config=UploadFileConfig(mime_type=self.mime_type)
+                ),
             )
 
-            google_info_dict = google_info.to_dict()
+            google_file_dict = google_file.model_dump(mode="json")
 
             # Poll for file activation with exponential backoff
             max_attempts = 30
             for attempt in range(max_attempts):
                 # Get file status in executor to avoid blocking
                 file_metadata = await loop.run_in_executor(
-                    None, genai.get_file, google_info.name
+                    None, lambda: client.files.get(name=google_file.name)
                 )
                 file_state = file_metadata.state
 
-                if file_state == 2:  # "ACTIVE"
-                    self.external_locations["google"] = google_info_dict
-                    return google_info_dict
-                elif file_state == 10:  # "FAILED"
+                if file_state == "ACTIVE":  # "ACTIVE"
+                    self.external_locations["google"] = google_file_dict
+                    return google_file_dict
+                elif file_state == "FAILED":  # "FAILED"
                     raise Exception(f"File upload failed with state: {file_state}")
 
                 # Exponential backoff: 0.5s, 1s, 2s, 4s, ..., max 10s

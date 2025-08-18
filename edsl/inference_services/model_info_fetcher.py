@@ -238,8 +238,21 @@ class ModelInfoFetcherABC(UserDict, ABC):
         # Get current timestamp
         timestamp = datetime.datetime.now().isoformat()
 
+        # Convert ModelInfo objects to their raw data format for archiving
+        serializable_data = {}
+        for service_name, models in self.data.items():
+            serializable_models = []
+            for model in models:
+                if hasattr(model, 'raw_data'):
+                    # ModelInfo object - serialize its raw data
+                    serializable_models.append(model.raw_data)
+                else:
+                    # Already serializable (string, dict, etc.)
+                    serializable_models.append(model)
+            serializable_data[service_name] = serializable_models
+
         # Format the data as a Python dictionary
-        data_repr = repr(dict(self.data))
+        data_repr = repr(serializable_data)
 
         # Create the archive file content
         archive_content = f"""# Model information archive
@@ -291,8 +304,20 @@ class ModelInfoCoopRegular(ModelInfoFetcherABC):
             )
 
         from ..coop import Coop
+        from .model_info import ModelInfo
 
-        return Coop().fetch_models()
+        # Get raw data from Coop API
+        raw_data = Coop().fetch_models()
+        
+        # Convert strings to ModelInfo objects
+        data = {}
+        for service_name, model_names in raw_data.items():
+            data[service_name] = [
+                ModelInfo.from_raw({"id": model_name}, service_name) 
+                for model_name in model_names
+            ]
+        
+        return data
 
 
 class ModelInfoCoopWorking(ModelInfoFetcherABC):
@@ -342,14 +367,24 @@ class ModelInfoCoopWorking(ModelInfoFetcherABC):
             )
 
         from ..coop import Coop
+        from .model_info import ModelInfo
+        from collections import defaultdict
 
         c = Coop()
         working_models = c.fetch_working_models()
-        from collections import defaultdict
 
         data = defaultdict(list)
         for model in working_models:
-            data[model["service"]].append(model["model"])
+            service_name = model["service"]
+            # Create ModelInfo object with the rich model data from working models
+            model_info = ModelInfo.from_raw({
+                "id": model["model"],
+                "works_with_text": model.get("works_with_text", False),
+                "works_with_images": model.get("works_with_images", False),
+                "usd_per_1M_input_tokens": model.get("usd_per_1M_input_tokens", 0),
+                "usd_per_1M_output_tokens": model.get("usd_per_1M_output_tokens", 0),
+            }, service_name)
+            data[service_name].append(model_info)
 
         return data
 
@@ -441,8 +476,29 @@ class ModelInfoArchive(ModelInfoFetcherABC):
             AttributeError: If archive file doesn't have required 'data' attribute
         """
         from .archive import data
+        from .model_info import ModelInfo
 
-        return data
+        # Convert archived data (which may be strings) to ModelInfo objects
+        converted_data = {}
+        for service_name, models in data.items():
+            converted_models = []
+            for model in models:
+                if isinstance(model, str):
+                    # Convert string to ModelInfo object
+                    converted_models.append(
+                        ModelInfo.from_raw({"id": model}, service_name)
+                    )
+                elif hasattr(model, 'id'):
+                    # Already a ModelInfo object
+                    converted_models.append(model)
+                else:
+                    # Handle dictionaries from archived ModelInfo objects
+                    converted_models.append(
+                        ModelInfo.from_raw(model, service_name)
+                    )
+            converted_data[service_name] = converted_models
+
+        return converted_data
 
 
 if __name__ == "__main__":
