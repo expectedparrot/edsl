@@ -6,7 +6,9 @@ from typing import Any, Dict
 
 def _convert_to_dict(obj: Any) -> Any:
     """Recursively convert an object to a dictionary representation."""
-    if hasattr(obj, "__dict__"):
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump(mode="json")
+    elif hasattr(obj, "__dict__"):
         return {k: _convert_to_dict(v) for k, v in obj.__dict__.items()}
     elif isinstance(obj, dict):
         return {k: _convert_to_dict(v) for k, v in obj.items()}
