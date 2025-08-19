@@ -6,6 +6,7 @@ import os
 
 if TYPE_CHECKING:
     from .inference_service_registry import InferenceServiceRegistry
+    from .model_info import ModelInfo
 
 
 class ModelInfoFetcherABC(UserDict, ABC):
@@ -69,9 +70,9 @@ class ModelInfoFetcherABC(UserDict, ABC):
         self,
         registry: "InferenceServiceRegistry",
         verbose: bool = False,
-        data: Optional[Dict[str, List[Any]]] = None,
+        data: Optional[Dict[str, List["ModelInfo"]]] = None,
     ):
-        self.data = data or {}
+        self.data: Dict[str, List["ModelInfo"]] = data or {}
         self.verbose = verbose
         self.services_registry = registry
 
@@ -86,7 +87,7 @@ class ModelInfoFetcherABC(UserDict, ABC):
         self.data.update(data)
 
     @abstractmethod
-    def _fetch(self, **kwargs) -> dict:
+    def _fetch(self, **kwargs) -> Dict[str, List["ModelInfo"]]:
         """
         Abstract method to fetch model information and populate self.data.
 
@@ -97,7 +98,7 @@ class ModelInfoFetcherABC(UserDict, ABC):
             **kwargs: Additional keyword arguments for the specific implementation
 
         Returns:
-            None - The fetched data is stored in self.data (accessible via dict interface)
+            Dict[str, List["ModelInfo"]] - Dictionary mapping service names to lists of ModelInfo objects
 
         Raises:
             NotImplementedError: If not implemented by concrete class
@@ -204,6 +205,7 @@ class ModelInfoFetcherABC(UserDict, ABC):
                 "ModelInfoCoopWorking": "coop_working",
                 "ModelInfoServices": "services",
                 "ModelInfoArchive": "archive",
+                "ModelInfoDefaultModels": "default_models",
             }
 
             if class_name not in class_to_fetcher_mapping:
@@ -225,7 +227,7 @@ class ModelInfoFetcherABC(UserDict, ABC):
 
         return instance
 
-    def write_to_archive(self, archive_path: str = "archive.py") -> None:
+    def write_to_archive(self, archive_path: str = ".edsl_model_archive.json") -> None:
         """
         Write the current data to a Python archive file.
 
@@ -233,8 +235,10 @@ class ModelInfoFetcherABC(UserDict, ABC):
         imported and used by the ModelInfoArchive fetcher.
 
         Args:
-            archive_path: Path where to write the archive file (default: "archive.py")
+            archive_path: Path where to write the archive file (default: ".edsl_model_archive.json")
         """
+        import json
+
         # Get current timestamp
         timestamp = datetime.datetime.now().isoformat()
 
@@ -243,28 +247,23 @@ class ModelInfoFetcherABC(UserDict, ABC):
         for service_name, models in self.data.items():
             serializable_models = []
             for model in models:
-                if hasattr(model, 'raw_data'):
-                    # ModelInfo object - serialize its raw data
-                    serializable_models.append(model.raw_data)
-                else:
-                    # Already serializable (string, dict, etc.)
-                    serializable_models.append(model)
+                serializable_models.append(model.to_dict())
             serializable_data[service_name] = serializable_models
 
-        # Format the data as a Python dictionary
-        data_repr = repr(serializable_data)
-
-        # Create the archive file content
-        archive_content = f"""# Model information archive
-# Auto-generated on {timestamp}
-
-created_at = "{timestamp}"
-data = {data_repr}
-"""
+        archive_data = {
+            "metadata": {
+                "title": "Model Information Archive",
+                "description": f"This archive contains data about available models. Auto-generated on {timestamp}.",
+                "created_at": timestamp,
+                "fetcher_name": self.fetcher_name,
+            },
+            "created_at": timestamp,
+            "data": serializable_data,
+        }
 
         # Write to file
         with open(archive_path, "w", encoding="utf-8") as f:
-            f.write(archive_content)
+            json.dump(archive_data, f, indent=4)
 
         if self.verbose:
             print(
@@ -285,7 +284,7 @@ class ModelInfoCoopRegular(ModelInfoFetcherABC):
 
     fetcher_name = "coop"
 
-    def _fetch(self, **kwargs) -> None:
+    def _fetch(self, **kwargs) -> Dict[str, List["ModelInfo"]]:
         """
         Fetch regular model information from the Coop API and store in self.data.
 
@@ -293,7 +292,7 @@ class ModelInfoCoopRegular(ModelInfoFetcherABC):
             **kwargs: Additional arguments (ignored for Coop implementation)
 
         Returns:
-            None - Data is stored in self.data (accessible via dict interface)
+            Dict[str, List["ModelInfo"]] - Dictionary mapping service names to lists of ModelInfo objects
 
         Raises:
             Exception: If Coop API call fails
@@ -308,15 +307,15 @@ class ModelInfoCoopRegular(ModelInfoFetcherABC):
 
         # Get raw data from Coop API
         raw_data = Coop().fetch_models()
-        
+
         # Convert strings to ModelInfo objects
         data = {}
         for service_name, model_names in raw_data.items():
             data[service_name] = [
-                ModelInfo.from_raw({"id": model_name}, service_name) 
+                ModelInfo.from_raw({"id": model_name}, service_name, model_name)
                 for model_name in model_names
             ]
-        
+
         return data
 
 
@@ -333,7 +332,7 @@ class ModelInfoCoopWorking(ModelInfoFetcherABC):
 
     fetcher_name = "coop_working"
 
-    def _fetch(self, **kwargs) -> None:
+    def _fetch(self, **kwargs) -> Dict[str, List["ModelInfo"]]:
         """
         Fetch working models with pricing and capability information from the Coop API and store in self.data.
 
@@ -342,16 +341,7 @@ class ModelInfoCoopWorking(ModelInfoFetcherABC):
             **kwargs: Additional arguments (ignored for Coop implementation)
 
         Returns:
-            None - Data is stored in self.data. For working models, the data structure is:
-            {"working_models": [list of working model dictionaries]}
-
-            Each working model dictionary contains:
-                - service: The service name (e.g., "openai")
-                - model: The model name (e.g., "gpt-4o")
-                - works_with_text: Boolean indicating text capability
-                - works_with_images: Boolean indicating image capability
-                - usd_per_1M_input_tokens: Cost per million input tokens
-                - usd_per_1M_output_tokens: Cost per million output tokens
+            Dict[str, List["ModelInfo"]] - Dictionary mapping service names to lists of ModelInfo objects
 
         Example:
             fetcher = ModelInfoCoopWorking()
@@ -376,14 +366,21 @@ class ModelInfoCoopWorking(ModelInfoFetcherABC):
         data = defaultdict(list)
         for model in working_models:
             service_name = model["service"]
+            model_id = model["model"]
             # Create ModelInfo object with the rich model data from working models
-            model_info = ModelInfo.from_raw({
-                "id": model["model"],
-                "works_with_text": model.get("works_with_text", False),
-                "works_with_images": model.get("works_with_images", False),
-                "usd_per_1M_input_tokens": model.get("usd_per_1M_input_tokens", 0),
-                "usd_per_1M_output_tokens": model.get("usd_per_1M_output_tokens", 0),
-            }, service_name)
+            model_info = ModelInfo.from_raw(
+                {
+                    "id": model_id,
+                    "works_with_text": model.get("works_with_text", False),
+                    "works_with_images": model.get("works_with_images", False),
+                    "usd_per_1M_input_tokens": model.get("usd_per_1M_input_tokens", 0),
+                    "usd_per_1M_output_tokens": model.get(
+                        "usd_per_1M_output_tokens", 0
+                    ),
+                },
+                service_name,
+                model_id,
+            )
             data[service_name].append(model_info)
 
         return data
@@ -402,7 +399,7 @@ class ModelInfoServices(ModelInfoFetcherABC):
 
     fetcher_name = "local"
 
-    def _fetch(self, **kwargs) -> None:
+    def _fetch(self, **kwargs) -> Dict[str, List["ModelInfo"]]:
         """
         Fetch model information directly from inference service APIs and store in self.data.
 
@@ -412,7 +409,7 @@ class ModelInfoServices(ModelInfoFetcherABC):
                 - skip_errors: Whether to skip services that fail to load models (default True)
 
         Returns:
-            None - Data is stored in self.data (accessible via dict interface)
+            Dict[str, List["ModelInfo"]] - Dictionary mapping service names to lists of ModelInfo objects
 
         Raises:
             ValueError: If services_registry is not provided
@@ -436,7 +433,7 @@ class ModelInfoServices(ModelInfoFetcherABC):
 
 class ModelInfoArchive(ModelInfoFetcherABC):
     """
-    Fetcher that loads model information from an archive.py file.
+    Fetcher that loads model information from an archive file.
 
     This class loads model information from a previously saved archive file,
     without making any external API calls. The archive file should contain
@@ -444,7 +441,7 @@ class ModelInfoArchive(ModelInfoFetcherABC):
 
     Args:
         verbose: Enable verbose logging output
-        archive_path: Path to the archive.py file (default: "archive.py")
+        archive_path: Path to the archive file (default: ".edsl_model_archive.json")
     """
 
     fetcher_name = "archive"
@@ -453,49 +450,104 @@ class ModelInfoArchive(ModelInfoFetcherABC):
         self,
         registry: "InferenceServiceRegistry",
         verbose: bool = False,
-        data: Optional[Dict[str, List[Any]]] = None,
-        archive_path: str = "archive.py",
+        data: Optional[Dict[str, List["ModelInfo"]]] = None,
+        archive_path: str = ".edsl_model_archive.json",
     ):
         super().__init__(registry, verbose, data)
         self.archive_path = archive_path
 
-    def _fetch(self, **kwargs) -> dict:
+    def _fetch(self, **kwargs) -> Dict[str, List["ModelInfo"]]:
         """
-        Load model information from the archive.py file.
+        Load model information from the archive file.
 
         Args:
             **kwargs: Additional arguments:
                 - archive_path: Override the default archive path
 
         Returns:
-            dict: Dictionary mapping service names to model lists loaded from archive
+            Dict[str, List["ModelInfo"]] - Dictionary mapping service names to lists of ModelInfo objects loaded from archive
 
         Raises:
             FileNotFoundError: If archive file doesn't exist
             ImportError: If archive file can't be imported
             AttributeError: If archive file doesn't have required 'data' attribute
         """
-        from .archive import data
+        import json
         from .model_info import ModelInfo
 
+        try:
+            with open(self.archive_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Archive file not found at {self.archive_path}")
+        except json.JSONDecodeError:
+            raise json.JSONDecodeError(
+                f"Invalid JSON in archive file {self.archive_path}"
+            )
+        except Exception as e:
+            raise Exception(f"Error loading archive file {self.archive_path}: {e}")
+
         # Convert archived data (which may be strings) to ModelInfo objects
+        converted_data = {}
+        for service_name, models in data.get("data", {}).items():
+            converted_models = []
+            for model in models:
+                converted_models.append(ModelInfo.from_dict(model))
+            converted_data[service_name] = converted_models
+
+        return converted_data
+
+
+class ModelInfoDefaultModels(ModelInfoFetcherABC):
+    """
+    Fetcher that loads model information from a default models file.
+
+    Args:
+        verbose: Enable verbose logging output
+    """
+
+    fetcher_name = "default_models"
+
+    def __init__(
+        self,
+        registry: "InferenceServiceRegistry",
+        verbose: bool = False,
+        data: Optional[Dict[str, List["ModelInfo"]]] = None,
+    ):
+        super().__init__(registry, verbose, data)
+
+    def _fetch(self, **kwargs) -> Dict[str, List["ModelInfo"]]:
+        """
+        Load model information from the default models file.
+
+        Args:
+            **kwargs: Additional arguments:
+                - default_models_path: Override the default default models path
+
+        Returns:
+            Dict[str, List["ModelInfo"]] - Dictionary mapping service names to lists of ModelInfo objects loaded from archive
+
+        Raises:
+            FileNotFoundError: If default models file doesn't exist
+            ImportError: If default models file can't be imported
+            AttributeError: If default models file doesn't have required 'data' attribute
+        """
+        from .model_info import ModelInfo
+
+        try:
+            from .default_models import data
+        except ImportError:
+            raise ImportError(f"Default models file not found")
+        except Exception as e:
+            raise Exception(f"Error loading default models file: {e}")
+
         converted_data = {}
         for service_name, models in data.items():
             converted_models = []
             for model in models:
-                if isinstance(model, str):
-                    # Convert string to ModelInfo object
-                    converted_models.append(
-                        ModelInfo.from_raw({"id": model}, service_name)
-                    )
-                elif hasattr(model, 'id'):
-                    # Already a ModelInfo object
-                    converted_models.append(model)
-                else:
-                    # Handle dictionaries from archived ModelInfo objects
-                    converted_models.append(
-                        ModelInfo.from_raw(model, service_name)
-                    )
+                converted_models.append(
+                    ModelInfo.from_raw({"id": model}, service_name, model)
+                )
             converted_data[service_name] = converted_models
 
         return converted_data
@@ -536,10 +588,10 @@ if __name__ == "__main__":
     print(archive_fetcher)
 
     # Clean up test archive file
-    if os.path.exists("archive.py"):
+    if os.path.exists(".edsl_model_archive.json"):
         print("\n=== Cleaning up test archive ===")
-        os.remove("archive.py")
-        print("Removed archive.py")
+        os.remove(".edsl_model_archive.json")
+        print("Removed .edsl_model_archive.json")
 
     # Uncomment these to test other fetchers
     # fetcher_coop = ModelInfoCoopRegular()
