@@ -112,22 +112,22 @@ class GoogleService(InferenceServiceABC):
                         self._cached_client is None
                         or self._cached_api_token != self.api_token
                     ):
-                        print("Creating new Google client...", flush=True)
+                        # print("Creating new Google client...", flush=True)
                         creation_start = time.time()
                         self._cached_client = genai.Client(api_key=self.api_token)
                         self._cached_api_token = self.api_token
                         creation_time = time.time() - creation_start
                         client_time = time.time() - client_start
-                        print(
-                            f"Google client creation took {creation_time:.3f}s (total with lock: {client_time:.3f}s)",
-                            flush=True,
-                        )
+                        # print(
+                        #     f"Google client creation took {creation_time:.3f}s (total with lock: {client_time:.3f}s)",
+                        #     flush=True,
+                        # )
                     else:
                         client_time = time.time() - client_start
-                        print(
-                            f"Using cached Google client (took {client_time:.3f}s)",
-                            flush=True,
-                        )
+                        # print(
+                        #     f"Using cached Google client (took {client_time:.3f}s)",
+                        #     flush=True,
+                        # )
 
                 client = self._cached_client
 
@@ -149,11 +149,11 @@ class GoogleService(InferenceServiceABC):
 
                 combined_prompt = [user_prompt]
                 prompt_time = time.time() - prompt_start
-                print(f"Prompt processing took {prompt_time:.3f}s", flush=True)
+                # print(f"Prompt processing took {prompt_time:.3f}s", flush=True)
 
                 # Time file processing
                 file_start = time.time()
-                print(f"Processing {len(files_list)} files", flush=True)
+                # print(f"Processing {len(files_list)} files", flush=True)
 
                 # Use the file upload cache to handle uploads efficiently
                 from ...scenarios.file_upload_cache import file_upload_cache
@@ -166,10 +166,10 @@ class GoogleService(InferenceServiceABC):
                         file, service="google"
                     )
                     file_upload_time = time.time() - file_upload_start
-                    print(
-                        f"File {i+1} upload/cache took {file_upload_time:.3f}s",
-                        flush=True,
-                    )
+                    # print(
+                    #     f"File {i+1} upload/cache took {file_upload_time:.3f}s",
+                    #     flush=True,
+                    # )
 
                     # print("gogole file info is",google_file_info)
                     # Create the Google AI file reference using native async API
@@ -180,22 +180,22 @@ class GoogleService(InferenceServiceABC):
                         )
                         combined_prompt.append(gen_ai_file)
                         file_ref_time = time.time() - file_ref_start
-                        print(
-                            f"File {i+1} reference creation took {file_ref_time:.3f}s",
-                            flush=True,
-                        )
+                        # print(
+                        #     f"File {i+1} reference creation took {file_ref_time:.3f}s",
+                        #     flush=True,
+                        # )
                     except Exception as e:
                         file_ref_time = time.time() - file_ref_start
-                        print(
-                            f"File {i+1} reference creation failed after {file_ref_time:.3f}s: {str(e)}",
-                            flush=True,
-                        )
+                        # print(
+                        #     f"File {i+1} reference creation failed after {file_ref_time:.3f}s: {str(e)}",
+                        #     flush=True,
+                        # )
                         raise Exception(
                             f"Failed to create file reference for {google_file_info['name']}: {str(e)}"
                         )
 
                 file_total_time = time.time() - file_start
-                print(f"Total file processing took {file_total_time:.3f}s", flush=True)
+                # print(f"Total file processing took {file_total_time:.3f}s", flush=True)
 
                 # Time config creation
                 config_start = time.time()
@@ -215,42 +215,42 @@ class GoogleService(InferenceServiceABC):
                     system_instruction=system_instruction,
                 )
                 config_time = time.time() - config_start
-                print(f"Configuration creation took {config_time:.3f}s", flush=True)
+                # print(f"Configuration creation took {config_time:.3f}s", flush=True)
 
                 # Time API call
                 api_start = time.time()
                 try:
-                    print(
-                        f"Making async API call to {self._model_} with {len(combined_prompt)} prompt parts",
-                        flush=True,
-                    )
+                    # print(
+                    #     f"Making async API call to {self._model_} with {len(combined_prompt)} prompt parts",
+                    #     flush=True,
+                    # )
                     response = await client.aio.models.generate_content(
                         model=self._model_,
                         contents=combined_prompt,
                         config=generation_config,
                     )
                     api_time = time.time() - api_start
-                    print(f"Async API call completed in {api_time:.3f}s", flush=True)
+                    # print(f"Async API call completed in {api_time:.3f}s", flush=True)
 
                 except Exception as e:
                     api_time = time.time() - api_start
-                    print(
-                        f"Async API call failed after {api_time:.3f}s: {str(e)}",
-                        flush=True,
-                    )
+                    # print(
+                    #     f"Async API call failed after {api_time:.3f}s: {str(e)}",
+                    #     flush=True,
+                    # )
                     return {"message": str(e)}
 
                 # Time response processing
                 response_start = time.time()
                 result = response.model_dump(mode="json")
                 response_time = time.time() - response_start
-                print(f"Response processing took {response_time:.3f}s", flush=True)
+                # print(f"Response processing took {response_time:.3f}s", flush=True)
 
                 # Print total method time
                 total_time = time.time() - method_start
-                print(
-                    f"Total async_execute_model_call took {total_time:.3f}s", flush=True
-                )
+                # print(
+                #     f"Total async_execute_model_call took {total_time:.3f}s", flush=True
+                # )
 
                 return result
 
