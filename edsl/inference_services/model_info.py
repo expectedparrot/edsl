@@ -42,7 +42,9 @@ class ModelInfo:
         """
         raw_data = _convert_to_dict(obj)
         original_class = (
-            obj.__class__.__name__ if hasattr(obj, "__class__") else type(obj).__name__
+            str(obj.__class__.__name__)
+            if hasattr(obj, "__class__")
+            else str(type(obj).__name__)
         )
 
         return cls(
@@ -53,13 +55,13 @@ class ModelInfo:
         )
 
     @classmethod
-    def get_id_from_raw(cls, raw_data: Any, service_name: str) -> str:
+    def get_id_from_raw(cls, obj: Any, service_name: str) -> str:
         """Get the model ID from raw service provider data (common across all services)."""
-        if not isinstance(raw_data, dict):
-            raise TypeError(
-                f"ModelInfo.raw_data expected dict, got {type(raw_data).__name__}: {repr(raw_data)}. "
-                f"Service: {cls.service_name}, Original class: {cls.original_class}"
-            )
+        if not isinstance(obj, dict):
+            raw_data = _convert_to_dict(obj)
+        else:
+            raw_data = obj
+
         if service_name == "bedrock":
             return raw_data.get("modelId")
         elif service_name == "google":
@@ -82,6 +84,34 @@ class ModelInfo:
     def __contains__(self, key: str) -> bool:
         """Support 'in' operator for checking if key exists in raw data."""
         return key in self.raw_data
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ModelInfo":
+        """Create a ModelInfo object from a dictionary."""
+        if "service_name" not in data:
+            raise ValueError("service_name is required")
+        if "id" not in data:
+            raise ValueError("id is required")
+        if "raw_data" not in data:
+            raise ValueError("raw_data is required")
+        if "original_class" not in data:
+            raise ValueError("original_class is required")
+
+        return cls(
+            service_name=data["service_name"],
+            id=data["id"],
+            raw_data=data["raw_data"],
+            original_class=data["original_class"],
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert the ModelInfo object to a dictionary."""
+        return {
+            "service_name": self.service_name,
+            "id": self.id,
+            "raw_data": self.raw_data,
+            "original_class": self.original_class,
+        }
 
     # def __repr__(self) -> str:
     #     return f"ModelInfo(service='{self.service_name}', id='{self.id}', class='{self.original_class}')"

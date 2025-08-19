@@ -72,7 +72,7 @@ class ModelInfoFetcherABC(UserDict, ABC):
         verbose: bool = False,
         data: Optional[Dict[str, List["ModelInfo"]]] = None,
     ):
-        self.data = data or {}
+        self.data: Dict[str, List["ModelInfo"]] = data or {}
         self.verbose = verbose
         self.services_registry = registry
 
@@ -226,7 +226,7 @@ class ModelInfoFetcherABC(UserDict, ABC):
 
         return instance
 
-    def write_to_archive(self, archive_path: str = "archive.py") -> None:
+    def write_to_archive(self, archive_path: str = ".edsl_model_archive.json") -> None:
         """
         Write the current data to a Python archive file.
 
@@ -236,6 +236,9 @@ class ModelInfoFetcherABC(UserDict, ABC):
         Args:
             archive_path: Path where to write the archive file (default: "archive.py")
         """
+        import json
+
+        print(f"[MODEL_INFO_FETCHER] Writing to archive at {archive_path}")
         # Get current timestamp
         timestamp = datetime.datetime.now().isoformat()
 
@@ -244,28 +247,23 @@ class ModelInfoFetcherABC(UserDict, ABC):
         for service_name, models in self.data.items():
             serializable_models = []
             for model in models:
-                if hasattr(model, "raw_data"):
-                    # ModelInfo object - serialize its raw data
-                    serializable_models.append(model.raw_data)
-                else:
-                    # Already serializable (string, dict, etc.)
-                    serializable_models.append(model)
+                serializable_models.append(model.to_dict())
             serializable_data[service_name] = serializable_models
 
-        # Format the data as a Python dictionary
-        data_repr = repr(serializable_data)
-
-        # Create the archive file content
-        archive_content = f"""# Model information archive
-# Auto-generated on {timestamp}
-
-created_at = "{timestamp}"
-data = {data_repr}
-"""
+        archive_data = {
+            "metadata": {
+                "title": "Model Information Archive",
+                "description": f"This archive contains model information fetched from the Coop API. Auto-generated on {timestamp}.",
+                "created_at": timestamp,
+                "fetcher_name": self.fetcher_name,
+            },
+            "created_at": timestamp,
+            "data": serializable_data,
+        }
 
         # Write to file
         with open(archive_path, "w", encoding="utf-8") as f:
-            f.write(archive_content)
+            json.dump(archive_data, f, indent=4)
 
         if self.verbose:
             print(
@@ -435,7 +433,7 @@ class ModelInfoServices(ModelInfoFetcherABC):
 
 class ModelInfoArchive(ModelInfoFetcherABC):
     """
-    Fetcher that loads model information from an archive.py file.
+    Fetcher that loads model information from an archive file.
 
     This class loads model information from a previously saved archive file,
     without making any external API calls. The archive file should contain
@@ -443,7 +441,7 @@ class ModelInfoArchive(ModelInfoFetcherABC):
 
     Args:
         verbose: Enable verbose logging output
-        archive_path: Path to the archive.py file (default: "archive.py")
+        archive_path: Path to the archive file (default: ".edsl_model_archive.json")
     """
 
     fetcher_name = "archive"
@@ -453,14 +451,14 @@ class ModelInfoArchive(ModelInfoFetcherABC):
         registry: "InferenceServiceRegistry",
         verbose: bool = False,
         data: Optional[Dict[str, List["ModelInfo"]]] = None,
-        archive_path: str = "archive.py",
+        archive_path: str = ".edsl_model_archive.json",
     ):
         super().__init__(registry, verbose, data)
         self.archive_path = archive_path
 
     def _fetch(self, **kwargs) -> Dict[str, List["ModelInfo"]]:
         """
-        Load model information from the archive.py file.
+        Load model information from the archive file.
 
         Args:
             **kwargs: Additional arguments:
@@ -474,26 +472,27 @@ class ModelInfoArchive(ModelInfoFetcherABC):
             ImportError: If archive file can't be imported
             AttributeError: If archive file doesn't have required 'data' attribute
         """
-        from .archive import data
+        import json
         from .model_info import ModelInfo
+
+        try:
+            with open(self.archive_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Archive file not found at {self.archive_path}")
+        except json.JSONDecodeError:
+            raise json.JSONDecodeError(
+                f"Invalid JSON in archive file {self.archive_path}"
+            )
+        except Exception as e:
+            raise Exception(f"Error loading archive file {self.archive_path}: {e}")
 
         # Convert archived data (which may be strings) to ModelInfo objects
         converted_data = {}
-        for service_name, models in data.items():
+        for service_name, models in data.get("data", {}).items():
             converted_models = []
             for model in models:
-                if isinstance(model, str):
-                    # Convert string to ModelInfo object
-                    converted_models.append(
-                        ModelInfo.from_raw({"id": model}, service_name, model)
-                    )
-                elif hasattr(model, "id"):
-                    # Already a ModelInfo object
-                    converted_models.append(model)
-                else:
-                    raise ValueError(
-                        f"ModelInfoArchive: Unknown model type: {type(model)}"
-                    )
+                converted_models.append(ModelInfo.from_dict(model))
             converted_data[service_name] = converted_models
 
         return converted_data
