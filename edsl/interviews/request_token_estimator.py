@@ -2,7 +2,6 @@ import math
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..scenarios import FileStore
     from .interview import Interview
     from ..questions import QuestionBase
 
@@ -110,6 +109,7 @@ class RequestTokenEstimator:
         """Estimate the number of tokens that will be required to run the focal task."""
 
         from ..jobs.fetch_invigilator import FetchInvigilator
+        from ..scenarios import FileStore
 
         invigilator = FetchInvigilator(self.interview)(question=question)
 

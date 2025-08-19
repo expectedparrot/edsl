@@ -9,8 +9,11 @@ of the same file and handles concurrent access safely.
 import asyncio
 import hashlib
 import time
-from typing import Dict, Any
+from typing import Dict, Any, TYPE_CHECKING
 from threading import Lock
+
+if TYPE_CHECKING:
+    from .file_store import FileStore
 
 
 class FileUploadCache:
@@ -87,7 +90,7 @@ class FileUploadCache:
         return hashlib.sha256(content_to_hash.encode()).hexdigest()
 
     async def get_or_upload(
-        self, file_store, service: str = "google"
+        self, file_store: "FileStore", service: str = "google"
     ) -> Dict[str, Any]:
         """
         Get cached upload info or upload the file if not cached.
@@ -110,6 +113,10 @@ class FileUploadCache:
 
         # Fast path - check if already in cache
         if cache_key in self._cache:
+            # print(
+            #     f"Cache HIT for file {file_store.name} (hash: {file_hash[:8]}...)",
+            #     flush=True,
+            # )
             self._stats["cache_hits"] += 1
             # Also update the file_store's external_locations
             file_store.external_locations[service] = self._cache[cache_key]
@@ -120,39 +127,70 @@ class FileUploadCache:
             self._locks[file_hash] = asyncio.Lock()
 
         # Acquire lock for this specific file
-        # print(f"Acquiring lock for file: {file_hash}")
+        lock_start = time.time()
+        # print(
+        #     f"Acquiring lock for file {file_store.name} (hash: {file_hash[:8]}...)",
+        #     flush=True,
+        # )
         async with self._locks[file_hash]:
+            lock_time = time.time() - lock_start
+            # print(f"Lock acquired in {lock_time:.3f}s", flush=True)
+
             # Double-check after acquiring lock (another task might have uploaded)
             if cache_key in self._cache:
-                # print(f"File {file_hash} already uploaded, returning cached result")
+                # print(
+                #     f"Cache HIT after lock for file {file_store.name} (uploaded by another task)",
+                #     flush=True,
+                # )
                 self._stats["duplicate_prevention_count"] += 1
                 file_store.external_locations[service] = self._cache[cache_key]
                 return self._cache[cache_key]
 
             # File not in cache, need to upload
+            # print(
+            #     f"Cache MISS for file {file_store.name}, starting upload...", flush=True
+            # )
             self._stats["cache_misses"] += 1
             start_time = time.time()
 
             try:
                 if service == "google":
-                    # Use async version of upload if available, otherwise run in executor
+                    # Always use async version if available
                     if hasattr(file_store, "async_upload_google"):
-                        # print(f"Uploading file {file_store.name} to Google service")
-                        result = await file_store.async_upload_google()
                         # print(
-                        #     f"Upload completed in {time.time() - start_time:.2f} seconds"
+                        #     f"Starting async upload for file {file_store.name} to Google service",
+                        #     flush=True,
+                        # )
+                        upload_start = time.time()
+                        result = await file_store.async_upload_google()
+                        upload_time = time.time() - upload_start
+                        # print(
+                        #     f"Async upload completed in {upload_time:.3f}s", flush=True
                         # )
                     else:
-                        # Run synchronous upload in thread pool to avoid blocking
+                        # print(
+                        #     f"Starting sync upload for file {file_store.name} to Google service (fallback)",
+                        #     flush=True,
+                        # )
+                        # Fallback to synchronous upload in thread pool
+                        upload_start = time.time()
                         loop = asyncio.get_event_loop()
                         await loop.run_in_executor(None, file_store.upload_google)
+                        upload_time = time.time() - upload_start
+                        # print(
+                        #     f"Sync upload fallback completed in {upload_time:.3f}s",
+                        #     flush=True,
+                        # )
                         result = file_store.external_locations.get("google")
                 else:
                     raise ValueError(f"Unsupported service: {service}")
 
                 # Cache the result
+                cache_start = time.time()
                 self._cache[cache_key] = result
                 self._stats["total_upload_time"] += time.time() - start_time
+                cache_time = time.time() - cache_start
+                # print(f"Cache storage took {cache_time:.3f}s", flush=True)
 
                 # Ensure file_store has the updated external_locations
                 file_store.external_locations[service] = result
@@ -161,7 +199,7 @@ class FileUploadCache:
 
             except Exception as e:
                 self._stats["upload_errors"] += 1
-                print(f"Error uploading file to {service}: {e}")
+                # print(f"Error uploading file to {service}: {e}", flush=True)
                 raise
 
     def get_stats(self) -> Dict[str, Any]:

@@ -3,6 +3,7 @@ from .model_info_fetcher import ModelInfoFetcherABC
 
 if TYPE_CHECKING:
     from .inference_service_registry import InferenceServiceRegistry
+    from .model_info import ModelInfo
 
 
 class SourcePreferenceHandler:
@@ -34,22 +35,32 @@ class SourcePreferenceHandler:
         """Return the source that was successfully used to fetch data."""
         return self._used_source
 
-    def fetch_model_info_data(self) -> Dict[str, List[str]]:
+    def fetch_model_info_data(
+        self, source_preferences: Optional[List[str]] = None
+    ) -> Dict[str, List["ModelInfo"]]:
         """
         Iterate through source preferences to find and fetch model info data.
 
         Tries each source in the preference order until one succeeds in fetching
         non-empty model information.
 
+        Args:
+            source_preferences: Optional list of source preferences to override the default
+
         Returns:
-            Dictionary mapping service names to lists of model names
+            Dictionary mapping service names to lists of ModelInfo objects
 
         Raises:
             ValueError: If no source can successfully fetch model information
         """
         fetchers = ModelInfoFetcherABC.get_registered_fetchers()
 
-        for source in self.source_preferences:
+        if source_preferences is not None:
+            applicable_source_preferences = source_preferences
+        else:
+            applicable_source_preferences = self.source_preferences
+
+        for source in applicable_source_preferences:
             if source not in fetchers:
                 if self.verbose:
                     print(
@@ -61,7 +72,9 @@ class SourcePreferenceHandler:
                 print(f"[SOURCE_HANDLER] Trying source: {source}")
 
             try:
-                model_info_fetcher = fetchers[source](self.registry)
+                model_info_fetcher: ModelInfoFetcherABC = fetchers[source](
+                    self.registry
+                )
                 model_info_fetcher.fetch()
 
                 if len(model_info_fetcher) > 0:
@@ -70,6 +83,12 @@ class SourcePreferenceHandler:
                             f"[SOURCE_HANDLER] Successfully fetched data from source: {source}"
                         )
                     self._used_source = source
+
+                    if source != "archive":
+                        if self.verbose:
+                            print("[SOURCE_HANDLER] Writing to archive")
+                        model_info_fetcher.write_to_archive()
+
                     return dict(model_info_fetcher)
                 else:
                     if self.verbose:

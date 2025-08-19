@@ -15,6 +15,7 @@ from ..language_models.exceptions import LanguageModelNoResponseError
 from ..questions.exceptions import QuestionAnswerValidationError
 from ..surveys.base import EndOfSurvey
 from ..tasks import TaskStatus
+from ..logger import get_logger
 from .exception_tracking import InterviewExceptionEntry
 
 
@@ -181,6 +182,7 @@ class AnswerQuestionFunctionConstructor:
         # Store a weak reference to the interview
         self._interview_ref = weakref.ref(interview)
         self.key_lookup = key_lookup
+        self._logger = get_logger(__name__)
 
         # Store configuration settings that won't change during lifecycle
         self._raise_validation_errors = getattr(
@@ -319,9 +321,17 @@ class AnswerQuestionFunctionConstructor:
 
             had_language_model_no_response_error = False
             try:
+                import time
+                answer_start = time.time()
+                self._logger.info(f"Starting question '{question.question_name}' with {type(invigilator).__name__}")
+                
                 response: EDSLResultObjectInput = (
                     await invigilator.async_answer_question()
                 )
+                
+                answer_time = time.time() - answer_start
+                self._logger.info(f"Question '{question.question_name}' completed in {answer_time:.3f}s")
+                
                 if response.validated:
                     # Re-check if interview exists before updating it
                     interview = self._interview_ref()
