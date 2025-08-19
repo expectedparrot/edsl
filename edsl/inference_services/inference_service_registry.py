@@ -129,7 +129,7 @@ class InferenceServiceRegistry:
         return self._model_to_services
 
     @property
-    def services(self) -> List[str]:
+    def services(self) -> Dict[str, type["InferenceServiceABC"]]:
         return self._services
 
     @property
