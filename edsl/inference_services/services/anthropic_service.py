@@ -7,7 +7,7 @@ from ..inference_service_abc import InferenceServiceABC
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
-    from ....scenarios.file_store import FileStore as Files
+    from ...scenarios.file_store import FileStore as Files
 
 
 class AnthropicService(InferenceServiceABC):
@@ -19,34 +19,30 @@ class AnthropicService(InferenceServiceABC):
     usage_sequence = ["usage"]
     input_token_name = "input_tokens"
     output_token_name = "output_tokens"
-    model_exclude_list = []
-
     available_models_url = "https://docs.anthropic.com/en/docs/about-claude/models"
 
     @classmethod
-    def get_model_list(cls, api_key: str = None):
+    def get_model_info(cls, api_key: Optional[str] = None):
+        """Get raw model info without wrapping in ModelInfo."""
         import requests
 
         if api_key is None:
             api_key = os.environ.get("ANTHROPIC_API_KEY")
         headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01"}
         response = requests.get("https://api.anthropic.com/v1/models", headers=headers)
-        model_names = [m["id"] for m in response.json()["data"]]
-        return model_names
-
-    @classmethod
-    def available(cls):
-        return cls.get_model_list()
+        response.raise_for_status()
+        return response.json()["data"]
 
     @classmethod
     def create_model(
         cls, model_name: str = "claude-3-opus-20240229", model_class_name=None
-    ) -> 'LanguageModel':
+    ) -> "LanguageModel":
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
 
         # Import LanguageModel only when actually creating a model
         from ...language_models import LanguageModel
+
         class LLM(LanguageModel):
             """
             Child class of LanguageModel for interacting with OpenAI models
@@ -85,18 +81,25 @@ class AnthropicService(InferenceServiceABC):
                 ]
                 if files_list:
                     for file_entry in files_list:
-                        encoded_image = file_entry.base64_string
+                        encoded_data = file_entry.base64_string
+
+                        # Use "document" type for PDFs, "image" type for other files
+                        content_type = (
+                            "document"
+                            if file_entry.mime_type == "application/pdf"
+                            else "image"
+                        )
+
                         messages[0]["content"].append(
                             {
-                                "type": "image",
+                                "type": content_type,
                                 "source": {
                                     "type": "base64",
                                     "media_type": file_entry.mime_type,
-                                    "data": encoded_image,
+                                    "data": encoded_data,
                                 },
                             }
                         )
-                # breakpoint()
                 client = AsyncAnthropic(api_key=self.api_token)
 
                 try:

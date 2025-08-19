@@ -2,12 +2,13 @@ import os
 from typing import Any, Optional, List, TYPE_CHECKING
 from openai import AsyncAzureOpenAI
 from ..inference_service_abc import InferenceServiceABC
+
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
 
 if TYPE_CHECKING:
-    from ....scenarios.file_store import FileStore
+    from ...scenarios.file_store import FileStore
 
 from azure.ai.inference.aio import ChatCompletionsClient
 from azure.core.credentials import AzureKeyCredential
@@ -36,6 +37,7 @@ class AzureAIService(InferenceServiceABC):
     _env_key_name_ = (
         "AZURE_ENDPOINT_URL_AND_KEY"  # Environment variable for Azure API key
     )
+    _models_list_cache: Optional[List[str]] = None
     _model_id_to_endpoint_and_key = {}
     model_exclude_list = [
         "Cohere-command-r-plus-xncmg",
@@ -44,12 +46,58 @@ class AzureAIService(InferenceServiceABC):
     ]
 
     @classmethod
+    def get_model_info(cls):
+        """Get raw model info from Azure configuration."""
+        models_info = []
+        azure_endpoints = os.getenv("AZURE_ENDPOINT_URL_AND_KEY", None)
+        if not azure_endpoints:
+            raise ValueError("AZURE_ENDPOINT_URL_AND_KEY is not defined")
+        azure_endpoints = azure_endpoints.split(",")
+        for data in azure_endpoints:
+            try:
+                # Parse endpoint data and create model info objects
+                _, endpoint, azure_endpoint_key = data.split(":")
+                if "openai" not in endpoint:
+                    model_id = endpoint.split(".")[0].replace("/", "")
+                    models_info.append(
+                        {
+                            "id": model_id,
+                            "endpoint": f"https:{endpoint}",
+                            "type": "azure_non_openai",
+                            "azure_endpoint_key": azure_endpoint_key,
+                        }
+                    )
+                else:
+                    if "/deployments/" in endpoint:
+                        start_idx = endpoint.index("/deployments/") + len(
+                            "/deployments/"
+                        )
+                        end_idx = (
+                            endpoint.index("/", start_idx)
+                            if "/" in endpoint[start_idx:]
+                            else len(endpoint)
+                        )
+                        model_id = endpoint[start_idx:end_idx]
+                        models_info.append(
+                            {
+                                "id": f"azure:{model_id}",
+                                "endpoint": f"https:{endpoint}",
+                                "type": "azure_openai",
+                                "azure_endpoint_key": azure_endpoint_key,
+                            }
+                        )
+            except Exception:
+                continue
+        return models_info
+
+    @classmethod
     def available(cls):
         out = []
         azure_endpoints = os.getenv("AZURE_ENDPOINT_URL_AND_KEY", None)
         if not azure_endpoints:
-            from ..exceptions import InferenceServiceEnvironmentError
-            raise InferenceServiceEnvironmentError("AZURE_ENDPOINT_URL_AND_KEY is not defined")
+
+            return []
+            # raise InferenceServiceEnvironmentError("AZURE_ENDPOINT_URL_AND_KEY is not defined")
         azure_endpoints = azure_endpoints.split(",")
         for data in azure_endpoints:
             try:
@@ -100,12 +148,13 @@ class AzureAIService(InferenceServiceABC):
     @classmethod
     def create_model(
         cls, model_name: str = "azureai", model_class_name=None
-    ) -> 'LanguageModel':
+    ) -> "LanguageModel":
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
 
         # Import LanguageModel only when actually creating a model
         from ...language_models import LanguageModel
+
         class LLM(LanguageModel):
             """
             Child class of LanguageModel for interacting with Azure OpenAI models.
@@ -140,6 +189,7 @@ class AzureAIService(InferenceServiceABC):
 
                 if not api_key:
                     from ..exceptions import InferenceServiceEnvironmentError
+
                     raise InferenceServiceEnvironmentError(
                         f"AZURE_ENDPOINT_URL_AND_KEY doesn't have the endpoint:key pair for your model: {model_name}"
                     )
@@ -151,6 +201,7 @@ class AzureAIService(InferenceServiceABC):
 
                 if not endpoint:
                     from ..exceptions import InferenceServiceEnvironmentError
+
                     raise InferenceServiceEnvironmentError(
                         f"AZURE_ENDPOINT_URL_AND_KEY doesn't have the endpoint:key pair for your model: {model_name}"
                     )

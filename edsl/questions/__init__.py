@@ -112,6 +112,7 @@ from .question_check_box import QuestionCheckBox
 from .question_extract import QuestionExtract
 from .question_free_text import QuestionFreeText
 from .question_functional import QuestionFunctional
+from .question_compute import QuestionCompute
 from .question_list import QuestionList
 from .question_matrix import QuestionMatrix
 from .question_dict import QuestionDict
@@ -130,11 +131,15 @@ from .question_multiple_choice_with_other import QuestionMultipleChoiceWithOther
 from .exceptions import QuestionScenarioRenderError
 
 # Import validation modules
-from .validation_logger import log_validation_failure, get_validation_failure_logs, clear_validation_logs
+from .validation_logger import (
+    log_validation_failure,
+    get_validation_failure_logs,
+    clear_validation_logs,
+)
 from .validation_analysis import (
-    get_validation_failure_stats, 
-    suggest_fix_improvements, 
-    export_improvements_report
+    get_validation_failure_stats,
+    suggest_fix_improvements,
+    export_improvements_report,
 )
 from .validation_html_report import generate_html_report, generate_and_open_report
 
@@ -144,11 +149,9 @@ __all__ = [
     # Schema and metadata
     "Settings",
     "RegisterQuestionsMeta",
-    
     # Base question class and registry
     "QuestionBase",
     "Question",
-    
     # Core question types
     "QuestionFreeText",
     "QuestionMultipleChoice",
@@ -156,12 +159,12 @@ __all__ = [
     "QuestionDict",
     "QuestionExtract",
     "QuestionFunctional",
+    "QuestionCompute",
     "QuestionList",
     "QuestionMatrix",
     "QuestionNumerical",
     "QuestionBudget",
     "QuestionRank",
-    
     # Derived question types
     "QuestionLinearScale",
     "QuestionTopK",
@@ -169,7 +172,6 @@ __all__ = [
     "QuestionYesNo",
     "QuestionMultipleChoiceWithOther",
     "QuestionMultipleChoiceWithOther",
-    
     # Validation utilities
     "log_validation_failure",
     "get_validation_failure_logs",

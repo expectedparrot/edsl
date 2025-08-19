@@ -43,6 +43,7 @@ class Question(metaclass=Meta):
         subclass = get_question_classes.get(question_type, None)
         if subclass is None:
             from .exceptions import QuestionValueError
+
             raise QuestionValueError(
                 f"No question registered with question_type {question_type}"
             )
@@ -65,7 +66,7 @@ class Question(metaclass=Meta):
         from ..coop import Coop
 
         coop = Coop()
-        return coop.get(url_or_uuid, "question")
+        return coop.pull(url_or_uuid, "question")
 
     @classmethod
     def delete(cls, url_or_uuid: Union[str, UUID]):
@@ -95,7 +96,7 @@ class Question(metaclass=Meta):
 
         >>> from edsl import Question
         >>> Question.list_question_types()
-        ['checkbox', 'dict', 'extract', 'free_text', 'functional', 'likert_five', 'linear_scale', 'list', 'matrix', 'multiple_choice', 'multiple_choice_with_other', 'numerical', 'rank', 'top_k', 'yes_no']
+        ['checkbox', 'compute', 'dict', 'extract', 'free_text', 'functional', 'likert_five', 'linear_scale', 'list', 'matrix', 'multiple_choice', 'multiple_choice_with_other', 'numerical', 'rank', 'top_k', 'yes_no']
         """
         return [
             q
@@ -146,6 +147,7 @@ def get_question_class(question_type):
     q2c = RegisterQuestionsMeta.question_types_to_classes()
     if question_type not in q2c:
         from .exceptions import QuestionValueError
+
         raise QuestionValueError(
             f"The question type, {question_type}, is not recognized. Recognied types are: {q2c.keys()}"
         )
@@ -171,4 +173,5 @@ question_purpose = {
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

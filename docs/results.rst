@@ -406,6 +406,9 @@ Note that the cost of a result for a question is specific to the components (sce
 * **scenario.scenario_index**: The index of the scenario.
 * **scenario.topic**: The values provided for the "topic" scenario for the questions.
 
+*Note*: We recently added support for OpenAI reasoning models. See an example notebook for usage `here <https://www.expectedparrot.com/content/RobinHorton/reasoning-model-example>`_.
+The `Results` that are generated with reasoning models include additional fields for reasoning summaries.
+
 
 Creating tables by selecting columns
 ------------------------------------
@@ -1216,20 +1219,21 @@ See the :ref:`exceptions` section for more information on exceptions.
 Result class
 ------------
 
-.. automodule:: edsl.results.Result
+.. autoclass:: edsl.results.Result
    :members:  
    :inherited-members:
-   :exclude-members: 
    :undoc-members:
+   :show-inheritance:
    :special-members: __init__
 
 Results class
 -------------
 
-.. automodule:: edsl.results.Results
+.. autoclass:: edsl.results.Results
    :members:
    :inherited-members:
    :exclude-members: append, clear, copy, count, extend, index, insert, pop, remove, reverse, sort, known_data_types, Mixins, main, PromptDict
    :undoc-members:
+   :show-inheritance:
    :special-members: __init__
 

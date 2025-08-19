@@ -1,16 +1,13 @@
 from __future__ import annotations
-from typing import Dict, Any, Optional, TYPE_CHECKING
+from typing import Dict, Any, Optional, TYPE_CHECKING, Literal
 from functools import cached_property
 import logging
-
-from ..prompts import Prompt
-from ..scenarios import Scenario
-from ..surveys import Survey
 
 from .prompt_helpers import PromptPlan
 from .question_template_replacements_builder import (
     QuestionTemplateReplacementsBuilder,
 )
+from .question_numerical_processor import QuestionNumericalProcessor
 from .question_option_processor import QuestionOptionProcessor
 
 if TYPE_CHECKING:
@@ -20,6 +17,8 @@ if TYPE_CHECKING:
     from ..language_models import LanguageModel
     from ..surveys.memory import MemoryPlan
     from ..scenarios import Scenario
+    from ..surveys import Survey
+    from ..prompts import Prompt
 
 logger = logging.getLogger(__name__)
 
@@ -255,13 +254,13 @@ class PromptConstructor:
         Examples:
             >>> from edsl.invigilators.invigilators import InvigilatorBase
             >>> i = InvigilatorBase.example()
-            >>> question_data = {"options": ["yes", "no"], "option_codes": [0, 1]}
+            >>> question_data = {"question_options": ["yes", "no"]}
             >>> i.prompt_constructor.get_question_options(question_data)
-            ['0: yes', '1: no']
+            ['yes', 'no']
 
-            >>> question_data = {"options": ["strongly agree", "agree", "disagree"]}
+            >>> question_data = {"question_options": ["strongly agree", "agree", "disagree"]}
             >>> i.prompt_constructor.get_question_options(question_data)
-            ['0: strongly agree', '1: agree', '2: disagree']
+            ['strongly agree', 'agree', 'disagree']
 
         Technical Notes:
             - Delegates the actual option processing to the QuestionOptionProcessor
@@ -274,8 +273,18 @@ class PromptConstructor:
             self
         ).get_question_options(question_data)
 
+    def get_question_numerical_value(
+        self, question_data: dict, key: Literal["min_value", "max_value"]
+    ) -> int | float | None:
+        """
+        Get the numerical value for a question based on its data.
+        """
+        return QuestionNumericalProcessor.from_prompt_constructor(
+            self
+        ).get_question_numerical_value(question_data, key)
+
     @cached_property
-    def agent_instructions_prompt(self) -> Prompt:
+    def agent_instructions_prompt(self) -> "Prompt":
         """
         Get the agent's core instruction prompt.
 
@@ -289,6 +298,7 @@ class PromptConstructor:
             Prompt(text=\"""You are answering questions as if you were a human. Do not break character.\""")
         """
         from ..agents import Agent
+        from ..prompts import Prompt
 
         if self.agent == Agent():  # if agent is empty, then return an empty prompt
             return Prompt(text="")
@@ -296,7 +306,7 @@ class PromptConstructor:
         return Prompt(text=self.agent.instruction)
 
     @cached_property
-    def agent_persona_prompt(self) -> Prompt:
+    def agent_persona_prompt(self) -> "Prompt":
         """
         Get the agent's persona characteristics prompt.
 
@@ -310,6 +320,7 @@ class PromptConstructor:
             Prompt(text=\"""Your traits: {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
         """
         from ..agents import Agent
+        from ..prompts import Prompt
 
         if self.agent == Agent():  # if agent is empty, then return an empty prompt
             return Prompt(text="")
@@ -334,7 +345,7 @@ class PromptConstructor:
         )
 
     @staticmethod
-    def _extract_question_and_entry_type(key_entry) -> tuple[str, str]:
+    def _extract_question_and_entry_type(key_entry: str) -> tuple[str, str]:
         """
         Extract the question name and type from a dictionary key entry.
 
@@ -447,7 +458,7 @@ class PromptConstructor:
         ).question_file_keys()
 
     @cached_property
-    def question_instructions_prompt(self) -> Prompt:
+    def question_instructions_prompt(self) -> "Prompt":
         """
         >>> from edsl.invigilators.invigilators import InvigilatorBase
         >>> i = InvigilatorBase.example()
@@ -457,7 +468,7 @@ class PromptConstructor:
         """
         return self.build_question_instructions_prompt()
 
-    def build_question_instructions_prompt(self) -> Prompt:
+    def build_question_instructions_prompt(self) -> "Prompt":
         """
         Builds the question instructions prompt by combining question text, options, and formatting.
 
@@ -471,6 +482,7 @@ class PromptConstructor:
         Examples:
             >>> from edsl.invigilators.invigilators import InvigilatorBase
             >>> i = InvigilatorBase.example()
+            >>> i.question.use_code = True
             >>> prompt = i.prompt_constructor.build_question_instructions_prompt()
             >>> "Do you like school?" in prompt.text
             True
@@ -497,13 +509,15 @@ class PromptConstructor:
         return prompt
 
     @cached_property
-    def prior_question_memory_prompt(self) -> Prompt:
+    def prior_question_memory_prompt(self) -> "Prompt":
         """
         Get the prompt containing memory of prior questions and answers.
 
         Returns:
             Prompt: A prompt containing the relevant prior question memory
         """
+        from ..prompts import Prompt
+
         memory_prompt = Prompt(text="")
         if self.memory_plan is not None:
             memory_prompt += self.create_memory_prompt(
@@ -511,7 +525,7 @@ class PromptConstructor:
             ).render(self.scenario | self.prior_answers_dict())
         return memory_prompt
 
-    def create_memory_prompt(self, question_name: str) -> Prompt:
+    def create_memory_prompt(self, question_name: str) -> "Prompt":
         """
         Create a memory prompt containing previous question answers for the agent.
 
@@ -561,12 +575,22 @@ class PromptConstructor:
             >>> "Do you like school?" in prompts['user_prompt']
             True
 
-            # Test with file keys
-            >>> i.prompt_constructor.file_keys_from_question = ['code.py']
-            >>> i.prompt_constructor.scenario = {'code.py': 'print("Hello")'}
-            >>> prompts = i.prompt_constructor.get_prompts()
-            >>> prompts['files_list']
-            ['print("Hello")']
+            # Test with file keys requires FileStore objects
+            >>> from edsl.scenarios import FileStore
+            >>> import tempfile
+            >>> with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
+            ...     _ = f.write('print("Hello")')
+            ...     temp_path = f.name
+            >>> fs = FileStore(temp_path)
+            >>> from edsl.questions import QuestionFreeText
+            >>> from edsl import Scenario, Survey
+            >>> q_with_file = QuestionFreeText(question_text='Analyze: {{ code_file }}', question_name='q1')
+            >>> scenario_with_file = Scenario({'code_file': fs})
+            >>> survey_with_file = Survey([q_with_file])
+            >>> i_with_file = InvigilatorBase.example(question=q_with_file, scenario=scenario_with_file, survey=survey_with_file)
+            >>> prompts_with_file = i_with_file.prompt_constructor.get_prompts()
+            >>> 'files_list' in prompts_with_file
+            True
 
         Technical Notes:
             - Builds all prompt components first
@@ -613,8 +637,9 @@ class PromptConstructor:
         Examples:
             >>> from edsl.invigilators.invigilators import InvigilatorBase
             >>> i = InvigilatorBase.example()
-            >>> i.prompt_constructor.captured_variables = {'answer_count': 5, 'last_response': 'yes'}
-            >>> vars = i.prompt_constructor.get_captured_variables()
+            >>> pc = i.prompt_constructor
+            >>> pc.captured_variables = {'answer_count': 5, 'last_response': 'yes'}
+            >>> vars = pc.get_captured_variables()
             >>> vars['answer_count']
             5
             >>> vars['last_response']

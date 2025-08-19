@@ -16,6 +16,9 @@ import io
 import warnings
 import textwrap
 from typing import Optional, Tuple, Union, List, TYPE_CHECKING  # Callable not used
+
+if TYPE_CHECKING:
+    from ..scenarios import FileStore
 from functools import wraps
 from .r.ggplot import GGPlotMethod
 from .exceptions import (
@@ -141,7 +144,7 @@ class DataOperationsBase:
 
         >>> from edsl.results import Results
         >>> sorted(Results.example().select().relevant_columns(data_type = "model"))
-        ['model.frequency_penalty', ...]
+        ['model.canned_response', 'model.inference_service', 'model.model', 'model.model_index', 'model.temperature']
 
         >>> # Testing relevant_columns with invalid data_type raises DatasetValueError - tested in unit tests
         """
@@ -189,7 +192,8 @@ class DataOperationsBase:
                         f"Column '{key}' has {len(values)} observations, but previous columns had {_num_observations} observations."
                     )
 
-        return _num_observations
+        # Return 0 for empty datasets instead of None
+        return _num_observations if _num_observations is not None else 0
 
     def chart(self):
         """
@@ -308,7 +312,7 @@ class DataOperationsBase:
         filename: Optional[str] = None,
         remove_prefix: bool = False,
         pretty_labels: Optional[dict] = None,
-    ):
+    ) -> "FileStore":
         """Export the results to a FileStore instance containing CSV data."""
         from .file_exports import CSVExport
 
@@ -339,6 +343,59 @@ class DataOperationsBase:
         )
         return exporter.export()
 
+    def to_docx(
+        self,
+        filename: Optional[str] = None,
+        remove_prefix: bool = False,
+        pretty_labels: Optional[dict] = None,
+    ) -> "FileStore":
+        """Export the results to a FileStore instance containing DOCX data.
+
+        Each row of the dataset will be rendered on its own page, with a 2-column
+        table that lists the keys and associated values for that observation.
+        """
+        # Import here to avoid heavy dependency unless the method is called
+        from .file_exports import DocxExport
+
+        exporter = DocxExport(
+            data=self,
+            filename=filename,
+            remove_prefix=remove_prefix,
+            pretty_labels=pretty_labels,
+        )
+        return exporter.export()
+
+    def clipboard_data(self) -> str:
+        """Return TSV representation of this object for clipboard operations.
+
+        This method is called by the clipboard() method in the base class to provide
+        a custom format for copying objects to the system clipboard.
+
+        Returns:
+            str: Tab-separated values representation of the object
+        """
+        # Use the to_csv method to get CSV data
+        csv_filestore = self.to_csv()
+
+        # Get the CSV content and convert it to TSV
+        csv_content = csv_filestore.text
+
+        # Convert CSV to TSV by replacing commas with tabs
+        # This is a simple approach, but we should handle quoted fields properly
+        import csv
+        import io
+
+        # Parse the CSV content
+        csv_reader = csv.reader(io.StringIO(csv_content))
+        rows = list(csv_reader)
+
+        # Convert to TSV format
+        tsv_lines = []
+        for row in rows:
+            tsv_lines.append("\t".join(row))
+
+        return "\n".join(tsv_lines)
+
     def _db(self, remove_prefix: bool = True, shape: str = "wide"):
         """Create a SQLite database in memory and return the connection.
 
@@ -357,7 +414,7 @@ class DataOperationsBase:
             4
             >>> engine = Results.example()._db(shape = "long")
             >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
-            212
+            200
         """
         # Import needed for database connection
         from sqlalchemy import create_engine
@@ -442,7 +499,7 @@ class DataOperationsBase:
 
             # Using long format
             >>> len(r.sql("SELECT * FROM self", shape="long"))
-            212
+            200
         """
         import pandas as pd
 
@@ -491,6 +548,10 @@ class DataOperationsBase:
             3                 OK
         """
         import pandas as pd
+
+        # Handle empty dataset case
+        if not self.data:
+            return pd.DataFrame()
 
         csv_string = self.to_csv(remove_prefix=remove_prefix).text
         csv_buffer = io.StringIO(csv_string)
@@ -1085,7 +1146,7 @@ class DataOperationsBase:
             >>> d = Dataset([{'a': [{'a': 1, 'b': 2}]}, {'c': [5]}])
             >>> d.flatten('a', keep_original=True)
             Dataset([{'a': [{'a': 1, 'b': 2}]}, {'c': [5]}, {'a.a': [1]}, {'a.b': [2]}])
-            
+
             # Can also use unambiguous unprefixed field name
             >>> result = Dataset([{'answer.pros_cons': [{'pros': ['Safety'], 'cons': ['Cost']}]}]).flatten('pros_cons')
             >>> sorted(result.keys()) == ['answer.pros_cons.cons', 'answer.pros_cons.pros']
@@ -1098,7 +1159,7 @@ class DataOperationsBase:
         # Ensure the dataset isn't empty
         if not self.data:
             return self.copy()
-        
+
         # First try direct match with the exact field name
         field_entry = None
         for entry in self.data:
@@ -1106,18 +1167,18 @@ class DataOperationsBase:
             if field == col_name:
                 field_entry = entry
                 break
-        
+
         # If not found, try to match by unprefixed name
         if field_entry is None:
             # Find any columns that have field as their unprefixed name
             candidates = []
             for entry in self.data:
                 col_name = next(iter(entry.keys()))
-                if '.' in col_name:
-                    prefix, col_field = col_name.split('.', 1)
+                if "." in col_name:
+                    prefix, col_field = col_name.split(".", 1)
                     if col_field == field:
                         candidates.append(entry)
-            
+
             # If we found exactly one match by unprefixed name, use it
             if len(candidates) == 1:
                 field_entry = candidates[0]
@@ -1125,6 +1186,7 @@ class DataOperationsBase:
             elif len(candidates) > 1:
                 matching_cols = [next(iter(entry.keys())) for entry in candidates]
                 from .exceptions import DatasetValueError
+
                 raise DatasetValueError(
                     f"Ambiguous field name '{field}'. It matches multiple columns: {matching_cols}. "
                     f"Please specify the full column name to flatten."
@@ -1134,24 +1196,27 @@ class DataOperationsBase:
                 partial_matches = []
                 for entry in self.data:
                     col_name = next(iter(entry.keys()))
-                    if '.' in col_name and (
-                        col_name.endswith('.' + field) or 
-                        col_name.startswith(field + '.')
+                    if "." in col_name and (
+                        col_name.endswith("." + field)
+                        or col_name.startswith(field + ".")
                     ):
                         partial_matches.append(entry)
-                
+
                 # If we found exactly one partial match, use it
                 if len(partial_matches) == 1:
                     field_entry = partial_matches[0]
                 # If we found multiple partial matches, it's ambiguous
                 elif len(partial_matches) > 1:
-                    matching_cols = [next(iter(entry.keys())) for entry in partial_matches]
+                    matching_cols = [
+                        next(iter(entry.keys())) for entry in partial_matches
+                    ]
                     from .exceptions import DatasetValueError
+
                     raise DatasetValueError(
                         f"Ambiguous field name '{field}'. It matches multiple columns: {matching_cols}. "
                         f"Please specify the full column name to flatten."
                     )
-        
+
         # Get the number of observations
         num_observations = self.num_observations()
 
@@ -1161,7 +1226,7 @@ class DataOperationsBase:
                 f"Field '{field}' not found in dataset, returning original dataset"
             )
             return self.copy()
-        
+
         # Get the actual field name as it appears in the data
         actual_field = next(iter(field_entry.keys()))
 
@@ -1342,6 +1407,110 @@ class DataOperationsBase:
             new_data.append({new_key: values})
 
         return Dataset(new_data)
+
+    def report_from_template(
+        self,
+        template: str,
+        *fields: Optional[str],
+        top_n: Optional[int] = None,
+        remove_prefix: bool = True,
+        return_string: bool = False,
+        format: str = "text",
+        filename: Optional[str] = None,
+        separator: str = "\n\n",
+        observation_title_template: Optional[str] = None,
+        explode: bool = False,
+        filestore: bool = False,
+    ) -> Optional[Union[str, "Document", List, "FileStore"]]:
+        """Generates a report using a Jinja2 template for each row in the dataset.
+
+        This method renders a user-provided Jinja2 template for each observation in the dataset,
+        with template variables populated from the row data. This allows for completely customized
+        report formatting using pandoc for advanced output formats.
+
+        Args:
+            template: Jinja2 template string to render for each row
+            *fields: The fields to include in template context. If none provided, all fields are used.
+            top_n: Optional limit on the number of observations to include.
+            remove_prefix: Whether to remove type prefixes (e.g., "answer.") from field names in template context.
+            return_string: If True, returns the rendered content. If False (default in notebooks),
+                          only displays the content without returning.
+            format: Output format - one of "text", "html", "pdf", or "docx". Formats other than "text" require pandoc.
+            filename: If provided, saves the rendered content to this file. For exploded output,
+                     this becomes a template (e.g., "report_{index}.html").
+            separator: String to use between rendered templates for each row (ignored when explode=True).
+            observation_title_template: Optional Jinja2 template for observation titles.
+                                       Defaults to "Observation {index}" where index is 1-based.
+                                       Template has access to all row data plus 'index' and 'index0' variables.
+            explode: If True, creates separate files for each observation instead of one combined file.
+            filestore: If True, wraps the generated file(s) in FileStore object(s). If no filename is provided,
+                      creates temporary files. For exploded output, returns a list of FileStore objects.
+
+        Returns:
+            Depending on explode, format, return_string, and filestore:
+            - For text format: String content or None (if displayed in notebook)
+            - For html format: HTML string content or None (if displayed in notebook)
+            - For docx format: Document object or None (if saved to file)
+            - For pdf format: PDF bytes or None (if saved to file)
+            - If explode=True: List of created filenames (when filename provided) or list of documents/content
+            - If filestore=True: FileStore object(s) containing the generated file(s)
+
+        Notes:
+            - Pandoc is required for HTML, PDF, and DOCX output formats
+            - Templates are treated as Markdown for all non-text formats
+            - PDF output uses XeLaTeX engine through pandoc
+            - HTML output includes standalone document structure
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> template = "Person feels: {{ how_feeling }}"
+            >>> report = r.select('how_feeling').report_from_template(template, return_string=True)
+            >>> "Person feels: OK" in report
+            True
+            >>> "Person feels: Great" in report
+            True
+
+            # Custom observation titles
+            >>> custom_title = "Response {{ index }}: {{ how_feeling }}"
+            >>> report = r.select('how_feeling').report_from_template(
+            ...     template, observation_title_template=custom_title, return_string=True)
+            >>> "Response 1: OK" in report
+            True
+
+            # HTML output (requires pandoc)
+            >>> html_report = r.select('how_feeling').report_from_template(
+            ...     template, format="html", return_string=True)  # doctest: +SKIP
+            >>> # Creates HTML with proper document structure
+
+            # PDF output (requires pandoc with XeLaTeX)
+            >>> pdf_report = r.select('how_feeling').report_from_template(
+            ...     template, format="pdf")  # doctest: +SKIP
+            >>> # Returns PDF bytes
+
+            # Basic template functionality
+            >>> template2 = "Feeling: {{ how_feeling }}, Index: {{ index }}"
+            >>> report2 = r.select('how_feeling').report_from_template(
+            ...     template2, return_string=True, top_n=2)
+            >>> "Feeling: OK, Index: 1" in report2
+            True
+        """
+        from .report_from_template import TemplateReportGenerator
+
+        generator = TemplateReportGenerator(self)
+        return generator.generate_report(
+            template,
+            *fields,
+            top_n=top_n,
+            remove_prefix=remove_prefix,
+            return_string=return_string,
+            format=format,
+            filename=filename,
+            separator=separator,
+            observation_title_template=observation_title_template,
+            explode=explode,
+            filestore=filestore,
+        )
 
 
 def to_dataset(func):

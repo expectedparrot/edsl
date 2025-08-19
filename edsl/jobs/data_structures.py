@@ -1,12 +1,8 @@
 from typing import Optional, Literal, TYPE_CHECKING, Any
 from dataclasses import dataclass, asdict
 from collections import UserDict
-from ..data_transfer_models import EDSLResultObjectInput
 
-# from edsl.data_transfer_models import VisibilityType
-from ..caching import Cache
-# Import BucketCollection lazily to avoid circular imports
-from ..key_management import KeyLookup
+from ..data_transfer_models import EDSLResultObjectInput
 from ..base import Base
 
 from .jobs_runner_status import JobsRunnerStatus
@@ -15,27 +11,33 @@ if TYPE_CHECKING:
     from ..questions.question_base import QuestionBase
     from ..surveys import Survey
     from ..buckets import BucketCollection
+    from ..key_management import KeyLookup
+    from ..caching import Cache
 
 VisibilityType = Literal["private", "public", "unlisted"]
+
 
 @dataclass
 class RunEnvironment:
     """
     Contains environment-related resources for job execution.
-    
-    This dataclass holds references to shared resources and infrastructure components 
-    needed for job execution. These components are typically long-lived and may be 
+
+    This dataclass holds references to shared resources and infrastructure components
+    needed for job execution. These components are typically long-lived and may be
     shared across multiple job runs.
-    
+
     Attributes:
         cache (Cache, optional): Cache for storing and retrieving interview results
         bucket_collection (BucketCollection, optional): Collection of token rate limit buckets
         key_lookup (KeyLookup, optional): Manager for API keys across models
         jobs_runner_status (JobsRunnerStatus, optional): Tracker for job execution progress
     """
-    cache: Optional[Cache] = None
-    bucket_collection: Optional[Any] = None  # Using Any to avoid circular import of BucketCollection
-    key_lookup: Optional[KeyLookup] = None
+
+    cache: Optional["Cache"] = None
+    bucket_collection: Optional[Any] = (
+        None  # Using Any to avoid circular import of BucketCollection
+    )
+    key_lookup: Optional["KeyLookup"] = None
     jobs_runner_status: Optional["JobsRunnerStatus"] = None
 
 
@@ -43,11 +45,11 @@ class RunEnvironment:
 class RunParameters(Base):
     """
     Contains execution-specific parameters for job runs.
-    
+
     This dataclass holds parameters that control the behavior of a specific job run,
     such as iteration count, error handling preferences, and remote execution options.
     Unlike RunEnvironment, these parameters are specific to a single job execution.
-    
+
     Attributes:
         n (int): Number of iterations to run each interview, default is 1
         progress_bar (bool): Whether to show a progress bar, default is False
@@ -66,7 +68,9 @@ class RunParameters(Base):
         disable_remote_inference (bool): Whether to disable remote inference, default is False
         job_uuid (str, optional): UUID for the job, used for tracking
         fresh (bool): If True, ignore cache and generate new results, default is False
+        new_format (bool): If True, uses remote_inference_create method, if False uses old_remote_inference_create method, default is True
     """
+
     n: int = 1
     progress_bar: bool = False
     stop_on_exception: bool = False
@@ -82,8 +86,18 @@ class RunParameters(Base):
     disable_remote_cache: bool = False
     disable_remote_inference: bool = False
     job_uuid: Optional[str] = None
-    fresh: bool = False  # if True, will not use cache and will save new results to cache
-    memory_threshold: Optional[int] = None  # Threshold in bytes for Results SQLList memory management
+    fresh: bool = (
+        False  # if True, will not use cache and will save new results to cache
+    )
+    memory_threshold: Optional[int] = (
+        None  # Threshold in bytes for Results SQLList memory management
+    )
+    new_format: bool = (
+        True  # if True, uses remote_inference_create, if False uses old_remote_inference_create
+    )
+    expected_parrot_api_key: Optional[str] = (
+        None  # Custom EXPECTED_PARROT_API_KEY to use for this job run
+    )
 
     def to_dict(self, add_edsl_version=False) -> dict:
         d = asdict(self)
@@ -110,24 +124,25 @@ class RunParameters(Base):
 class RunConfig:
     """
     Combines environment resources and execution parameters for a job run.
-    
+
     This class brings together the two aspects of job configuration:
     1. Environment resources (caches, API keys, etc.) via RunEnvironment
     2. Execution parameters (iterations, error handling, etc.) via RunParameters
-    
+
     It provides helper methods for modifying environment components after construction.
-    
+
     Attributes:
         environment (RunEnvironment): The environment resources for the job
         parameters (RunParameters): The execution parameters for the job
     """
+
     environment: RunEnvironment
     parameters: RunParameters
 
     def add_environment(self, environment: RunEnvironment) -> None:
         """
         Replace the entire environment configuration.
-        
+
         Parameters:
             environment (RunEnvironment): The new environment configuration
         """
@@ -136,25 +151,25 @@ class RunConfig:
     def add_bucket_collection(self, bucket_collection: "BucketCollection") -> None:
         """
         Set or replace the bucket collection in the environment.
-        
+
         Parameters:
             bucket_collection (BucketCollection): The bucket collection to use
         """
         self.environment.bucket_collection = bucket_collection
 
-    def add_cache(self, cache: Cache) -> None:
+    def add_cache(self, cache: "Cache") -> None:
         """
         Set or replace the cache in the environment.
-        
+
         Parameters:
             cache (Cache): The cache to use
         """
         self.environment.cache = cache
 
-    def add_key_lookup(self, key_lookup: KeyLookup) -> None:
+    def add_key_lookup(self, key_lookup: "KeyLookup") -> None:
         """
         Set or replace the key lookup in the environment.
-        
+
         Parameters:
             key_lookup (KeyLookup): The key lookup to use
         """
@@ -169,10 +184,10 @@ Additional data structures for working with job results and answers.
 class Answers(UserDict):
     """
     A specialized dictionary for holding interview response data.
-    
+
     This class extends UserDict to provide a flexible container for survey answers,
     with special handling for response metadata like comments and token usage.
-    
+
     Key features:
     - Stores answers by question name
     - Associates comments with their respective questions
@@ -185,14 +200,14 @@ class Answers(UserDict):
     ) -> None:
         """
         Add a response to the answers dictionary.
-        
+
         This method processes a response and stores it in the dictionary with appropriate
         naming conventions for the answer itself, comments, and token usage tracking.
-        
+
         Parameters:
             response (EDSLResultObjectInput): The response object containing answer data
             question (QuestionBase): The question that was answered
-            
+
         Notes:
             - The main answer is stored with the question's name as the key
             - Comments are stored with "_comment" appended to the question name
@@ -201,31 +216,33 @@ class Answers(UserDict):
         answer = response.answer
         comment = response.comment
         generated_tokens = response.generated_tokens
-        
+
         # Record token usage if available
         if generated_tokens:
             self[question.question_name + "_generated_tokens"] = generated_tokens
-            
+
         # Record the primary answer
         self[question.question_name] = answer
-        
+
         # Record comment if present
         if comment:
             self[question.question_name + "_comment"] = comment
 
         if getattr(response, "reasoning_summary", None):
-            self[question.question_name + "_reasoning_summary"] = response.reasoning_summary
+            self[question.question_name + "_reasoning_summary"] = (
+                response.reasoning_summary
+            )
 
     def replace_missing_answers_with_none(self, survey: "Survey") -> None:
         """
         Replace missing answers with None for all questions in the survey.
-        
+
         This method ensures that all questions in the survey have an entry in the
         answers dictionary, even if they were skipped during the interview.
-        
+
         Parameters:
             survey (Survey): The survey containing the questions to check
-            
+
         Notes:
             - Answers can be missing if the agent skips a question due to skip logic
             - This ensures consistent data structure even with partial responses
@@ -237,7 +254,7 @@ class Answers(UserDict):
     def to_dict(self) -> dict:
         """
         Convert the answers to a standard dictionary.
-        
+
         Returns:
             dict: A plain dictionary containing all the answers data
         """
@@ -247,10 +264,10 @@ class Answers(UserDict):
     def from_dict(cls, d: dict) -> "Answers":
         """
         Create an Answers object from a dictionary.
-        
+
         Parameters:
             d (dict): The dictionary containing answer data
-            
+
         Returns:
             Answers: A new Answers instance with the provided data
         """

@@ -1,12 +1,13 @@
-from jinja2 import Environment, meta, TemplateSyntaxError
+import re
 from typing import Any, Set, TYPE_CHECKING
 
-from ..agents import Agent
-from ..scenarios import Scenario
+from jinja2 import Environment, meta, TemplateSyntaxError
 
 if TYPE_CHECKING:
     from .prompt_constructor import PromptConstructor
     from ..questions import QuestionBase
+    from ..agents import Agent
+    from ..scenarios import Scenario
 
 
 class QuestionTemplateReplacementsBuilder:
@@ -32,7 +33,7 @@ class QuestionTemplateReplacementsBuilder:
         self.prior_answers_dict = prior_answers_dict
         self.agent = agent
 
-    def question_file_keys(self):
+    def question_file_keys(self) -> list:
         """
         >>> from ..questions import QuestionMultipleChoice
         >>> from ..scenarios import Scenario
@@ -62,9 +63,10 @@ class QuestionTemplateReplacementsBuilder:
         file_keys = self._find_file_keys(self.scenario)
         return self._extract_file_keys_from_question_text(question_text, file_keys)
 
-    def scenario_file_keys(self):
+    def scenario_file_keys(self) -> list:
         return self._find_file_keys(self.scenario)
 
+    @staticmethod
     def get_jinja2_variables(template_str: str) -> Set[str]:
         """
         Extracts all variable names from a Jinja2 template using Jinja2's built-in parsing.
@@ -102,11 +104,7 @@ class QuestionTemplateReplacementsBuilder:
         """
         from ..scenarios import FileStore
 
-        file_entries = []
-        for key, value in scenario.items():
-            if isinstance(value, FileStore):
-                file_entries.append(key)
-        return file_entries
+        return [key for key, value in scenario.items() if isinstance(value, FileStore)]
 
     @staticmethod
     def _extract_file_keys_from_question_text(
@@ -145,34 +143,35 @@ class QuestionTemplateReplacementsBuilder:
             question_text
         )
         question_file_keys = []
-        
+
         # Direct references: {{ file_key }}
         for var in variables:
             if var in scenario_file_keys:
                 question_file_keys.append(var)
-                
+
         # Scenario-prefixed references: {{ scenario.file_key }}
         for var in variables:
             if var == "scenario":
                 # If we find a scenario variable, we need to check for nested references
                 # Create a modified template with just {{ scenario.* }} expressions to isolate them
                 # Using a template format for reference, not actually used
-                _ = "".join([
-                    "{% for key, value in scenario.items() %}{{ key }}{% endfor %}"
-                ])
+                _ = "".join(
+                    ["{% for key, value in scenario.items() %}{{ key }}{% endfor %}"]
+                )
                 try:
                     # This is a check to make sure there's scenario.something syntax in the template
                     if "scenario." in question_text:
                         # Extract dot-notation scenario references by parsing the template
-                        import re
-                        scenario_refs = re.findall(r'{{\s*scenario\.(\w+)\s*}}', question_text)
+                        scenario_refs = re.findall(
+                            r"{{\s*scenario\.(\w+)\s*}}", question_text
+                        )
                         for key in scenario_refs:
                             if key in scenario_file_keys:
                                 question_file_keys.append(key)
                 except Exception:
                     # If there's any issue parsing, just continue with what we have
                     pass
-                
+
         return list(set(question_file_keys))  # Remove duplicates
 
     def _scenario_replacements(
@@ -180,9 +179,9 @@ class QuestionTemplateReplacementsBuilder:
     ) -> dict[str, Any]:
         """
         >>> from edsl import Scenario
-        >>> from edsl import QuestionFreeText; 
+        >>> from edsl import QuestionFreeText;
         >>> q = QuestionFreeText(question_text = "How are you {{ scenario.friend }}?", question_name = "test")
-        >>> s = Scenario({'friend':'john'}) 
+        >>> s = Scenario({'friend':'john'})
         >>> q.by(s).prompts().select('user_prompt')
         Dataset([{'user_prompt': [Prompt(text=\"""How are you john?\""")]}])
         """
@@ -195,8 +194,8 @@ class QuestionTemplateReplacementsBuilder:
         scenario_items = {
             k: v for k, v in self.scenario.items() if k not in self.scenario_file_keys()
         }
-        scenario_items_with_prefix = {'scenario': scenario_items}
-        
+        scenario_items_with_prefix = {"scenario": scenario_items}
+
         return {**file_refs, **scenario_items, **scenario_items_with_prefix}
 
     @staticmethod

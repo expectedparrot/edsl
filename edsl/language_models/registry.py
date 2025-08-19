@@ -8,7 +8,7 @@ from .exceptions import (
     LanguageModelAttributeTypeError,
     LanguageModelImplementationError,
     LanguageModelTypeError,
-    LanguageModelRegistryError
+    LanguageModelRegistryError,
 )
 from edsl.enums import InferenceServiceType
 
@@ -18,7 +18,7 @@ class RegisterLanguageModelsMeta(ABCMeta):
 
     _registry = {}  # Initialize the registry as a dictionary
     REQUIRED_CLASS_ATTRIBUTES = ["_model_", "_parameters_", "_inference_service_"]
-    
+
     @classmethod
     def clear_registry(cls):
         """Clear the registry to prevent memory leaks."""
@@ -123,7 +123,9 @@ class RegisterLanguageModelsMeta(ABCMeta):
         >>> RegisterLanguageModelsMeta._check_method_defined(M, "f")
         """
         if not hasattr(cls, method_name):
-            raise LanguageModelImplementationError(f"{method_name} method must be implemented.")
+            raise LanguageModelImplementationError(
+                f"{method_name} method must be implemented."
+            )
 
     @staticmethod
     def _check_is_coroutine(func: Callable):

@@ -28,7 +28,10 @@ class InterviewStatusDictionary(UserDict):
         """Adds two InterviewStatusDictionaries together."""
         if not isinstance(other, InterviewStatusDictionary):
             from .exceptions import InterviewStatusError
-            raise InterviewStatusError(f"Can't add {type(other)} to InterviewStatusDictionary")
+
+            raise InterviewStatusError(
+                f"Can't add {type(other)} to InterviewStatusDictionary"
+            )
         new_dict = {}
         for key in self.keys():
             new_dict[key] = self[key] + other[key]

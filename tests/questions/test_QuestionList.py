@@ -74,6 +74,38 @@ def test_QuestionList_construction():
         QuestionList(**invalid_question)
 
 
+def test_QuestionList_negative_values():
+    """Test QuestionList validation for negative values."""
+    
+    # should raise an exception if min_list_items is negative
+    invalid_question = valid_question.copy()
+    invalid_question.update({"min_list_items": -1})
+    with pytest.raises(ValueError) as excinfo:
+        QuestionList(**invalid_question)
+    assert "min_list_items must be non-negative" in str(excinfo.value)
+    
+    # should raise an exception if max_list_items is negative
+    invalid_question = valid_question.copy()
+    invalid_question.update({"max_list_items": -10})
+    with pytest.raises(ValueError) as excinfo:
+        QuestionList(**invalid_question)
+    assert "max_list_items must be non-negative" in str(excinfo.value)
+    
+    # should raise an exception if both are negative
+    invalid_question = valid_question.copy()
+    invalid_question.update({"min_list_items": -1, "max_list_items": -10})
+    with pytest.raises(ValueError) as excinfo:
+        QuestionList(**invalid_question)
+    assert "min_list_items must be non-negative" in str(excinfo.value)
+    
+    # should work fine with zero values
+    valid_question_zero = valid_question.copy()
+    valid_question_zero.update({"min_list_items": 0, "max_list_items": 0})
+    q = QuestionList(**valid_question_zero)
+    assert q.min_list_items == 0
+    assert q.max_list_items == 0
+
+
 def remove_none_values(d):
     return {k: v for k, v in d.items() if v is not None}
 

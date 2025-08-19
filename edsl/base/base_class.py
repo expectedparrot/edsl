@@ -21,7 +21,6 @@ import difflib
 from typing import Dict, Literal, List, Tuple
 from collections import UserList
 import inspect
-import hashlib
 
 from .. import logger
 
@@ -135,6 +134,12 @@ class PersistenceMixin:
         """
         return self.from_dict(self.to_dict(add_edsl_version=False))
 
+    def store(self, container_dict: dict, name: Optional[str] = None):
+        if name is None:
+            name = hash(self)
+        container_dict[name] = self
+        return self
+
     @classmethod
     def help(cls):
         """Display the class documentation string.
@@ -144,7 +149,36 @@ class PersistenceMixin:
         Returns:
             None, but prints the class docstring to stdout
         """
-        print(cls.__doc__)
+        from ..widgets.object_docs_viewer import ObjectDocsViewerWidget
+
+        return ObjectDocsViewerWidget(cls.example())
+        # print(cls.__doc__)
+
+    # def push(
+    #     self,
+    #     description: Optional[str] = None,
+    #     alias: Optional[str] = None,
+    #     visibility: Optional[str] = "unlisted",
+    #     expected_parrot_url: Optional[str] = None,
+    # ):
+    #     """Upload this object to the EDSL cooperative platform.
+
+    #     This method serializes the object and posts it to the EDSL coop service,
+    #     making it accessible to others or for your own use across sessions.
+
+    #     Args:
+    #         description: Optional text description of the object
+    #         alias: Optional human-readable identifier for the object
+    #         visibility: Access level setting ("private", "unlisted", or "public")
+    #         expected_parrot_url: Optional custom URL for the coop service
+
+    #     Returns:
+    #         The response from the coop service containing the object's unique identifier
+    #     """
+    #     from edsl.coop import Coop
+
+    #     c = Coop(url=expected_parrot_url)
+    #     return c.create(self, description, alias, visibility)
 
     def push(
         self,
@@ -152,25 +186,30 @@ class PersistenceMixin:
         alias: Optional[str] = None,
         visibility: Optional[str] = "unlisted",
         expected_parrot_url: Optional[str] = None,
-    ):
-        """Upload this object to the EDSL cooperative platform.
+    ) -> dict:
+        """
+        Get a signed URL for directly uploading an object to Google Cloud Storage.
 
-        This method serializes the object and posts it to the EDSL coop service,
-        making it accessible to others or for your own use across sessions.
+        This method provides a more efficient way to upload objects compared to the push() method,
+        especially for large files, by generating a direct signed URL to the storage bucket.
 
         Args:
-            description: Optional text description of the object
-            alias: Optional human-readable identifier for the object
-            visibility: Access level setting ("private", "unlisted", or "public")
-            expected_parrot_url: Optional custom URL for the coop service
+            expected_parrot_url (str, optional): Optional custom URL for the coop service
 
         Returns:
-            The response from the coop service containing the object's unique identifier
+            dict: A response containing the signed_url for direct upload and optionally a job_id
+
+        Example:
+            >>> from edsl.surveys import Survey
+            >>> survey = Survey(...)
+            >>> response = survey.push()
+            >>> print(f"Upload URL: {response['signed_url']}")
+            >>> # Use the signed_url to upload the object directly
         """
         from edsl.coop import Coop
 
         c = Coop(url=expected_parrot_url)
-        return c.create(self, description, alias, visibility)
+        return c.push(self, description, alias, visibility)
 
     def to_yaml(self, add_edsl_version=False, filename: str = None) -> Union[str, None]:
         """Convert the object to YAML format.
@@ -243,7 +282,7 @@ class PersistenceMixin:
         return fs.create_link()
 
     @classmethod
-    def pull(
+    def old_pull(
         cls,
         url_or_uuid: Optional[Union[str, UUID]] = None,
     ):
@@ -268,6 +307,52 @@ class PersistenceMixin:
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
 
         return coop.get(url_or_uuid, expected_object_type=object_type)
+
+    @classmethod
+    def pull(
+        cls,
+        url_or_uuid: Optional[Union[str, UUID]] = None,
+        expected_parrot_url: Optional[str] = None,
+    ) -> dict:
+        """
+        Get a signed URL for directly downloading an object from Google Cloud Storage.
+
+        This method provides a more efficient way to download objects compared to the old pull() method,
+        especially for large files, by generating a direct signed URL to the storage bucket.
+
+        Args:
+            url_or_uuid (Union[str, UUID], optional): Identifier for the object to retrieve.
+                Can be one of:
+                - UUID string (e.g., "123e4567-e89b-12d3-a456-426614174000")
+                - Full URL (e.g., "https://expectedparrot.com/content/123e4567...")
+                - Alias URL (e.g., "https://expectedparrot.com/content/username/my-survey")
+            expected_parrot_url (str, optional): Optional custom URL for the coop service
+
+        Returns:
+            dict: A response containing the signed_url for direct download
+
+        Example:
+            >>> response = SurveyClass.pull("123e4567-e89b-12d3-a456-426614174000")
+            >>> response = SurveyClass.pull("https://expectedparrot.com/content/username/my-survey")
+            >>> print(f"Download URL: {response['signed_url']}")
+            >>> # Use the signed_url to download the object directly
+        """
+        from edsl.coop import Coop
+        from edsl.coop import ObjectRegistry
+        from edsl.jobs import Jobs
+
+        coop = Coop(url=expected_parrot_url)
+
+        if issubclass(cls, Jobs):
+            job_data = coop.new_remote_inference_get(
+                str(url_or_uuid), include_json_string=True
+            )
+            job_dict = json.loads(job_data.get("job_json_string"))
+            return cls.from_dict(job_dict)
+
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
+
+        return coop.pull(url_or_uuid, object_type)
 
     @classmethod
     def list(
@@ -439,14 +524,58 @@ class PersistenceMixin:
         c = Coop()
         return c.search(cls, query)
 
-    def store(self, d: dict, key_name: Optional[str] = None):
-        if key_name is None:
-            index = len(d)
-        else:
-            index = key_name
-        d[index] = self
+    def clipboard(self):
+        """Copy this object's representation to the system clipboard.
 
-    def save(self, filename, compress=True):
+        This method first checks if the object has a custom clipboard_data() method.
+        If it does, it uses that method's output. Otherwise, it serializes the object
+        to a dictionary (without version info) and copies it to the system clipboard as JSON text.
+
+        Returns:
+            None, but prints a confirmation message
+        """
+        import subprocess
+        import json
+        import platform
+
+        # Check if the object has a custom clipboard_data method
+        if hasattr(self, "clipboard_data") and callable(
+            getattr(self, "clipboard_data")
+        ):
+            clipboard_text = self.clipboard_data()
+        else:
+            # Default behavior: use to_dict and convert to JSON
+            obj_dict = self.to_dict(add_edsl_version=False)
+            clipboard_text = json.dumps(obj_dict, indent=2)
+
+        # Determine the clipboard command based on the operating system
+        system = platform.system()
+
+        try:
+            if system == "Darwin":  # macOS
+                process = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE)
+                process.communicate(clipboard_text.encode("utf-8"))
+            elif system == "Linux":
+                process = subprocess.Popen(
+                    ["xclip", "-selection", "clipboard"], stdin=subprocess.PIPE
+                )
+                process.communicate(clipboard_text.encode("utf-8"))
+            elif system == "Windows":
+                process = subprocess.Popen(["clip"], stdin=subprocess.PIPE, shell=True)
+                process.communicate(clipboard_text.encode("utf-8"))
+            else:
+                print(f"Clipboard not supported on {system}")
+                return
+
+            print("Object data copied to clipboard")
+        except FileNotFoundError:
+            print(
+                "Clipboard command not found. Please install pbcopy (macOS), xclip (Linux), or use Windows."
+            )
+        except Exception as e:
+            print(f"Failed to copy to clipboard: {e}")
+
+    def save(self, filename: Optional[str] = None, compress: bool = True):
         """Save the object to a file as JSON with optional compression.
 
         Serializes the object to JSON and writes it to the specified file.
@@ -464,6 +593,10 @@ class PersistenceMixin:
             >>> obj.save("my_object.json.gz")  # Compressed
             >>> obj.save("my_object.json", compress=False)  # Uncompressed
         """
+
+        if filename is None:
+            filename = f"{self.__class__.__name__}_{str(hash(self))}.json"
+
         logger.debug(f"Saving {self.__class__.__name__} to file: {filename}")
 
         if filename.endswith("json.gz"):
@@ -746,12 +879,14 @@ class RepresentationMixin:
             summary_line = "".join([f" {k}: {v};" for k, v in summary_dict.items()])
             class_name = self.__class__.__name__
             docs = getattr(self, "__documentation__", "")
+            table = self.table()
+            table_html = table._repr_html_() if table is not None else ""
             return (
                 "<p>"
                 + f"<a href='{docs}'>{class_name}</a>"
                 + summary_line
                 + "</p>"
-                + self.table()._repr_html_()
+                + table_html
             )
         else:
             class_name = self.__class__.__name__
@@ -793,7 +928,11 @@ class HashingMixin:
         """
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self.to_dict(add_edsl_version=False))
+        d = self.to_dict(add_edsl_version=False)
+        if "name" in d:
+            d.pop("name")
+
+        return dict_hash(d)
 
     def get_hash(self) -> str:
         """Get a string hash representation of this object based on its content.
@@ -1007,6 +1146,56 @@ class Base(
                 print(f"{method}: {documentation}")
         else:
             return [x[0] for x in public_methods_with_docstrings]
+
+    def get_description(self) -> str:
+        """Get the description of this object."""
+        print("Getting description...")
+        from ..questions import QuestionFreeText
+
+        if self.__class__.__name__ == "Survey":
+            content = "This is a survey with the following questions: " + ", ".join(
+                [q.question_text for q in self.questions]
+            )
+        else:
+            content = str(self.to_dict())
+
+        q = QuestionFreeText(
+            question_text=f"Write a one sentence description of this (less than 200 characters): {content}?",
+            question_name="description",
+        )
+        results = q.run()
+        return results.select("description").first()
+
+    def inspect(self):
+        """Create an interactive inspector widget for this object.
+
+        This method uses the InspectorWidget registry system to find the appropriate
+        inspector widget class for this object's type and returns an instance of it.
+
+        Returns:
+            InspectorWidget subclass instance: Interactive widget for inspecting this object
+
+        Raises:
+            KeyError: If no inspector widget is registered for this object's class
+            ImportError: If the widgets module cannot be imported
+        """
+        try:
+            from ..widgets.inspector_widget import InspectorWidget
+        except ImportError as e:
+            raise ImportError(
+                "Inspector widgets are not available. Make sure the widgets module is installed."
+            ) from e
+
+        try:
+            return InspectorWidget.create_inspector_for(self)
+        except KeyError as e:
+            available_classes = InspectorWidget.get_registered_classes()
+            raise KeyError(
+                f"No inspector widget found for {self.__class__.__name__}. "
+                f"Available inspectors: {available_classes}. "
+                f"To create a custom inspector, define a class that inherits from InspectorWidget "
+                f"with associated_class = '{self.__class__.__name__}'."
+            ) from e
 
 
 class BaseDiffCollection(UserList):
@@ -1407,9 +1596,25 @@ class BaseDiff:
                     try:
                         for line in diff:
                             result.append(f"      {line}")
-                    except:
+                    except (TypeError, ValueError):
                         result.append(f"      {diff}")
         return "\n".join(result)
+
+    def pretty_print(self):  # noqa: D401
+        """Pretty-print the diff to the terminal using Rich.
+
+        This method relies on :pymod:`edsl.pretty_diff` which renders the diff
+        as colourised tables.  It simply delegates to that helper so that
+        calling code can do:
+
+        >>> diff = obj1 - obj2
+        >>> diff.pretty_print()
+        """
+        from .pretty_diff import (
+            pretty_print,
+        )  # Local import now that pretty_diff is inside edsl.base
+
+        pretty_print(self)
 
     def __repr__(self):
         """Generate a developer-friendly string representation.
