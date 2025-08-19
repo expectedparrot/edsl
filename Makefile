@@ -63,7 +63,6 @@ find: ## Search for a pattern. Use `make find term="pattern"`
 clean: ## Clean temp files
 	@echo "Cleaning tempfiles..."
 	[ ! -f .coverage ] || rm .coverage
-	[ ! -f .edsl_model_archive.json ] || rm .edsl_model_archive.json
 	[ ! -d .edsl_cache ] || rm  -rf .edsl_cache
 	[ ! -d .mypy_cache ] || rm -rf .mypy_cache
 	[ ! -d .temp ] || rm -rf .temp
