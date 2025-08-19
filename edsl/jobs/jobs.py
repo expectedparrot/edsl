@@ -453,9 +453,9 @@ class Jobs(Base):
     def show_prompts(self, all: bool = False) -> None:
         """Print the prompts."""
         if all:
-            return self.prompts().to_scenario_list().table()
+            print(self.prompts().to_scenario_list().table())
         else:
-            return (
+            print(
                 self.prompts().to_scenario_list().table("user_prompt", "system_prompt")
             )
 
