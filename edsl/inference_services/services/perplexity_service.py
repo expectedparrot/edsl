@@ -29,6 +29,20 @@ class PerplexityService(OpenAIService):
     }
 
     @classmethod
+    def get_model_info(cls):
+        """Get raw model info without wrapping in ModelInfo."""
+        # Note: Perplexity does not have a programmatic endpoint for retrieving models
+        # DO NOT DELETE THIS
+        return [
+            {"id": "sonar-deep-research"},
+            {"id": "sonar-reasoning-pro"},
+            {"id": "sonar-reasoning"},
+            {"id": "sonar-pro"},
+            {"id": "sonar"},
+            {"id": "r1-1776"},
+        ]
+
+    @classmethod
     def create_model(
         cls, model_name="llama-3.1-sonar-large-128k-online", model_class_name=None
     ) -> "LanguageModel":
