@@ -3,6 +3,7 @@ from .model_info_fetcher import ModelInfoFetcherABC
 
 if TYPE_CHECKING:
     from .inference_service_registry import InferenceServiceRegistry
+    from .model_info import ModelInfo
 
 
 class SourcePreferenceHandler:
@@ -36,15 +37,18 @@ class SourcePreferenceHandler:
 
     def fetch_model_info_data(
         self, source_preferences: Optional[List[str]] = None
-    ) -> Dict[str, List[str]]:
+    ) -> Dict[str, List["ModelInfo"]]:
         """
         Iterate through source preferences to find and fetch model info data.
 
         Tries each source in the preference order until one succeeds in fetching
         non-empty model information.
 
+        Args:
+            source_preferences: Optional list of source preferences to override the default
+
         Returns:
-            Dictionary mapping service names to lists of model names
+            Dictionary mapping service names to lists of ModelInfo objects
 
         Raises:
             ValueError: If no source can successfully fetch model information
@@ -68,7 +72,9 @@ class SourcePreferenceHandler:
                 print(f"[SOURCE_HANDLER] Trying source: {source}")
 
             try:
-                model_info_fetcher = fetchers[source](self.registry)
+                model_info_fetcher: ModelInfoFetcherABC = fetchers[source](
+                    self.registry
+                )
                 model_info_fetcher.fetch()
 
                 if len(model_info_fetcher) > 0:

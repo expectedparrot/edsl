@@ -7,6 +7,7 @@ from .source_preference_handler import SourcePreferenceHandler
 
 if TYPE_CHECKING:
     from .inference_service_abc import InferenceServiceABC
+    from .model_info import ModelInfo
 
 import importlib
 import pkgutil
@@ -90,10 +91,12 @@ class InferenceServiceRegistry:
         self._services = {}
         self._registration_times = {}  # Track when services were registered
 
-        self._model_info_data = None
+        self._model_info_data: Optional[Dict[str, List["ModelInfo"]]] = None
 
-        self._model_to_services = None  # Map model names to service names
-        self._service_to_models = None
+        self._model_to_services: Optional[Dict[str, List[str]]] = (
+            None  # Map model names to service names
+        )
+        self._service_to_models: Optional[Dict[str, List["ModelInfo"]]] = None
 
         if classes_to_register is None:
             classes_to_register = self._default_classes_to_register
@@ -110,7 +113,7 @@ class InferenceServiceRegistry:
             source_preferences = self._default_source_preferences
 
         self._source_handler = SourcePreferenceHandler(
-            registry=self, source_preferences=source_preferences, verbose=verbose
+            registry=self, source_preferences=source_preferences, verbose=True
         )
 
         if classes_to_register is None:
@@ -130,7 +133,7 @@ class InferenceServiceRegistry:
         return self._services
 
     @property
-    def service_to_models(self) -> Dict[str, List[str]]:
+    def service_to_models(self) -> Dict[str, List["ModelInfo"]]:
         if self._service_to_models is None:
             self._build_model_mappings()
         return self._service_to_models
@@ -158,8 +161,18 @@ class InferenceServiceRegistry:
         """Returns a list of all registered service names."""
         return list(self._services.keys())
 
-    def fetch_model_info_data(self, source_preferences: Optional[List[str]] = None):
-        """Refreshes the model info data and rebuilds the model-to-service and service-to-model mappings, taking source preferences into account."""
+    def fetch_model_info_data(
+        self, source_preferences: Optional[List[str]] = None
+    ) -> Dict[str, List["ModelInfo"]]:
+        """
+        Refreshes the model info data and rebuilds the model-to-service and service-to-model mappings, taking source preferences into account.
+
+        Args:
+            source_preferences: Optional list of source preferences to override the default
+
+        Returns:
+            Dictionary mapping service names to lists of ModelInfo objects
+        """
         if self._model_info_data is None:
             self._model_info_data = self._source_handler.fetch_model_info_data(
                 source_preferences
@@ -168,7 +181,7 @@ class InferenceServiceRegistry:
         return self._model_info_data
 
     @property
-    def model_info_data(self) -> dict:
+    def model_info_data(self) -> Dict[str, List["ModelInfo"]]:
         """Get the model data from the model info fetcher."""
         if self._model_info_data is None:
             self._model_info_data = self._source_handler.fetch_model_info_data()
