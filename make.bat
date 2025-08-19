@@ -33,6 +33,7 @@ goto :end
 :clean
 echo Cleaning tempfiles...
 if exist .coverage del .coverage
+if exist .edsl_model_archive.json del .edsl_model_archive.json
 if exist .edsl_cache rmdir /s /q .edsl_cache
 if exist .mypy_cache rmdir /s /q .mypy_cache
 if exist .temp rmdir /s /q .temp
