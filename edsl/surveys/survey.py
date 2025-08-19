@@ -11,8 +11,6 @@ branching surveys with conditional logic.
 
 from __future__ import annotations
 import re
-import random
-from collections import UserDict
 from uuid import uuid4
 
 from typing import (
@@ -62,7 +60,6 @@ from .base import EndOfSurvey, EndOfSurveyParent
 from .descriptors import QuestionsDescriptor
 from .memory import MemoryPlan
 from .survey_flow_visualization import SurveyFlowVisualization
-from ..instructions import InstructionHandler
 from .edit_survey import EditSurvey
 from .survey_simulator import Simulator
 from .memory import MemoryManagement
@@ -73,9 +70,9 @@ from .survey_navigation import SurveyNavigation
 from .survey_execution import SurveyExecution
 from .survey_drawing import SurveyDrawing
 from .survey_transformer import SurveyTransformer
-from .survey_question_processor import SurveyQuestionProcessor, PseudoIndices
+from .survey_question_processor import SurveyQuestionProcessor
 from .survey_question_manager import SurveyQuestionManager
-from .exceptions import SurveyCreationError, SurveyHasNoRulesError, SurveyError
+from .exceptions import SurveyCreationError, SurveyError
 
 
 
@@ -374,14 +371,8 @@ class Survey(Base):
         cls, overall_question: str, population: str, num_questions: int
     ) -> Survey:
         """Create a survey with a single question that asks the user how they are doing."""
-        from edsl import ext
-
-        survey_info = ext.create_survey(
-            overall_question=overall_question,
-            population=population,
-            num_questions=num_questions,
-        )
-        return survey_info["survey"]
+        # TODO: ext module does not exist - needs implementation
+        raise NotImplementedError("auto_survey method requires ext module which is not available")
 
     def generate_description(self) -> str:
         """Generate a description of the survey."""
@@ -469,7 +460,7 @@ class Survey(Base):
 
         :param instruction: The instruction to add to the survey.
 
-        >>> from edsl import Instruction
+        >>> from edsl.instructions import Instruction
         >>> i = Instruction(text="Pay attention to the following questions.", name="intro")
         >>> s = Survey().add_instruction(i)
         >>> s._instruction_names_to_instructions
@@ -1540,7 +1531,7 @@ class Survey(Base):
         Examples:
             With a survey that has instructions:
 
-            >>> from edsl import Instruction
+            >>> from edsl.instructions import Instruction
             >>> s = Survey.example(include_instructions=True)
             >>> # Get the first item (should be the instruction)
             >>> first_item = s.next_question_with_instructions()
@@ -1854,7 +1845,8 @@ class Survey(Base):
         old_dict.update(field_name_new_values)
         for field_name in pop_fields or []:
             _ = old_dict.pop(field_name)
-        new_question = Question(**old_dict)
+        question_type = old_dict.pop('question_type')
+        new_question = Question(question_type, **old_dict)
         new_survey.questions[new_survey.questions.index(question)] = new_question
         return new_survey
 
@@ -1961,7 +1953,7 @@ class Survey(Base):
 
         # Add instruction if requested
         if include_instructions:
-            from edsl import Instruction
+            from ..instructions import Instruction
 
             custom_instructions = (
                 custom_instructions if custom_instructions else "Please pay attention!"
@@ -2228,8 +2220,9 @@ def main():
 
     def example_survey():
         """Return an example survey."""
-        from edsl import QuestionMultipleChoice, QuestionList, QuestionNumerical, Survey
-
+        from ..questions import QuestionMultipleChoice, QuestionList, QuestionNumerical
+        # Survey class is already available in this module
+     
         q0 = QuestionMultipleChoice(
             question_name="q0",
             question_text="What is the capital of France?",

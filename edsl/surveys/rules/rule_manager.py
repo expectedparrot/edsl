@@ -6,7 +6,7 @@ if TYPE_CHECKING:
 
 from ..exceptions import SurveyError, SurveyCreationError
 from .rule import Rule
-from ..base import RulePriority, EndOfSurvey
+from ..base import RulePriority, EndOfSurvey, EndOfSurveyParent
 
 
 class ValidatedString(str):
@@ -90,7 +90,7 @@ class RuleManager:
         self,
         question: Union["QuestionBase", str],
         expression: str,
-        next_question: Union["QuestionBase", str, int],
+        next_question: Union["QuestionBase", str, int, EndOfSurveyParent],
         before_rule: bool = False,
     ) -> "Survey":
         """
