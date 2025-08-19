@@ -78,7 +78,12 @@ class InferenceServiceABC(ABC):
         from .model_info import ModelInfo
 
         raw_data = cls.get_model_info()
-        return [ModelInfo.from_raw(item, cls._inference_service_) for item in raw_data]
+        model_list = []
+        for item in raw_data:
+            model_id = ModelInfo.get_id_from_raw(item, cls._inference_service_)
+            model_info = ModelInfo.from_raw(item, cls._inference_service_, model_id)
+            model_list.append(model_info)
+        return model_list
 
     def __repr__(self) -> str:
         return f"<{self.get_service_name()}>"

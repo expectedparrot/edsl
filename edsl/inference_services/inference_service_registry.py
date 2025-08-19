@@ -7,6 +7,7 @@ from .source_preference_handler import SourcePreferenceHandler
 
 if TYPE_CHECKING:
     from .inference_service_abc import InferenceServiceABC
+    from .model_info import ModelInfo
 
 import importlib
 import pkgutil
@@ -78,7 +79,13 @@ class InferenceServiceRegistry:
         "ollama",
     )
     _default_classes_to_register = load_all_service_classes()
-    _default_source_preferences = ("coop_working", "coop", "archive", "local")
+    _default_source_preferences = (
+        "coop_working",
+        "coop",
+        "archive",
+        "local",
+        "default_models",
+    )
 
     def __init__(
         self,
@@ -90,10 +97,12 @@ class InferenceServiceRegistry:
         self._services = {}
         self._registration_times = {}  # Track when services were registered
 
-        self._model_info_data = None
+        self._model_info_data: Optional[Dict[str, List["ModelInfo"]]] = None
 
-        self._model_to_services = None  # Map model names to service names
-        self._service_to_models = None
+        self._model_to_services: Optional[Dict[str, List[str]]] = (
+            None  # Map model names to service names
+        )
+        self._service_to_models: Optional[Dict[str, List["ModelInfo"]]] = None
 
         if classes_to_register is None:
             classes_to_register = self._default_classes_to_register
@@ -126,11 +135,11 @@ class InferenceServiceRegistry:
         return self._model_to_services
 
     @property
-    def services(self) -> List[str]:
+    def services(self) -> Dict[str, type["InferenceServiceABC"]]:
         return self._services
 
     @property
-    def service_to_models(self) -> Dict[str, List[str]]:
+    def service_to_models(self) -> Dict[str, List["ModelInfo"]]:
         if self._service_to_models is None:
             self._build_model_mappings()
         return self._service_to_models
@@ -158,8 +167,27 @@ class InferenceServiceRegistry:
         """Returns a list of all registered service names."""
         return list(self._services.keys())
 
+    def fetch_model_info_data(
+        self, source_preferences: Optional[List[str]] = None
+    ) -> Dict[str, List["ModelInfo"]]:
+        """
+        Refreshes the model info data and rebuilds the model-to-service and service-to-model mappings, taking source preferences into account.
+
+        Args:
+            source_preferences: Optional list of source preferences to override the default
+
+        Returns:
+            Dictionary mapping service names to lists of ModelInfo objects
+        """
+        if self._model_info_data is None:
+            self._model_info_data = self._source_handler.fetch_model_info_data(
+                source_preferences
+            )
+
+        return self._model_info_data
+
     @property
-    def model_info_data(self) -> dict:
+    def model_info_data(self) -> Dict[str, List["ModelInfo"]]:
         """Get the model data from the model info fetcher."""
         if self._model_info_data is None:
             self._model_info_data = self._source_handler.fetch_model_info_data()
@@ -181,9 +209,9 @@ class InferenceServiceRegistry:
             self._service_to_models[service_name] = models
             total_models += len(models)
 
-            # Build reverse mapping
-            for model_name in models:
-                self._model_to_services[model_name].append(service_name)
+            # Build reverse mapping - all fetchers now return ModelInfo objects
+            for model_info in models:
+                self._model_to_services[model_info.id].append(service_name)
 
     def get_service_for_model(self, model_name: str) -> Optional[str]:
         """Get the preferred service for a given model name based on user preferences."""
@@ -214,7 +242,8 @@ class InferenceServiceRegistry:
 
     def get_models_for_service(self, service_name: str) -> List[str]:
         """Get all model names for a given service."""
-        return self.service_to_models.get(service_name, [])
+        model_infos = self.service_to_models.get(service_name, [])
+        return [model_info.id for model_info in model_infos]
 
     def find_services(self, pattern: str) -> List[str]:
         """Find services matching a wildcard pattern."""
@@ -233,7 +262,9 @@ class InferenceServiceRegistry:
             # Search within a specific service
             service_models = self.service_to_models.get(service_name, [])
             return [
-                model for model in service_models if fnmatch.fnmatch(model, pattern)
+                model_info.id
+                for model_info in service_models
+                if fnmatch.fnmatch(model_info.id, pattern)
             ]
         else:
             return [
