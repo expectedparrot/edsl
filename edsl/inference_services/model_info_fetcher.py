@@ -314,7 +314,7 @@ class ModelInfoCoopRegular(ModelInfoFetcherABC):
         data = {}
         for service_name, model_names in raw_data.items():
             data[service_name] = [
-                ModelInfo.from_raw({"id": model_name}, service_name)
+                ModelInfo.from_raw({"id": model_name}, service_name, model_name)
                 for model_name in model_names
             ]
 
@@ -368,10 +368,11 @@ class ModelInfoCoopWorking(ModelInfoFetcherABC):
         data = defaultdict(list)
         for model in working_models:
             service_name = model["service"]
+            model_id = model["model"]
             # Create ModelInfo object with the rich model data from working models
             model_info = ModelInfo.from_raw(
                 {
-                    "id": model["model"],
+                    "id": model_id,
                     "works_with_text": model.get("works_with_text", False),
                     "works_with_images": model.get("works_with_images", False),
                     "usd_per_1M_input_tokens": model.get("usd_per_1M_input_tokens", 0),
@@ -380,6 +381,7 @@ class ModelInfoCoopWorking(ModelInfoFetcherABC):
                     ),
                 },
                 service_name,
+                model_id,
             )
             data[service_name].append(model_info)
 
@@ -483,14 +485,15 @@ class ModelInfoArchive(ModelInfoFetcherABC):
                 if isinstance(model, str):
                     # Convert string to ModelInfo object
                     converted_models.append(
-                        ModelInfo.from_raw({"id": model}, service_name)
+                        ModelInfo.from_raw({"id": model}, service_name, model)
                     )
                 elif hasattr(model, "id"):
                     # Already a ModelInfo object
                     converted_models.append(model)
                 else:
-                    # Handle dictionaries from archived ModelInfo objects
-                    converted_models.append(ModelInfo.from_raw(model, service_name))
+                    raise ValueError(
+                        f"ModelInfoArchive: Unknown model type: {type(model)}"
+                    )
             converted_data[service_name] = converted_models
 
         return converted_data

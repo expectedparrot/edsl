@@ -25,11 +25,12 @@ class ModelInfo:
     """
 
     service_name: str
+    id: str
     raw_data: Dict[str, Any]
     original_class: str
 
     @classmethod
-    def from_raw(cls, obj: Any, service_name: str) -> "ModelInfo":
+    def from_raw(cls, obj: Any, service_name: str, model_id: str) -> "ModelInfo":
         """Create a ModelInfo instance from raw API response data.
 
         Args:
@@ -45,8 +46,30 @@ class ModelInfo:
         )
 
         return cls(
-            service_name=service_name, raw_data=raw_data, original_class=original_class
+            service_name=service_name,
+            id=model_id,
+            raw_data=raw_data,
+            original_class=original_class,
         )
+
+    @classmethod
+    def get_id_from_raw(cls, raw_data: Any, service_name: str) -> str:
+        """Get the model ID from raw service provider data (common across all services)."""
+        if not isinstance(raw_data, dict):
+            raise TypeError(
+                f"ModelInfo.raw_data expected dict, got {type(raw_data).__name__}: {repr(raw_data)}. "
+                f"Service: {cls.service_name}, Original class: {cls.original_class}"
+            )
+        if service_name == "bedrock":
+            return raw_data.get("modelId")
+        elif service_name == "google":
+            base_name = raw_data.get("name")
+            if isinstance(base_name, str):
+                return base_name.lstrip("models/")
+            else:
+                return base_name
+        else:
+            return raw_data.get("id")
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get a value from the raw data with optional default."""
@@ -59,26 +82,6 @@ class ModelInfo:
     def __contains__(self, key: str) -> bool:
         """Support 'in' operator for checking if key exists in raw data."""
         return key in self.raw_data
-
-    @property
-    def id(self) -> str:
-        """Get the model ID from raw data (common across all services)."""
-        # Most services use 'id', but some might use 'name'
-        if not isinstance(self.raw_data, dict):
-            raise TypeError(
-                f"ModelInfo.raw_data expected dict, got {type(self.raw_data).__name__}: {repr(self.raw_data)}. "
-                f"Service: {self.service_name}, Original class: {self.original_class}"
-            )
-        if self.service_name == "bedrock":
-            return self.raw_data.get("modelId")
-        elif self.service_name == "google":
-            base_name = self.raw_data.get("name")
-            if isinstance(base_name, str):
-                return base_name.lstrip("models/")
-            else:
-                return base_name
-        else:
-            return self.raw_data.get("id")
 
     # def __repr__(self) -> str:
     #     return f"ModelInfo(service='{self.service_name}', id='{self.id}', class='{self.original_class}')"
