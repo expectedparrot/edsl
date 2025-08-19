@@ -79,7 +79,13 @@ class InferenceServiceRegistry:
         "ollama",
     )
     _default_classes_to_register = load_all_service_classes()
-    _default_source_preferences = ("coop_working", "coop", "archive", "local")
+    _default_source_preferences = (
+        "coop_working",
+        "coop",
+        "archive",
+        "local",
+        "default_models",
+    )
 
     def __init__(
         self,
