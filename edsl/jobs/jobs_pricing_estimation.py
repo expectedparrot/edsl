@@ -10,12 +10,9 @@ if TYPE_CHECKING:
     from ..surveys import Survey
     from ..interviews import Interview
     from ..invigilators.invigilator_base import Invigilator
+    from ..dataset import Dataset
 
 from .fetch_invigilator import FetchInvigilator
-from ..coop.utils import CostConverter
-from ..caching import CacheEntry
-from ..dataset import Dataset
-from ..language_models.price_manager import PriceRetriever
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +32,8 @@ class PromptCostEstimator:
     ):
         self.system_prompt = system_prompt
         self.user_prompt = user_prompt
+        from ..language_models.price_manager import PriceRetriever
+
         self.price_retriever = PriceRetriever(price_lookup)
         self.inference_service = inference_service
         self.model = model
@@ -149,6 +148,8 @@ class JobsPrompts:
         self, invigilator: "Invigilator", interview_index: int, iterations: int = 1
     ) -> dict:
         """Process a single invigilator and return a dictionary with all needed data fields."""
+        from ..caching import CacheEntry
+
         prompts = invigilator.get_prompts()
         user_prompt = prompts["user_prompt"]
         system_prompt = prompts["system_prompt"]
@@ -171,7 +172,8 @@ class JobsPrompts:
         # Generate cache keys for each iteration
         files_list = prompts.get("files_list", None)
         if files_list:
-            files_hash = "+".join([str(hash(file)) for file in files_list])
+            # Sort hashes to ensure consistent cache keys regardless of file order
+            files_hash = "+".join(sorted([str(hash(file)) for file in files_list]))
             user_prompt_with_hashes = user_prompt + f" {files_hash}"
         cache_keys = []
 
@@ -206,6 +208,8 @@ class JobsPrompts:
         >>> Jobs.example().prompts()
         Dataset(...)
         """
+        from ..dataset import Dataset
+
         dataset_of_prompts = {k: [] for k in self.relevant_keys}
 
         interviews = self.interviews
@@ -349,6 +353,8 @@ class JobsPrompts:
             detailed_costs.append(group)
 
         # Convert to credits
+        from ..coop.utils import CostConverter
+
         converter = CostConverter()
         for group in detailed_costs:
             group["credits_hold"] = converter.usd_to_credits(group["cost_usd"])

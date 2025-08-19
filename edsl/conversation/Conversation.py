@@ -2,14 +2,14 @@ from collections import UserList
 import asyncio
 import inspect
 from typing import Optional, Callable, TYPE_CHECKING
-from .. import QuestionFreeText, Results, AgentList, ScenarioList, Scenario, Model
+from .. import QuestionFreeText, Results, AgentList, ScenarioList, Scenario
 from ..questions import QuestionBase
 from ..results.result import Result
 from jinja2 import Template
 from ..caching import Cache
 
 if TYPE_CHECKING:
-    from ..language_models.model import Model
+    from .. import Model
 
 from .next_speaker_utilities import (
     default_turn_taking_generator,
@@ -74,7 +74,7 @@ class Conversation:
         conversation_index: Optional[int] = None,
         cache=None,
         disable_remote_inference=False,
-        default_model: Optional[Model] = None,
+        default_model: Optional["Model"] = None,
     ):
         self.disable_remote_inference = disable_remote_inference
         self.per_round_message_template = per_round_message_template
@@ -86,13 +86,13 @@ class Conversation:
 
         self.agent_list = agent_list
 
-        from .. import Model
-
         for agent in self.agent_list:
             if not hasattr(agent, "model"):
                 if default_model is not None:
                     agent.model = default_model
                 else:
+                    from .. import Model
+
                     agent.model = Model()
 
         self.verbose = verbose

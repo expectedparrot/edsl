@@ -1,6 +1,6 @@
 import asyncio
 from typing import Any, Optional, List
-from ..enums import InferenceServiceType
+from ..base import InferenceServiceType
 from ..surveys import Survey
 
 from .language_model import LanguageModel

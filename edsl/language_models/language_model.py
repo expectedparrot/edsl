@@ -36,6 +36,7 @@ from typing import (
     List,
     Optional,
     TYPE_CHECKING,
+    Callable,
 )
 
 from ..base import DiffMethodsMixin
@@ -55,6 +56,7 @@ if TYPE_CHECKING:
     from ..scenarios import FileStore
     from ..questions import QuestionBase
     from ..key_management import KeyLookup
+    from ..invigilators import InvigilatorBase
 
 
 from ..utilities import sync_wrapper, jupyter_nb_handler, remove_edsl_version, dict_hash
@@ -65,7 +67,7 @@ from .registry import RegisterLanguageModelsMeta
 from .raw_response_handler import RawResponseHandler
 
 
-def handle_key_error(func):
+def handle_key_error(func: Callable):
     """Decorator to catch and provide user-friendly error messages for KeyError exceptions.
 
     This decorator gracefully handles KeyError exceptions that may occur when parsing
@@ -155,8 +157,8 @@ class LanguageModel(
         DEFAULT_TPM: Default tokens per minute rate limit
     """
 
-    _model_ = None
-    key_sequence = (
+    _model_:str = None
+    key_sequence: tuple[str, ...] = (
         None  # This should be something like ["choices", 0, "message", "content"]
     )
 
@@ -164,7 +166,7 @@ class LanguageModel(
     DEFAULT_TPM = 1000
 
     @classproperty
-    def response_handler(cls):
+    def response_handler(cls)    -> RawResponseHandler:
         """Get a handler for processing raw model responses.
 
         This property creates a RawResponseHandler configured for the specific
@@ -248,7 +250,7 @@ class LanguageModel(
         if "canned_response" in kwargs:
             self.parameters["canned_response"] = kwargs["canned_response"]
 
-    def _set_key_lookup(self, key_lookup: "KeyLookup") -> "KeyLookup":
+    def _set_key_lookup(self, key_lookup: Optional["KeyLookup"] = None) -> "KeyLookup":
         """Set up the API key lookup mechanism.
 
         This method either uses the provided key lookup object or creates a default
@@ -388,6 +390,19 @@ class LanguageModel(
             >>> id(m1) == id(m2)  # But different objects
             False
         """
+        # Special handling for ScriptedResponseLanguageModel
+        try:
+            from .scripted_response_model import ScriptedResponseLanguageModel
+            if isinstance(self, ScriptedResponseLanguageModel):
+                new_model = ScriptedResponseLanguageModel(self.agent_question_responses)
+                # Copy all important instance attributes
+                for key, value in self.__dict__.items():
+                    if key not in ("_api_token",) and not key.startswith("__"):
+                        setattr(new_model, key, value)
+                return new_model
+        except ImportError:
+            pass
+        
         # Create a new instance of the same class with the same parameters
         try:
             # For most models, we can instantiate with the saved parameters
@@ -401,28 +416,35 @@ class LanguageModel(
             return new_model
         except Exception:
             # Fallback for dynamically created classes like TestServiceLanguageModel
-            from ..inference_services import default
+            try:
+                from ..inference_services import default
+                
+                # If this is a test model, create a new test model instance
+                if getattr(self, "_inference_service_", "") == "test":
+                    service = default.get_service("test")
+                    model_class = service.create_model("test")
+                    new_model = model_class(**self.parameters)
 
-            # If this is a test model, create a new test model instance
-            if getattr(self, "_inference_service_", "") == "test":
-                service = default.get_service("test")
-                model_class = service.create_model("test")
-                new_model = model_class(**self.parameters)
+                    # Copy attributes
+                    for key, value in self.__dict__.items():
+                        if key not in ("_api_token",) and not key.startswith("__"):
+                            setattr(new_model, key, value)
 
-                # Copy attributes
-                for key, value in self.__dict__.items():
-                    if key not in ("_api_token",) and not key.startswith("__"):
-                        setattr(new_model, key, value)
-
-                return new_model
+                    return new_model
+            except ImportError:
+                pass
 
             # If we can't create the model directly, just return a simple test model
             # This is a last resort fallback
-            from ..inference_services import get_service
+            try:
+                from ..inference_services import get_service
 
-            service = get_service("test")
-            model_class = service.create_model("test")
-            return model_class()
+                service = get_service("test")
+                model_class = service.create_model("test")
+                return model_class()
+            except ImportError:
+                # Ultimate fallback - return this instance
+                return self
 
     def __getitem__(self, key):
         """Allow dictionary-style access to model attributes.
@@ -700,7 +722,7 @@ class LanguageModel(
         cache: "Cache",
         iteration: int = 0,
         files_list: Optional[List["FileStore"]] = None,
-        invigilator=None,
+        invigilator: Optional["InvigilatorBase"] = None,
     ) -> ModelResponse:
         """Handle model calls with caching for efficiency.
 
@@ -732,11 +754,10 @@ class LanguageModel(
         """
         # Add file hashes to the prompt if files are provided
         if files_list:
-            files_hash = "+".join([str(hash(file)) for file in files_list])
+            files_hash = "+".join(sorted([str(hash(file)) for file in files_list]))
             user_prompt_with_hashes = user_prompt + f" {files_hash}"
         else:
             user_prompt_with_hashes = user_prompt
-
         # Prepare parameters for cache lookup
         cache_parameters = self.parameters.copy()
         if self.model == "test":
@@ -748,7 +769,6 @@ class LanguageModel(
             "user_prompt": user_prompt_with_hashes,
             "iteration": iteration,
         }
-
         # Try to fetch from cache
         if (
             invigilator is not None
@@ -763,10 +783,33 @@ class LanguageModel(
         cached_response, cache_key = cache.fetch(
             **cache_call_params, remote_fetch=remote_fetch
         )
-        if cache_used := cached_response is not None:
-            # Cache hit - use the cached response
-            response = json.loads(cached_response)
-        else:
+
+        # Validate cached response and handle edge cases
+        cache_used = False
+        response = None
+        if cached_response:
+            try:
+                response = json.loads(cached_response)
+                # Check for empty Google responses (no content parts)
+                try:
+                    is_empty_google = (
+                        "candidates" in response
+                        and response["candidates"]
+                        and "content" in response["candidates"][0]
+                        and "parts" in response["candidates"][0]["content"]
+                        and len(response["candidates"][0]["content"]["parts"]) == 0
+                    )
+                    if not is_empty_google:
+                        cache_used = True
+                except Exception as e:
+                    print(f"Error checking for empty Google response: {e}", flush=True)
+
+            except Exception as e:
+                # If there's an error accessing the cached response, treat it as a cache miss
+                print(f"Error accessing cached response: {e}", flush=True)
+                cached_response = None
+
+        if not cache_used:
             # Cache miss - make a new API call
             # Determine whether to use remote or local execution
             f = (
@@ -784,6 +827,10 @@ class LanguageModel(
             # Add question_name parameter for test models
             if self.model == "test" and invigilator:
                 params["question_name"] = invigilator.question.question_name
+            
+            # Add invigilator parameter for scripted models
+            if hasattr(self, 'agent_question_responses') and invigilator:
+                params["invigilator"] = invigilator
             # Get timeout from configuration
             from ..config import CONFIG
             import logging
@@ -824,6 +871,7 @@ class LanguageModel(
                 TIMEOUT = base_timeout
 
             # Execute the model call with timeout
+
             response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
             # Store the response in the cache
             new_cache_key = cache.store(
@@ -1013,28 +1061,26 @@ class LanguageModel(
         """Create a language model instance from a dictionary representation.
 
         This class method deserializes a model from its dictionary representation,
-        finding the correct model class based on the model identifier and service.
+        using the inference service registry to find the correct model class.
 
         Args:
             data: Dictionary containing the model configuration
 
         Returns:
             LanguageModel: A new model instance of the appropriate type
-
-        Note:
-            This method does not use the stored inference_service directly but
-            fetches the model class based on the model name and service name.
         """
-        from .model import get_model_class
-
-        # Determine the appropriate model class
-        model_class = get_model_class(
-            data["model"], service_name=data.get("inference_service", None)
+        from ..inference_services.inference_service_registry import (
+            InferenceServiceRegistry,
         )
+
+        # Create and use the inference service registry to create the language model
+        registry = InferenceServiceRegistry()
+        model_name = data["model"]
+        service_name = data.get("inference_service", None)
 
         # Handle canned_response in parameters for test models
         if (
-            data["model"] == "test"
+            model_name == "test"
             and "parameters" in data
             and "canned_response" in data["parameters"]
         ):
@@ -1042,15 +1088,19 @@ class LanguageModel(
             canned_response = data["parameters"]["canned_response"]
             params_copy = data.copy()
 
-            # Direct attribute will be set during initialization
             # Add it as a top-level parameter for model initialization
             if isinstance(params_copy, dict) and "parameters" in params_copy:
                 params_copy["canned_response"] = canned_response
 
-            # Create the instance with canned_response as a direct parameter
+            # Create the instance using the registry (which returns a model class)
+            model_class = registry.create_language_model(
+                model_name, service_name=service_name
+            )
             return model_class(**params_copy)
 
-        # For non-test models or test models without canned_response
+        model_class = registry.create_language_model(
+            model_name, service_name=service_name
+        )
         return model_class(**data)
 
     def __repr__(self) -> str:
@@ -1096,6 +1146,45 @@ class LanguageModel(
               by(m1, m2, m3) not by(m1).by(m2).by(m3)."""
         )
         return other_model or self
+
+    @classmethod
+    def from_scripted_responses(
+        cls,
+        agent_question_responses: dict[str, dict[str, str]]
+    ) -> "LanguageModel":
+        """Create a language model with scripted responses for specific agent-question combinations.
+
+        This method creates a specialized model that returns predetermined responses based on
+        the agent name and question name combination. This is useful for testing
+        scenarios where you want to control exactly how different agents respond
+        to different questions.
+
+        Args:
+            agent_question_responses: Nested dictionary mapping agent names to question names
+                to responses. Format: {'agent_name': {'question_name': 'response'}}
+
+        Returns:
+            LanguageModel: A scripted response model
+
+        Examples:
+            Create a model with scripted responses for different agents:
+
+            >>> from edsl.language_models import LanguageModel
+            >>> responses = {
+            ...     'alice': {'favorite_color': 'blue', 'age': '25'},
+            ...     'bob': {'favorite_color': 'red', 'age': '30'}
+            ... }
+            >>> m = LanguageModel.from_scripted_responses(responses)
+            >>> isinstance(m, LanguageModel)
+            True
+
+            The model will return the appropriate response based on agent and question:
+
+            >>> # When used with agent 'alice' and question 'favorite_color', returns 'blue'
+            >>> # When used with agent 'bob' and question 'age', returns '30'
+        """
+        from .scripted_response_model import ScriptedResponseLanguageModel
+        return ScriptedResponseLanguageModel(agent_question_responses)
 
     @classmethod
     def example(
@@ -1145,7 +1234,10 @@ class LanguageModel(
         if test_model:
             # Create a test model with predefined behavior
             m = Model(
-                "test", canned_response=canned_response, throw_exception=throw_exception
+                model_name="test",
+                service_name="test",
+                canned_response=canned_response,
+                throw_exception=throw_exception,
             )
             return m
         else:
@@ -1171,13 +1263,11 @@ class LanguageModel(
 
         # Create a deep copy of this model instance
         new_instance = deepcopy(self)
-        print("Cache entries", len(cache))
 
         # Filter the cache to only include entries for this model
         new_instance.cache = Cache(
             data={k: v for k, v in cache.items() if v.model == self.model}
         )
-        print("Cache entries with same model", len(new_instance.cache))
 
         # Store prompt lists for reference
         new_instance.user_prompts = [

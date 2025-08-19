@@ -15,6 +15,7 @@ from ..language_models.exceptions import LanguageModelNoResponseError
 from ..questions.exceptions import QuestionAnswerValidationError
 from ..surveys.base import EndOfSurvey
 from ..tasks import TaskStatus
+from ..logger import get_logger
 from .exception_tracking import InterviewExceptionEntry
 
 
@@ -104,16 +105,21 @@ class SkipHandler:
         - The agent traits should have "agent." added to the keys
         """
         # Check if we have cached static components
-        if not hasattr(self, '_scenario_cache'):
-            self._scenario_cache = {f"scenario.{k}": v for k, v in self._scenario.items()}
-        
-        if not hasattr(self, '_agent_cache'):
+        if not hasattr(self, "_scenario_cache"):
+            self._scenario_cache = {
+                f"scenario.{k}": v for k, v in self._scenario.items()
+            }
+
+        if not hasattr(self, "_agent_cache"):
             self._agent_cache = {f"agent.{k}": v for k, v in self._agent_traits.items()}
-        
+
         # Simple check - if answers haven't changed, return cached result
-        if hasattr(self, '_last_answers_id') and id(self._answers) == self._last_answers_id:
+        if (
+            hasattr(self, "_last_answers_id")
+            and id(self._answers) == self._last_answers_id
+        ):
             return self._env_cache_result
-        
+
         # Process answers dictionary
         processed_answers = {}
         for key, value in self._answers.items():
@@ -128,11 +134,11 @@ class SkipHandler:
                 processed_answers[f"{key}.answer"] = value
 
         result = processed_answers | self._scenario_cache | self._agent_cache
-        
+
         # Cache the result with object id
         self._last_answers_id = id(self._answers)
         self._env_cache_result = result
-        
+
         return result
 
     def cancel_skipped_questions(self, current_question: "QuestionBase") -> None:
@@ -176,6 +182,7 @@ class AnswerQuestionFunctionConstructor:
         # Store a weak reference to the interview
         self._interview_ref = weakref.ref(interview)
         self.key_lookup = key_lookup
+        self._logger = get_logger(__name__)
 
         # Store configuration settings that won't change during lifecycle
         self._raise_validation_errors = getattr(
@@ -314,9 +321,17 @@ class AnswerQuestionFunctionConstructor:
 
             had_language_model_no_response_error = False
             try:
+                import time
+                answer_start = time.time()
+                self._logger.info(f"Starting question '{question.question_name}' with {type(invigilator).__name__}")
+                
                 response: EDSLResultObjectInput = (
                     await invigilator.async_answer_question()
                 )
+                
+                answer_time = time.time() - answer_start
+                self._logger.info(f"Question '{question.question_name}' completed in {answer_time:.3f}s")
+                
                 if response.validated:
                     # Re-check if interview exists before updating it
                     interview = self._interview_ref()
