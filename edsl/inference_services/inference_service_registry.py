@@ -113,7 +113,7 @@ class InferenceServiceRegistry:
             source_preferences = self._default_source_preferences
 
         self._source_handler = SourcePreferenceHandler(
-            registry=self, source_preferences=source_preferences, verbose=True
+            registry=self, source_preferences=source_preferences, verbose=verbose
         )
 
         if classes_to_register is None:

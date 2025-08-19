@@ -83,6 +83,12 @@ class SourcePreferenceHandler:
                             f"[SOURCE_HANDLER] Successfully fetched data from source: {source}"
                         )
                     self._used_source = source
+
+                    if source != "archive":
+                        if self.verbose:
+                            print("[SOURCE_HANDLER] Writing to archive")
+                        model_info_fetcher.write_to_archive()
+
                     return dict(model_info_fetcher)
                 else:
                     if self.verbose:
