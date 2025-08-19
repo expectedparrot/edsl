@@ -6,7 +6,6 @@ source types in the system. It uses the Source registry to automatically
 test all available source types.
 """
 
-import pytest
 from edsl.scenarios.scenario_source import Source, ScenarioList
 
 

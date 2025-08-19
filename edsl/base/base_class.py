@@ -150,8 +150,9 @@ class PersistenceMixin:
             None, but prints the class docstring to stdout
         """
         from ..widgets.object_docs_viewer import ObjectDocsViewerWidget
+
         return ObjectDocsViewerWidget(cls.example())
-        #print(cls.__doc__)
+        # print(cls.__doc__)
 
     # def push(
     #     self,
@@ -927,7 +928,11 @@ class HashingMixin:
         """
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self.to_dict(add_edsl_version=False))
+        d = self.to_dict(add_edsl_version=False)
+        if "name" in d:
+            d.pop("name")
+
+        return dict_hash(d)
 
     def get_hash(self) -> str:
         """Get a string hash representation of this object based on its content.
@@ -1141,6 +1146,56 @@ class Base(
                 print(f"{method}: {documentation}")
         else:
             return [x[0] for x in public_methods_with_docstrings]
+
+    def get_description(self) -> str:
+        """Get the description of this object."""
+        print("Getting description...")
+        from ..questions import QuestionFreeText
+
+        if self.__class__.__name__ == "Survey":
+            content = "This is a survey with the following questions: " + ", ".join(
+                [q.question_text for q in self.questions]
+            )
+        else:
+            content = str(self.to_dict())
+
+        q = QuestionFreeText(
+            question_text=f"Write a one sentence description of this (less than 200 characters): {content}?",
+            question_name="description",
+        )
+        results = q.run()
+        return results.select("description").first()
+
+    def inspect(self):
+        """Create an interactive inspector widget for this object.
+
+        This method uses the InspectorWidget registry system to find the appropriate
+        inspector widget class for this object's type and returns an instance of it.
+
+        Returns:
+            InspectorWidget subclass instance: Interactive widget for inspecting this object
+
+        Raises:
+            KeyError: If no inspector widget is registered for this object's class
+            ImportError: If the widgets module cannot be imported
+        """
+        try:
+            from ..widgets.inspector_widget import InspectorWidget
+        except ImportError as e:
+            raise ImportError(
+                "Inspector widgets are not available. Make sure the widgets module is installed."
+            ) from e
+
+        try:
+            return InspectorWidget.create_inspector_for(self)
+        except KeyError as e:
+            available_classes = InspectorWidget.get_registered_classes()
+            raise KeyError(
+                f"No inspector widget found for {self.__class__.__name__}. "
+                f"Available inspectors: {available_classes}. "
+                f"To create a custom inspector, define a class that inherits from InspectorWidget "
+                f"with associated_class = '{self.__class__.__name__}'."
+            ) from e
 
 
 class BaseDiffCollection(UserList):

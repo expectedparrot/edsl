@@ -134,10 +134,11 @@ def test_jobs_by_models():
         question_name="how_feeling",
     )
     survey = Survey(name="Test Survey", questions=[q])
-    from edsl.inference_services.registry import default
-
-    model1 = Model(default.available()[0][0])
-    model2 = Model(default.available()[1][0])
+    
+    # Use example models for reliable testing
+    example_models = ModelList.example()
+    model1 = example_models[0]
+    model2 = example_models[1]
     # by without existing models
     job = survey.by(model1)
     assert job.models == ModelList([model1])

@@ -3,7 +3,6 @@ Checks a Jobs object for missing API keys and other requirements.
 """
 
 import os
-from ..key_management.key_lookup_builder import MissingAPIKeyError
 
 
 class JobsChecks:
@@ -17,6 +16,7 @@ class JobsChecks:
 
     def check_api_keys(self) -> None:
         from ..language_models.model import Model
+        from ..key_management.key_lookup_builder import MissingAPIKeyError
 
         if len(self.jobs.models) == 0:
             models = [Model()]
@@ -37,7 +37,7 @@ class JobsChecks:
         """
         missing_api_keys = set()
 
-        from ..enums import service_to_api_keyname
+        from ..base import service_to_api_keyname
 
         for model in self.jobs.models:  # + [Model()]:
             if not model.has_valid_api_key():
@@ -66,6 +66,7 @@ class JobsChecks:
 
         Otherwise, returns False.
         """
+        from ..key_management.key_lookup_builder import MissingAPIKeyError
 
         try:
             self.check_api_keys()

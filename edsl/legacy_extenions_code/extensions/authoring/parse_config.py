@@ -1,5 +1,4 @@
 import ast
-import yaml
 from .authoring import ServiceDefinition
 
 

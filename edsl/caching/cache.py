@@ -837,11 +837,15 @@ class Cache(Base):
         This method properly disposes of any SQLAlchemy engines and
         connections to prevent memory leaks.
         """
-        # Clean up SQLiteDict resources if present
-        if not isinstance(self.data, dict):
-            # Handle SQLiteDict or other database-backed storage
-            if hasattr(self.data, "engine") and self.data.engine:
-                self.data.engine.dispose()
+        try:
+            # Clean up SQLiteDict resources if present
+            if not isinstance(self.data, dict):
+                # Handle SQLiteDict or other database-backed storage
+                if hasattr(self.data, "engine") and self.data.engine:
+                    self.data.engine.dispose()
+        except Exception:
+            # Silently ignore errors during cleanup to prevent issues during garbage collection
+            pass
 
     def __del__(self):
         """Destructor for proper resource cleanup.
@@ -849,7 +853,11 @@ class Cache(Base):
         Ensures SQLAlchemy connections are properly closed when the Cache
         object is garbage collected.
         """
-        self.close()
+        try:
+            self.close()
+        except Exception:
+            # Silently ignore errors during garbage collection
+            pass
 
     def __repr__(self):
         """

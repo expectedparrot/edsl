@@ -222,7 +222,7 @@ class InvigilatorBase(ABC):
         from ..surveys.memory import MemoryPlan
         from ..language_models import LanguageModel
         from ..surveys import Survey
-        from ..data import Cache
+        from ..caching import Cache
 
         # Map attribute names to their corresponding classes
         attributes_to_classes = {
@@ -411,10 +411,12 @@ class InvigilatorBase(ABC):
             {'message': [{'text': 'SPAM!'}], 'usage': {'prompt_tokens': 1, 'completion_tokens': 1}}
 
             >>> # Example that simulates an error condition
-            >>> InvigilatorBase.example(throw_an_exception=True).answer_question()
+            >>> InvigilatorBase.example(throw_an_exception=True).answer_question()  # doctest: +ELLIPSIS
             Traceback (most recent call last):
             ...
-            Exception: This is a test error
+            edsl.inference_services.exceptions.InferenceServiceIntendedError: This is a test error
+            ...
+            For more information, see: https://docs.expectedparrot.com/en/latest/language_models.html#model-parameters
 
         Technical Notes:
             - Creates an anonymous subclass (InvigilatorExample) with a simplified implementation

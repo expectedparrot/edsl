@@ -46,3 +46,4 @@ probable_junk/
 docs/notebooks/drafts/*
 test.py
 edsl/widgets/src/
+.edsl_model_archive.json

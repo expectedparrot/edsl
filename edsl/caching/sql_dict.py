@@ -378,8 +378,12 @@ class SQLiteDict:
         This method properly disposes of the SQLAlchemy engine,
         closing all connections in the pool to prevent memory leaks.
         """
-        if hasattr(self, "engine") and self.engine:
-            self.engine.dispose()
+        try:
+            if hasattr(self, "engine") and self.engine:
+                self.engine.dispose()
+        except Exception:
+            # Silently ignore errors during cleanup to prevent issues during garbage collection
+            pass
 
     def __del__(self):
         """Destructor for proper resource cleanup.
@@ -387,7 +391,11 @@ class SQLiteDict:
         Ensures SQLAlchemy connections are properly closed when the
         object is garbage collected.
         """
-        self.close()
+        try:
+            self.close()
+        except Exception:
+            # Silently ignore errors during garbage collection
+            pass
 
     @classmethod
     def example(cls) -> SQLiteDict:

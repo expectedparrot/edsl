@@ -241,8 +241,8 @@ class QuestionFunctional(QuestionBase):
         }
         if add_edsl_version:
             import edsl
-            
-            d["edsl_version"] = getattr(edsl, '__version__')
+
+            d["edsl_version"] = getattr(edsl, "__version__")
             d["edsl_class_name"] = type(self).__name__
 
         return d
