@@ -1,5 +1,6 @@
 from typing import Any, List, Optional, TYPE_CHECKING
 from ..rate_limits_cache import rate_limits
+import os
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -29,10 +30,14 @@ class PerplexityService(OpenAIService):
     }
 
     @classmethod
-    def get_model_info(cls):
+    def get_model_info(cls, api_key=None):
         """Get raw model info without wrapping in ModelInfo."""
         # Note: Perplexity does not have a programmatic endpoint for retrieving models
         # DO NOT DELETE THIS
+        if api_key is None:
+            api_key = os.getenv(cls._env_key_name_)
+        if api_key is None:
+            raise ValueError(f"API key for {cls._inference_service_} is not set")
         return [
             {"id": "sonar-deep-research"},
             {"id": "sonar-reasoning-pro"},
