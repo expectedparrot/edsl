@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 if TYPE_CHECKING:
     from ...scenarios.file_store import FileStore as File
+    from ...surveys import Survey
 
 
 class TestService(InferenceServiceABC):
@@ -33,6 +34,11 @@ class TestService(InferenceServiceABC):
     input_token_name = "prompt_tokens"
     output_token_name = "completion_tokens"
     available_models_url = None
+
+    @classmethod
+    def get_model_info(cls):
+        """Get raw model info for test service."""
+        return [{"id": "test", "name": "Test Model", "type": "test"}]
 
     @classmethod
     def available(cls) -> list[str]:
@@ -106,7 +112,6 @@ class TestService(InferenceServiceABC):
                 }
 
             def set_canned_response(self, survey: "Survey") -> None:
-                from edsl import Model
                 from edsl.questions import (
                     QuestionMultipleChoice,
                     QuestionCheckBox,

@@ -6,10 +6,15 @@ Survey Builder
 Overview
 --------
 
-Survey Builder is a user-friendly, no-code application for launching surveys and gathering responses from human respondents and AI agents. 
-It is fully integrated with EDSL and available at your Coop account, allowing you to seamlessly design questions and agents, and analyze, visualize and share your results.
+Survey Builder is a user-friendly, no-code application for launching surveys and gathering responses from AI agents and human respondents. 
+It is fully integrated with EDSL and available at your account, allowing you to seamlessly design questions and agents, and analyze, visualize and share your results.
 
-See a `clickable demo <https://app.arcade.software/share/MbB0C3UDuZE6JLgB68FL>`_ on how to use it.
+A clickable demo of the survey builder is available `here <https://www.expectedparrot.com/getting-started/build>`_.
+
+*If you are looking for information about Polly, a chat application for interacting with AI agents, please see the* :ref:`polly` *page.*
+
+*If you are looking for information about EDSL code methods for launching surveys with human respondents, please see the* :ref:`humanize` *and* :ref:`prolific` *pages.*
+*For information about building and launching surveys interactively, see the sections below.*
 
 
 Features
@@ -17,7 +22,7 @@ Features
 
 - **Survey creation**: Build customized surveys using a wide range of question types, including multiple choice, free text, linear scale, matrix, numerical and more.
 - **AI agent design**: Create and configure AI agent personas to respond to your questions. 
-- **Dynamic data integration**: Import data from Coop and other sources to dynamically parameterize your surveys.
+- **Dynamic data integration**: Import data to dynamically parameterize your surveys.
 - **Seamless deployment**: Easily launch surveys with both human and AI respondents.
 - **Results analysis**: Leverage built-in tools to visualize and analyze responses, combining human and AI data for greater insights.
 - **Team collaboration**: Share surveys, agents, results and projects with your team with tools for streamlined sharing and collaboration.
@@ -26,20 +31,22 @@ Features
 Getting started 
 ---------------
 
-1. Log into your Coop account
-    Sign in or create an account `here <https://www.expectedparrot.com/login>`_.
+1. Log into your account
+    Sign in or `create an account <https://www.expectedparrot.com/login>`_.
 
 2. Create a survey
-    Choose whether to create a new survey or start a project using an existing survey at your Coop content.
+    Choose whether to edit or import an existing survey, auto-generate a survey,or build a new survey.
 
 3. Design AI agents
-    Design AI agents with relevant personas to answer your survey questions. 
-    You can also send a web-based version to human respondents.
+    Choose whether to edit saved agents, import data to create new agents, auto-generate agents for a survey, or build new agents.
 
 4. Run the survey
-    Launch your survey and collect responses.
+    Select models to run your survey and view responses at your dashboard.
 
-5. Analyze results
+5. Gather human responses
+    Generate a web-based version of your survey and share it with human respondents, or launch a study with Prolific participants.
+
+6. Analyze results
     View and analyze survey responses at your account, and export data for further analysis.
 
 
@@ -47,107 +54,26 @@ Getting started
 Create a survey
 ^^^^^^^^^^^^^^^
 
-`Log in <https://www.expectedparrot.com/login>`_ to your Coop account and navigate to the `Create <https://www.expectedparrot.com/create>`_ page.
-Click the `Survey <https://www.expectedparrot.com/create/survey>`_ button to design a survey from scratch, or the `Project <https://www.expectedparrot.com/create/project>`_ button to use an existing survey as a template for a new project:
-
-.. image:: static/sb01.png
-   :alt: Create page options
-   :align: center
-   :width: 100%
+`Log in <https://www.expectedparrot.com/login>`_ to your account and select options to create a `survey <https://www.expectedparrot.com/create/survey>`_ and `agents <https://www.expectedparrot.com/create/agent-list>`_.
+Choose whether to build a survey and agents from scratch, import data, or select and edit saved content.
 
 
-.. raw:: html
-
-   <br>
-
-
-To create a project with an existing survey you will need the Coop UUID or URL of the survey.
-To find it, nevigate to your Coop `Content <https://www.expectedparrot.com/content>`_ page, open the survey, and click the link button to display the UUID and URLs (or copy the URL from the address bar of your browser).
-Then paste it into the *Create project* field at the Create page.
-
-At the survey builder interface you can add and edit questions, configure survey logic, and then click the *Create project* button to save the survey to a project:
-
-.. image:: static/sb02.png
-   :alt: Create project
-   :align: center
-   :width: 100%
-
-.. raw:: html
-
-   <br>
-
-
-You will be prompted to give your project a name and then redirected to the new project page where you will see options to view a web-based version of the survey, edit the survey, run the survey with AI agents, and edit or delete the project.
-You will also see a dashboard where human and AI agent responses will be collected and displayed when available, together with details about the survey:
-
-.. image:: static/sb03.png
-   :alt: Project page
-   :align: center
-   :width: 100%
-
-
-.. raw:: html
-
-    <br>
-
-
-
-Human responses
+Launch a survey
 ^^^^^^^^^^^^^^^
 
-Click the *Web survey* button to view the web-based version of your survey.
-Share the URL with your target audience to collect responses.
-Recorded responses will be appear in the *Human responses* tab where you can view and analyze them.
+Selecting the option to *Run survey* creates a new project at your account dashboard, where you can run the survey with AI agents and human respondents.
+You can also create a new project by selecting *Create project* at your dashboard and choosing a saved survey and agents to use with the project.
+
+Your new project page has options for generating a shareable web version of the survey, running the survey with AI agents, and launching Prolific studies with human participants.
+AI and human responses will automatically appear at your dashboard where you can compare and export them.
 
 
-Agent responses 
+Analyze results
 ^^^^^^^^^^^^^^^
 
-To run the survey with AI agents you first need to create agents.
-Click the *Agent list* button at the `Create <https://www.expectedparrot.com/create>`_ page to choose whether to use the interface to create agents or to import agents from a CSV file:
+Once you have collected responses from AI agents and human respondents, you can analyze the results at your account dashboard or in EDSL code at your workspace.
+See the :ref:`humanize` and :ref:`prolific` sections for more details about working with human responses in EDSL code.
+You can also export results in CSV format for further analysis in your preferred tools.
 
-.. image:: static/sb04.png
-   :alt: Create agents
-   :align: center
-   :width: 100%
-
-.. raw:: html
-
-    <br>
-
-
-Click the *Create agent list* button to save the agents to your `Content <https://www.expectedparrot.com/content>`_. 
-Open the agent list and copy the UUID or URL to add it to your project.
-(You can also edit and give the object a new alias URL and name at any time.)
-
-
-Run the survey 
-^^^^^^^^^^^^^^
-
-To run the survey with AI agents, click the *Run survey* button at the project page.
-Tabs for adding agents and scenarios and selecting models to use will be displayed.
-
-You can add agents to the survey by clicking the *Add agents* button.
-You will be prompted to provide the agent list to use; paste the URL that you copied from the agent list page and click the *Find* button.
-The agent information will be displayed:
-
-.. image:: static/sb05.png
-   :alt: Run survey add agents interface
-   :align: center
-   :width: 100%
-
-.. raw:: html
-
-    <br>
-
-
-If your survey questions use :ref:`scenarios`, select the *Add scenarios* tab to either construct or import scenarios for a CSV file (the same steps for adding agents).
-
-Select the *Add models* tab to choose the language models to use for generating responses.
-If you do not select any models the default model will be used (currently *gpt-4o-mini*).
-
-Then select the *Run* tab to preview the components of the survey and click the *Run* button to start the survey.
-Refresh your project dashboard to view the responses that are generated, and select columns of the results to display and analyze.
-You can also export the results for further analysis.
 
 *Please let us know if you have any questions or suggestions for improving the survey builder!*

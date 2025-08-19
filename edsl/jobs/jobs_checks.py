@@ -3,7 +3,6 @@ Checks a Jobs object for missing API keys and other requirements.
 """
 
 import os
-from ..key_management.key_lookup_builder import MissingAPIKeyError
 
 
 class JobsChecks:
@@ -17,6 +16,7 @@ class JobsChecks:
 
     def check_api_keys(self) -> None:
         from ..language_models.model import Model
+        from ..key_management.key_lookup_builder import MissingAPIKeyError
 
         if len(self.jobs.models) == 0:
             models = [Model()]
@@ -28,7 +28,7 @@ class JobsChecks:
                 raise MissingAPIKeyError(
                     model_name=str(model.model),
                     inference_service=model._inference_service_,
-                    silent=False
+                    silent=False,
                 )
 
     def get_missing_api_keys(self) -> set:
@@ -37,9 +37,9 @@ class JobsChecks:
         """
         missing_api_keys = set()
 
-        from ..enums import service_to_api_keyname
+        from ..base import service_to_api_keyname
 
-        for model in self.jobs.models: # + [Model()]:
+        for model in self.jobs.models:  # + [Model()]:
             if not model.has_valid_api_key():
                 key_name = service_to_api_keyname.get(
                     model._inference_service_, "NOT FOUND"
@@ -66,6 +66,7 @@ class JobsChecks:
 
         Otherwise, returns False.
         """
+        from ..key_management.key_lookup_builder import MissingAPIKeyError
 
         try:
             self.check_api_keys()
@@ -131,13 +132,16 @@ class JobsChecks:
             "needs_key_process": self.needs_key_process(),
         }
 
-    def key_process(self):
+    def key_process(self, remote_inference: bool = False) -> None:
         import secrets
         from dotenv import load_dotenv
         from ..coop.coop import Coop
         from ..utilities.utilities import write_api_key_to_env
 
-        missing_api_keys = self.get_missing_api_keys()
+        if remote_inference:
+            missing_api_keys = ["EXPECTED_PARROT_API_KEY"]
+        else:
+            missing_api_keys = self.get_missing_api_keys()
 
         edsl_auth_token = secrets.token_urlsafe(16)
 
@@ -150,7 +154,7 @@ class JobsChecks:
             \nClick the link below to create an account and run your survey with your Expected Parrot key:
             """
         )
-    
+
         coop = Coop()
         coop._display_login_url(
             edsl_auth_token=edsl_auth_token,
@@ -164,7 +168,9 @@ class JobsChecks:
             return
 
         path_to_env = write_api_key_to_env(api_key)
-        print(f"\n✨ Your Expected Parrot key has been stored at the following path: {path_to_env}\n")
+        print(
+            f"\n✨ Your Expected Parrot key has been stored at the following path: {path_to_env}\n"
+        )
 
         # Retrieve API key so we can continue running the job
         load_dotenv()

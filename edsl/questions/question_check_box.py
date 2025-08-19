@@ -599,6 +599,17 @@ class QuestionCheckBox(QuestionBase):
         """
         self.question_name = question_name
         self.question_text = question_text
+
+        # Validate min_selections and max_selections
+        if min_selections is not None and min_selections < 0:
+            raise ValueError(
+                f"min_selections must be non-negative, got {min_selections}"
+            )
+        if max_selections is not None and max_selections < 0:
+            raise ValueError(
+                f"max_selections must be non-negative, got {max_selections}"
+            )
+
         self.min_selections = min_selections
         self.max_selections = max_selections
         self.question_options = question_options

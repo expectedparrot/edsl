@@ -56,6 +56,9 @@ Output:
    * - xai
 
 
+*Note*: We recently added support for OpenAI reasoning models. See an example notebook for usage `here <https://www.expectedparrot.com/content/RobinHorton/reasoning-model-example>`_.
+Use `service_name = "openai_v2"` when using these models. The `Results` that are generated with reasoning models include additional fields for reasoning summaries.
+
 .. Available models
 .. ----------------
 
@@ -442,23 +445,21 @@ If you do not see a model that you want to work with or are unable to instantiat
 ModelList class
 ---------------
 
-.. automodule:: edsl.language_models.ModelList
+.. autoclass:: edsl.language_models.ModelList
    :members:
    :undoc-members:
    :show-inheritance:
    :special-members: __init__
-   :exclude-members:
 
 
 LanguageModel class
 -------------------
 
-.. automodule:: edsl.language_models.LanguageModel
+.. autoclass:: edsl.language_models.LanguageModel
    :members:
    :undoc-members:
    :show-inheritance:
-   :special-members: __init__
-   :exclude-members: 
+   :special-members: __init__ 
 
 
 Other methods

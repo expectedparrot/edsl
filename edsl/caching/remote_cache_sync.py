@@ -9,7 +9,6 @@ if TYPE_CHECKING:
     from .cache_entry import CacheEntry
 
 
-
 class CacheKeyList(UserList):
     def __init__(self, data: List[str]):
         super().__init__(data)

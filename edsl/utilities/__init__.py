@@ -4,6 +4,8 @@ from .PrettyList import PrettyList
 from .restricted_python import create_restricted_function
 from .remove_edsl_version import remove_edsl_version
 from .ast_utilities import extract_variable_names
+from .local_results_cache import object_disk_cache
+from .edsl_load import load as edsl_load
 
 # Functions from utilities.py
 from .utilities import (
@@ -14,7 +16,8 @@ from .utilities import (
     create_valid_var_name,
     random_string,
     shorten_string,
-    is_gzipped
+    is_gzipped,
+    sanitize_jinja_syntax,
 )
 
 # Decorator utilities
@@ -39,13 +42,14 @@ __all__ = [
     "repair_json",
     "create_valid_var_name",
     "random_string",
-    "shorten_string", 
+    "shorten_string",
     "is_gzipped",
     "sync_wrapper",
     "jupyter_nb_handler",
     "memory_profile",
     "is_notebook",
     "is_valid_variable_name",
-    "sanitize_string"
+    "sanitize_string",
+    "object_disk_cache",
+    "edsl_load",
 ]
-

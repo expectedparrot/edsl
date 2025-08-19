@@ -42,6 +42,7 @@ class Instruction(RepresentationMixin):
 
     def add_question(self, question) -> "Survey":
         from ..surveys import Survey
+
         return Survey([self, question])
 
     def __hash__(self) -> int:
@@ -62,4 +63,5 @@ class Instruction(RepresentationMixin):
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

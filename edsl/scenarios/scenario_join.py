@@ -5,6 +5,7 @@ if TYPE_CHECKING:
     from .scenario_list import ScenarioList
     from .scenario import Scenario
 
+
 class ScenarioJoin:
     """Handles join operations between two ScenarioLists.
 
@@ -141,4 +142,5 @@ class ScenarioJoin:
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

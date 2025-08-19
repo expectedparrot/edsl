@@ -81,6 +81,7 @@ class HTMLQuestion:
             }
         except Exception as e:
             from .exceptions import QuestionValueError
+
             raise QuestionValueError(
                 f"Error rendering question: params = {params}, error = {e}"
             )
@@ -88,7 +89,7 @@ class HTMLQuestion:
 
         if iframe:
             from ..display import display_html
-            
+
             height = height or 200
             width = width or 600
             display_html(rendered_html, width=width, height=height, as_iframe=True)

@@ -1,8 +1,7 @@
-"""
-The Jobs module is the core orchestration component of the EDSL framework.
+"""The Jobs module is the core orchestration component of the EDSL framework.
 
-It provides functionality to define, configure, and execute computational jobs that 
-involve multiple agents, scenarios, models, and a survey. Jobs are the primary way 
+It provides functionality to define, configure, and execute computational jobs that
+involve multiple agents, scenarios, models, and a survey. Jobs are the primary way
 that users run large-scale experiments or simulations in EDSL.
 
 The Jobs class handles:
@@ -15,50 +14,60 @@ The Jobs class handles:
 This module is designed to be used by both application developers and researchers
 who need to run complex simulations with language models.
 """
+
 from __future__ import annotations
 import asyncio
-from typing import Optional, Union, TypeVar, Callable, cast
-
+from importlib import import_module
 from typing import (
+    Optional,
+    Union,
+    Any,
     Literal,
     Sequence,
     Generator,
+    Tuple,
     TYPE_CHECKING,
 )
 
 from ..base import Base
 from ..utilities import remove_edsl_version
-from ..coop import CoopServerResponseError
+from ..logger import get_logger
 
-# Import BucketCollection with an import_module to avoid early binding
-from importlib import import_module
-
-
-def get_bucket_collection():
-    buckets_module = import_module("edsl.buckets")
-    return buckets_module.BucketCollection
-
-
-from ..scenarios import Scenario, ScenarioList
-from ..surveys import Survey
-
-# Use import_module to avoid circular import with interviews
-from importlib import import_module
-
-
-def get_interview():
-    interviews_module = import_module("edsl.interviews.interview")
-    return interviews_module.Interview
-
+# from ..scenarios import Scenario, ScenarioList
+# from ..surveys import Survey
 
 from .exceptions import JobsValueError, JobsImplementationError
-
 from .jobs_pricing_estimation import JobsPrompts
 from .remote_inference import JobsRemoteInferenceHandler
 from .jobs_checks import JobsChecks
 from .data_structures import RunEnvironment, RunParameters, RunConfig
 from .check_survey_scenario_compatibility import CheckSurveyScenarioCompatibility
 from .decorators import with_config
+from ..coop.exceptions import CoopServerResponseError
+
+
+def get_bucket_collection():
+    """Get the BucketCollection class from the buckets module.
+
+    Returns
+    -------
+        The BucketCollection class.
+
+    """
+    buckets_module = import_module("edsl.buckets")
+    return buckets_module.BucketCollection
+
+
+def get_interview():
+    """Get the Interview class from the interviews module.
+
+    Returns
+    -------
+        The Interview class.
+
+    """
+    interviews_module = import_module("edsl.interviews.interview")
+    return interviews_module.Interview
 
 
 if TYPE_CHECKING:
@@ -70,15 +79,17 @@ if TYPE_CHECKING:
     from ..results import Results
     from ..dataset import Dataset
     from ..language_models import ModelList
+    from ..questions import QuestionBase as Question
     from ..caching import Cache
     from ..key_management import KeyLookup
+    from ..buckets import BucketCollection
+    from ..interviews.interview import Interview
 
 VisibilityType = Literal["private", "public", "unlisted"]
 
 
 class Jobs(Base):
-    """
-    A collection of agents, scenarios, models, and a survey that orchestrates interviews.
+    """A collection of agents, scenarios, models, and a survey that orchestrates interviews.
 
     The Jobs class is the central component for running large-scale experiments or simulations
     in EDSL. It manages the execution of interviews where agents interact with surveys through
@@ -103,6 +114,7 @@ class Jobs(Base):
     """
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/jobs.html"
+    _logger = get_logger(__name__)
 
     def __init__(
         self,
@@ -118,17 +130,24 @@ class Jobs(Base):
         they can be added later using the `by()` method or will be automatically populated
         with defaults when the job is run.
 
-        Parameters:
-            survey (Survey): The survey containing questions to be used in the job
-            agents (Union[list[Agent], AgentList], optional): The agents that will take the survey
-            models (Union[ModelList, list[LanguageModel]], optional): The language models to use
-            scenarios (Union[ScenarioList, list[Scenario]], optional): The scenarios to run
+        Parameters
+        ----------
+        survey : Survey
+            The survey containing questions to be used in the job
+        agents : Union[list[Agent], AgentList], optional
+            The agents that will take the survey
+        models : Union[ModelList, list[LanguageModel]], optional
+            The language models to use
+        scenarios : Union[ScenarioList, list[Scenario]], optional
+            The scenarios to run
 
-        Raises:
+        Raises
+        ------
             ValueError: If the survey contains questions with invalid names
                        (e.g., names containing template variables)
 
-        Examples:
+        Examples
+        --------
             >>> from edsl.surveys import Survey
             >>> from edsl.questions import QuestionFreeText
             >>> q = QuestionFreeText(question_name="name", question_text="What is your name?")
@@ -137,10 +156,12 @@ class Jobs(Base):
             >>> q = QuestionFreeText(question_name="{{ bad_name }}", question_text="What is your name?")
             >>> s = Survey(questions=[q])
 
-        Notes:
+        Notes
+        -----
             - The survey's questions must have valid names without templating variables
             - If agents, models, or scenarios are not provided, defaults will be used when running
             - Upon initialization, a RunConfig is created with default environment and parameters
+
         """
         self.run_config = RunConfig(
             environment=RunEnvironment(), parameters=RunParameters()
@@ -152,6 +173,9 @@ class Jobs(Base):
         self.models: ModelList = models
 
         self._where_clauses = []
+
+        self._post_run_methods = []
+        self._depends_on = None
 
         try:
             assert self.survey.question_names_valid()
@@ -165,62 +189,119 @@ class Jobs(Base):
                 f"At least some question names are not valid: {invalid_question_names}"
             )
 
-    def add_running_env(self, running_env: RunEnvironment):
+    def add_running_env(self, running_env: RunEnvironment) -> Jobs:
+        """Add a running environment to the job.
+
+        Args:
+        ----
+            running_env: A RunEnvironment object containing details about the execution
+                environment like API keys and other configuration.
+
+        Returns:
+        -------
+            Jobs: The Jobs instance with the updated running environment.
+
+        Example:
+        -------
+            >>> from edsl import Cache
+            >>> job = Jobs.example()
+            >>> my_cache = Cache.example()
+            >>> env = RunEnvironment(cache=my_cache)
+            >>> j = job.add_running_env(env)
+            >>> j.run_config.environment.cache == my_cache
+            True
+
+        """
         self.run_config.add_environment(running_env)
         return self
 
-    def using_cache(self, cache: "Cache") -> Jobs:
-        """
-        Add a Cache to the job.
+    def using_cache(self, cache: "Cache") -> "Jobs":
+        """Add a Cache object to the job.
 
-        :param cache: the cache to add
+        Args:
+        ----
+            cache: The Cache object to add to the job's configuration.
+
+        Returns:
+        -------
+            Jobs: The Jobs instance with the updated cache.
+
         """
         self.run_config.add_cache(cache)
         return self
 
-    def using_bucket_collection(self, bucket_collection) -> Jobs:
-        """
-        Add a BucketCollection to the job.
+    def using_bucket_collection(self, bucket_collection: "BucketCollection") -> "Jobs":
+        """Add a BucketCollection object to the job.
 
-        :param bucket_collection: the bucket collection to add
+        Args:
+        ----
+            bucket_collection: The BucketCollection object to add to the job's configuration.
+
+        Returns:
+        -------
+            Jobs: The Jobs instance with the updated bucket collection.
+
         """
         self.run_config.add_bucket_collection(bucket_collection)
         return self
 
-    def using_key_lookup(self, key_lookup: "KeyLookup") -> Jobs:
-        """
-        Add a KeyLookup to the job.
+    def using_key_lookup(self, key_lookup: "KeyLookup") -> "Jobs":
+        """Add a KeyLookup object to the job.
 
-        :param key_lookup: the key lookup to add
+        Args:
+        ----
+            key_lookup: The KeyLookup object to add to the job's configuration.
+
+        Returns:
+        -------
+            Jobs: The Jobs instance with the updated key lookup.
+
         """
         self.run_config.add_key_lookup(key_lookup)
         return self
 
-    def using(self, obj) -> Jobs:
-        """
-        Add a Cache, BucketCollection, or KeyLookup to the job.
+    def using(self, obj) -> "Jobs":
+        """Add a Cache, BucketCollection, or KeyLookup object to the job.
 
-        :param obj: the object to add
+        Args:
+        ----
+            obj: The object to add to the job's configuration. Must be one of:
+                Cache, BucketCollection, or KeyLookup.
+
+        Returns:
+        -------
+            Jobs: The Jobs instance with the updated configuration object.
+
         """
         from ..caching import Cache
         from ..key_management import KeyLookup
 
         BucketCollection = get_bucket_collection()
 
-        if isinstance(obj, Cache):
-            self.using_cache(obj)
-        elif isinstance(obj, BucketCollection):
-            self.using_bucket_collection(obj)
-        elif isinstance(obj, KeyLookup):
-            self.using_key_lookup(obj)
+        handlers = {
+            Cache: self.using_cache,
+            BucketCollection: self.using_bucket_collection,
+            KeyLookup: self.using_key_lookup,
+        }
+        handler = next((fn for t, fn in handlers.items() if isinstance(obj, t)), None)
+        if handler is None:
+            raise ValueError(f"Invalid object type: {type(obj)}")
+        handler(obj)
         return self
 
     @property
     def models(self):
+        """Get the models associated with this job.
+
+        Returns
+        -------
+            ModelList: The models for this job.
+
+        """
         return self._models
 
     @models.setter
-    def models(self, value):
+    def models(self, value) -> None:
         from ..language_models import ModelList
 
         if value:
@@ -229,7 +310,7 @@ class Jobs(Base):
             else:
                 self._models = value
         else:
-            self._models = ModelList([])
+            self._models = ModelList(None)
 
         # update the bucket collection if it exists
         if self.run_config.environment.bucket_collection is None:
@@ -239,6 +320,13 @@ class Jobs(Base):
 
     @property
     def agents(self):
+        """Get the agents associated with this job.
+
+        Returns
+        -------
+            AgentList: The agents for this job.
+
+        """
         return self._agents
 
     @agents.setter
@@ -254,8 +342,7 @@ class Jobs(Base):
             self._agents = AgentList([])
 
     def where(self, expression: str) -> Jobs:
-        """
-        Filter the agents, scenarios, and models based on a condition.
+        """Filter the agents, scenarios, and models based on a condition.
 
         :param expression: a condition to filter the agents, scenarios, and models
         """
@@ -263,11 +350,18 @@ class Jobs(Base):
         return self
 
     @property
-    def scenarios(self):
+    def scenarios(self) -> ScenarioList:
+        """Get the scenarios associated with this job.
+
+        Returns
+        -------
+            ScenarioList: The scenarios for this job.
+
+        """
         return self._scenarios
 
     @scenarios.setter
-    def scenarios(self, value):
+    def scenarios(self, value) -> None:
         from ..scenarios import ScenarioList
         from ..dataset import Dataset
 
@@ -293,21 +387,24 @@ class Jobs(Base):
             Sequence[Union["Agent", "Scenario", "LanguageModel"]],
         ],
     ) -> "Jobs":
-        """
-        Add agents, scenarios, and language models to a job using a fluent interface.
+        """Add agents, scenarios, and language models to a job using a fluent interface.
 
         This method is the primary way to configure a Jobs instance with components.
         It intelligently handles different types of objects and collections, making
         it easy to build complex job configurations with a concise syntax.
 
-        Parameters:
-            *args: Objects or sequences of objects to add to the job.
-                  Supported types are Agent, Scenario, LanguageModel, and sequences of these.
+        Parameters
+        ----------
+        *args : Union[Agent, Scenario, LanguageModel, Sequence[Union[Agent, Scenario, LanguageModel]]]
+            Objects or sequences of objects to add to the job.
+            Supported types are Agent, Scenario, LanguageModel, and sequences of these.
 
-        Returns:
+        Returns
+        -------
             Jobs: The Jobs instance (self) for method chaining
 
-        Examples:
+        Examples
+        --------
             >>> from edsl.surveys import Survey
             >>> from edsl.questions import QuestionFreeText
             >>> q = QuestionFreeText(question_name="name", question_text="What is your name?")
@@ -328,7 +425,8 @@ class Jobs(Base):
             >>> agents = [Agent(traits={"age": i}) for i in range(5)]
             >>> _ = j.by(agents)
 
-        Notes:
+        Notes
+        -----
             - All objects must implement 'get_value', 'set_value', and '__add__' methods
             - Agent traits: When adding agents with traits to existing agents, the traits are
               combined. Avoid overlapping trait names to prevent unexpected behavior.
@@ -337,6 +435,7 @@ class Jobs(Base):
             - Models: New models with the same attributes will override existing models.
             - The method detects object types automatically and routes them to the appropriate
               collection (agents, scenarios, or models).
+
         """
         from .jobs_component_constructor import JobsComponentConstructor
 
@@ -344,7 +443,6 @@ class Jobs(Base):
 
     def prompts(self, iterations=1) -> "Dataset":
         """Return a Dataset of prompts that will be used.
-
 
         >>> from edsl.jobs import Jobs
         >>> Jobs.example().prompts()
@@ -355,9 +453,9 @@ class Jobs(Base):
     def show_prompts(self, all: bool = False) -> None:
         """Print the prompts."""
         if all:
-            return self.prompts().to_scenario_list().table()
+            print(self.prompts().to_scenario_list().table())
         else:
-            return (
+            print(
                 self.prompts().to_scenario_list().table("user_prompt", "system_prompt")
             )
 
@@ -369,8 +467,8 @@ class Jobs(Base):
         inference_service: str,
         model: str,
     ) -> dict:
-        """
-        Estimate the cost of running the prompts.
+        """Estimate the cost of running the prompts.
+
         :param iterations: the number of iterations to run
         :param system_prompt: the system prompt
         :param user_prompt: the user prompt
@@ -383,8 +481,7 @@ class Jobs(Base):
         )
 
     def estimate_job_cost(self, iterations: int = 1) -> dict:
-        """
-        Estimate the cost of running the job.
+        """Estimate the cost of running the job.
 
         :param iterations: the number of iterations to run
         """
@@ -393,18 +490,29 @@ class Jobs(Base):
     def estimate_job_cost_from_external_prices(
         self, price_lookup: dict, iterations: int = 1
     ) -> dict:
+        """Estimate the cost of running the job using external price lookup.
+
+        Args:
+        ----
+            price_lookup: Dictionary containing price information.
+            iterations: Number of iterations to run.
+
+        Returns:
+        -------
+            dict: Cost estimation details.
+
+        """
         return JobsPrompts.from_jobs(self).estimate_job_cost_from_external_prices(
             price_lookup, iterations
         )
 
     @staticmethod
     def compute_job_cost(job_results: Results) -> float:
-        """
-        Computes the cost of a completed job in USD.
-        """
+        """Compute the cost of a completed job in USD."""
         return job_results.compute_job_cost()
 
     def replace_missing_objects(self) -> None:
+        """If the agents, models, or scenarios are not set, replace them with defaults."""
         from ..agents import Agent
         from ..language_models.model import Model
         from ..scenarios import Scenario
@@ -414,8 +522,7 @@ class Jobs(Base):
         self.scenarios = self.scenarios or [Scenario()]
 
     def generate_interviews(self) -> Generator:
-        """
-        Generate interviews.
+        """Generate interviews.
 
         Note that this sets the agents, model and scenarios if they have not been set. This is a side effect of the method.
         This is useful because a user can create a job without setting the agents, models, or scenarios, and the job will still run,
@@ -430,24 +537,44 @@ class Jobs(Base):
         ).create_interviews()
 
     def show_flow(self, filename: Optional[str] = None) -> None:
-        """Show the flow of the survey.
+        """Visualize either the *Job* dependency/post-processing flow **or** the underlying survey flow.
+
+        The method automatically decides which flow to render:
+
+        1. If the job has dependencies created via :py:meth:`Jobs.to` (i.e.
+           ``_depends_on`` is not *None*) **or** has post-run methods queued in
+           ``_post_run_methods``, the *job* flow (dependencies → post-processing
+           chain) is rendered using :class:`edsl.jobs.job_flow_visualization.JobsFlowVisualization`.
+        2. Otherwise, it falls back to the original behaviour and shows the
+           survey question flow using
+           :class:`edsl.surveys.survey_flow_visualization.SurveyFlowVisualization`.
 
         >>> from edsl.jobs import Jobs
-        >>> Jobs.example().show_flow()
+        >>> job = Jobs.example()
+        >>> job.show_flow()  # Visualises survey flow (no deps/post-run methods)
+        >>> job2 = job.select('how_feeling').to_pandas()  # add post-run methods
+        >>> job2.show_flow()  # Now visualises job flow
         """
-        from ..surveys import SurveyFlowVisualization
+        # Decide which visualisation to use
+        has_dependencies = getattr(self, "_depends_on", None) is not None
+        has_post_methods = bool(getattr(self, "_post_run_methods", []))
 
-        if self.scenarios:
-            scenario = self.scenarios[0]
+        if has_dependencies or has_post_methods:
+            # Use the new Jobs flow visualisation
+            from .job_flow_visualization import JobsFlowVisualization
+
+            JobsFlowVisualization(self).show_flow(filename=filename)
         else:
-            scenario = None
-        SurveyFlowVisualization(self.survey, scenario=scenario, agent=None).show_flow(
-            filename=filename
-        )
+            # Fallback to survey flow visualisation
+            from ..surveys import SurveyFlowVisualization
+
+            scenario = self.scenarios[0] if self.scenarios else None
+            SurveyFlowVisualization(
+                self.survey, scenario=scenario, agent=None
+            ).show_flow(filename=filename)
 
     def interviews(self) -> list:
-        """
-        Return a list of :class:`edsl.jobs.interviews.Interview` objects.
+        """Return a list of :class:`edsl.jobs.interviews.Interview` objects.
 
         It returns one Interview for each combination of Agent, Scenario, and LanguageModel.
         If any of Agents, Scenarios, or LanguageModels are missing, it fills in with defaults.
@@ -462,7 +589,7 @@ class Jobs(Base):
         return list(self.generate_interviews())
 
     @classmethod
-    def from_interviews(cls, interview_list) -> "Jobs":
+    def from_interviews(cls, interview_list: list["Interview"]) -> Jobs:
         """Return a Jobs instance from a list of interviews.
 
         This is useful when you have, say, a list of failed interviews and you want to create
@@ -479,11 +606,12 @@ class Jobs(Base):
         jobs._interviews = interview_list
         return jobs
 
-    def create_bucket_collection(self):
-        """
-        Create a collection of buckets for each model.
+    def create_bucket_collection(self) -> "BucketCollection":
+        """Create a collection of buckets for each model.
 
         These buckets are used to track API calls and token usage.
+        For test models and scripted response models, infinity buckets are used
+        to avoid rate limiting delays.
 
         >>> from edsl.jobs import Jobs
         >>> from edsl import Model
@@ -493,14 +621,49 @@ class Jobs(Base):
         BucketCollection(...)
         """
         BucketCollection = get_bucket_collection()
-        bc = BucketCollection.from_models(self.models)
+
+        # Check if we should use infinity buckets for test/scripted models
+        use_infinity_buckets = self._should_use_infinity_buckets()
+
+        bc = BucketCollection.from_models(
+            self.models, infinity_buckets=use_infinity_buckets
+        )
 
         if self.run_config.environment.key_lookup is not None:
             bc.update_from_key_lookup(self.run_config.environment.key_lookup)
         return bc
 
+    def _should_use_infinity_buckets(self) -> bool:
+        """Determine if infinity buckets should be used for the models in this job.
+
+        Infinity buckets (no rate limiting) are used for:
+        - Scripted response models (specific class type)
+        - Models with _model_ attribute set to "scripted"
+
+        Returns:
+            bool: True if infinity buckets should be used, False otherwise
+        """
+        from ..language_models.scripted_response_model import (
+            ScriptedResponseLanguageModel,
+        )
+
+        for model in self.models:
+            # Check for scripted response model by class
+            if isinstance(model, ScriptedResponseLanguageModel):
+                self._logger.info(
+                    f"Using infinity buckets for scripted response model: {model}"
+                )
+                return True
+
+            # Check for scripted model by _model_ attribute
+            if getattr(model, "_model_", None) == "scripted":
+                self._logger.info(f"Using infinity buckets for scripted model: {model}")
+                return True
+
+        return False
+
     def html(self):
-        """Return the HTML representations for each scenario"""
+        """Return the HTML representations for each scenario."""
         links = []
         for index, scenario in enumerate(self.scenarios):
             links.append(
@@ -529,6 +692,7 @@ class Jobs(Base):
 
     def all_question_parameters(self) -> set:
         """Return all the fields in the questions in the survey.
+
         >>> from edsl.jobs import Jobs
         >>> Jobs.example().all_question_parameters()
         {'period'}
@@ -536,26 +700,33 @@ class Jobs(Base):
         return set.union(*[question.parameters for question in self.survey.questions])
 
     def use_remote_cache(self) -> bool:
+        """Determine whether to use remote cache for this job.
+
+        Returns
+        -------
+            bool: True if remote cache should be used, False otherwise.
+
+        """
         import requests
 
         if self.run_config.parameters.disable_remote_cache:
             return False
-        if not self.run_config.parameters.disable_remote_cache:
-            try:
-                from ..coop import Coop
 
-                user_edsl_settings = Coop().edsl_settings
-                return user_edsl_settings.get("remote_caching", False)
-            except requests.ConnectionError:
-                pass
-            except CoopServerResponseError:
-                pass
+        try:
+            from ..coop import Coop
+
+            user_edsl_settings = Coop().edsl_settings
+            return user_edsl_settings.get("remote_caching", False)
+        except requests.ConnectionError:
+            pass
+        except CoopServerResponseError:
+            pass
 
         return False
 
     def _start_remote_inference_job(
         self, job_handler: Optional[JobsRemoteInferenceHandler] = None
-    ) -> Union["Results", None]:
+    ):
         if job_handler is None:
             job_handler = self._create_remote_inference_handler()
 
@@ -564,18 +735,21 @@ class Jobs(Base):
             remote_inference_description=self.run_config.parameters.remote_inference_description,
             remote_inference_results_visibility=self.run_config.parameters.remote_inference_results_visibility,
             fresh=self.run_config.parameters.fresh,
+            new_format=self.run_config.parameters.new_format,
         )
         return job_info
 
     def _create_remote_inference_handler(self) -> "JobsRemoteInferenceHandler":
         return JobsRemoteInferenceHandler(
-            self, verbose=self.run_config.parameters.verbose
+            self,
+            verbose=self.run_config.parameters.verbose,
+            api_key=self.run_config.parameters.expected_parrot_api_key,
         )
 
     def _remote_results(
         self,
         config: RunConfig,
-    ) -> Union["Results", None]:
+    ) -> Tuple[Optional["Results"], Optional[str]]:
         from .remote_inference import RemoteJobInfo
 
         background = config.parameters.background
@@ -595,15 +769,15 @@ class Jobs(Base):
             return None, None
 
     def _prepare_to_run(self) -> None:
-        "This makes sure that the job is ready to run and that keys are in place for a remote job."
+        """Prepare the job to run and ensure keys are in place for a remote job."""
         CheckSurveyScenarioCompatibility(self.survey, self.scenarios).check()
 
-    def _check_if_remote_keys_ok(self):
+    def _check_if_remote_keys_ok(self) -> None:
         jc = JobsChecks(self)
-        if jc.needs_key_process():
-            jc.key_process()
+        if not jc.user_has_ep_api_key():
+            jc.key_process(remote_inference=True)
 
-    def _check_if_local_keys_ok(self):
+    def _check_if_local_keys_ok(self) -> None:
         jc = JobsChecks(self)
         if self.run_config.parameters.check_api_keys:
             jc.check_api_keys()
@@ -611,20 +785,18 @@ class Jobs(Base):
     async def _execute_with_remote_cache(self, run_job_async: bool) -> Results:
         """Core interview execution logic for jobs execution."""
         # Import needed modules inline to avoid early binding
-        import os
         import time
-        import gc
         import weakref
-        import asyncio
         from ..caching import Cache
-        from ..results import Results, Result
+        from ..results import Results
         from ..tasks import TaskHistory
-        from ..utilities.decorators import jupyter_nb_handler
-        from ..utilities.memory_debugger import MemoryDebugger
         from .jobs_runner_status import JobsRunnerStatus
         from .async_interview_runner import AsyncInterviewRunner
         from .progress_bar_manager import ProgressBarManager
         from .results_exceptions_handler import ResultsExceptionsHandler
+
+        execution_start = time.time()
+        self._logger.info("Starting core interview execution logic")
 
         assert isinstance(self.run_config.environment.cache, Cache)
 
@@ -642,19 +814,15 @@ class Jobs(Base):
 
         # Create a shared function to process interview results
         async def process_interviews(interview_runner, results_obj):
-            prev_interview_ref = None
             async for result, interview, idx in interview_runner.run():
                 # Set the order attribute on the result for correct ordering
                 result.order = idx
 
-                # Collect results
-                # results_obj.append(result)
-                # key = results_obj.shelve_result(result)
                 results_obj.add_task_history_entry(interview)
                 results_obj.insert_sorted(result)
 
                 # Memory management: Set up reference for next iteration and clear old references
-                prev_interview_ref = weakref.ref(interview)
+                weakref.ref(interview)
                 if hasattr(interview, "clear_references"):
                     interview.clear_references()
 
@@ -663,7 +831,6 @@ class Jobs(Base):
                 del interview
 
             # Finalize results object with cache and bucket collection
-            # results_obj.insert_from_shelf()
             results_obj.cache = results_obj.relevant_cache(
                 self.run_config.environment.cache
             )
@@ -673,6 +840,8 @@ class Jobs(Base):
             return results_obj
 
         # Core execution logic
+        runner_start = time.time()
+        self._logger.info("Creating interview runner and results objects")
         interview_runner = AsyncInterviewRunner(self, run_config)
 
         # Create an initial Results object with appropriate traceback settings
@@ -683,47 +852,76 @@ class Jobs(Base):
                 include_traceback=not self.run_config.parameters.progress_bar
             ),
         )
+        self._logger.info(
+            f"Interview runner setup completed in {time.time() - runner_start:.3f}s"
+        )
 
+        # Execute interviews
+        interview_start = time.time()
         if run_job_async:
             # For async execution mode (simplified path without progress bar)
+            self._logger.info("Starting async interview execution (no progress bar)")
             await process_interviews(interview_runner, results)
         else:
             # For synchronous execution mode (with progress bar)
-            with ProgressBarManager(
-                self, run_config, self.run_config.parameters
-            ) as stop_event:
+            self._logger.info("Starting sync interview execution with progress bar")
+            with ProgressBarManager(self, run_config, self.run_config.parameters):
                 try:
                     await process_interviews(interview_runner, results)
                 except KeyboardInterrupt:
+                    self._logger.info("Keyboard interrupt received during execution")
                     print("Keyboard interrupt received. Stopping gracefully...")
                     results = Results(
                         survey=self.survey, data=[], task_history=TaskHistory()
                     )
                 except Exception as e:
+                    self._logger.error(
+                        f"Exception during interview execution: {str(e)}"
+                    )
                     if self.run_config.parameters.stop_on_exception:
                         raise
                     results = Results(
                         survey=self.survey, data=[], task_history=TaskHistory()
                     )
 
+        self._logger.info(
+            f"Interview execution completed in {time.time() - interview_start:.3f}s"
+        )
+
         # Process any exceptions in the results
+        exception_start = time.time()
         if results:
+            self._logger.info("Processing exceptions in results")
             ResultsExceptionsHandler(
                 results, self.run_config.parameters
             ).handle_exceptions()
+            self._logger.info(
+                f"Exception handling completed in {time.time() - exception_start:.3f}s"
+            )
 
+        self._logger.info(
+            f"Total execution time: {time.time() - execution_start:.3f}s, "
+            f"final results count: {len(results) if results else 0}"
+        )
         return results
 
     @property
-    def num_interviews(self):
+    def num_interviews(self) -> int:
+        """Calculate the total number of interviews that will be run.
+
+        >>> Jobs.example().num_interviews
+        4
+
+        This is the product of the number of scenarios, agents, and models,
+        multiplied by the number of iterations specified in the run configuration.
+        """
         if self.run_config.parameters.n is None:
             return len(self)
         else:
             return len(self) * self.run_config.parameters.n
 
-    def _run(self, config: RunConfig) -> Union[None, "Results"]:
-        """
-        Shared code for run and run_async methods.
+    def _run(self, config: RunConfig) -> Tuple[Optional["Results"], Optional[str]]:
+        """Shared code for run and run_async methods.
 
         This method handles all pre-execution setup including:
         1. Transferring configuration settings from the input config
@@ -732,10 +930,17 @@ class Jobs(Base):
         4. Setting up caching and bucket collections
         5. Attempting remote execution if appropriate
 
-        Returns:
+        Returns
+        -------
             Tuple containing (Results, reason) if remote execution succeeds,
             or (None, reason) if local execution should proceed
+
         """
+        import time
+
+        start_time = time.time()
+
+        self._logger.info("Starting job configuration transfer")
         # Apply configuration from input config to self.run_config
         for attr_name in [
             "cache",
@@ -752,13 +957,30 @@ class Jobs(Base):
 
         # Replace parameters with the ones from the config
         self.run_config.parameters = config.parameters
+        self._logger.info(
+            f"Configuration transfer completed in {time.time() - start_time:.3f}s"
+        )
 
         # Make sure all required objects exist
+        setup_start = time.time()
+        self._logger.info("Starting object validation and preparation")
         self.replace_missing_objects()
         self._prepare_to_run()
-        self._check_if_remote_keys_ok()
+        self._logger.info(
+            f"Object validation completed in {time.time() - setup_start:.3f}s"
+        )
+
+        if not self.run_config.parameters.disable_remote_inference:
+            key_check_start = time.time()
+            self._logger.info("Checking remote inference keys")
+            self._check_if_remote_keys_ok()
+            self._logger.info(
+                f"Remote key check completed in {time.time() - key_check_start:.3f}s"
+            )
 
         # Setup caching
+        cache_start = time.time()
+        self._logger.info("Setting up caching system")
         from ..caching import CacheHandler, Cache
 
         if (
@@ -768,22 +990,40 @@ class Jobs(Base):
             self.run_config.environment.cache = CacheHandler().get_cache()
         elif self.run_config.environment.cache is False:
             self.run_config.environment.cache = Cache(immediate_write=False)
+        self._logger.info(f"Cache setup completed in {time.time() - cache_start:.3f}s")
 
         # Try to run the job remotely first
+        remote_start = time.time()
+        self._logger.info("Attempting remote execution")
         results, reason = self._remote_results(config)
         if results is not None:
+            self._logger.info(
+                f"Remote execution successful in {time.time() - remote_start:.3f}s"
+            )
             return results, reason
+        self._logger.info(
+            f"Remote execution check completed in {time.time() - remote_start:.3f}s, proceeding with local execution"
+        )
 
         # If we need to run locally, ensure keys and resources are ready
+        local_prep_start = time.time()
+        self._logger.info("Preparing for local execution")
         self._check_if_local_keys_ok()
 
         # Create bucket collection if it doesn't exist
+        # this is respect API service request limits
         if self.run_config.environment.bucket_collection is None:
+            bucket_start = time.time()
+            self._logger.info("Creating bucket collection for rate limiting")
             self.run_config.environment.bucket_collection = (
                 self.create_bucket_collection()
             )
+            self._logger.info(
+                f"Bucket collection created in {time.time() - bucket_start:.3f}s"
+            )
         else:
             # Ensure models are properly added to the bucket collection
+            self._logger.info("Adding models to existing bucket collection")
             for model in self.models:
                 self.run_config.environment.bucket_collection.add_model(model)
 
@@ -792,48 +1032,205 @@ class Jobs(Base):
             self.run_config.environment.key_lookup is not None
             and self.run_config.environment.bucket_collection is not None
         ):
+            self._logger.info("Updating bucket collection with key lookup")
             self.run_config.environment.bucket_collection.update_from_key_lookup(
                 self.run_config.environment.key_lookup
             )
 
+        self._logger.info(
+            f"Local execution preparation completed in {time.time() - local_prep_start:.3f}s"
+        )
+        self._logger.info(
+            f"Total _run method execution time: {time.time() - start_time:.3f}s"
+        )
+
         return None, reason
 
-    @with_config
-    def run(self, *, config: RunConfig) -> "Results":
+    def then(self, method_name, *args, **kwargs) -> "Jobs":
+        """Schedule a method to be called on the results object after the job runs.
+
+        This allows for method chaining like:
+        jobs.then('to_scenario_list').then('to_pandas').then('head', 10)
+
+        Args:
+        ----
+            method_name: Name of the method to call on the results
+            *args: Positional arguments to pass to the method
+            **kwargs: Keyword arguments to pass to the method
+
         """
-        Runs the job by conducting interviews and returns their results.
+        self._post_run_methods.append((method_name, args, kwargs))
+        return self
+
+    def __getattr__(self, name):
+        """Safer version of attribute access for method chaining.
+
+        Only captures specific patterns to avoid masking real AttributeErrors.
+        """
+        # Safeguard: ensure _post_run_methods exists
+        if not hasattr(self, "_post_run_methods"):
+            raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            )
+
+        # Only capture names that look like result methods (could be customized)
+        # This is a whitelist approach - only capture known safe patterns
+        safe_method_patterns = {
+            "to_pandas",
+            "to_dict",
+            "to_csv",
+            "to_json",
+            "to_list",
+            "select",
+            "filter",
+            "sort_values",
+            "head",
+            "tail",
+            "groupby",
+            "pivot",
+            "melt",
+            "drop",
+            "rename",
+            "to_scenario_list",
+            "to_agent_list",
+            "concatenate",
+            "collapse",
+            "expand",
+            "store",
+            "first",
+            "last",
+        }
+
+        if name in safe_method_patterns:
+
+            def method_proxy(*args, **kwargs):
+                self._post_run_methods.append((name, args, kwargs))
+                return self
+
+            return method_proxy
+
+        # For unknown methods, raise AttributeError immediately
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'. "
+            f"Use .then('{name}', ...) for post-run method chaining."
+        )
+
+    def _apply_post_run_methods(self, results) -> Any:
+        """Apply all post-run methods to the results object.
+
+        Returns the transformed results object, or the original results if no methods were applied.
+        """
+        if not self._post_run_methods:
+            return results
+
+        from ..results import Results
+
+        # Mapping of built-in functions to their corresponding dunder methods
+        builtin_to_dunder = {
+            "len": "__len__",
+            "str": "__str__",
+            "repr": "__repr__",
+            "bool": "__bool__",
+            "int": "__int__",
+            "float": "__float__",
+            "hash": "__hash__",
+            "iter": "__iter__",
+            "next": "__next__",
+            "reversed": "__reversed__",
+        }
+
+        converted_object = results
+        for method_info in self._post_run_methods:
+            if isinstance(method_info, str):
+                # Handle old format (just method name)
+                method_name = method_info
+                args, kwargs = (), {}
+            else:
+                # Handle new format (method name, args, kwargs)
+                method_name, args, kwargs = method_info
+
+            # Convert built-in function names to their dunder method equivalents
+            if method_name in builtin_to_dunder:
+                method_name = builtin_to_dunder[method_name]
+
+            try:
+                converted_object = getattr(converted_object, method_name)(
+                    *args, **kwargs
+                )
+            except AttributeError:
+                raise JobsImplementationError(
+                    f"Could not apply method '{method_name}' to object."
+                )
+
+        if not isinstance(converted_object, Results):
+            converted_object._associated_results = results
+
+        return converted_object
+
+    @with_config
+    def run(self, *, config: RunConfig) -> Optional["Results"]:
+        """Run the job by conducting interviews and return their results.
 
         This is the main entry point for executing a job. It processes all interviews
         (combinations of agents, scenarios, and models) and returns a Results object
         containing all responses and metadata.
 
-        Parameters:
-            n (int): Number of iterations to run each interview (default: 1)
-            progress_bar (bool): Whether to show a progress bar (default: False)
-            stop_on_exception (bool): Whether to stop the job if an exception is raised (default: False)
-            check_api_keys (bool): Whether to verify API keys before running (default: False)
-            verbose (bool): Whether to print extra messages during execution (default: True)
-            print_exceptions (bool): Whether to print exceptions as they occur (default: True)
-            remote_cache_description (str, optional): Description for entries in the remote cache
-            remote_inference_description (str, optional): Description for the remote inference job
-            remote_inference_results_visibility (VisibilityType): Visibility of results on Coop ("private", "public", "unlisted")
-            disable_remote_cache (bool): Whether to disable the remote cache (default: False)
-            disable_remote_inference (bool): Whether to disable remote inference (default: False)
-            fresh (bool): Whether to ignore cache and force new results (default: False)
-            skip_retry (bool): Whether to skip retrying failed interviews (default: False)
-            raise_validation_errors (bool): Whether to raise validation errors (default: False)
-            background (bool): Whether to run in background mode (default: False)
-            job_uuid (str, optional): UUID for the job, used for tracking
-            cache (Cache, optional): Cache object to store results
-            bucket_collection (BucketCollection, optional): Object to track API calls
-            key_lookup (KeyLookup, optional): Object to manage API keys
-            memory_threshold (int, optional): Memory threshold in bytes for the Results object's SQLList,
-                controlling when data is offloaded to SQLite storage
+        Parameters
+        ----------
+        config : RunConfig
+            Configuration object containing runtime parameters and environment settings
+        n : int, optional
+            Number of iterations to run each interview (default: 1)
+        progress_bar : bool, optional
+            Whether to show a progress bar (default: False)
+        stop_on_exception : bool, optional
+            Whether to stop the job if an exception is raised (default: False)
+        check_api_keys : bool, optional
+            Whether to verify API keys before running (default: False)
+        verbose : bool, optional
+            Whether to print extra messages during execution (default: True)
+        print_exceptions : bool, optional
+            Whether to print exceptions as they occur (default: True)
+        remote_cache_description : str, optional
+            Description for entries in the remote cache
+        remote_inference_description : str, optional
+            Description for the remote inference job
+        remote_inference_results_visibility : VisibilityType, optional
+            Visibility of results on Coop ("private", "public", "unlisted")
+        disable_remote_cache : bool, optional
+            Whether to disable the remote cache (default: False)
+        disable_remote_inference : bool, optional
+            Whether to disable remote inference (default: False)
+        fresh : bool, optional
+            Whether to ignore cache and force new results (default: False)
+        skip_retry : bool, optional
+            Whether to skip retrying failed interviews (default: False)
+        raise_validation_errors : bool, optional
+            Whether to raise validation errors (default: False)
+        background : bool, optional
+            Whether to run in background mode (default: False)
+        job_uuid : str, optional
+            UUID for the job, used for tracking
+        cache : Cache, optional
+            Cache object to store results
+        bucket_collection : BucketCollection, optional
+            Object to track API keys
+        key_lookup : KeyLookup, optional
+            Object to manage API keys
+        memory_threshold : int, optional
+            Memory threshold in bytes for the Results object's SQLList,
+            controlling when data is offloaded to SQLite storage
+        new_format : bool, optional
+            If True, uses remote_inference_create method, if False uses old_remote_inference_create method (default: True)
+        expected_parrot_api_key : str, optional
+            Custom EXPECTED_PARROT_API_KEY to use for this job run
 
-        Returns:
+        Returns
+        -------
             Results: A Results object containing all responses and metadata
 
-        Notes:
+        Notes
+        -----
             - This method will first try to use remote inference if available
             - If remote inference is not available, it will run locally
             - For long-running jobs, consider using progress_bar=True
@@ -847,53 +1244,109 @@ class Jobs(Base):
             >>> m = Model('test')
             >>> results = job.by(m).run(cache=Cache(), progress_bar=False, n=2, disable_remote_inference=True)
             ...
+
         """
+        self._logger.info("Starting job execution")
+        self._logger.info(
+            f"Job configuration: {self.num_interviews} total interviews, "
+            f"remote_inference={'disabled' if config.parameters.disable_remote_inference else 'enabled'}, "
+            f"progress_bar={config.parameters.progress_bar}"
+        )
+
+        if self._depends_on is not None:
+            self._logger.info("Checking job dependencies")
+            prior_results = self._depends_on.run(config=config)
+            self = self.by(prior_results)
+            self._logger.info("Job dependencies resolved successfully")
+
+        self._logger.info("Starting pre-run setup and configuration")
         potentially_completed_results, reason = self._run(config)
 
         if potentially_completed_results is not None:
-            return potentially_completed_results
+            self._logger.info(
+                "Job completed via remote execution, applying post-run methods"
+            )
+            return self._apply_post_run_methods(potentially_completed_results)
 
         if reason == "insufficient funds":
+            self._logger.info("Job cancelled due to insufficient funds")
             return None
 
-        return asyncio.run(self._execute_with_remote_cache(run_job_async=False))
+        self._logger.info("Starting local execution with remote cache")
+        results = asyncio.run(self._execute_with_remote_cache(run_job_async=False))
+
+        self._logger.info("Applying post-run methods to results")
+        final_results = self._apply_post_run_methods(results)
+
+        self._logger.info(
+            f"Job execution completed successfully with {len(final_results) if final_results else 0} results"
+        )
+        return final_results
 
     @with_config
     async def run_async(self, *, config: RunConfig) -> "Results":
-        """
-        Asynchronously runs the job by conducting interviews and returns their results.
+        """Asynchronously runs the job by conducting interviews and returns their results.
 
         This method is the asynchronous version of `run()`. It has the same functionality and
         parameters but can be awaited in an async context for better integration with
         asynchronous code.
 
-        Parameters:
-            n (int): Number of iterations to run each interview (default: 1)
-            progress_bar (bool): Whether to show a progress bar (default: False)
-            stop_on_exception (bool): Whether to stop the job if an exception is raised (default: False)
-            check_api_keys (bool): Whether to verify API keys before running (default: False)
-            verbose (bool): Whether to print extra messages during execution (default: True)
-            print_exceptions (bool): Whether to print exceptions as they occur (default: True)
-            remote_cache_description (str, optional): Description for entries in the remote cache
-            remote_inference_description (str, optional): Description for the remote inference job
-            remote_inference_results_visibility (VisibilityType): Visibility of results on Coop ("private", "public", "unlisted")
-            disable_remote_cache (bool): Whether to disable the remote cache (default: False)
-            disable_remote_inference (bool): Whether to disable remote inference (default: False)
-            fresh (bool): Whether to ignore cache and force new results (default: False)
-            skip_retry (bool): Whether to skip retrying failed interviews (default: False)
-            raise_validation_errors (bool): Whether to raise validation errors (default: False)
-            background (bool): Whether to run in background mode (default: False)
-            job_uuid (str, optional): UUID for the job, used for tracking
-            cache (Cache, optional): Cache object to store results
-            bucket_collection (BucketCollection, optional): Object to track API calls
-            key_lookup (KeyLookup, optional): Object to manage API keys
-            memory_threshold (int, optional): Memory threshold in bytes for the Results object's SQLList,
-                controlling when data is offloaded to SQLite storage
+        Parameters
+        ----------
+        config : RunConfig
+            Configuration object containing runtime parameters and environment settings
+        n : int, optional
+            Number of iterations to run each interview (default: 1)
+        progress_bar : bool, optional
+            Whether to show a progress bar (default: False)
+        stop_on_exception : bool, optional
+            Whether to stop the job if an exception is raised (default: False)
+        check_api_keys : bool, optional
+            Whether to verify API keys before running (default: False)
+        verbose : bool, optional
+            Whether to print extra messages during execution (default: True)
+        print_exceptions : bool, optional
+            Whether to print exceptions as they occur (default: True)
+        remote_cache_description : str, optional
+            Description for entries in the remote cache
+        remote_inference_description : str, optional
+            Description for the remote inference job
+        remote_inference_results_visibility : VisibilityType, optional
+            Visibility of results on Coop ("private", "public", "unlisted")
+        disable_remote_cache : bool, optional
+            Whether to disable the remote cache (default: False)
+        disable_remote_inference : bool, optional
+            Whether to disable remote inference (default: False)
+        fresh : bool, optional
+            Whether to ignore cache and force new results (default: False)
+        skip_retry : bool, optional
+            Whether to skip retrying failed interviews (default: False)
+        raise_validation_errors : bool, optional
+            Whether to raise validation errors (default: False)
+        background : bool, optional
+            Whether to run in background mode (default: False)
+        job_uuid : str, optional
+            UUID for the job, used for tracking
+        cache : Cache, optional
+            Cache object to store results
+        bucket_collection : BucketCollection, optional
+            Object to track API calls
+        key_lookup : KeyLookup, optional
+            Object to manage API keys
+        memory_threshold : int, optional
+            Memory threshold in bytes for the Results object's SQLList,
+            controlling when data is offloaded to SQLite storage
+        new_format : bool, optional
+            If True, uses remote_inference_create method, if False uses old_remote_inference_create method (default: True)
+        expected_parrot_api_key : str, optional
+            Custom EXPECTED_PARROT_API_KEY to use for this job run
 
-        Returns:
+        Returns
+        -------
             Results: A Results object containing all responses and metadata
 
-        Notes:
+        Notes
+        -----
             - This method should be used in async contexts (e.g., with `await`)
             - For non-async contexts, use the `run()` method instead
             - This method is particularly useful in notebook environments or async applications
@@ -907,6 +1360,7 @@ class Jobs(Base):
             >>> async def run_job():
             ...     results = await job.run_async(cache=Cache(), progress_bar=True)
             ...     return results
+
         """
         self._run(config)
 
@@ -926,6 +1380,7 @@ class Jobs(Base):
 
     def __len__(self) -> int:
         """Return the number of interviews that will be conducted for one iteration of this job.
+
         An interview is the result of one survey, taken by one agent, with one model, with one scenario.
 
         >>> from edsl.jobs import Jobs
@@ -939,7 +1394,98 @@ class Jobs(Base):
         )
         return number_of_interviews
 
-    def to_dict(self, add_edsl_version=True):
+    def to(
+        self, question_or_survey_or_jobs: Union["Question", "Survey", "Jobs"]
+    ) -> "Jobs":
+        """Create a new :class:`Jobs` instance from *self* and a target object.
+
+        The target can be one of the following:
+
+        • `Question` – A single question which will be wrapped in a one-question
+          survey.
+        • `Survey` – A survey object that will be used directly.
+        • `Jobs`   – An existing *Jobs* object. In this case the target *Jobs*
+          is **returned unchanged**, but its ``_depends_on`` attribute is set to
+          reference *self*, establishing an execution dependency chain.
+
+        Args:
+        ----
+            question_or_survey_or_jobs (Union[Question, Survey, Jobs]):
+                The object used to build (or identify) the new *Jobs* instance.
+
+        Returns:
+        -------
+            Jobs: A new *Jobs* instance that depends on the current instance, or
+            the target *Jobs* instance when the target itself is a *Jobs*.
+
+        Raises:
+        ------
+            ValueError: If *question_or_survey_or_jobs* is not one of the
+                supported types.
+
+        Examples:
+        --------
+            The following doctest demonstrates sending one job to another and
+            verifying the dependency link via the private ``_depends_on``
+            attribute::
+
+                >>> from edsl.jobs import Jobs
+                >>> base_job = Jobs.example()
+                >>> downstream_job = Jobs.example()
+                >>> new_job = base_job.to(downstream_job)
+                >>> new_job is downstream_job  # the same object is returned
+                True
+                >>> new_job._depends_on is base_job  # dependency recorded
+                True
+
+        """
+        from ..questions import QuestionBase
+        from ..surveys import Survey
+
+        type_handlers = {
+            QuestionBase: lambda q: Jobs(survey=Survey(questions=[q])),
+            Survey: lambda s: Jobs(survey=s),
+            Jobs: lambda j: j,
+        }
+        handler = next(
+            (
+                fn
+                for t, fn in type_handlers.items()
+                if isinstance(question_or_survey_or_jobs, t)
+            ),
+            None,
+        )
+
+        if handler is None:
+            raise ValueError(f"Invalid type: {type(question_or_survey_or_jobs)}")
+
+        new_jobs = handler(question_or_survey_or_jobs)
+        new_jobs._depends_on = self
+        return new_jobs
+
+    def duplicate(self):
+        """Create a duplicate copy of this Jobs instance.
+
+        Returns
+        -------
+            Jobs: A new Jobs instance that is a copy of this one.
+
+        """
+        return Jobs.from_dict(self.to_dict())
+
+    def to_dict(self, add_edsl_version=True, full_dict=None):
+        """Convert the Jobs instance to a dictionary representation.
+
+        Args:
+        ----
+            add_edsl_version: Whether to include EDSL version information.
+            full_dict: Additional dictionary to merge (currently unused).
+
+        Returns:
+        -------
+            dict: Dictionary representation of this Jobs instance.
+
+        """
         d = {
             "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
             "agents": [
@@ -955,6 +1501,17 @@ class Jobs(Base):
                 for scenario in self.scenarios
             ],
         }
+
+        # Add _post_run_methods if not empty
+        if self._post_run_methods:
+            d["_post_run_methods"] = self._post_run_methods
+
+        # Add _depends_on if not None
+        if self._depends_on is not None:
+            d["_depends_on"] = self._depends_on.to_dict(
+                add_edsl_version=add_edsl_version
+            )
+
         if add_edsl_version:
             from .. import __version__
 
@@ -964,26 +1521,44 @@ class Jobs(Base):
         return d
 
     def table(self):
+        """Return a table view of the job's prompts.
+
+        Returns
+        -------
+            Table representation of the job's prompts.
+
+        """
         return self.prompts().to_scenario_list().table()
 
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data: dict) -> Jobs:
-        """Creates a Jobs instance from a dictionary."""
+        """Create a Jobs instance from a dictionary."""
         from ..surveys import Survey
         from ..agents import Agent
         from ..language_models import LanguageModel
         from ..scenarios import Scenario
 
-        return cls(
+        # Create the base Jobs instance
+        job = cls(
             survey=Survey.from_dict(data["survey"]),
             agents=[Agent.from_dict(agent) for agent in data["agents"]],
             models=[LanguageModel.from_dict(model) for model in data["models"]],
             scenarios=[Scenario.from_dict(scenario) for scenario in data["scenarios"]],
         )
 
+        # Restore _post_run_methods if present
+        if "_post_run_methods" in data:
+            job._post_run_methods = data["_post_run_methods"]
+
+        # Restore _depends_on if present
+        if "_depends_on" in data:
+            job._depends_on = cls.from_dict(data["_depends_on"])
+
+        return job
+
     def __eq__(self, other: Jobs) -> bool:
-        """Return True if the Jobs instance is equal to another Jobs instance.
+        """Return True if the Jobs instance is the same as another Jobs instance.
 
         >>> from edsl.jobs import Jobs
         >>> Jobs.example() == Jobs.example()
@@ -1036,7 +1611,6 @@ class Jobs(Base):
 
         def answer_question_directly(self, question, scenario):
             """Return the answer to a question. This is a method that can be added to an agent."""
-
             if random.random() < throw_exception_probability:
                 from .exceptions import JobsErrors
 
@@ -1080,14 +1654,89 @@ class Jobs(Base):
 
         return job
 
+    def inspect(self):
+        """Create an interactive inspector widget for this job."""
+        try:
+            from ..widgets.job_inspector import JobInspectorWidget
+        except ImportError as e:
+            raise ImportError(
+                "Job inspector widget is not available. Make sure the widgets module is installed."
+            ) from e
+        return JobInspectorWidget(self)
+
     def code(self):
         """Return the code to create this instance."""
         raise JobsImplementationError("Code generation not implemented yet")
 
+    def humanize(
+        self,
+        project_name: str = "Project",
+        scenario_list_method: Optional[
+            Literal["randomize", "loop", "single_scenario", "ordered"]
+        ] = None,
+        survey_description: Optional[str] = None,
+        survey_alias: Optional[str] = None,
+        survey_visibility: Optional["VisibilityType"] = "unlisted",
+        scenario_list_description: Optional[str] = None,
+        scenario_list_alias: Optional[str] = None,
+        scenario_list_visibility: Optional["VisibilityType"] = "unlisted",
+    ):
+        """Send the survey and scenario list to Coop.
+
+        Then, create a project on Coop so you can share the survey with human respondents.
+        """
+        from edsl.coop import Coop
+        from edsl.coop.exceptions import CoopValueError
+
+        if len(self.agents) > 0 or len(self.models) > 0:
+            raise CoopValueError("We don't support humanize with agents or models yet.")
+
+        if len(self.scenarios) > 0 and scenario_list_method is None:
+            raise CoopValueError(
+                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
+            )
+        elif len(self.scenarios) == 0 and scenario_list_method is not None:
+            raise CoopValueError(
+                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
+            )
+        elif scenario_list_method == "loop":
+            questions, long_scenario_list = self.survey.to_long_format(self.scenarios)
+
+            # Replace the questions with new ones from the loop method
+            self.survey = Survey(questions)
+            self.scenarios = long_scenario_list
+
+            if len(self.scenarios) != 1:
+                raise CoopValueError("Something went wrong with the loop method.")
+        elif len(self.scenarios) != 1 and scenario_list_method == "single_scenario":
+            raise CoopValueError(
+                "The single_scenario method requires exactly one scenario. "
+                "If you have a scenario list with multiple scenarios, try using the randomize or loop methods."
+            )
+
+        if len(self.scenarios) == 0:
+            scenario_list = None
+        else:
+            scenario_list = self.scenarios
+
+        c = Coop()
+        project_details = c.create_project(
+            self.survey,
+            scenario_list,
+            scenario_list_method,
+            project_name,
+            survey_description,
+            survey_alias,
+            survey_visibility,
+            scenario_list_description,
+            scenario_list_alias,
+            scenario_list_visibility,
+        )
+        return project_details
+
 
 def main():
     """Run the module's doctests."""
-    from .jobs import Jobs
     from ..caching import Cache
 
     job = Jobs.example()

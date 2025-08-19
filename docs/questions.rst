@@ -353,6 +353,9 @@ We can combine multiple questions into a survey by passing them as a list to a `
 This allows us to administer multiple questions at once, either asynchronously (by default) or according to specified logic (e.g., skip or stop rules).
 To learn more about designing surveys with conditional logic, please see the :ref:`surveys` section.
 
+*Note:* If you want multiple choice question options to be randomized, you can pass an optional parameter `questions_to_randomize` (a list of the relevant question names) to the `Survey` object when it is created.
+See more details about `QuestionMultipleChoice` below and the :ref:`surveys` section on randomizing question options.
+
 
 Simulating a response 
 ---------------------
@@ -816,15 +819,14 @@ Learn more about specifying question scenarios, agents and language models and t
 * :ref:`language_models`
 
 
-.. QuestionBase class 
-.. ------------------
+QuestionBase class 
+------------------
 
-.. .. automodule:: edsl.questions.QuestionBase
-..    :members:
-..    :undoc-members:
-..    :show-inheritance:
-..    :special-members: __init__
-..    :exclude-members: question_name, question_text, question_type, short_names_dict, main
+.. autoclass:: edsl.questions.QuestionBase
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
 
 
 Question type classes
@@ -891,7 +893,7 @@ You can also use HTML formatting tags:
    )
 
 
-.. automodule:: edsl.questions.QuestionFreeText
+.. autoclass:: edsl.questions.QuestionFreeText
    :members:
    :undoc-members:
    :show-inheritance:
@@ -923,7 +925,23 @@ An example can also created using the `example` method:
    QuestionMultipleChoice.example()
 
 
-Note: Question options can be strings of any length, but if they are long or complex, it may be useful to add the `use_code` parameter to the question.
+If you want the question options to be randomized, you can pass an optional parameter `questions_to_randomize` (a list of the relevant question names) to the `Survey` object when it is created.
+For example: 
+
+.. code-block:: python
+
+   from edsl import QuestionMultipleChoice, Survey
+
+   q = QuestionMultipleChoice(
+      question_name = "color",
+      question_text = "What is your favorite color?",
+      question_options = ["Red", "Blue", "Green", "Yellow"]
+   )
+
+   survey = Survey([q], questions_to_randomize=["color"])
+
+
+*Note:* Question options can be strings of any length, but if they are long or complex, it may be useful to add the `use_code` parameter to the question.
 This will add an instruction to the `user_prompt` for the model to provide the code number of the question option that it selects as its answer (i.e., 0, 1, 2, etc.) instead of the value of the option.
 This can be useful when the question options are long or complex, or include formatting that a model may make errors in reproducing to provide an answer, resulting in a validation error that may be avoidable by returning the code number of the option instead.
 The code is then translated back to the option value in the survey results.
@@ -942,7 +960,7 @@ For example, in a multiple choice question where the agent is instructed to sele
    )
 
 
-.. automodule:: edsl.questions.QuestionMultipleChoice
+.. autoclass:: edsl.questions.QuestionMultipleChoice
    :members:
    :undoc-members:
    :show-inheritance:
@@ -979,7 +997,7 @@ An example can also be created using the `example` method:
    QuestionCheckBox.example()
 
 
-.. automodule:: edsl.questions.QuestionCheckBox
+.. autoclass:: edsl.questions.QuestionCheckBox
    :members:
    :undoc-members:
    :show-inheritance:
@@ -1015,7 +1033,7 @@ An example can also be created using the `example` method:
    QuestionMatrix.example()
 
 
-.. automodule:: edsl.questions.QuestionMatrix
+.. autoclass:: edsl.questions.QuestionMatrix
    :members:
    :undoc-members:
    :show-inheritance:
@@ -1050,7 +1068,7 @@ An example can also be created using the `example` method:
    QuestionDict.example()
 
 
-.. automodule:: edsl.questions.QuestionDict
+.. autoclass:: edsl.questions.QuestionDict
    :members:
    :undoc-members:
    :show-inheritance:
@@ -1085,7 +1103,7 @@ An example can also be created using the `example` method:
    QuestionLinearScale.example()
 
 
-.. automodule:: edsl.questions.derived.QuestionLinearScale
+.. autoclass:: edsl.questions.derived.QuestionLinearScale
    :members:
    :undoc-members:
    :show-inheritance:
@@ -1118,7 +1136,7 @@ An example can also be created using the `example` method:
    QuestionNumerical.example()
 
 
-.. automodule:: edsl.questions.QuestionNumerical
+.. autoclass:: edsl.questions.QuestionNumerical
    :members:
    :undoc-members:
    :show-inheritance:
@@ -1149,7 +1167,7 @@ An example can also be created using the `example` method:
    QuestionLikertFive.example()
     
 
-.. automodule:: edsl.questions.derived.QuestionLikertFive
+.. autoclass:: edsl.questions.derived.QuestionLikertFive
    :members:
    :undoc-members:
    :show-inheritance:
@@ -1186,7 +1204,7 @@ An example can also be created using the `example` method:
 Alternatively, `QuestionTopK` can be used to ask the respondent to select a specific number of options from a list.
 (See the next section for details.)
 
-.. automodule:: edsl.questions.QuestionRank
+.. autoclass:: edsl.questions.QuestionRank
    :members:
    :undoc-members:
    :show-inheritance:
@@ -1220,7 +1238,7 @@ An example can also be created using the `example` method:
    QuestionTopK.example()
 
 
-.. automodule:: edsl.questions.derived.QuestionTopK
+.. autoclass:: edsl.questions.derived.QuestionTopK
    :members:
    :undoc-members:
    :show-inheritance:
@@ -1250,7 +1268,7 @@ An example can also be created using the `example` method:
    QuestionYesNo.example()
 
 
-.. automodule:: edsl.questions.derived.QuestionYesNo
+.. autoclass:: edsl.questions.derived.QuestionYesNo
    :members:
    :undoc-members:
    :show-inheritance:
@@ -1281,7 +1299,7 @@ An example can also be created using the `example` method:
    QuestionList.example()
 
 
-.. automodule:: edsl.questions.QuestionList
+.. autoclass:: edsl.questions.QuestionList
    :members:
    :undoc-members:
    :show-inheritance:
@@ -1314,7 +1332,7 @@ An example can also be created using the `example` method:
    QuestionBudget.example()
 
 
-.. automodule:: edsl.questions.QuestionBudget
+.. autoclass:: edsl.questions.QuestionBudget
    :members:
    :undoc-members:
    :show-inheritance:
@@ -1345,7 +1363,7 @@ An example can also be created using the `example` method:
    QuestionExtract.example()
 
 
-.. automodule:: edsl.questions.QuestionExtract
+.. autoclass:: edsl.questions.QuestionExtract
    :members:
    :undoc-members:
    :show-inheritance:
@@ -1466,7 +1484,7 @@ Another example of `QuestionFunctional` can be seen in the following notebook, w
 Example notebook: `Simulating randomness <https://docs.expectedparrot.com/en/latest/notebooks/random_numbers.html>`_ 
 
 
-.. automodule:: edsl.questions.QuestionFunctional
+.. autoclass:: edsl.questions.QuestionFunctional
    :members:
    :undoc-members:
    :show-inheritance:

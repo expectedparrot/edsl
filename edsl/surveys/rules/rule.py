@@ -4,7 +4,7 @@ The key component is an expression specifiying the logic of the rule, which can 
 
 .. code-block:: python
 
-    "q1 == 'yes' or q2 == 'no'"
+    "{{ q1.answer }} == 'yes' or {{ q2.answer }} == 'no'"
 
 The expression must be about questions "before" the current question.
 
@@ -36,6 +36,7 @@ from ..exceptions import (
 
 from ..base import EndOfSurvey
 from ...utilities import extract_variable_names, remove_edsl_version
+
 
 class QuestionIndex:
     def __set_name__(self, owner, name):
@@ -126,16 +127,25 @@ class Rule:
                     "A rule refers to a future question, the answer to which would not be available here."
                 )
                 raise SurveyRuleRefersToFutureStateError
-            
-        if (referenced_questions := self._prior_question_is_in_expression()) and not self._is_jinja2_expression():            #raise ValueError("This uses the old syntax!")
+
+        if (
+            referenced_questions := self._prior_question_is_in_expression()
+        ) and not self._is_jinja2_expression():  # raise ValueError("This uses the old syntax!")
             import warnings
+
             old_expression = self.expression
             for q in referenced_questions:
                 if q + ".answer" in self.expression:
-                    self.expression = self.expression.replace(q + ".answer", f"{{{{ {q}.answer }}}}")
+                    self.expression = self.expression.replace(
+                        q + ".answer", f"{{{{ {q}.answer }}}}"
+                    )
                 else:
-                    self.expression = self.expression.replace(q, f"{{{{ {q}.answer }}}}")
-            warnings.warn(f"This uses the old syntax! Converting to Jinja2 style with {{ }}.\nOld expression: {old_expression}\nNew expression: {self.expression}")
+                    self.expression = self.expression.replace(
+                        q, f"{{{{ {q}.answer }}}}"
+                    )
+            warnings.warn(
+                f"This uses the old syntax! Converting to Jinja2 style with {{ }}.\nOld expression: {old_expression}\nNew expression: {self.expression}"
+            )
 
     def _checks(self):
         pass
@@ -217,11 +227,11 @@ class Rule:
                 replacement = str(value)
             d[var] = replacement
         return d
-    
+
     def _prior_question_is_in_expression(self) -> set:
         """Check if the expression contains a reference to a prior question."""
         return {q for q in self.question_name_to_index.keys() if q in self.expression}
-    
+
     def _is_jinja2_expression(self):
         """Check if the expression is a Jinja2 expression."""
         return "{{" in self.expression and "}}" in self.expression
@@ -259,38 +269,38 @@ class Rule:
 
         def jinja_ize_dictionary(dictionary):
             """Convert a dictionary to a Jinja2 dictionary.
-            
+
             Keys must be either:
             - 'agent'
             - 'scenario'
             - A valid question name from question_name_to_index
-            
+
             For question keys, the value is wrapped in an 'answer' subdictionary.
-            
+
             Examples:
             >>> d = jinja_ize_dictionary({'q1': 'yes'}, {'q1': 1})
             >>> d['q1']['answer']
             'yes'
-            
+
             >>> d = jinja_ize_dictionary({'agent': 'friendly'}, {'q1': 1})
             >>> d['agent']
-            'friendly'            
+            'friendly'
             """
             jinja_dict = defaultdict(dict)
-            
+
             for key, value in dictionary.items():
                 # print("Now processing key: ", key)
                 # print(f"key: {key}, value: {value}")
                 # Handle special keys
-                if 'agent.' in key:
+                if "agent." in key:
                     # print("Agent key found")
-                    jinja_dict['agent'][key.split('.')[1]] = value
+                    jinja_dict["agent"][key.split(".")[1]] = value
                     # print("jinja dict: ", jinja_dict)
-                    continue 
+                    continue
 
-                if 'scenario.' in key:
+                if "scenario." in key:
                     # print("Scenario key found")
-                    jinja_dict['scenario'][key.split('.')[1]] = value
+                    jinja_dict["scenario"][key.split(".")[1]] = value
                     # print("jinja dict: ", jinja_dict)
                     continue
 
@@ -300,13 +310,13 @@ class Rule:
                     if question_name in key:
                         if question_name == key:
                             # print("question name is key; it's an answer")
-                            jinja_dict[question_name]['answer'] = value
+                            jinja_dict[question_name]["answer"] = value
                             # print("jinja dict: ", jinja_dict)
                             continue
                         else:
                             # print("question name is not key; it's a sub-type")
                             if "." in key:
-                                passed_name, value_type = key.split('.')
+                                passed_name, value_type = key.split(".")
                                 # print("passed_name: ", passed_name)
                                 # print("value_type: ", value_type)
                                 if passed_name == question_name:
@@ -314,7 +324,7 @@ class Rule:
                                     jinja_dict[question_name][value_type] = value
                                     # print("jinja dict: ", jinja_dict)
                                     continue
-                  
+
             return jinja_dict
 
         def substitute_in_answers(expression, current_info_env):
@@ -332,8 +342,8 @@ class Rule:
                     to_evaluate = to_evaluate.replace(var, value)
 
             return to_evaluate
-        
-        #breakpoint()
+
+        # breakpoint()
 
         try:
             to_evaluate = substitute_in_answers(self.expression, current_info_env)

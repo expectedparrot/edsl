@@ -1,6 +1,7 @@
 from collections import UserList
 from ..dataset import Dataset
 
+
 class Markkdown:
 
     def __init__(self, text: str):
@@ -8,9 +9,10 @@ class Markkdown:
 
     def __str__(self):
         return self.text
-    
+
     def _repr_markdown_(self):
         return self.text
+
 
 class PrettyList(UserList):
     def __init__(self, data=None, columns=None):

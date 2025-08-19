@@ -1,7 +1,5 @@
 import sys
 from IPython.core.interactiveshell import InteractiveShell
-from IPython.display import HTML, display
-from pathlib import Path
 import traceback
 
 # Example logger import
@@ -146,7 +144,10 @@ class BaseException(Exception):
                     #         )
                     #     )
                     # except:
-                    print(f"❌ E[🦃] EDSL ERROR: {etype.__name__}: {evalue}", file=sys.stderr)
+                    print(
+                        f"❌ E[🦃] EDSL ERROR: {etype.__name__}: {evalue}",
+                        file=sys.stderr,
+                    )
                 # Suppress IPython’s normal traceback
                 return
             # Otherwise, fall back to the usual traceback

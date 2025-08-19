@@ -176,7 +176,8 @@ This will return the following information:
 
 Jobs class
 ----------
-.. automodule:: edsl.jobs.Jobs
+.. autoclass:: edsl.jobs.Jobs
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__

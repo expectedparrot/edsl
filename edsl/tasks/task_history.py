@@ -107,9 +107,11 @@ class TaskHistory(RepresentationMixin):
                 data = {
                     "id": self._interview_id,
                     "type": "InterviewReference",
-                    "exceptions": self.exceptions.to_dict()
-                    if hasattr(self.exceptions, "to_dict")
-                    else {},
+                    "exceptions": (
+                        self.exceptions.to_dict()
+                        if hasattr(self.exceptions, "to_dict")
+                        else {}
+                    ),
                     "task_status_logs": {
                         name: log.to_dict() if hasattr(log, "to_dict") else {}
                         for name, log in self.task_status_logs.items()
@@ -298,12 +300,14 @@ class TaskHistory(RepresentationMixin):
                         # This preserves all exception details exactly as they were
                         data = {
                             "type": "InterviewReference",
-                            "exceptions": self._exceptions_data
-                            if hasattr(self, "_exceptions_data")
-                            else (
-                                self.exceptions.to_dict()
-                                if hasattr(self.exceptions, "to_dict")
-                                else self.exceptions
+                            "exceptions": (
+                                self._exceptions_data
+                                if hasattr(self, "_exceptions_data")
+                                else (
+                                    self.exceptions.to_dict()
+                                    if hasattr(self.exceptions, "to_dict")
+                                    else self.exceptions
+                                )
                             ),
                             "task_status_logs": self.task_status_logs,
                             "model": self.model,
@@ -541,9 +545,11 @@ class TaskHistory(RepresentationMixin):
                         interview.model.model,  # Model
                         question_name,  # Question name
                         exception.name,  # Exception name
-                        str(exception.traceback)[:100]
-                        if exception.traceback
-                        else "",  # Truncated traceback
+                        (
+                            str(exception.traceback)[:100]
+                            if exception.traceback
+                            else ""
+                        ),  # Truncated traceback
                     )
 
                     # Only count if we haven't seen this exact exception before
@@ -810,7 +816,7 @@ class TaskHistory(RepresentationMixin):
                                     exception.invigilator.scenario = (
                                         exception.invigilator.scenario.offload()
                                     )
-                                except Exception as e:
+                                except Exception:
                                     # Silently continue if offloading fails for any reason
                                     pass
 
@@ -907,6 +913,3 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-
-    # Run the reference test
-    test_no_strong_reference()

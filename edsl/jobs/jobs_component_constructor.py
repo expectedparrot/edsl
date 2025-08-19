@@ -1,11 +1,12 @@
 from typing import Union, Sequence, TYPE_CHECKING
 from .exceptions import JobsValueError
-from ..scenarios import ScenarioList
+
 if TYPE_CHECKING:
     from ..agents import Agent
     from ..language_models import LanguageModel
     from ..scenarios import Scenario
     from .jobs import Jobs
+
 
 class JobsComponentConstructor:
     "Handles the creation of Agents, Scenarios, and LanguageModels in a job."
@@ -50,7 +51,7 @@ class JobsComponentConstructor:
         - scenarios: traits of new scenarios are combined with traits of old existing. New scenarios will overwrite overlapping traits, and do not increase the number of scenarios in the instance
         - models: new models overwrite old models.
         """
-        
+
         from ..dataset.dataset import Dataset
 
         if isinstance(
@@ -72,6 +73,14 @@ class JobsComponentConstructor:
             new_objects = self._merge_objects(passed_objects, current_objects)
 
         setattr(self.jobs, objects_key, new_objects)  # update the job object
+
+        # Validate template compatibility when scenarios are added
+        if objects_key == "scenarios" and self.jobs.survey is not None:
+            from .check_template_syntax import CheckTemplateSyntax
+
+            # Only check template syntax - this validates {{scenario.field}} vs {{custom_name.field}}
+            CheckTemplateSyntax(self.jobs.survey).check()
+
         return self.jobs
 
     @staticmethod
@@ -84,6 +93,7 @@ class JobsComponentConstructor:
         [1, 2, 3]
 
         """
+        from ..scenarios import ScenarioList
 
         def did_user_pass_a_sequence(args):
             """Return True if the user passed a sequence, False otherwise.
@@ -96,7 +106,9 @@ class JobsComponentConstructor:
             >>> did_user_pass_a_sequence(1)
             False
             """
-            return len(args) == 1 and (isinstance(args[0], Sequence) or isinstance(args[0], ScenarioList))
+            return len(args) == 1 and (
+                isinstance(args[0], Sequence) or isinstance(args[0], ScenarioList)
+            )
 
         if did_user_pass_a_sequence(args):
             container_class = JobsComponentConstructor._get_container_class(args[0][0])
@@ -108,7 +120,6 @@ class JobsComponentConstructor:
     def _get_current_objects_of_this_type(
         self, object: Union["Agent", "Scenario", "LanguageModel"]
     ) -> tuple[list, str]:
-        
         from ..agents import Agent
         from ..scenarios import Scenario
         from ..language_models import LanguageModel

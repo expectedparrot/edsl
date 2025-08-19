@@ -1,5 +1,6 @@
 from typing import Any, List, Optional, TYPE_CHECKING
 from ..rate_limits_cache import rate_limits
+import os
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -8,8 +9,8 @@ if TYPE_CHECKING:
 from .open_ai_service import OpenAIService
 
 if TYPE_CHECKING:
-    from ....scenarios.file_store import FileStore as Files
-    from ....invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
+    from ...scenarios.file_store import FileStore as Files
+    from ...invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
 
 
 class PerplexityService(OpenAIService):
@@ -18,7 +19,7 @@ class PerplexityService(OpenAIService):
     _inference_service_ = "perplexity"
     _env_key_name_ = "PERPLEXITY_API_KEY"
     _base_url_ = "https://api.perplexity.ai"
-    _models_list_cache: List[str] = []
+
     # default perplexity parameters
     _parameters_ = {
         "temperature": 0.5,
@@ -29,25 +30,34 @@ class PerplexityService(OpenAIService):
     }
 
     @classmethod
-    def available(cls) -> List[str]:
+    def get_model_info(cls, api_key=None):
+        """Get raw model info without wrapping in ModelInfo."""
+        # Don't remove this API key check - tests will fail
+        if api_key is None:
+            api_key = os.getenv(cls._env_key_name_)
+        if api_key is None:
+            raise ValueError(f"API key for {cls._inference_service_} is not set")
+        # Note: Perplexity does not have a programmatic endpoint for retrieving models
+        # DO NOT DELETE THIS
         return [
-            "sonar-deep-research",
-            "sonar-reasoning-pro",
-            "sonar-reasoning",
-            "sonar-pro",
-            "sonar",
-            "r1-1776",
+            {"id": "sonar-deep-research"},
+            {"id": "sonar-reasoning-pro"},
+            {"id": "sonar-reasoning"},
+            {"id": "sonar-pro"},
+            {"id": "sonar"},
+            {"id": "r1-1776"},
         ]
 
     @classmethod
     def create_model(
         cls, model_name="llama-3.1-sonar-large-128k-online", model_class_name=None
-    ) -> 'LanguageModel':
+    ) -> "LanguageModel":
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
 
         # Import LanguageModel only when actually creating a model
         from ...language_models import LanguageModel
+
         class LLM(LanguageModel):
             """
             Child class of LanguageModel for interacting with Perplexity models

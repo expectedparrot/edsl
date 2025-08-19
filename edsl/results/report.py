@@ -1,6 +1,7 @@
 import jinja2
 import textwrap
 
+
 class Report:
     """
     A flexible report generator for creating formatted output from EDSL datasets.
@@ -38,6 +39,7 @@ class Report:
       )
       print(report.generate())
     """
+
     def __init__(
         self,
         dataset,
@@ -46,7 +48,7 @@ class Report:
         top_n=None,
         pretty_labels=None,
         filter_func=None,
-        sort_by=None
+        sort_by=None,
     ):
         """
         :param dataset: The Dataset instance (DatasetExportMixin-based) to report on.
@@ -74,13 +76,15 @@ class Report:
         if not self.template:
             # A minimal default: print all fields line by line
             # with a heading "Observation #1" etc.
-            self.template = textwrap.dedent("""\
+            self.template = textwrap.dedent(
+                """\
                 # Observation {{ i }}
                 {% for key, value in row.items() %}
                 **{{ key }}**: {{ value }}
                 {% endfor %}
                 ---
-            """)
+            """
+            )
 
     def _prepare_data(self):
         """
@@ -135,14 +139,14 @@ class Report:
     def generate(self) -> str:
         """
         Render the final report as a string.
-        
+
         This method applies the Jinja2 template to each row of data and
         combines the results into a single string. The template has access
         to the row index (i) and the row data (row) for each observation.
-        
+
         Returns:
             A formatted string containing the complete report.
-        
+
         Examples:
             >>> from edsl import Results
             >>> ds = Results.example().select("how_feeling")
@@ -150,7 +154,7 @@ class Report:
             >>> lines = report.generate().split("\\n")
             >>> lines[0]
             '# Observation 1'
-            
+
             >>> # Custom template
             >>> template = "Row {{ i }}: {{ row['answer.how_feeling'] }}\\n"
             >>> report = Report(dataset=ds, template=template)
@@ -174,17 +178,20 @@ class Report:
 if __name__ == "__main__":
     # Suppose you have an existing Dataset
     from .. import Results
+
     ds = Results.example().select("how_feeling", "how_feeling_yesterday")
 
     # Provide a custom template string
-    my_template = textwrap.dedent("""\
+    my_template = textwrap.dedent(
+        """\
         ## Row {{ i }}
 
         Feeling: {{ row['answer.how_feeling'] }}
         Yesterday: {{ row['answer.how_feeling_yesterday'] }}
 
         --------------------
-    """)
+    """
+    )
 
     report = Report(
         dataset=ds,

@@ -21,7 +21,7 @@ class MarkdownToPDF:
     def _check_pandoc(self):
         """
         Check if pandoc is installed and accessible.
-        
+
         Returns:
             bool: True if pandoc is available, False otherwise
         """
@@ -30,6 +30,7 @@ class MarkdownToPDF:
             return True
         except (subprocess.CalledProcessError, FileNotFoundError):
             import warnings
+
             warnings.warn(
                 "Pandoc is not installed or not found in PATH. "
                 "PDF conversion will not be available."

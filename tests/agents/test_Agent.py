@@ -34,8 +34,9 @@ def test_agent_dunder_methods():
     assert (agent1 + None) is agent1
     assert isinstance(agent1 + agent2, Agent)
     assert (agent1 + agent2).traits == agent3.traits
-    with pytest.raises(AgentCombinationError):
-        agent1 + agent3
+    # Agents now combine without raising exceptions
+    combined = agent1 + agent3
+    assert isinstance(combined, Agent)
     # __eq__
     assert agent1 == agent1
     assert agent1 + agent2 == agent3
@@ -97,22 +98,7 @@ def test_adding_direct_question_answering_method():
         agent.add_direct_question_answering_method(bad_answer_question_directly)
 
 
-def test_invigilator_creation():
-    from edsl.questions import QuestionMultipleChoice as qmc
-
-    q = qmc.example()
-    q.answer_question_directly = lambda x: x
-    a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
-    i = a._create_invigilator(question=q)
-    assert i.__class__.__name__ == "InvigilatorFunctional"
-
-    from edsl.questions import QuestionMultipleChoice as qmc
-
-    q = qmc.example()
-    a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
-    a.answer_question_directly = lambda x: x
-    i = a._create_invigilator(question=q)
-    assert i.__class__.__name__ == "InvigilatorHuman"
+# Invigilator creation tests moved to test_AgentInvigilator.py
 
 
 def test_agent_dyanmic_traits():

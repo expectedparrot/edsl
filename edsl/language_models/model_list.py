@@ -2,7 +2,9 @@ from typing import Optional, List, TYPE_CHECKING
 from collections import UserList
 
 from ..base import Base
-from ..language_models import Model
+
+if TYPE_CHECKING:
+    pass
 
 from ..utilities import remove_edsl_version, dict_hash
 
@@ -10,14 +12,15 @@ if TYPE_CHECKING:
     from ..inference_services.data_structures import AvailableModels
     from ..language_models import LanguageModel
 
+
 class ModelList(Base, UserList):
     __documentation__ = """https://docs.expectedparrot.com/en/latest/language_models.html#module-edsl.language_models.ModelList"""
 
     def __init__(self, data: Optional["LanguageModel"] = None):
-        """Initialize the ScenarioList class.
+        """Initialize the ModelList class.
 
         >>> from edsl import Model
-        >>> m = ModelList(Model.available())
+        >>> m = ModelList.from_scenario_list(Model.available())
 
         """
         if data is not None:
@@ -43,7 +46,7 @@ class ModelList(Base, UserList):
     def __hash__(self):
         """Return a hash of the ModelList. This is used for comparison of ModelLists.
 
-        >>> isinstance(hash(Model()), int)
+        >>> isinstance(hash(ModelList([])), int)
         True
 
         """
@@ -55,10 +58,15 @@ class ModelList(Base, UserList):
 
         sl = ScenarioList()
         for model in self:
-            d = {"model": model.model, "inference_service": model._inference_service_}
+            d = {"model_name": model.model, "service_name": model._inference_service_}
             d.update(model.parameters)
             sl.append(Scenario(d))
         return sl
+
+    def filter(self, expression: str):
+        sl = self.to_scenario_list()
+        filtered_sl = sl.filter(expression)
+        return self.from_scenario_list(filtered_sl)
 
     def tree(self, node_list: Optional[List[str]] = None):
         return self.to_scenario_list().tree(node_list)
@@ -70,9 +78,9 @@ class ModelList(Base, UserList):
         pretty_labels: Optional[dict] = None,
     ):
         """
-        >>> ModelList.example().table('model')
-        model
-        -------
+        >>> ModelList.example().table('model_name')
+        model_name
+        ------------
         gpt-4o
         gpt-4o
         gpt-4o
@@ -112,6 +120,8 @@ class ModelList(Base, UserList):
     @classmethod
     def from_names(self, *args, **kwargs):
         """A a model list from a list of names"""
+        from .model import Model
+
         if len(args) == 1 and isinstance(args[0], list):
             args = args[0]
         return ModelList([Model(model_name, **kwargs) for model_name in args])
@@ -119,12 +129,71 @@ class ModelList(Base, UserList):
     @classmethod
     def from_available_models(self, available_models_list: "AvailableModels"):
         """Create a ModelList from an AvailableModels object"""
+        from .model import Model
+
         return ModelList(
             [
                 Model(model.model_name, service_name=model.service_name)
                 for model in available_models_list
             ]
         )
+
+    @classmethod
+    def from_scenario_list(cls, scenario_list):
+        """Create a ModelList from a ScenarioList containing model_name and service_name fields.
+
+        Args:
+            scenario_list: ScenarioList with scenarios containing 'model_name' and 'service_name' fields
+
+        Returns:
+            ModelList with instantiated Model objects
+
+        Example:
+            >>> from edsl import Model
+            >>> models_data = Model.available(service_name='openai')
+            >>> model_list = ModelList.from_scenario_list(models_data)
+        """
+        from .model import Model
+
+        models = []
+        for scenario in scenario_list:
+            # Check if scenario is already a Model-like object (from inference services)
+            if hasattr(scenario, "model") and hasattr(scenario, "_inference_service_"):
+                # Create a new Model object from the existing model-like object
+                models.append(
+                    Model(scenario.model, service_name=scenario._inference_service_)
+                )
+                continue
+            elif isinstance(scenario, Model):
+                models.append(scenario)
+                continue
+
+            # Handle scenario dict-like objects
+            try:
+                model_name = (
+                    scenario["model_name"] if "model_name" in scenario else None
+                )
+                service_name = (
+                    scenario["service_name"] if "service_name" in scenario else None
+                )
+            except (TypeError, KeyError):
+                # Handle cases where scenario might not be dict-like
+                model_name = getattr(scenario, "model_name", None)
+                service_name = getattr(scenario, "service_name", None)
+
+            if model_name and service_name:
+                models.append(Model(model_name, service_name=service_name))
+            else:
+                missing_fields = []
+                if not model_name:
+                    missing_fields.append("model_name")
+                if not service_name:
+                    missing_fields.append("service_name")
+                raise ValueError(
+                    f"Scenario missing required fields: {missing_fields}. Scenario: {scenario}"
+                )
+
+        return cls(models)
 
     @classmethod
     @remove_edsl_version
@@ -150,7 +219,19 @@ class ModelList(Base, UserList):
         :param randomize: If True, uses Model's randomize method.
         """
 
+        from .model import Model
+
         return cls([Model.example(randomize) for _ in range(3)])
+
+    @classmethod
+    def all(cls) -> "ModelList":
+        """
+        Returns all available models.
+        """
+        from .model import Model
+
+        available_models = Model.available()
+        return cls.from_scenario_list(available_models)
 
 
 if __name__ == "__main__":

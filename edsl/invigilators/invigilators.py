@@ -219,10 +219,13 @@ class InvigilatorBase(ABC):
         >>> InvigilatorBase.example().answer_question()
         {'message': [{'text': 'SPAM!'}], 'usage': {'prompt_tokens': 1, 'completion_tokens': 1}}
 
-        >>> InvigilatorBase.example(throw_an_exception=True).answer_question()
+        >>> InvigilatorBase.example(throw_an_exception=True).answer_question()  # doctest: +ELLIPSIS
         Traceback (most recent call last):
         ...
-        Exception: This is a test error
+        edsl.inference_services.exceptions.InferenceServiceIntendedError: This is a test error
+        ...
+        Test error - this is an error thrown on purpose to test the error handling in the framework.
+        ...
         """
         from ..agents import Agent
         from ..scenarios import Scenario
@@ -402,12 +405,12 @@ class InvigilatorAI(InvigilatorBase):
             data = {
                 "answer": (
                     agent_response_dict.edsl_dict.answer
-                    if type(agent_response_dict.edsl_dict.answer) is str
-                    or type(agent_response_dict.edsl_dict.answer) is dict
-                    or type(agent_response_dict.edsl_dict.answer) is list
-                    or type(agent_response_dict.edsl_dict.answer) is int
-                    or type(agent_response_dict.edsl_dict.answer) is float
-                    or type(agent_response_dict.edsl_dict.answer) is bool
+                    if isinstance(agent_response_dict.edsl_dict.answer, str)
+                    or isinstance(agent_response_dict.edsl_dict.answer, dict)
+                    or isinstance(agent_response_dict.edsl_dict.answer, list)
+                    or isinstance(agent_response_dict.edsl_dict.answer, int)
+                    or isinstance(agent_response_dict.edsl_dict.answer, float)
+                    or isinstance(agent_response_dict.edsl_dict.answer, bool)
                     else ""
                 ),
                 "comment": (
@@ -448,6 +451,25 @@ class InvigilatorAI(InvigilatorBase):
                     if new_question_options != self.question.data["question_options"]:
                         # I don't love this direct writing but it seems to work
                         self.question.question_options = new_question_options
+
+                # the same treatment applies for min_value and max_value
+                if "min_value" in self.question.data:
+                    new_min_value = (
+                        self.prompt_constructor.get_question_numerical_value(
+                            self.question.data, key="min_value"
+                        )
+                    )
+                    if new_min_value != self.question.data["min_value"]:
+                        self.question.min_value = new_min_value
+
+                if "max_value" in self.question.data:
+                    new_max_value = (
+                        self.prompt_constructor.get_question_numerical_value(
+                            self.question.data, key="max_value"
+                        )
+                    )
+                    if new_max_value != self.question.data["max_value"]:
+                        self.question.max_value = new_max_value
 
                 question_with_validators = self.question.render(
                     self.scenario | prior_answers_dict | {"agent": self.agent.traits}
@@ -562,7 +584,13 @@ class InvigilatorFunctional(InvigilatorBase):
     async def async_answer_question(self, iteration: int = 0) -> AgentResponseDict:
         """Return the answer to the question."""
         func = self.question.answer_question_directly
-        answer = func(scenario=self.scenario, agent_traits=self.agent.traits)
+        # Get prior answers to make them available in the scenario context
+        prior_answers_dict = self.prompt_constructor.prior_answers_dict()
+        # Combine scenario with prior answers and agent traits like other invigilators
+        enriched_scenario = (
+            self.scenario | prior_answers_dict | {"agent": self.agent.traits}
+        )
+        answer = func(scenario=enriched_scenario, agent_traits=self.agent.traits)
 
         return EDSLResultObjectInput(
             generated_tokens=str(answer),

@@ -19,18 +19,18 @@ information to questions in surveys.
 
 from __future__ import annotations
 import copy
-import os
 from collections import UserDict
-from typing import Union, List, Optional, TYPE_CHECKING, Collection
-from uuid import uuid4
+from typing import Union, List, Optional, TYPE_CHECKING, Dict, Any, Iterable, Mapping
 
 from ..base import Base
-from ..utilities import remove_edsl_version
 from .exceptions import ScenarioError
 
 if TYPE_CHECKING:
     from .scenario_list import ScenarioList
     from ..dataset import Dataset
+    from ..jobs import Jobs
+    from ..questions import QuestionBase as Question
+    from ..surveys import Survey
 
 
 class Scenario(Base, UserDict):
@@ -74,7 +74,7 @@ class Scenario(Base, UserDict):
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/scenarios.html"
 
-    def __init__(self, data: Optional[dict] = None, name: Optional[str] = None):
+    def __init__(self, data: Optional[Union[Dict[str, Any], Mapping[str, Any]]] = None, name: Optional[str] = None):
         """
         Initialize a new Scenario.
 
@@ -141,13 +141,23 @@ class Scenario(Base, UserDict):
     def replicate(self, n: int) -> "ScenarioList":
         """Replicate a scenario n times to return a ScenarioList.
 
-        :param n: The number of times to replicate the scenario.
+        Args:
+            n: The number of times to replicate the scenario. Must be non-negative.
 
-        Example:
-        >>> s = Scenario({"food": "wood chips"})
-        >>> s.replicate(2)
-        ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood chips'})])
+        Returns:
+            A ScenarioList containing n copies of this scenario.
+
+        Raises:
+            ValueError: If n is negative.
+
+        Examples:
+            >>> s = Scenario({"food": "wood chips"})
+            >>> s.replicate(2)
+            ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood chips'})])
         """
+        if n < 0:
+            raise ValueError("Number of replications must be non-negative")
+            
         from .scenario_list import ScenarioList
 
         return ScenarioList([copy.deepcopy(self) for _ in range(n)])
@@ -186,21 +196,24 @@ class Scenario(Base, UserDict):
                 new_scenario[key] = value
         return new_scenario
 
-    def __add__(self, other_scenario: Scenario) -> Scenario:
-        """Combine two scenarios by taking the union of their keys
+    def __add__(self, other_scenario: Optional["Scenario"]) -> "Scenario":
+        """Combine two scenarios by taking the union of their keys.
 
         If the other scenario is None, then just return self.
 
-        :param other_scenario: The other scenario to combine with.
+        Args:
+            other_scenario: The other scenario to combine with. Can be None.
 
-        Example:
+        Returns:
+            A new Scenario containing the union of both scenarios' keys.
 
-        >>> s1 = Scenario({"price": 100, "quantity": 2})
-        >>> s2 = Scenario({"color": "red"})
-        >>> s1 + s2
-        Scenario({'price': 100, 'quantity': 2, 'color': 'red'})
-        >>> (s1 + s2).__class__.__name__
-        'Scenario'
+        Examples:
+            >>> s1 = Scenario({"price": 100, "quantity": 2})
+            >>> s2 = Scenario({"color": "red"})
+            >>> s1 + s2
+            Scenario({'price': 100, 'quantity': 2, 'color': 'red'})
+            >>> (s1 + s2).__class__.__name__
+            'Scenario'
         """
         if other_scenario is None:
             return self
@@ -212,25 +225,37 @@ class Scenario(Base, UserDict):
 
     def rename(
         self,
-        old_name_or_replacement_dict: Union[str, dict[str, str]],
+        old_name_or_replacement_dict: Union[str, Dict[str, str]],
         new_name: Optional[str] = None,
-    ) -> Scenario:
+    ) -> "Scenario":
         """Rename the keys of a scenario.
 
-        :param old_name_or_replacement_dict: A dictionary of old keys to new keys *OR* a string of the old key.
-        :param new_name: The new name of the key.
+        Args:
+            old_name_or_replacement_dict: Either a dictionary mapping old keys to new keys,
+                or a string representing the old key name.
+            new_name: The new name for the key. Required if old_name_or_replacement_dict
+                is a string, ignored if it's a dictionary.
 
-        Example:
+        Returns:
+            A new Scenario with renamed keys.
 
-        >>> s = Scenario({"food": "wood chips"})
-        >>> s.rename({"food": "food_preference"})
-        Scenario({'food_preference': 'wood chips'})
+        Raises:
+            TypeError: If old_name_or_replacement_dict is a string but new_name is None.
 
-        >>> s = Scenario({"food": "wood chips"})
-        >>> s.rename("food", "snack")
-        Scenario({'snack': 'wood chips'})
+        Examples:
+            Using a dictionary:
+            >>> s = Scenario({"food": "wood chips"})
+            >>> s.rename({"food": "food_preference"})
+            Scenario({'food_preference': 'wood chips'})
+
+            Using individual arguments:
+            >>> s = Scenario({"food": "wood chips"})
+            >>> s.rename("food", "snack")
+            Scenario({'snack': 'wood chips'})
         """
-        if isinstance(old_name_or_replacement_dict, str) and new_name is not None:
+        if isinstance(old_name_or_replacement_dict, str):
+            if new_name is None:
+                raise TypeError("new_name must be provided when old_name_or_replacement_dict is a string")
             replacement_dict = {old_name_or_replacement_dict: new_name}
         else:
             replacement_dict = old_name_or_replacement_dict
@@ -243,63 +268,181 @@ class Scenario(Base, UserDict):
                 new_scenario[key] = value
         return new_scenario
 
-    def new_column_names(self, new_names: List[str]) -> Scenario:
-        """Rename the keys of a scenario.
+    def new_column_names(self, new_names: List[str]) -> "Scenario":
+        """Rename all keys of a scenario using a list of new names.
 
-        >>> s = Scenario({"food": "wood chips"})
-        >>> s.new_column_names(["food_preference"])
-        Scenario({'food_preference': 'wood chips'})
+        Args:
+            new_names: A list of new key names. Must have the same length as the
+                number of keys in the scenario.
+
+        Returns:
+            A new Scenario with keys renamed according to the provided list.
+
+        Raises:
+            ValueError: If the length of new_names doesn't match the number of keys.
+
+        Examples:
+            >>> s = Scenario({"food": "wood chips"})
+            >>> s.new_column_names(["food_preference"])
+            Scenario({'food_preference': 'wood chips'})
         """
-        try:
-            assert len(new_names) == len(self.keys())
-        except AssertionError:
-            print("The number of new names must match the number of keys.")
+        if len(new_names) != len(self.keys()):
+            raise ValueError(
+                f"The number of new names ({len(new_names)}) must match the number of keys ({len(self.keys())})"
+            )
 
         new_scenario = Scenario()
-        for new_names, value in zip(new_names, self.values()):
-            new_scenario[new_names] = value
+        for new_name, value in zip(new_names, self.values()):
+            new_scenario[new_name] = value
         return new_scenario
 
     def table(self, tablefmt: str = "grid") -> str:
-        """Display a scenario as a table."""
-        return self.to_dataset().table(tablefmt=tablefmt)
-
-    def offload(self, inplace=False) -> "Scenario":
-        """
-        Offloads base64-encoded content from the scenario by replacing 'base64_string'
-        fields with 'offloaded'. This reduces memory usage.
+        """Display a scenario as a formatted table.
 
         Args:
-            inplace (bool): If True, modify the current scenario. If False, return a new one.
+            tablefmt: The table format to use. Common options include "grid",
+                "simple", "pipe", "orgtbl", "rst", "mediawiki", "html", "latex".
 
         Returns:
-            Scenario: The modified scenario (either self or a new instance).
+            A string representation of the scenario formatted as a table.
+
+        Examples:
+            >>> s = Scenario({"food": "chips", "drink": "water"})
+            >>> print(s.table("simple"))  # doctest: +SKIP
+            key    value
+            -----  -------
+            food   chips
+            drink  water
         """
-        from edsl.scenarios import FileStore
-        from edsl.prompts import Prompt
+        return self.to_dataset().table(tablefmt=tablefmt)
 
-        target = self if inplace else Scenario()
+    def offload(self, inplace: bool = False) -> "Scenario":
+        """
+        Offload base64-encoded content from the scenario by replacing 'base64_string'
+        fields with 'offloaded'. This reduces memory usage.
 
-        for key, value in self.items():
-            if isinstance(value, FileStore):
-                file_store_dict = value.to_dict()
-                if "base64_string" in file_store_dict:
-                    file_store_dict["base64_string"] = "offloaded"
-                modified_value = FileStore.from_dict(file_store_dict)
-            elif isinstance(value, dict) and "base64_string" in value:
-                value_copy = value.copy()
-                value_copy["base64_string"] = "offloaded"
-                modified_value = value_copy
-            else:
-                modified_value = value
+        This method delegates to ScenarioOffloader for the actual offloading logic.
+        It handles three types of base64 content:
+        1. Direct base64_string in the scenario (from FileStore.to_dict())
+        2. FileStore objects containing base64 content  
+        3. Dictionary values containing base64_string fields
 
-            target[key] = modified_value
+        Args:
+            inplace: If True, modify the current scenario. If False, return a new one.
 
-        return target
+        Returns:
+            The modified scenario (either self or a new instance).
+
+        Examples:
+            Basic offloading:
+            >>> s = Scenario({"base64_string": "SGVsbG8gV29ybGQ=", "name": "test"})
+            >>> offloaded = s.offload()
+            >>> offloaded["base64_string"]
+            'offloaded'
+            >>> offloaded["name"]
+            'test'
+
+            In-place offloading:
+            >>> s = Scenario({"base64_string": "SGVsbG8gV29ybGQ=", "name": "test"})
+            >>> result = s.offload(inplace=True)
+            >>> result is s
+            True
+            >>> s["base64_string"]
+            'offloaded'
+        """
+        from .scenario_offloader import ScenarioOffloader
+        return ScenarioOffloader(self).offload(inplace)
+
+    def save_to_gcs_bucket(self, signed_url_or_dict: Union[str, Dict[str, str]]) -> Dict[str, Any]:
+        """
+        Saves FileStore objects contained within this Scenario to a Google Cloud Storage bucket.
+
+        This method finds all FileStore objects in the Scenario and uploads them to GCS using
+        the provided signed URL(s). If the Scenario itself was created from a FileStore (has
+        base64_string as a top-level key), it uploads that content directly.
+
+        Args:
+            signed_url_or_dict: Either:
+                - str: Single signed URL (for single FileStore or Scenario from FileStore)
+                - dict: Mapping of scenario keys to signed URLs for multiple FileStore objects
+                        e.g., {"video": "signed_url_1", "image": "signed_url_2"}
+
+        Returns:
+            dict: Summary of upload operations performed
+
+        Raises:
+            ValueError: If no uploadable content found or content is offloaded
+            requests.RequestException: If any upload fails
+        """
+        from .scenario_gcs import ScenarioGCS
+        return ScenarioGCS(self).save_to_gcs_bucket(signed_url_or_dict)
+
+    def get_filestore_info(self) -> Dict[str, Any]:
+        """
+        Returns information about FileStore objects present in this Scenario.
+
+        This method is useful for determining how many signed URLs need to be generated
+        and what file extensions/types are present before calling save_to_gcs_bucket().
+
+        Returns:
+            dict: Information about FileStore objects containing:
+                - total_count: Total number of FileStore objects
+                - filestore_keys: List of scenario keys that contain FileStore objects
+                - file_extensions: Dictionary mapping keys to file extensions
+                - file_types: Dictionary mapping keys to MIME types
+                - is_filestore_scenario: Boolean indicating if this Scenario was created from a FileStore
+                - summary: Human-readable summary of files
+
+
+        """
+        from .scenario_gcs import ScenarioGCS
+        return ScenarioGCS(self).get_filestore_info()
+
+    def to(self, question_or_survey: Union["Question", "Survey"]) -> "Jobs":
+        """Send the scenario to a question or survey for execution.
+
+        Args:
+            question_or_survey: A Question or Survey object to parameterize with this scenario.
+
+        Returns:
+            A Jobs object that can be run to execute the question or survey with this scenario.
+
+        Examples:
+            >>> from edsl.questions import QuestionFreeText
+            >>> s = Scenario({"name": "Alice"})
+            >>> q = QuestionFreeText(question_name="greeting", question_text="Hello {{name}}")
+            >>> jobs = s.to(q)  # doctest: +SKIP
+        """
+        return question_or_survey.by(self)
+
+    def open_url(self, position: int = 0) -> None:
+        """Open a URL field from the scenario in the default web browser.
+
+        Args:
+            position: The index of the URL to open (0-based). Defaults to 0 for the first URL.
+
+        Raises:
+            ValueError: If no URL fields are found in the scenario, or if the position
+                is out of range.
+
+        Examples:
+            >>> s = Scenario({"website": "https://example.com", "name": "test"})
+            >>> s.open_url()  # Opens the first URL found  # doctest: +SKIP
+        """
+        urls = [v for v in self.values() if isinstance(v, str) and v.startswith("http")]
+        if not urls:
+            raise ValueError("No URL fields found in scenario")
+        if position >= len(urls):
+            raise ValueError(
+                f"Position {position} is out of range for {len(urls)} URLs"
+            )
+
+        import webbrowser
+        webbrowser.open(urls[position])
 
     def to_dict(
         self, add_edsl_version: bool = True, offload_base64: bool = False
-    ) -> dict:
+    ) -> Dict[str, Any]:
         """Convert a scenario to a dictionary.
 
         Args:
@@ -317,28 +460,8 @@ class Scenario(Base, UserDict):
         {'food': 'wood chips'}
 
         """
-        from edsl.scenarios import FileStore
-        from edsl.prompts import Prompt
-
-        d = self.data.copy()
-        for key, value in d.items():
-            if isinstance(value, FileStore) or isinstance(value, Prompt):
-                value_dict = value.to_dict(add_edsl_version=add_edsl_version)
-                if (
-                    offload_base64
-                    and isinstance(value_dict, dict)
-                    and "base64_string" in value_dict
-                ):
-                    value_dict["base64_string"] = "offloaded"
-                d[key] = value_dict
-
-        if add_edsl_version:
-            from edsl import __version__
-
-            d["edsl_version"] = __version__
-            d["edsl_class_name"] = "Scenario"
-
-        return d
+        from .scenario_serializer import ScenarioSerializer
+        return ScenarioSerializer(self).to_dict(add_edsl_version, offload_base64)
 
     def __hash__(self) -> int:
         """Return a hash of the scenario.
@@ -349,9 +472,8 @@ class Scenario(Base, UserDict):
         >>> hash(s)
         1153210385458344214
         """
-        from edsl.utilities.utilities import dict_hash
-
-        return dict_hash(self.to_dict(add_edsl_version=False))
+        from .scenario_serializer import ScenarioSerializer
+        return ScenarioSerializer(self).compute_hash()
 
     def __repr__(self):
         return "Scenario(" + repr(self.data) + ")"
@@ -363,58 +485,110 @@ class Scenario(Base, UserDict):
         >>> s.to_dataset()
         Dataset([{'key': ['food']}, {'value': ['wood chips']}])
         """
-        from ..dataset import Dataset
+        from .scenario_serializer import ScenarioSerializer
+        return ScenarioSerializer(self).to_dataset()
 
-        keys = list(self.keys())
-        values = list(self.values())
-        return Dataset([{"key": keys}, {"value": values}])
-
-    def select(self, list_of_keys: Collection[str]) -> "Scenario":
+    def select(self, *args: Union[str, Iterable[str]]) -> "Scenario":
         """Select a subset of keys from a scenario.
 
-        :param list_of_keys: The keys to select.
+        This method delegates to ScenarioSelector for the actual selection logic.
+        It supports both individual string arguments and collection arguments 
+        for backward compatibility.
 
-        Example:
+        Args:
+            *args: Either a single collection of keys (for backward compatibility)
+                   or individual string arguments for keys to select.
 
-        >>> s = Scenario({"food": "wood chips", "drink": "water"})
-        >>> s.select(["food"])
-        Scenario({'food': 'wood chips'})
+        Returns:
+            A new Scenario containing only the selected keys and their values.
+
+        Raises:
+            KeyError: If any of the specified keys don't exist in the scenario.
+            ValueError: If no arguments are provided.
+
+        Examples:
+            Using a list (backward compatible):
+            >>> s = Scenario({"food": "wood chips", "drink": "water"})
+            >>> s.select(["food"])
+            Scenario({'food': 'wood chips'})
+
+            Using individual string arguments:
+            >>> s = Scenario({"food": "wood chips", "drink": "water", "dessert": "cookies"})
+            >>> s.select("food", "drink")
+            Scenario({'food': 'wood chips', 'drink': 'water'})
+
+            Single string argument:
+            >>> s.select("food")
+            Scenario({'food': 'wood chips'})
         """
-        new_scenario = Scenario()
-        for key in list_of_keys:
-            new_scenario[key] = self[key]
-        return new_scenario
+        from .scenario_selector import ScenarioSelector
+        return ScenarioSelector(self).select(*args)
 
-    def drop(self, list_of_keys: Collection[str]) -> "Scenario":
+    def drop(self, *args: Union[str, Iterable[str]]) -> "Scenario":
         """Drop a subset of keys from a scenario.
 
-        :param list_of_keys: The keys to drop.
+        This method delegates to ScenarioSelector for the actual dropping logic.
+        It supports both individual string arguments and collection arguments 
+        for backward compatibility.
 
-        Example:
+        Args:
+            *args: Either a single collection of keys (for backward compatibility)
+                   or individual string arguments for keys to drop.
 
-        >>> s = Scenario({"food": "wood chips", "drink": "water"})
-        >>> s.drop(["food"])
-        Scenario({'drink': 'water'})
+        Returns:
+            A new Scenario containing all keys except the dropped ones.
+
+        Raises:
+            ValueError: If no arguments are provided.
+
+        Examples:
+            Using a list (backward compatible):
+            >>> s = Scenario({"food": "wood chips", "drink": "water"})
+            >>> s.drop(["food"])
+            Scenario({'drink': 'water'})
+
+            Using individual string arguments:
+            >>> s = Scenario({"food": "wood chips", "drink": "water", "dessert": "cookies"})
+            >>> s.drop("drink", "dessert")
+            Scenario({'food': 'wood chips'})
+
+            Single string argument:
+            >>> s.drop("drink")
+            Scenario({'food': 'wood chips', 'dessert': 'cookies'})
         """
-        new_scenario = Scenario()
-        for key in self.keys():
-            if key not in list_of_keys:
-                new_scenario[key] = self[key]
-        return new_scenario
+        from .scenario_selector import ScenarioSelector
+        return ScenarioSelector(self).drop(*args)
 
-    def keep(self, list_of_keys: List[str]) -> "Scenario":
-        """Keep a subset of keys from a scenario.
+    def keep(self, *args: Union[str, Iterable[str]]) -> "Scenario":
+        """Keep a subset of keys from a scenario (alias for select).
 
-        :param list_of_keys: The keys to keep.
+        This method delegates to ScenarioSelector for the actual selection logic.
+        It is functionally identical to select() but provides more intuitive naming.
 
-        Example:
+        Args:
+            *args: Either a single collection of keys (for backward compatibility)
+                   or individual string arguments for keys to keep.
 
-        >>> s = Scenario({"food": "wood chips", "drink": "water"})
-        >>> s.keep(["food"])
-        Scenario({'food': 'wood chips'})
+        Returns:
+            A new Scenario containing only the kept keys and their values.
+
+        Raises:
+            KeyError: If any of the specified keys don't exist in the scenario.
+            ValueError: If no arguments are provided.
+
+        Examples:
+            Using a list (backward compatible):
+            >>> s = Scenario({"food": "wood chips", "drink": "water"})
+            >>> s.keep(["food"])
+            Scenario({'food': 'wood chips'})
+
+            Using individual string arguments:
+            >>> s = Scenario({"food": "wood chips", "drink": "water", "dessert": "cookies"})
+            >>> s.keep("food", "drink")
+            Scenario({'food': 'wood chips', 'drink': 'water'})
         """
-
-        return self.select(list_of_keys)
+        from .scenario_selector import ScenarioSelector
+        return ScenarioSelector(self).keep(*args)
 
     @classmethod
     def from_url(
@@ -441,13 +615,13 @@ class Scenario(Base, UserDict):
             requests.exceptions.RequestException: If the URL cannot be accessed.
 
         Examples:
-            >>> s = Scenario.from_url("https://example.com", testing=True)
-            >>> "url" in s and "text" in s
-            True
+            Create a scenario from a URL (requires network access):
 
-            >>> s = Scenario.from_url("https://example.com", field_name="content", testing=True)
-            >>> "url" in s and "content" in s
-            True
+            s = Scenario.from_url("https://example.com", testing=True)
+            # Returns a Scenario with "url" and "text" fields
+
+            s = Scenario.from_url("https://example.com", field_name="content", testing=True)
+            # Returns a Scenario with "url", "html", and "content" fields
 
         Notes:
             - The method attempts to use BeautifulSoup and fake_useragent for better
@@ -455,47 +629,8 @@ class Scenario(Base, UserDict):
             - If these packages are not available, it falls back to basic requests.
             - When using BeautifulSoup, it extracts text from paragraph and heading tags.
         """
-        import requests
-
-        if testing:
-            # Use simple requests method for testing
-            response = requests.get(url)
-            text = response.text
-        else:
-            try:
-                from bs4 import BeautifulSoup
-                from fake_useragent import UserAgent
-
-                # Configure request headers to appear more like a regular browser
-                ua = UserAgent()
-                headers = {
-                    "User-Agent": ua.random,
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    "Accept-Language": "en-US,en;q=0.5",
-                }
-
-                response = requests.get(url, headers=headers)
-                soup = BeautifulSoup(response.content, "html.parser")
-
-                # Get text content while preserving some structure
-                text = " ".join(
-                    [
-                        p.get_text(strip=True)
-                        for p in soup.find_all(
-                            ["p", "h1", "h2", "h3", "h4", "h5", "h6"]
-                        )
-                    ]
-                )
-
-            except ImportError:
-                # Fallback to basic requests if BeautifulSoup/fake_useragent not available
-                print(
-                    "BeautifulSoup/fake_useragent not available. Falling back to basic requests."
-                )
-                response = requests.get(url)
-                text = response.text
-
-        return cls({"url": url, field_name: text})
+        from .scenario_factory import ScenarioFactory
+        return ScenarioFactory.from_url(url, field_name, testing)
 
     @classmethod
     def from_file(cls, file_path: str, field_name: str) -> "Scenario":
@@ -530,10 +665,8 @@ class Scenario(Base, UserDict):
             - FileStore provides methods to access file content, extract text,
               and manage file operations appropriate to the file type
         """
-        from edsl.scenarios import FileStore
-
-        fs = FileStore(file_path)
-        return cls({field_name: fs})
+        from .scenario_factory import ScenarioFactory
+        return ScenarioFactory.from_file(file_path, field_name)
 
     @classmethod
     def from_image(
@@ -570,13 +703,8 @@ class Scenario(Base, UserDict):
             - Supported image formats include JPG, PNG, GIF, etc.
             - The image is stored as a base64-encoded string for portability
         """
-        if not os.path.exists(image_path):
-            raise FileNotFoundError(f"Image file not found: {image_path}")
-
-        if image_name is None:
-            image_name = os.path.basename(image_path).split(".")[0]
-
-        return cls.from_file(image_path, image_name)
+        from .scenario_factory import ScenarioFactory
+        return ScenarioFactory.from_image(image_path, image_name)
 
     @classmethod
     def from_pdf(cls, pdf_path: str) -> "Scenario":
@@ -608,17 +736,8 @@ class Scenario(Base, UserDict):
             - PDF extraction requires the PyMuPDF library
             - The extraction process parses the PDF to maintain structure where possible
         """
-        try:
-            from edsl.scenarios.PdfExtractor import PdfExtractor
-
-            extractor = PdfExtractor(pdf_path)
-            return Scenario(extractor.get_pdf_dict())
-        except ImportError as e:
-            raise ImportError(
-                f"Could not extract text from PDF: {str(e)}. "
-                "PDF extraction requires the PyMuPDF library. "
-                "Install it with: pip install pymupdf"
-            )
+        from .scenario_factory import ScenarioFactory
+        return ScenarioFactory.from_pdf(pdf_path)
 
     @classmethod
     def from_html(cls, url: str, field_name: Optional[str] = None) -> "Scenario":
@@ -641,13 +760,13 @@ class Scenario(Base, UserDict):
             requests.exceptions.RequestException: If the URL cannot be accessed.
 
         Examples:
-            >>> s = Scenario.from_html("https://example.com")
-            >>> all(key in s for key in ["url", "html", "text"])
-            True
+            Create a scenario from HTML content (requires network access):
 
-            >>> s = Scenario.from_html("https://example.com", field_name="content")
-            >>> all(key in s for key in ["url", "html", "content"])
-            True
+            s = Scenario.from_html("https://example.com")
+            # Returns a Scenario with "url", "html", and "text" fields
+
+            s = Scenario.from_html("https://example.com", field_name="content")
+            # Returns a Scenario with "url", "html", and "content" fields
 
         Notes:
             - Uses BeautifulSoup for HTML parsing when available
@@ -655,93 +774,10 @@ class Scenario(Base, UserDict):
             - Provides a more comprehensive representation than from_url
             - Useful when the HTML structure or specific elements are needed
         """
-        html = cls.fetch_html(url)
-        text = cls.extract_text(html)
-        if not field_name:
-            field_name = "text"
-        return cls({"url": url, "html": html, field_name: text})
+        from .scenario_factory import ScenarioFactory
+        return ScenarioFactory.from_html(url, field_name)
 
-    @staticmethod
-    def fetch_html(url: str) -> Optional[str]:
-        """
-        Fetches HTML content from a URL with robust error handling and retries.
 
-        This method creates a session with configurable retries to fetch HTML content
-        from a URL. It uses a realistic user agent to avoid being blocked by websites
-        that filter bot traffic.
-
-        Args:
-            url: The URL to fetch HTML content from.
-
-        Returns:
-            The HTML content as a string, or None if the request failed.
-
-        Raises:
-            requests.exceptions.RequestException: If a request error occurs.
-        """
-        import requests
-        from requests.adapters import HTTPAdapter
-        from requests.packages.urllib3.util.retry import Retry
-
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        }
-
-        # Create a session to manage cookies and retries
-        session = requests.Session()
-        retries = Retry(
-            total=5, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504]
-        )
-        session.mount("http://", HTTPAdapter(max_retries=retries))
-        session.mount("https://", HTTPAdapter(max_retries=retries))
-
-        try:
-            # Make the request
-            response = session.get(url, headers=headers, timeout=10)
-            response.raise_for_status()  # Raise an exception for HTTP errors
-            return response.text
-        except requests.exceptions.RequestException as e:
-            print(f"An error occurred: {e}")
-            return None
-
-    @staticmethod
-    def extract_text(html: Optional[str]) -> str:
-        """
-        Extracts readable text from HTML content using BeautifulSoup.
-
-        This method parses HTML content and extracts the readable text while
-        removing HTML tags and script content.
-
-        Args:
-            html: The HTML content to extract text from.
-
-        Returns:
-            The extracted text content as a string. Returns an empty string
-            if the input is None or if parsing fails.
-        """
-        if html is None:
-            return ""
-
-        try:
-            from bs4 import BeautifulSoup
-
-            soup = BeautifulSoup(html, "html.parser")
-
-            # Remove script and style elements that might contain non-readable content
-            for element in soup(["script", "style"]):
-                element.extract()
-
-            text = soup.get_text()
-
-            # Normalize whitespace
-            lines = (line.strip() for line in text.splitlines())
-            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-            text = "\n".join(chunk for chunk in chunks if chunk)
-
-            return text
-        except Exception as e:
-            print(f"Error extracting text from HTML: {e}")
-            return ""
 
     @classmethod
     def from_pdf_to_image(cls, pdf_path: str, image_format: str = "jpeg") -> "Scenario":
@@ -779,28 +815,8 @@ class Scenario(Base, UserDict):
             - Images are stored in FileStore objects for easy display and handling
             - Images are created in a temporary directory which is automatically cleaned up
         """
-        import tempfile
-        from pdf2image import convert_from_path
-        from edsl.scenarios import Scenario
-
-        with tempfile.TemporaryDirectory() as output_folder:
-            # Convert PDF to images
-            images = convert_from_path(pdf_path)
-
-            scenario_dict = {"filepath": pdf_path}
-
-            # Save each page as an image and create Scenario instances
-            for i, image in enumerate(images):
-                image_path = os.path.join(output_folder, f"page_{i}.{image_format}")
-                image.save(image_path, image_format.upper())
-
-                from edsl.scenarios import FileStore
-
-                scenario_dict[f"page_{i}"] = FileStore(image_path)
-
-            scenario = Scenario(scenario_dict)
-
-            return cls(scenario)
+        from .scenario_factory import ScenarioFactory
+        return ScenarioFactory.from_pdf_to_image(pdf_path, image_format)
 
     @classmethod
     def from_docx(cls, docx_path: str) -> "Scenario":
@@ -837,9 +853,8 @@ class Scenario(Base, UserDict):
             - The extraction process attempts to maintain document structure
             - Requires the python-docx library to be installed
         """
-        from edsl.scenarios.DocxScenario import DocxScenario
-
-        return Scenario(DocxScenario(docx_path).get_scenario_dict())
+        from .scenario_factory import ScenarioFactory
+        return ScenarioFactory.from_docx(docx_path)
 
     def chunk(
         self,
@@ -910,8 +925,7 @@ class Scenario(Base, UserDict):
         )
 
     @classmethod
-    @remove_edsl_version
-    def from_dict(cls, d: dict) -> "Scenario":
+    def from_dict(cls, d: Dict[str, Any]) -> "Scenario":
         """
         Creates a Scenario from a dictionary, with special handling for FileStore objects.
 
@@ -942,21 +956,24 @@ class Scenario(Base, UserDict):
             - EDSL version information is automatically removed by the @remove_edsl_version decorator
             - This method is commonly used when deserializing scenarios from JSON or other formats
         """
-        from edsl.scenarios import FileStore
+        from .scenario_serializer import ScenarioSerializer
+        return ScenarioSerializer.from_dict(d)
 
-        for key, value in d.items():
-            # TODO: we should check this better if its a FileStore + add remote security check against path traversal
-            if (
-                isinstance(value, dict) and "base64_string" in value and "path" in value
-            ) or isinstance(value, FileStore):
-                d[key] = FileStore.from_dict(value)
-        return cls(d)
+    def _table(self) -> tuple[List[Dict[str, str]], List[str]]:
+        """Prepare generic table data for scenario attributes.
 
-    def _table(self) -> tuple[dict, list]:
-        """Prepare generic table data.
-        >>> s = Scenario({"food": "wood chips"})
-        >>> s._table()
-        ([{'Attribute': 'data', 'Value': "{'food': 'wood chips'}"}, {'Attribute': 'name', 'Value': 'None'}], ['Attribute', 'Value'])
+        Returns:
+            A tuple containing:
+            - A list of dictionaries with 'Attribute' and 'Value' keys
+            - A list of column names
+
+        Examples:
+            >>> s = Scenario({"food": "wood chips"})
+            >>> table_data, columns = s._table()
+            >>> columns
+            ['Attribute', 'Value']
+            >>> len(table_data) >= 1  # At least data attribute
+            True
         """
         table_data = []
         for attr_name, attr_value in self.__dict__.items():
@@ -965,25 +982,45 @@ class Scenario(Base, UserDict):
         return table_data, column_names
 
     @classmethod
-    def example(cls, randomize: bool = False) -> Scenario:
-        """
-        Returns an example Scenario instance.
+    def example(cls, randomize: bool = False) -> "Scenario":
+        """Returns an example Scenario instance.
 
-        :param randomize: If True, adds a random string to the value of the example key.
+        Args:
+            randomize: If True, adds a random string to the value of the example key
+                to ensure uniqueness.
+
+        Returns:
+            A Scenario instance with example data suitable for testing or demonstration.
+
+        Examples:
+            >>> s = Scenario.example()
+            >>> 'persona' in s
+            True
+            >>> s1 = Scenario.example(randomize=True)
+            >>> s2 = Scenario.example(randomize=True)
+            >>> s1.data != s2.data  # Should be different due to randomization
+            True
         """
-        addition = "" if not randomize else str(uuid4())
-        return cls(
-            {
-                "persona": f"A reseacher studying whether LLMs can be used to generate surveys.{addition}",
-            }
-        )
+        from .scenario_factory import ScenarioFactory
+        return ScenarioFactory.example(randomize)
 
     def code(self) -> List[str]:
-        """Return the code for the scenario."""
+        """Generate Python code to recreate this scenario.
+
+        Returns:
+            A list of strings representing Python code lines that can be executed
+            to recreate this scenario.
+
+        Examples:
+            >>> s = Scenario({"name": "Alice", "age": 30})
+            >>> code_lines = s.code()
+            >>> print("\\n".join(code_lines))  # doctest: +SKIP
+            from edsl.scenarios import Scenario
+            s = Scenario({'name': 'Alice', 'age': 30})
+        """
         lines = []
-        lines.append("from edsl.scenario import Scenario")
-        lines.append(f"s = Scenario({self.data})")
-        # return f"Scenario({self.data})"
+        lines.append("from edsl.scenarios import Scenario")
+        lines.append(f"s = Scenario({self.data!r})")
         return lines
 
 

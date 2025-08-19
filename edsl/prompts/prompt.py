@@ -14,29 +14,33 @@ logger = logging.getLogger(__name__)
 
 MAX_NESTING = 100
 
+
 class PreserveUndefined(Undefined):
     def __str__(self):
         return "{{ " + str(self._undefined_name) + " }}"
 
+
 class TemplateVars:
     """Stores variables set during template rendering."""
+
     def __init__(self):
         self.data = {}
-    
+
     def set(self, name, value):
         """Store a variable with its name and value,
         returning an empty string for direct use in the template.
         """
         self.data[name] = value
         return ""
-    
+
     def get(self, name, default=None):
         """Retrieve a stored variable."""
         return self.data.get(name, default)
-    
+
     def get_all(self) -> Dict[str, Any]:
         """Return all captured variables."""
         return self.data
+
 
 def make_env() -> Environment:
     """Create a fresh Jinja environment each time,
@@ -44,11 +48,13 @@ def make_env() -> Environment:
     """
     return Environment(undefined=PreserveUndefined)
 
+
 @lru_cache(maxsize=1024)
 def _find_template_variables(template_text: str) -> List[str]:
     env = make_env()
     ast = env.parse(template_text)
     return list(meta.find_undeclared_variables(ast))
+
 
 def _make_hashable(value):
     """Convert unhashable types to hashable ones."""
@@ -58,59 +64,67 @@ def _make_hashable(value):
         return frozenset((k, _make_hashable(v)) for k, v in value.items())
     return value
 
+
 @lru_cache(maxsize=1024)
 def _compile_template(text: str):
     """Compile a Jinja template with caching."""
     env = make_env()
     return env.from_string(text)
 
+
 @lru_cache(maxsize=1024)
 def _cached_render(text: str, frozen_replacements: frozenset) -> str:
     """Cached version of template rendering with frozen replacements."""
     # Print cache info on every call
     cache_info = _cached_render.cache_info()
-    print(f"\t\t\t\t\t Cache status - hits: {cache_info.hits}, misses: {cache_info.misses}, current size: {cache_info.currsize}")
-    
+    print(
+        f"\t\t\t\t\t Cache status - hits: {cache_info.hits}, misses: {cache_info.misses}, current size: {cache_info.currsize}"
+    )
+
     # Convert back to dict with original types for rendering
     replacements = {k: v for k, v in frozen_replacements}
-    
+
     template = _compile_template(text)
     result = template.render(replacements)
-    
+
     return result
 
-class Prompt(PersistenceMixin, RepresentationMixin):
+
+class Prompt(str, PersistenceMixin, RepresentationMixin):
     """Class for creating a prompt to be used in a survey."""
 
     default_instructions: Optional[str] = "Do good things, friendly LLM!"
 
-    def __len__(self):
-        """Return the length of the prompt text."""
-        return len(self.text)
+    def __new__(cls, text: Optional[str] = None):
+        """Create a new Prompt instance (required for str subclassing)."""
+        if text is None:
+            if hasattr(cls, "default_instructions"):
+                text = cls.default_instructions
+            else:
+                text = ""
+        if isinstance(text, Prompt):
+            # make it idempotent w/ a prompt
+            text = str(text)
 
-    @classmethod
-    def prompt_attributes(cls) -> List[str]:
-        """Return the prompt class attributes."""
-        return {k: v for k, v in cls.__dict__.items() if not k.startswith("_")}
+        # Create the string instance
+        instance = str.__new__(cls, text)
+        return instance
 
     def __init__(self, text: Optional[str] = None):
         """Create a `Prompt` object.
 
         :param text: The text of the prompt.
         """
-        if text is None:
-            if hasattr(self, "default_instructions"):
-                text = self.default_instructions
-            else:
-                text = ""
-        if isinstance(text, Prompt):
-            # make it idempotent w/ a prompt
-            text = text.text
-        self._text = text
+        # String content is already set in __new__, just initialize other attributes
         self.captured_variables = {}
 
     @classmethod
-    def from_txt(cls, filename: str) -> 'Prompt':
+    def prompt_attributes(cls) -> List[str]:
+        """Return the prompt class attributes."""
+        return {k: v for k, v in cls.__dict__.items() if not k.startswith("_")}
+
+    @classmethod
+    def from_txt(cls, filename: str) -> "Prompt":
         """Create a `Prompt` from text.
 
         :param text: The text of the prompt.
@@ -159,9 +173,9 @@ class Prompt(PersistenceMixin, RepresentationMixin):
     @property
     def text(self) -> str:
         """Return the `Prompt` text."""
-        return self._text
+        return str(self)
 
-    def __add__(self, other_prompt) -> 'Prompt':
+    def __add__(self, other_prompt) -> "Prompt":
         """Add two prompts together.
 
         Example:
@@ -175,32 +189,9 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         Prompt(text=\"""Hello, {{person}}How are you?\""")
         """
         if isinstance(other_prompt, str):
-            return self.__class__(self.text + other_prompt)
+            return self.__class__(str(self) + other_prompt)
         else:
-            return self.__class__(text=self.text + other_prompt.text)
-
-    def __str__(self):
-        """Return the `Prompt` text.
-
-        Example:
-        >>> p = Prompt("Hello, {{person}}")
-        >>> str(p)
-        'Hello, {{person}}'
-        """
-        return self.text
-
-    def __contains__(self, text_to_check) -> bool:
-        """Check if the text_to_check is in the `Prompt` text.
-
-        Example:
-
-        >>> p = Prompt("Hello, {{person}}")
-        >>> "person" in p
-        True
-        >>> "person2" in p
-        False
-        """
-        return text_to_check in self.text
+            return self.__class__(str(self) + str(other_prompt))
 
     def __repr__(self):
         """Return the `Prompt` text.
@@ -210,11 +201,11 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         >>> p
         Prompt(text=\"""Hello, {{person}}\""")
         """
-        return f'Prompt(text="""{self.text}""")'
+        return f'Prompt(text="""{str(self)}""")'
 
     def template_variables(self) -> list[str]:
         """Return the variables in the template."""
-        return _find_template_variables(self.text)
+        return _find_template_variables(str(self))
 
     def undefined_template_variables(self, replacement_dict: dict) -> list[str]:
         """Return the variables in the template that are not in the replacement_dict.
@@ -283,7 +274,7 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         try:
             template_vars = TemplateVars()
             new_text, captured_vars = self._render(
-                self.text, primary_replacement, template_vars, **additional_replacements
+                str(self), primary_replacement, template_vars, **additional_replacements
             )
             result = Prompt(text=new_text)
             result.captured_variables = captured_vars
@@ -298,22 +289,32 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         text: str,
         primary_replacement: dict,
         template_vars: TemplateVars,
-        **additional_replacements
+        **additional_replacements,
     ) -> tuple[str, Dict[str, Any]]:
         """
         Render the template text with variables replaced.
         Returns (rendered_text, captured_variables).
         """
         # Combine replacements.
-        all_replacements = {**primary_replacement, **additional_replacements}
+        from ..scenarios import Scenario
 
+        # This fixed Issue 2027 - the scenario prefix  was not being recoginized in the template
+        if isinstance(primary_replacement, Scenario):
+            additional = {"scenario": primary_replacement.to_dict()}
+        else:
+            additional = {}
+        all_replacements = {
+            **primary_replacement,
+            **additional_replacements,
+            **additional,
+        }
         # If no replacements and no Jinja variables, just return the text.
         if not all_replacements and not _find_template_variables(text):
             return text, template_vars.get_all()
 
         env = make_env()
         # Provide access to the 'vars' object inside the template.
-        env.globals['vars'] = template_vars
+        env.globals["vars"] = template_vars
 
         # Start with the original text
         current_text = text
@@ -343,10 +344,10 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         {'text': 'Hello, {{person}}', 'class_name': 'Prompt'}
 
         """
-        return {"text": self.text, "class_name": self.__class__.__name__}
+        return {"text": str(self), "class_name": self.__class__.__name__}
 
     @classmethod
-    def from_dict(cls, data) -> 'Prompt':
+    def from_dict(cls, data) -> "Prompt":
         """Create a `Prompt` from a dictionary.
 
         Example:
@@ -360,41 +361,50 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         # class_name = data["class_name"]
         return Prompt(text=data["text"])
 
-
     @classmethod
     def example(cls):
         """Return an example of the prompt."""
         return cls(cls.default_instructions)
 
     def get_prompts(self) -> Dict[str, Any]:
-        """Get the prompts for the question.        
+        """Get the prompts for the question.
 
         >>> p = Prompt("Hello, {{person}}")
         """
 
-        raise PromptImplementationError("This method should be implemented by the subclass.")
+        raise PromptImplementationError(
+            "This method should be implemented by the subclass."
+        )
         start = time.time()
-        
+
         # Build all the components
         instr_start = time.time()
         agent_instructions = self.agent_instructions_prompt
         instr_end = time.time()
-        logger.debug(f"Time taken for agent instructions: {instr_end - instr_start:.4f}s")
-        
+        logger.debug(
+            f"Time taken for agent instructions: {instr_end - instr_start:.4f}s"
+        )
+
         persona_start = time.time()
         agent_persona = self.agent_persona_prompt
         persona_end = time.time()
-        logger.debug(f"Time taken for agent persona: {persona_end - persona_start:.4f}s")
-        
+        logger.debug(
+            f"Time taken for agent persona: {persona_end - persona_start:.4f}s"
+        )
+
         q_instr_start = time.time()
         question_instructions = self.question_instructions_prompt
         q_instr_end = time.time()
-        logger.debug(f"Time taken for question instructions: {q_instr_end - q_instr_start:.4f}s")
-        
+        logger.debug(
+            f"Time taken for question instructions: {q_instr_end - q_instr_start:.4f}s"
+        )
+
         memory_start = time.time()
         prior_question_memory = self.prior_question_memory_prompt
         memory_end = time.time()
-        logger.debug(f"Time taken for prior question memory: {memory_end - memory_start:.4f}s")
+        logger.debug(
+            f"Time taken for prior question memory: {memory_end - memory_start:.4f}s"
+        )
 
         # Get components dict
         components = {
@@ -409,22 +419,25 @@ class Prompt(PersistenceMixin, RepresentationMixin):
         prompts = self.prompt_plan.get_prompts(**components)
         plan_end = time.time()
         logger.debug(f"Time taken for prompt processing: {plan_end - plan_start:.4f}s")
-        
+
         # Handle file keys if present
-        if hasattr(self, 'question_file_keys') and self.question_file_keys:
+        if hasattr(self, "question_file_keys") and self.question_file_keys:
             files_start = time.time()
             files_list = []
             for key in self.question_file_keys:
                 files_list.append(self.scenario[key])
             prompts["files_list"] = files_list
             files_end = time.time()
-            logger.debug(f"Time taken for file key processing: {files_end - files_start:.4f}s")
-        
+            logger.debug(
+                f"Time taken for file key processing: {files_end - files_start:.4f}s"
+            )
+
         end = time.time()
         logger.debug(f"Total time in get_prompts: {end - start:.4f}s")
         return prompts
 
+
 if __name__ == "__main__":
     import doctest
-    doctest.testmod()
 
+    doctest.testmod()

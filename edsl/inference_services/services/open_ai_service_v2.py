@@ -9,13 +9,15 @@ from ..inference_service_abc import InferenceServiceABC
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
-from ..rate_limits_cache import rate_limits
+
+# from ..rate_limits_cache import rate_limits
+rate_limits = {}
 
 # Default to completions API but can use responses API with parameter
 
 if TYPE_CHECKING:
-    from ....scenarios.file_store import FileStore as Files
-    from ....invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
+    from ...scenarios.file_store import FileStore as Files
+    from ...invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
 
 
 APIToken = NewType("APIToken", str)
@@ -89,14 +91,15 @@ class OpenAIServiceV2(InferenceServiceABC):
     _models_list_cache: List[str] = []
 
     @classmethod
-    def get_model_list(cls, api_key: str | None = None) -> List[str]:
+    def get_model_info(cls, api_key: Optional[str] = None):
+        """Get raw model info without wrapping in ModelInfo."""
         if api_key is None:
             api_key = os.getenv(cls._env_key_name_)
         raw = cls.sync_client(api_key).models.list()
         return raw.data if hasattr(raw, "data") else raw
 
     @classmethod
-    def available(cls, api_token: str | None = None) -> List[str]:
+    def available(cls, api_token: Optional[str] = None) -> List[str]:
         if api_token is None:
             api_token = os.getenv(cls._env_key_name_)
         if not cls._models_list_cache:
@@ -110,7 +113,7 @@ class OpenAIServiceV2(InferenceServiceABC):
     def create_model(
         cls,
         model_name: str,
-        model_class_name: str | None = None,
+        model_class_name: Optional[str] = None,
     ) -> LanguageModel:
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
@@ -204,18 +207,21 @@ class OpenAIServiceV2(InferenceServiceABC):
                     "top_p": self.top_p,
                     "store": False,
                 }
-                
+
                 # Check if this is a reasoning model (o-series models)
-                is_reasoning_model = any(tag in self.model for tag in ["o1", "o1-mini", "o3", "o3-mini", "o1-pro", "o4-mini"])
-                
+                is_reasoning_model = any(
+                    tag in self.model
+                    for tag in ["o1", "o1-mini", "o3", "o3-mini", "o1-pro", "o4-mini"]
+                )
+
                 # Only add reasoning parameter for reasoning models
                 if is_reasoning_model:
                     params["reasoning"] = {"summary": "auto"}
-                
+
                 # For all models using the responses API, use max_output_tokens
                 # instead of max_tokens (which is for the completions API)
                 params["max_output_tokens"] = self.max_tokens
-                
+
                 # Specifically for o-series, we also set temperature to 1
                 if is_reasoning_model:
                     params["temperature"] = 1

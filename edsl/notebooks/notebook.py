@@ -15,18 +15,19 @@ from uuid import uuid4
 from ..base import Base
 from ..utilities.decorators import remove_edsl_version
 
+
 class Notebook(Base):
     """
     A Notebook is a utility class that allows you to easily share/pull ipynbs from Coop.
     """
 
     default_name = "notebook"
-    
+
     @staticmethod
     def _lint_code(code: str) -> str:
         """
         Lint Python code using ruff.
-        
+
         :param code: The Python code to lint
         :return: The linted code
         """
@@ -35,24 +36,26 @@ class Notebook(Base):
             if shutil.which("ruff") is None:
                 # If ruff is not installed, return original code
                 return code
-                
-            with tempfile.NamedTemporaryFile(mode='w+', suffix='.py', delete=False) as temp_file:
+
+            with tempfile.NamedTemporaryFile(
+                mode="w+", suffix=".py", delete=False
+            ) as temp_file:
                 temp_file.write(code)
                 temp_file_path = temp_file.name
-            
+
             # Run ruff to format the code
             try:
                 result = subprocess.run(
-                    ["ruff", "format", temp_file_path], 
-                    check=True, 
-                    stdout=subprocess.PIPE, 
-                    stderr=subprocess.PIPE
+                    ["ruff", "format", temp_file_path],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
                 )
-                
+
                 # Read the formatted code
-                with open(temp_file_path, 'r') as f:
+                with open(temp_file_path, "r") as f:
                     linted_code = f.read()
-                
+
                 return linted_code
             except subprocess.CalledProcessError:
                 # If ruff fails, return the original code
@@ -62,7 +65,7 @@ class Notebook(Base):
                 return code
         finally:
             # Clean up temporary file
-            if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
+            if "temp_file_path" in locals() and os.path.exists(temp_file_path):
                 os.unlink(temp_file_path)
 
     def __init__(
@@ -100,13 +103,14 @@ class Notebook(Base):
         else:
             # TODO: Support for IDEs other than VSCode
             from .exceptions import NotebookEnvironmentError
+
             raise NotebookEnvironmentError(
                 "Cannot create a notebook from within itself in this development environment"
             )
-            
+
         # Store the lint parameter
         self.lint = lint
-        
+
         # Apply linting to code cells if enabled
         if self.lint and self.data and "cells" in self.data:
             for cell in self.data["cells"]:
@@ -122,7 +126,9 @@ class Notebook(Base):
         self.name = name or self.default_name
 
     @classmethod
-    def from_script(cls, path: str, name: Optional[str] = None, lint: bool = True) -> "Notebook":
+    def from_script(
+        cls, path: str, name: Optional[str] = None, lint: bool = True
+    ) -> "Notebook":
         import nbformat
 
         # Read the script file
@@ -140,6 +146,21 @@ class Notebook(Base):
         notebook_instance = cls(data=nb, name=name, lint=lint)
 
         return notebook_instance
+
+    def generate_description(self) -> str:
+        """Generate a description of the notebook."""
+        from ..questions import QuestionFreeText
+
+        notebook_content = ""
+        for cell in self.data["cells"]:
+            if "source" in cell:
+                notebook_content += cell["source"]
+        q = QuestionFreeText(
+            question_text=f"What is a good one sentence description of this notebook? The content is {notebook_content}",
+            question_name="description",
+        )
+        results = q.run(verbose=False)
+        return results.select("answer.description").first()
 
     @classmethod
     def from_current_script(cls, lint: bool = True) -> "Notebook":
@@ -186,7 +207,7 @@ class Notebook(Base):
     def from_dict(cls, d: Dict, lint: bool = None) -> "Notebook":
         """
         Convert a dictionary representation of a Notebook to a Notebook object.
-        
+
         :param d: Dictionary containing notebook data and name
         :param lint: Whether to lint Python code cells. If None, uses the value from the dictionary or defaults to True.
         :return: A new Notebook instance
@@ -312,8 +333,12 @@ class Notebook(Base):
         Return the code that could be used to create this Notebook.
         """
         lines = []
-        lines.append("from edsl import Notebook")  # Keep as absolute for code generation
-        lines.append(f'nb = Notebook(data={self.data}, name="""{self.name}""", lint={self.lint})')
+        lines.append(
+            "from edsl import Notebook"
+        )  # Keep as absolute for code generation
+        lines.append(
+            f'nb = Notebook(data={self.data}, name="""{self.name}""", lint={self.lint})'
+        )
         return lines
 
     def to_latex(self, filename: str):
@@ -329,5 +354,6 @@ class Notebook(Base):
 
 if __name__ == "__main__":
     from .. import Notebook
+
     notebook = Notebook.example()
     assert notebook == notebook.from_dict(notebook.to_dict())

@@ -8,13 +8,18 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class InvalidEnvironmentVariableError(BaseException):
     """Raised when an environment variable is invalid."""
+
     pass
+
 
 class MissingEnvironmentVariableError(BaseException):
     """Raised when an expected environment variable is missing."""
+
     pass
+
 
 cache_dir = platformdirs.user_cache_dir("edsl")
 os.makedirs(cache_dir, exist_ok=True)
@@ -59,7 +64,7 @@ CONFIG_MAP = {
         "info": "This config var determines whether to fetch prices for tokens used in remote inference",
     },
     "EDSL_LOG_DIR": {
-        "default": str(os.path.join(platformdirs.user_data_dir('edsl'), 'logs')),
+        "default": str(os.path.join(platformdirs.user_data_dir("edsl"), "logs")),
         "info": "This config var determines the directory where logs are stored.",
     },
     "EDSL_LOG_LEVEL": {
@@ -83,7 +88,7 @@ CONFIG_MAP = {
         "info": "This config var holds the URL of the Expected Parrot API.",
     },
     "EDSL_MAX_CONCURRENT_TASKS": {
-        "default": "500",
+        "default": "1000",
         "info": "This config var determines the maximum number of concurrent tasks that can be run by the async job-runner",
     },
     "EDSL_OPEN_EXCEPTION_REPORT_URL": {
@@ -105,6 +110,18 @@ CONFIG_MAP = {
     "EDSL_RESULTS_MEMORY_THRESHOLD": {
         "default": "10",  # Change to a very low threshold (10 bytes) to test SQLite offloading
         "info": "This config var determines the memory threshold in bytes before Results' SQLList offloads data to SQLite.",
+    },
+    "EDSL_MAX_PRICE_BEFORE_CONFIRM": {
+        "default": "90",
+        "info": "This config var determines the maximum price before a confirmation prompt is shown.",
+    },
+    "EDSL_USE_SQLITE_FOR_SCENARIO_LIST": {
+        "default": "False",
+        "info": "This config var determines whether to use SQLite for ScenarioList instances.",
+    },
+    "EDSL_VERBOSE_MODE": {
+        "default": "False",
+        "info": "This config var determines whether to enable verbose output mode throughout the application.",
     },
 }
 
@@ -179,6 +196,27 @@ class Config:
             # otherwise, if EDSL_RUN_MODE == "production" set it to its default value
             elif self.EDSL_RUN_MODE == "production":
                 setattr(self, env_var, default_value)
+
+    def get_extension_gateway_url(self) -> str:
+        """
+        Dynamically generates extension gateway URL based on EXPECTED_PARROT_URL value.
+        """
+        # Get EXPECTED_PARROT_URL value
+        expected_parrot_url = getattr(
+            self, "EXPECTED_PARROT_URL", os.getenv("EXPECTED_PARROT_URL", "")
+        )
+
+        if "localhost" in expected_parrot_url:
+            extension_gateway_url = "http://localhost:8008"
+        elif "chick" in expected_parrot_url:
+            extension_gateway_url = "https://test.extensions.expectedparrot.com"
+        else:
+            extension_gateway_url = "https://extensions.expectedparrot.com"
+
+        logger.debug(
+            f"Generated extension gateway URL: {extension_gateway_url} based on EXPECTED_PARROT_URL: {expected_parrot_url}"
+        )
+        return extension_gateway_url
 
     def get(self, env_var: str) -> str:
         """
