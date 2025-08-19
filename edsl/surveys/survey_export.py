@@ -53,7 +53,7 @@ class SurveyExport:
     #     )
     #     return q.run().select("description").first()
 
-    def docx(
+    def to_docx(
         self,
         filename: Optional[str] = None,
     ) -> "FileStore":
@@ -98,6 +98,22 @@ class SurveyExport:
 
         # Return a FileStore object for the generated file
         return FileStore(filename)
+
+    def docx(
+        self,
+        filename: Optional[str] = None,
+    ) -> "FileStore":
+        """Generate a docx document for the survey.
+        
+        DEPRECATED: Use to_docx() instead.
+        """
+        import warnings
+        warnings.warn(
+            "SurveyExport.docx is deprecated. Use SurveyExport.to_docx instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.to_docx(filename)
 
     def show(self):
         self.to_scenario_list(questions_only=False, rename=True).print(format="rich")
@@ -184,7 +200,7 @@ class SurveyExport:
 
         return formatted_code
 
-    def html(
+    def to_html(
         self,
         scenario: Optional[dict] = None,
         filename: Optional[str] = None,
@@ -240,6 +256,27 @@ class SurveyExport:
             output += html_footer
 
         return FileStore(filename)
+
+    def html(
+        self,
+        scenario: Optional[dict] = None,
+        filename: Optional[str] = None,
+        return_link=False,
+        css: Optional[str] = None,
+        cta: Optional[str] = "Open HTML file",
+        include_question_name=False,
+    ):
+        """Generate HTML representation of the survey.
+        
+        DEPRECATED: Use to_html() instead.
+        """
+        import warnings
+        warnings.warn(
+            "SurveyExport.html is deprecated. Use SurveyExport.to_html instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.to_html(scenario, filename, return_link, css, cta, include_question_name)
 
     def latex(
         self,
@@ -353,6 +390,47 @@ class SurveyExport:
 
         # Return a FileStore object for the generated file
         return FileStore(filename)
+
+    def humanize(
+        self,
+        project_name: str = "Project",
+        survey_description: Optional[str] = None,
+        survey_alias: Optional[str] = None,
+        survey_visibility: Optional[str] = "unlisted",
+    ) -> dict:
+        """
+        Send the survey to Coop for human respondents.
+
+        This method uploads the survey to the Coop platform and creates a project
+        so you can share the survey with human respondents. This is part of the
+        export functionality since it makes the survey available externally.
+
+        Args:
+            project_name: The name for the project on Coop.
+            survey_description: Optional description of the survey.
+            survey_alias: Optional alias for the survey.
+            survey_visibility: Visibility setting for the survey ("unlisted", "public", "private").
+
+        Returns:
+            dict: Project details from Coop including project ID and URLs.
+
+        Examples:
+            >>> from edsl.surveys.survey import Survey
+            >>> s = Survey.example()
+            >>> exporter = SurveyExport(s)
+            >>> # project_details = exporter.humanize("My Survey Project")
+        """
+        from edsl.coop import Coop
+
+        c = Coop()
+        project_details = c.create_project(
+            self.survey,
+            project_name=project_name,
+            survey_description=survey_description,
+            survey_alias=survey_alias,
+            survey_visibility=survey_visibility,
+        )
+        return project_details
 
 
 if __name__ == "__main__":
