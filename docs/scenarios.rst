@@ -1920,20 +1920,18 @@ The method `augment_with_wikipedia` allows you to augment scenarios with informa
 Scenario class
 --------------
 
-.. automodule:: edsl.scenarios.Scenario
+.. autoclass:: edsl.scenarios.Scenario
    :members:
    :undoc-members:
    :show-inheritance:
-   :special-members: __init__
-   :exclude-members: 
+   :special-members: __init__ 
 
 
 ScenarioList class
 ------------------
 
-.. automodule:: edsl.scenarios.ScenarioList
+.. autoclass:: edsl.scenarios.ScenarioList
    :members:
    :undoc-members:
    :show-inheritance:
-   :special-members: __init__
-   :exclude-members: 
+   :special-members: __init__ 
