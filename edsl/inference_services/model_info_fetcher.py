@@ -234,11 +234,10 @@ class ModelInfoFetcherABC(UserDict, ABC):
         imported and used by the ModelInfoArchive fetcher.
 
         Args:
-            archive_path: Path where to write the archive file (default: "archive.py")
+            archive_path: Path where to write the archive file (default: ".edsl_model_archive.json")
         """
         import json
 
-        print(f"[MODEL_INFO_FETCHER] Writing to archive at {archive_path}")
         # Get current timestamp
         timestamp = datetime.datetime.now().isoformat()
 
@@ -253,7 +252,7 @@ class ModelInfoFetcherABC(UserDict, ABC):
         archive_data = {
             "metadata": {
                 "title": "Model Information Archive",
-                "description": f"This archive contains model information fetched from the Coop API. Auto-generated on {timestamp}.",
+                "description": f"This archive contains data about available models. Auto-generated on {timestamp}.",
                 "created_at": timestamp,
                 "fetcher_name": self.fetcher_name,
             },
@@ -533,10 +532,10 @@ if __name__ == "__main__":
     print(archive_fetcher)
 
     # Clean up test archive file
-    if os.path.exists("archive.py"):
+    if os.path.exists(".edsl_model_archive.json"):
         print("\n=== Cleaning up test archive ===")
-        os.remove("archive.py")
-        print("Removed archive.py")
+        os.remove(".edsl_model_archive.json")
+        print("Removed .edsl_model_archive.json")
 
     # Uncomment these to test other fetchers
     # fetcher_coop = ModelInfoCoopRegular()
