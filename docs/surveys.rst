@@ -1051,9 +1051,8 @@ To learn more about these methods and calculations, please see the :ref:`credits
 Survey class
 ------------
 
-.. automodule:: edsl.surveys.Survey
+.. autoclass:: edsl.surveys.Survey
    :members: 
    :undoc-members:
    :show-inheritance:
    :special-members: __init__
-   :exclude-members:

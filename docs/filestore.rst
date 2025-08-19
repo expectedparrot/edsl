@@ -427,9 +427,8 @@ Run `results.columns` to see all the components of results.
 FileStore class
 ---------------
 
-.. automodule:: edsl.scenarios.FileStore
+.. autoclass:: edsl.scenarios.FileStore
    :members:
    :undoc-members:
    :show-inheritance:
-   :special-members: __init__
-   :exclude-members: 
+   :special-members: __init__ 
