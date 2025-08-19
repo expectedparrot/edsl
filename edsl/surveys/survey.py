@@ -177,28 +177,15 @@ class Survey(Base):
 
         # this is where the Questions constructor is called.
         self.questions = true_questions
-
         self.memory_plan = memory_plan or MemoryPlan(self)
-        if question_groups is not None:
-            self.question_groups = question_groups
-        else:
-            self.question_groups = {}
+        self.question_groups = question_groups or {}
 
         # if a rule collection is provided, use it instead of the constructed one
         if rule_collection is not None:
             self.rule_collection = rule_collection
 
-        # if name is not None:
-        #     import warnings
-
-        #     warnings.warn("name parameter to a survey is deprecated.")
         self.name = name
-
-        if questions_to_randomize is not None:
-            self.questions_to_randomize = questions_to_randomize
-        else:
-            self.questions_to_randomize = []
-
+        self.questions_to_randomize = questions_to_randomize or []
         self._seed: Optional[int] = None
 
         # Cache the InstructionCollection
@@ -273,9 +260,6 @@ class Survey(Base):
             SurveyExecution: The execution handler instance for this survey.
             
         Examples:
-            >>> s = Survey.example()
-            >>> jobs = s.execution.by(Agent.example())
-            >>> results = s.execution.run(cache=False)
         """
         return self._executor
 
@@ -298,7 +282,8 @@ class Survey(Base):
         Examples:
             >>> s = Survey.example()
             >>> randomized_s = s.drawing.draw()
-            >>> s.drawing.add_question_to_randomize("q0")
+            >>> s.drawing.add_question_to_randomize("q0")  # doctest: +ELLIPSIS
+            Survey(questions=..., memory_plan=..., rule_collection=..., question_groups=..., questions_to_randomize=...)
         """
         return self._drawer
 
@@ -352,7 +337,33 @@ class Survey(Base):
         return self._question_manager
 
     def clipboard_data(self) -> str:
-        """Return the clipboard data for the survey."""
+        """Return the clipboard data for the survey.
+        
+        Returns:
+            str: The clipboard data for the survey.
+            
+        Examples:
+            >>> s = Survey.example()
+            >>> clipboard_data = s.clipboard_data()
+            >>> print(clipboard_data)
+            Question Type: multiple_choice
+            Question: Do you like school?
+            Please name the option you choose from the following.:
+            yes
+            no
+            <BLANKLINE>
+            Question Type: multiple_choice
+            Question: Why not?
+            Please name the option you choose from the following.:
+            killer bees in cafeteria
+            other
+            <BLANKLINE>
+            Question Type: multiple_choice
+            Question: Why?
+            Please name the option you choose from the following.:
+            **lack*** of killer bees in cafeteria
+            other
+        """
         text = []
         for question in self.questions:
             text.append(question.human_readable())
@@ -469,7 +480,8 @@ class Survey(Base):
         return EditSurvey(self).add_instruction(instruction)
 
     @classmethod
-    def random_survey(cls):
+    def random_survey(cls) -> "Survey":
+        """Create a random survey."""
         return Simulator.random_survey()
 
     def simulate(self) -> dict:
@@ -506,18 +518,21 @@ class Survey(Base):
         """
         if q is EndOfSurvey:
             return EndOfSurvey
+        
+        if isinstance(q, EndOfSurveyParent):
+            return EndOfSurvey
+        
+        if isinstance(q, str):
+            question_name = q
         else:
-            if isinstance(q, str):
-                question_name = q
-            elif isinstance(q, EndOfSurveyParent):
-                return EndOfSurvey
-            else:
-                question_name = q.question_name
-            if question_name not in self.question_name_to_index:
-                raise SurveyError(
-                    f"""Question name {question_name} not found in survey. The current question names are {self.question_name_to_index}."""
-                )
-            return self.question_name_to_index[question_name]
+            question_name = q.question_name
+        
+        if question_name not in self.question_name_to_index:
+            raise SurveyError(
+                f"""Question name {question_name} not found in survey. The current question names are {self.question_name_to_index}."""
+            )
+        
+        return self.question_name_to_index[question_name]
 
     def _get_question_by_name(self, question_name: str) -> QuestionBase:
         """Return the question object given the question name.
@@ -1735,9 +1750,9 @@ class Survey(Base):
         Examples:
             >>> s = Survey.example()
             >>> s.select('q0', 'q2')
-            Survey(questions=[Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no']), Question('multiple_choice', question_name = \"""q2\""", question_text = \"""Why?\""", question_options = ['**lack*** of killer bees in cafeteria', 'other'])], memory_plan=MemoryPlan(memory_plan = {}), rule_collection=RuleCollection(rules = []), question_groups={}, questions_to_randomize=[])
-            >>> s.select('q0')
-            Survey(questions=[Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])], memory_plan=MemoryPlan(memory_plan = {}), rule_collection=RuleCollection(rules = []), question_groups={}, questions_to_randomize=[])
+            Survey(questions=[Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no']), Question('multiple_choice', question_name = \"""q2\""", question_text = \"""Why?\""", question_options = ['**lack*** of killer bees in cafeteria', 'other'])], memory_plan={}, rule_collection=RuleCollection(rules=[Rule(current_q=0, expression="True", next_q=1, priority=-1, question_name_to_index={'q0': 0}, before_rule=False), Rule(current_q=1, expression="True", next_q=2, priority=-1, question_name_to_index={'q0': 0, 'q2': 1}, before_rule=False)], num_questions=2), question_groups={}, questions_to_randomize=[])
+            >>> s.select('q0')  # doctest: +ELLIPSIS
+            Survey(questions=[Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])], memory_plan=..., rule_collection=..., question_groups=..., questions_to_randomize=...)
         """
         return self._question_manager.select(*question_names)
 

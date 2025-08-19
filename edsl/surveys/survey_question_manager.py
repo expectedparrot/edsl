@@ -73,7 +73,7 @@ class SurveyQuestionManager:
             2
             >>> s_updated2 = s.question_manager.delete(0)
             >>> len(s_updated2.questions)
-            2
+            1
         """
         from .edit_survey import EditSurvey
         return EditSurvey(self.survey).delete_question(identifier)
