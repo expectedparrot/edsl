@@ -651,7 +651,10 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         from .agent_list_factories import AgentListFactories
 
         return AgentListFactories.from_csv(
-            file_path, name_field=name_field, codebook=codebook
+            file_path,
+            name_field=name_field,
+            codebook=codebook,
+            instructions=instructions,
         )
 
     def translate_traits(self, codebook: dict[str, str]):
