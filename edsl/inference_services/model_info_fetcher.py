@@ -6,6 +6,7 @@ import os
 
 if TYPE_CHECKING:
     from .inference_service_registry import InferenceServiceRegistry
+    from .model_info import ModelInfo
 
 
 class ModelInfoFetcherABC(UserDict, ABC):
@@ -69,7 +70,7 @@ class ModelInfoFetcherABC(UserDict, ABC):
         self,
         registry: "InferenceServiceRegistry",
         verbose: bool = False,
-        data: Optional[Dict[str, List[Any]]] = None,
+        data: Optional[Dict[str, List["ModelInfo"]]] = None,
     ):
         self.data = data or {}
         self.verbose = verbose
@@ -86,7 +87,7 @@ class ModelInfoFetcherABC(UserDict, ABC):
         self.data.update(data)
 
     @abstractmethod
-    def _fetch(self, **kwargs) -> dict:
+    def _fetch(self, **kwargs) -> Dict[str, List["ModelInfo"]]:
         """
         Abstract method to fetch model information and populate self.data.
 
@@ -97,7 +98,7 @@ class ModelInfoFetcherABC(UserDict, ABC):
             **kwargs: Additional keyword arguments for the specific implementation
 
         Returns:
-            None - The fetched data is stored in self.data (accessible via dict interface)
+            Dict[str, List["ModelInfo"]] - Dictionary mapping service names to lists of ModelInfo objects
 
         Raises:
             NotImplementedError: If not implemented by concrete class
@@ -243,7 +244,7 @@ class ModelInfoFetcherABC(UserDict, ABC):
         for service_name, models in self.data.items():
             serializable_models = []
             for model in models:
-                if hasattr(model, 'raw_data'):
+                if hasattr(model, "raw_data"):
                     # ModelInfo object - serialize its raw data
                     serializable_models.append(model.raw_data)
                 else:
@@ -285,7 +286,7 @@ class ModelInfoCoopRegular(ModelInfoFetcherABC):
 
     fetcher_name = "coop"
 
-    def _fetch(self, **kwargs) -> None:
+    def _fetch(self, **kwargs) -> Dict[str, List["ModelInfo"]]:
         """
         Fetch regular model information from the Coop API and store in self.data.
 
@@ -293,7 +294,7 @@ class ModelInfoCoopRegular(ModelInfoFetcherABC):
             **kwargs: Additional arguments (ignored for Coop implementation)
 
         Returns:
-            None - Data is stored in self.data (accessible via dict interface)
+            Dict[str, List["ModelInfo"]] - Dictionary mapping service names to lists of ModelInfo objects
 
         Raises:
             Exception: If Coop API call fails
@@ -308,15 +309,15 @@ class ModelInfoCoopRegular(ModelInfoFetcherABC):
 
         # Get raw data from Coop API
         raw_data = Coop().fetch_models()
-        
+
         # Convert strings to ModelInfo objects
         data = {}
         for service_name, model_names in raw_data.items():
             data[service_name] = [
-                ModelInfo.from_raw({"id": model_name}, service_name) 
+                ModelInfo.from_raw({"id": model_name}, service_name)
                 for model_name in model_names
             ]
-        
+
         return data
 
 
@@ -333,7 +334,7 @@ class ModelInfoCoopWorking(ModelInfoFetcherABC):
 
     fetcher_name = "coop_working"
 
-    def _fetch(self, **kwargs) -> None:
+    def _fetch(self, **kwargs) -> Dict[str, List["ModelInfo"]]:
         """
         Fetch working models with pricing and capability information from the Coop API and store in self.data.
 
@@ -342,16 +343,7 @@ class ModelInfoCoopWorking(ModelInfoFetcherABC):
             **kwargs: Additional arguments (ignored for Coop implementation)
 
         Returns:
-            None - Data is stored in self.data. For working models, the data structure is:
-            {"working_models": [list of working model dictionaries]}
-
-            Each working model dictionary contains:
-                - service: The service name (e.g., "openai")
-                - model: The model name (e.g., "gpt-4o")
-                - works_with_text: Boolean indicating text capability
-                - works_with_images: Boolean indicating image capability
-                - usd_per_1M_input_tokens: Cost per million input tokens
-                - usd_per_1M_output_tokens: Cost per million output tokens
+            Dict[str, List["ModelInfo"]] - Dictionary mapping service names to lists of ModelInfo objects
 
         Example:
             fetcher = ModelInfoCoopWorking()
@@ -377,13 +369,18 @@ class ModelInfoCoopWorking(ModelInfoFetcherABC):
         for model in working_models:
             service_name = model["service"]
             # Create ModelInfo object with the rich model data from working models
-            model_info = ModelInfo.from_raw({
-                "id": model["model"],
-                "works_with_text": model.get("works_with_text", False),
-                "works_with_images": model.get("works_with_images", False),
-                "usd_per_1M_input_tokens": model.get("usd_per_1M_input_tokens", 0),
-                "usd_per_1M_output_tokens": model.get("usd_per_1M_output_tokens", 0),
-            }, service_name)
+            model_info = ModelInfo.from_raw(
+                {
+                    "id": model["model"],
+                    "works_with_text": model.get("works_with_text", False),
+                    "works_with_images": model.get("works_with_images", False),
+                    "usd_per_1M_input_tokens": model.get("usd_per_1M_input_tokens", 0),
+                    "usd_per_1M_output_tokens": model.get(
+                        "usd_per_1M_output_tokens", 0
+                    ),
+                },
+                service_name,
+            )
             data[service_name].append(model_info)
 
         return data
@@ -402,7 +399,7 @@ class ModelInfoServices(ModelInfoFetcherABC):
 
     fetcher_name = "local"
 
-    def _fetch(self, **kwargs) -> None:
+    def _fetch(self, **kwargs) -> Dict[str, List["ModelInfo"]]:
         """
         Fetch model information directly from inference service APIs and store in self.data.
 
@@ -412,7 +409,7 @@ class ModelInfoServices(ModelInfoFetcherABC):
                 - skip_errors: Whether to skip services that fail to load models (default True)
 
         Returns:
-            None - Data is stored in self.data (accessible via dict interface)
+            Dict[str, List["ModelInfo"]] - Dictionary mapping service names to lists of ModelInfo objects
 
         Raises:
             ValueError: If services_registry is not provided
@@ -453,13 +450,13 @@ class ModelInfoArchive(ModelInfoFetcherABC):
         self,
         registry: "InferenceServiceRegistry",
         verbose: bool = False,
-        data: Optional[Dict[str, List[Any]]] = None,
+        data: Optional[Dict[str, List["ModelInfo"]]] = None,
         archive_path: str = "archive.py",
     ):
         super().__init__(registry, verbose, data)
         self.archive_path = archive_path
 
-    def _fetch(self, **kwargs) -> dict:
+    def _fetch(self, **kwargs) -> Dict[str, List["ModelInfo"]]:
         """
         Load model information from the archive.py file.
 
@@ -468,7 +465,7 @@ class ModelInfoArchive(ModelInfoFetcherABC):
                 - archive_path: Override the default archive path
 
         Returns:
-            dict: Dictionary mapping service names to model lists loaded from archive
+            Dict[str, List["ModelInfo"]] - Dictionary mapping service names to lists of ModelInfo objects loaded from archive
 
         Raises:
             FileNotFoundError: If archive file doesn't exist
@@ -488,14 +485,12 @@ class ModelInfoArchive(ModelInfoFetcherABC):
                     converted_models.append(
                         ModelInfo.from_raw({"id": model}, service_name)
                     )
-                elif hasattr(model, 'id'):
+                elif hasattr(model, "id"):
                     # Already a ModelInfo object
                     converted_models.append(model)
                 else:
                     # Handle dictionaries from archived ModelInfo objects
-                    converted_models.append(
-                        ModelInfo.from_raw(model, service_name)
-                    )
+                    converted_models.append(ModelInfo.from_raw(model, service_name))
             converted_data[service_name] = converted_models
 
         return converted_data
