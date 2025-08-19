@@ -486,7 +486,13 @@ class TestInferenceServiceRegistry:
     def test_default_source_preferences(self):
         """Test default source preferences."""
         registry = InferenceServiceRegistry()
-        expected_sources = ("coop_working", "coop", "archive", "local")
+        expected_sources = (
+            "coop_working",
+            "coop",
+            "archive",
+            "local",
+            "default_models",
+        )
 
         # Check through source handler - stored as list internally
         assert tuple(registry._source_handler.source_preferences) == expected_sources

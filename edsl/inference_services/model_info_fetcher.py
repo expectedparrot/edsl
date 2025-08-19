@@ -205,6 +205,7 @@ class ModelInfoFetcherABC(UserDict, ABC):
                 "ModelInfoCoopWorking": "coop_working",
                 "ModelInfoServices": "services",
                 "ModelInfoArchive": "archive",
+                "ModelInfoDefaultModels": "default_models",
             }
 
             if class_name not in class_to_fetcher_mapping:
@@ -492,6 +493,61 @@ class ModelInfoArchive(ModelInfoFetcherABC):
             converted_models = []
             for model in models:
                 converted_models.append(ModelInfo.from_dict(model))
+            converted_data[service_name] = converted_models
+
+        return converted_data
+
+
+class ModelInfoDefaultModels(ModelInfoFetcherABC):
+    """
+    Fetcher that loads model information from a default models file.
+
+    Args:
+        verbose: Enable verbose logging output
+    """
+
+    fetcher_name = "default_models"
+
+    def __init__(
+        self,
+        registry: "InferenceServiceRegistry",
+        verbose: bool = False,
+        data: Optional[Dict[str, List["ModelInfo"]]] = None,
+    ):
+        super().__init__(registry, verbose, data)
+
+    def _fetch(self, **kwargs) -> Dict[str, List["ModelInfo"]]:
+        """
+        Load model information from the default models file.
+
+        Args:
+            **kwargs: Additional arguments:
+                - default_models_path: Override the default default models path
+
+        Returns:
+            Dict[str, List["ModelInfo"]] - Dictionary mapping service names to lists of ModelInfo objects loaded from archive
+
+        Raises:
+            FileNotFoundError: If default models file doesn't exist
+            ImportError: If default models file can't be imported
+            AttributeError: If default models file doesn't have required 'data' attribute
+        """
+        from .model_info import ModelInfo
+
+        try:
+            from .default_models import data
+        except ImportError:
+            raise ImportError(f"Default models file not found")
+        except Exception as e:
+            raise Exception(f"Error loading default models file: {e}")
+
+        converted_data = {}
+        for service_name, models in data.items():
+            converted_models = []
+            for model in models:
+                converted_models.append(
+                    ModelInfo.from_raw({"id": model}, service_name, model)
+                )
             converted_data[service_name] = converted_models
 
         return converted_data
