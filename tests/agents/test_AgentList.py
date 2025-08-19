@@ -331,6 +331,116 @@ class TestAgentList(unittest.TestCase):
         for expected in expected_values:
             self.assertIn(expected, trait_values)
 
+    def test_add_instructions_method(self):
+        """Test the new add_instructions method"""
+        agent_list = AgentList(self.example_agents)
+        
+        # Apply instructions
+        test_instructions = "Answer as if you were this person"
+        modified = agent_list.add_instructions(test_instructions)
+        
+        # Check that the method returns the same AgentList object (for chaining)
+        self.assertIs(modified, agent_list)
+        
+        # Check that all agents have the new instructions
+        for agent in agent_list:
+            self.assertEqual(agent.instruction, test_instructions)
+
+    def test_from_csv_with_instructions(self):
+        """Test creating an agent list from CSV with instructions"""
+        # Create a temporary CSV file
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv') as f:
+            f.write("name,age,job,hair\n")
+            f.write("Person1,30,Engineer,brown\n")
+            f.write("Person2,40,Teacher,black\n")
+            csv_path = f.name
+        
+        try:
+            # Create AgentList from the CSV with instructions
+            test_instructions = "Answer as if you were this person"
+            agent_list = AgentList.from_csv(
+                csv_path, 
+                name_field="name", 
+                instructions=test_instructions
+            )
+            
+            # Verify the agent list
+            self.assertEqual(len(agent_list), 2)
+            
+            # Check that all agents have the instructions
+            for agent in agent_list:
+                self.assertEqual(agent.instruction, test_instructions)
+            
+            # Also check that other properties work
+            self.assertEqual(agent_list[0].name, "Person1")
+            self.assertEqual(agent_list[0]._traits["age"], "30")
+            
+        finally:
+            os.unlink(csv_path)
+
+    def test_from_source_csv(self):
+        """Test creating an agent list using from_source with CSV"""
+        # Create a temporary CSV file
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv') as f:
+            f.write("name,age,job,hair\n")
+            f.write("Person1,30,Engineer,brown\n")
+            f.write("Person2,40,Teacher,black\n")
+            csv_path = f.name
+        
+        try:
+            # Test basic from_source
+            agent_list = AgentList.from_source('csv', csv_path, name_field="name")
+            self.assertEqual(len(agent_list), 2)
+            self.assertEqual(agent_list[0].name, "Person1")
+            
+            # Test with instructions
+            test_instructions = "Answer as the person described"
+            agent_list_with_instructions = AgentList.from_source(
+                'csv', 
+                csv_path, 
+                name_field="name",
+                instructions=test_instructions
+            )
+            
+            # Check that all agents have the instructions
+            for agent in agent_list_with_instructions:
+                self.assertEqual(agent.instruction, test_instructions)
+            
+            # Test with codebook
+            test_codebook = {"age": "Age in years", "job": "Current profession"}
+            agent_list_with_codebook = AgentList.from_source(
+                'csv',
+                csv_path,
+                name_field="name",
+                codebook=test_codebook
+            )
+            
+            # Check that all agents have the codebook
+            for agent in agent_list_with_codebook:
+                self.assertEqual(agent.codebook, test_codebook)
+            
+            # Test with both instructions and codebook
+            agent_list_both = AgentList.from_source(
+                'csv',
+                csv_path,
+                name_field="name",
+                instructions=test_instructions,
+                codebook=test_codebook
+            )
+            
+            for agent in agent_list_both:
+                self.assertEqual(agent.instruction, test_instructions)
+                self.assertEqual(agent.codebook, test_codebook)
+            
+        finally:
+            os.unlink(csv_path)
+
+    def test_agent_list_builder_import(self):
+        """Test that AgentListBuilder can be imported"""
+        from edsl.agents import AgentListBuilder
+        self.assertTrue(hasattr(AgentListBuilder, 'from_source'))
+        self.assertTrue(hasattr(AgentListBuilder, 'from_csv'))
+
 
 if __name__ == "__main__":
     unittest.main()
