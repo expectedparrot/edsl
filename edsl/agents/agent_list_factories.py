@@ -7,11 +7,13 @@ from typing import Optional, List, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .agent_list import AgentList
+    from ..scenarios import ScenarioList
+    from ..results import Results
 
 
 class AgentListFactories:
     """Handles factory and creation operations for AgentList objects.
-    
+
     This class provides functionality for creating AgentList objects from various
     data sources including CSV files, Results objects, dictionaries, lists,
     and ScenarioList objects. It also provides example instances and utility
@@ -23,6 +25,7 @@ class AgentListFactories:
         file_path: str,
         name_field: Optional[str] = None,
         codebook: Optional[dict[str, str]] = None,
+        instructions: Optional[str] = None,
     ) -> "AgentList":
         """Load AgentList from a CSV file.
 
@@ -60,25 +63,32 @@ class AgentListFactories:
                 if name_field is not None:
                     agent_name = row.pop(name_field)
                     agent_list.append(
-                        Agent(traits=row, name=agent_name, codebook=codebook)
+                        Agent(
+                            traits=row,
+                            name=agent_name,
+                            codebook=codebook,
+                            instruction=instructions,
+                        )
                     )
                 else:
-                    agent_list.append(Agent(traits=row, codebook=codebook))
+                    agent_list.append(
+                        Agent(traits=row, codebook=codebook, instruction=instructions)
+                    )
         return AgentList(agent_list)
 
     @staticmethod
     def from_results(results: "Results") -> "AgentList":
         """Create an AgentList from a Results object.
-        
+
         Args:
             results: The Results object to convert
-            
+
         Returns:
             AgentList: A new AgentList created from the Results
-            
+
         Raises:
             ValueError: If the number of agents doesn't match number of results
-            
+
         Examples:
             >>> from edsl.agents.agent_list_factories import AgentListFactories
             >>> # This would work with actual Results object
@@ -90,7 +100,9 @@ class AgentListFactories:
         try:
             assert len(results.agents) == len(results)
         except:
-            raise ValueError("The number of agents in the results does not match the number of results.")
+            raise ValueError(
+                "The number of agents in the results does not match the number of results."
+            )
 
         new_agents = []
         for result in results:
@@ -117,6 +129,7 @@ class AgentListFactories:
             1
         """
         from .agent_list_serializer import AgentListSerializer
+
         return AgentListSerializer.from_dict(data)
 
     @staticmethod
@@ -240,7 +253,7 @@ class AgentListFactories:
     @staticmethod
     def get_codebook(file_path: str) -> dict:
         """Returns a codebook dictionary mapping CSV column names to None.
-        
+
         Reads the header row of a CSV file and creates a codebook with field names as keys
         and None as values.
 
@@ -268,4 +281,4 @@ class AgentListFactories:
         """
         with open(file_path, "r") as f:
             reader = csv.DictReader(f)
-            return {field: None for field in reader.fieldnames} 
+            return {field: None for field in reader.fieldnames}
