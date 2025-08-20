@@ -6,6 +6,7 @@ import openai
 
 from ..inference_service_abc import InferenceServiceABC
 from ..decorators import report_errors_async
+from .service_enums import OPENAI_REASONING_MODELS
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -212,8 +213,7 @@ class OpenAIServiceV2(InferenceServiceABC):
 
                 # Check if this is a reasoning model (o-series models)
                 is_reasoning_model = any(
-                    tag in self.model
-                    for tag in ["o1", "o1-mini", "o3", "o3-mini", "o1-pro", "o4-mini"]
+                    tag in self.model for tag in OPENAI_REASONING_MODELS
                 )
 
                 # Only add reasoning parameter for reasoning models
