@@ -6,6 +6,7 @@ import openai
 
 from ..inference_service_abc import InferenceServiceABC
 from .message_builder import MessageBuilder
+from .service_enums import OPENAI_REASONING_MODELS
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -30,7 +31,7 @@ class OpenAIParameterBuilder:
 
         default_max_tokens = model_params.get("max_tokens", 1000)
         default_temperature = model_params.get("temperature", 0.5)
-        if "o1" in model or "o3" in model or model == "gpt-5":
+        if model in OPENAI_REASONING_MODELS:
             # For reasoning models, use much higher completion tokens to allow for reasoning + response
             max_tokens = max(default_max_tokens, 5000)
             temperature = 1
