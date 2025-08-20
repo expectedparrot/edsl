@@ -3,6 +3,7 @@ from typing import Any, Optional, List, TYPE_CHECKING
 from anthropic import AsyncAnthropic
 
 from ..inference_service_abc import InferenceServiceABC
+from ..decorators import report_errors_async
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -65,6 +66,7 @@ class AnthropicService(InferenceServiceABC):
                 "top_logprobs": 3,
             }
 
+            @report_errors_async
             async def async_execute_model_call(
                 self,
                 user_prompt: str,
@@ -102,21 +104,14 @@ class AnthropicService(InferenceServiceABC):
                         )
                 client = AsyncAnthropic(api_key=self.api_token)
 
-                try:
-                    response = await client.messages.create(
-                        model=model_name,
-                        max_tokens=self.max_tokens,
-                        temperature=self.temperature,
-                        system=system_prompt,  # note that the Anthropic API uses "system" parameter rather than put it in the message
-                        messages=messages,
-                    )
-                    return response.model_dump()
-                except Exception as e:
-                    from ...coop import Coop 
-                    c = Coop()
-                    await c.report_error(e)
-                    #breakpoint()
-                    raise e
+                response = await client.messages.create(
+                    model=model_name,
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature,
+                    system=system_prompt,  # note that the Anthropic API uses "system" parameter rather than put it in the message
+                    messages=messages,
+                )
+                return response.model_dump()
 
         LLM.__name__ = model_class_name
 

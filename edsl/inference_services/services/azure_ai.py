@@ -2,6 +2,7 @@ import os
 from typing import Any, Optional, List, TYPE_CHECKING
 from openai import AsyncAzureOpenAI
 from ..inference_service_abc import InferenceServiceABC
+from ..decorators import report_errors_async
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -172,6 +173,7 @@ class AzureAIService(InferenceServiceABC):
                 "top_p": 0.9,
             }
 
+            @report_errors_async
             async def async_execute_model_call(
                 self,
                 user_prompt: str,
@@ -222,11 +224,9 @@ class AzureAIService(InferenceServiceABC):
                             ],
                             # model_extras={"safe_mode": True},
                         )
-                        await client.close()
                         return response.as_dict()
-                    except Exception as e:
+                    finally:
                         await client.close()
-                        return {"error": str(e)}
                 else:
                     api_version = cls._model_id_to_endpoint_and_key[model_name][
                         "api_version"
@@ -236,18 +236,15 @@ class AzureAIService(InferenceServiceABC):
                         api_version=api_version,
                         api_key=api_key,
                     )
-                    try:
-                        response = await client.chat.completions.create(
-                            model=model_name,
-                            messages=[
-                                {
-                                    "role": "user",
-                                    "content": user_prompt,  # Your question can go here
-                                },
-                            ],
-                        )
-                    except Exception as e:
-                        return {"message": str(e)}
+                    response = await client.chat.completions.create(
+                        model=model_name,
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": user_prompt,  # Your question can go here
+                            },
+                        ],
+                    )
                     return response.model_dump()
 
             # @staticmethod

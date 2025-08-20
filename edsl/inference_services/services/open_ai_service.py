@@ -6,6 +6,7 @@ import openai
 
 from ..inference_service_abc import InferenceServiceABC
 from .message_builder import MessageBuilder
+from ..decorators import report_errors_async
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -209,6 +210,7 @@ class OpenAIService(InferenceServiceABC):
                         "tpm": int(headers["x-ratelimit-limit-tokens"]),
                     }
 
+            @report_errors_async
             async def async_execute_model_call(
                 self,
                 user_prompt: str,
@@ -245,10 +247,7 @@ class OpenAIService(InferenceServiceABC):
                     logprobs=self.logprobs,
                     top_logprobs=self.top_logprobs,
                 )
-                try:
-                    response = await client.chat.completions.create(**params)
-                except Exception as e:
-                    return {"message": str(e)}
+                response = await client.chat.completions.create(**params)
                 return response.model_dump()
 
         # Ensure the class name is "LanguageModel" for proper serialization
