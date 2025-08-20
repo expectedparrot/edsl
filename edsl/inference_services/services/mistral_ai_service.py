@@ -4,6 +4,7 @@ from mistralai import Mistral
 
 
 from ..inference_service_abc import InferenceServiceABC
+from ..decorators import report_errors_async
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -105,6 +106,7 @@ class MistralAIService(InferenceServiceABC):
             def async_client(self):
                 return cls.async_client()
 
+            @report_errors_async
             async def async_execute_model_call(
                 self,
                 user_prompt: str,
@@ -114,18 +116,15 @@ class MistralAIService(InferenceServiceABC):
                 """Calls the Mistral API and returns the API response."""
                 s = self.async_client()
 
-                try:
-                    res = await s.chat.complete_async(
-                        model=model_name,
-                        messages=[
-                            {
-                                "content": user_prompt,
-                                "role": "user",
-                            },
-                        ],
-                    )
-                except Exception as e:
-                    return {"message": str(e)}
+                res = await s.chat.complete_async(
+                    model=model_name,
+                    messages=[
+                        {
+                            "content": user_prompt,
+                            "role": "user",
+                        },
+                    ],
+                )
                 return res.model_dump()
 
         LLM.__name__ = model_class_name
