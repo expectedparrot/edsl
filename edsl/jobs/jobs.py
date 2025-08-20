@@ -892,9 +892,22 @@ class Jobs(Base):
         exception_start = time.time()
         if results:
             self._logger.info("Processing exceptions in results")
-            ResultsExceptionsHandler(
-                results, self.run_config.parameters
-            ).handle_exceptions()
+            print(
+                f"DEBUG: Creating ResultsExceptionsHandler with {len(results)} results",
+                flush=True,
+            )
+            print(
+                f"DEBUG: Results has_unfixed_exceptions: {getattr(results, 'has_unfixed_exceptions', 'unknown')}",
+                flush=True,
+            )
+            print(
+                f"DEBUG: print_exceptions parameter: {self.run_config.parameters.print_exceptions}",
+                flush=True,
+            )
+
+            handler = ResultsExceptionsHandler(results, self.run_config.parameters)
+            handler.handle_exceptions()
+
             self._logger.info(
                 f"Exception handling completed in {time.time() - exception_start:.3f}s"
             )
