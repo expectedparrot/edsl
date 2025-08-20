@@ -383,10 +383,6 @@ class AnswerQuestionFunctionConstructor:
                         raise response.exception_occurred
 
             except QuestionAnswerValidationError as e:
-                print(
-                    f"Question answer validation failed for question '{question.question_name}': {e}",
-                    flush=True,
-                )
                 self._handle_exception(e, invigilator, task)
                 return invigilator.get_failed_task_result(
                     failure_reason="Question answer validation failed."
@@ -401,10 +397,6 @@ class AnswerQuestionFunctionConstructor:
                 )
 
             except Exception as e:
-                print(
-                    f"An error occurred while answering question '{question.question_name}': {e}",
-                    flush=True,
-                )
                 # For generic exceptions, record them immediately as they won't be retried
                 self._handle_exception(e, invigilator, task)
 
