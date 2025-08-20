@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from ...language_models import LanguageModel
 
 from .open_ai_service import OpenAIService
+from ..decorators import report_errors_async
 
 if TYPE_CHECKING:
     from ...scenarios.file_store import FileStore as Files
@@ -123,6 +124,7 @@ class PerplexityService(OpenAIService):
                         "tpm": int(headers["x-ratelimit-limit-tokens"]),
                     }
 
+            @report_errors_async
             async def async_execute_model_call(
                 self,
                 user_prompt: str,
@@ -167,11 +169,7 @@ class PerplexityService(OpenAIService):
                     # "top_logprobs": self.top_logprobs if self.logprobs else None,
                 }
                 print("calling the model", flush=True)
-                try:
-                    response = await client.chat.completions.create(**params)
-                except Exception as e:
-                    return {"message": str(e)}
-
+                response = await client.chat.completions.create(**params)
                 return response.model_dump()
 
         LLM.__name__ = "LanguageModel"

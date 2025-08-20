@@ -5,6 +5,7 @@ from google.genai import types
 
 # from ...exceptions.general import MissingAPIKeyError
 from ..inference_service_abc import InferenceServiceABC
+from ..decorators import report_errors_async
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -92,6 +93,7 @@ class GoogleService(InferenceServiceABC):
 
                     self._client_lock = asyncio.Lock()
 
+            @report_errors_async
             async def async_execute_model_call(
                 self,
                 user_prompt: str,
@@ -219,26 +221,17 @@ class GoogleService(InferenceServiceABC):
 
                 # Time API call
                 api_start = time.time()
-                try:
-                    # print(
-                    #     f"Making async API call to {self._model_} with {len(combined_prompt)} prompt parts",
-                    #     flush=True,
-                    # )
-                    response = await client.aio.models.generate_content(
-                        model=self._model_,
-                        contents=combined_prompt,
-                        config=generation_config,
-                    )
-                    api_time = time.time() - api_start
-                    # print(f"Async API call completed in {api_time:.3f}s", flush=True)
-
-                except Exception as e:
-                    api_time = time.time() - api_start
-                    # print(
-                    #     f"Async API call failed after {api_time:.3f}s: {str(e)}",
-                    #     flush=True,
-                    # )
-                    return {"message": str(e)}
+                # print(
+                #     f"Making async API call to {self._model_} with {len(combined_prompt)} prompt parts",
+                #     flush=True,
+                # )
+                response = await client.aio.models.generate_content(
+                    model=self._model_,
+                    contents=combined_prompt,
+                    config=generation_config,
+                )
+                api_time = time.time() - api_start
+                # print(f"Async API call completed in {api_time:.3f}s", flush=True)
 
                 # Time response processing
                 response_start = time.time()
