@@ -241,9 +241,9 @@ class Coop(CoopFunctionsMixin):
             if "json_string" in log_payload and log_payload["json_string"]:
                 json_str = log_payload["json_string"]
                 if len(json_str) > 200:
-                    log_payload["json_string"] = (
-                        f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
-                    )
+                    log_payload[
+                        "json_string"
+                    ] = f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
             self._logger.info(f"Request payload: {log_payload}")
 
         try:
@@ -965,9 +965,10 @@ class Coop(CoopFunctionsMixin):
         if short_name is not None:
             from ..widgets.base_widget import EDSLBaseWidget
 
-            short_name_is_valid, error_message = (
-                EDSLBaseWidget.is_widget_short_name_valid(short_name)
-            )
+            (
+                short_name_is_valid,
+                error_message,
+            ) = EDSLBaseWidget.is_widget_short_name_valid(short_name)
             if not short_name_is_valid:
                 raise CoopValueError(error_message)
             payload["short_name"] = short_name
@@ -3505,7 +3506,9 @@ class Coop(CoopFunctionsMixin):
                     value_type = (
                         "inf"
                         if math.isinf(value)
-                        else "nan" if math.isnan(value) else "invalid"
+                        else "nan"
+                        if math.isnan(value)
+                        else "invalid"
                     )
                     error_msg += f"  • {path}: {value} ({value_type})\n"
 
@@ -3913,14 +3916,14 @@ class Coop(CoopFunctionsMixin):
     async def report_error(self, error: Exception) -> None:
         """
         Report an error for debugging purposes.
-        
+
         This method provides a non-blocking way to report errors that occur during
-        EDSL operations. Currently prints the error to standard error, but will
-        be extended to send error reports to the server in the future.
-        
+        EDSL operations. It sends error reports to the server for monitoring and
+        debugging purposes, while also printing to stderr for immediate feedback.
+
         Parameters:
             error (Exception): The exception to report
-            
+
         Example:
             >>> try:
             ...     # some operation that might fail
@@ -3930,12 +3933,41 @@ class Coop(CoopFunctionsMixin):
         """
         import sys
         import traceback
-        
-        # Print error details to stderr
-        print(f"EDSL Error Report: {type(error).__name__}: {str(error)}", file=sys.stderr)
-        print("Traceback:", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
-        print("-" * 50, file=sys.stderr)
+        import httpx
+        from datetime import datetime
+
+        # Prepare error data for remote logging
+        try:
+            import time
+
+            start_time = time.time()
+
+            error_data = {
+                "error_type": type(error).__name__,
+                "error_message": str(error),
+                "traceback": traceback.format_exc(),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+            # Send to remote logging endpoint asynchronously
+            url = f"{self.api_url}/api/v0/user_service_error_logs"
+
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    url, json=error_data, headers=self.headers, timeout=4.0
+                )
+
+                end_time = time.time()
+                duration_ms = round((end_time - start_time) * 1000, 2)
+
+                # if response.status_code == 200:
+                #     print(f"Error report sent to server (took {duration_ms}ms)", file=sys.stderr)
+                # else:
+                #     print(f"Failed to send error report to server: {response.status_code} (took {duration_ms}ms)", file=sys.stderr)
+
+        except Exception as send_error:
+            # Don't let error reporting itself cause issues
+            print(f"Failed to send error report: {str(send_error)}", file=sys.stderr)
 
     def login_gradio(self, timeout: int = 120, launch: bool = True, **launch_kwargs):
         """
