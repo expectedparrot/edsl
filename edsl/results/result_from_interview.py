@@ -11,6 +11,8 @@ from typing import Any, Dict, TYPE_CHECKING
 if TYPE_CHECKING:
     from .result import Result
 
+from .exceptions import ResultsError
+
 
 class ResultFromInterview:
     """Converts interview objects to Result objects.
@@ -117,6 +119,14 @@ class ResultFromInterview:
         # Import Result here to avoid circular imports
         from .result import Result
 
+        # Validate required parameters
+        if agent_copy is None:
+            raise ResultsError("Cannot create Result: agent is None")
+        if scenario_copy is None:
+            raise ResultsError("Cannot create Result: scenario is None")
+        if model_copy is None:
+            raise ResultsError("Cannot create Result: model is None")
+
         # Create the Result object with all copied data
         result = Result(
             agent=agent_copy,
@@ -137,7 +147,7 @@ class ResultFromInterview:
         )
 
         # Store only the hash, not the interview
-        result.interview_hash = initial_hash
+        setattr(result, 'interview_hash', initial_hash)
 
         # Clear references to help garbage collection of the interview
         if hasattr(self.interview, "clear_references"):
@@ -218,7 +228,7 @@ class ResultFromInterview:
                     key_sequence=(
                         model_class.key_sequence
                         if hasattr(model_class, "key_sequence")
-                        else None
+                        else []
                     ),
                     usage_sequence=(
                         model_class.usage_sequence

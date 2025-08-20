@@ -135,16 +135,16 @@ class ResultsFilter:
 
         except ValueError as e:
             raise ResultsFilterError(
-                f"Error in filter. Exception:{e}",
-                f"The expression you provided was: {expression}",
-                "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.",
+                f"Error in filter. Exception:{e}. " + 
+                f"The expression you provided was: {expression}. " + 
+                "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details."
             )
         except Exception as e:
             raise ResultsFilterError(
-                f"Error in filter. Exception:{e}.",
-                f"The expression you provided was: {expression}.",
-                "Please make sure that the expression is a valid Python expression that evaluates to a boolean.",
-                'For example, \'how_feeling == "Great"\' is a valid expression, as is \'how_feeling in ["Great", "Terrible"]\'.',
-                "However, 'how_feeling = \"Great\"' is not a valid expression.",
-                "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.",
+                f"Error in filter. Exception:{e}. " + 
+                f"The expression you provided was: {expression}. " + 
+                "Please make sure that the expression is a valid Python expression that evaluates to a boolean. " + 
+                'For example, \'how_feeling == "Great"\' is a valid expression, as is \'how_feeling in ["Great", "Terrible"]\'. ' + 
+                "However, 'how_feeling = \"Great\"' is not a valid expression. " + 
+                "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details."
             )

@@ -96,6 +96,9 @@ class ResultsSampler:
         if frac is not None:
             n = int(frac * len(self.results.data))
 
+        # At this point, n should not be None
+        assert n is not None, "n should be set by now"
+
         # Import here to avoid circular imports
         from .results import Results
 
