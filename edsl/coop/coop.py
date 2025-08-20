@@ -143,7 +143,7 @@ class Coop(CoopFunctionsMixin):
         url (str): The base URL for the Expected Parrot API
         api_url (str): The URL for API endpoints (derived from base URL)
     """
-    
+
     _logger = get_logger(__name__)
 
     def __init__(
@@ -230,7 +230,7 @@ class Coop(CoopFunctionsMixin):
             timeout = max(
                 60, 2 * (len(payload.get("json_string", "")) // (1024 * 1024))
             )
-        
+
         # Log the outgoing request
         self._logger.info(f"Sending {method} request to {url}")
         if params:
@@ -241,9 +241,11 @@ class Coop(CoopFunctionsMixin):
             if "json_string" in log_payload and log_payload["json_string"]:
                 json_str = log_payload["json_string"]
                 if len(json_str) > 200:
-                    log_payload["json_string"] = f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    log_payload["json_string"] = (
+                        f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    )
             self._logger.info(f"Request payload: {log_payload}")
-        
+
         try:
             if method in ["GET", "DELETE"]:
                 response = requests.request(
@@ -260,13 +262,16 @@ class Coop(CoopFunctionsMixin):
                 )
             else:
                 from .exceptions import CoopInvalidMethodError
+
                 error_msg = f"Invalid {method=}."
                 self._logger.error(f"Invalid HTTP method: {error_msg}")
                 raise CoopInvalidMethodError(error_msg)
-                
+
             # Log successful response
-            self._logger.info(f"Received response: {response.status_code} from {method} {url}")
-            
+            self._logger.info(
+                f"Received response: {response.status_code} from {method} {url}"
+            )
+
         except requests.ConnectionError as e:
             error_msg = f"Could not connect to the server at {url}."
             self._logger.error(f"Connection error: {error_msg} - {str(e)}")
@@ -447,7 +452,9 @@ class Coop(CoopFunctionsMixin):
             ):
                 # Get additional info from server if available
                 update_info = response.headers.get("X-EDSL-Update-Info", "")
-                self._logger.info(f"EDSL version update available: {self._edsl_version} -> {server_edsl_version}")
+                self._logger.info(
+                    f"EDSL version update available: {self._edsl_version} -> {server_edsl_version}"
+                )
 
                 print("\n" + "=" * 60)
                 print("📦 EDSL Update Available!")
@@ -471,7 +478,7 @@ class Coop(CoopFunctionsMixin):
         if response.status_code >= 400:
             error_msg = f"Server error: {response.status_code}"
             self._logger.error(f"{error_msg}: {response.text}")
-            
+
             try:
                 message = str(response.json().get("detail"))
             except json.JSONDecodeError:
@@ -480,7 +487,9 @@ class Coop(CoopFunctionsMixin):
                     f"JSON response could not be decoded. "
                     f"The server response was: {response.text}"
                 )
-                self._logger.error(f"Failed to decode server error response: {decode_error}")
+                self._logger.error(
+                    f"Failed to decode server error response: {decode_error}"
+                )
                 raise CoopServerResponseError(decode_error)
             # print(response.text)
             if "The API key you provided is invalid" in message and check_api_key:
@@ -532,7 +541,7 @@ class Coop(CoopFunctionsMixin):
         if response.status_code >= 400:
             error_msg = f"GCS operation failed with status {response.status_code}"
             self._logger.error(f"{error_msg}: {response.text}")
-            
+
             try:
                 import xml.etree.ElementTree as ET
 
@@ -542,18 +551,20 @@ class Coop(CoopFunctionsMixin):
                 code = root.find("Code").text
                 message = root.find("Message").text
                 details = root.find("Details").text
-                
+
                 detailed_error = f"An error occurred: {code} - {message} - {details}"
                 self._logger.error(f"GCS error details: {detailed_error}")
             except Exception as parse_error:
                 from .exceptions import CoopServerResponseError
-                
+
                 decode_error = (
                     f"Server returned status code {response.status_code}. "
                     f"XML response could not be decoded. "
                     f"The server response was: {response.text}"
                 )
-                self._logger.error(f"Failed to parse GCS error response: {str(parse_error)}")
+                self._logger.error(
+                    f"Failed to parse GCS error response: {str(parse_error)}"
+                )
                 raise CoopServerResponseError(decode_error)
 
             from .exceptions import CoopServerResponseError
@@ -1773,8 +1784,10 @@ class Coop(CoopFunctionsMixin):
             >>> job_info = coop.remote_inference_create(job=job, description="My job")
             >>> print(f"Job created with UUID: {job_info['uuid']}")
         """
-        self._logger.info(f"Creating remote inference job with description: {description}")
-        
+        self._logger.info(
+            f"Creating remote inference job with description: {description}"
+        )
+
         response = self._send_server_request(
             uri="api/v0/new-remote-inference",
             method="POST",
@@ -1818,9 +1831,11 @@ class Coop(CoopFunctionsMixin):
             },
         )
         response_json = response.json()
-        
+
         job_uuid = response_json.get("job_uuid")
-        self._logger.info(f"Successfully created remote inference job with UUID: {job_uuid}")
+        self._logger.info(
+            f"Successfully created remote inference job with UUID: {job_uuid}"
+        )
 
         return RemoteInferenceCreationInfo(
             **{
@@ -3155,7 +3170,7 @@ class Coop(CoopFunctionsMixin):
                 "Invalid EDSL_FETCH_TOKEN_PRICES value---should be 'True' or 'False'."
             )
 
-    def fetch_models(self) -> dict:
+    def fetch_models(self) -> Dict[str, List[str]]:
         """
         Fetch information about available language models from Expected Parrot.
 

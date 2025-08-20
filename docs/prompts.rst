@@ -591,9 +591,8 @@ See the :ref:`questions` section for `more details <https://docs.expectedparrot.
 Prompts class 
 -------------
 
-.. automodule:: edsl.prompts.Prompt
+.. autoclass:: edsl.prompts.Prompt
    :members: 
    :undoc-members:
    :show-inheritance:
    :special-members: __init__
-   :exclude-members:

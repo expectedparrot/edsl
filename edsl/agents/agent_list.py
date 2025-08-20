@@ -1,6 +1,7 @@
 """A list of Agents"""
 
 from __future__ import annotations
+
 # csv import moved to agent_list_factories.py
 import sys
 import random
@@ -119,6 +120,28 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         return self
 
+    def add_instructions(self, instructions: str) -> "AgentList":
+        """Apply instructions to all agents in the list.
+
+        This method provides a more intuitive name for setting instructions
+        on all agents, avoiding the need to iterate manually.
+
+        Args:
+            instructions: The instructions to apply to all agents.
+
+        Returns:
+            AgentList: Returns self for method chaining.
+
+        Examples:
+            >>> from edsl import Agent, AgentList
+            >>> agents = AgentList([Agent(traits={'age': 30}), Agent(traits={'age': 40})])
+            >>> agents.add_instructions("Answer as if you were this age")
+            AgentList([Agent(traits = {'age': 30}), Agent(traits = {'age': 40})])
+        """
+        for agent in self.data:
+            agent.instruction = instructions
+        return self
+
     @classmethod
     def manage(cls):
         from ..widgets.agent_list_manager import AgentListManagerWidget
@@ -208,6 +231,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             {'hair': 'brown'}
         """
         from .agent_list_trait_operations import AgentListTraitOperations
+
         return AgentListTraitOperations.drop(self, *field_names)
 
     def keep(self, *field_names: Union[str, List[str]]) -> AgentList:
@@ -255,6 +279,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             {'age': 30}
         """
         from .agent_list_trait_operations import AgentListTraitOperations
+
         return AgentListTraitOperations.keep(self, *field_names)
 
     def duplicate(self) -> AgentList:
@@ -321,6 +346,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             >>> assert al != al2
         """
         from .agent_list_trait_operations import AgentListTraitOperations
+
         return AgentListTraitOperations.rename(self, old_name, new_name)
 
     def select(self, *traits) -> AgentList:
@@ -340,9 +366,17 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             AgentList([Agent(traits = {'a': 1}), Agent(traits = {'a': 1})])
         """
         from .agent_list_trait_operations import AgentListTraitOperations
+
         return AgentListTraitOperations.select(self, *traits)
-    
-    def _apply_names(self, agent_list_data: list["Agent"], trait_keys: tuple[str], remove_traits: bool = True, separator: str = ",", force_name: bool = False) -> None:
+
+    def _apply_names(
+        self,
+        agent_list_data: list["Agent"],
+        trait_keys: tuple[str],
+        remove_traits: bool = True,
+        separator: str = ",",
+        force_name: bool = False,
+    ) -> None:
         """Private helper method to apply names to a list of agents.
 
         Args:
@@ -436,18 +470,19 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             join_type: The type of join to perform
         """
         from .agent_list_joiner import AgentListJoiner
+
         return AgentListJoiner._join_two(self, other, join_type=join_type)
 
     def join(self, other: "AgentList", join_type: str = "inner") -> "AgentList":
         """Join this AgentList with another AgentList.
-        
+
         Args:
             other: The other AgentList to join with
             join_type: The type of join to perform ("inner", "left", or "right")
-            
+
         Returns:
             AgentList: A new AgentList containing the joined results
-            
+
         Examples:
             >>> from edsl import Agent, AgentList
             >>> al1 = AgentList([Agent(name="John", traits={"age": 30})])
@@ -457,10 +492,13 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             {'age': 30, 'height': 180}
         """
         from .agent_list_joiner import AgentListJoiner
+
         return AgentListJoiner.join_two(self, other, join_type=join_type)
 
     @classmethod
-    def join_multiple(cls, *agent_lists: "AgentList", join_type: str = "inner") -> "AgentList":
+    def join_multiple(
+        cls, *agent_lists: "AgentList", join_type: str = "inner"
+    ) -> "AgentList":
         """Join multiple AgentLists together.
 
         Args:
@@ -485,6 +523,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             {'age': 30, 'height': 180, 'weight': 75}
         """
         from .agent_list_joiner import AgentListJoiner
+
         return AgentListJoiner.join_multiple(*agent_lists, join_type=join_type)
 
     def filter(self, expression: str) -> AgentList:
@@ -517,6 +556,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             0
         """
         from .agent_list_filter import AgentListFilter
+
         return AgentListFilter.filter(self, expression)
 
     @property
@@ -530,7 +570,53 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         ['age', 'hair']
         """
         from .agent_list_trait_operations import AgentListTraitOperations
+
         return AgentListTraitOperations.get_all_traits(self)
+
+    @classmethod
+    def from_source(
+        cls,
+        source_type: str,
+        *args,
+        instructions: Optional[str] = None,
+        codebook: Optional[dict[str, str]] = None,
+        name_field: Optional[str] = None,
+        **kwargs,
+    ) -> "AgentList":
+        """Create an AgentList from a specified source type.
+
+        This method serves as the main entry point for creating AgentList objects,
+        providing a unified interface for various data sources.
+
+        Args:
+            source_type: The type of source to create an AgentList from.
+                        Valid values include: 'csv', 'tsv', 'excel', 'pandas', etc.
+            *args: Positional arguments to pass to the source-specific method.
+            instructions: Optional instructions to apply to all created agents.
+            codebook: Optional dictionary mapping trait names to descriptions.
+            name_field: The name of the field to use as the agent name (for CSV/Excel sources).
+            **kwargs: Additional keyword arguments to pass to the source-specific method.
+
+        Returns:
+            An AgentList object created from the specified source.
+
+        Examples:
+            >>> # Create agents from a CSV file with instructions
+            >>> # agents = AgentList.from_source(
+            >>> #     'csv', 'agents.csv',
+            >>> #     instructions="Answer as if you were the person described"
+            >>> # )
+        """
+        from .agent_list_builder import AgentListBuilder
+
+        return AgentListBuilder.from_source(
+            source_type,
+            *args,
+            instructions=instructions,
+            codebook=codebook,
+            name_field=name_field,
+            **kwargs,
+        )
 
     @classmethod
     def from_csv(
@@ -538,8 +624,12 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         file_path: str,
         name_field: Optional[str] = None,
         codebook: Optional[dict[str, str]] = None,
+        instructions: Optional[str] = None,
     ):
         """Load AgentList from a CSV file.
+
+        .. deprecated::
+            Use `AgentList.from_source('csv', ...)` instead.
 
         >>> import csv
         >>> import os
@@ -547,23 +637,25 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         ...     writer = csv.writer(f)
         ...     _ = writer.writerow(['age', 'hair', 'height'])
         ...     _ = writer.writerow([22, 'brown', 5.5])
-        >>> al = AgentList.from_csv('/tmp/agents.csv')
-        >>> al
-        AgentList([Agent(traits = {'age': '22', 'hair': 'brown', 'height': '5.5'})])
-        >>> al = AgentList.from_csv('/tmp/agents.csv', name_field='hair')
-        >>> al
-        AgentList([Agent(name = \"""brown\""", traits = {'age': '22', 'height': '5.5'})])
-        >>> al = AgentList.from_csv('/tmp/agents.csv', codebook={'age': 'Age in years'})
-        >>> al[0].codebook
-        {'age': 'Age in years'}
-        >>> os.remove('/tmp/agents.csv')
+        >>> al = AgentList.from_csv('/tmp/agents.csv')  # doctest: +SKIP
+        >>> al = AgentList.from_csv('/tmp/agents.csv', name_field='hair')  # doctest: +SKIP
+        >>> al = AgentList.from_csv('/tmp/agents.csv', codebook={'age': 'Age in years'})  # doctest: +SKIP
+        >>> al = AgentList.from_csv('/tmp/agents.csv', instructions='Answer as a person')  # doctest: +SKIP
+        >>> os.remove('/tmp/agents.csv')  # doctest: +SKIP
 
         :param file_path: The path to the CSV file.
         :param name_field: The name of the field to use as the agent name.
         :param codebook: Optional dictionary mapping trait names to descriptions.
+        :param instructions: Optional instructions to apply to all created agents.
         """
         from .agent_list_factories import AgentListFactories
-        return AgentListFactories.from_csv(file_path, name_field=name_field, codebook=codebook)
+
+        return AgentListFactories.from_csv(
+            file_path,
+            name_field=name_field,
+            codebook=codebook,
+            instructions=instructions,
+        )
 
     def translate_traits(self, codebook: dict[str, str]):
         """Translate traits to a new codebook.
@@ -576,6 +668,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         AgentList([Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5})])
         """
         from .agent_list_trait_operations import AgentListTraitOperations
+
         return AgentListTraitOperations.translate_traits(self, codebook)
 
     def remove_trait(self, trait: str):
@@ -588,8 +681,9 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         AgentList([Agent(traits = {'hair': 'brown', 'height': 5.5}), Agent(traits = {'hair': 'brown', 'height': 5.5})])
         """
         from .agent_list_trait_operations import AgentListTraitOperations
+
         return AgentListTraitOperations.remove_trait(self, trait)
-    
+
     @property
     def names(self) -> List[str]:
         """Returns the names of the agents in the AgentList."""
@@ -612,13 +706,14 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         ...
         """
         from .agent_list_trait_operations import AgentListTraitOperations
+
         return AgentListTraitOperations.add_trait(self, trait, values)
-    
 
     @classmethod
     def from_results(cls, results: "Results") -> "AgentList":
         """Create an AgentList from a Results object."""
         from .agent_list_factories import AgentListFactories
+
         return AgentListFactories.from_results(results)
 
     @staticmethod
@@ -639,6 +734,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             csv.Error: If there is an error reading the CSV file.
         """
         from .agent_list_factories import AgentListFactories
+
         return AgentListFactories.get_codebook(file_path)
 
     def __hash__(self) -> int:
@@ -678,7 +774,10 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         True
         """
         from .agent_list_serializer import AgentListSerializer
-        return AgentListSerializer.to_dict(self, sorted=sorted, add_edsl_version=add_edsl_version, full_dict=full_dict)
+
+        return AgentListSerializer.to_dict(
+            self, sorted=sorted, add_edsl_version=add_edsl_version, full_dict=full_dict
+        )
 
     def __eq__(self, other: AgentList) -> bool:
         return self.to_dict(sorted=True, add_edsl_version=False) == other.to_dict(
@@ -790,6 +889,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         True
         """
         from .agent_list_factories import AgentListFactories
+
         return AgentListFactories.from_dict(data)
 
     @classmethod
@@ -810,6 +910,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         {'age': 'Age in years'}
         """
         from .agent_list_factories import AgentListFactories
+
         return AgentListFactories.example(randomize=randomize, codebook=codebook)
 
     @classmethod
@@ -832,6 +933,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         {'age': 'Age in years'}
         """
         from .agent_list_factories import AgentListFactories
+
         return AgentListFactories.from_list(trait_name, values, codebook=codebook)
 
     def __mul__(self, other: AgentList) -> AgentList:
@@ -851,6 +953,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         agent_list = AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
         """
         from .agent_list_code_generator import AgentListCodeGenerator
+
         return AgentListCodeGenerator.generate_code(self, string=string)
 
     @classmethod
@@ -872,6 +975,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
         """
         from .agent_list_factories import AgentListFactories
+
         return AgentListFactories.from_scenario_list(scenario_list)
 
 

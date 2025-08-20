@@ -837,7 +837,7 @@ Output:
 
 Agent class
 -----------
-.. automodule:: edsl.agents.Agent
+.. autoclass:: edsl.agents.Agent
    :members:
    :undoc-members:
    :show-inheritance:
@@ -847,8 +847,11 @@ Agent class
    
 AgentList class
 ---------------
-.. automodule:: edsl.agents.AgentList
-   :noindex:
+.. autoclass:: edsl.agents.AgentList
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
 
 .. automethod:: AgentList.__init__
    :noindex:

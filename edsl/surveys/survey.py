@@ -75,7 +75,6 @@ from .survey_question_manager import SurveyQuestionManager
 from .exceptions import SurveyCreationError, SurveyError
 
 
-
 class Survey(Base):
     """A collection of questions with logic for navigating between them.
 
@@ -159,8 +158,12 @@ class Survey(Base):
         self.raw_passed_questions = questions
 
         # Process raw questions and instructions using the dedicated processor
-        processed = SurveyQuestionProcessor.process_raw_questions(self.raw_passed_questions, self)
-        true_questions, instruction_names_to_instructions, pseudo_indices = processed.unpack()
+        processed = SurveyQuestionProcessor.process_raw_questions(
+            self.raw_passed_questions, self
+        )
+        true_questions, instruction_names_to_instructions, pseudo_indices = (
+            processed.unpack()
+        )
 
         # Set the processed data on the survey instance
         self._instruction_names_to_instructions = instruction_names_to_instructions
@@ -198,20 +201,20 @@ class Survey(Base):
     @property
     def export(self) -> SurveyExport:
         """Access export functionality for the survey.
-        
+
         This property provides access to all export methods in a cleaner way:
         - survey.export.to_html()
-        - survey.export.to_docx() 
+        - survey.export.to_docx()
         - survey.export.latex()
         - survey.export.css()
         - survey.export.show()
         - survey.export.to_scenario_list()
         - survey.export.code()
         - survey.export.humanize()
-        
+
         Returns:
             SurveyExport: The exporter instance for this survey.
-            
+
         Examples:
             >>> s = Survey.example()
             >>> html_file = s.export.html()  # Generate HTML
@@ -222,16 +225,16 @@ class Survey(Base):
     @property
     def navigation(self) -> SurveyNavigation:
         """Access navigation functionality for the survey.
-        
+
         This property provides access to all navigation methods in a cleaner way:
         - survey.navigation.next_question()
         - survey.navigation.next_question_with_instructions()
         - survey.navigation.gen_path_through_survey()
         - survey.navigation.dag()
-        
+
         Returns:
             SurveyNavigation: The navigation handler instance for this survey.
-            
+
         Examples:
             >>> s = Survey.example()
             >>> next_q = s.navigation.next_question("q0", {"q0.answer": "yes"})
@@ -242,7 +245,7 @@ class Survey(Base):
     @property
     def execution(self) -> SurveyExecution:
         """Access execution functionality for the survey.
-        
+
         This property provides access to all execution methods in a cleaner way:
         - survey.execution.by() - add components and create Jobs
         - survey.execution.run() - execute the survey
@@ -252,10 +255,10 @@ class Survey(Base):
         - survey.execution.get_job() - create configured Jobs
         - survey.execution.show_prompts() - display prompts
         - survey.execution.gold_standard() - run with known answers
-        
+
         Returns:
             SurveyExecution: The execution handler instance for this survey.
-            
+
         Examples:
         """
         return self._executor
@@ -263,7 +266,7 @@ class Survey(Base):
     @property
     def drawing(self) -> SurveyDrawing:
         """Access drawing and randomization functionality for the survey.
-        
+
         This property provides access to all drawing methods in a cleaner way:
         - survey.drawing.draw() - create randomized survey instance
         - survey.drawing.add_question_to_randomize() - add question to randomization
@@ -272,10 +275,10 @@ class Survey(Base):
         - survey.drawing.set_randomization_seed() - set custom seed
         - survey.drawing.get_randomization_info() - get randomization status
         - survey.drawing.is_question_randomized() - check if question is randomized
-        
+
         Returns:
             SurveyDrawing: The drawing handler instance for this survey.
-            
+
         Examples:
             >>> s = Survey.example()
             >>> randomized_s = s.drawing.draw()
@@ -287,15 +290,15 @@ class Survey(Base):
     @property
     def transformer(self) -> SurveyTransformer:
         """Access transformation functionality for the survey.
-        
+
         This property provides access to all transformation methods in a cleaner way:
         - survey.transformer.with_renamed_question() - rename questions and update references
         - survey.transformer.validate_rename_operation() - validate rename operations
         - survey.transformer.get_question_references() - find all references to a question
-        
+
         Returns:
             SurveyTransformer: The transformer instance for this survey.
-            
+
         Examples:
             >>> s = Survey.example()
             >>> renamed_s = s.transformer.with_renamed_question("q0", "school_preference")
@@ -306,7 +309,7 @@ class Survey(Base):
     @property
     def question_manager(self) -> SurveyQuestionManager:
         """Access question management functionality for the survey.
-        
+
         This property provides access to all question management methods in a cleaner way:
         - survey.question_manager.add() - add questions to the survey
         - survey.question_manager.delete() - delete questions from the survey
@@ -321,10 +324,10 @@ class Survey(Base):
         - survey.question_manager.names() - get question names
         - survey.question_manager.to_dict() - get question attributes
         - survey.question_manager.validate_names() - validate question names
-        
+
         Returns:
             SurveyQuestionManager: The question manager instance for this survey.
-            
+
         Examples:
             >>> s = Survey.example()
             >>> q_manager = s.question_manager
@@ -335,10 +338,10 @@ class Survey(Base):
 
     def clipboard_data(self) -> str:
         """Return the clipboard data for the survey.
-        
+
         Returns:
             str: The clipboard data for the survey.
-            
+
         Examples:
             >>> s = Survey.example()
             >>> clipboard_data = s.clipboard_data()
@@ -372,7 +375,9 @@ class Survey(Base):
     ) -> Survey:
         """Create a survey with a single question that asks the user how they are doing."""
         # TODO: ext module does not exist - needs implementation
-        raise NotImplementedError("auto_survey method requires ext module which is not available")
+        raise NotImplementedError(
+            "auto_survey method requires ext module which is not available"
+        )
 
     def generate_description(self) -> str:
         """Generate a description of the survey."""
@@ -411,7 +416,7 @@ class Survey(Base):
     ###################
     # DRAWING METHODS
     ###################
-    
+
     # NOTE: Drawing functionality is now available via the .drawing property:
     # - survey.drawing.draw() - preferred way to create randomized survey instances
     # - survey.drawing.add_question_to_randomize() - add questions to randomization
@@ -432,8 +437,6 @@ class Survey(Base):
         ['yes', 'no']
         """
         return self._drawer.draw()
-
-
 
     @property
     def _relevant_instructions_dict(self) -> InstructionCollection:
@@ -509,20 +512,20 @@ class Survey(Base):
         """
         if q is EndOfSurvey:
             return EndOfSurvey
-        
+
         if isinstance(q, EndOfSurveyParent):
             return EndOfSurvey
-        
+
         if isinstance(q, str):
             question_name = q
         else:
             question_name = q.question_name
-        
+
         if question_name not in self.question_name_to_index:
             raise SurveyError(
                 f"""Question name {question_name} not found in survey. The current question names are {self.question_name_to_index}."""
             )
-        
+
         return self.question_name_to_index[question_name]
 
     def _get_question_by_name(self, question_name: str) -> QuestionBase:
@@ -530,7 +533,7 @@ class Survey(Base):
 
         Args:
             question_name: The name of the question to get.
-        
+
         Returns:
             QuestionBase: The question object.
 
@@ -544,7 +547,7 @@ class Survey(Base):
 
     def get(self, question_name: str) -> QuestionBase:
         """Return the question object given the question name.
-        
+
         Args:
             question_name: The name of the question to get.
 
@@ -747,7 +750,7 @@ class Survey(Base):
     ###################
     # QUESTION MANAGEMENT METHODS
     ###################
-    
+
     # NOTE: Question management functionality is now available via the .question_manager property:
     # - survey.question_manager.add() - preferred way to add questions
     # - survey.question_manager.delete() - delete questions
@@ -846,7 +849,7 @@ class Survey(Base):
         # Adding a question with a duplicate name would raise SurveyCreationError
         """
         # Handle case during initialization when _question_manager doesn't exist yet
-        if hasattr(self, '_question_manager'):
+        if hasattr(self, "_question_manager"):
             return self._question_manager.add(question, index)
         else:
             # Fallback to EditSurvey during initialization
@@ -1063,7 +1066,9 @@ class Survey(Base):
             Error: Start index greater than end index (as expected)
         """
 
-        return self._question_manager.add_group(start_question, end_question, group_name)
+        return self._question_manager.add_group(
+            start_question, end_question, group_name
+        )
 
     def show_rules(self) -> None:
         """Print out the rules in the survey.
@@ -1217,11 +1222,11 @@ class Survey(Base):
     ###################
     # EXECUTION METHODS
     ###################
-    
+
     # NOTE: Execution functionality is now available via the .execution property:
     # - survey.execution.by() - preferred way to add components and create Jobs
     # - survey.execution.run() - execute the survey
-    # - survey.execution.run_async() - execute asynchronously  
+    # - survey.execution.run_async() - execute asynchronously
     # - survey.execution.to_jobs() - create Jobs object
     # - survey.execution.using() - add cache/bucket/key lookup
     # - survey.execution.get_job() - create configured Jobs
@@ -1310,15 +1315,15 @@ class Survey(Base):
         """
         return self._executor.to_jobs()
 
-    def show_prompts(self):
+    def show_prompts(self, all: bool = False) -> None:
         """Display the prompts that will be used when running the survey.
 
         This method converts the survey to a Jobs object and shows the prompts that
         would be sent to a language model. This is useful for debugging and understanding
         how the survey will be presented.
 
-        Returns:
-            The detailed prompts for the survey.
+        Args:
+            all: If True, show all prompt fields; if False (default), show only user_prompt and system_prompt.
         """
         return self._executor.show_prompts()
 
@@ -1418,7 +1423,9 @@ class Survey(Base):
             >>> asyncio.run(test_run_async2())
             no
         """
-        return await self._executor.run_async(model=model, agent=agent, cache=cache, **kwargs)
+        return await self._executor.run_async(
+            model=model, agent=agent, cache=cache, **kwargs
+        )
 
     def run(self, *args, **kwargs) -> "Results":
         """Convert the survey to a Job and execute it with the provided parameters.
@@ -1471,7 +1478,7 @@ class Survey(Base):
     ###################
     # NAVIGATION METHODS
     ###################
-    
+
     # NOTE: Navigation functionality is now available via the .navigation property:
     # - survey.navigation.next_question() - preferred way to access navigation methods
     # - survey.navigation.next_question_with_instructions()
@@ -1643,7 +1650,7 @@ class Survey(Base):
 
         Args:
             selected_questions: List of question objects to include in the new survey
-        
+
         Returns:
             New Survey instance with the selected questions
 
@@ -1731,13 +1738,13 @@ class Survey(Base):
 
     def select(self, *question_names: List[str]) -> "Survey":
         """Create a new Survey with questions selected by name.
-        
+
         Args:
             *question_names: Variable number of question names to select from the survey.
 
         Returns:
             Survey: A new Survey instance with the specified questions selected.
-            
+
         Examples:
             >>> s = Survey.example()
             >>> s.select('q0', 'q2')
@@ -1845,7 +1852,7 @@ class Survey(Base):
         old_dict.update(field_name_new_values)
         for field_name in pop_fields or []:
             _ = old_dict.pop(field_name)
-        question_type = old_dict.pop('question_type')
+        question_type = old_dict.pop("question_type")
         new_question = Question(question_type, **old_dict)
         new_survey.questions[new_survey.questions.index(question)] = new_question
         return new_survey
@@ -1970,15 +1977,15 @@ class Survey(Base):
 
     def get_job(self, model=None, agent=None, **kwargs):
         """Create a Jobs object with the specified model, agent, and scenario parameters.
-        
+
         This is a convenience method that creates a complete Jobs object with default
         components if none are provided.
-        
+
         Args:
             model: The language model to use. If None, a default model is created.
             agent: The agent to use. If None, a default agent is created.
             **kwargs: Key-value pairs to use as scenario parameters.
-            
+
         Returns:
             Jobs: A configured Jobs object ready to run.
         """
@@ -2007,10 +2014,10 @@ class Survey(Base):
     ###################
     # EXPORT METHODS
     ###################
-    
+
     # NOTE: Export functionality is now available via the .export property:
     # - survey.export.to_html() - preferred way to access export methods
-    # - survey.export.to_docx() 
+    # - survey.export.to_docx()
     # - survey.export.latex()
     # - survey.export.css()
     # - survey.export.show()
@@ -2152,7 +2159,7 @@ class Survey(Base):
     ###################
     # TRANSFORMATION METHODS
     ###################
-    
+
     # NOTE: Transformation functionality is now available via the .transformer property:
     # - survey.transformer.with_renamed_question() - preferred way to rename questions
     # - survey.transformer.validate_rename_operation() - validate rename operations
@@ -2221,8 +2228,9 @@ def main():
     def example_survey():
         """Return an example survey."""
         from ..questions import QuestionMultipleChoice, QuestionList, QuestionNumerical
+
         # Survey class is already available in this module
-     
+
         q0 = QuestionMultipleChoice(
             question_name="q0",
             question_text="What is the capital of France?",
