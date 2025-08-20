@@ -110,9 +110,13 @@ class AnthropicService(InferenceServiceABC):
                         system=system_prompt,  # note that the Anthropic API uses "system" parameter rather than put it in the message
                         messages=messages,
                     )
+                    return response.model_dump()
                 except Exception as e:
-                    return {"message": str(e)}
-                return response.model_dump()
+                    from ...coop import Coop 
+                    c = Coop()
+                    c.report_error(e)
+                    #breakpoint()
+                    raise e
 
         LLM.__name__ = model_class_name
 

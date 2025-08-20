@@ -3910,6 +3910,33 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def report_error(self, error: Exception) -> None:
+        """
+        Report an error for debugging purposes.
+        
+        This method provides a non-blocking way to report errors that occur during
+        EDSL operations. Currently prints the error to standard error, but will
+        be extended to send error reports to the server in the future.
+        
+        Parameters:
+            error (Exception): The exception to report
+            
+        Example:
+            >>> try:
+            ...     # some operation that might fail
+            ...     pass
+            ... except Exception as e:
+            ...     coop.report_error(e)
+        """
+        import sys
+        import traceback
+        
+        # Print error details to stderr
+        print(f"EDSL Error Report: {type(error).__name__}: {str(error)}", file=sys.stderr)
+        print("Traceback:", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        print("-" * 50, file=sys.stderr)
+
     def login_gradio(self, timeout: int = 120, launch: bool = True, **launch_kwargs):
         """
         Start the EDSL auth token login flow inside a **Gradio** application.
