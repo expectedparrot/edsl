@@ -3910,7 +3910,7 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
-    def report_error(self, error: Exception) -> None:
+    async def report_error(self, error: Exception) -> None:
         """
         Report an error for debugging purposes.
         
@@ -3926,7 +3926,7 @@ class Coop(CoopFunctionsMixin):
             ...     # some operation that might fail
             ...     pass
             ... except Exception as e:
-            ...     coop.report_error(e)
+            ...     await coop.report_error(e)
         """
         import sys
         import traceback

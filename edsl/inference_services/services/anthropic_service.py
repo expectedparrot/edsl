@@ -114,7 +114,7 @@ class AnthropicService(InferenceServiceABC):
                 except Exception as e:
                     from ...coop import Coop 
                     c = Coop()
-                    c.report_error(e)
+                    await c.report_error(e)
                     #breakpoint()
                     raise e
 
