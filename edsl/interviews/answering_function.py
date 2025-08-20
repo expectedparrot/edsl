@@ -147,11 +147,11 @@ class SkipHandler:
         answers = self._current_info_env()
 
         # Get the index of the next question, which could also be the end of the survey
-        next_question: Union[int, EndOfSurvey] = (
-            self._survey.rule_collection.next_question(
-                q_now=current_question_index,
-                answers=answers,
-            )
+        next_question: Union[
+            int, EndOfSurvey
+        ] = self._survey.rule_collection.next_question(
+            q_now=current_question_index,
+            answers=answers,
         )
 
         def cancel_between(start, end):
@@ -283,6 +283,34 @@ class AnswerQuestionFunctionConstructor:
             wait_exponential,
         )
 
+        def log_retry_attempt(retry_state):
+            """Log when a retry is about to happen."""
+            attempt_number = retry_state.attempt_number
+
+            if attempt_number >= 1:  # Only log on actual retries, not the first attempt
+                exception = (
+                    retry_state.outcome.exception() if retry_state.outcome else None
+                )
+                print(f"\n{'='*60}", flush=True)
+                print(
+                    f"RETRY TRIGGERED for question '{question.question_name}'",
+                    flush=True,
+                )
+                print(
+                    f"Attempt: {attempt_number}/{RetryConfig.EDSL_MAX_ATTEMPTS}",
+                    flush=True,
+                )
+                print(
+                    f"Exception: {exception.__class__.__name__ if exception else 'Unknown'}: {str(exception) if exception else 'No exception details'}",
+                    flush=True,
+                )
+                print(f"Waiting before retry...", flush=True)
+                print(f"{'='*60}\n", flush=True)
+                self._logger.warning(
+                    f"Retrying question '{question.question_name}' (attempt {attempt_number}/{RetryConfig.EDSL_MAX_ATTEMPTS}) "
+                    f"after {exception.__class__.__name__ if exception else 'error'}: {str(exception) if exception else 'unknown error'}"
+                )
+
         @retry(
             stop=stop_after_attempt(RetryConfig.EDSL_MAX_ATTEMPTS),
             wait=wait_exponential(
@@ -291,6 +319,7 @@ class AnswerQuestionFunctionConstructor:
             ),
             retry=retry_if_exception_type(LanguageModelNoResponseError),
             reraise=True,
+            # before_sleep=log_retry_attempt, --- IGNORE --- Used for debugging retries
         )
         async def attempt_answer():
             # Get a reference to the interview (may be None if it's been garbage collected)
@@ -322,16 +351,21 @@ class AnswerQuestionFunctionConstructor:
             had_language_model_no_response_error = False
             try:
                 import time
+
                 answer_start = time.time()
-                self._logger.info(f"Starting question '{question.question_name}' with {type(invigilator).__name__}")
-                
+                self._logger.info(
+                    f"Starting question '{question.question_name}' with {type(invigilator).__name__}"
+                )
+
                 response: EDSLResultObjectInput = (
                     await invigilator.async_answer_question()
                 )
-                
+
                 answer_time = time.time() - answer_start
-                self._logger.info(f"Question '{question.question_name}' completed in {answer_time:.3f}s")
-                
+                self._logger.info(
+                    f"Question '{question.question_name}' completed in {answer_time:.3f}s"
+                )
+
                 if response.validated:
                     # Re-check if interview exists before updating it
                     interview = self._interview_ref()
@@ -349,19 +383,29 @@ class AnswerQuestionFunctionConstructor:
                         raise response.exception_occurred
 
             except QuestionAnswerValidationError as e:
+                print(
+                    f"Question answer validation failed for question '{question.question_name}': {e}",
+                    flush=True,
+                )
                 self._handle_exception(e, invigilator, task)
                 return invigilator.get_failed_task_result(
                     failure_reason="Question answer validation failed."
                 )
 
             except asyncio.TimeoutError as e:
-                self._handle_exception(e, invigilator, task)
+                # Don't record exception yet - will retry
+                # Only record exception if retry limit is reached (handled in except RetryError below)
                 had_language_model_no_response_error = True
                 raise LanguageModelNoResponseError(
                     f"Language model timed out for question '{question.question_name}.'"
                 )
 
             except Exception as e:
+                print(
+                    f"An error occurred while answering question '{question.question_name}': {e}",
+                    flush=True,
+                )
+                # For generic exceptions, record them immediately as they won't be retried
                 self._handle_exception(e, invigilator, task)
 
             if "response" not in locals():
@@ -385,6 +429,13 @@ class AnswerQuestionFunctionConstructor:
             out = await attempt_answer()
             return out
         except RetryError as retry_error:
+            # print(f"\n{'='*60}", flush=True)
+            # print(f"RETRY LIMIT REACHED for question '{question.question_name}'", flush=True)
+            # print(f"All {RetryConfig.EDSL_MAX_ATTEMPTS} attempts exhausted", flush=True)
+            # print(f"Final error: {retry_error.last_attempt.exception()}", flush=True)
+            # print(f"{'='*60}\n", flush=True)
+
+            # Now record the exception since retries are exhausted
             original_error = retry_error.last_attempt.exception()
             self._handle_exception(
                 original_error, self.invigilator_fetcher(question), task
