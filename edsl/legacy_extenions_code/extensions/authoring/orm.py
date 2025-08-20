@@ -3,7 +3,6 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy import create_engine
 from typing import Optional, Dict, Any, List
-import json
 
 Base = declarative_base()
 

@@ -8,7 +8,7 @@ try:
 except ImportError:
     from typing_extensions import ParamSpec
 
-from ..jobs.data_structures import RunEnvironment, RunParameters, RunConfig
+from .data_structures import RunEnvironment, RunParameters, RunConfig
 
 
 P = ParamSpec("P")

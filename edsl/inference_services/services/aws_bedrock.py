@@ -1,15 +1,13 @@
 import os
 from typing import Any, List, Optional, TYPE_CHECKING
 import boto3
-from botocore.exceptions import ClientError
 from ..inference_service_abc import InferenceServiceABC
+from ..decorators import report_errors_async
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
-
-if TYPE_CHECKING:
-    from ....scenarios.file_store import FileStore
+    from ...scenarios.file_store import FileStore
 
 
 class AwsBedrockService(InferenceServiceABC):
@@ -23,31 +21,29 @@ class AwsBedrockService(InferenceServiceABC):
     input_token_name = "inputTokens"
     output_token_name = "outputTokens"
     usage_sequence = ["usage"]
-    model_exclude_list = [
-        "ai21.j2-grande-instruct",
-        "ai21.j2-jumbo-instruct",
-        "ai21.j2-mid",
-        "ai21.j2-mid-v1",
-        "ai21.j2-ultra",
-        "ai21.j2-ultra-v1",
-    ]
-    _models_list_cache: List[str] = []
 
     @classmethod
-    def available(cls):
-        """Fetch available models from AWS Bedrock."""
-
+    def get_model_info(cls):
+        """Get raw model info from AWS Bedrock."""
         region = os.getenv("AWS_REGION", "us-east-1")
+        client = boto3.client("bedrock", region_name=region)
+        return client.list_foundation_models()["modelSummaries"]
 
-        if not cls._models_list_cache:
-            client = boto3.client("bedrock", region_name=region)
-            all_models_ids = [
-                x["modelId"] for x in client.list_foundation_models()["modelSummaries"]
-            ]
-        else:
-            all_models_ids = cls._models_list_cache
+    # @classmethod
+    # def available(cls):
+    #     """Fetch available models from AWS Bedrock."""
 
-        return [m for m in all_models_ids if m not in cls.model_exclude_list]
+    #     region = os.getenv("AWS_REGION", "us-east-1")
+
+    #     if not cls._models_list_cache:
+    #         client = boto3.client("bedrock", region_name=region)
+    #         all_models_ids = [
+    #             x["modelId"] for x in client.list_foundation_models()["modelSummaries"]
+    #         ]
+    #     else:
+    #         all_models_ids = cls._models_list_cache
+
+    #     return [m for m in all_models_ids if m not in cls.model_exclude_list]
 
     @classmethod
     def create_model(
@@ -76,6 +72,7 @@ class AwsBedrockService(InferenceServiceABC):
             input_token_name = cls.input_token_name
             output_token_name = cls.output_token_name
 
+            @report_errors_async
             async def async_execute_model_call(
                 self,
                 user_prompt: str,
@@ -96,28 +93,18 @@ class AwsBedrockService(InferenceServiceABC):
                         "content": [{"text": user_prompt}],
                     }
                 ]
-                # We'll need to handle system prompt in the future
-                # Commented out to avoid unused variable warning
-                # system_content = [
-                #     {
-                #         "text": system_prompt,
-                #     }
-                # ]
-                try:
-                    response = client.converse(
-                        modelId=self._model_,
-                        messages=conversation,
-                        inferenceConfig={
-                            "maxTokens": self.max_tokens,
-                            "temperature": self.temperature,
-                            "topP": self.top_p,
-                        },
-                        # system=system,
-                        additionalModelRequestFields={},
-                    )
-                    return response
-                except (ClientError, Exception) as e:
-                    return {"message": str(e)}
+                response = client.converse(
+                    modelId=self._model_,
+                    messages=conversation,
+                    inferenceConfig={
+                        "maxTokens": self.max_tokens,
+                        "temperature": self.temperature,
+                        "topP": self.top_p,
+                    },
+                    # system=system,
+                    additionalModelRequestFields={},
+                )
+                return response
 
         LLM.__name__ = model_class_name
 

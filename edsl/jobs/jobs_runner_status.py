@@ -75,13 +75,18 @@ class JobsRunnerStatusBase(ABC):
         self,
         jobs: "Jobs",
         n: int,
-        refresh_rate: float = 1,
-        endpoint_url: Optional[str] = "http://localhost:8000",
+        refresh_rate: float = 3,
+        endpoint_url: Optional[str] = None,
         job_uuid: Optional[UUID] = None,
         api_key: str = None,
     ):
         self.jobs = jobs
         self.job_uuid = job_uuid
+
+        # Use EXPECTED_PARROT_URL from environment if endpoint_url not provided
+        if endpoint_url is None:
+            endpoint_url = os.getenv("EXPECTED_PARROT_URL", "http://localhost:8000")
+
         self.base_url = f"{endpoint_url}"
         self.refresh_rate = refresh_rate
         self.statistics = [
@@ -180,7 +185,6 @@ class JobsRunnerStatusBase(ABC):
             and hasattr(self.jobs.run_config.environment, "bucket_collection")
             and self.jobs.run_config.environment.bucket_collection
         ):
-
             for (
                 model,
                 bucket,

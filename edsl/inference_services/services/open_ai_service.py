@@ -6,18 +6,58 @@ import openai
 
 from ..inference_service_abc import InferenceServiceABC
 from .message_builder import MessageBuilder
+from ..decorators import report_errors_async
+from .service_enums import OPENAI_REASONING_MODELS
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
-from ..rate_limits_cache import rate_limits
+
+rate_limits = {}
 
 if TYPE_CHECKING:
-    from ....scenarios.file_store import FileStore as Files
-    from ....invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
+    from ...scenarios.file_store import FileStore as Files
+    from ...invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
 
 
 APIToken = NewType("APIToken", str)
+
+
+class OpenAIParameterBuilder:
+    """Helper class to construct API parameters based on model type."""
+
+    @staticmethod
+    def build_params(model: str, messages: list, **model_params) -> dict:
+        """Build API parameters, adjusting for specific model types."""
+
+        default_max_tokens = model_params.get("max_tokens", 1000)
+        default_temperature = model_params.get("temperature", 0.5)
+        if model in OPENAI_REASONING_MODELS:
+            # For reasoning models, use much higher completion tokens to allow for reasoning + response
+            max_tokens = max(default_max_tokens, 5000)
+            temperature = 1
+        else:
+            max_tokens = default_max_tokens
+            temperature = default_temperature
+
+        # Base parameters
+        params = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_completion_tokens": max_tokens,
+            "top_p": model_params.get("top_p", 1),
+            "frequency_penalty": model_params.get("frequency_penalty", 0),
+            "presence_penalty": model_params.get("presence_penalty", 0),
+            "logprobs": model_params.get("logprobs", False),
+            "top_logprobs": (
+                model_params.get("top_logprobs", 3)
+                if model_params.get("logprobs", False)
+                else None
+            ),
+        }
+
+        return params
 
 
 class OpenAIService(InferenceServiceABC):
@@ -68,50 +108,33 @@ class OpenAIService(InferenceServiceABC):
         client = cls._async_client_instances[api_key]
         return client
 
-    model_exclude_list = [
-        "whisper-1",
-        "davinci-002",
-        "dall-e-2",
-        "tts-1-hd-1106",
-        "tts-1-hd",
-        "dall-e-3",
-        "tts-1",
-        "babbage-002",
-        "tts-1-1106",
-        "text-embedding-3-large",
-        "text-embedding-3-small",
-        "text-embedding-ada-002",
-        "ft:davinci-002:mit-horton-lab::8OfuHgoo",
-        "gpt-3.5-turbo-instruct-0914",
-        "gpt-3.5-turbo-instruct",
-    ]
-    _models_list_cache: List[str] = []
-
     @classmethod
-    def get_model_list(cls, api_key=None):
-        # breakpoint()
+    def get_model_info(cls, api_key=None):
+        """Get raw model info without wrapping in ModelInfo."""
         if api_key is None:
             api_key = os.getenv(cls._env_key_name_)
+        if api_key is None:
+            raise ValueError(f"API key for {cls._inference_service_} is not set")
         raw_list = cls.sync_client(api_key).models.list()
         if hasattr(raw_list, "data"):
             return raw_list.data
         else:
             return raw_list
 
-    @classmethod
-    def available(cls, api_token=None) -> List[str]:
-        if api_token is None:
-            api_token = os.getenv(cls._env_key_name_)
-        if not cls._models_list_cache:
-            try:
-                cls._models_list_cache = [
-                    m.id
-                    for m in cls.get_model_list(api_key=api_token)
-                    if m.id not in cls.model_exclude_list
-                ]
-            except Exception:
-                raise
-        return cls._models_list_cache
+    # @classmethod
+    # def available(cls, api_token=None) -> List[str]:
+    #     if api_token is None:
+    #         api_token = os.getenv(cls._env_key_name_)
+    #     if not cls._models_list_cache:
+    #         try:
+    #             cls._models_list_cache = [
+    #                 m.id
+    #                 for m in cls.get_model_list(api_key=api_token)
+    #                 if m.id not in cls.model_exclude_list
+    #             ]
+    #         except Exception:
+    #             raise
+    #     return cls._models_list_cache
 
     @classmethod
     def create_model(cls, model_name, model_class_name=None) -> "LanguageModel":
@@ -189,6 +212,7 @@ class OpenAIService(InferenceServiceABC):
                         "tpm": int(headers["x-ratelimit-limit-tokens"]),
                     }
 
+            @report_errors_async
             async def async_execute_model_call(
                 self,
                 user_prompt: str,
@@ -200,44 +224,36 @@ class OpenAIService(InferenceServiceABC):
                 ] = None,  # TBD - can eventually be used for function-calling
             ) -> dict[str, Any]:
                 """Calls the OpenAI API and returns the API response."""
-                
+
                 # Use MessageBuilder to construct messages
                 message_builder = MessageBuilder(
                     model=self.model,
                     files_list=files_list,
                     user_prompt=user_prompt,
                     system_prompt=system_prompt,
-                    omit_system_prompt_if_empty=self.omit_system_prompt_if_empty
+                    omit_system_prompt_if_empty=self.omit_system_prompt_if_empty,
                 )
-                
+
                 client = self.async_client()
                 messages = message_builder.get_messages(sync_client=self.sync_client())
 
-                params = {
-                    "model": self.model,
-                    "messages": messages,
-                    "temperature": self.temperature,
-                    "max_tokens": self.max_tokens,
-                    "top_p": self.top_p,
-                    "frequency_penalty": self.frequency_penalty,
-                    "presence_penalty": self.presence_penalty,
-                    "logprobs": self.logprobs,
-                    "top_logprobs": self.top_logprobs if self.logprobs else None,
-                }
-                if "o1" in self.model or "o3" in self.model:
-                    params.pop("max_tokens")
-                    # For reasoning models, use much higher completion tokens to allow for reasoning + response
-                    reasoning_tokens = max(
-                        self.max_tokens, 5000
-                    )  # At least 5000 tokens for reasoning models
-                    params["max_completion_tokens"] = reasoning_tokens
-                    params["temperature"] = 1
-                try:
-                    response = await client.chat.completions.create(**params)
-                except Exception as e:
-                    return {"message": str(e)}
+                # Use OpenAIParameterBuilder to construct parameters
+                params = OpenAIParameterBuilder.build_params(
+                    model=self.model,
+                    messages=messages,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                    top_p=self.top_p,
+                    frequency_penalty=self.frequency_penalty,
+                    presence_penalty=self.presence_penalty,
+                    logprobs=self.logprobs,
+                    top_logprobs=self.top_logprobs,
+                )
+                response = await client.chat.completions.create(**params)
                 return response.model_dump()
 
+        # Ensure the class name is "LanguageModel" for proper serialization
         LLM.__name__ = "LanguageModel"
+        LLM.__qualname__ = "LanguageModel"
 
         return LLM

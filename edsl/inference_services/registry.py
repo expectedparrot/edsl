@@ -1,9 +1,5 @@
-from .inference_services_collection import InferenceServicesCollection
+# Global registry instance with lazy model source
+from .inference_service_registry import InferenceServiceRegistry
 
-# Import services module
-from . import services
-
-# Use __all__ from services to get service class names
-services = [getattr(services, service_name) for service_name in services.__all__]
-
-default = InferenceServicesCollection(services)
+# verbose = CONFIG.get('EDSL_VERBOSE_MODE').lower() == 'true'
+GLOBAL_REGISTRY = InferenceServiceRegistry(verbose=False)

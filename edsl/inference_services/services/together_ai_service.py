@@ -1,4 +1,3 @@
-from typing import List
 
 from .open_ai_service import OpenAIService
 
@@ -11,7 +10,6 @@ class TogetherAIService(OpenAIService):
     _inference_service_ = "together"
     _env_key_name_ = "TOGETHER_API_KEY"
     _base_url_ = "https://api.together.xyz/v1"
-    _models_list_cache: List[str] = []
 
     # These are non-serverless models. There was no api param to filter them
     model_exclude_list = [
@@ -138,7 +136,8 @@ class TogetherAIService(OpenAIService):
     _async_client_ = openai.AsyncOpenAI
 
     @classmethod
-    def get_model_list(cls, api_token=None):
+    def get_model_info(cls, api_token=None):
+        """Get raw model info without wrapping in ModelInfo."""
         # Togheter.ai has a different response in model list then openai
         # and the OpenAI class returns an error when calling .models.list()
         import requests
@@ -151,17 +150,5 @@ class TogetherAIService(OpenAIService):
         headers = {"accept": "application/json", "authorization": f"Bearer {api_token}"}
 
         response = requests.get(url, headers=headers)
+        response.raise_for_status()
         return response.json()
-
-    @classmethod
-    def available(cls) -> List[str]:
-        if not cls._models_list_cache:
-            try:
-                cls._models_list_cache = [
-                    m["id"]
-                    for m in cls.get_model_list()
-                    if m["id"] not in cls.model_exclude_list
-                ]
-            except Exception:
-                raise
-        return cls._models_list_cache

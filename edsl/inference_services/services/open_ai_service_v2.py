@@ -5,17 +5,21 @@ import os
 import openai
 
 from ..inference_service_abc import InferenceServiceABC
+from ..decorators import report_errors_async
+from .service_enums import OPENAI_REASONING_MODELS
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
-from ..rate_limits_cache import rate_limits
+
+# from ..rate_limits_cache import rate_limits
+rate_limits = {}
 
 # Default to completions API but can use responses API with parameter
 
 if TYPE_CHECKING:
-    from ....scenarios.file_store import FileStore as Files
-    from ....invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
+    from ...scenarios.file_store import FileStore as Files
+    from ...invigilators.invigilator_base import InvigilatorBase as InvigilatorAI
 
 
 APIToken = NewType("APIToken", str)
@@ -89,7 +93,8 @@ class OpenAIServiceV2(InferenceServiceABC):
     _models_list_cache: List[str] = []
 
     @classmethod
-    def get_model_list(cls, api_key: Optional[str] = None) -> List[str]:
+    def get_model_info(cls, api_key: Optional[str] = None):
+        """Get raw model info without wrapping in ModelInfo."""
         if api_key is None:
             api_key = os.getenv(cls._env_key_name_)
         raw = cls.sync_client(api_key).models.list()
@@ -166,6 +171,7 @@ class OpenAIServiceV2(InferenceServiceABC):
                     "tpm": int(headers["x-ratelimit-limit-tokens"]),
                 }
 
+            @report_errors_async
             async def async_execute_model_call(
                 self,
                 user_prompt: str,
@@ -207,8 +213,7 @@ class OpenAIServiceV2(InferenceServiceABC):
 
                 # Check if this is a reasoning model (o-series models)
                 is_reasoning_model = any(
-                    tag in self.model
-                    for tag in ["o1", "o1-mini", "o3", "o3-mini", "o1-pro", "o4-mini"]
+                    tag in self.model for tag in OPENAI_REASONING_MODELS
                 )
 
                 # Only add reasoning parameter for reasoning models
@@ -224,12 +229,7 @@ class OpenAIServiceV2(InferenceServiceABC):
                     params["temperature"] = 1
 
                 client = self.async_client()
-                try:
-                    response = await client.responses.create(**params)
-
-                except Exception as e:
-                    return {"message": str(e)}
-
+                response = await client.responses.create(**params)
                 # convert to dict
                 response_dict = response.model_dump()
                 return response_dict

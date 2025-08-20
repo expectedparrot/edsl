@@ -219,10 +219,13 @@ class InvigilatorBase(ABC):
         >>> InvigilatorBase.example().answer_question()
         {'message': [{'text': 'SPAM!'}], 'usage': {'prompt_tokens': 1, 'completion_tokens': 1}}
 
-        >>> InvigilatorBase.example(throw_an_exception=True).answer_question()
+        >>> InvigilatorBase.example(throw_an_exception=True).answer_question()  # doctest: +ELLIPSIS
         Traceback (most recent call last):
         ...
-        Exception: This is a test error
+        edsl.inference_services.exceptions.InferenceServiceIntendedError: This is a test error
+        ...
+        Test error - this is an error thrown on purpose to test the error handling in the framework.
+        ...
         """
         from ..agents import Agent
         from ..scenarios import Scenario
@@ -402,12 +405,12 @@ class InvigilatorAI(InvigilatorBase):
             data = {
                 "answer": (
                     agent_response_dict.edsl_dict.answer
-                    if type(agent_response_dict.edsl_dict.answer) is str
-                    or type(agent_response_dict.edsl_dict.answer) is dict
-                    or type(agent_response_dict.edsl_dict.answer) is list
-                    or type(agent_response_dict.edsl_dict.answer) is int
-                    or type(agent_response_dict.edsl_dict.answer) is float
-                    or type(agent_response_dict.edsl_dict.answer) is bool
+                    if isinstance(agent_response_dict.edsl_dict.answer, str)
+                    or isinstance(agent_response_dict.edsl_dict.answer, dict)
+                    or isinstance(agent_response_dict.edsl_dict.answer, list)
+                    or isinstance(agent_response_dict.edsl_dict.answer, int)
+                    or isinstance(agent_response_dict.edsl_dict.answer, float)
+                    or isinstance(agent_response_dict.edsl_dict.answer, bool)
                     else ""
                 ),
                 "comment": (
@@ -584,7 +587,9 @@ class InvigilatorFunctional(InvigilatorBase):
         # Get prior answers to make them available in the scenario context
         prior_answers_dict = self.prompt_constructor.prior_answers_dict()
         # Combine scenario with prior answers and agent traits like other invigilators
-        enriched_scenario = self.scenario | prior_answers_dict | {"agent": self.agent.traits}
+        enriched_scenario = (
+            self.scenario | prior_answers_dict | {"agent": self.agent.traits}
+        )
         answer = func(scenario=enriched_scenario, agent_traits=self.agent.traits)
 
         return EDSLResultObjectInput(

@@ -412,9 +412,8 @@ This is also controlled by using the cache object as a context.
 Cache class 
 -----------
 
-.. automodule:: edsl.data.Cache
+.. autoclass:: edsl.caching.Cache
   :members:
   :undoc-members:
   :show-inheritance:
   :special-members: __init__
-  :exclude-members: codebook, data, main
