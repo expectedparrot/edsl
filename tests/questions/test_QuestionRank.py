@@ -224,3 +224,30 @@ def test_QuestionRank_extras():
 
     simulated_answer = q._simulate_answer(human_readable=True)
     assert simulated_answer["answer"][0] in q.question_options
+
+
+def test_QuestionRank_integer_options():
+    """Test QuestionRank with integer options."""
+    q = QuestionRank(
+        question_name="integer_rank",
+        question_text="Rank these numbers: 1. one 2. two 3. three",
+        question_options=[1, 2, 3],
+        num_selections=3,
+        use_code=True,
+    )
+    
+    # Test basic validation - should work with indices
+    response_with_indices = {"answer": [0, 1, 2], "comment": "test"}
+    q._validate_answer(response_with_indices)
+    
+    # Test that translation works
+    translated = q._translate_answer_code_to_answer([0, 2, 1])
+    assert translated == ['1', '3', '2']
+    
+    # Test that simulation works correctly for integer options
+    simulated = q._simulate_answer(human_readable=True)
+    assert isinstance(simulated["answer"], list)
+    assert all(isinstance(x, int) and 0 <= x < len(q.question_options) for x in simulated["answer"])
+    
+    # Test validation of simulated answer
+    q._validate_answer(simulated)

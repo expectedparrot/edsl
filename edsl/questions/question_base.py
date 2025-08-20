@@ -7,7 +7,7 @@ functionality, interface, and behavior that all questions must implement.
 
 Key features of this module include:
 - Abstract base class that defines the question interface
-- Core validation and serialization capabilities 
+- Core validation and serialization capabilities
 - Integration with language models and agents
 - Support for template-based question generation
 - Connection to response validation and answer processing
@@ -253,7 +253,15 @@ class QuestionBase(
             >>> original is copy
             False
         """
-        return self.from_dict(self.to_dict())
+        duplicated = self.from_dict(self.to_dict())
+        
+        # Preserve testing attributes that aren't serialized
+        if hasattr(self, 'exception_to_throw'):
+            duplicated.exception_to_throw = self.exception_to_throw
+        if hasattr(self, 'override_answer'):
+            duplicated.override_answer = self.override_answer
+            
+        return duplicated
 
     @property
     def fake_data_factory(self):
@@ -917,6 +925,28 @@ class QuestionBase(
             options,
         )
         return table
+
+    def inspect(self):
+        """Create an interactive inspector widget for this question.
+
+        This method uses the InspectorWidget registry system to find the appropriate
+        inspector widget class for questions and returns an instance of it.
+
+        Returns:
+            QuestionInspectorWidget instance: Interactive widget for inspecting this question
+
+        Raises:
+            KeyError: If no question inspector widget is available
+            ImportError: If the widgets module cannot be imported
+        """
+        try:
+            from ..widgets.question_inspector import QuestionInspectorWidget
+        except ImportError as e:
+            raise ImportError(
+                "Question inspector widget is not available. Make sure the widgets module is installed."
+            ) from e
+
+        return QuestionInspectorWidget(self)
 
     # endregion
 

@@ -22,6 +22,12 @@ If you use the EDSL package in your research or projects, please use the followi
     }
 
 
+| *The Potential of Synthetic Twin Agents for Personalized Behavioural Interventions at Scale.*
+| Ustiyanovych, J. & Krpan, D.
+| August 2025
+| https://github.com/bandhlab/synthetic-twin-agents-study
+
+
 | *The next generation of experimental research with LLMs*
 | Gary Charness, Brian Jabarian, John A. List 
 | March 2025

@@ -1,38 +1,3 @@
-.. _scenarios:
-
-`from_prompt`
-def from_prompt(self, description: str, name:Optional[str] = "item", target_number:int = 10, verbose = False):
-        from ..questions.question_list import QuestionList
-        q = QuestionList(question_name = name, 
-                         question_text = description + f"\n Please try to return {target_number} examples.")
-        results = q.run(verbose = verbose)
-        return results.select(name).to_scenario_list().expand(name)
-
-`from_search_terms`
-def from_search_terms(cls, search_terms: List[str]) -> ScenarioList:
-        """Create a ScenarioList from a list of search terms, using Wikipedia.
-
-        Args:
-            search_terms: A list of search terms.
-        """
-        from ..utilities.wikipedia import fetch_wikipedia_content
-        results = fetch_wikipedia_content(search_terms)
-        return cls([Scenario(result) for result in results])
-
-def augment_with_wikipedia(self, search_key:str, content_only: bool = True, key_name: str = "wikipedia_content") -> ScenarioList:
-        """Augment the ScenarioList with Wikipedia content."""
-        search_terms = self.select(search_key).to_list()
-        wikipedia_results = ScenarioList.from_search_terms(search_terms)
-        new_sl = ScenarioList(data = [], codebook = self.codebook)
-        for scenario, wikipedia_result in zip(self, wikipedia_results):
-            if content_only:
-                scenario[key_name] = wikipedia_result["content"]
-                new_sl.append(scenario)
-            else:
-                scenario[key_name] = wikipedia_result
-                new_sl.append(scenario)
-        return new_sl
-
 Scenarios
 =========
 
@@ -1903,23 +1868,70 @@ The `show_prompts` method will return the questions created with the f-string wi
 To learn more about user and system prompts, please see the :ref:`prompts` section.
 
 
+Special methods
+---------------
+
+Special methods are available for generating or modifying scenarios using web searches:
+
+The `from_prompt` method allows you to create scenarios from a prompt, which can be useful for generating scenarios based on user input or other dynamic sources:
+
+.. code-block:: python
+
+  from edsl import ScenarioList
+
+  scenarios = ScenarioList.from_prompt(
+    description = "What are some popular programming languages?",
+    name = "programming_languages", # optional name for the scenarios; default is "item"
+    target_number = 5, # optional number of scenarios to generate; default is 10
+    verbose = True # optional flag to return verbose output; default is False
+  )
+  
+
+The `from_search_terms` method allows you to create scenarios from a list of search terms, which can be useful for generating scenarios based on search queries or other dynamic sources:
+
+.. code-block:: python
+
+  from edsl import ScenarioList
+
+  search_terms = ["Python", "Java", "JavaScript"]
+  scenarios = ScenarioList.from_search_terms(search_terms)
+
+
+The method `augment_with_wikipedia` allows you to augment scenarios with information from Wikipedia, which can be useful for enriching scenarios with additional context or data:
+
+.. code-block:: python
+
+  from edsl import ScenarioList
+
+  # method is used to augment existing scenarios
+  scenarios = ScenarioList.from_prompt(
+    description = "What are some popular programming languages?",
+    name = "programming_languages"
+  )
+  
+  scenarios.augment_with_wikipedia(
+    search_key = "programming languages",
+    content_only = True # default optional flag to return only the content
+    key_name = "wikipedia_content" # default optional key name for the content
+  )
+
+
+
 Scenario class
 --------------
 
-.. automodule:: edsl.scenarios.Scenario
+.. autoclass:: edsl.scenarios.Scenario
    :members:
    :undoc-members:
    :show-inheritance:
-   :special-members: __init__
-   :exclude-members: 
+   :special-members: __init__ 
 
 
 ScenarioList class
 ------------------
 
-.. automodule:: edsl.scenarios.ScenarioList
+.. autoclass:: edsl.scenarios.ScenarioList
    :members:
    :undoc-members:
    :show-inheritance:
-   :special-members: __init__
-   :exclude-members: 
+   :special-members: __init__ 

@@ -1,6 +1,5 @@
-from typing import Dict, Any, Type
+from typing import Dict, Any
 from dataclasses import MISSING, dataclass
-from abc import ABC
 
 from .exceptions import ServiceParameterValidationError
 from ...base import RegisterSubclassesMeta

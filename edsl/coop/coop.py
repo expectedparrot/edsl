@@ -1,9 +1,9 @@
 import aiohttp
 import base64
 import json
+import os
 import requests
 import time
-import os
 
 from typing import (
     Any,
@@ -22,10 +22,11 @@ from .. import __version__
 
 from ..config import CONFIG
 from ..caching import CacheEntry
+from ..logger import get_logger
 
 if TYPE_CHECKING:
     from ..jobs import Jobs
-    from ..scenarios import ScenarioList
+    from ..scenarios import Scenario, ScenarioList
     from ..surveys import Survey
     from ..results import Results
 
@@ -49,7 +50,7 @@ from .coop_jobs_objects import CoopJobsObjects
 from .coop_prolific_filters import CoopProlificFilters
 from .ep_key_handling import ExpectedParrotKeyHandler
 
-from ..inference_services.data_structures import ServiceToModelsMapping
+# from ..inference_services.data_structures import ServiceToModelsMapping
 
 
 class JobRunExpense(TypedDict):
@@ -143,6 +144,8 @@ class Coop(CoopFunctionsMixin):
         api_url (str): The URL for API endpoints (derived from base URL)
     """
 
+    _logger = get_logger(__name__)
+
     def __init__(
         self, api_key: Optional[str] = None, url: Optional[str] = None
     ) -> None:
@@ -227,6 +230,22 @@ class Coop(CoopFunctionsMixin):
             timeout = max(
                 60, 2 * (len(payload.get("json_string", "")) // (1024 * 1024))
             )
+
+        # Log the outgoing request
+        self._logger.info(f"Sending {method} request to {url}")
+        if params:
+            self._logger.info(f"Request params: {params}")
+        if payload:
+            # Log payload but truncate large json_strings for readability
+            log_payload = payload.copy() if payload else {}
+            if "json_string" in log_payload and log_payload["json_string"]:
+                json_str = log_payload["json_string"]
+                if len(json_str) > 200:
+                    log_payload[
+                        "json_string"
+                    ] = f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+            self._logger.info(f"Request payload: {log_payload}")
+
         try:
             if method in ["GET", "DELETE"]:
                 response = requests.request(
@@ -244,9 +263,31 @@ class Coop(CoopFunctionsMixin):
             else:
                 from .exceptions import CoopInvalidMethodError
 
-                raise CoopInvalidMethodError(f"Invalid {method=}.")
-        except requests.ConnectionError:
-            raise requests.ConnectionError(f"Could not connect to the server at {url}.")
+                error_msg = f"Invalid {method=}."
+                self._logger.error(f"Invalid HTTP method: {error_msg}")
+                raise CoopInvalidMethodError(error_msg)
+
+            # Log successful response
+            self._logger.info(
+                f"Received response: {response.status_code} from {method} {url}"
+            )
+
+        except requests.ConnectionError as e:
+            error_msg = f"Could not connect to the server at {url}."
+            self._logger.error(f"Connection error: {error_msg} - {str(e)}")
+            raise requests.ConnectionError(error_msg)
+        except requests.Timeout as e:
+            error_msg = f"Request to {url} timed out after {timeout} seconds."
+            self._logger.error(f"Timeout error: {error_msg} - {str(e)}")
+            raise
+        except requests.RequestException as e:
+            error_msg = f"Request to {url} failed."
+            self._logger.error(f"Request error: {error_msg} - {str(e)}")
+            raise
+        except Exception as e:
+            error_msg = f"Unexpected error during request to {url}."
+            self._logger.error(f"Unexpected error: {error_msg} - {str(e)}")
+            raise
 
         return response
 
@@ -411,6 +452,9 @@ class Coop(CoopFunctionsMixin):
             ):
                 # Get additional info from server if available
                 update_info = response.headers.get("X-EDSL-Update-Info", "")
+                self._logger.info(
+                    f"EDSL version update available: {self._edsl_version} -> {server_edsl_version}"
+                )
 
                 print("\n" + "=" * 60)
                 print("📦 EDSL Update Available!")
@@ -432,19 +476,27 @@ class Coop(CoopFunctionsMixin):
                     print("To update, run: pip install --upgrade edsl")
                     print("=" * 60 + "\n")
         if response.status_code >= 400:
+            error_msg = f"Server error: {response.status_code}"
+            self._logger.error(f"{error_msg}: {response.text}")
+
             try:
                 message = str(response.json().get("detail"))
             except json.JSONDecodeError:
-                raise CoopServerResponseError(
+                decode_error = (
                     f"Server returned status code {response.status_code}. "
                     f"JSON response could not be decoded. "
                     f"The server response was: {response.text}"
                 )
+                self._logger.error(
+                    f"Failed to decode server error response: {decode_error}"
+                )
+                raise CoopServerResponseError(decode_error)
             # print(response.text)
             if "The API key you provided is invalid" in message and check_api_key:
                 import secrets
                 from ..utilities.utilities import write_api_key_to_env
 
+                self._logger.info("Invalid API key detected, starting login flow")
                 edsl_auth_token = secrets.token_urlsafe(16)
 
                 print("Your Expected Parrot API key is invalid.")
@@ -455,10 +507,12 @@ class Coop(CoopFunctionsMixin):
                 api_key = self._poll_for_api_key(edsl_auth_token)
 
                 if api_key is None:
+                    self._logger.error("Timed out waiting for login")
                     print("\nTimed out waiting for login. Please try again.")
                     return
 
                 print("\n✨ API key retrieved.")
+                self._logger.info("API key successfully retrieved via login")
 
                 if self.ep_key_handler.ask_to_store(api_key):
                     pass
@@ -472,9 +526,11 @@ class Coop(CoopFunctionsMixin):
                 return
 
             elif "Authorization" in message:
+                self._logger.error(f"Authorization error: {message}")
                 print(message)
                 message = "Please provide an Expected Parrot API key."
 
+            self._logger.error(f"Server response error: {message}")
             raise CoopServerResponseError(message)
 
     def _resolve_gcs_response(self, response: requests.Response) -> None:
@@ -483,6 +539,9 @@ class Coop(CoopFunctionsMixin):
         Raise errors as appropriate.
         """
         if response.status_code >= 400:
+            error_msg = f"GCS operation failed with status {response.status_code}"
+            self._logger.error(f"{error_msg}: {response.text}")
+
             try:
                 import xml.etree.ElementTree as ET
 
@@ -492,20 +551,27 @@ class Coop(CoopFunctionsMixin):
                 code = root.find("Code").text
                 message = root.find("Message").text
                 details = root.find("Details").text
-            except Exception:
+
+                detailed_error = f"An error occurred: {code} - {message} - {details}"
+                self._logger.error(f"GCS error details: {detailed_error}")
+            except Exception as parse_error:
                 from .exceptions import CoopServerResponseError
 
-                raise CoopServerResponseError(
+                decode_error = (
                     f"Server returned status code {response.status_code}. "
                     f"XML response could not be decoded. "
                     f"The server response was: {response.text}"
                 )
+                self._logger.error(
+                    f"Failed to parse GCS error response: {str(parse_error)}"
+                )
+                raise CoopServerResponseError(decode_error)
 
             from .exceptions import CoopServerResponseError
 
-            raise CoopServerResponseError(
-                f"An error occurred: {code} - {message} - {details}"
-            )
+            raise CoopServerResponseError(detailed_error)
+        else:
+            self._logger.info(f"GCS operation successful: {response.status_code}")
 
     def _poll_for_api_key(
         self, edsl_auth_token: str, timeout: int = 120
@@ -516,7 +582,6 @@ class Coop(CoopFunctionsMixin):
         :param edsl_auth_token: The EDSL auth token to use for login
         :param timeout: Maximum time to wait for login, in seconds (default: 120)
         """
-        import time
         from datetime import datetime
 
         start_poll_time = time.time()
@@ -678,6 +743,271 @@ class Coop(CoopFunctionsMixin):
             return response.json()
         except Timeout:
             return {}
+
+    def _get_widget_javascript(self, widget_name: str) -> str:
+        """
+        Fetches the javascript for a widget from the server using cached singleton.
+
+        This method uses the CoopVisualization singleton to cache ESM and CSS content,
+        ensuring they are only fetched once per session for improved performance.
+        """
+        from .coop_widgets import get_widget_javascript
+
+        esm, css = get_widget_javascript(widget_name)
+        return esm, css
+
+    ################
+    # Widgets
+    ################
+    def create_widget(
+        self,
+        short_name: str,
+        display_name: str,
+        esm_code: str,
+        css_code: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> dict:
+        """
+        Create a new widget.
+
+        Parameters:
+            short_name (str): The short name identifier for the widget.
+            Must start with a lowercase letter and contain only lowercase letters, digits, and underscores
+            display_name (str): The display name of the widget
+            description (str): A human-readable description of the widget
+            esm_code (str): The ESM JavaScript code for the widget
+            css_code (str): The CSS code for the widget
+
+        Returns:
+            dict: Information about the created widget including:
+                - short_name: The widget's short name
+                - display_name: The widget's display name
+                - description: The widget's description
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+        """
+        from ..widgets.base_widget import EDSLBaseWidget
+
+        short_name_is_valid, error_message = EDSLBaseWidget.is_widget_short_name_valid(
+            short_name
+        )
+        if not short_name_is_valid:
+            raise CoopValueError(error_message)
+
+        response = self._send_server_request(
+            uri="api/v0/widgets",
+            method="POST",
+            payload={
+                "short_name": short_name,
+                "display_name": display_name,
+                "description": description,
+                "esm_code": esm_code,
+                "css_code": css_code,
+            },
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+        return {
+            "short_name": content.get("short_name"),
+            "display_name": content.get("display_name"),
+            "description": content.get("description"),
+        }
+
+    def list_widgets(
+        self,
+        search_query: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> "ScenarioList":
+        """
+        Get metadata for all widgets.
+
+        Parameters:
+            page (int): Page number for pagination (default: 1)
+            page_size (int): Number of widgets per page (default: 10, max: 100)
+
+        Returns:
+            List[Dict]: List of widget metadata
+
+        Raises:
+            CoopValueError: If page or page_size parameters are invalid
+            CoopServerResponseError: If there's an error communicating with the server
+        """
+        from ..scenarios import Scenario, ScenarioList
+
+        if page < 1:
+            raise CoopValueError("The page must be greater than or equal to 1.")
+        if page_size < 1:
+            raise CoopValueError("The page size must be greater than or equal to 1.")
+        if page_size > 100:
+            raise CoopValueError("The page size must be less than or equal to 100.")
+
+        params = {
+            "page": page,
+            "page_size": page_size,
+        }
+        if search_query:
+            params["search_query"] = search_query
+
+        response = self._send_server_request(
+            uri="api/v0/widgets/list",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+        widgets = []
+        for widget in content.get("widgets", []):
+            scenario = Scenario(
+                {
+                    "short_name": widget.get("short_name"),
+                    "display_name": widget.get("display_name"),
+                    "description": widget.get("description"),
+                    "owner": widget.get("owner"),
+                    "created_ts": widget.get("created_ts"),
+                    "last_updated_ts": widget.get("last_updated_ts"),
+                    "esm_code_size_bytes": widget.get("esm_code_size_bytes"),
+                    "css_code_size_bytes": widget.get("css_code_size_bytes"),
+                }
+            )
+            widgets.append(scenario)
+        return ScenarioList(widgets)
+
+    def get_widget_metadata(self, short_name: str) -> Dict:
+        """
+        Get metadata for a specific widget by short name.
+
+        Parameters:
+            short_name (str): The short name of the widget
+
+        Returns:
+            Dict: Widget metadata including size information
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/widgets/{short_name}/metadata",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+        return {
+            "short_name": content.get("short_name"),
+            "display_name": content.get("display_name"),
+            "description": content.get("description"),
+            "owner": content.get("owner"),
+            "created_ts": content.get("created_ts"),
+            "last_updated_ts": content.get("last_updated_ts"),
+            "esm_code_size_bytes": content.get("esm_code_size_bytes"),
+            "css_code_size_bytes": content.get("css_code_size_bytes"),
+        }
+
+    def get_widget(self, short_name: str) -> Dict:
+        """
+        Get a specific widget by short name.
+
+        Parameters:
+            short_name (str): The short name of the widget
+
+        Returns:
+            Dict: Complete widget data including ESM and CSS code
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/widgets/{short_name}",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+        return {
+            "short_name": content.get("short_name"),
+            "display_name": content.get("display_name"),
+            "description": content.get("description"),
+            "esm_code": content.get("esm_code"),
+            # CSS code is optional, but should be coerced to the empty string if not present
+            "css_code": content.get("css_code") or "",
+            "esm_code_size_bytes": content.get("esm_code_size_bytes"),
+            "css_code_size_bytes": content.get("css_code_size_bytes"),
+        }
+
+    def update_widget(
+        self,
+        existing_short_name: str,
+        short_name: Optional[str] = None,
+        display_name: Optional[str] = None,
+        esm_code: Optional[str] = None,
+        css_code: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Dict:
+        """
+        Update a widget by short name.
+
+        Parameters:
+            existing_short_name (str): The current short name of the widget
+            short_name (str, optional): New short name for the widget.
+            Must start with a lowercase letter and contain only lowercase letters, digits, and underscores
+            display_name (str, optional): New display name for the widget
+            description (str, optional): New description for the widget
+            esm_code (str, optional): New ESM JavaScript code for the widget
+            css_code (str, optional): New CSS code for the widget
+
+        Returns:
+            dict: Success status
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+        """
+        payload = {}
+        if short_name is not None:
+            from ..widgets.base_widget import EDSLBaseWidget
+
+            (
+                short_name_is_valid,
+                error_message,
+            ) = EDSLBaseWidget.is_widget_short_name_valid(short_name)
+            if not short_name_is_valid:
+                raise CoopValueError(error_message)
+            payload["short_name"] = short_name
+        if display_name is not None:
+            payload["display_name"] = display_name
+        if description is not None:
+            payload["description"] = description
+        if esm_code is not None:
+            payload["esm_code"] = esm_code
+        if css_code is not None:
+            payload["css_code"] = css_code
+
+        response = self._send_server_request(
+            uri=f"api/v0/widgets/{existing_short_name}",
+            method="PATCH",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def delete_widget(self, short_name: str) -> dict:
+        """
+        Delete a widget by short name.
+
+        Parameters:
+            short_name (str): The short name of the widget to delete
+
+        Returns:
+            dict: Success status
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/widgets/{short_name}",
+            method="DELETE",
+        )
+        self._resolve_server_response(response)
+        return response.json()
 
     ################
     # Objects
@@ -949,7 +1279,7 @@ class Coop(CoopFunctionsMixin):
             raise CoopObjectTypeError(
                 f"Expected {expected_object_type=} but got {object_type=}"
             )
-        edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
+        edsl_class = ObjectRegistry.get_edsl_class_by_object_type(object_type)
         object = edsl_class.from_dict(json.loads(json_string))
         if object_type == "results":
             object.initialize_cache_from_results()
@@ -970,7 +1300,7 @@ class Coop(CoopFunctionsMixin):
         Raises:
             CoopValueError: If any object type is invalid
         """
-        valid_object_types = ObjectRegistry.object_type_to_edsl_class.keys()
+        valid_object_types = [o["object_type"] for o in ObjectRegistry._get_objects()]
         if isinstance(object_type, list):
             invalid_types = [t for t in object_type if t not in valid_object_types]
             if invalid_types:
@@ -1071,7 +1401,7 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         content = response.json()
         objects = []
-        for o in content:
+        for o in content.get("objects", []):
             object = Scenario(
                 {
                     "uuid": o.get("uuid"),
@@ -1094,7 +1424,18 @@ class Coop(CoopFunctionsMixin):
                 object["download_count"] = o.get("download_count")
             objects.append(object)
 
-        return CoopRegularObjects(objects)
+        current_page = content.get("current_page")
+        total_pages = content.get("total_pages")
+        page_size = content.get("page_size")
+        total_count = content.get("total_count")
+
+        return CoopRegularObjects(
+            objects,
+            current_page=current_page,
+            total_pages=total_pages,
+            page_size=page_size,
+            total_count=total_count,
+        )
 
     def get_metadata(self, url_or_uuid: Union[str, UUID]) -> dict:
         """
@@ -1444,6 +1785,10 @@ class Coop(CoopFunctionsMixin):
             >>> job_info = coop.remote_inference_create(job=job, description="My job")
             >>> print(f"Job created with UUID: {job_info['uuid']}")
         """
+        self._logger.info(
+            f"Creating remote inference job with description: {description}"
+        )
+
         response = self._send_server_request(
             uri="api/v0/new-remote-inference",
             method="POST",
@@ -1488,9 +1833,14 @@ class Coop(CoopFunctionsMixin):
         )
         response_json = response.json()
 
+        job_uuid = response_json.get("job_uuid")
+        self._logger.info(
+            f"Successfully created remote inference job with UUID: {job_uuid}"
+        )
+
         return RemoteInferenceCreationInfo(
             **{
-                "uuid": response_json.get("job_uuid"),
+                "uuid": job_uuid,
                 "description": response_json.get("description", ""),
                 "status": response_json.get("status"),
                 "iterations": response_json.get("iterations", ""),
@@ -2071,7 +2421,7 @@ class Coop(CoopFunctionsMixin):
             "project_name": response_json.get("project_name"),
             "uuid": response_json.get("uuid"),
             "admin_url": f"{self.url}/home/projects/{response_json.get('uuid')}",
-            "respondent_url": f"{self.url}/respond/{response_json.get('uuid')}",
+            "respondent_url": f"{self.url}/respond/projects/{response_json.get('uuid')}/runs/{response_json.get('run_uuid')}",
         }
 
     def get_project(
@@ -2089,47 +2439,127 @@ class Coop(CoopFunctionsMixin):
         response_json = response.json()
         return {
             "project_name": response_json.get("project_name"),
-            "project_job_uuids": response_json.get("job_uuids"),
-            "project_prolific_studies": [
+            "runs": [
                 {
-                    "study_id": study.get("id"),
-                    "name": study.get("name"),
-                    "status": study.get("status"),
-                    "num_participants": study.get("total_available_places"),
-                    "places_taken": study.get("places_taken"),
+                    "uuid": run.get("uuid"),
+                    "name": run.get("name"),
+                    "web_survey_url": run.get("web_survey_url"),
                 }
-                for study in response_json.get("prolific_studies", [])
+                for run in response_json.get("runs", [])
             ],
+            "job_uuids": response_json.get("job_uuids"),
+            # "project_prolific_studies": [
+            #     {
+            #         "study_id": study.get("id"),
+            #         "name": study.get("name"),
+            #         "status": study.get("status"),
+            #         "num_participants": study.get("total_available_places"),
+            #         "places_taken": study.get("places_taken"),
+            #     }
+            #     for study in response_json.get("prolific_studies", [])
+            # ],
         }
+
+    def create_project_run(
+        self,
+        project_uuid: str,
+        name: Optional[str] = None,
+        scenario_list_uuid: Optional[Union[str, UUID]] = None,
+        scenario_list_method: Optional[
+            Literal["randomize", "loop", "single_scenario", "ordered"]
+        ] = None,
+    ) -> dict:
+        """
+        Create a project run.
+        """
+        if scenario_list_uuid is None and scenario_list_method is not None:
+            raise CoopValueError(
+                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
+            )
+        elif scenario_list_uuid is not None and scenario_list_method is None:
+            raise CoopValueError(
+                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
+            )
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/runs/create",
+            method="POST",
+            payload={
+                "run_name": name,
+                "scenario_list_uuid": scenario_list_uuid,
+                "scenario_list_method": scenario_list_method,
+            },
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "uuid": response_json.get("uuid"),
+            "name": response_json.get("name"),
+        }
+
+    def update_project_run(
+        self,
+        project_uuid: str,
+        project_run_uuid: str,
+        name: Optional[str] = None,
+    ) -> dict:
+        """
+        Update a project run.
+        """
+        if name is None:
+            from .exceptions import CoopPatchError
+
+            raise CoopPatchError("Nothing to update.")
+        payload = {}
+        if name is not None:
+            payload["run_name"] = name
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/runs/{project_run_uuid}",
+            method="PATCH",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "uuid": response_json.get("uuid"),
+            "name": response_json.get("name"),
+        }
+
+    def delete_project_run(
+        self,
+        project_uuid: str,
+        project_run_uuid: str,
+    ) -> dict:
+        """
+        Delete a project run.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/projects/{project_uuid}/runs/{project_run_uuid}",
+            method="DELETE",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return response_json
 
     def _turn_human_responses_into_results(
         self,
         human_responses: List[dict],
-        survey_json_string: str,
-        scenario_list_json_string: Optional[str] = None,
+        survey_uuid: str,
     ) -> Union["Results", "ScenarioList"]:
         """
         Turn a list of human responses into a Results object.
 
         If generating the Results object fails, a ScenarioList will be returned instead.
         """
-        from ..agents import Agent, AgentList
+        from ..agents import Agent
         from ..caching import Cache
         from ..language_models import Model
         from ..scenarios import Scenario, ScenarioList
         from ..surveys import Survey
 
         try:
-            survey = Survey.from_dict(json.loads(survey_json_string))
+            survey = Survey.pull(survey_uuid)
 
             model = Model("test")
-
-            if scenario_list_json_string is not None:
-                scenario_list = ScenarioList.from_dict(
-                    json.loads(scenario_list_json_string)
-                )
-            else:
-                scenario_list = ScenarioList()
 
             results = None
 
@@ -2142,7 +2572,7 @@ class Coop(CoopFunctionsMixin):
 
                 response_dict = json.loads(response.get("response_json_string"))
                 agent_traits_json_string = response.get("agent_traits_json_string")
-                scenario_uuid = response.get("scenario_uuid")
+                scenario_json_string = response.get("scenario_json_string")
                 if agent_traits_json_string is not None:
                     agent_traits = json.loads(agent_traits_json_string)
                 else:
@@ -2157,14 +2587,8 @@ class Coop(CoopFunctionsMixin):
                     return f
 
                 scenario = None
-                if scenario_uuid is not None:
-                    for s in scenario_list:
-                        if s.get("uuid") == scenario_uuid:
-                            scenario = s.drop("uuid")
-                            break
-
-                    if scenario is None:
-                        raise RuntimeError("Scenario not found.")
+                if scenario_json_string is not None:
+                    scenario = Scenario.from_dict(json.loads(scenario_json_string))
 
                 a.add_direct_question_answering_method(
                     create_answer_function(response_dict)
@@ -2187,7 +2611,7 @@ class Coop(CoopFunctionsMixin):
                 else:
                     results = results + question_results
             return results
-        except Exception as e:
+        except Exception:
             human_response_scenarios = []
             for response in human_responses:
                 response_uuid = response.get("response_uuid")
@@ -2205,32 +2629,37 @@ class Coop(CoopFunctionsMixin):
     def get_project_human_responses(
         self,
         project_uuid: str,
+        project_run_uuid: Optional[str] = None,
     ) -> Union["Results", "ScenarioList"]:
         """
         Return a Results object with the human responses for a project.
 
         If generating the Results object fails, a ScenarioList will be returned instead.
         """
+        if project_run_uuid:
+            params = {"project_run_uuid": project_run_uuid}
+        else:
+            params = None
         response = self._send_server_request(
             uri=f"api/v0/projects/{project_uuid}/human-responses",
             method="GET",
+            params=params,
         )
         self._resolve_server_response(response)
         response_json = response.json()
         human_responses = response_json.get("human_responses", [])
-        survey_json_string = response_json.get("survey_json_string")
-        scenario_list_json_string = response_json.get("scenario_list_json_string")
+        survey_uuid = response_json.get("survey_uuid")
 
-        return self._turn_human_responses_into_results(
-            human_responses, survey_json_string, scenario_list_json_string
-        )
+        return self._turn_human_responses_into_results(human_responses, survey_uuid)
 
-    def test_scenario_sampling(self, project_uuid: str) -> List[int]:
+    def test_scenario_sampling(
+        self, project_uuid: str, project_run_uuid: str
+    ) -> List[int]:
         """
         Get a sample for a project.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/scenario-sampling/test",
+            uri=f"api/v0/projects/{project_uuid}/runs/{project_run_uuid}/scenario-sampling/test",
             method="GET",
         )
         self._resolve_server_response(response)
@@ -2238,7 +2667,9 @@ class Coop(CoopFunctionsMixin):
         scenario_indices = response_json.get("scenario_indices")
         return scenario_indices
 
-    def reset_scenario_sampling_state(self, project_uuid: str) -> dict:
+    def reset_scenario_sampling_state(
+        self, project_uuid: str, project_run_uuid: str
+    ) -> dict:
         """
         Reset the scenario sampling state for a project.
 
@@ -2246,7 +2677,7 @@ class Coop(CoopFunctionsMixin):
         start over with the first scenario in the list.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/scenario-sampling/reset",
+            uri=f"api/v0/projects/{project_uuid}/runs/{project_run_uuid}/scenario-sampling/reset",
             method="POST",
         )
         self._resolve_server_response(response)
@@ -2345,6 +2776,7 @@ class Coop(CoopFunctionsMixin):
     def create_prolific_study(
         self,
         project_uuid: str,
+        project_run_uuid: str,
         name: str,
         description: str,
         num_participants: int,
@@ -2378,6 +2810,7 @@ class Coop(CoopFunctionsMixin):
             uri=f"api/v0/projects/{project_uuid}/prolific-studies",
             method="POST",
             payload={
+                "project_run_uuid": project_run_uuid,
                 "name": name,
                 "description": description,
                 "total_available_places": num_participants,
@@ -2418,6 +2851,7 @@ class Coop(CoopFunctionsMixin):
         self,
         project_uuid: str,
         study_id: str,
+        project_run_uuid: Optional[str] = None,
         name: Optional[str] = None,
         description: Optional[str] = None,
         num_participants: Optional[int] = None,
@@ -2453,6 +2887,8 @@ class Coop(CoopFunctionsMixin):
             )
 
         payload = {}
+        if project_run_uuid is not None:
+            payload["project_run_uuid"] = project_run_uuid
         if name is not None:
             payload["name"] = name
         if description is not None:
@@ -2555,11 +2991,9 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         response_json = response.json()
         human_responses = response_json.get("human_responses", [])
-        survey_json_string = response_json.get("survey_json_string")
+        survey_uuid = response_json.get("survey_uuid")
 
-        return self._turn_human_responses_into_results(
-            human_responses, survey_json_string
-        )
+        return self._turn_human_responses_into_results(human_responses, survey_uuid)
 
     def delete_prolific_study(
         self,
@@ -2737,7 +3171,7 @@ class Coop(CoopFunctionsMixin):
                 "Invalid EDSL_FETCH_TOKEN_PRICES value---should be 'True' or 'False'."
             )
 
-    def fetch_models(self) -> ServiceToModelsMapping:
+    def fetch_models(self) -> Dict[str, List[str]]:
         """
         Fetch information about available language models from Expected Parrot.
 
@@ -2774,7 +3208,8 @@ class Coop(CoopFunctionsMixin):
         response = self._send_server_request(uri="api/v0/models", method="GET")
         self._resolve_server_response(response)
         data = response.json()
-        return ServiceToModelsMapping(data)
+        # return ServiceToModelsMapping(data)
+        return data
 
     def fetch_working_models(self) -> List[dict]:
         """
@@ -3071,7 +3506,9 @@ class Coop(CoopFunctionsMixin):
                     value_type = (
                         "inf"
                         if math.isinf(value)
-                        else "nan" if math.isnan(value) else "invalid"
+                        else "nan"
+                        if math.isnan(value)
+                        else "invalid"
                     )
                     error_msg += f"  • {path}: {value} ({value_type})\n"
 
@@ -3259,8 +3696,6 @@ class Coop(CoopFunctionsMixin):
             )
 
         import secrets
-        import time
-        import os
         from dotenv import load_dotenv
         from .ep_key_handling import ExpectedParrotKeyHandler
         from ..utilities.utilities import write_api_key_to_env
@@ -3478,6 +3913,62 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    async def report_error(self, error: Exception) -> None:
+        """
+        Report an error for debugging purposes.
+
+        This method provides a non-blocking way to report errors that occur during
+        EDSL operations. It sends error reports to the server for monitoring and
+        debugging purposes, while also printing to stderr for immediate feedback.
+
+        Parameters:
+            error (Exception): The exception to report
+
+        Example:
+            >>> try:
+            ...     # some operation that might fail
+            ...     pass
+            ... except Exception as e:
+            ...     await coop.report_error(e)
+        """
+        import sys
+        import traceback
+        import httpx
+        from datetime import datetime
+
+        # Prepare error data for remote logging
+        try:
+            import time
+
+            start_time = time.time()
+
+            error_data = {
+                "error_type": type(error).__name__,
+                "error_message": str(error),
+                "traceback": traceback.format_exc(),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+            # Send to remote logging endpoint asynchronously
+            url = f"{self.api_url}/api/v0/user_service_error_logs"
+
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    url, json=error_data, headers=self.headers, timeout=4.0
+                )
+
+                end_time = time.time()
+                duration_ms = round((end_time - start_time) * 1000, 2)
+
+                # if response.status_code == 200:
+                #     print(f"Error report sent to server (took {duration_ms}ms)", file=sys.stderr)
+                # else:
+                #     print(f"Failed to send error report to server: {response.status_code} (took {duration_ms}ms)", file=sys.stderr)
+
+        except Exception as send_error:
+            # Don't let error reporting itself cause issues
+            print(f"Failed to send error report: {str(send_error)}", file=sys.stderr)
+
     def login_gradio(self, timeout: int = 120, launch: bool = True, **launch_kwargs):
         """
         Start the EDSL auth token login flow inside a **Gradio** application.
@@ -3524,8 +4015,6 @@ class Coop(CoopFunctionsMixin):
             ) from exc
 
         import secrets
-        import time
-        import os
         from dotenv import load_dotenv
         from .ep_key_handling import ExpectedParrotKeyHandler
         from ..utilities.utilities import write_api_key_to_env

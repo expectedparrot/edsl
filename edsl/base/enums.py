@@ -69,6 +69,7 @@ class InferenceServiceType(EnumWithChecks):
     PERPLEXITY = "perplexity"
     DEEPSEEK = "deepseek"
     XAI = "xai"
+    OPEN_ROUTER = "open_router"
 
 
 # unavoidable violation of the DRY principle but it is necessary
@@ -90,6 +91,7 @@ InferenceServiceLiteral = Literal[
     "perplexity",
     "deepseek",
     "xai",
+    "open_router",
 ]
 
 available_models_urls = {
@@ -116,6 +118,7 @@ service_to_api_keyname = {
     InferenceServiceType.PERPLEXITY.value: "PERPLEXITY_API_KEY",
     InferenceServiceType.DEEPSEEK.value: "DEEPSEEK_API_KEY",
     InferenceServiceType.XAI.value: "XAI_API_KEY",
+    InferenceServiceType.OPEN_ROUTER.value: "OPEN_ROUTER_API_KEY",
 }
 
 

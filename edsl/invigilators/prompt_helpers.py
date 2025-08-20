@@ -1,8 +1,9 @@
 import enum
-from typing import Dict, Optional
+from typing import Dict, Optional, TYPE_CHECKING
 from collections import UserList
 
-from ..prompts import Prompt
+if TYPE_CHECKING:
+    from ..prompts import Prompt
 
 
 class PromptComponent(enum.Enum):
@@ -13,11 +14,14 @@ class PromptComponent(enum.Enum):
 
 
 class PromptList(UserList):
+    from ..prompts import Prompt
+
     separator = Prompt("")
 
     def reduce(self):
         """Reduce the list of prompts to a single prompt.
 
+        >>> from edsl.prompts import Prompt
         >>> p = PromptList([Prompt("You are a happy-go lucky agent."), Prompt("You are an agent with the following persona: {'age': 22, 'hair': 'brown', 'height': 5.5}")])
         >>> p.reduce()
         Prompt(text=\"""You are a happy-go lucky agent.You are an agent with the following persona: {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
@@ -43,10 +47,11 @@ class PromptPlan:
     >>> p.arrange_components(agent_instructions=1, agent_persona=2, question_instructions=3, prior_question_memory=4)
     {'user_prompt': ..., 'system_prompt': ...}
 
-    >>> p = PromptPlan(user_prompt_order=("agent_instructions", ), system_prompt_order=("question_instructions", "prior_question_memory"))
+    >>> p = PromptPlan(user_prompt_order=("agent_instructions", ), system_prompt_order=("question_instructions", "prior_question_memory"))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    ValueError: Invalid plan: must contain each value of PromptComponent exactly once.
+    edsl.invigilators.exceptions.InvigilatorValueError: Invalid plan: must contain each value of PromptComponent exactly once.
+    ...
 
     """
 
@@ -110,7 +115,7 @@ class PromptPlan:
         combined = self.user_prompt_order + self.system_prompt_order
         return set(combined) == set(PromptComponent)
 
-    def arrange_components(self, **kwargs) -> Dict[PromptComponent, Prompt]:
+    def arrange_components(self, **kwargs) -> Dict[PromptComponent, "Prompt"]:
         """Arrange the components in the order specified by the plan."""
         # check is valid components passed
         component_strings = set([pc.value for pc in PromptComponent])
@@ -129,8 +134,10 @@ class PromptPlan:
         )
         return {"user_prompt": user_prompt, "system_prompt": system_prompt}
 
-    def get_prompts(self, **kwargs) -> Dict[str, Prompt]:
+    def get_prompts(self, **kwargs) -> Dict[str, "Prompt"]:
         """Get both prompts for the LLM call."""
+        from ..prompts import Prompt
+
         prompts = self.arrange_components(**kwargs)
         return {
             "user_prompt": Prompt("".join(str(p) for p in prompts["user_prompt"])),

@@ -3,11 +3,12 @@ from typing import Any, Optional, List, TYPE_CHECKING
 from anthropic import AsyncAnthropic
 
 from ..inference_service_abc import InferenceServiceABC
+from ..decorators import report_errors_async
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
-    from ....scenarios.file_store import FileStore as Files
+    from ...scenarios.file_store import FileStore as Files
 
 
 class AnthropicService(InferenceServiceABC):
@@ -19,24 +20,19 @@ class AnthropicService(InferenceServiceABC):
     usage_sequence = ["usage"]
     input_token_name = "input_tokens"
     output_token_name = "output_tokens"
-    model_exclude_list = []
-
     available_models_url = "https://docs.anthropic.com/en/docs/about-claude/models"
 
     @classmethod
-    def get_model_list(cls, api_key: str = None):
+    def get_model_info(cls, api_key: Optional[str] = None):
+        """Get raw model info without wrapping in ModelInfo."""
         import requests
 
         if api_key is None:
             api_key = os.environ.get("ANTHROPIC_API_KEY")
         headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01"}
         response = requests.get("https://api.anthropic.com/v1/models", headers=headers)
-        model_names = [m["id"] for m in response.json()["data"]]
-        return model_names
-
-    @classmethod
-    def available(cls):
-        return cls.get_model_list()
+        response.raise_for_status()
+        return response.json()["data"]
 
     @classmethod
     def create_model(
@@ -70,6 +66,7 @@ class AnthropicService(InferenceServiceABC):
                 "top_logprobs": 3,
             }
 
+            @report_errors_async
             async def async_execute_model_call(
                 self,
                 user_prompt: str,
@@ -105,19 +102,15 @@ class AnthropicService(InferenceServiceABC):
                                 },
                             }
                         )
-                # breakpoint()
                 client = AsyncAnthropic(api_key=self.api_token)
 
-                try:
-                    response = await client.messages.create(
-                        model=model_name,
-                        max_tokens=self.max_tokens,
-                        temperature=self.temperature,
-                        system=system_prompt,  # note that the Anthropic API uses "system" parameter rather than put it in the message
-                        messages=messages,
-                    )
-                except Exception as e:
-                    return {"message": str(e)}
+                response = await client.messages.create(
+                    model=model_name,
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature,
+                    system=system_prompt,  # note that the Anthropic API uses "system" parameter rather than put it in the message
+                    messages=messages,
+                )
                 return response.model_dump()
 
         LLM.__name__ = model_class_name

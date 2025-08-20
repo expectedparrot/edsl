@@ -1219,20 +1219,21 @@ See the :ref:`exceptions` section for more information on exceptions.
 Result class
 ------------
 
-.. automodule:: edsl.results.Result
+.. autoclass:: edsl.results.Result
    :members:  
    :inherited-members:
-   :exclude-members: 
    :undoc-members:
+   :show-inheritance:
    :special-members: __init__
 
 Results class
 -------------
 
-.. automodule:: edsl.results.Results
+.. autoclass:: edsl.results.Results
    :members:
    :inherited-members:
    :exclude-members: append, clear, copy, count, extend, index, insert, pop, remove, reverse, sort, known_data_types, Mixins, main, PromptDict
    :undoc-members:
+   :show-inheritance:
    :special-members: __init__
 

@@ -145,7 +145,68 @@ Learn more about working with results in the :ref:`results` section.
 Generating agents from data 
 ---------------------------
 
-An `AgentList` can be automatically generated from data stored in a list, a dictionary or a CSV file.
+An `AgentList` can be automatically generated from data stored in many source types, including a list, a dictionary, a CSV, TSV or Excel file, a Pandas dataframe, etc.
+
+A general method for this is `from_source()` which is called on the `AgentList` class, takes a data `source_type` (`csv`, `excel`, `pandas`, etc.) and a data source, and returns an `AgentList` object.
+Optional parameters allow you to specify special `instructions`, a `codebook` for the traits, and a `name_field` for the agents.
+
+For example, if you have agent data stored in a CSV file, you can create an `AgentList` from it using the `from_source()` method by specifying `source_type="csv"` and the path to the CSV file:
+
+.. code-block:: python
+
+    from edsl import AgentList
+
+    agents = AgentList.from_source(
+        source_type="csv", 
+        file_or_url="agent_data.csv") # replace with your CSV file path
+    
+
+If the data source is a CSV or Excel file, the header row is used as the keys for the `traits`, and can optionally have a column "name" for the agent names.
+If a different column name should be used for the agent names, it can be specified with the `name_field` parameter:
+
+.. code-block:: python
+
+    from edsl import AgentList
+
+    agents = AgentList.from_source(
+        source_type="csv", 
+        file_or_url="agent_data.csv", # replace with your CSV file path
+        name_field="first_name" # replace with your column name for agent names
+        )
+
+
+A `codebook` can also be passed to provide descriptions for the traits.
+It can be useful for providing context to a model about the traits of an agent.
+For example, if you have a trait "age" and you want to provide more context about what that means, you could use the codebook to specify that "age" refers to the age of the agent in years:
+
+.. code-block:: python
+
+    from edsl import AgentList
+
+    codebook = {
+        "age": "The age of the agent in years",
+        "location": "The location of the agent"
+    }
+
+    agents = AgentList.from_source(
+        source_type="csv", 
+        file_or_url="agent_data.csv", # replace with your CSV file path
+        codebook=codebook
+        )
+
+
+Special instructions can also be passed to modify the default instructions that are used with agent traits in the system prompt.
+For example, if you want all agents to answer in German, you could use the `instructions` parameter to specify that:
+
+.. code-block:: python
+
+    from edsl import AgentList
+
+    agents = AgentList.from_source(
+        source_type="csv", 
+        file_or_url="agent_data.csv", # replace with your CSV file path
+        instructions="Answer in German."
+        )
 
 
 From a list
@@ -837,7 +898,7 @@ Output:
 
 Agent class
 -----------
-.. automodule:: edsl.agents.Agent
+.. autoclass:: edsl.agents.Agent
    :members:
    :undoc-members:
    :show-inheritance:
@@ -847,8 +908,11 @@ Agent class
    
 AgentList class
 ---------------
-.. automodule:: edsl.agents.AgentList
-   :noindex:
+.. autoclass:: edsl.agents.AgentList
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
 
 .. automethod:: AgentList.__init__
    :noindex:

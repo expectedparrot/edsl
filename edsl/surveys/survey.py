@@ -28,15 +28,14 @@ from typing import (
 )
 from typing_extensions import Literal
 from ..base import Base
-from ..agents import Agent
 from ..scenarios import Scenario
 from ..utilities import remove_edsl_version
 
 if TYPE_CHECKING:
     from ..questions import QuestionBase
-    from ..agents import Agent
+    from ..agents import Agent, AgentList
     from .dag import DAG
-    from ..language_models import LanguageModel
+    from ..language_models import LanguageModel, ModelList
     from ..caching import Cache
     from ..jobs import Jobs
     from ..results import Results, Result
@@ -226,10 +225,11 @@ class Survey(Base):
         if rule_collection is not None:
             self.rule_collection = rule_collection
 
-        if name is not None:
-            import warnings
+        # if name is not None:
+        #     import warnings
 
-            warnings.warn("name parameter to a survey is deprecated.")
+        #     warnings.warn("name parameter to a survey is deprecated.")
+        self.name = name
 
         if questions_to_randomize is not None:
             self.questions_to_randomize = questions_to_randomize
@@ -276,17 +276,27 @@ class Survey(Base):
         results = q.run(verbose=False)
         return results.select("answer.description").first()
 
-    # In survey.py
-    @property
-    def ep(self):
-        """Return plugin host for this survey."""
-        from ..plugins.plugin_host import PluginHost
-
-        return PluginHost(self)
-
     def question_names_valid(self) -> bool:
         """Check if the question names are valid."""
         return all(q.is_valid_question_name() for q in self.questions)
+
+    def question_to_attributes(self) -> dict:
+        """Return a dictionary of question attributes.
+
+        >>> s = Survey.example()
+        >>> s.question_to_attributes()
+        {'q0': {'question_text': 'Do you like school?', 'question_type': 'multiple_choice', 'question_options': ['yes', 'no']}, 'q1': {'question_text': 'Why not?', 'question_type': 'multiple_choice', 'question_options': ['killer bees in cafeteria', 'other']}, 'q2': {'question_text': 'Why?', 'question_type': 'multiple_choice', 'question_options': ['**lack*** of killer bees in cafeteria', 'other']}}
+        """
+        return {
+            q.question_name: {
+                "question_text": q.question_text,
+                "question_type": q.question_type,
+                "question_options": (
+                    None if not hasattr(q, "question_options") else q.question_options
+                ),
+            }
+            for q in self.questions
+        }
 
     def draw(self) -> "Survey":
         """Return a new survey with a randomly selected permutation of the options."""
@@ -294,9 +304,7 @@ class Survey(Base):
             self._seed = hash(self)
             random.seed(self._seed)  # type: ignore
 
-        if len(self.questions_to_randomize) == 0:
-            return self
-
+        # Always create new questions to avoid sharing state between interviews
         new_questions = []
         for question in self.questions:
             if question.question_name in self.questions_to_randomize:
@@ -306,7 +314,15 @@ class Survey(Base):
 
         d = self.to_dict()
         d["questions"] = [q.to_dict() for q in new_questions]
-        return Survey.from_dict(d)
+        new_survey = Survey.from_dict(d)
+        # Preserve any non-serialized attributes from the new_questions
+        for i, new_question in enumerate(new_questions):
+            survey_question = new_survey.questions[i]
+            if hasattr(new_question, 'exception_to_throw'):
+                survey_question.exception_to_throw = new_question.exception_to_throw
+            if hasattr(new_question, 'override_answer'):
+                survey_question.override_answer = new_question.override_answer
+        return new_survey
 
     def _process_raw_questions(self, questions: Optional[List["QuestionType"]]) -> list:
         """Process the raw questions passed to the survey."""
@@ -433,7 +449,8 @@ class Survey(Base):
 
     def question_names_to_questions(self) -> dict:
         """Return a dictionary mapping question names to question attributes."""
-        return {q.question_name: q for q in self.questions}
+        return {q.question_name: q.duplicate() for q in self.questions}
+        #return {q.question_name: q for q in self.questions}
 
     @property
     def question_names(self) -> list[str]:
@@ -460,16 +477,16 @@ class Survey(Base):
         return {q.question_name: i for i, q in enumerate(self.questions)}
 
     def to_long_format(
-        self, scenario_list: ScenarioList
+        self, scenario_list: 'ScenarioList'
     ) -> Tuple[List[QuestionBase], ScenarioList]:
         """Return a new survey with the questions in long format and the associated scenario list."""
 
-        from edsl.questions.loop_processor import LongSurveyLoopProcessor
+        from ..questions.loop_processor import LongSurveyLoopProcessor
 
         lp = LongSurveyLoopProcessor(self, scenario_list)
         return lp.process_templates_for_all_questions()
 
-    def to_dict(self, add_edsl_version=True) -> dict[str, Any]:
+    def to_dict(self, add_edsl_version:bool=True) -> dict[str, Any]:
         """Serialize the Survey object to a dictionary for storage or transmission.
 
         This method converts the entire survey structure, including questions, rules,
@@ -520,6 +537,8 @@ class Survey(Base):
             ),
             "question_groups": self.question_groups,
         }
+        if self.name is not None:
+            d["name"] = self.name
 
         # Include randomization information if present
         if self.questions_to_randomize != []:
@@ -604,6 +623,11 @@ class Survey(Base):
         else:
             questions_to_randomize = None
 
+        if "name" in data:
+            name = data["name"]
+        else:
+            name = None
+
         # Create and return the reconstructed survey
         survey = cls(
             questions=questions,
@@ -611,6 +635,7 @@ class Survey(Base):
             rule_collection=RuleCollection.from_dict(data["rule_collection"]),
             question_groups=data["question_groups"],
             questions_to_randomize=questions_to_randomize,
+            name=name,
         )
         return survey
 
@@ -643,7 +668,7 @@ class Survey(Base):
         return temp
 
     @property
-    def parameters(self):
+    def parameters(self) -> set:
         """Return a set of parameters in the survey.
 
         >>> s = Survey.example()
@@ -653,7 +678,7 @@ class Survey(Base):
         return set.union(*[q.parameters for q in self.questions])
 
     @property
-    def parameters_by_question(self):
+    def parameters_by_question(self) -> dict[str, set]:
         """Return a dictionary of parameters by question in the survey.
         >>> from edsl import QuestionFreeText
         >>> q = QuestionFreeText(question_name = "example", question_text = "What is the capital of {{ country}}?")
@@ -1153,7 +1178,17 @@ class Survey(Base):
             question, expression, next_question, before_rule=before_rule
         )
 
-    def by(self, *args: Union["Agent", "Scenario", "LanguageModel"]) -> "Jobs":
+    def by(
+        self,
+        *args: Union[
+            "Agent",
+            "Scenario",
+            "LanguageModel",
+            "AgentList",
+            "ScenarioList",
+            "ModelList",
+        ],
+    ) -> "Jobs":
         """Add components to the survey and return a runnable Jobs object.
 
         This method is the primary way to prepare a survey for execution. It adds the
@@ -1206,6 +1241,8 @@ class Survey(Base):
                 set(q_and_a_dict.keys()),
                 set(self.question_names),
             )
+        from ..agents import Agent
+
         gold_agent = Agent()
 
         def f(self, question, scenario):
@@ -1234,17 +1271,17 @@ class Survey(Base):
 
         return Jobs(survey=self)
 
-    def show_prompts(self):
+    def show_prompts(self, all: bool = False) -> None:
         """Display the prompts that will be used when running the survey.
 
         This method converts the survey to a Jobs object and shows the prompts that
         would be sent to a language model. This is useful for debugging and understanding
         how the survey will be presented.
 
-        Returns:
-            The detailed prompts for the survey.
+        Args:
+            all: If True, show all prompt fields; if False (default), show only user_prompt and system_prompt.
         """
-        return self.to_jobs().show_prompts()
+        self.to_jobs().show_prompts(all=all)
 
     def __call__(
         self,
@@ -1763,20 +1800,152 @@ class Survey(Base):
         """
         return len(self.questions)
 
-    def __getitem__(self, index: Union[int, str]) -> "QuestionBase":
-        """Return the question object given the question index.
+    def _create_subsurvey(self, selected_questions: List["QuestionBase"]) -> "Survey":
+        """Create a new Survey with the specified questions.
 
-        :param index: The index of the question to get.
+        This helper method creates a new Survey instance containing only the
+        selected questions. The new survey inherits relevant attributes from
+        the parent survey but gets fresh rule collections and memory plans
+        appropriate for the subset of questions.
 
-        >>> s = Survey.example()
-        >>> s[0]
-        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
+        :param selected_questions: List of question objects to include in the new survey
+        :return: New Survey instance with the selected questions
+        """
+        # Create new survey with selected questions
+        new_survey = Survey(questions=selected_questions)
 
+        # Copy relevant attributes that make sense for a subsurvey
+        if hasattr(self, "questions_to_randomize") and self.questions_to_randomize:
+            # Only include randomization settings for questions that are in the subsurvey
+            selected_names = {q.question_name for q in selected_questions}
+            relevant_randomization = [
+                name for name in self.questions_to_randomize if name in selected_names
+            ]
+            if relevant_randomization:
+                new_survey.questions_to_randomize = relevant_randomization
+
+        return new_survey
+
+    def __getitem__(
+        self, index: Union[int, str, slice, List[str]]
+    ) -> Union["QuestionBase", "Survey"]:
+        """Return question(s) or a new Survey based on the index type.
+
+        :param index: The index of the question(s) to get. Can be:
+            - int: return single question by position
+            - str: return single question by name
+            - slice: return new Survey with sliced questions
+            - List[str]: return new Survey with questions selected by name
+
+        Examples:
+            >>> s = Survey.example()
+            >>> s[0]  # Single question by index
+            Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
+
+            >>> sub = s[:2]  # First 2 questions as new Survey
+            >>> len(sub) == 2
+            True
+            >>> sub.question_names == ['q0', 'q1']
+            True
+
+            >>> s['q0']  # Single question by name
+            Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
+
+            >>> sub2 = s[['q0', 'q2']]  # Questions by name list as new Survey
+            >>> sub2.question_names == ['q0', 'q2']
+            True
         """
         if isinstance(index, int):
             return self.questions[index]
         elif isinstance(index, str):
-            return getattr(self, index)
+            # Return single question by name
+            question_map = self.question_names_to_questions()
+            if index not in question_map:
+                raise KeyError(
+                    f"Question '{index}' not found in survey. Available questions: {list(question_map.keys())}"
+                )
+            return question_map[index]
+        elif isinstance(index, slice):
+            # Return a new Survey with sliced questions
+            selected_questions = self.questions[index]
+            return self._create_subsurvey(selected_questions)
+        elif isinstance(index, list) and all(isinstance(name, str) for name in index):
+            # Return a new Survey with questions selected by name
+            question_map = self.question_names_to_questions()
+            selected_questions = []
+            for name in index:
+                if name not in question_map:
+                    raise KeyError(
+                        f"Question '{name}' not found in survey. Available questions: {list(question_map.keys())}"
+                    )
+                selected_questions.append(question_map[name])
+            return self._create_subsurvey(selected_questions)
+        else:
+            raise TypeError(
+                f"Survey indices must be int, str, slice, or List[str], not {type(index)}"
+            )
+
+    def select(self, *question_names: List[str]) -> "Survey":
+        """Create a new Survey with questions selected by name."""
+        if isinstance(question_names, str):
+            question_names = [question_names]
+
+        if not question_names:
+            raise ValueError("At least one question name must be provided")
+
+        kept_questions = [self.get(name) for name in question_names]
+        assert all(kept_questions), f"Question(s) {question_names} not found in survey"
+        return Survey(questions=kept_questions)
+
+    def drop(self, *question_names) -> "Survey":
+        """Create a new Survey with specified questions removed by name.
+
+        This method creates a new Survey instance that contains all questions
+        except those specified in the question_names parameter. It's the inverse
+        of the select() method.
+
+        Args:
+            *question_names: Variable number of question names to remove from the survey.
+
+        Returns:
+            Survey: A new Survey instance with the specified questions removed.
+
+        Raises:
+            ValueError: If no question names are provided.
+            KeyError: If any specified question name is not found in the survey.
+
+        Examples:
+            >>> s = Survey.example()
+            >>> s.question_names
+            ['q0', 'q1', 'q2']
+            >>> s_dropped = s.drop('q1')
+            >>> s_dropped.question_names
+            ['q0', 'q2']
+            >>> s_dropped2 = s.drop('q0', 'q2')
+            >>> s_dropped2.question_names
+            ['q1']
+        """
+        # Handle case where a single string is passed
+        if isinstance(question_names, str):
+            question_names = [question_names]
+
+        if not question_names:
+            raise ValueError("At least one question name must be provided")
+
+        # Validate that all question names exist
+        question_map = self.question_names_to_questions()
+        for name in question_names:
+            if name not in question_map:
+                raise KeyError(
+                    f"Question '{name}' not found in survey. Available questions: {list(question_map.keys())}"
+                )
+
+        # Get all questions except the ones to drop
+        kept_questions = [
+            q for q in self.questions if q.question_name not in question_names
+        ]
+
+        return self._create_subsurvey(kept_questions)
 
     def __repr__(self) -> str:
         """Return a string representation of the survey."""
@@ -1809,6 +1978,30 @@ class Survey(Base):
         for question in self.questions:
             codebook[question.question_name] = question.question_text
         return codebook
+
+    def with_edited_question(
+        self,
+        question_name: str,
+        field_name_new_values: dict,
+        pop_fields: Optional[List[str]] = None,
+    ) -> "Survey":
+        """Return a new Survey with the specified question edited.
+
+        This method creates a new Survey instance with the specified question edited.
+        The new survey inherits relevant attributes from the parent survey but gets
+        fresh rule collections and memory plans appropriate for the subset of questions.
+        """
+        new_survey = self.duplicate()
+        question = new_survey.get(question_name)
+        from ..questions import Question
+
+        old_dict = question.to_dict(add_edsl_version=False)
+        old_dict.update(field_name_new_values)
+        for field_name in pop_fields or []:
+            _ = old_dict.pop(field_name)
+        new_question = Question(**old_dict)
+        new_survey.questions[new_survey.questions.index(question)] = new_question
+        return new_survey
 
     def edit(self):
         import webbrowser
@@ -1977,9 +2170,9 @@ class Survey(Base):
         """Return the default CSS style for the survey."""
         return self._exporter.css()
 
-    def get_description(self) -> str:
-        """Return the description of the survey."""
-        return self._exporter.get_description()
+    # def get_description(self) -> str:
+    #     """Return the description of the survey."""
+    #     return self._exporter.get_description()
 
     # NEW PREFERRED METHOD NAMES
     def to_docx(
@@ -2105,6 +2298,190 @@ class Survey(Base):
             False
         """
         return Survey.from_dict(self.to_dict())
+
+    def with_renamed_question(self, old_name: str, new_name: str) -> "Survey":
+        """Return a new survey with a question renamed and all references updated.
+
+        This method creates a new survey with the specified question renamed. It also
+        updates all references to the old question name in:
+        - Rules and expressions (both old format 'q1' and new format '{{ q1.answer }}')
+        - Memory plans (focal questions and prior questions)
+        - Question text piping (e.g., {{ old_name.answer }})
+        - Question options that use piping
+        - Instructions that reference the question
+        - Question groups (keys only, not ranges since those use indices)
+
+        Args:
+            old_name: The current name of the question to rename
+            new_name: The new name for the question
+
+        Returns:
+            Survey: A new survey with the question renamed and all references updated
+
+        Raises:
+            SurveyError: If old_name doesn't exist, new_name already exists, or new_name is invalid
+
+        Examples:
+            >>> s = Survey.example()
+            >>> s_renamed = s.with_renamed_question("q0", "school_preference")
+            >>> s_renamed.get("school_preference").question_name
+            'school_preference'
+
+            >>> # Rules are also updated
+            >>> s_renamed.show_rules()  # doctest: +SKIP
+        """
+        import re
+        from .exceptions import SurveyError
+
+        # Validate inputs
+        if old_name not in self.question_name_to_index:
+            raise SurveyError(f"Question '{old_name}' not found in survey.")
+
+        if new_name in self.question_name_to_index:
+            raise SurveyError(f"Question name '{new_name}' already exists in survey.")
+
+        if not new_name.isidentifier():
+            raise SurveyError(
+                f"New question name '{new_name}' is not a valid Python identifier."
+            )
+
+        # Create a copy of the survey to work with
+        new_survey = self.duplicate()
+
+        # 1. Update the question name itself
+        question_index = new_survey.question_name_to_index[old_name]
+        target_question = new_survey.questions[question_index]
+        target_question.question_name = new_name
+
+        # 2. Update all rules that reference the old question name
+        for rule in new_survey.rule_collection:
+            # Update expressions - handle both old format (q1) and new format ({{ q1.answer }})
+            # Old format: 'q1' or 'q1.answer' (standalone references)
+            rule.expression = re.sub(
+                rf"\b{re.escape(old_name)}\.answer\b",
+                f"{new_name}.answer",
+                rule.expression,
+            )
+            rule.expression = re.sub(
+                rf"\b{re.escape(old_name)}\b(?!\.)", new_name, rule.expression
+            )
+
+            # New format: {{ q1.answer }} (Jinja2 template references)
+            rule.expression = re.sub(
+                rf"\{{\{{\s*{re.escape(old_name)}\.answer\s*\}}\}}",
+                f"{{{{ {new_name}.answer }}}}",
+                rule.expression,
+            )
+            rule.expression = re.sub(
+                rf"\{{\{{\s*{re.escape(old_name)}\s*\}}\}}",
+                f"{{{{ {new_name} }}}}",
+                rule.expression,
+            )
+
+            # Update the question_name_to_index mapping in the rule
+            if old_name in rule.question_name_to_index:
+                index = rule.question_name_to_index.pop(old_name)
+                rule.question_name_to_index[new_name] = index
+
+        # 3. Update memory plans
+        new_memory_plan_data = {}
+        for focal_question, memory in new_survey.memory_plan.data.items():
+            # Update focal question name if it matches
+            new_focal = new_name if focal_question == old_name else focal_question
+
+            # Update prior questions list (Memory class stores questions in data attribute)
+            if hasattr(memory, "data"):
+                new_prior_questions = [
+                    new_name if prior_q == old_name else prior_q
+                    for prior_q in memory.data
+                ]
+                # Create new memory object with updated prior questions
+                from .memory.memory import Memory
+
+                new_memory = Memory(prior_questions=new_prior_questions)
+                new_memory_plan_data[new_focal] = new_memory
+            else:
+                new_memory_plan_data[new_focal] = memory
+
+        new_survey.memory_plan.data = new_memory_plan_data
+
+        # Update the memory plan's internal question name list
+        if hasattr(new_survey.memory_plan, "survey_question_names"):
+            new_survey.memory_plan.survey_question_names = [
+                new_name if q_name == old_name else q_name
+                for q_name in new_survey.memory_plan.survey_question_names
+            ]
+
+        # 4. Update piping references in all questions
+        def update_piping_in_text(text: str) -> str:
+            """Update piping references in text strings."""
+            # Handle {{ old_name.answer }} format
+            text = re.sub(
+                rf"\{{\{{\s*{re.escape(old_name)}\.answer\s*\}}\}}",
+                f"{{{{ {new_name}.answer }}}}",
+                text,
+            )
+            # Handle {{ old_name }} format
+            text = re.sub(
+                rf"\{{\{{\s*{re.escape(old_name)}\s*\}}\}}",
+                f"{{{{ {new_name} }}}}",
+                text,
+            )
+            return text
+
+        for question in new_survey.questions:
+            # Update question text
+            question.question_text = update_piping_in_text(question.question_text)
+
+            # Update question options if they exist
+            if hasattr(question, "question_options") and question.question_options:
+                question.question_options = [
+                    update_piping_in_text(option) if isinstance(option, str) else option
+                    for option in question.question_options
+                ]
+
+        # 5. Update instructions
+        for (
+            instruction_name,
+            instruction,
+        ) in new_survey._instruction_names_to_instructions.items():
+            if hasattr(instruction, "text"):
+                instruction.text = update_piping_in_text(instruction.text)
+
+        # 6. Update question groups - only if the renamed question is a key (not just in ranges)
+        # Question groups use indices for ranges, so we don't need to update those
+        # But if someone created a group with the same name as a question, we should handle that
+        if old_name in new_survey.question_groups:
+            group_range = new_survey.question_groups.pop(old_name)
+            new_survey.question_groups[new_name] = group_range
+
+        # 7. Update pseudo indices
+        if old_name in new_survey._pseudo_indices:
+            pseudo_index = new_survey._pseudo_indices.pop(old_name)
+            new_survey._pseudo_indices[new_name] = pseudo_index
+
+        return new_survey
+
+    def inspect(self):
+        """Create an interactive inspector widget for this survey.
+
+        This method creates a SurveyInspectorWidget that provides an interactive
+        interface for exploring the survey structure, questions, and flow logic.
+
+        Returns:
+            SurveyInspectorWidget instance: Interactive widget for inspecting this survey
+
+        Raises:
+            ImportError: If the widgets module cannot be imported
+        """
+        try:
+            from ..widgets.survey_inspector import SurveyInspectorWidget
+        except ImportError as e:
+            raise ImportError(
+                "Survey inspector widget is not available. Make sure the widgets module is installed."
+            ) from e
+
+        return SurveyInspectorWidget(self)
 
 
 def main():

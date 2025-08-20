@@ -3,7 +3,7 @@ from typing import Optional, Any, List, Union
 import random
 import re
 
-from pydantic import BaseModel, Field, model_validator, ValidationError
+from pydantic import BaseModel, Field, model_validator, ValidationError, ConfigDict
 
 from .question_base import QuestionBase
 from .descriptors import (
@@ -170,19 +170,19 @@ def create_response_model(
 
             return self
 
-        class Config:
-            @staticmethod
-            def json_schema_extra(schema: dict, model: BaseModel) -> None:
-                # Add the list of choices to the schema for better documentation
-                for prop in schema.get("properties", {}).values():
-                    if prop.get("title") == "answer":
-                        prop["items"] = {
-                            "enum": (
-                                list(choices)
-                                if not isinstance(choices, range)
-                                else list(choices)
-                            )
-                        }
+        def _json_schema_extra(schema: dict, model_: BaseModel) -> None:
+            # Add the list of choices to the schema for better documentation
+            for prop in schema.get("properties", {}).values():
+                if prop.get("title") == "answer":
+                    prop["items"] = {
+                        "enum": (
+                            list(choices)
+                            if not isinstance(choices, range)
+                            else list(choices)
+                        )
+                    }
+
+        model_config = ConfigDict(json_schema_extra=_json_schema_extra)
 
     return RankResponse
 
@@ -504,7 +504,7 @@ class QuestionRank(QuestionBase):
 
         scenario = scenario or Scenario()
         translated_options = [
-            Template(option).render(scenario) for option in self.question_options
+            Template(str(option)).render(scenario) for option in self.question_options
         ]
         translated_codes = []
         for answer_code in answer_codes:
@@ -533,8 +533,14 @@ class QuestionRank(QuestionBase):
                 selected = random.sample(self.question_options, self.num_selections)
             else:
                 # When human_readable=True but we're configured to use_code,
-                # still use the option text for better test compatibility
-                selected = random.sample(self.question_options, self.num_selections)
+                # For string options: use the option text for better test compatibility
+                # For non-string options: use indices to avoid confusion
+                if all(isinstance(opt, str) for opt in self.question_options):
+                    selected = random.sample(self.question_options, self.num_selections)
+                else:
+                    selected = random.sample(
+                        range(len(self.question_options)), self.num_selections
+                    )
         else:
             # When human_readable=False, always use indices
             selected = random.sample(
