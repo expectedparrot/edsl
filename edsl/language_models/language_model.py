@@ -282,6 +282,59 @@ class LanguageModel(
             del self._api_token
         self.key_lookup = key_lookup
 
+    def _compute_timeout(self, files_list: Optional[List["FileStore"]] = None) -> float:
+        """Compute the timeout for API calls based on file sizes.
+
+        This method calculates an appropriate timeout value for API calls,
+        adjusting the base timeout based on the total size of attached files.
+        Larger files require longer timeouts to accommodate slower upload times.
+
+        Args:
+            files_list: Optional list of files that will be included in the API call
+
+        Returns:
+            float: The computed timeout value in seconds
+        """
+        from ..config import CONFIG
+        import logging
+
+        logger = logging.getLogger(__name__)
+        base_timeout = float(CONFIG.get("EDSL_API_TIMEOUT"))
+
+        # Adjust timeout if files are present
+        if files_list:
+            # Calculate total size of attached files in MB
+            file_sizes = []
+            for file in files_list:
+                # Try different attributes that might contain the file content
+                if hasattr(file, "base64_string") and file.base64_string:
+                    file_sizes.append(len(file.base64_string) / (1024 * 1024))
+                elif hasattr(file, "content") and file.content:
+                    file_sizes.append(len(file.content) / (1024 * 1024))
+                elif hasattr(file, "data") and file.data:
+                    file_sizes.append(len(file.data) / (1024 * 1024))
+                else:
+                    # Default minimum size if we can't determine actual size
+                    file_sizes.append(1)  # Assume at least 1MB
+            total_size_mb = sum(file_sizes)
+
+            # Increase timeout proportionally to file size
+            # For each MB of file size, add 10 seconds to the timeout (adjust as needed)
+            size_adjustment = total_size_mb * 10
+
+            # Cap the maximum timeout adjustment at 5 minutes (300 seconds)
+            size_adjustment = min(size_adjustment, 300)
+
+            timeout = base_timeout + size_adjustment
+
+            logger.info(
+                f"Adjusted timeout for API call with {len(files_list)} files (total size: {total_size_mb:.2f}MB). Base timeout: {base_timeout}s, New timeout: {timeout}s"
+            )
+        else:
+            timeout = base_timeout
+
+        return timeout
+
     def ask_question(self, question: "QuestionBase") -> str:
         """Ask a question using this language model and return the response.
 
@@ -832,43 +885,7 @@ class LanguageModel(
             if hasattr(self, 'agent_question_responses') and invigilator:
                 params["invigilator"] = invigilator
             # Get timeout from configuration
-            from ..config import CONFIG
-            import logging
-
-            logger = logging.getLogger(__name__)
-            base_timeout = float(CONFIG.get("EDSL_API_TIMEOUT"))
-
-            # Adjust timeout if files are present
-            if files_list:
-                # Calculate total size of attached files in MB
-                file_sizes = []
-                for file in files_list:
-                    # Try different attributes that might contain the file content
-                    if hasattr(file, "base64_string") and file.base64_string:
-                        file_sizes.append(len(file.base64_string) / (1024 * 1024))
-                    elif hasattr(file, "content") and file.content:
-                        file_sizes.append(len(file.content) / (1024 * 1024))
-                    elif hasattr(file, "data") and file.data:
-                        file_sizes.append(len(file.data) / (1024 * 1024))
-                    else:
-                        # Default minimum size if we can't determine actual size
-                        file_sizes.append(1)  # Assume at least 1MB
-                total_size_mb = sum(file_sizes)
-
-                # Increase timeout proportionally to file size
-                # For each MB of file size, add 10 seconds to the timeout (adjust as needed)
-                size_adjustment = total_size_mb * 10
-
-                # Cap the maximum timeout adjustment at 5 minutes (300 seconds)
-                size_adjustment = min(size_adjustment, 300)
-
-                TIMEOUT = base_timeout + size_adjustment
-
-                logger.info(
-                    f"Adjusted timeout for API call with {len(files_list)} files (total size: {total_size_mb:.2f}MB). Base timeout: {base_timeout}s, New timeout: {TIMEOUT}s"
-                )
-            else:
-                TIMEOUT = base_timeout
+            TIMEOUT = self._compute_timeout(files_list)
 
             # Execute the model call with timeout
 
