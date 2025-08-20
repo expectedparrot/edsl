@@ -7,9 +7,12 @@ normalization, matching, and data extraction, supporting both direct column refe
 and wildcard patterns.
 """
 
-from typing import Union, List, Dict, Any, Optional, Tuple, Callable
+from typing import Union, List, Dict, Any, Optional, Tuple, Callable, TYPE_CHECKING, NoReturn
 import sys
 from collections import defaultdict
+
+if TYPE_CHECKING:
+    from ..dataset import Dataset
 
 # Import is_notebook but defer Dataset import to avoid potential circular imports
 
@@ -101,7 +104,7 @@ class Selector:
             survey=cache_manager.results.survey,
         )
 
-    def select(self, *columns: Union[str, List[str]]) -> Optional[Any]:
+    def select(self, *columns: Union[str, List[str]]) -> Optional["Dataset"]:
         """
         Select specific columns from the data and return as a Dataset.
 
@@ -183,7 +186,7 @@ class Selector:
             return ("*.*",)
         if isinstance(columns[0], list):
             return tuple(columns[0])
-        return columns
+        return tuple(columns)
 
     def _get_columns_to_fetch(self, columns: Tuple[str, ...]) -> Dict[str, List[str]]:
         """
@@ -336,8 +339,9 @@ class Selector:
             return self._key_to_data_type[column], column
         except KeyError:
             self._raise_key_error(column)
+            raise  # This should never execute, but helps type checker
 
-    def _raise_key_error(self, column: str) -> None:
+    def _raise_key_error(self, column: str) -> NoReturn:
         """
         Raise an error with helpful suggestions when a column is not found.
 

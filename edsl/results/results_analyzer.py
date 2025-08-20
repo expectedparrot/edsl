@@ -88,7 +88,7 @@ class ResultsAnalyzer:
 
                     scenario_list.append(s)
 
-        sl = ScenarioList(set(scenario_list))
+        sl = ScenarioList(list(set(scenario_list)))
 
         q1 = QuestionFreeText(
             question_name="issues",

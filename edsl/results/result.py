@@ -77,7 +77,7 @@ class Result(Base, UserDict):
         model: "LanguageModel",
         iteration: int,
         answer: dict[QuestionName, AnswerValue],
-        prompt: dict[QuestionName, str] = None,
+        prompt: Optional[dict[QuestionName, str]] = None,
         raw_model_response: Optional[dict] = None,
         survey: Optional["Survey"] = None,
         question_to_attributes: Optional[dict[QuestionName, Any]] = None,

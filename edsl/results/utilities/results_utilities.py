@@ -105,11 +105,13 @@ def ensure_ready(method: Callable) -> Callable:
             if hasattr(self, "job_info"):
                 self.fetch_remote(self.job_info)
         except Exception as e:
-            print(f"Error during fetch_remote in {method.__name__}: {e}")
+            method_name = getattr(method, '__name__', '<unknown>')
+            print(f"Error during fetch_remote in {method_name}: {e}")
         if not self.completed:
-            not_ready = NotReadyObject(name=method.__name__, job_info=self.job_info)
+            method_name = getattr(method, '__name__', '<unknown>')
+            not_ready = NotReadyObject(name=method_name, job_info=self.job_info)
             # For __repr__, ensure we return a string
-            if method.__name__ == "__repr__" or method.__name__ == "__str__":
+            if method_name == "__repr__" or method_name == "__str__":
                 return not_ready.__repr__()
             return not_ready
         return method(self, *args, **kwargs)

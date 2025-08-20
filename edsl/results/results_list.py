@@ -30,9 +30,9 @@ class ResultsList(ItemCollection):
             joined_agents = AgentList.join(*list_of_lists)
 
         if name is not None:
-            joined_agents.name = name
+            setattr(joined_agents, 'name', name)
         elif hasattr(self, "name") and self.name is not None:
-            joined_agents.name = "Created from " + self.name
+            setattr(joined_agents, 'name', "Created from " + self.name)
 
         return joined_agents
 

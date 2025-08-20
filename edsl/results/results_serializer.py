@@ -143,9 +143,10 @@ class ResultsSerializer:
         results_data = [Result.from_dict(r) for r in data["data"]]
         created_columns = data.get("created_columns", None)
         cache = Cache.from_dict(data.get("cache")) if "cache" in data else Cache()
+        task_history_data = data.get("task_history")
         task_history = (
-            TaskHistory.from_dict(data.get("task_history"))
-            if "task_history" in data
+            TaskHistory.from_dict(task_history_data)
+            if "task_history" in data and task_history_data is not None
             else TaskHistory(interviews=[])
         )
         name = data.get("name", None)

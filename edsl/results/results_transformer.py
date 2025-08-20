@@ -92,7 +92,8 @@ class ResultsTransformer:
             tuple[str, str]: (data_type, key) pair
         """
         if "." in column:
-            return column.split(".", 1)
+            parts = column.split(".", 1)
+            return (parts[0], parts[1])
         return self.results._cache_manager.key_to_data_type[column], column
 
     def mutate(
