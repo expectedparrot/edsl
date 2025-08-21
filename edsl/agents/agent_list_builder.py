@@ -58,18 +58,6 @@ class AgentListBuilder:
         Returns:
             An AgentList object created from the specified source.
             
-        Examples:
-            >>> # Create agents from a CSV file with instructions
-            >>> agents = AgentListBuilder.from_source(
-            ...     'csv', 'agents.csv', 
-            ...     instructions="Answer as if you were the person described"
-            ... )
-            
-            >>> # Create agents with a codebook
-            >>> agents = AgentListBuilder.from_source(
-            ...     'csv', 'agents.csv',
-            ...     codebook={'age': 'Age in years', 'job': 'Current occupation'}
-            ... )
         """
         from ..scenarios import ScenarioList
         from .agent_list import AgentList
@@ -122,16 +110,6 @@ class AgentListBuilder:
         Returns:
             An AgentList object created from the CSV file.
             
-        Examples:
-            >>> # Basic usage
-            >>> agents = AgentListBuilder.from_csv('agents.csv')
-            
-            >>> # With instructions and name field
-            >>> agents = AgentListBuilder.from_csv(
-            ...     'agents.csv',
-            ...     name_field='name',
-            ...     instructions='Answer as if you were this person'
-            ... )
         """
         warnings.warn(
             "AgentListBuilder.from_csv is deprecated. Use AgentListBuilder.from_source('csv', ...) instead.",
