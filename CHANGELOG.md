@@ -28,7 +28,6 @@
 - **NaN handling**: Replaced NaN values with `None` in scenarios and question options for proper JSON serialization.
 - **Double display issue**: Fixed `show_prompts()` displaying content twice in REPL/notebook environments.
 - **Piping bugs**: Various fixes for data piping and processing issues.
-- **Documentation**: Restored auto-documentation for many classes after refactoring.
 
 ## [1.0.1] - 2025-07-21
 ### Added
