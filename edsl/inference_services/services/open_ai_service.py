@@ -6,6 +6,8 @@ import openai
 
 from ..inference_service_abc import InferenceServiceABC
 from .message_builder import MessageBuilder
+from ..decorators import report_errors_async
+from .service_enums import OPENAI_REASONING_MODELS
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -27,12 +29,23 @@ class OpenAIParameterBuilder:
     @staticmethod
     def build_params(model: str, messages: list, **model_params) -> dict:
         """Build API parameters, adjusting for specific model types."""
+
+        default_max_tokens = model_params.get("max_tokens", 1000)
+        default_temperature = model_params.get("temperature", 0.5)
+        if model in OPENAI_REASONING_MODELS:
+            # For reasoning models, use much higher completion tokens to allow for reasoning + response
+            max_tokens = max(default_max_tokens, 5000)
+            temperature = 1
+        else:
+            max_tokens = default_max_tokens
+            temperature = default_temperature
+
         # Base parameters
         params = {
             "model": model,
             "messages": messages,
-            "temperature": model_params.get("temperature", 0.5),
-            "max_tokens": model_params.get("max_tokens", 1000),
+            "temperature": temperature,
+            "max_completion_tokens": max_tokens,
             "top_p": model_params.get("top_p", 1),
             "frequency_penalty": model_params.get("frequency_penalty", 0),
             "presence_penalty": model_params.get("presence_penalty", 0),
@@ -43,16 +56,6 @@ class OpenAIParameterBuilder:
                 else None
             ),
         }
-
-        # Special handling for reasoning models (o1, o3)
-        if "o1" in model or "o3" in model:
-            max_tokens = params.pop("max_tokens")
-            # For reasoning models, use much higher completion tokens to allow for reasoning + response
-            reasoning_tokens = max(
-                max_tokens, 5000
-            )  # At least 5000 tokens for reasoning models
-            params["max_completion_tokens"] = reasoning_tokens
-            params["temperature"] = 1
 
         return params
 
@@ -209,6 +212,7 @@ class OpenAIService(InferenceServiceABC):
                         "tpm": int(headers["x-ratelimit-limit-tokens"]),
                     }
 
+            @report_errors_async
             async def async_execute_model_call(
                 self,
                 user_prompt: str,
@@ -245,10 +249,7 @@ class OpenAIService(InferenceServiceABC):
                     logprobs=self.logprobs,
                     top_logprobs=self.top_logprobs,
                 )
-                try:
-                    response = await client.chat.completions.create(**params)
-                except Exception as e:
-                    return {"message": str(e)}
+                response = await client.chat.completions.create(**params)
                 return response.model_dump()
 
         # Ensure the class name is "LanguageModel" for proper serialization
