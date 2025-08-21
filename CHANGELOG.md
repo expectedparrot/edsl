@@ -51,7 +51,7 @@
 
 ### Fixed
 - **Answer validation**: Fixed template context in InvigilatorFunctional to include prior question answers.
-- **Scenario references**: Resolved issue #2064 with jobs involving scenarios accessing the scenario.target variable correctly.
+- **Scenario references**: Resolved issue with jobs involving scenarios accessing the scenario.target variable correctly.
 - **Display formatting**: Various improvements to result comparison and agent display.
 
 ## [1.0.0] - 2025-06-28
