@@ -136,7 +136,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             >>> from edsl import Agent, AgentList
             >>> agents = AgentList([Agent(traits={'age': 30}), Agent(traits={'age': 40})])
             >>> agents.add_instructions("Answer as if you were this age")
-            AgentList([Agent(traits = {'age': 30}), Agent(traits = {'age': 40})])
+            AgentList([Agent(traits = {'age': 30}, instruction = \"""Answer as if you were this age\"""), Agent(traits = {'age': 40}, instruction = \"""Answer as if you were this age\""")])
         """
         for agent in self.data:
             agent.instruction = instructions
@@ -601,11 +601,19 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             An AgentList object created from the specified source.
 
         Examples:
-            >>> # Create agents from a CSV file with instructions
-            >>> # agents = AgentList.from_source(
-            >>> #     'csv', 'agents.csv',
-            >>> #     instructions="Answer as if you were the person described"
-            >>> # )
+
+        >>> import csv
+        >>> import os
+        >>> with open('/tmp/agents.csv', 'w') as f:
+        ...     writer = csv.writer(f)
+        ...     _ = writer.writerow(['age', 'hair', 'height'])
+        ...     _ = writer.writerow([22, 'brown', 5.5])
+        >>> al = AgentList.from_source('csv','/tmp/agents.csv')  # doctest: +SKIP
+        >>> al = AgentList.from_source('csv','/tmp/agents.csv', name_field='hair')  # doctest: +SKIP
+        >>> al = AgentList.from_source('csv','/tmp/agents.csv', codebook={'age': 'Age in years'})  # doctest: +SKIP
+        >>> al = AgentList.from_source('csv','/tmp/agents.csv', instructions='Answer as a person')  # doctest: +SKIP
+        >>> os.remove('/tmp/agents.csv')  # doctest: +SKIP
+
         """
         from .agent_list_builder import AgentListBuilder
 
