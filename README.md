@@ -183,7 +183,7 @@ results.select("color", "flower")
 API calls to LLMs are cached automatically, allowing you to retrieve responses to questions that have already been run and reproduce experiments at no cost. Learn more about how the <a href="https://docs.expectedparrot.com/en/latest/remote_caching.html" target="_blank" rel="noopener noreferrer">universal remote cache</a> works.
 
 **Flexibility**: 
-Choose whether to run surveys on your own computer or at the Expected Parrot server..
+Choose whether to run surveys on your own computer or at the Expected Parrot server.
 
 **Tools for collaboration**: 
 Easily share workflows and projects privately or publicly at Coop: an integrated platform for AI-based research. Your account comes with free credits for running surveys, and lets you securely share keys, track expenses and usage for your team.
