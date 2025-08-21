@@ -593,7 +593,9 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
                         Valid values include: 'csv', 'tsv', 'excel', 'pandas', etc.
             *args: Positional arguments to pass to the source-specific method.
             instructions: Optional instructions to apply to all created agents.
-            codebook: Optional dictionary mapping trait names to descriptions.
+            codebook: Optional dictionary mapping trait names to descriptions, or a path to a CSV file.
+                     If a CSV file is provided, it should have 2 columns: original keys and descriptions.
+                     Keys will be automatically converted to pythonic names.
             name_field: The name of the field to use as the agent name (for CSV/Excel sources).
             **kwargs: Additional keyword arguments to pass to the source-specific method.
 
@@ -605,6 +607,12 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             >>> # agents = AgentList.from_source(
             >>> #     'csv', 'agents.csv',
             >>> #     instructions="Answer as if you were the person described"
+            >>> # )
+            >>> # 
+            >>> # Create agents with a CSV codebook file
+            >>> # agents = AgentList.from_source(
+            >>> #     'csv', 'agents.csv',
+            >>> #     codebook='codebook.csv'  # CSV with keys like "Age in years" -> "age_in_years"
             >>> # )
         """
         from .agent_list_builder import AgentListBuilder

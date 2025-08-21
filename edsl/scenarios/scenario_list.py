@@ -389,6 +389,47 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_scenarios.append(scenario)
         return new_scenarios
 
+    def transform_by_key(self, key_field: str) -> Scenario:
+        """Transform the ScenarioList into a single Scenario with key/value pairs.
+        
+        This method transforms the ScenarioList by:
+        1. Using the value of the specified key_field from each Scenario as a new key
+        2. Automatically formatting the remaining values as "key: value, key: value"
+        3. Creating a single Scenario containing all the transformed key/value pairs
+        
+        Args:
+            key_field: The field name whose value will become the new key
+            
+        Returns:
+            A single Scenario with all the transformed key/value pairs
+            
+        Examples:
+            >>> # Original scenarios: [{'topic': 'party', 'location': 'offsite', 'time': 'evening'}]
+            >>> scenarios = ScenarioList([
+            ...     Scenario({'topic': 'party', 'location': 'offsite', 'time': 'evening'})
+            ... ])
+            >>> transformed = scenarios.transform_by_key('topic')
+            >>> # Result: Scenario({'party': 'location: offsite, time: evening'})
+        """
+        # Create a single dictionary to hold all key/value pairs
+        combined_dict = {}
+        
+        for scenario in self:
+            # Get the new key from the specified field
+            new_key = scenario[key_field]
+            
+            # Get remaining values (excluding the key field)
+            remaining_values = {k: v for k, v in scenario.items() if k != key_field}
+            
+            # Format the remaining values as "key: value, key: value"
+            formatted_value = ", ".join([f"{k}: {v}" for k, v in remaining_values.items()])
+            
+            # Add to the combined dictionary
+            combined_dict[new_key] = formatted_value
+        
+        # Return a single Scenario with all the key/value pairs
+        return Scenario(combined_dict)
+
     @classmethod
     def from_prompt(
         self,
@@ -2006,11 +2047,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         sj = ScenarioJoin(self, other)
         return sj.left_join(by)
 
-    def to_dict(self, sort: bool = False, add_edsl_version: bool = True) -> dict:
+    def to_dict(self, sort: bool = False, add_edsl_version: bool = False) -> dict:
         """
         >>> s = ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood-fired pizza'})])
-        >>> s.to_dict()  # doctest: +ELLIPSIS
-        {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}, {'food': 'wood-fired pizza', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
+        >>> s.to_dict()
+        {'scenarios': [{'food': 'wood chips'}, {'food': 'wood-fired pizza'}]}
 
         >>> s = ScenarioList([Scenario({'food': 'wood chips'})], codebook={'food': 'description'})
         >>> d = s.to_dict()
@@ -2018,6 +2059,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         True
         >>> d['codebook'] == {'food': 'description'}
         True
+        
+        >>> # To include edsl_version and edsl_class_name, explicitly set add_edsl_version=True
+        >>> s.to_dict(add_edsl_version=True)  # doctest: +ELLIPSIS
+        {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}, {'food': 'wood-fired pizza', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
         """
         if sort:
             data = sorted(self, key=lambda x: hash(x))
