@@ -1,8 +1,8 @@
 import os
 from typing import Any, List, Optional, TYPE_CHECKING
 import boto3
-from botocore.exceptions import ClientError
 from ..inference_service_abc import InferenceServiceABC
+from ..decorators import report_errors_async
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -72,6 +72,7 @@ class AwsBedrockService(InferenceServiceABC):
             input_token_name = cls.input_token_name
             output_token_name = cls.output_token_name
 
+            @report_errors_async
             async def async_execute_model_call(
                 self,
                 user_prompt: str,
@@ -92,21 +93,18 @@ class AwsBedrockService(InferenceServiceABC):
                         "content": [{"text": user_prompt}],
                     }
                 ]
-                try:
-                    response = client.converse(
-                        modelId=self._model_,
-                        messages=conversation,
-                        inferenceConfig={
-                            "maxTokens": self.max_tokens,
-                            "temperature": self.temperature,
-                            "topP": self.top_p,
-                        },
-                        # system=system,
-                        additionalModelRequestFields={},
-                    )
-                    return response
-                except (ClientError, Exception) as e:
-                    return {"message": str(e)}
+                response = client.converse(
+                    modelId=self._model_,
+                    messages=conversation,
+                    inferenceConfig={
+                        "maxTokens": self.max_tokens,
+                        "temperature": self.temperature,
+                        "topP": self.top_p,
+                    },
+                    # system=system,
+                    additionalModelRequestFields={},
+                )
+                return response
 
         LLM.__name__ = model_class_name
 

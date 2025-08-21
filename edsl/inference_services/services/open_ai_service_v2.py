@@ -5,6 +5,8 @@ import os
 import openai
 
 from ..inference_service_abc import InferenceServiceABC
+from ..decorators import report_errors_async
+from .service_enums import OPENAI_REASONING_MODELS
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -169,6 +171,7 @@ class OpenAIServiceV2(InferenceServiceABC):
                     "tpm": int(headers["x-ratelimit-limit-tokens"]),
                 }
 
+            @report_errors_async
             async def async_execute_model_call(
                 self,
                 user_prompt: str,
@@ -210,8 +213,7 @@ class OpenAIServiceV2(InferenceServiceABC):
 
                 # Check if this is a reasoning model (o-series models)
                 is_reasoning_model = any(
-                    tag in self.model
-                    for tag in ["o1", "o1-mini", "o3", "o3-mini", "o1-pro", "o4-mini"]
+                    tag in self.model for tag in OPENAI_REASONING_MODELS
                 )
 
                 # Only add reasoning parameter for reasoning models
@@ -227,12 +229,7 @@ class OpenAIServiceV2(InferenceServiceABC):
                     params["temperature"] = 1
 
                 client = self.async_client()
-                try:
-                    response = await client.responses.create(**params)
-
-                except Exception as e:
-                    return {"message": str(e)}
-
+                response = await client.responses.create(**params)
                 # convert to dict
                 response_dict = response.model_dump()
                 return response_dict
