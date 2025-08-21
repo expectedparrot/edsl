@@ -1,5 +1,117 @@
 # Changelog
 
+## [1.0.2] - 2025-08-20
+### Added
+- **AgentList.from_source()**: Unified method for creating agents from various data sources with optional `instructions` parameter.
+- **AgentList.add_instructions()**: Method to apply instructions to all agents in an existing list.
+- **Widget infrastructure**: Added support for interactive widgets including ResultsInspector and ResultInspector.
+- **Local extension testing**: Support for testing extensions locally using `extension.local` syntax.
+- **Remote caching**: Universal cache integration for improved performance with remote cache fetching when local cache misses occur.
+- **OpenAI reasoning models**: Added standardized list of reasoning models including new GPT-5 class models with proper temperature handling.
+
+### Improved  
+- **Multiple choice validation**: Enhanced case-insensitive matching for capitalized responses (e.g., "Grapefruit" now matches "grapefruit").
+- **Agent combination**: Fixed `+` operator to properly preserve `name` and `traits_presentation_template` from both agents with conflict warnings.
+- **Cache consistency**: Improved cache key generation by sorting file hashes to prevent missed cache hits due to file order differences.
+- **Google services**: Full asynchronous support using `client.aio` for better performance and concurrency.
+- **Model availability**: Enhanced `Model.available()` with better type annotations and archive management.
+- **Numpy compatibility**: Support for both numpy 1.x and 2.x versions (`>=1.22,<3`).
+
+### Changed
+- **Results refactoring**: Broke down enormous Results and Result classes into smaller helper classes for better maintainability.
+- **Agent and Scenario refactoring**: Improved code organization and structure.
+- **OpenAI API**: Replaced deprecated `max_tokens` parameter with `max_completion_tokens` for reasoning models.
+- **Job status polling**: Increased default refresh rate from 1 to 3 seconds to reduce polling frequency.
+
+### Fixed
+- **Jinja2 template errors**: Fixed crashes when loading agents with template syntax patterns like `{#`, `{{`, `{%` in their data.
+- **NaN handling**: Replaced NaN values with `None` in scenarios and question options for proper JSON serialization.
+- **Double display issue**: Fixed `show_prompts()` displaying content twice in REPL/notebook environments.
+- **Piping bugs**: Various fixes for data piping and processing issues.
+- **Documentation**: Restored auto-documentation for many classes after refactoring.
+
+## [1.0.1] - 2025-07-21
+### Added
+- **Job chaining**: Delayed execution of jobs to build longer chains with dependency management. Jobs can now store other jobs they depend on and execute those first.
+- **QuestionCompute**: New question type that renders Jinja2 templates directly without LLM processing, with automatic numeric conversion and access to prior question answers.
+- **Template validation**: Added syntax validation for survey scenarios to ensure correct usage of `{{scenario.field}}` references.
+- **Ordered sampling**: Support for ordered sampling in data collection.
+- **Extensions service framework**: New framework for creating EDSL-based web services with decorators like `@edsl_service`, `@input_param`, and `@output_schema`. Includes `pip install edsl[services]` for optional FastAPI dependencies.
+
+### Improved
+- **PDF handling**: Fixed issues with Anthropic & OpenAI not working properly with PDFs.
+- **Nested scenario options**: Fixed piping issues with nested scenario options and QuestionNumerical parameters.
+- **Agent handling**: Better support for name fields in AgentList.from_scenario_list.
+- **Results association**: Jobs now properly append associated results after post-run commands, maintaining Results objects even after dataset operations like `select()`.
+- **Public object search**: Updated list endpoint to allow users to search public objects.
+- **Agent display**: Fixed display issues for agents with no traits.
+
+### Changed
+- **Extension gateway**: Replaced static `EDSL_EXTENSION_GATEWAY_URL` configuration with dynamic `get_extension_gateway_url()` method.
+- **Service deployment**: Added comprehensive service framework with examples and documentation for creating web services without FastAPI knowledge.
+
+### Fixed
+- **Answer validation**: Fixed template context in InvigilatorFunctional to include prior question answers.
+- **Scenario references**: Resolved issue #2064 with jobs involving scenarios accessing the scenario.target variable correctly.
+- **Display formatting**: Various improvements to result comparison and agent display.
+
+## [1.0.0] - 2025-06-28
+### Major Release
+- **Version 1.0.0**: First major stable release of EDSL, marking production readiness and API stability.
+
+### Added
+- **Auto-update mechanism**: Automatic version checking on package import with `check_for_updates()` function. New CLI command `edsl check-updates` to manually check for available updates.
+- **ScenarioList offload method**: New method to offload scenario lists for improved memory management.
+- **Dataset unique method**: Added method to get unique values from datasets.
+
+### Improved
+- **Error messaging**: Enhanced messaging for insufficient funds failures, properly retrieving failure reasons from the correct location.
+- **API key handling**: Better support for remote inference with improved API key checks and conditional logic for remote configurations.
+- **Survey flow testing**: Added comprehensive testing for survey flow functionality.
+- **Report generation**: Enhanced report generation capabilities.
+
+### Fixed
+- **Google Docs integration**: Fixed bugs in scenario list generation from Google Docs sources.
+- **Colab compatibility**: Patched error messages and improved handling in Google Colab environments.
+- **Azure and OpenAI services**: Improved error handling to prevent failures when environment variables are missing.
+
+## [0.1.62] - 2025-06-20
+### Added
+- Service payments functionality for handling payments through the platform.
+- `get_profile()` method in Coop class to retrieve authenticated user's profile information including username and email.
+- Answer validation tracking in Results with new columns `validated.{question_name}_validated` to track which answers passed validation.
+
+### Improved
+- ScenarioList now functions as a standard list with improved method compatibility.
+- Support for pulling Jobs stored in Google Cloud Storage (new format since ORM migration).
+- Enhanced object patch method with proper alias handling and format detection.
+- List methods adapted to work with new ORM setup.
+
+### Fixed
+- Fixed typo in `Jobs.humanize()` that was causing SyntaxWarning.
+- Fixed issue #2027 related to scenario handling.
+- Removed stray print statements from the codebase.
+- Updated `.pull()` method implementation for questions.
+
+## [0.1.61] - 2025-06-11
+### Added
+- Linear scale questions now accept label responses in addition to numeric values. Models can return labels like "I love it" which are intelligently matched to the corresponding numeric value with support for exact, partial, and contextual matching.
+- Prolific integration for managing studies directly from EDSL. Project endpoints return Prolific data when applicable.
+- Proxy keys feature allows creating encrypted keys with usage limits that can be safely shared with third parties.
+- Enhanced pull/push methods with alias-based retrieval support and new Google Cloud Storage format.
+- Agent list tools for more efficient list operations.
+- Support for scenarios in humanize feature.
+
+### Changed
+- Increased maximum concurrent tasks to 1000 for improved performance at scale.
+- Enhanced object retrieval with format detection (new/old) and legacy format fallback.
+- Simplified error object handling with single parameter approach.
+
+### Fixed
+- Fixed pull method to work correctly with aliases.
+- Resolved Google Colab environment compatibility issues.
+- Fixed issues #1989, #1990, and #1921.
+
 ## [0.1.60] - 2025-05-21
 ### Added
 - Support for the OpenAI response API has been added. Job responses now have access to model reasoning summaries.
