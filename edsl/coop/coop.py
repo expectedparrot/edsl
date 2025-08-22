@@ -731,16 +731,27 @@ class Coop(CoopFunctionsMixin):
     def edsl_settings(self) -> dict:
         """
         Retrieve and return the EDSL settings stored on Coop.
+        Also caches important settings in environment variables for efficient access.
         If no response is received within 5 seconds, return an empty dict.
         """
         from requests.exceptions import Timeout
+        import os
 
         try:
             response = self._send_server_request(
                 uri="api/v0/edsl-settings", method="GET", timeout=20
             )
             self._resolve_server_response(response, check_api_key=False)
-            return response.json()
+            settings = response.json()
+
+            # Cache important settings in environment variables
+            # This allows other parts of the code to check these settings efficiently
+            if "remote_logging" in settings:
+                os.environ["EDSL_REMOTE_LOGGING"] = (
+                    "1" if settings["remote_logging"] else "0"
+                )
+
+            return settings
         except Timeout:
             return {}
 
