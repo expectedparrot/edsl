@@ -44,21 +44,19 @@ def report_errors_async(func: Callable) -> Callable:
             # Check if remote_logging is enabled
             # First check if we've already fetched and cached the setting
             remote_logging_str = os.environ.get("EDSL_REMOTE_LOGGING")
-
             if remote_logging_str is None:
                 # First time - fetch from /edsl-settings and cache in env var
                 try:
                     from ..coop import Coop
 
                     c = Coop()
-                    settings = c.edsl_settings()
+                    settings = c.edsl_settings
                     remote_logging = settings.get("remote_logging", True)
                     # Cache the setting in env var for future use
                     os.environ["EDSL_REMOTE_LOGGING"] = "1" if remote_logging else "0"
-                except Exception:
+                except Exception as e:
                     # If we can't get settings, default to enabled and cache it
-                    os.environ["EDSL_REMOTE_LOGGING"] = "1"
-                    remote_logging = True
+                    pass
             else:
                 # Use cached value from env var
                 remote_logging = remote_logging_str == "1"

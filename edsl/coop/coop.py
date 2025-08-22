@@ -748,9 +748,8 @@ class Coop(CoopFunctionsMixin):
             # This allows other parts of the code to check these settings efficiently
             if "remote_logging" in settings:
                 os.environ["EDSL_REMOTE_LOGGING"] = (
-                    "1" if settings["remote_logging"] else "0"
+                    "1" if settings["remote_logging"] == True else "0"
                 )
-
             return settings
         except Timeout:
             return {}
