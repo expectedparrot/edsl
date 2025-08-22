@@ -352,12 +352,12 @@ class Model(metaclass=Meta):
                 # Get all models
                 matching_models = registry.get_all_model_names()
 
-            # Build result with service info
+            # # Build result with service info
             model_service_pairs: List[Tuple[str, str]] = []
-            for model_name in matching_models:
-                preferred_service = registry.get_service_for_model(model_name)
-                if preferred_service:
-                    model_service_pairs.append([model_name, preferred_service])
+            for model_name, service_names in registry.model_to_services.items():
+                if model_name in matching_models:
+                    for service in service_names:
+                        model_service_pairs.append((model_name, service))
 
             model_names = [pair[0] for pair in model_service_pairs]
             service_names = [pair[1] for pair in model_service_pairs]
@@ -373,6 +373,8 @@ class Model(metaclass=Meta):
             )
             if services_filter:
                 result = result.filter(services_filter)
+
+        result = result.order_by("service_name", "model_name")
 
         if output_format == "scenario_list":
             return result
