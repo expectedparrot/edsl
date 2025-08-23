@@ -842,7 +842,25 @@ class Jobs(Base):
         # Core execution logic
         runner_start = time.time()
         self._logger.info("Creating interview runner and results objects")
-        interview_runner = AsyncInterviewRunner(self, run_config)
+        
+        # Use optimized runner if n > 1 and models support it
+        from .n_parameter_handler import NParameterHandler
+        n_handler = NParameterHandler()
+        use_optimized = False
+        
+        if run_config.parameters.n > 1:
+            # Check if any models support native n parameter
+            for model in self.models:
+                if n_handler.should_use_native_n(model, run_config.parameters.n):
+                    use_optimized = True
+                    break
+        
+        if use_optimized:
+            from .async_interview_runner_n import AsyncInterviewRunnerWithN
+            self._logger.info(f"Using optimized runner with native n={run_config.parameters.n} support")
+            interview_runner = AsyncInterviewRunnerWithN(self, run_config)
+        else:
+            interview_runner = AsyncInterviewRunner(self, run_config)
 
         # Create an initial Results object with appropriate traceback settings
         results = Results(
