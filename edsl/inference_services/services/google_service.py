@@ -83,6 +83,7 @@ class GoogleService(InferenceServiceABC):
                 "topK": 1,
                 "maxOutputTokens": 2048,
                 "stopSequences": [],
+                "candidateCount": 1,
             }
 
             model = None
@@ -97,6 +98,7 @@ class GoogleService(InferenceServiceABC):
                     top_k=self.topK,
                     max_output_tokens=self.maxOutputTokens,
                     stop_sequences=self.stopSequences,
+                    candidate_count=getattr(self, 'candidateCount', 1),
                 )
 
             async def async_execute_model_call(
@@ -105,11 +107,11 @@ class GoogleService(InferenceServiceABC):
                 system_prompt: str = "",
                 files_list: Optional["Files"] = None,
             ) -> Dict[str, Any]:
-                generation_config = self.get_generation_config()
-
                 if files_list is None:
                     files_list = []
                 genai.configure(api_key=self.api_token)
+                
+                # Setup generative model
                 if (
                     system_prompt is not None
                     and system_prompt != ""
@@ -132,6 +134,7 @@ class GoogleService(InferenceServiceABC):
                         self._model_,
                         safety_settings=safety_settings,
                     )
+                
                 combined_prompt = [user_prompt]
                 for file in files_list:
                     if "google" not in file.external_locations:
@@ -139,16 +142,88 @@ class GoogleService(InferenceServiceABC):
                     gen_ai_file = google.generativeai.types.file_types.File(
                         file.external_locations["google"]
                     )
-
                     combined_prompt.append(gen_ai_file)
 
-                try:
-                    response = await self.generative_model.generate_content_async(
-                        combined_prompt, generation_config=generation_config
-                    )
-                except Exception as e:
-                    return {"message": str(e)}
-                return response.to_dict()
+                # Handle candidateCount parameter with batching support for candidateCount > 8
+                candidate_count = getattr(self, 'candidateCount', 1)
+                if candidate_count <= 8:
+                    # Single API call with candidateCount parameter
+                    generation_config = self.get_generation_config()
+                    try:
+                        response = await self.generative_model.generate_content_async(
+                            combined_prompt, generation_config=generation_config
+                        )
+                        return response.to_dict()
+                    except Exception as e:
+                        return {"message": str(e)}
+                else:
+                    # Need to batch requests since Google supports max candidateCount=8
+                    import asyncio
+                    
+                    # Calculate batch sizes
+                    batch_size = 8
+                    num_batches = (candidate_count + batch_size - 1) // batch_size  # Ceiling division
+                    
+                    all_candidates = []
+                    total_usage = {"prompt_token_count": 0, "candidates_token_count": 0, "total_token_count": 0}
+                    
+                    try:
+                        # Create tasks for all batches
+                        tasks = []
+                        for i in range(num_batches):
+                            remaining = candidate_count - i * batch_size
+                            current_batch_size = min(batch_size, remaining)
+                            
+                            # Create generation config for this batch
+                            batch_generation_config = GenerationConfig(
+                                temperature=self.temperature,
+                                top_p=self.topP,
+                                top_k=self.topK,
+                                max_output_tokens=self.maxOutputTokens,
+                                stop_sequences=self.stopSequences,
+                                candidate_count=current_batch_size,
+                            )
+                            
+                            tasks.append(
+                                self.generative_model.generate_content_async(
+                                    combined_prompt, generation_config=batch_generation_config
+                                )
+                            )
+                        
+                        # Execute all batches concurrently
+                        batch_responses = await asyncio.gather(*tasks, return_exceptions=True)
+                        
+                        # Combine results
+                        for batch_response in batch_responses:
+                            if isinstance(batch_response, Exception):
+                                return {"message": str(batch_response)}
+                            
+                            batch_data = batch_response.to_dict()
+                            all_candidates.extend(batch_data.get("candidates", []))
+                            
+                            # Aggregate usage statistics
+                            if "usage_metadata" in batch_data:
+                                usage = batch_data["usage_metadata"]
+                                # Only count prompt tokens once for the first batch
+                                if len(all_candidates) == len(batch_data.get("candidates", [])):  # First batch
+                                    total_usage["prompt_token_count"] = usage.get("prompt_token_count", 0)
+                                total_usage["candidates_token_count"] += usage.get("candidates_token_count", 0)
+                        
+                        # Calculate total tokens
+                        total_usage["total_token_count"] = (
+                            total_usage["prompt_token_count"] + total_usage["candidates_token_count"]
+                        )
+                        
+                        # Return combined response in Google format
+                        first_response = batch_responses[0].to_dict()
+                        combined_response = first_response.copy()
+                        combined_response["candidates"] = all_candidates
+                        combined_response["usage_metadata"] = total_usage
+                        
+                        return combined_response
+                        
+                    except Exception as e:
+                        return {"message": str(e)}
 
         LLM.__name__ = model_name
         return LLM

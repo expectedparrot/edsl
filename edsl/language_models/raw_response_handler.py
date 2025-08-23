@@ -70,6 +70,21 @@ class RawResponseHandler:
 
     def get_generated_token_string(self, raw_response):
         try:
+            # Check if there are multiple choices and handle n parameter
+            if isinstance(raw_response, dict) and "choices" in raw_response:
+                choices = raw_response["choices"]
+                if isinstance(choices, list) and len(choices) > 1:
+                    # Log that we have multiple choices but return the first one for backward compatibility
+                    import warnings
+                    warnings.warn(
+                        f"Model returned {len(choices)} completions (n={len(choices)}) but only using the first one. "
+                        "To access all completions, you'll need to use the raw response.",
+                        UserWarning
+                    )
+                    # Store all choices in a special attribute of the response for potential access
+                    if not hasattr(raw_response, '_all_choices'):
+                        raw_response['_all_choices'] = choices
+            
             return _extract_item_from_raw_response(raw_response, self.key_sequence)
         except (
             LanguageModelKeyError,

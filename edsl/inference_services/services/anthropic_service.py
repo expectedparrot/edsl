@@ -68,6 +68,7 @@ class AnthropicService(InferenceServiceABC):
                 "presence_penalty": 0,
                 "logprobs": False,
                 "top_logprobs": 3,
+                "n": 1,
             }
 
             async def async_execute_model_call(
@@ -105,20 +106,88 @@ class AnthropicService(InferenceServiceABC):
                                 },
                             }
                         )
-                # breakpoint()
+
                 client = AsyncAnthropic(api_key=self.api_token)
 
-                try:
-                    response = await client.messages.create(
-                        model=model_name,
-                        max_tokens=self.max_tokens,
-                        temperature=self.temperature,
-                        system=system_prompt,  # note that the Anthropic API uses "system" parameter rather than put it in the message
-                        messages=messages,
-                    )
-                except Exception as e:
-                    return {"message": str(e)}
-                return response.model_dump()
+                # Handle n parameter using multiple API calls (Anthropic doesn't support n natively)
+                n_completions = getattr(self, 'n', 1)
+                if n_completions == 1:
+                    # Single API call
+                    try:
+                        response = await client.messages.create(
+                            model=model_name,
+                            max_tokens=self.max_tokens,
+                            temperature=self.temperature,
+                            system=system_prompt,
+                            messages=messages,
+                        )
+                        return response.model_dump()
+                    except Exception as e:
+                        return {"message": str(e)}
+                else:
+                    # Multiple API calls since Anthropic doesn't support n parameter
+                    import asyncio
+                    
+                    try:
+                        # Create tasks for all completions
+                        tasks = []
+                        for _ in range(n_completions):
+                            tasks.append(
+                                client.messages.create(
+                                    model=model_name,
+                                    max_tokens=self.max_tokens,
+                                    temperature=self.temperature,
+                                    system=system_prompt,
+                                    messages=messages,
+                                )
+                            )
+                        
+                        # Execute all calls concurrently
+                        responses = await asyncio.gather(*tasks, return_exceptions=True)
+                        
+                        # Convert to OpenAI-like format for consistency
+                        all_choices = []
+                        total_usage = {"input_tokens": 0, "output_tokens": 0}
+                        
+                        for i, response in enumerate(responses):
+                            if isinstance(response, Exception):
+                                return {"message": str(response)}
+                            
+                            response_data = response.model_dump()
+                            
+                            # Convert Anthropic format to OpenAI-like format
+                            choice = {
+                                "index": i,
+                                "message": {
+                                    "role": "assistant",
+                                    "content": response_data["content"][0]["text"]
+                                },
+                                "finish_reason": "stop" if response_data.get("stop_reason") == "end_turn" else response_data.get("stop_reason", "stop")
+                            }
+                            all_choices.append(choice)
+                            
+                            # Aggregate usage statistics
+                            if "usage" in response_data:
+                                usage = response_data["usage"]
+                                # Only count input tokens once for the first response
+                                if i == 0:
+                                    total_usage["input_tokens"] = usage.get("input_tokens", 0)
+                                total_usage["output_tokens"] += usage.get("output_tokens", 0)
+                        
+                        # Return combined response in OpenAI-like format for consistency
+                        return {
+                            "choices": all_choices,
+                            "usage": {
+                                "prompt_tokens": total_usage["input_tokens"],
+                                "completion_tokens": total_usage["output_tokens"],
+                                "total_tokens": total_usage["input_tokens"] + total_usage["output_tokens"]
+                            },
+                            "model": model_name,
+                            "object": "chat.completion",
+                        }
+                        
+                    except Exception as e:
+                        return {"message": str(e)}
 
         LLM.__name__ = model_class_name
 

@@ -124,6 +124,7 @@ class AzureAIService(InferenceServiceABC):
                 "temperature": 0.5,
                 "max_tokens": 512,
                 "top_p": 0.9,
+                "n": 1,
             }
 
             async def async_execute_model_call(
@@ -190,19 +191,97 @@ class AzureAIService(InferenceServiceABC):
                         api_version=api_version,
                         api_key=api_key,
                     )
-                    try:
-                        response = await client.chat.completions.create(
-                            model=model_name,
-                            messages=[
-                                {
-                                    "role": "user",
-                                    "content": user_prompt,  # Your question can go here
-                                },
-                            ],
-                        )
-                    except Exception as e:
-                        return {"message": str(e)}
-                    return response.model_dump()
+                    
+                    messages = [
+                        {
+                            "role": "user",
+                            "content": user_prompt,
+                        },
+                    ]
+                    if system_prompt:
+                        messages.insert(0, {
+                            "role": "system", 
+                            "content": system_prompt
+                        })
+                    
+                    # Handle n parameter with batching support for n > 128
+                    n_completions = getattr(self, 'n', 1)
+                    if n_completions <= 128:
+                        # Single API call with n parameter
+                        try:
+                            response = await client.chat.completions.create(
+                                model=model_name,
+                                messages=messages,
+                                temperature=self.temperature,
+                                max_tokens=self.max_tokens,
+                                top_p=self.top_p,
+                                n=n_completions,
+                            )
+                            return response.model_dump()
+                        except Exception as e:
+                            return {"message": str(e)}
+                    else:
+                        # Need to batch requests since Azure OpenAI supports max n=128
+                        import asyncio
+                        
+                        # Calculate batch sizes
+                        batch_size = 128
+                        num_batches = (n_completions + batch_size - 1) // batch_size  # Ceiling division
+                        
+                        all_choices = []
+                        total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+                        
+                        try:
+                            # Create tasks for all batches
+                            tasks = []
+                            for i in range(num_batches):
+                                remaining = n_completions - i * batch_size
+                                current_batch_size = min(batch_size, remaining)
+                                
+                                tasks.append(
+                                    client.chat.completions.create(
+                                        model=model_name,
+                                        messages=messages,
+                                        temperature=self.temperature,
+                                        max_tokens=self.max_tokens,
+                                        top_p=self.top_p,
+                                        n=current_batch_size,
+                                    )
+                                )
+                            
+                            # Execute all batches concurrently
+                            batch_responses = await asyncio.gather(*tasks, return_exceptions=True)
+                            
+                            # Combine results
+                            for batch_response in batch_responses:
+                                if isinstance(batch_response, Exception):
+                                    return {"message": str(batch_response)}
+                                
+                                batch_data = batch_response.model_dump()
+                                all_choices.extend(batch_data["choices"])
+                                
+                                # Aggregate usage statistics
+                                if "usage" in batch_data:
+                                    usage = batch_data["usage"]
+                                    # Only count prompt tokens once for the first batch
+                                    if len(all_choices) == len(batch_data["choices"]):  # First batch
+                                        total_usage["prompt_tokens"] = usage.get("prompt_tokens", 0)
+                                    total_usage["completion_tokens"] += usage.get("completion_tokens", 0)
+                                    total_usage["total_tokens"] += usage.get("completion_tokens", 0)
+                            
+                            # Add prompt tokens to total (only counted once)
+                            total_usage["total_tokens"] += total_usage["prompt_tokens"]
+                            
+                            # Return combined response in OpenAI format
+                            return {
+                                "choices": all_choices,
+                                "usage": total_usage,
+                                "model": batch_responses[0].model_dump()["model"],
+                                "object": "chat.completion",
+                            }
+                            
+                        except Exception as e:
+                            return {"message": str(e)}
 
             # @staticmethod
             # def parse_response(raw_response: dict[str, Any]) -> str:

@@ -692,6 +692,79 @@ class LanguageModel(
             EDSLOutput: Standardized output structure with answer and optional comment
         """
         return cls.response_handler.parse_response(raw_response)
+    
+    @classmethod
+    def get_all_completions(cls, raw_response: dict[str, Any]) -> List[str]:
+        """Extract all completions from a raw model response when n > 1.
+        
+        This method extracts all completion texts when the n parameter was used
+        to request multiple completions from the model.
+        
+        Args:
+            raw_response: The complete response dictionary from the model API
+            
+        Returns:
+            List[str]: List of all completion texts
+            
+        Examples:
+            >>> # For OpenAI-like responses
+            >>> raw_response = {
+            ...     "choices": [
+            ...         {"message": {"content": "First completion"}},
+            ...         {"message": {"content": "Second completion"}}
+            ...     ]
+            ... }
+            >>> completions = LanguageModel.get_all_completions(raw_response)
+            >>> len(completions)
+            2
+        """
+        if not isinstance(raw_response, dict):
+            return [str(raw_response)]
+            
+        # Handle OpenAI-like format (choices array)
+        if "choices" in raw_response and isinstance(raw_response["choices"], list):
+            completions = []
+            for choice in raw_response["choices"]:
+                try:
+                    # Try OpenAI format first
+                    if isinstance(choice, dict) and "message" in choice and "content" in choice["message"]:
+                        completions.append(choice["message"]["content"])
+                    # Try direct content access
+                    elif isinstance(choice, dict) and "content" in choice:
+                        completions.append(choice["content"])
+                    else:
+                        # Try using the standard extraction method
+                        temp_response = {"choices": [choice]}
+                        content = cls.response_handler.get_generated_token_string(temp_response)
+                        if content:
+                            completions.append(str(content))
+                except Exception:
+                    # If we can't extract this choice, skip it
+                    continue
+            return completions
+            
+        # Handle Google-like format (candidates array)
+        elif "candidates" in raw_response and isinstance(raw_response["candidates"], list):
+            completions = []
+            for candidate in raw_response["candidates"]:
+                try:
+                    if (isinstance(candidate, dict) 
+                        and "content" in candidate 
+                        and "parts" in candidate["content"] 
+                        and isinstance(candidate["content"]["parts"], list)
+                        and len(candidate["content"]["parts"]) > 0
+                        and "text" in candidate["content"]["parts"][0]):
+                        completions.append(candidate["content"]["parts"][0]["text"])
+                except Exception:
+                    continue
+            return completions
+            
+        # Fallback - return single completion
+        try:
+            content = cls.response_handler.get_generated_token_string(raw_response)
+            return [str(content)] if content is not None else []
+        except Exception:
+            return []
 
     async def _async_get_intended_model_call_outcome(
         self,

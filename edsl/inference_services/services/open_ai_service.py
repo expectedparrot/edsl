@@ -145,6 +145,7 @@ class OpenAIService(InferenceServiceABC):
                 "presence_penalty": 0,
                 "logprobs": False,
                 "top_logprobs": 3,
+                "n": 1,
             }
 
             def sync_client(self):
@@ -232,11 +233,73 @@ class OpenAIService(InferenceServiceABC):
                     )  # At least 5000 tokens for reasoning models
                     params["max_completion_tokens"] = reasoning_tokens
                     params["temperature"] = 1
-                try:
-                    response = await client.chat.completions.create(**params)
-                except Exception as e:
-                    return {"message": str(e)}
-                return response.model_dump()
+
+                # Handle n parameter with batching support for n > 128
+                n_completions = getattr(self, 'n', 1)
+                if n_completions <= 128:
+                    # Single API call with n parameter
+                    params["n"] = n_completions
+                    try:
+                        response = await client.chat.completions.create(**params)
+                        return response.model_dump()
+                    except Exception as e:
+                        return {"message": str(e)}
+                else:
+                    # Need to batch requests since OpenAI supports max n=128
+                    import asyncio
+                    
+                    # Calculate batch sizes
+                    batch_size = 128
+                    num_batches = (n_completions + batch_size - 1) // batch_size  # Ceiling division
+                    
+                    all_choices = []
+                    total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+                    
+                    try:
+                        # Create tasks for all batches
+                        tasks = []
+                        for i in range(num_batches):
+                            remaining = n_completions - i * batch_size
+                            current_batch_size = min(batch_size, remaining)
+                            
+                            batch_params = params.copy()
+                            batch_params["n"] = current_batch_size
+                            
+                            tasks.append(client.chat.completions.create(**batch_params))
+                        
+                        # Execute all batches concurrently
+                        batch_responses = await asyncio.gather(*tasks, return_exceptions=True)
+                        
+                        # Combine results
+                        for batch_response in batch_responses:
+                            if isinstance(batch_response, Exception):
+                                return {"message": str(batch_response)}
+                            
+                            batch_data = batch_response.model_dump()
+                            all_choices.extend(batch_data["choices"])
+                            
+                            # Aggregate usage statistics
+                            if "usage" in batch_data:
+                                usage = batch_data["usage"]
+                                # Only count prompt tokens once for the first batch
+                                if len(all_choices) == len(batch_data["choices"]):  # First batch
+                                    total_usage["prompt_tokens"] = usage.get("prompt_tokens", 0)
+                                total_usage["completion_tokens"] += usage.get("completion_tokens", 0)
+                                total_usage["total_tokens"] += usage.get("completion_tokens", 0)
+                        
+                        # Add prompt tokens to total (only counted once)
+                        total_usage["total_tokens"] += total_usage["prompt_tokens"]
+                        
+                        # Return combined response in OpenAI format
+                        return {
+                            "choices": all_choices,
+                            "usage": total_usage,
+                            "model": batch_responses[0].model_dump()["model"],
+                            "object": "chat.completion",
+                        }
+                        
+                    except Exception as e:
+                        return {"message": str(e)}
 
         LLM.__name__ = "LanguageModel"
 
