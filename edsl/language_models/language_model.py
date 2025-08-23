@@ -42,6 +42,7 @@ from typing import (
 from ..base import DiffMethodsMixin
 
 from .exceptions import LanguageModelValueError
+from .parameter_validator import validate_parameters
 
 from ..data_transfer_models import (
     ModelResponse,
@@ -236,6 +237,18 @@ class LanguageModel(
         for key, value in parameters.items():
             setattr(self, key, value)
 
+        # Validate additional kwargs before applying them
+        # Get service name if available
+        service_name = getattr(self, '_inference_service_', None)
+        
+        # Validate parameters (will warn about unknown parameters)
+        validate_parameters(
+            kwargs,
+            service_name=service_name,
+            standard_parameters=set(parameters.keys()) if parameters else set(),
+            strict=False  # Use warnings instead of errors for backward compatibility
+        )
+        
         # Apply any additional kwargs that aren't part of the standard parameters
         for key, value in kwargs.items():
             if key not in parameters:
