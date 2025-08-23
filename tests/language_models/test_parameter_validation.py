@@ -120,6 +120,15 @@ class TestParameterValidation:
         # The typo should still be set as an attribute
         assert hasattr(m, "temprature")
         assert m.temprature == 0.8
+    
+    def test_temp_abbreviation(self):
+        """Test that 'temp' is recognized as abbreviation for temperature."""
+        with pytest.warns(UserWarning, match="'temp' might be a typo.*'temperature'"):
+            m = Model("gpt-4o-mini", service_name="openai", temp=0.7)
+        
+        # The abbreviation should still be set as an attribute
+        assert hasattr(m, "temp")
+        assert m.temp == 0.7
 
 
 class TestCommonTypos:
@@ -127,8 +136,10 @@ class TestCommonTypos:
     
     def test_temperature_typos(self):
         """Test various temperature typos are in the dictionary."""
+        assert "temp" in COMMON_TYPOS
         assert "temprature" in COMMON_TYPOS
         assert "temperture" in COMMON_TYPOS
+        assert COMMON_TYPOS["temp"] == "temperature"
         assert COMMON_TYPOS["temprature"] == "temperature"
     
     def test_max_tokens_typos(self):

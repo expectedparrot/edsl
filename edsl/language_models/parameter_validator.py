@@ -1,14 +1,14 @@
 """Parameter validation for language models."""
 
 import warnings
-from typing import Dict, Set, Any, Optional
+from typing import Any, Optional
 
 # Known parameters for different services
 # These are the standard parameters that APIs actually use
 KNOWN_PARAMETERS = {
     "openai": {
-        "temperature", "max_tokens", "top_p", "frequency_penalty", 
-        "presence_penalty", "stop", "n", "stream", "logprobs", 
+        "temperature", "max_tokens", "top_p", "frequency_penalty",
+        "presence_penalty", "stop", "n", "stream", "logprobs",
         "echo", "seed", "suffix", "user", "functions", "function_call",
         "tools", "tool_choice", "response_format", "logit_bias",
         "top_logprobs", "max_completion_tokens"
@@ -18,12 +18,12 @@ KNOWN_PARAMETERS = {
         "stream", "metadata"
     },
     "google": {
-        "temperature", "max_output_tokens", "top_p", "top_k", 
+        "temperature", "max_output_tokens", "top_p", "top_k",
         "candidate_count", "stop_sequences"
     },
     "azure": {
         # Azure uses OpenAI parameters
-        "temperature", "max_tokens", "top_p", "frequency_penalty", 
+        "temperature", "max_tokens", "top_p", "frequency_penalty",
         "presence_penalty", "stop", "n", "stream", "logprobs",
         "user", "functions", "function_call", "tools", "tool_choice"
     },
@@ -58,6 +58,7 @@ INTERNAL_PARAMETERS = {
 
 # Common typos and their corrections
 COMMON_TYPOS = {
+    "temp": "temperature",
     "temprature": "temperature",
     "temperture": "temperature",
     "max_token": "max_tokens",
@@ -70,29 +71,29 @@ COMMON_TYPOS = {
 }
 
 def validate_parameters(
-    kwargs: Dict[str, Any],
+    kwargs: dict[str, Any],
     service_name: Optional[str] = None,
-    standard_parameters: Optional[Set[str]] = None,
+    standard_parameters: Optional[set[str]] = None,
     strict: bool = False
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Validate parameters for language model initialization.
-    
+
     Args:
         kwargs: The keyword arguments passed to the model
         service_name: The name of the service (e.g., 'openai', 'anthropic')
         standard_parameters: Set of parameters already handled by the model
         strict: If True, raise errors for unknown parameters. If False, issue warnings.
-        
+
     Returns:
         The validated kwargs dictionary
-        
+
     Raises:
         ValueError: If strict=True and unknown parameters are found
     """
     if standard_parameters is None:
         standard_parameters = set()
-    
+
     # Get known parameters for this service
     if service_name:
         service_name_lower = service_name.lower()
@@ -102,14 +103,14 @@ def validate_parameters(
         known_params = set()
         for params in KNOWN_PARAMETERS.values():
             known_params.update(params)
-    
+
     # Add internal parameters and standard parameters
     all_valid_params = known_params | INTERNAL_PARAMETERS | standard_parameters
-    
+
     # Check for unknown parameters
     unknown_params = []
     suggestions = {}
-    
+
     for key in kwargs:
         if key not in all_valid_params:
             # Check if it's a common typo
@@ -124,17 +125,17 @@ def validate_parameters(
                         break
                 else:
                     unknown_params.append(key)
-    
+
     # Handle validation results
     if unknown_params or suggestions:
         message_parts = []
-        
+
         if suggestions:
             for typo, correct in suggestions.items():
                 message_parts.append(
                     f"  '{typo}' might be a typo. Did you mean '{correct}'?"
                 )
-        
+
         if unknown_params:
             if service_name:
                 message_parts.append(
@@ -147,23 +148,22 @@ def validate_parameters(
             message_parts.append(
                 "  These parameters will be ignored and have no effect."
             )
-        
+
         full_message = "Parameter validation issues:\n" + "\n".join(message_parts)
-        
+
         if strict:
             raise ValueError(full_message)
-        else:
-            warnings.warn(full_message, UserWarning, stacklevel=3)
-    
+        warnings.warn(full_message, UserWarning, stacklevel=3)
+
     return kwargs
 
-def get_valid_parameters(service_name: Optional[str] = None) -> Set[str]:
+def get_valid_parameters(service_name: Optional[str] = None) -> set[str]:
     """
     Get the set of valid parameters for a given service.
-    
+
     Args:
         service_name: The name of the service (e.g., 'openai', 'anthropic')
-        
+
     Returns:
         Set of valid parameter names
     """
@@ -175,5 +175,5 @@ def get_valid_parameters(service_name: Optional[str] = None) -> Set[str]:
         known_params = set()
         for params in KNOWN_PARAMETERS.values():
             known_params.update(params)
-    
+
     return known_params | INTERNAL_PARAMETERS
