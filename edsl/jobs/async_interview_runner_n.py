@@ -27,6 +27,7 @@ class AsyncInterviewRunnerWithN(AsyncInterviewRunner):
         super().__init__(jobs, run_config)
         self.n_handler = NParameterHandler()
         self._model_n_support = self._analyze_model_support()
+        self._current_idx = 0  # Initialize the index counter
         
     def _analyze_model_support(self) -> dict:
         """
@@ -125,9 +126,11 @@ class AsyncInterviewRunnerWithN(AsyncInterviewRunner):
             interview.model = modified_model
             
             # Conduct the interview (single API call)
-            result = await interview.async_conduct_interview(
-                config=interview._interview_config
-            )
+            await interview.async_conduct_interview(self.run_config)
+            
+            # Create Result from interview
+            from ..results import Result
+            result = Result.from_interview(interview)
             
             # Extract multiple completions from the result
             # This requires modifying the Result object to handle multiple completions
@@ -154,10 +157,13 @@ class AsyncInterviewRunnerWithN(AsyncInterviewRunner):
             return output
         else:
             # Traditional single completion
-            result = await interview.async_conduct_interview(
-                config=interview._interview_config
-            )
-            return [(result, interview, interview.iteration)]
+            await interview.async_conduct_interview(self.run_config)
+            
+            # Create Result from interview
+            from ..results import Result
+            result = Result.from_interview(interview)
+            
+            return [(result, interview, getattr(interview, 'iteration', 0))]
     
     def _split_result_into_n(self, result: "Result", n: int) -> List["Result"]:
         """
@@ -272,7 +278,10 @@ class AsyncInterviewRunnerWithN(AsyncInterviewRunner):
         Returns:
             Tuple of (Result, Interview, idx)
         """
-        result = await interview.async_conduct_interview(
-            config=interview._interview_config
-        )
-        return (result, interview, idx)
+        result = await interview.async_conduct_interview(self.run_config)
+        
+        # Create Result from interview
+        from ..results import Result
+        result_obj = Result.from_interview(interview)
+        
+        return (result_obj, interview, idx)
