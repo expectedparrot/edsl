@@ -3979,7 +3979,6 @@ class Coop(CoopFunctionsMixin):
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        print(gateway_url)
         # Make the request to the Extension Gateway
         try:
             with httpx.Client(timeout=300.0) as client:
