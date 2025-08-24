@@ -33,6 +33,9 @@ if TYPE_CHECKING:
     from ..surveys import Survey
 
 
+from .firecrawl_scenario import FirecrawlRequest
+
+
 class Scenario(Base, UserDict):
     """
     A dictionary-like object that stores key-value pairs for parameterizing questions.
@@ -71,6 +74,8 @@ class Scenario(Base, UserDict):
         >>> import os
         >>> os.unlink(data_path) # Clean up temp file
     """
+
+    firecrawl = FirecrawlRequest()
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/scenarios.html"
 
@@ -137,6 +142,7 @@ class Scenario(Base, UserDict):
             raise TypeError(
                 f"Cannot multiply Scenario with {type(scenario_list_or_scenario)}"
             )
+        
 
     def replicate(self, n: int) -> "ScenarioList":
         """Replicate a scenario n times to return a ScenarioList.

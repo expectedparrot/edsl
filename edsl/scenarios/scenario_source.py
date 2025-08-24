@@ -1965,6 +1965,8 @@ class ScenarioSource:
         source = WikipediaSource(url, table_index, header)
         return source.to_scenario_list()
 
+
+
     @staticmethod
     def _from_excel(file_path: str, sheet_name: Optional[str] = None, **kwargs):
         """Create a ScenarioList from an Excel file."""

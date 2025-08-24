@@ -130,6 +130,12 @@ Core Concepts
 - :ref:`language_models`: Select language models to generate results.
 
 
+Getting Data
+------------
+
+- :ref:`firecrawl`: Web scraping and data extraction integration for EDSL scenarios.
+
+
 Working with Results
 --------------------
 
@@ -239,6 +245,13 @@ Links
    agents
    prompts
    language_models
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Getting Data
+   :hidden:
+
+   firecrawl
 
 .. toctree::
    :maxdepth: 2
