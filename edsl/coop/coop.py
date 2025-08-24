@@ -4009,7 +4009,15 @@ class Coop(CoopFunctionsMixin):
 
                 # Return the result
                 # The gateway should have already converted it to proper EDSL objects
-                return response_data.get("result")
+                result = response_data.get("result")
+                if "scenarios" in result:
+                    from ..scenarios import ScenarioList
+
+                    return ScenarioList.from_dict(result)
+                else:
+                    from ..scenarios import Scenario
+
+                    return Scenario.from_dict(result)
 
         except httpx.HTTPError as e:
             self._logger.error(f"HTTP error calling Extension Gateway: {e}")
