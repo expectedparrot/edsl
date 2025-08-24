@@ -995,7 +995,7 @@ class FirecrawlScenario:
 
             # Process web results
             if hasattr(result, "web") and result.web:
-                for item in result.web:
+                for position, item in enumerate(result.web, 1):
                     scenario_data = {
                         "search_query": query,
                         "result_type": "web",
@@ -1006,9 +1006,7 @@ class FirecrawlScenario:
                         "description": getattr(item, "description", "")
                         if hasattr(item, "description")
                         else "",
-                        "position": getattr(item, "position", None)
-                        if hasattr(item, "position")
-                        else None,
+                        "position": position,
                         "search_status": "success",
                     }
 
@@ -1023,7 +1021,7 @@ class FirecrawlScenario:
 
             # Process news results
             if hasattr(result, "news") and result.news:
-                for item in result.news:
+                for position, item in enumerate(result.news, 1):
                     scenario_data = {
                         "search_query": query,
                         "result_type": "news",
@@ -1037,16 +1035,14 @@ class FirecrawlScenario:
                         "date": getattr(item, "date", "")
                         if hasattr(item, "date")
                         else "",
-                        "position": getattr(item, "position", None)
-                        if hasattr(item, "position")
-                        else None,
+                        "position": position,
                         "search_status": "success",
                     }
                     scenarios.append(Scenario(scenario_data))
 
             # Process image results
             if hasattr(result, "images") and result.images:
-                for item in result.images:
+                for position, item in enumerate(result.images, 1):
                     scenario_data = {
                         "search_query": query,
                         "result_type": "image",
@@ -1056,16 +1052,8 @@ class FirecrawlScenario:
                         else "",
                         "image_url": getattr(item, "imageUrl", "")
                         if hasattr(item, "imageUrl")
-                        else "",
-                        "image_width": getattr(item, "imageWidth", None)
-                        if hasattr(item, "imageWidth")
-                        else None,
-                        "image_height": getattr(item, "imageHeight", None)
-                        if hasattr(item, "imageHeight")
-                        else None,
-                        "position": getattr(item, "position", None)
-                        if hasattr(item, "position")
-                        else None,
+                        else getattr(item, "url", ""),
+                        "position": position,
                         "search_status": "success",
                     }
                     scenarios.append(Scenario(scenario_data))
