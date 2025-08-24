@@ -1,7 +1,6 @@
 import pytest
 from edsl.dataset import Dataset
 from edsl.dataset.exceptions import DatasetValueError, DatasetKeyError, DatasetTypeError
-from edsl.results import Results
 
 
 class TestDatasetOperationsMixin:
@@ -87,3 +86,60 @@ class TestDatasetOperationsMixin:
             dataset.unpack_list('data')
         
         assert "Field 'data' does not contain lists in all entries" in str(excinfo.value)
+
+    def test_to_agent_list_no_duplicate_agents(self):
+        """Test to_agent_list does not create duplicate agents when 'name' field is present (issue #2191)."""
+        # Create a dataset with a 'name' field to trigger the bug scenario
+        dataset = Dataset([{'name': ['John Doe', 'Jane Smith']}])
+        
+        # Convert to agent list
+        agent_list = dataset.to_agent_list()
+        
+        # Should have exactly 2 agents, not 4
+        assert len(agent_list) == 2
+        
+        # Each agent should have the name properly set
+        assert agent_list[0].name == 'John Doe'
+        assert agent_list[1].name == 'Jane Smith'
+        
+        # Each agent should have agent_name in traits
+        assert agent_list[0].traits['agent_name'] == 'John Doe'
+        assert agent_list[1].traits['agent_name'] == 'Jane Smith'
+        
+    def test_to_agent_list_agent_parameters_path(self):
+        """Test to_agent_list correctly handles agent_parameters field."""
+        # Create a dataset with agent_parameters field
+        agent_params = [
+            {"name": "Agent1", "instruction": "Be helpful"},
+            {"name": "Agent2", "instruction": "Be concise"}
+        ]
+        dataset = Dataset([{'agent_parameters': agent_params}])
+        
+        # Convert to agent list
+        agent_list = dataset.to_agent_list()
+        
+        # Should have exactly 2 agents
+        assert len(agent_list) == 2
+        
+        # Each agent should have the correct name and instruction
+        assert agent_list[0].name == 'Agent1'
+        assert agent_list[0].instruction == 'Be helpful'
+        assert agent_list[1].name == 'Agent2'
+        assert agent_list[1].instruction == 'Be concise'
+        
+    def test_to_agent_list_traits_only_path(self):
+        """Test to_agent_list correctly handles case with no name or agent_parameters."""
+        # Create a dataset with regular traits  
+        dataset = Dataset([{'age': [25, 30]}, {'city': ['NYC', 'LA']}])
+        
+        # Convert to agent list
+        agent_list = dataset.to_agent_list()
+        
+        # Should have exactly 2 agents
+        assert len(agent_list) == 2
+        
+        # Each agent should have the correct traits and no name
+        assert agent_list[0].traits == {'age': 25, 'city': 'NYC'}
+        assert agent_list[0].name is None
+        assert agent_list[1].traits == {'age': 30, 'city': 'LA'}
+        assert agent_list[1].name is None
