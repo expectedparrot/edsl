@@ -113,7 +113,7 @@ class FirecrawlRequest:
 
     @has_key
     def scrape(
-        self, url_or_urls: Union[str, List[str]], max_concurrent: int = 10, **kwargs
+        self, url_or_urls: Union[str, List[str]], max_concurrent: int = 10, limit: Optional[int] = None, **kwargs
     ) -> Dict[str, Any]:
         """Scrape content from one or more URLs using Firecrawl.
 
@@ -126,6 +126,8 @@ class FirecrawlRequest:
                 be a valid HTTP/HTTPS URL.
             max_concurrent: Maximum number of concurrent requests when scraping multiple
                 URLs. Only applies when url_or_urls is a list. Defaults to 10.
+            limit: Maximum number of URLs to scrape when url_or_urls is a list. If None,
+                scrapes all provided URLs. Defaults to None.
             **kwargs: Additional scraping parameters:
                 formats: List of output formats (e.g., ["markdown", "html", "links"]).
                     Defaults to ["markdown"].
@@ -160,6 +162,7 @@ class FirecrawlRequest:
                 >>> results = firecrawl.scrape(
                 ...     urls,
                 ...     max_concurrent=5,
+                ...     limit=2,
                 ...     formats=["markdown", "html"],
                 ...     only_main_content=False
                 ... )
@@ -174,12 +177,13 @@ class FirecrawlRequest:
             "api_key": self.api_key,
             "url_or_urls": url_or_urls,
             "max_concurrent": max_concurrent,
+            "limit": limit,
             "kwargs": kwargs,
         }
 
     @has_key
     def search(
-        self, query_or_queries: Union[str, List[str]], max_concurrent: int = 5, **kwargs
+        self, query_or_queries: Union[str, List[str]], max_concurrent: int = 5, limit: Optional[int] = None, **kwargs
     ) -> Dict[str, Any]:
         """Search the web and extract content from results using Firecrawl.
 
@@ -192,8 +196,9 @@ class FirecrawlRequest:
                 Each query should be a natural language search term.
             max_concurrent: Maximum number of concurrent requests when processing multiple
                 queries. Only applies when query_or_queries is a list. Defaults to 5.
+            limit: Maximum number of search results to return per query. If None, returns
+                all available results. Defaults to None.
             **kwargs: Additional search parameters:
-                limit: Maximum number of search results to return per query.
                 sources: List of sources to search (e.g., ["web", "news", "images"]).
                     Defaults to ["web"].
                 location: Geographic location for localized search results.
@@ -240,6 +245,7 @@ class FirecrawlRequest:
             "api_key": self.api_key,
             "query_or_queries": query_or_queries,
             "max_concurrent": max_concurrent,
+            "limit": limit,
             "kwargs": kwargs,
         }
 
@@ -250,6 +256,7 @@ class FirecrawlRequest:
         schema: Optional[Dict[str, Any]] = None,
         prompt: Optional[str] = None,
         max_concurrent: int = 5,
+        limit: Optional[int] = None,
         **kwargs,
     ) -> Dict[str, Any]:
         """Extract structured data from web pages using AI-powered analysis.
@@ -269,6 +276,8 @@ class FirecrawlRequest:
                 schema is not provided. Should be clear and specific.
             max_concurrent: Maximum number of concurrent requests when processing multiple
                 URLs. Only applies when url_or_urls is a list. Defaults to 5.
+            limit: Maximum number of URLs to extract data from when url_or_urls is a list.
+                If None, extracts from all provided URLs. Defaults to None.
             **kwargs: Additional extraction parameters:
                 formats: List of output formats for the scraped content before extraction
                     (e.g., ["markdown", "html"]).
@@ -308,7 +317,8 @@ class FirecrawlRequest:
                 >>> results = firecrawl.extract(
                 ...     urls,
                 ...     schema={"name": "string", "price": "number"},
-                ...     max_concurrent=3
+                ...     max_concurrent=3,
+                ...     limit=2
                 ... )
                 >>> for result in results:
                 ...     data = result["extracted_data"]
@@ -321,6 +331,7 @@ class FirecrawlRequest:
             "schema": schema,
             "prompt": prompt,
             "max_concurrent": max_concurrent,
+            "limit": limit,
             "kwargs": kwargs,
         }
 
@@ -413,7 +424,7 @@ class FirecrawlRequest:
         }
 
     @has_key
-    def map_urls(self, url: str, **kwargs) -> Dict[str, Any]:
+    def map_urls(self, url: str, limit: Optional[int] = None, **kwargs) -> Dict[str, Any]:
         """Discover and map all URLs from a website without scraping content.
 
         This method performs fast URL discovery to map the structure of a website
@@ -424,6 +435,8 @@ class FirecrawlRequest:
         Args:
             url: Base URL to discover links from. Should be a valid HTTP/HTTPS URL.
                 The mapper will analyze this page and discover all linked URLs.
+            limit: Maximum number of URLs to discover and map. If None, discovers all
+                available linked URLs. Defaults to None.
             **kwargs: Additional mapping parameters passed to the Firecrawl API.
                 Common options may include depth limits or filtering criteria.
 
@@ -449,7 +462,7 @@ class FirecrawlRequest:
                 ...         print(f"Title: {url_info['title']}")
 
             Website structure analysis:
-                >>> urls = firecrawl.map_urls("https://docs.example.com")
+                >>> urls = firecrawl.map_urls("https://docs.example.com", limit=100)
                 >>> # Group URLs by path pattern
                 >>> doc_urls = [u for u in urls if '/docs/' in u['discovered_url']]
                 >>> api_urls = [u for u in urls if '/api/' in u['discovered_url']]
@@ -469,6 +482,7 @@ class FirecrawlRequest:
             "method": "map_urls",
             "api_key": self.api_key,
             "url": url,
+            "limit": limit,
             "kwargs": kwargs,
         }
 
@@ -535,17 +549,25 @@ class FirecrawlScenario:
         if method == "scrape":
             url_or_urls = request_dict.get("url_or_urls")
             max_concurrent = request_dict.get("max_concurrent", 10)
+            limit = request_dict.get("limit")
             kwargs = request_dict.get("kwargs", {})
+            # Remove limit from kwargs since it's handled separately
+            if "limit" in kwargs:
+                del kwargs["limit"]
             return firecrawl.scrape(
-                url_or_urls, max_concurrent=max_concurrent, **kwargs
+                url_or_urls, max_concurrent=max_concurrent, limit=limit, **kwargs
             )
 
         elif method == "search":
             query_or_queries = request_dict.get("query_or_queries")
             max_concurrent = request_dict.get("max_concurrent", 5)
+            limit = request_dict.get("limit")
             kwargs = request_dict.get("kwargs", {})
+            # Remove limit from kwargs since it's handled separately
+            if "limit" in kwargs:
+                del kwargs["limit"]
             return firecrawl.search(
-                query_or_queries, max_concurrent=max_concurrent, **kwargs
+                query_or_queries, max_concurrent=max_concurrent, limit=limit, **kwargs
             )
 
         elif method == "extract":
@@ -553,12 +575,17 @@ class FirecrawlScenario:
             schema = request_dict.get("schema")
             prompt = request_dict.get("prompt")
             max_concurrent = request_dict.get("max_concurrent", 5)
+            limit = request_dict.get("limit")
             kwargs = request_dict.get("kwargs", {})
+            # Remove limit from kwargs since it's handled separately
+            if "limit" in kwargs:
+                del kwargs["limit"]
             return firecrawl.extract(
                 url_or_urls,
                 schema=schema,
                 prompt=prompt,
                 max_concurrent=max_concurrent,
+                limit=limit,
                 **kwargs,
             )
 
@@ -584,14 +611,18 @@ class FirecrawlScenario:
 
         elif method == "map_urls":
             url = request_dict.get("url")
+            limit = request_dict.get("limit")
             kwargs = request_dict.get("kwargs", {})
-            return firecrawl.map_urls(url, **kwargs)
+            # Remove limit from kwargs since it's handled separately
+            if "limit" in kwargs:
+                del kwargs["limit"]
+            return firecrawl.map_urls(url, limit=limit, **kwargs)
 
         else:
             raise ValueError(f"Unknown method: {method}")
 
     def scrape(
-        self, url_or_urls: Union[str, List[str]], max_concurrent: int = 10, **kwargs
+        self, url_or_urls: Union[str, List[str]], max_concurrent: int = 10, limit: Optional[int] = None, **kwargs
     ):
         """
         Smart scrape method that handles both single URLs and batches.
@@ -610,6 +641,10 @@ class FirecrawlScenario:
         elif isinstance(url_or_urls, list):
             # Multiple URLs - return ScenarioList
             import asyncio
+            
+            # Apply limit if specified
+            if limit is not None:
+                url_or_urls = url_or_urls[:limit]
 
             return asyncio.run(
                 self._scrape_batch(url_or_urls, max_concurrent, **kwargs)
@@ -884,7 +919,7 @@ class FirecrawlScenario:
             )
 
     def search(
-        self, query_or_queries: Union[str, List[str]], max_concurrent: int = 5, **kwargs
+        self, query_or_queries: Union[str, List[str]], max_concurrent: int = 5, limit: Optional[int] = None, **kwargs
     ):
         """
         Smart search method that handles both single queries and batches.
@@ -899,13 +934,13 @@ class FirecrawlScenario:
         """
         if isinstance(query_or_queries, str):
             # Single query - return ScenarioList (search always returns multiple results)
-            return self._search_single(query_or_queries, **kwargs)
+            return self._search_single(query_or_queries, limit=limit, **kwargs)
         elif isinstance(query_or_queries, list):
             # Multiple queries - return combined ScenarioList
             import asyncio
 
             return asyncio.run(
-                self._search_batch(query_or_queries, max_concurrent, **kwargs)
+                self._search_batch(query_or_queries, max_concurrent, limit=limit, **kwargs)
             )
         else:
             raise ValueError("query_or_queries must be a string or list of strings")
@@ -1052,12 +1087,14 @@ class FirecrawlScenario:
                 ]
             )
 
-    def map_urls(self, url: str, **kwargs):
+    def map_urls(self, url: str, limit: Optional[int] = None, **kwargs):
         """
         Get all URLs from a website (fast URL discovery).
 
         Args:
             url: Website URL to map
+            limit: Maximum number of URLs to discover and map. If None, discovers all
+                available linked URLs. Defaults to None.
             **kwargs: Additional parameters passed to Firecrawl
 
         Returns:
@@ -1074,7 +1111,12 @@ class FirecrawlScenario:
                 raise Exception(f"URL mapping failed or returned no links")
 
             scenarios = []
-            for link_result in result.links:
+            # Apply limit if specified
+            links_to_process = result.links
+            if limit is not None:
+                links_to_process = result.links[:limit]
+                
+            for link_result in links_to_process:
                 scenario_data = {
                     "discovered_url": getattr(link_result, "url", "")
                     if hasattr(link_result, "url")
@@ -1108,6 +1150,7 @@ class FirecrawlScenario:
         schema: Optional[Dict[str, Any]] = None,
         prompt: Optional[str] = None,
         max_concurrent: int = 5,
+        limit: Optional[int] = None,
         **kwargs,
     ):
         """
@@ -1129,6 +1172,10 @@ class FirecrawlScenario:
         elif isinstance(url_or_urls, list):
             # Multiple URLs - return ScenarioList
             import asyncio
+            
+            # Apply limit if specified
+            if limit is not None:
+                url_or_urls = url_or_urls[:limit]
 
             return asyncio.run(
                 self._extract_batch(
@@ -1292,7 +1339,7 @@ class FirecrawlScenario:
         return ScenarioList(scenarios)
 
     async def _search_batch(
-        self, queries: List[str], max_concurrent: int = 5, **kwargs
+        self, queries: List[str], max_concurrent: int = 5, limit: Optional[int] = None, **kwargs
     ):
         """
         Search multiple queries concurrently.
@@ -1300,6 +1347,8 @@ class FirecrawlScenario:
         Args:
             queries: List of search queries
             max_concurrent: Maximum number of concurrent requests
+            limit: Maximum number of search results to return per query. If None, returns
+                all available results. Defaults to None.
             **kwargs: Additional parameters passed to search method
 
         Returns:
@@ -1315,9 +1364,15 @@ class FirecrawlScenario:
             async with semaphore:
                 # Run the sync search method in executor
                 loop = asyncio.get_event_loop()
-                return await loop.run_in_executor(
-                    None, self._search_single, query, **kwargs
-                )
+                # Pass limit as positional argument if specified
+                if limit is not None:
+                    return await loop.run_in_executor(
+                        None, self._search_single, query, limit, **kwargs
+                    )
+                else:
+                    return await loop.run_in_executor(
+                        None, self._search_single, query, **kwargs
+                    )
 
         # Create tasks for all queries
         tasks = [search_single(query) for query in queries]
