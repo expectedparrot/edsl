@@ -386,7 +386,7 @@ Scenario methods
 ----------------
 
 There are a variety of methods for working with scenarios and scenario lists, including:
-`concatenate`, `concatenate_to_list`, `concatenate_to_set`, `drop`, `duplicate` `expand`, `filter`, `keep`, `mutate`, `order_by`, `rename`, `sample`, `shuffle`, `times`, `tranform`, `unpack_dict`
+`concatenate`, `concatenate_to_list`, `concatenate_to_set`, `drop`, `duplicate` `expand`, `fillna`, `filter`, `keep`, `mutate`, `order_by`, `rename`, `replace_values`, `sample`, `shuffle`, `times`, `tranform`, `unpack_dict`
 
 These methods can be used to manipulate scenarios and scenario lists in various ways, such as sampling a subset of scenarios, shuffling the order of scenarios, concatenating scenarios together, filtering scenarios based on certain criteria, and more.
 Examples of some of these methods are provided below.
@@ -652,6 +652,134 @@ This will return:
     - green
     - ['spinach']
     
+
+Replacing and filling values
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The method `replace_values()` can be used to replace specific values across all scenarios in a list:
+
+.. code-block:: python
+
+  from edsl import Scenario, ScenarioList
+
+  scenarios = ScenarioList([
+    Scenario({'a': 'nan', 'b': 1}),
+    Scenario({'a': 2, 'b': 'nan'})
+  ])
+
+  # Replace 'nan' with None
+  replaced = scenarios.replace_values({'nan': None})
+
+  replaced
+
+
+This will return:
+
+.. list-table::
+  :header-rows: 1
+
+  * - a
+    - b
+  * - None
+    - 1
+  * - 2
+    - None
+
+
+The method `fillna()` is equivalent to pandas' `df.fillna()` functionality and can be used to fill None/NaN values with a specified value:
+
+.. code-block:: python
+
+  from edsl import Scenario, ScenarioList
+
+  scenarios = ScenarioList([
+    Scenario({'a': None, 'b': 1, 'c': 'hello'}),
+    Scenario({'a': 2, 'b': None, 'c': None}),
+    Scenario({'a': None, 'b': 3, 'c': 'world'})
+  ])
+
+  # Fill None values with empty string (default)
+  filled = scenarios.fillna()
+
+  filled
+
+
+This will return:
+
+.. list-table::
+  :header-rows: 1
+
+  * - a
+    - b
+    - c
+  * - 
+    - 1
+    - hello
+  * - 2
+    - 
+    - 
+  * - 
+    - 3
+    - world
+
+
+You can also specify a custom fill value:
+
+.. code-block:: python
+
+  # Fill with custom value
+  filled_custom = scenarios.fillna(value="N/A")
+
+  filled_custom
+
+
+This will return:
+
+.. list-table::
+  :header-rows: 1
+
+  * - a
+    - b
+    - c
+  * - N/A
+    - 1
+    - hello
+  * - 2
+    - N/A
+    - N/A
+  * - N/A
+    - 3
+    - world
+
+
+The `fillna()` method also supports in-place modification:
+
+.. code-block:: python
+
+  # Modify in place
+  scenarios.fillna(value="MISSING", inplace=True)
+
+  scenarios
+
+
+This will return:
+
+.. list-table::
+  :header-rows: 1
+
+  * - a
+    - b
+    - c
+  * - MISSING
+    - 1
+    - hello
+  * - 2
+    - MISSING
+    - MISSING
+  * - MISSING
+    - 3
+    - world
+
 
 The method `from_source("sqlite")` can be used to create a scenario list from a SQLite database. It takes a `filepath` to the database file and optional parameters `table` and `sql_query`.
 
