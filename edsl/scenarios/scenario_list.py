@@ -2582,6 +2582,67 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_sl.append(Scenario(new_scenario))
         return new_sl
 
+    def fillna(self, value: Any = "", inplace: bool = False) -> "ScenarioList":
+        """
+        Fill None/NaN values in all scenarios with a specified value.
+        
+        This method is equivalent to pandas' df.fillna() functionality, allowing you to
+        replace None, NaN, or other null-like values across all scenarios in the list.
+        
+        Args:
+            value: The value to use for filling None/NaN values. Defaults to empty string "".
+            inplace: If True, modify the original ScenarioList. If False (default), 
+                    return a new ScenarioList with filled values.
+        
+        Returns:
+            ScenarioList: A new ScenarioList with filled values, or self if inplace=True
+        
+        Examples:
+            >>> scenarios = ScenarioList([
+            ...     Scenario({'a': None, 'b': 1, 'c': 'hello'}),
+            ...     Scenario({'a': 2, 'b': None, 'c': None}),
+            ...     Scenario({'a': None, 'b': 3, 'c': 'world'})
+            ... ])
+            >>> # Fill None values with empty string (default)
+            >>> filled = scenarios.fillna()
+            >>> print(filled)
+            ScenarioList([Scenario({'a': '', 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': '', 'c': ''}), Scenario({'a': '', 'b': 3, 'c': 'world'})])
+            >>> # Fill with custom value
+            >>> filled_custom = scenarios.fillna(value="N/A")
+            >>> print(filled_custom)
+            ScenarioList([Scenario({'a': 'N/A', 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': 'N/A', 'c': 'N/A'}), Scenario({'a': 'N/A', 'b': 3, 'c': 'world'})])
+            >>> # Original scenarios remain unchanged
+            >>> print(scenarios)
+            ScenarioList([Scenario({'a': None, 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': None, 'c': None}), Scenario({'a': None, 'b': 3, 'c': 'world'})])
+            >>> # Modify in place
+            >>> scenarios.fillna(value="MISSING", inplace=True)
+            >>> print(scenarios)
+            ScenarioList([Scenario({'a': 'MISSING', 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': 'MISSING', 'c': 'MISSING'}), Scenario({'a': 'MISSING', 'b': 3, 'c': 'world'})])
+        """
+        def is_null(val):
+            """Check if a value is considered null/None."""
+            return val is None or (hasattr(val, '__str__') and str(val).lower() in ['nan', 'none', 'null', ''])
+        
+        if inplace:
+            # Modify the original scenarios
+            for scenario in self:
+                for key in scenario:
+                    if is_null(scenario[key]):
+                        scenario[key] = value
+            return self
+        else:
+            # Create new scenarios with filled values
+            new_sl = ScenarioList(data=[], codebook=self.codebook)
+            for scenario in self:
+                new_scenario = {}
+                for key, val in scenario.items():
+                    if is_null(val):
+                        new_scenario[key] = value
+                    else:
+                        new_scenario[key] = val
+                new_sl.append(Scenario(new_scenario))
+            return new_sl
+
     @classmethod
     @deprecated_classmethod("ScenarioSource.from_source('pdf', ...)")
     def from_pdf(cls, filename_or_url, collapse_pages=False):
