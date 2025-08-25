@@ -313,6 +313,7 @@ Links
    :caption: Notebooks
    :hidden:
 
+   notebooks/generating_agents.ipynb
    notebooks/data_labeling_validation_example.ipynb
    notebooks/data_labeling_agent.ipynb
    notebooks/data_labeling_example.ipynb
@@ -322,6 +323,7 @@ Links
    notebooks/reasoning_model_example.ipynb
    notebooks/summarizing_transcripts.ipynb
    notebooks/analyze_evaluations.ipynb
+   notebooks/wikipedia_scenarios_agents.ipynb
    notebooks/concept_induction.ipynb
    notebooks/models_scoring_models.ipynb
    notebooks/conduct_interview.ipynb
