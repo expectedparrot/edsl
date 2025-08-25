@@ -85,8 +85,8 @@ Code and results for the example below are also accessible at a downloadable `no
     # Create a Coop instance
     coop = Coop()
 
-    # Get human responses from Coop
-    human_responses = coop.get_project_human_responses(web_survey_info["uuid"])
+    # Get human responses from Coop 
+    human_results = coop.get_project_human_responses(web_survey_info["uuid"])
 
     # Combine results (you can add Results objects for the same survey)
     combined_results = results + human_results
