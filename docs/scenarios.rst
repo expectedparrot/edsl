@@ -386,7 +386,7 @@ Scenario methods
 ----------------
 
 There are a variety of methods for working with scenarios and scenario lists, including:
-`concatenate`, `concatenate_to_list`, `concatenate_to_set`, `drop`, `duplicate` `expand`, `fillna`, `filter`, `keep`, `mutate`, `order_by`, `rename`, `replace_values`, `sample`, `shuffle`, `times`, `tranform`, `unpack_dict`
+`concatenate`, `concatenate_to_list`, `concatenate_to_set`, `drop`, `duplicate` `expand`, `fillna`, `filter`, `keep`, `mutate`, `order_by`, `rename`, `replace_values`, `sample`, `shuffle`, `times`, `tranform`, `translate`, `unpack_dict`
 
 These methods can be used to manipulate scenarios and scenario lists in various ways, such as sampling a subset of scenarios, shuffling the order of scenarios, concatenating scenarios together, filtering scenarios based on certain criteria, and more.
 Examples of some of these methods are provided below.
@@ -779,6 +779,61 @@ This will return:
   * - MISSING
     - 3
     - world
+
+
+The method `translate()` can be used to replace specific characters in string fields across all scenarios, equivalent to pandas' `str.translate()` functionality:
+
+.. code-block:: python
+
+  from edsl import Scenario, ScenarioList
+
+  scenarios = ScenarioList([
+    Scenario({'text_column': 'hello!world?'}),
+    Scenario({'text_column': 'test@data#'}),
+    Scenario({'text_column': 'more$text%'})
+  ])
+
+  # Define character replacements
+  char_replacements = {
+    '!': '_', '?': '_', '@': '-', '#': '-', '$': '+', '%': '+'
+  }
+
+  # Translate characters
+  translated = scenarios.translate('text_column', char_replacements)
+
+  translated
+
+
+This will return:
+
+.. list-table::
+  :header-rows: 1
+
+  * - text_column
+  * - hello_world_
+  * - test-data-
+  * - more+text+
+
+
+You can also modify the original scenarios in place:
+
+.. code-block:: python
+
+  # Modify in place
+  scenarios.translate('text_column', char_replacements, inplace=True)
+
+  scenarios
+
+
+This will return:
+
+.. list-table::
+  :header-rows: 1
+
+  * - text_column
+  * - hello_world_
+  * - test-data-
+  * - more+text+
 
 
 The method `from_source("sqlite")` can be used to create a scenario list from a SQLite database. It takes a `filepath` to the database file and optional parameters `table` and `sql_query`.

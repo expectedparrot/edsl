@@ -2643,6 +2643,66 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 new_sl.append(Scenario(new_scenario))
             return new_sl
 
+    def translate(self, field: str, char_replacements: dict, inplace: bool = False) -> "ScenarioList":
+        """
+        Replace specific characters in a string field across all scenarios using a translation table.
+        
+        This method is equivalent to pandas' str.translate() functionality, allowing you to
+        replace specific characters in string fields across all scenarios in the list.
+        
+        Args:
+            field: The field name containing strings to translate
+            char_replacements: Dictionary mapping characters to replace {old_char: new_char}
+            inplace: If True, modify the original ScenarioList. If False (default), 
+                    return a new ScenarioList with translated values.
+        
+        Returns:
+            ScenarioList: A new ScenarioList with translated values, or self if inplace=True
+        
+        Examples:
+            >>> scenarios = ScenarioList([
+            ...     Scenario({'text_column': 'hello!world?'}),
+            ...     Scenario({'text_column': 'test@data#'}),
+            ...     Scenario({'text_column': 'more$text%'})
+            ... ])
+            >>> # Define character replacements
+            >>> char_replacements = {
+            ...     '!': '_', '?': '_', '@': '-', '#': '-', '$': '+', '%': '+'
+            ... }
+            >>> # Translate characters
+            >>> translated = scenarios.translate('text_column', char_replacements)
+            >>> print(translated)
+            ScenarioList([Scenario({'text_column': 'hello_world_'}), Scenario({'text_column': 'test-data-'}), Scenario({'text_column': 'more+text+'})])
+            >>> # Original scenarios remain unchanged
+            >>> print(scenarios)
+            ScenarioList([Scenario({'text_column': 'hello!world?'}), Scenario({'text_column': 'test@data#'}), Scenario({'text_column': 'more$text%'})])
+            >>> # Modify in place
+            >>> scenarios.translate('text_column', char_replacements, inplace=True)
+            >>> print(scenarios)
+            ScenarioList([Scenario({'text_column': 'hello_world_'}), Scenario({'text_column': 'test-data-'}), Scenario({'text_column': 'more+text+'})])
+        """
+        # Create translation table
+        translation_table = str.maketrans(char_replacements)
+        
+        if inplace:
+            # Modify the original scenarios
+            for scenario in self:
+                if field in scenario and isinstance(scenario[field], str):
+                    scenario[field] = scenario[field].translate(translation_table)
+            return self
+        else:
+            # Create new scenarios with translated values
+            new_sl = ScenarioList(data=[], codebook=self.codebook)
+            for scenario in self:
+                new_scenario = {}
+                for key, val in scenario.items():
+                    if key == field and isinstance(val, str):
+                        new_scenario[key] = val.translate(translation_table)
+                    else:
+                        new_scenario[key] = val
+                new_sl.append(Scenario(new_scenario))
+            return new_sl
+
     @classmethod
     @deprecated_classmethod("ScenarioSource.from_source('pdf', ...)")
     def from_pdf(cls, filename_or_url, collapse_pages=False):
