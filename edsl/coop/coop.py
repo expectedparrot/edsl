@@ -3590,7 +3590,7 @@ class Coop(CoopFunctionsMixin):
             # Running in a standard terminal, show the full URL
             if link_description:
                 rich_print(
-                    "{link_description}\n[#38bdf8][link={url}]{url}[/link][/#38bdf8]"
+                    f"{link_description}\n[#38bdf8][link={url}]{url}[/link][/#38bdf8]"
                 )
             else:
                 rich_print(f"[#38bdf8][link={url}]{url}[/link][/#38bdf8]")
