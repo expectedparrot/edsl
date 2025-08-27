@@ -93,7 +93,6 @@ class AgentListFactories:
         """
         from .agent import Agent
         from .agent_list import AgentList
-        import pandas as pd
 
         df = results.select("agent.*", "answer.*", "prompt.*").to_pandas()
 

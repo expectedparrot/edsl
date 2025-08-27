@@ -307,7 +307,6 @@ class FileStore(Scenario):
         from google.genai.types import UploadFileConfig
         import time
 
-        import time
 
         method_start = time.time()
 
@@ -363,7 +362,7 @@ class FileStore(Scenario):
                 # Add a small delay to prevent busy-wait
                 # print(f"Waiting 0.5s before next attempt...", flush=True)
                 time.sleep(0.5)
-        except Exception as e:
+        except Exception:
             total_time = time.time() - method_start
             # print(f"Error uploading to Google after {total_time:.3f}s: {e}", flush=True)
             raise
@@ -483,7 +482,7 @@ class FileStore(Scenario):
             # )
             raise Exception(f"File upload timed out after {max_attempts} attempts")
 
-        except Exception as e:
+        except Exception:
             total_time = time.time() - method_start
             # print(
             #     f"Error in async_upload_google after {total_time:.3f}s: {e}", flush=True
