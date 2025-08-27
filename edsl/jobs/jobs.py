@@ -573,6 +573,49 @@ class Jobs(Base):
                 self.survey, scenario=scenario, agent=None
             ).show_flow(filename=filename)
 
+    def push(self, *args, **kwargs) -> None:
+        """Push the job to the remote server.
+        """
+        from ..agents import AgentList 
+        from ..scenarios import ScenarioList
+        survey_info = self.survey.push()
+        agent_info = AgentList(self.agents).push()
+        scenario_info = ScenarioList(self.scenarios).push()
+
+        # This are methods for chaining jobs together
+
+        #         # Add _post_run_methods if not empty
+        # if self._post_run_methods:
+        #     d["_post_run_methods"] = self._post_run_methods
+
+        # # Add _depends_on if not None
+        # if self._depends_on is not None:
+        #     d["_depends_on"] = self._depends_on.to_dict(
+        #         add_edsl_version=add_edsl_version
+        #     )
+
+        return {'survey': survey_info, 'agents': agent_info, 'scenarios': scenario_info}
+        
+        # [agent.push() for agent in self.agents]
+
+        #  d = {
+        #     "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
+        #     "agents": [
+        #         agent.to_dict(add_edsl_version=add_edsl_version)
+        #         for agent in self.agents
+        #     ],
+        #     "models": [
+        #         model.to_dict(add_edsl_version=add_edsl_version)
+        #         for model in self.models
+        #     ],
+        #     "scenarios": [
+        #         scenario.to_dict(add_edsl_version=add_edsl_version)
+        #         for scenario in self.scenarios
+        #     ],
+        # }
+
+        # raise NotImplementedError("Not implemented")
+
     def interviews(self) -> list:
         """Return a list of :class:`edsl.jobs.interviews.Interview` objects.
 

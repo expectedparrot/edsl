@@ -129,46 +129,34 @@ def _is_notebook_environment() -> bool:
         return False
 
 
-def _display_notebook_login(login_url: str, use_iframe: bool = False):
+def _display_notebook_login(login_url: str):
     """
     Display login interface for notebook environments.
     
     Args:
         login_url: The login URL to display
-        use_iframe: If True, embed the login page in an iframe
     """
     try:
         from IPython.display import display, HTML
         
-        if use_iframe:
-            # Embed the login page in an iframe
-            iframe_html = f"""
-            <div id="edsl-login-container" style="border: 2px solid #38bdf8; border-radius: 8px; padding: 20px; margin: 10px 0;">
-                <h3 style="color: #38bdf8; margin-top: 0;">E[🦜] Expected Parrot Login</h3>
-                <p>Please log in to get your API key:</p>
-                <iframe src="{login_url}" width="100%" height="600" style="border: 1px solid #ccc; border-radius: 4px;"></iframe>
-                <div id="edsl-status" style="margin-top: 10px; font-weight: bold; color: #38bdf8;"></div>
-            </div>
-            """
-        else:
-            # Display as a styled HTML link
-            iframe_html = f"""
-            <div id="edsl-login-container" style="border: 2px solid #38bdf8; border-radius: 8px; padding: 20px; margin: 10px 0; background-color: #f8fafc;">
-                <h3 style="color: #38bdf8; margin-top: 0;">E[🦜] Expected Parrot Login</h3>
-                <p>Click the button below to log in and automatically store your API key:</p>
-                <a href="{login_url}" target="_blank" 
-                   style="display: inline-block; background-color: #38bdf8; color: white; padding: 12px 24px; 
-                          text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0;">
-                   🚀 Log in to Expected Parrot
-                </a>
-                <p style="font-size: 0.9em; color: #64748b;">
-                   Logging in will activate remote inference and other Expected Parrot features.
-                </p>
-                <div id="edsl-status" style="margin-top: 10px; font-weight: bold; color: #38bdf8;"></div>
-            </div>
-            """
+        # Display as a styled HTML button interface
+        html_content = f"""
+        <div id="edsl-login-container" style="border: 2px solid #38bdf8; border-radius: 8px; padding: 20px; margin: 10px 0; background-color: #f8fafc;">
+            <h3 style="color: #38bdf8; margin-top: 0;">E[🦜] Expected Parrot Login</h3>
+            <p>Click the button below to log in and automatically store your API key:</p>
+            <a href="{login_url}" target="_blank" 
+               style="display: inline-block; background-color: #38bdf8; color: white; padding: 12px 24px; 
+                      text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0;">
+               🚀 Log in to Expected Parrot
+            </a>
+            <p style="font-size: 0.9em; color: #64748b;">
+               Logging in will activate remote inference and other Expected Parrot features.
+            </p>
+            <div id="edsl-status" style="margin-top: 10px; font-weight: bold; color: #38bdf8;"></div>
+        </div>
+        """
         
-        display(HTML(iframe_html))
+        display(HTML(html_content))
         
     except ImportError:
         # Fallback to regular print if IPython is not available
@@ -281,7 +269,7 @@ def _poll_for_api_key_notebook(coop, edsl_auth_token: str, timeout: int = 120):
         time.sleep(1)  # Check every second instead of 5 seconds for better UX
 
 
-def login(timeout: int = 120, use_iframe: bool = False) -> None:
+def login(timeout: int = 120) -> None:
     """
     Start the Expected Parrot login process to obtain and store an API key.
     
@@ -292,11 +280,10 @@ def login(timeout: int = 120, use_iframe: bool = False) -> None:
     4. Store the API key locally for future use
     
     In Jupyter/IPython notebooks, this will display a styled HTML interface
-    with either a clickable button or an embedded iframe of the login page.
+    with a clickable button that opens the login page in a new tab.
     
     Args:
         timeout: Maximum time to wait for login completion, in seconds (default: 120)
-        use_iframe: If True and in a notebook, embed login page in iframe (default: False)
         
     Raises:
         CoopTimeoutError: If login times out
@@ -304,8 +291,7 @@ def login(timeout: int = 120, use_iframe: bool = False) -> None:
         
     Example:
         >>> from edsl import login
-        >>> login()  # Shows styled button in notebooks
-        >>> login(use_iframe=True)  # Shows embedded login page in notebooks
+        >>> login()  # Shows styled button interface in notebooks
     """
     from edsl.coop import Coop
     import secrets
@@ -318,7 +304,7 @@ def login(timeout: int = 120, use_iframe: bool = False) -> None:
         login_url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
         
         # Display the enhanced notebook interface
-        _display_notebook_login(login_url, use_iframe=use_iframe)
+        _display_notebook_login(login_url)
         
         # Show initial status
         _update_notebook_status("⏳ Waiting for login...")

@@ -304,7 +304,7 @@ class AnswerQuestionFunctionConstructor:
                     f"Exception: {exception.__class__.__name__ if exception else 'Unknown'}: {str(exception) if exception else 'No exception details'}",
                     flush=True,
                 )
-                print(f"Waiting before retry...", flush=True)
+                print("Waiting before retry...", flush=True)
                 print(f"{'='*60}\n", flush=True)
                 self._logger.warning(
                     f"Retrying question '{question.question_name}' (attempt {attempt_number}/{RetryConfig.EDSL_MAX_ATTEMPTS}) "
@@ -388,7 +388,7 @@ class AnswerQuestionFunctionConstructor:
                     failure_reason="Question answer validation failed."
                 )
 
-            except asyncio.TimeoutError as e:
+            except asyncio.TimeoutError:
                 # Don't record exception yet - will retry
                 # Only record exception if retry limit is reached (handled in except RetryError below)
                 had_language_model_no_response_error = True
