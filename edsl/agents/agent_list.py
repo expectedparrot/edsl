@@ -136,7 +136,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             >>> from edsl import Agent, AgentList
             >>> agents = AgentList([Agent(traits={'age': 30}), Agent(traits={'age': 40})])
             >>> agents.add_instructions("Answer as if you were this age")
-            AgentList([Agent(traits = {'age': 30}), Agent(traits = {'age': 40})])
+            AgentList([Agent(traits = {'age': 30}, instruction = \"\"\"Answer as if you were this age\"\"\"), Agent(traits = {'age': 40}, instruction = \"\"\"Answer as if you were this age\"\"\")])
         """
         for agent in self.data:
             agent.instruction = instructions

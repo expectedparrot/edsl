@@ -31,7 +31,7 @@ def test_survey_flow():
     )
 
     survey = Survey([q1, q3])
-    results = survey.by(a).by(m).run()
+    results = survey.by(a).by(m).run(disable_remote_inference=True)
     assert results.select("q1", "q3").to_list() == [(["red", "green", "blue"], "red")]
 
 
@@ -99,7 +99,7 @@ def test_comment_piping():
     )
     m = Model("test", func=two_responses_closure())
     s = Survey([q1, q2])
-    results = s.by(m).run()
+    results = s.by(m).run(disable_remote_inference=True)
 
     assert (
         results.select("prompt.why_bird_user_prompt").first().text

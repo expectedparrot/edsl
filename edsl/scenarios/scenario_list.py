@@ -2062,7 +2062,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         
         >>> # To include edsl_version and edsl_class_name, explicitly set add_edsl_version=True
         >>> s.to_dict(add_edsl_version=True)  # doctest: +ELLIPSIS
-        {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}, {'food': 'wood-fired pizza', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
+        {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'codebook': {'food': 'description'}, 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
         """
         if sort:
             data = sorted(self, key=lambda x: hash(x))
@@ -2615,7 +2615,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             >>> print(scenarios)
             ScenarioList([Scenario({'a': None, 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': None, 'c': None}), Scenario({'a': None, 'b': 3, 'c': 'world'})])
             >>> # Modify in place
-            >>> scenarios.fillna(value="MISSING", inplace=True)
+            >>> _ = scenarios.fillna(value="MISSING", inplace=True)
             >>> print(scenarios)
             ScenarioList([Scenario({'a': 'MISSING', 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': 'MISSING', 'c': 'MISSING'}), Scenario({'a': 'MISSING', 'b': 3, 'c': 'world'})])
         """

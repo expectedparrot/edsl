@@ -823,6 +823,10 @@ class LanguageModel(
             "iteration": iteration,
         }
         # Try to fetch from cache
+        # This if figuring out if we need to go back to a remote
+        # server and get a cache response because the question contains
+        # a piped answer, which means it *could* be in cache but isn't in 
+        # the cache that was passed to this particular invigilator.
         if (
             invigilator is not None
             and "{{" in invigilator.question.question_text
