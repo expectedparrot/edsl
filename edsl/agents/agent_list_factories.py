@@ -77,11 +77,14 @@ class AgentListFactories:
         return AgentList(agent_list)
 
     @staticmethod
-    def from_results(results: "Results") -> "AgentList":
+    def from_results(results: "Results", question_names: Optional[List[str]] = None) -> "AgentList":
         """Create an AgentList from a Results object.
 
         Args:
             results: The Results object to convert
+            question_names: Optional list of question names to include. If None, all questions are included.
+                          Affects both answer.* columns (as traits) and prompt.* columns (as codebook).
+                          Agent traits are always included.
 
         Returns:
             AgentList: A new AgentList created from the Results
@@ -90,6 +93,8 @@ class AgentListFactories:
             >>> from edsl.agents.agent_list_factories import AgentListFactories
             >>> # This would work with actual Results object
             >>> # al = AgentListFactories.from_results(results)
+            >>> # To include only specific questions:
+            >>> # al = AgentListFactories.from_results(results, question_names=['age', 'preference'])
         """
         from .agent import Agent
         from .agent_list import AgentList
@@ -108,14 +113,18 @@ class AgentListFactories:
         
                 if column.startswith('answer.'):
                     key = column[7:]  # Remove 'answer.' prefix
-                    traits[key] = value
+                    # Only include this answer if question_names is None or if the key is in question_names
+                    if question_names is None or key in question_names:
+                        traits[key] = value
                     
                 elif column.startswith('prompt.'):
                     # Only include columns that end with '_user_prompt'
                     if column.endswith('_user_prompt'):
                         key = column[7:]  # Remove 'prompt.' prefix
                         key = key[:-12]  # Remove '_user_prompt' suffix
-                        codebook[key] = value
+                        # Only include this prompt if question_names is None or if the key is in question_names
+                        if question_names is None or key in question_names:
+                            codebook[key] = value
                         
                 elif column.startswith('agent.'):
                     # Skip agent.instructions and agent.index

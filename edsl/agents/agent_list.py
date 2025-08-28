@@ -718,11 +718,21 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         return AgentListTraitOperations.add_trait(self, trait, values)
 
     @classmethod
-    def from_results(cls, results: "Results") -> "AgentList":
-        """Create an AgentList from a Results object."""
+    def from_results(cls, results: "Results", question_names: Optional[List[str]] = None) -> "AgentList":
+        """Create an AgentList from a Results object.
+        
+        Args:
+            results: The Results object to convert
+            question_names: Optional list of question names to include. If None, all questions are included.
+                          Affects both answer.* columns (as traits) and prompt.* columns (as codebook).
+                          Agent traits are always included.
+        
+        Returns:
+            AgentList: A new AgentList created from the Results
+        """
         from .agent_list_factories import AgentListFactories
 
-        return AgentListFactories.from_results(results)
+        return AgentListFactories.from_results(results, question_names)
 
     @staticmethod
     def get_codebook(file_path: str) -> dict:
