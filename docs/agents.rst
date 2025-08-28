@@ -896,6 +896,44 @@ Output:
     - 40
 
 
+Creating AgentList from Results
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The `AgentList.from_results()` method allows you to create an `AgentList` directly from a `Results` object. This is useful when you want to create agents based on survey responses, including their original traits and their answers to questions.
+
+By default, this method includes all answer columns as traits for the new agents:
+
+.. code-block:: python
+
+    from edsl import AgentList
+
+    # Create AgentList with all questions included
+    new_agents = AgentList.from_results(results)
+    
+    # The new agents will have traits from the original agents plus all their answers
+    new_agents[0]
+
+
+You can also specify which question responses to include as traits using the `question_names` parameter:
+
+.. code-block:: python
+
+    # Include only specific questions as traits
+    new_agents = AgentList.from_results(results, question_names=['surfing', 'age'])
+    
+    # The new agents will have traits from the original agents plus only the specified answers
+    new_agents[0]
+
+
+This is particularly useful when you want to:
+- Create agents with only certain response patterns
+- Filter out irrelevant or sensitive question responses
+- Create more focused agent profiles based on specific survey questions
+- Reduce the number of traits when only certain responses are needed
+
+Note that the `question_names` parameter affects both `answer.*` columns (as traits) and `prompt.*` columns (as codebook). Agent traits (from `agent.*` columns) are always included.
+
+
 Agent class
 -----------
 .. autoclass:: edsl.agents.Agent
@@ -927,6 +965,9 @@ AgentList class
    :noindex:
 
 .. automethod:: AgentList.from_list
+   :noindex:
+
+.. automethod:: AgentList.from_results
    :noindex:
    
 .. automethod:: AgentList.to_dict
