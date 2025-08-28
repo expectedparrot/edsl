@@ -189,4 +189,4 @@ Choose whether to run surveys on your own computer or at the Expected Parrot ser
 Easily share workflows and projects privately or publicly at Coop: an integrated platform for AI-based research. Your account comes with free credits for running surveys, and lets you securely share keys, track expenses and usage for your team.
 
 **Built-in tools for analyis**: 
-Analyze results as specified datasets from your account or workspace. Easily import data to use with your surveys and export results.
+Analyze results as specified datasets from your account or workspace. Easily import data to use with your surveys and export results..
