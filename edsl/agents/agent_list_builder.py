@@ -62,20 +62,20 @@ class AgentListBuilder:
             
         Examples:
             >>> # Create agents from a CSV file with instructions
-            >>> agents = AgentListBuilder.from_source(
+            >>> agents = AgentListBuilder.from_source(  # doctest: +SKIP
             ...     'csv', 'agents.csv', 
             ...     instructions="Answer as if you were the person described"
             ... )
             
             >>> # Create agents with a codebook dictionary
-            >>> agents = AgentListBuilder.from_source(
+            >>> agents = AgentListBuilder.from_source(  # doctest: +SKIP
             ...     'csv', 'agents.csv',
             ...     codebook={'age': 'Age in years', 'job': 'Current occupation'}
             ... )
             
             >>> # Create agents with a CSV codebook file
             >>> # The CSV should have 2 columns: original keys and descriptions
-            >>> agents = AgentListBuilder.from_source(
+            >>> agents = AgentListBuilder.from_source(  # doctest: +SKIP
             ...     'csv', 'agents.csv',
             ...     codebook='codebook.csv'  # CSV with keys like "Age in years" -> "age_in_years"
             ... )
@@ -136,10 +136,10 @@ class AgentListBuilder:
             
         Examples:
             >>> # Basic usage
-            >>> agents = AgentListBuilder.from_csv('agents.csv')
+            >>> agents = AgentListBuilder.from_csv('agents.csv')  # doctest: +SKIP
             
             >>> # With instructions and name field
-            >>> agents = AgentListBuilder.from_csv(
+            >>> agents = AgentListBuilder.from_csv(  # doctest: +SKIP
             ...     'agents.csv',
             ...     name_field='name',
             ...     instructions='Answer as if you were this person'

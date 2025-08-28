@@ -9,16 +9,26 @@ if TYPE_CHECKING:
 class ScenarioJoin:
     """Handles join operations between two ScenarioLists.
 
-    This class encapsulates all join-related logic, making it easier to maintain
-    and extend with other join types (inner, right, full) in the future.
+    This class encapsulates all join-related logic, supporting left, inner, and right joins.
 
     >>> from edsl import ScenarioList, Scenario
     >>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
     >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Los Angeles'})])
+    
+    # Left join (keeps all left scenarios, adds matching right data)
     >>> s3 = s1.left_join(s2, 'name')
     >>> s3 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'}), Scenario({'age': 25, 'location': None, 'name': 'Bob'})])
     True
-
+    
+    # Inner join (keeps only scenarios with matches in both)
+    >>> s4 = s1.inner_join(s2, 'name')
+    >>> s4 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'})])
+    True
+    
+    # Right join (keeps all right scenarios, adds matching left data)
+    >>> s5 = s1.right_join(s2, 'name')
+    >>> s5 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'}), Scenario({'age': None, 'location': 'Los Angeles', 'name': 'Charlie'})])
+    True
 
     """
 
@@ -53,7 +63,55 @@ class ScenarioJoin:
         all_keys = self._get_all_keys()
 
         return ScenarioList(
-            self._create_joined_scenarios(by_keys, other_dict, all_keys)
+            self._create_left_joined_scenarios(by_keys, other_dict, all_keys)
+        )
+
+    def inner_join(self, by: Union[str, list[str]]) -> "ScenarioList":
+        """Perform an inner join between the two ScenarioLists.
+
+        Args:
+            by: String or list of strings representing the key(s) to join on. Cannot be empty.
+
+        Returns:
+            A new ScenarioList containing only scenarios that have matches in both ScenarioLists
+
+        Raises:
+            ValueError: If by is empty or if any join keys don't exist in both ScenarioLists
+        """
+        from .scenario_list import ScenarioList
+
+        self._validate_join_keys(by)
+        by_keys = [by] if isinstance(by, str) else by
+
+        other_dict = self._create_lookup_dict(self.right, by_keys)
+        all_keys = self._get_all_keys()
+
+        return ScenarioList(
+            self._create_inner_joined_scenarios(by_keys, other_dict, all_keys)
+        )
+
+    def right_join(self, by: Union[str, list[str]]) -> "ScenarioList":
+        """Perform a right join between the two ScenarioLists.
+
+        Args:
+            by: String or list of strings representing the key(s) to join on. Cannot be empty.
+
+        Returns:
+            A new ScenarioList containing all right scenarios with matching left data added
+
+        Raises:
+            ValueError: If by is empty or if any join keys don't exist in both ScenarioLists
+        """
+        from .scenario_list import ScenarioList
+
+        self._validate_join_keys(by)
+        by_keys = [by] if isinstance(by, str) else by
+
+        other_dict = self._create_lookup_dict(self.left, by_keys)
+        all_keys = self._get_all_keys()
+
+        return ScenarioList(
+            self._create_right_joined_scenarios(by_keys, other_dict, all_keys)
         )
 
     def _validate_join_keys(self, by: Union[str, list[str]]) -> None:
@@ -79,7 +137,7 @@ class ScenarioJoin:
         return tuple(scenario[k] for k in keys)
 
     def _create_lookup_dict(self, scenarios: ScenarioList, by_keys: list[str]) -> dict:
-        """Create a lookup dictionary for the right scenarios."""
+        """Create a lookup dictionary for the scenarios."""
         return {
             self._get_key_tuple(scenario, by_keys): scenario for scenario in scenarios
         }
@@ -93,15 +151,57 @@ class ScenarioJoin:
             all_keys.update(scenario.keys())
         return all_keys
 
-    def _create_joined_scenarios(
+    def _create_left_joined_scenarios(
         self, by_keys: list[str], other_dict: dict, all_keys: set
     ) -> list[Scenario]:
-        """Create the joined scenarios."""
+        """Create the left joined scenarios."""
         from .scenario import Scenario
 
         new_scenarios = []
 
         for scenario in self.left:
+            new_scenario = {key: None for key in all_keys}
+            new_scenario.update(scenario)
+
+            key_tuple = self._get_key_tuple(scenario, by_keys)
+            if matching_scenario := other_dict.get(key_tuple):
+                self._handle_matching_scenario(
+                    new_scenario, scenario, matching_scenario, by_keys
+                )
+
+            new_scenarios.append(Scenario(new_scenario))
+
+        return new_scenarios
+
+    def _create_inner_joined_scenarios(
+        self, by_keys: list[str], other_dict: dict, all_keys: set
+    ) -> list[Scenario]:
+        """Create the inner joined scenarios (only scenarios with matches in both)."""
+        from .scenario import Scenario
+
+        new_scenarios = []
+
+        for scenario in self.left:
+            key_tuple = self._get_key_tuple(scenario, by_keys)
+            if matching_scenario := other_dict.get(key_tuple):
+                new_scenario = {key: None for key in all_keys}
+                new_scenario.update(scenario)
+                self._handle_matching_scenario(
+                    new_scenario, scenario, matching_scenario, by_keys
+                )
+                new_scenarios.append(Scenario(new_scenario))
+
+        return new_scenarios
+
+    def _create_right_joined_scenarios(
+        self, by_keys: list[str], other_dict: dict, all_keys: set
+    ) -> list[Scenario]:
+        """Create the right joined scenarios (all right scenarios with matching left data)."""
+        from .scenario import Scenario
+
+        new_scenarios = []
+
+        for scenario in self.right:
             new_scenario = {key: None for key in all_keys}
             new_scenario.update(scenario)
 

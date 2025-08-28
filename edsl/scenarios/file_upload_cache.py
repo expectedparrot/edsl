@@ -197,7 +197,7 @@ class FileUploadCache:
 
                 return result
 
-            except Exception as e:
+            except Exception:
                 self._stats["upload_errors"] += 1
                 # print(f"Error uploading file to {service}: {e}", flush=True)
                 raise

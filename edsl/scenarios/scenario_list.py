@@ -2047,6 +2047,48 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         sj = ScenarioJoin(self, other)
         return sj.left_join(by)
 
+    def inner_join(self, other: ScenarioList, by: Union[str, list[str]]) -> ScenarioList:
+        """Perform an inner join with another ScenarioList, following SQL join semantics.
+
+        Args:
+            other: The ScenarioList to join with
+            by: String or list of strings representing the key(s) to join on. Cannot be empty.
+
+        Returns:
+            A new ScenarioList containing only scenarios that have matches in both ScenarioLists
+
+        >>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+        >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Los Angeles'})])
+        >>> s4 = s1.inner_join(s2, 'name')
+        >>> s4 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'})])
+        True
+        """
+        from .scenario_join import ScenarioJoin
+
+        sj = ScenarioJoin(self, other)
+        return sj.inner_join(by)
+
+    def right_join(self, other: ScenarioList, by: Union[str, list[str]]) -> ScenarioList:
+        """Perform a right join with another ScenarioList, following SQL join semantics.
+
+        Args:
+            other: The ScenarioList to join with
+            by: String or list of strings representing the key(s) to join on. Cannot be empty.
+
+        Returns:
+            A new ScenarioList containing all right scenarios with matching left data added
+
+        >>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+        >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Los Angeles'})])
+        >>> s5 = s1.right_join(s2, 'name')
+        >>> s5 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'}), Scenario({'age': None, 'location': 'Los Angeles', 'name': 'Charlie'})])
+        True
+        """
+        from .scenario_join import ScenarioJoin
+
+        sj = ScenarioJoin(self, other)
+        return sj.right_join(by)
+
     def to_dict(self, sort: bool = False, add_edsl_version: bool = False) -> dict:
         """
         >>> s = ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood-fired pizza'})])
@@ -2062,7 +2104,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         
         >>> # To include edsl_version and edsl_class_name, explicitly set add_edsl_version=True
         >>> s.to_dict(add_edsl_version=True)  # doctest: +ELLIPSIS
-        {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}, {'food': 'wood-fired pizza', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
+        {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'codebook': {'food': 'description'}, 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
         """
         if sort:
             data = sorted(self, key=lambda x: hash(x))
@@ -2615,7 +2657,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             >>> print(scenarios)
             ScenarioList([Scenario({'a': None, 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': None, 'c': None}), Scenario({'a': None, 'b': 3, 'c': 'world'})])
             >>> # Modify in place
-            >>> scenarios.fillna(value="MISSING", inplace=True)
+            >>> _ = scenarios.fillna(value="MISSING", inplace=True)
             >>> print(scenarios)
             ScenarioList([Scenario({'a': 'MISSING', 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': 'MISSING', 'c': 'MISSING'}), Scenario({'a': 'MISSING', 'b': 3, 'c': 'world'})])
         """

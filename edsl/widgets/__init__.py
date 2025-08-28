@@ -7,6 +7,7 @@ This package contains interactive widgets for visualizing and working with EDSL 
 from .base_widget import EDSLBaseWidget
 from .inspector_widget import InspectorWidget
 from .results_viewer import ResultsViewerWidget
+from .results_visualize_widget import ResultsVisualizeWidget
 from .agent_list_manager import AgentListManagerWidget
 from .object_docs_viewer import ObjectDocsViewerWidget
 from .agent_inspector import AgentInspectorWidget
@@ -22,6 +23,7 @@ __all__ = [
     "EDSLBaseWidget",
     "InspectorWidget",
     "ResultsViewerWidget",
+    "ResultsVisualizeWidget",
     "AgentListManagerWidget",
     "ObjectDocsViewerWidget",
     "AgentInspectorWidget",
