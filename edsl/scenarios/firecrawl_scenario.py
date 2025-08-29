@@ -1294,8 +1294,24 @@ class FirecrawlScenario:
             async with semaphore:
                 # Run the sync scrape method in executor
                 loop = asyncio.get_event_loop()
+                # Extract specific parameters from kwargs
+                formats = kwargs.get('formats')
+                only_main_content = kwargs.get('only_main_content', True)
+                include_tags = kwargs.get('include_tags')
+                exclude_tags = kwargs.get('exclude_tags')
+                headers = kwargs.get('headers')
+                wait_for = kwargs.get('wait_for')
+                timeout = kwargs.get('timeout')
+                actions = kwargs.get('actions')
+                other_kwargs = {k: v for k, v in kwargs.items() if k not in [
+                    'formats', 'only_main_content', 'include_tags', 'exclude_tags',
+                    'headers', 'wait_for', 'timeout', 'actions'
+                ]}
+                
                 return await loop.run_in_executor(
-                    None, self._scrape_single, url, **kwargs
+                    None, self._scrape_single, url, formats, only_main_content,
+                    include_tags, exclude_tags, headers, wait_for, timeout, actions,
+                    **other_kwargs
                 )
 
         # Create tasks for all URLs
@@ -1352,15 +1368,15 @@ class FirecrawlScenario:
             async with semaphore:
                 # Run the sync search method in executor
                 loop = asyncio.get_event_loop()
-                # Pass limit as positional argument if specified
-                if limit is not None:
-                    return await loop.run_in_executor(
-                        None, self._search_single, query, limit, **kwargs
-                    )
-                else:
-                    return await loop.run_in_executor(
-                        None, self._search_single, query, **kwargs
-                    )
+                # Extract specific parameters from kwargs
+                sources = kwargs.get('sources')
+                formats = kwargs.get('formats')
+                location = kwargs.get('location')
+                other_kwargs = {k: v for k, v in kwargs.items() if k not in ['sources', 'formats', 'location']}
+                
+                return await loop.run_in_executor(
+                    None, self._search_single, query, limit, sources, formats, location, **other_kwargs
+                )
 
         # Create tasks for all queries
         tasks = [search_single(query) for query in queries]
@@ -1421,8 +1437,12 @@ class FirecrawlScenario:
             async with semaphore:
                 # Run the sync extract method in executor
                 loop = asyncio.get_event_loop()
+                # Extract specific parameters from kwargs
+                formats = kwargs.get('formats')
+                other_kwargs = {k: v for k, v in kwargs.items() if k != 'formats'}
+                
                 return await loop.run_in_executor(
-                    None, self._extract_single, url, schema, prompt, None, **kwargs
+                    None, self._extract_single, url, schema, prompt, formats, **other_kwargs
                 )
 
         # Create tasks for all URLs
