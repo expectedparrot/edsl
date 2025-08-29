@@ -73,6 +73,7 @@ from ..db_list.sqlite_list import SQLiteList
 
 from .exceptions import ScenarioError
 from .scenario import Scenario
+from .firecrawl_scenario import FirecrawlRequest
 
 
 if TYPE_CHECKING:
@@ -133,6 +134,8 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     __documentation__ = (
         "https://docs.expectedparrot.com/en/latest/scenarios.html#scenariolist"
     )
+    
+    firecrawl = FirecrawlRequest()
 
     def __init__(
         self,

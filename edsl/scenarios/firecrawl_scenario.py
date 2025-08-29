@@ -27,6 +27,31 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+
+def sum_credits_used(data):
+    """
+    Recursively search through a dictionary (and lists inside it)
+    to find all 'creditsUsed' keys and sum their values.
+    Works for dicts, lists, or a mix of both.
+    """
+    total = 0
+
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if key == "creditsUsed":
+                try:
+                    total += float(value)  # handles int/float values
+                except (ValueError, TypeError):
+                    pass  # ignore non-numeric values
+            # recurse into subkeys
+            total += sum_credits_used(value)
+
+    elif isinstance(data, list):
+        for item in data:
+            total += sum_credits_used(item)
+
+    return total
+
 def _convert_to_dict(obj):
     """
     Convert SDK objects to JSON-serializable dictionaries.
@@ -339,8 +364,8 @@ class FirecrawlRequest:
     def crawl(
         self,
         url: str,
-        limit: Optional[int] = None,
-        max_depth: Optional[int] = None,
+        limit: Optional[int] = 10,
+        max_depth: Optional[int] = 3,
         include_paths: Optional[List[str]] = None,
         exclude_paths: Optional[List[str]] = None,
         formats: Optional[List[str]] = None,
@@ -504,10 +529,10 @@ class FirecrawlScenario:
                     environment variable or .env file.
         """
         try:
-            from firecrawl import Firecrawl
+            import httpx
         except ImportError:
             raise ImportError(
-                "firecrawl-py is required. Install it with: pip install firecrawl-py"
+                "httpx is required. Install it with: pip install httpx"
             )
 
         # Get API key from parameter, environment, or .env file
@@ -518,7 +543,26 @@ class FirecrawlScenario:
                 "set it as an environment variable, or add it to a .env file."
             )
 
-        self.client = Firecrawl(api_key=self.api_key)
+        self.base_url = "https://api.firecrawl.dev/v2"
+        self.headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+
+    def _make_request(self, method: str, endpoint: str, data: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Make an HTTP request to the Firecrawl API."""
+        import httpx
+        
+        url = f"{self.base_url}/{endpoint}"
+        
+        with httpx.Client(timeout=300.0) as client:
+            if method.upper() == "GET":
+                response = client.get(url, headers=self.headers, params=data)
+            else:
+                response = client.request(method, url, headers=self.headers, json=data)
+            
+            response.raise_for_status()
+            return response.json()
 
     @classmethod
     def from_request(cls, request_dict: Dict[str, Any]):
@@ -622,7 +666,7 @@ class FirecrawlScenario:
             raise ValueError(f"Unknown method: {method}")
 
     def scrape(
-        self, url_or_urls: Union[str, List[str]], max_concurrent: int = 10, limit: Optional[int] = None, **kwargs
+        self, url_or_urls: Union[str, List[str]], max_concurrent: int = 10, limit: Optional[int] = None, return_credits: bool = False, **kwargs
     ):
         """
         Smart scrape method that handles both single URLs and batches.
@@ -633,11 +677,12 @@ class FirecrawlScenario:
             **kwargs: Additional parameters passed to scrape method
 
         Returns:
-            Scenario object for single URL, ScenarioList for multiple URLs
+            Scenario/ScenarioList object, or tuple (object, credits_used) if return_credits=True
         """
         if isinstance(url_or_urls, str):
             # Single URL - return Scenario
-            return self._scrape_single(url_or_urls, **kwargs)
+            scenario, credits = self._scrape_single(url_or_urls, **kwargs)
+            return (scenario, credits) if return_credits else scenario
         elif isinstance(url_or_urls, list):
             # Multiple URLs - return ScenarioList
             import asyncio
@@ -646,9 +691,10 @@ class FirecrawlScenario:
             if limit is not None:
                 url_or_urls = url_or_urls[:limit]
 
-            return asyncio.run(
+            result, credits = asyncio.run(
                 self._scrape_batch(url_or_urls, max_concurrent, **kwargs)
             )
+            return (result, credits) if return_credits else result
         else:
             raise ValueError("url_or_urls must be a string or list of strings")
 
@@ -689,92 +735,83 @@ class FirecrawlScenario:
         if formats is None:
             formats = ["markdown"]
 
-        # Build scrape parameters
+        # Build scrape parameters with correct API parameter names
         scrape_params = {
             "formats": formats,
-            "only_main_content": only_main_content,
+            "onlyMainContent": only_main_content,  # API expects camelCase
             **kwargs,
         }
 
-        # Add optional parameters if provided
+        # Add optional parameters if provided (using correct API parameter names)
         if include_tags:
-            scrape_params["includeTags"] = include_tags
+            scrape_params["includeTags"] = include_tags  # API expects camelCase
         if exclude_tags:
-            scrape_params["excludeTags"] = exclude_tags
+            scrape_params["excludeTags"] = exclude_tags  # API expects camelCase
         if headers:
             scrape_params["headers"] = headers
         if wait_for:
-            scrape_params["waitFor"] = wait_for
+            scrape_params["waitFor"] = wait_for  # API expects camelCase
         if timeout:
             scrape_params["timeout"] = timeout
         if actions:
             scrape_params["actions"] = actions
 
         try:
-            result = self.client.scrape(url, **scrape_params)
+            # Prepare request payload
+            payload = {"url": url, **scrape_params}
+            
+            # Make HTTP request to Firecrawl API
+            result = self._make_request("POST", "scrape", payload)
+            
+            # Track credits used
+            credits_used = sum_credits_used(result)
 
-            # Handle the Document object response format
-            if hasattr(result, "metadata") and result.metadata:
-                metadata = result.metadata
-                source_url = (
-                    getattr(metadata, "sourceURL", url)
-                    if hasattr(metadata, "sourceURL")
-                    else url
-                )
-                title = (
-                    getattr(metadata, "title", "") if hasattr(metadata, "title") else ""
-                )
-                description = (
-                    getattr(metadata, "description", "")
-                    if hasattr(metadata, "description")
-                    else ""
-                )
-                status_code = (
-                    getattr(metadata, "statusCode", None)
-                    if hasattr(metadata, "statusCode")
-                    else None
-                )
+            # Extract data from response
+            if result.get("success") and result.get("data"):
+                data = result["data"]
+                metadata = data.get("metadata", {})
+                
+                source_url = metadata.get("sourceURL", url)
+                title = metadata.get("title", "")
+                description = metadata.get("description", "")
+                status_code = metadata.get("statusCode")
+
+                # Create scenario with all available data
+                scenario_data = {
+                    "url": url,
+                    "source_url": source_url,
+                    "title": title,
+                    "description": description,
+                    "status_code": status_code,
+                    "scrape_status": "success",
+                }
+
+                # Add format-specific content
+                if data.get("markdown"):
+                    scenario_data["markdown"] = data["markdown"]
+                    scenario_data["content"] = data["markdown"]  # Default content field
+                if data.get("html"):
+                    scenario_data["html"] = data["html"]
+                if data.get("links"):
+                    scenario_data["links"] = data["links"]
+                if data.get("screenshot"):
+                    scenario_data["screenshot"] = data["screenshot"]
+                if data.get("json"):
+                    scenario_data["structured_data"] = data["json"]
+
+                # Add full metadata
+                scenario_data["metadata"] = metadata
+
+                # Add action results if present
+                if data.get("actions"):
+                    scenario_data["actions"] = data["actions"]
             else:
-                source_url = url
-                title = ""
-                description = ""
-                status_code = None
+                raise Exception(f"Scraping failed: {result.get('error', 'Unknown error')}")
 
-            # Create scenario with all available data
-            scenario_data = {
-                "url": url,
-                "source_url": source_url,
-                "title": title,
-                "description": description,
-                "status_code": status_code,
-                "scrape_status": "success",
-            }
-
-            # Add format-specific content from the Document object
-            if hasattr(result, "markdown") and result.markdown:
-                scenario_data["markdown"] = result.markdown
-                scenario_data["content"] = result.markdown  # Default content field
-            if hasattr(result, "html") and result.html:
-                scenario_data["html"] = result.html
-            if hasattr(result, "links") and result.links:
-                scenario_data["links"] = _convert_to_dict(result.links)
-            if hasattr(result, "screenshot") and result.screenshot:
-                scenario_data["screenshot"] = result.screenshot
-            if hasattr(result, "json") and result.json:
-                scenario_data["structured_data"] = _convert_to_dict(result.json)
-
-            # Add full metadata (convert to dict for serialization)
-            if hasattr(result, "metadata") and result.metadata:
-                scenario_data["metadata"] = _convert_to_dict(result.metadata)
-
-            # Add action results if present (convert to dict for serialization)
-            if hasattr(result, "actions") and result.actions:
-                scenario_data["actions"] = _convert_to_dict(result.actions)
-
-            return Scenario(scenario_data)
+            return Scenario(scenario_data), credits_used
 
         except Exception as e:
-            # Return scenario with error information
+            # Return scenario with error information and 0 credits
             return Scenario(
                 {
                     "url": url,
@@ -783,17 +820,19 @@ class FirecrawlScenario:
                     "content": "",
                     "markdown": "",
                 }
-            )
+            ), 0
 
     def crawl(
         self,
         url: str,
-        limit: Optional[int] = None,
-        max_depth: Optional[int] = None,
+        limit: Optional[int] = 10,
+        max_depth: Optional[int] = 3,
         include_paths: Optional[List[str]] = None,
         exclude_paths: Optional[List[str]] = None,
         formats: Optional[List[str]] = None,
         only_main_content: bool = True,
+        scrape_options: Optional[Dict[str, Any]] = None,
+        return_credits: bool = False,
         **kwargs,
     ):
         """
@@ -818,62 +857,86 @@ class FirecrawlScenario:
         if formats is None:
             formats = ["markdown"]
 
-        # Build scrape options for the crawl
-        scrape_options = {"formats": formats, "only_main_content": only_main_content}
+        # Build crawl parameters with correct API parameter names (camelCase)
+        crawl_params = {}
+        
+        # Build scrapeOptions
+        scrape_opts = {"formats": formats}
+        if only_main_content is not True:
+            scrape_opts["onlyMainContent"] = only_main_content
+            
+        # Merge with provided scrape_options if any
+        if scrape_options:
+            scrape_opts.update(scrape_options)
+            
+        crawl_params["scrapeOptions"] = scrape_opts
 
-        # Build crawl parameters
-        crawl_params = {"scrape_options": scrape_options, **kwargs}
-
-        # Add optional parameters if provided
+        # Add optional parameters with correct API names (camelCase)
         if limit:
             crawl_params["limit"] = limit
         if max_depth:
-            crawl_params["max_discovery_depth"] = max_depth
+            crawl_params["maxDiscoveryDepth"] = max_depth  # API expects camelCase
         if include_paths:
-            crawl_params["include_paths"] = include_paths
+            crawl_params["includePaths"] = include_paths    # API expects camelCase
         if exclude_paths:
-            crawl_params["exclude_paths"] = exclude_paths
+            crawl_params["excludePaths"] = exclude_paths    # API expects camelCase
+            
+        # Add any additional kwargs
+        crawl_params.update(kwargs)
 
         try:
-            result = self.client.crawl(url, **crawl_params)
+            # Prepare request payload
+            payload = {"url": url, **crawl_params}
+            
+            # Make HTTP request to Firecrawl API
+            result = self._make_request("POST", "crawl", payload)
+            
+            # Track credits used
 
-            # Handle CrawlJob response - check if crawl completed successfully
-            if not hasattr(result, "data") or not result.data:
-                raise Exception(
-                    f"Crawling failed or returned no data: {result.status if hasattr(result, 'status') else 'Unknown status'}"
-                )
+
+            # Handle response - check if crawl completed successfully
+            if not result.get("success"):
+                raise Exception(f"Crawling failed: {result.get('error', 'Unknown error')}")
+                
+            # For crawl jobs, we need to poll for completion
+            crawl_id = result.get("id")
+            if crawl_id:
+                # Poll for completion
+                import time
+                max_retries = 60  # 10 minutes max
+                retry_count = 0
+                
+                while retry_count < max_retries:
+                    status_result = self._make_request("GET", f"crawl/{crawl_id}")
+                    
+                    if status_result.get("status") == "completed":
+                        result = status_result
+                        break
+                    elif status_result.get("status") in ["failed", "cancelled"]:
+                        raise Exception(f"Crawl failed with status: {status_result.get('status')}")
+                    
+                    time.sleep(10)  # Wait 10 seconds between polls
+                    retry_count += 1
+                
+                if retry_count >= max_retries:
+                    raise Exception("Crawl timed out")
+
+            credits_used = sum_credits_used(result)
+
+            # Process crawl results
+            data = result.get("data", [])
+            if not data:
+                raise Exception("Crawling returned no data")
 
             scenarios = []
-            # Process each Document in the crawl results
-            for document in result.data:
-                # Extract metadata
-                if hasattr(document, "metadata") and document.metadata:
-                    metadata = document.metadata
-                    source_url = (
-                        getattr(metadata, "sourceURL", "")
-                        if hasattr(metadata, "sourceURL")
-                        else ""
-                    )
-                    title = (
-                        getattr(metadata, "title", "")
-                        if hasattr(metadata, "title")
-                        else ""
-                    )
-                    description = (
-                        getattr(metadata, "description", "")
-                        if hasattr(metadata, "description")
-                        else ""
-                    )
-                    status_code = (
-                        getattr(metadata, "statusCode", None)
-                        if hasattr(metadata, "statusCode")
-                        else None
-                    )
-                else:
-                    source_url = ""
-                    title = ""
-                    description = ""
-                    status_code = None
+            # Process each document in the crawl results
+            for document in data:
+                metadata = document.get("metadata", {})
+                
+                source_url = metadata.get("sourceURL", "")
+                title = metadata.get("title", "")
+                description = metadata.get("description", "")
+                status_code = metadata.get("statusCode")
 
                 scenario_data = {
                     "url": source_url,
@@ -883,28 +946,29 @@ class FirecrawlScenario:
                     "crawl_status": "success",
                 }
 
-                # Add format-specific content from the Document object
-                if hasattr(document, "markdown") and document.markdown:
-                    scenario_data["markdown"] = document.markdown
-                    scenario_data["content"] = document.markdown
-                if hasattr(document, "html") and document.html:
-                    scenario_data["html"] = document.html
-                if hasattr(document, "links") and document.links:
-                    scenario_data["links"] = _convert_to_dict(document.links)
-                if hasattr(document, "metadata") and document.metadata:
-                    scenario_data["metadata"] = _convert_to_dict(document.metadata)
+                # Add format-specific content
+                if document.get("markdown"):
+                    scenario_data["markdown"] = document["markdown"]
+                    scenario_data["content"] = document["markdown"]
+                if document.get("html"):
+                    scenario_data["html"] = document["html"]
+                if document.get("links"):
+                    scenario_data["links"] = document["links"]
+                if metadata:
+                    scenario_data["metadata"] = metadata
 
                 scenarios.append(scenario_data)
 
             from .scenario import Scenario
 
-            return ScenarioList([Scenario(data) for data in scenarios])
+            result = ScenarioList([Scenario(data) for data in scenarios])
+            return (result, credits_used) if return_credits else result
 
         except Exception as e:
-            # Return single scenario with error
+            # Return single scenario with error and 0 credits
             from .scenario import Scenario
 
-            return ScenarioList(
+            result = ScenarioList(
                 [
                     Scenario(
                         {
@@ -917,9 +981,12 @@ class FirecrawlScenario:
                     )
                 ]
             )
+            return (result, 0) if return_credits else result
 
     def search(
-        self, query_or_queries: Union[str, List[str]], max_concurrent: int = 5, limit: Optional[int] = None, **kwargs
+        self, query_or_queries: Union[str, List[str]], max_concurrent: int = 5, limit: Optional[int] = None, 
+        sources: Optional[List[str]] = None, location: Optional[str] = None, 
+        scrape_options: Optional[Dict[str, Any]] = None, return_credits: bool = False, **kwargs
     ):
         """
         Smart search method that handles both single queries and batches.
@@ -930,18 +997,26 @@ class FirecrawlScenario:
             **kwargs: Additional parameters passed to search method
 
         Returns:
-            ScenarioList for both single and multiple queries
+            ScenarioList for both single and multiple queries, or (ScenarioList, credits) if return_credits=True
         """
         if isinstance(query_or_queries, str):
             # Single query - return ScenarioList (search always returns multiple results)
-            return self._search_single(query_or_queries, limit=limit, **kwargs)
+            result, credits = self._search_single(
+                query_or_queries, limit=limit, sources=sources, 
+                location=location, scrape_options=scrape_options, **kwargs
+            )
+            return (result, credits) if return_credits else result
         elif isinstance(query_or_queries, list):
             # Multiple queries - return combined ScenarioList
             import asyncio
 
-            return asyncio.run(
-                self._search_batch(query_or_queries, max_concurrent, limit=limit, **kwargs)
+            result, credits = asyncio.run(
+                self._search_batch(
+                    query_or_queries, max_concurrent, limit=limit, sources=sources,
+                    location=location, scrape_options=scrape_options, **kwargs
+                )
             )
+            return (result, credits) if return_credits else result
         else:
             raise ValueError("query_or_queries must be a string or list of strings")
 
@@ -952,6 +1027,7 @@ class FirecrawlScenario:
         sources: Optional[List[str]] = None,
         formats: Optional[List[str]] = None,
         location: Optional[str] = None,
+        scrape_options: Optional[Dict[str, Any]] = None,
         **kwargs,
     ):
         """
@@ -971,12 +1047,10 @@ class FirecrawlScenario:
         from .scenario_list import ScenarioList
         from .scenario import Scenario
 
-        # Build scrape options if formats specified
+        # Build search parameters according to API spec
         search_params = {}
-        if formats:
-            search_params["scrape_options"] = {"formats": formats}
-
-        # Add search parameters
+        
+        # Add basic search parameters
         if limit:
             search_params["limit"] = limit
         if sources:
@@ -984,85 +1058,108 @@ class FirecrawlScenario:
         if location:
             search_params["location"] = location
 
-        # Add any additional kwargs
+        # Build scrapeOptions if any scraping parameters are specified
+        final_scrape_options = {}
+        
+        # Add formats if specified
+        if formats:
+            final_scrape_options["formats"] = formats
+            
+        # Merge with provided scrape_options
+        if scrape_options:
+            final_scrape_options.update(scrape_options)
+            
+        # Extract common scrape options from kwargs
+        scrape_option_keys = ['onlyMainContent', 'includeTags', 'excludeTags', 'maxAge', 
+                             'headers', 'waitFor', 'mobile', 'skipTlsVerification', 'timeout',
+                             'parsers', 'actions', 'removeBase64Images', 'blockAds', 'proxy', 'storeInCache']
+        
+        for key in scrape_option_keys:
+            if key in kwargs:
+                final_scrape_options[key] = kwargs.pop(key)
+        
+        # Add scrapeOptions to search params if any were specified
+        if final_scrape_options:
+            search_params["scrapeOptions"] = final_scrape_options
+            
+        # Add any remaining kwargs directly to search params
         search_params.update(kwargs)
 
         try:
-            result = self.client.search(query, **search_params)
+            # Prepare request payload
+            payload = {"query": query, **search_params}
+            
+            # Make HTTP request to Firecrawl API
+            result = self._make_request("POST", "search", payload)
+            
+            # Track credits used
+            credits_used = sum_credits_used(result)
 
-            # Handle SearchData object response
+            # Handle search response
+            if not result.get("success"):
+                raise Exception(f"Search failed: {result.get('error', 'Unknown error')}")
+                
             scenarios = []
+            data = result.get("data", {})
+            
+            # Process web search results
+            web_results = data.get("web", []) if isinstance(data, dict) else []
+            for item in web_results:
+                scenario_data = {
+                    "search_query": query,
+                    "result_type": "web",
+                    "url": item.get("url", ""),
+                    "title": item.get("title", ""),
+                    "description": item.get("description", ""),
+                    "position": item.get("position", 0),
+                    "search_status": "success",
+                }
 
-            # Process web results
-            if hasattr(result, "web") and result.web:
-                for position, item in enumerate(result.web, 1):
-                    scenario_data = {
-                        "search_query": query,
-                        "result_type": "web",
-                        "url": getattr(item, "url", "") if hasattr(item, "url") else "",
-                        "title": getattr(item, "title", "")
-                        if hasattr(item, "title")
-                        else "",
-                        "description": getattr(item, "description", "")
-                        if hasattr(item, "description")
-                        else "",
-                        "position": position,
-                        "search_status": "success",
-                    }
+                # Add scraped content if available
+                if item.get("markdown"):
+                    scenario_data["markdown"] = item["markdown"]
+                    scenario_data["content"] = item["markdown"]
+                if item.get("html"):
+                    scenario_data["html"] = item["html"]
+                if item.get("links"):
+                    scenario_data["links"] = item["links"]
 
-                    # Add scraped content if available
-                    if hasattr(item, "markdown") and item.markdown:
-                        scenario_data["markdown"] = item.markdown
-                        scenario_data["content"] = item.markdown
-                    if hasattr(item, "html") and item.html:
-                        scenario_data["html"] = item.html
+                scenarios.append(Scenario(scenario_data))
+            
+            # Process news results if available
+            news_results = data.get("news", []) if isinstance(data, dict) else []
+            for item in news_results:
+                scenario_data = {
+                    "search_query": query,
+                    "result_type": "news",
+                    "url": item.get("url", ""),
+                    "title": item.get("title", ""),
+                    "description": item.get("description", ""),
+                    "position": item.get("position", 0),
+                    "search_status": "success",
+                }
+                scenarios.append(Scenario(scenario_data))
+            
+            # Process image results if available  
+            image_results = data.get("images", []) if isinstance(data, dict) else []
+            for item in image_results:
+                scenario_data = {
+                    "search_query": query,
+                    "result_type": "image",
+                    "url": item.get("url", ""),
+                    "title": item.get("title", ""),
+                    "image_url": item.get("imageUrl", item.get("url", "")),
+                    "position": item.get("position", 0),
+                    "search_status": "success",
+                }
+                scenarios.append(Scenario(scenario_data))
 
-                    scenarios.append(Scenario(scenario_data))
-
-            # Process news results
-            if hasattr(result, "news") and result.news:
-                for position, item in enumerate(result.news, 1):
-                    scenario_data = {
-                        "search_query": query,
-                        "result_type": "news",
-                        "url": getattr(item, "url", "") if hasattr(item, "url") else "",
-                        "title": getattr(item, "title", "")
-                        if hasattr(item, "title")
-                        else "",
-                        "snippet": getattr(item, "snippet", "")
-                        if hasattr(item, "snippet")
-                        else "",
-                        "date": getattr(item, "date", "")
-                        if hasattr(item, "date")
-                        else "",
-                        "position": position,
-                        "search_status": "success",
-                    }
-                    scenarios.append(Scenario(scenario_data))
-
-            # Process image results
-            if hasattr(result, "images") and result.images:
-                for position, item in enumerate(result.images, 1):
-                    scenario_data = {
-                        "search_query": query,
-                        "result_type": "image",
-                        "url": getattr(item, "url", "") if hasattr(item, "url") else "",
-                        "title": getattr(item, "title", "")
-                        if hasattr(item, "title")
-                        else "",
-                        "image_url": getattr(item, "imageUrl", "")
-                        if hasattr(item, "imageUrl")
-                        else getattr(item, "url", ""),
-                        "position": position,
-                        "search_status": "success",
-                    }
-                    scenarios.append(Scenario(scenario_data))
-
-            return ScenarioList(scenarios)
+            result = ScenarioList(scenarios)
+            return result, credits_used
 
         except Exception as e:
             # Return single scenario with error
-            return ScenarioList(
+            result = ScenarioList(
                 [
                     Scenario(
                         {
@@ -1074,8 +1171,9 @@ class FirecrawlScenario:
                     )
                 ]
             )
+            return result, 0
 
-    def map_urls(self, url: str, limit: Optional[int] = None, **kwargs):
+    def map_urls(self, url: str, limit: Optional[int] = None, return_credits: bool = False, **kwargs):
         """
         Get all URLs from a website (fast URL discovery).
 
@@ -1092,45 +1190,58 @@ class FirecrawlScenario:
         from .scenario import Scenario
 
         try:
-            result = self.client.map(url, **kwargs)
+            # Prepare request payload
+            payload = {"url": url, **kwargs}
+            
+            # Make HTTP request to Firecrawl API
+            result = self._make_request("POST", "map", payload)
+            
+            # Track credits used - default to 1 for map operations if not specified
+            credits_used = sum_credits_used(result)
+            if credits_used == 0:
+                credits_used = 1  # Default to 1 credit for map_urls operations
 
-            # Handle MapData object response
-            if not hasattr(result, "links") or not result.links:
-                raise Exception(f"URL mapping failed or returned no links")
+            # Handle response
+            if not result.get("success"):
+                raise Exception(f"URL mapping failed: {result.get('error', 'Unknown error')}")
+                
+            links = result.get("links", [])
+            if not links:
+                raise Exception("URL mapping returned no links")
 
             scenarios = []
             # Apply limit if specified
-            links_to_process = result.links
+            links_to_process = links
             if limit is not None:
-                links_to_process = result.links[:limit]
+                links_to_process = links[:limit]
                 
             for link_result in links_to_process:
                 scenario_data = {
-                    "discovered_url": getattr(link_result, "url", "")
-                    if hasattr(link_result, "url")
-                    else "",
+                    "discovered_url": link_result.get("url", ""),
                     "source_url": url,
                     "map_status": "success",
                 }
 
-                # Add any additional metadata from the LinkResult (convert to dict)
-                if hasattr(link_result, "title") and link_result.title:
-                    scenario_data["title"] = link_result.title
-                if hasattr(link_result, "description") and link_result.description:
-                    scenario_data["description"] = link_result.description
+                # Add any additional metadata
+                if link_result.get("title"):
+                    scenario_data["title"] = link_result["title"]
+                if link_result.get("description"):
+                    scenario_data["description"] = link_result["description"]
 
-                # Store the full link result as a dict for completeness
-                scenario_data["link_data"] = _convert_to_dict(link_result)
+                # Store the full link result for completeness
+                scenario_data["link_data"] = link_result
 
                 scenarios.append(Scenario(scenario_data))
 
-            return ScenarioList(scenarios)
+            result = ScenarioList(scenarios)
+            return (result, credits_used) if return_credits else result
 
         except Exception as e:
             # Return single scenario with error
-            return ScenarioList(
+            result = ScenarioList(
                 [Scenario({"source_url": url, "map_status": "error", "error": str(e)})]
             )
+            return (result, 0) if return_credits else result
 
     def extract(
         self,
@@ -1139,6 +1250,8 @@ class FirecrawlScenario:
         prompt: Optional[str] = None,
         max_concurrent: int = 5,
         limit: Optional[int] = None,
+        scrape_options: Optional[Dict[str, Any]] = None,
+        return_credits: bool = False,
         **kwargs,
     ):
         """
@@ -1152,11 +1265,12 @@ class FirecrawlScenario:
             **kwargs: Additional parameters passed to extract method
 
         Returns:
-            Scenario object for single URL, ScenarioList for multiple URLs
+            Scenario object for single URL, ScenarioList for multiple URLs, or (object, credits) if return_credits=True
         """
         if isinstance(url_or_urls, str):
             # Single URL - return Scenario
-            return self._extract_single(url_or_urls, schema, prompt, **kwargs)
+            result, credits = self._extract_single(url_or_urls, schema, prompt, scrape_options=scrape_options, **kwargs)
+            return (result, credits) if return_credits else result
         elif isinstance(url_or_urls, list):
             # Multiple URLs - return ScenarioList
             import asyncio
@@ -1165,11 +1279,12 @@ class FirecrawlScenario:
             if limit is not None:
                 url_or_urls = url_or_urls[:limit]
 
-            return asyncio.run(
+            result, credits = asyncio.run(
                 self._extract_batch(
-                    url_or_urls, prompt, schema, max_concurrent, **kwargs
+                    url_or_urls, prompt, schema, max_concurrent, scrape_options=scrape_options, **kwargs
                 )
             )
+            return (result, credits) if return_credits else result
         else:
             raise ValueError("url_or_urls must be a string or list of strings")
 
@@ -1179,6 +1294,7 @@ class FirecrawlScenario:
         schema: Optional[Dict[str, Any]] = None,
         prompt: Optional[str] = None,
         formats: Optional[List[str]] = None,
+        scrape_options: Optional[Dict[str, Any]] = None,
         **kwargs,
     ):
         """
@@ -1196,28 +1312,90 @@ class FirecrawlScenario:
         """
         from .scenario import Scenario
 
-        # Build extraction parameters - note: extract now takes urls (list) not url
-        extract_params = {"urls": [url], **kwargs}
+        # Build extraction parameters according to API spec with proper defaults
+        extract_params = {
+            "urls": [url],
+            "enableWebSearch": False,
+            "ignoreSitemap": False,
+            "includeSubdomains": True,
+            "showSources": False,
+            "ignoreInvalidURLs": True
+        }
 
         if schema:
-            extract_params["schema"] = schema
+            # Convert simple schema format to API expected format
+            if isinstance(schema, dict) and all(isinstance(v, str) for v in schema.values()):
+                # Convert simple {"field": "type"} to API format
+                api_schema = {
+                    "type": "object",
+                    "properties": {}
+                }
+                for field, field_type in schema.items():
+                    if field_type == "string":
+                        api_schema["properties"][field] = {"type": "string"}
+                    elif field_type == "number":
+                        api_schema["properties"][field] = {"type": "number"}
+                    elif field_type == "boolean":
+                        api_schema["properties"][field] = {"type": "boolean"}
+                    else:
+                        # Default to string for unknown types
+                        api_schema["properties"][field] = {"type": "string"}
+                extract_params["schema"] = api_schema
+            else:
+                # Assume it's already in correct API format
+                extract_params["schema"] = schema
         if prompt:
             extract_params["prompt"] = prompt
+            
+        # Build scrapeOptions
+        final_scrape_options = {}
         if formats:
-            extract_params["scrape_options"] = {"formats": formats}
+            final_scrape_options["formats"] = formats
+        if scrape_options:
+            final_scrape_options.update(scrape_options)
+            
+        if final_scrape_options:
+            extract_params["scrapeOptions"] = final_scrape_options
+            
+        # Add any additional kwargs directly to extract params
+        extract_params.update(kwargs)
 
         try:
-            result = self.client.extract(**extract_params)
+            # Make HTTP request to Firecrawl API
+            result = self._make_request("POST", "extract", extract_params)
 
-            # Handle ExtractResponse object
-            if not hasattr(result, "success") or not result.success:
-                error_msg = getattr(result, "error", "Unknown extraction error")
+            # Handle response
+            if not result.get("success"):
+                error_msg = result.get("error", "Unknown extraction error")
                 raise Exception(f"Extraction failed: {error_msg}")
 
+            # For extract jobs, we need to poll for completion if we get an ID
+            extract_id = result.get("id")
+            if extract_id:
+                # Poll for completion
+                import time
+                max_retries = 60  # 10 minutes max
+                retry_count = 0
+                
+                while retry_count < max_retries:
+                    status_result = self._make_request("GET", f"extract/{extract_id}")
+                    
+                    if status_result.get("status") == "completed":
+                        result = status_result
+                        break
+                    elif status_result.get("status") in ["failed", "cancelled"]:
+                        raise Exception(f"Extract failed with status: {status_result.get('status')}")
+                    
+                    time.sleep(10)  # Wait 10 seconds between polls
+                    retry_count += 1
+                
+                if retry_count >= max_retries:
+                    raise Exception("Extract timed out")
+
+            credits_used = sum_credits_used(result)
+
             # Get the extracted data
-            extracted_data = (
-                getattr(result, "data", {}) if hasattr(result, "data") else {}
-            )
+            extracted_data = result.get("data", {})
 
             scenario_data = {
                 "url": url,
@@ -1227,36 +1405,30 @@ class FirecrawlScenario:
                 "extraction_schema": schema,
             }
 
-            # Add sources if available (convert to dict for serialization)
-            if hasattr(result, "sources") and result.sources:
-                scenario_data["sources"] = _convert_to_dict(result.sources)
+            # Add sources if available
+            sources = result.get("sources", [])
+            if sources:
+                scenario_data["sources"] = sources
                 # Try to get metadata from first source
-                if len(result.sources) > 0 and hasattr(result.sources[0], "metadata"):
-                    metadata = result.sources[0].metadata
+                if sources and isinstance(sources[0], dict):
+                    first_source = sources[0]
+                    metadata = first_source.get("metadata", {})
                     if metadata:
-                        scenario_data["title"] = (
-                            getattr(metadata, "title", "")
-                            if hasattr(metadata, "title")
-                            else ""
-                        )
-                        scenario_data["description"] = (
-                            getattr(metadata, "description", "")
-                            if hasattr(metadata, "description")
-                            else ""
-                        )
+                        scenario_data["title"] = metadata.get("title", "")
+                        scenario_data["description"] = metadata.get("description", "")
 
             # Add markdown/html from sources if available
-            if hasattr(result, "sources") and result.sources:
-                for source in result.sources:
-                    if hasattr(source, "markdown") and source.markdown:
-                        scenario_data["markdown"] = source.markdown
+            if sources:
+                for source in sources:
+                    if isinstance(source, dict) and source.get("markdown"):
+                        scenario_data["markdown"] = source["markdown"]
                         break
-                for source in result.sources:
-                    if hasattr(source, "html") and source.html:
-                        scenario_data["html"] = source.html
+                for source in sources:
+                    if isinstance(source, dict) and source.get("html"):
+                        scenario_data["html"] = source["html"]
                         break
 
-            return Scenario(scenario_data)
+            return Scenario(scenario_data), credits_used
 
         except Exception as e:
             # Return scenario with error information
@@ -1269,7 +1441,7 @@ class FirecrawlScenario:
                     "extraction_prompt": prompt,
                     "extraction_schema": schema,
                 }
-            )
+            ), 0
 
     # Async batch methods for concurrent processing
     async def _scrape_batch(self, urls: List[str], max_concurrent: int = 10, **kwargs):
@@ -1294,8 +1466,24 @@ class FirecrawlScenario:
             async with semaphore:
                 # Run the sync scrape method in executor
                 loop = asyncio.get_event_loop()
+                # Extract specific parameters from kwargs
+                formats = kwargs.get('formats')
+                only_main_content = kwargs.get('only_main_content', True)
+                include_tags = kwargs.get('include_tags')
+                exclude_tags = kwargs.get('exclude_tags')
+                headers = kwargs.get('headers')
+                wait_for = kwargs.get('wait_for')
+                timeout = kwargs.get('timeout')
+                actions = kwargs.get('actions')
+                other_kwargs = {k: v for k, v in kwargs.items() if k not in [
+                    'formats', 'only_main_content', 'include_tags', 'exclude_tags',
+                    'headers', 'wait_for', 'timeout', 'actions'
+                ]}
+                
                 return await loop.run_in_executor(
-                    None, self._scrape_single, url, **kwargs
+                    None, self._scrape_single, url, formats, only_main_content,
+                    include_tags, exclude_tags, headers, wait_for, timeout, actions,
+                    **other_kwargs
                 )
 
         # Create tasks for all URLs
@@ -1304,8 +1492,10 @@ class FirecrawlScenario:
         # Execute all tasks concurrently
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Convert any exceptions to error scenarios
+        # Convert any exceptions to error scenarios and track credits
         scenarios = []
+        total_credits = 0
+        
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 from .scenario import Scenario
@@ -1322,12 +1512,17 @@ class FirecrawlScenario:
                     )
                 )
             else:
-                scenarios.append(result)
+                # Result is a tuple (scenario, credits)
+                scenario, credits = result
+                scenarios.append(scenario)
+                total_credits += credits
 
-        return ScenarioList(scenarios)
+        return ScenarioList(scenarios), total_credits
 
     async def _search_batch(
-        self, queries: List[str], max_concurrent: int = 5, limit: Optional[int] = None, **kwargs
+        self, queries: List[str], max_concurrent: int = 5, limit: Optional[int] = None,
+        sources: Optional[List[str]] = None, location: Optional[str] = None,
+        scrape_options: Optional[Dict[str, Any]] = None, **kwargs
     ):
         """
         Search multiple queries concurrently.
@@ -1352,15 +1547,13 @@ class FirecrawlScenario:
             async with semaphore:
                 # Run the sync search method in executor
                 loop = asyncio.get_event_loop()
-                # Pass limit as positional argument if specified
-                if limit is not None:
-                    return await loop.run_in_executor(
-                        None, self._search_single, query, limit, **kwargs
-                    )
-                else:
-                    return await loop.run_in_executor(
-                        None, self._search_single, query, **kwargs
-                    )
+                # Extract specific parameters from kwargs
+                formats = kwargs.get('formats')
+                other_kwargs = {k: v for k, v in kwargs.items() if k != 'formats'}
+                
+                return await loop.run_in_executor(
+                    None, self._search_single, query, limit, sources, formats, location, scrape_options, **other_kwargs
+                )
 
         # Create tasks for all queries
         tasks = [search_single(query) for query in queries]
@@ -1368,8 +1561,10 @@ class FirecrawlScenario:
         # Execute all tasks concurrently
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Combine all results into a single ScenarioList
+        # Combine all results into a single ScenarioList and track total credits
         all_scenarios = []
+        total_credits = 0
+        
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 from .scenario import Scenario
@@ -1385,10 +1580,12 @@ class FirecrawlScenario:
                     )
                 )
             else:
-                # Add all scenarios from this search result
-                all_scenarios.extend(result)
+                # Result is a tuple (scenario_list, credits)
+                scenario_list, credits = result
+                all_scenarios.extend(scenario_list)
+                total_credits += credits
 
-        return ScenarioList(all_scenarios)
+        return ScenarioList(all_scenarios), total_credits
 
     async def _extract_batch(
         self,
@@ -1396,6 +1593,7 @@ class FirecrawlScenario:
         prompt: Optional[str] = None,
         schema: Optional[Dict[str, Any]] = None,
         max_concurrent: int = 5,
+        scrape_options: Optional[Dict[str, Any]] = None,
         **kwargs,
     ):
         """
@@ -1421,8 +1619,12 @@ class FirecrawlScenario:
             async with semaphore:
                 # Run the sync extract method in executor
                 loop = asyncio.get_event_loop()
+                # Extract specific parameters from kwargs
+                formats = kwargs.get('formats')
+                other_kwargs = {k: v for k, v in kwargs.items() if k != 'formats'}
+                
                 return await loop.run_in_executor(
-                    None, self._extract_single, url, schema, prompt, None, **kwargs
+                    None, self._extract_single, url, schema, prompt, formats, scrape_options, **other_kwargs
                 )
 
         # Create tasks for all URLs
@@ -1431,8 +1633,10 @@ class FirecrawlScenario:
         # Execute all tasks concurrently
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Convert any exceptions to error scenarios
+        # Convert any exceptions to error scenarios and track credits
         scenarios = []
+        total_credits = 0
+        
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 from .scenario import Scenario
@@ -1450,9 +1654,12 @@ class FirecrawlScenario:
                     )
                 )
             else:
-                scenarios.append(result)
+                # Result is a tuple (scenario, credits)
+                scenario, credits = result
+                scenarios.append(scenario)
+                total_credits += credits
 
-        return ScenarioList(scenarios)
+        return ScenarioList(scenarios), total_credits
 
 
 # Convenience functions for direct usage (now support both single and batch)
