@@ -56,6 +56,10 @@ class OpenAIParameterBuilder:
                 else None
             ),
         }
+        
+        # Add n parameter if specified (for multiple completions)
+        if "n" in model_params and model_params["n"] > 1:
+            params["n"] = min(model_params["n"], 128)  # OpenAI limit is 128
 
         return params
 
@@ -248,6 +252,7 @@ class OpenAIService(InferenceServiceABC):
                     presence_penalty=self.presence_penalty,
                     logprobs=self.logprobs,
                     top_logprobs=self.top_logprobs,
+                    n=getattr(self, "n", 1),  # Add n parameter support
                 )
                 response = await client.chat.completions.create(**params)
                 return response.model_dump()

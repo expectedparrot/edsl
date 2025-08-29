@@ -201,12 +201,20 @@ class GoogleService(InferenceServiceABC):
 
                 # Time config creation
                 config_start = time.time()
-                generation_config = types.GenerateContentConfig(
-                    temperature=self.temperature,
-                    top_p=self.topP,
-                    top_k=self.topK,
-                    max_output_tokens=self.maxOutputTokens,
-                    stop_sequences=self.stopSequences,
+                # Build generation config with candidateCount support
+                config_params = {
+                    "temperature": self.temperature,
+                    "top_p": self.topP,
+                    "top_k": self.topK,
+                    "max_output_tokens": self.maxOutputTokens,
+                    "stop_sequences": self.stopSequences,
+                }
+                
+                # Add candidateCount if specified (for multiple completions)
+                if hasattr(self, "candidateCount") and self.candidateCount > 1:
+                    config_params["candidate_count"] = min(self.candidateCount, 8)  # Gemini limit is 8
+                
+                generation_config = types.GenerateContentConfig(**config_params,
                     safety_settings=[
                         types.SafetySetting(
                             category=setting["category"],
