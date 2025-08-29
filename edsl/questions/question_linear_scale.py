@@ -7,7 +7,6 @@ from .question_multiple_choice import (
     MultipleChoiceResponseValidator,
 )
 from .decorators import inject_exception
-from .response_validator_abc import ResponseValidatorABC
 
 
 class LinearScaleResponseValidator(MultipleChoiceResponseValidator):

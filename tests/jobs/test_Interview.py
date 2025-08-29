@@ -95,7 +95,7 @@ def test_bucket_collection(create_survey):
 
     cache = Cache()
 
-    results = jobs.run(cache=cache)
+    results = jobs.run(cache=cache, disable_remote_inference=True)
 
     bc = jobs.run_config.environment.bucket_collection
     bucket_list = list(bc.values())
@@ -113,7 +113,7 @@ def test_handle_model_exceptions(set_env_vars, create_survey, fail_at_number, ch
 
     cache = Cache()
 
-    results = jobs.run(cache=cache, print_exceptions=False)
+    results = jobs.run(cache=cache, print_exceptions=False, disable_remote_inference=True)
 
     print(f"Results: {results}")
     print(

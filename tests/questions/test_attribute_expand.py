@@ -82,7 +82,7 @@ def test_checkbox_options_from_prior_answers():
 
     survey = Survey([q1, q2])
 
-    results = survey.by(m).run(stop_on_exception=True)
+    results = survey.by(m).run(stop_on_exception=True, disable_remote_inference=True)
 
     # Confirm it got passed through
     assert results.select("question_options.primary").to_list()[0] == [
@@ -169,7 +169,7 @@ def test_numerical_min_from_prior_answers():
 
     survey = Survey([q1, q2])
 
-    results = survey.by(m).run(stop_on_exception=True)
+    results = survey.by(m).run(stop_on_exception=True, disable_remote_inference=True)
 
     # Confirm it got passed through
     assert (

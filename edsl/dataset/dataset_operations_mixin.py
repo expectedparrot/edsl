@@ -636,7 +636,7 @@ class DataOperationsBase:
             if "name" in d:
                 d["agent_name"] = d.pop("name")
                 agents.append(Agent(d, name=d["agent_name"]))
-            if "agent_parameters" in d:
+            elif "agent_parameters" in d:
                 agent_parameters = d.pop("agent_parameters")
                 agent_name = agent_parameters.get("name", None)
                 instruction = agent_parameters.get("instruction", None)

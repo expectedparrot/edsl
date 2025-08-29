@@ -537,7 +537,7 @@ class ModelInfoDefaultModels(ModelInfoFetcherABC):
         try:
             from .default_models import data
         except ImportError:
-            raise ImportError(f"Default models file not found")
+            raise ImportError("Default models file not found")
         except Exception as e:
             raise Exception(f"Error loading default models file: {e}")
 

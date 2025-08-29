@@ -1,5 +1,6 @@
 import os
 from typing import Any, Optional, List, TYPE_CHECKING
+from urllib.parse import urlparse, parse_qs
 from openai import AsyncAzureOpenAI
 from ..inference_service_abc import InferenceServiceABC
 from ..decorators import report_errors_async
@@ -60,14 +61,15 @@ class AzureAIService(InferenceServiceABC):
                 _, endpoint, azure_endpoint_key = data.split(":")
                 if "openai" not in endpoint:
                     model_id = endpoint.split(".")[0].replace("/", "")
-                    models_info.append(
-                        {
-                            "id": model_id,
-                            "endpoint": f"https:{endpoint}",
-                            "type": "azure_non_openai",
-                            "azure_endpoint_key": azure_endpoint_key,
-                        }
-                    )
+                    model_data = {
+                        "id": model_id,
+                        "endpoint": f"https:{endpoint}",
+                        "type": "azure_non_openai",
+                        "azure_endpoint_key": azure_endpoint_key,
+                        "api_version": None,
+                    }
+                    models_info.append(model_data)
+                    cls._model_id_to_endpoint_and_key[model_id] = model_data
                 else:
                     if "/deployments/" in endpoint:
                         start_idx = endpoint.index("/deployments/") + len(
@@ -79,72 +81,23 @@ class AzureAIService(InferenceServiceABC):
                             else len(endpoint)
                         )
                         model_id = endpoint[start_idx:end_idx]
-                        models_info.append(
-                            {
-                                "id": f"azure:{model_id}",
-                                "endpoint": f"https:{endpoint}",
-                                "type": "azure_openai",
-                                "azure_endpoint_key": azure_endpoint_key,
-                            }
+                        parsed_url = urlparse(endpoint)
+                        api_version = parse_qs(parsed_url.query)["api-version"][0]
+
+                        model_data = {
+                            "id": f"azure:{model_id}",
+                            "endpoint": f"https:{endpoint}",
+                            "type": "azure_openai",
+                            "azure_endpoint_key": azure_endpoint_key,
+                            "api_version": api_version,
+                        }
+                        models_info.append(model_data)
+                        cls._model_id_to_endpoint_and_key[f"azure:{model_id}"] = (
+                            model_data
                         )
             except Exception:
                 continue
         return models_info
-
-    @classmethod
-    def available(cls):
-        out = []
-        azure_endpoints = os.getenv("AZURE_ENDPOINT_URL_AND_KEY", None)
-        if not azure_endpoints:
-
-            return []
-            # raise InferenceServiceEnvironmentError("AZURE_ENDPOINT_URL_AND_KEY is not defined")
-        azure_endpoints = azure_endpoints.split(",")
-        for data in azure_endpoints:
-            try:
-                # data has this format for non openai models https://model_id.azure_endpoint:azure_key
-                _, endpoint, azure_endpoint_key = data.split(":")
-                if "openai" not in endpoint:
-                    model_id = endpoint.split(".")[0].replace("/", "")
-                    out.append(model_id)
-                    cls._model_id_to_endpoint_and_key[model_id] = {
-                        "endpoint": f"https:{endpoint}",
-                        "azure_endpoint_key": azure_endpoint_key,
-                    }
-                else:
-                    # data has this format for openai models ,https://azure_project_id.openai.azure.com/openai/deployments/gpt-4o-mini/chat/completions?api-version=2023-03-15-preview:azure_key
-                    if "/deployments/" in endpoint:
-                        start_idx = endpoint.index("/deployments/") + len(
-                            "/deployments/"
-                        )
-                        end_idx = (
-                            endpoint.index("/", start_idx)
-                            if "/" in endpoint[start_idx:]
-                            else len(endpoint)
-                        )
-                        model_id = endpoint[start_idx:end_idx]
-                        api_version_value = None
-                        if "api-version=" in endpoint:
-                            start_idx = endpoint.index("api-version=") + len(
-                                "api-version="
-                            )
-                            end_idx = (
-                                endpoint.index("&", start_idx)
-                                if "&" in endpoint[start_idx:]
-                                else len(endpoint)
-                            )
-                            api_version_value = endpoint[start_idx:end_idx]
-
-                        cls._model_id_to_endpoint_and_key[f"azure:{model_id}"] = {
-                            "endpoint": f"https:{endpoint}",
-                            "azure_endpoint_key": azure_endpoint_key,
-                            "api_version": api_version_value,
-                        }
-                        out.append(f"azure:{model_id}")
-
-            except Exception as e:
-                raise e
-        return [m for m in out if m not in cls.model_exclude_list]
 
     @classmethod
     def create_model(
@@ -181,7 +134,6 @@ class AzureAIService(InferenceServiceABC):
                 files_list: Optional[List["FileStore"]] = None,
             ) -> dict[str, Any]:
                 """Calls the Azure OpenAI API and returns the API response."""
-
                 try:
                     api_key = cls._model_id_to_endpoint_and_key[model_name][
                         "azure_endpoint_key"
