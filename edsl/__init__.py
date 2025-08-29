@@ -53,6 +53,14 @@ _module_cache = {}
 
 def __getattr__(name):
     """Lazy loading of EDSL modules and their exports."""
+    # First check if the attribute exists in the current module's globals
+    # This handles functions/classes defined directly in __init__.py
+    import sys
+    current_module = sys.modules[__name__]
+    current_module_dict = object.__getattribute__(current_module, '__dict__')
+    if name in current_module_dict:
+        return current_module_dict[name]
+    
     # Check if it's a module we should lazy-load
     for module_name in _LAZY_MODULES:
         try:
