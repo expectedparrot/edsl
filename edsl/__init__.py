@@ -57,8 +57,9 @@ def __getattr__(name):
     # This handles functions/classes defined directly in __init__.py
     import sys
     current_module = sys.modules[__name__]
-    if name in current_module.__dict__:
-        return current_module.__dict__[name]
+    current_module_dict = object.__getattribute__(current_module, '__dict__')
+    if name in current_module_dict:
+        return current_module_dict[name]
     
     # Check if it's a module we should lazy-load
     for module_name in _LAZY_MODULES:
