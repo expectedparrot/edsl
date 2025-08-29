@@ -27,13 +27,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+
 def sum_credits_used(data):
     """
-    Recursively search through a dictionary (and lists inside it) 
+    Recursively search through a dictionary (and lists inside it)
     to find all 'creditsUsed' keys and sum their values.
+    Works for dicts, lists, or a mix of both.
     """
     total = 0
-    
+
     if isinstance(data, dict):
         for key, value in data.items():
             if key == "creditsUsed":
@@ -43,13 +45,12 @@ def sum_credits_used(data):
                     pass  # ignore non-numeric values
             # recurse into subkeys
             total += sum_credits_used(value)
-    
+
     elif isinstance(data, list):
         for item in data:
-            total += sum_credits_used(item)  # recurse into list elements
-    
-    return total
+            total += sum_credits_used(item)
 
+    return total
 
 def _convert_to_dict(obj):
     """
@@ -363,8 +364,8 @@ class FirecrawlRequest:
     def crawl(
         self,
         url: str,
-        limit: Optional[int] = None,
-        max_depth: Optional[int] = None,
+        limit: Optional[int] = 10,
+        max_depth: Optional[int] = 3,
         include_paths: Optional[List[str]] = None,
         exclude_paths: Optional[List[str]] = None,
         formats: Optional[List[str]] = None,
@@ -824,12 +825,13 @@ class FirecrawlScenario:
     def crawl(
         self,
         url: str,
-        limit: Optional[int] = None,
-        max_depth: Optional[int] = None,
+        limit: Optional[int] = 10,
+        max_depth: Optional[int] = 3,
         include_paths: Optional[List[str]] = None,
         exclude_paths: Optional[List[str]] = None,
         formats: Optional[List[str]] = None,
         only_main_content: bool = True,
+        scrape_options: Optional[Dict[str, Any]] = None,
         return_credits: bool = False,
         **kwargs,
     ):
@@ -855,21 +857,32 @@ class FirecrawlScenario:
         if formats is None:
             formats = ["markdown"]
 
-        # Build scrape options for the crawl
-        scrape_options = {"formats": formats, "only_main_content": only_main_content}
+        # Build crawl parameters with correct API parameter names (camelCase)
+        crawl_params = {}
+        
+        # Build scrapeOptions
+        scrape_opts = {"formats": formats}
+        if only_main_content is not True:
+            scrape_opts["onlyMainContent"] = only_main_content
+            
+        # Merge with provided scrape_options if any
+        if scrape_options:
+            scrape_opts.update(scrape_options)
+            
+        crawl_params["scrapeOptions"] = scrape_opts
 
-        # Build crawl parameters
-        crawl_params = {"scrape_options": scrape_options, **kwargs}
-
-        # Add optional parameters if provided
+        # Add optional parameters with correct API names (camelCase)
         if limit:
             crawl_params["limit"] = limit
         if max_depth:
-            crawl_params["max_discovery_depth"] = max_depth
+            crawl_params["maxDiscoveryDepth"] = max_depth  # API expects camelCase
         if include_paths:
-            crawl_params["include_paths"] = include_paths
+            crawl_params["includePaths"] = include_paths    # API expects camelCase
         if exclude_paths:
-            crawl_params["exclude_paths"] = exclude_paths
+            crawl_params["excludePaths"] = exclude_paths    # API expects camelCase
+            
+        # Add any additional kwargs
+        crawl_params.update(kwargs)
 
         try:
             # Prepare request payload
@@ -879,7 +892,7 @@ class FirecrawlScenario:
             result = self._make_request("POST", "crawl", payload)
             
             # Track credits used
-            credits_used = sum_credits_used(result)
+
 
             # Handle response - check if crawl completed successfully
             if not result.get("success"):
@@ -907,6 +920,8 @@ class FirecrawlScenario:
                 
                 if retry_count >= max_retries:
                     raise Exception("Crawl timed out")
+
+            credits_used = sum_credits_used(result)
 
             # Process crawl results
             data = result.get("data", [])
@@ -969,7 +984,9 @@ class FirecrawlScenario:
             return (result, 0) if return_credits else result
 
     def search(
-        self, query_or_queries: Union[str, List[str]], max_concurrent: int = 5, limit: Optional[int] = None, return_credits: bool = False, **kwargs
+        self, query_or_queries: Union[str, List[str]], max_concurrent: int = 5, limit: Optional[int] = None, 
+        sources: Optional[List[str]] = None, location: Optional[str] = None, 
+        scrape_options: Optional[Dict[str, Any]] = None, return_credits: bool = False, **kwargs
     ):
         """
         Smart search method that handles both single queries and batches.
@@ -984,14 +1001,20 @@ class FirecrawlScenario:
         """
         if isinstance(query_or_queries, str):
             # Single query - return ScenarioList (search always returns multiple results)
-            result, credits = self._search_single(query_or_queries, limit=limit, **kwargs)
+            result, credits = self._search_single(
+                query_or_queries, limit=limit, sources=sources, 
+                location=location, scrape_options=scrape_options, **kwargs
+            )
             return (result, credits) if return_credits else result
         elif isinstance(query_or_queries, list):
             # Multiple queries - return combined ScenarioList
             import asyncio
 
             result, credits = asyncio.run(
-                self._search_batch(query_or_queries, max_concurrent, limit=limit, **kwargs)
+                self._search_batch(
+                    query_or_queries, max_concurrent, limit=limit, sources=sources,
+                    location=location, scrape_options=scrape_options, **kwargs
+                )
             )
             return (result, credits) if return_credits else result
         else:
@@ -1004,6 +1027,7 @@ class FirecrawlScenario:
         sources: Optional[List[str]] = None,
         formats: Optional[List[str]] = None,
         location: Optional[str] = None,
+        scrape_options: Optional[Dict[str, Any]] = None,
         **kwargs,
     ):
         """
@@ -1023,12 +1047,10 @@ class FirecrawlScenario:
         from .scenario_list import ScenarioList
         from .scenario import Scenario
 
-        # Build scrape options if formats specified
+        # Build search parameters according to API spec
         search_params = {}
-        if formats:
-            search_params["scrape_options"] = {"formats": formats}
-
-        # Add search parameters
+        
+        # Add basic search parameters
         if limit:
             search_params["limit"] = limit
         if sources:
@@ -1036,7 +1058,31 @@ class FirecrawlScenario:
         if location:
             search_params["location"] = location
 
-        # Add any additional kwargs
+        # Build scrapeOptions if any scraping parameters are specified
+        final_scrape_options = {}
+        
+        # Add formats if specified
+        if formats:
+            final_scrape_options["formats"] = formats
+            
+        # Merge with provided scrape_options
+        if scrape_options:
+            final_scrape_options.update(scrape_options)
+            
+        # Extract common scrape options from kwargs
+        scrape_option_keys = ['onlyMainContent', 'includeTags', 'excludeTags', 'maxAge', 
+                             'headers', 'waitFor', 'mobile', 'skipTlsVerification', 'timeout',
+                             'parsers', 'actions', 'removeBase64Images', 'blockAds', 'proxy', 'storeInCache']
+        
+        for key in scrape_option_keys:
+            if key in kwargs:
+                final_scrape_options[key] = kwargs.pop(key)
+        
+        # Add scrapeOptions to search params if any were specified
+        if final_scrape_options:
+            search_params["scrapeOptions"] = final_scrape_options
+            
+        # Add any remaining kwargs directly to search params
         search_params.update(kwargs)
 
         try:
@@ -1150,10 +1196,10 @@ class FirecrawlScenario:
             # Make HTTP request to Firecrawl API
             result = self._make_request("POST", "map", payload)
             
-            # Track and print credits used
+            # Track credits used - default to 1 for map operations if not specified
             credits_used = sum_credits_used(result)
-            if credits_used > 0:
-                print(f"Firecrawl map credits used: {credits_used}")
+            if credits_used == 0:
+                credits_used = 1  # Default to 1 credit for map_urls operations
 
             # Handle response
             if not result.get("success"):
@@ -1414,7 +1460,9 @@ class FirecrawlScenario:
         return ScenarioList(scenarios), total_credits
 
     async def _search_batch(
-        self, queries: List[str], max_concurrent: int = 5, limit: Optional[int] = None, **kwargs
+        self, queries: List[str], max_concurrent: int = 5, limit: Optional[int] = None,
+        sources: Optional[List[str]] = None, location: Optional[str] = None,
+        scrape_options: Optional[Dict[str, Any]] = None, **kwargs
     ):
         """
         Search multiple queries concurrently.
@@ -1440,13 +1488,11 @@ class FirecrawlScenario:
                 # Run the sync search method in executor
                 loop = asyncio.get_event_loop()
                 # Extract specific parameters from kwargs
-                sources = kwargs.get('sources')
                 formats = kwargs.get('formats')
-                location = kwargs.get('location')
-                other_kwargs = {k: v for k, v in kwargs.items() if k not in ['sources', 'formats', 'location']}
+                other_kwargs = {k: v for k, v in kwargs.items() if k != 'formats'}
                 
                 return await loop.run_in_executor(
-                    None, self._search_single, query, limit, sources, formats, location, **other_kwargs
+                    None, self._search_single, query, limit, sources, formats, location, scrape_options, **other_kwargs
                 )
 
         # Create tasks for all queries
