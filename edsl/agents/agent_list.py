@@ -136,7 +136,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             >>> from edsl import Agent, AgentList
             >>> agents = AgentList([Agent(traits={'age': 30}), Agent(traits={'age': 40})])
             >>> agents.add_instructions("Answer as if you were this age")
-            AgentList([Agent(traits = {'age': 30}), Agent(traits = {'age': 40})])
+            AgentList([Agent(traits = {'age': 30}, instruction = \"\"\"Answer as if you were this age\"\"\"), Agent(traits = {'age': 40}, instruction = \"\"\"Answer as if you were this age\"\"\")])
         """
         for agent in self.data:
             agent.instruction = instructions
@@ -593,7 +593,9 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
                         Valid values include: 'csv', 'tsv', 'excel', 'pandas', etc.
             *args: Positional arguments to pass to the source-specific method.
             instructions: Optional instructions to apply to all created agents.
-            codebook: Optional dictionary mapping trait names to descriptions.
+            codebook: Optional dictionary mapping trait names to descriptions, or a path to a CSV file.
+                     If a CSV file is provided, it should have 2 columns: original keys and descriptions.
+                     Keys will be automatically converted to pythonic names.
             name_field: The name of the field to use as the agent name (for CSV/Excel sources).
             **kwargs: Additional keyword arguments to pass to the source-specific method.
 
@@ -605,6 +607,12 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             >>> # agents = AgentList.from_source(
             >>> #     'csv', 'agents.csv',
             >>> #     instructions="Answer as if you were the person described"
+            >>> # )
+            >>> # 
+            >>> # Create agents with a CSV codebook file
+            >>> # agents = AgentList.from_source(
+            >>> #     'csv', 'agents.csv',
+            >>> #     codebook='codebook.csv'  # CSV with keys like "Age in years" -> "age_in_years"
             >>> # )
         """
         from .agent_list_builder import AgentListBuilder
@@ -710,11 +718,21 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         return AgentListTraitOperations.add_trait(self, trait, values)
 
     @classmethod
-    def from_results(cls, results: "Results") -> "AgentList":
-        """Create an AgentList from a Results object."""
+    def from_results(cls, results: "Results", question_names: Optional[List[str]] = None) -> "AgentList":
+        """Create an AgentList from a Results object.
+        
+        Args:
+            results: The Results object to convert
+            question_names: Optional list of question names to include. If None, all questions are included.
+                          Affects both answer.* columns (as traits) and prompt.* columns (as codebook).
+                          Agent traits are always included.
+        
+        Returns:
+            AgentList: A new AgentList created from the Results
+        """
         from .agent_list_factories import AgentListFactories
 
-        return AgentListFactories.from_results(results)
+        return AgentListFactories.from_results(results, question_names)
 
     @staticmethod
     def get_codebook(file_path: str) -> dict:

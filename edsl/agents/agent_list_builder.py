@@ -51,7 +51,9 @@ class AgentListBuilder:
                         Valid values include: 'csv', 'tsv', 'excel', 'pandas', etc.
             *args: Positional arguments to pass to the source-specific method.
             instructions: Optional instructions to apply to all created agents.
-            codebook: Optional dictionary mapping trait names to descriptions.
+            codebook: Optional dictionary mapping trait names to descriptions, or a path to a CSV file.
+                     If a CSV file is provided, it should have 2 columns: original keys and descriptions.
+                     Keys will be automatically converted to pythonic names.
             name_field: The name of the field to use as the agent name (for CSV/Excel sources).
             **kwargs: Additional keyword arguments to pass to the source-specific method.
             
@@ -60,15 +62,22 @@ class AgentListBuilder:
             
         Examples:
             >>> # Create agents from a CSV file with instructions
-            >>> agents = AgentListBuilder.from_source(
+            >>> agents = AgentListBuilder.from_source(  # doctest: +SKIP
             ...     'csv', 'agents.csv', 
             ...     instructions="Answer as if you were the person described"
             ... )
             
-            >>> # Create agents with a codebook
-            >>> agents = AgentListBuilder.from_source(
+            >>> # Create agents with a codebook dictionary
+            >>> agents = AgentListBuilder.from_source(  # doctest: +SKIP
             ...     'csv', 'agents.csv',
             ...     codebook={'age': 'Age in years', 'job': 'Current occupation'}
+            ... )
+            
+            >>> # Create agents with a CSV codebook file
+            >>> # The CSV should have 2 columns: original keys and descriptions
+            >>> agents = AgentListBuilder.from_source(  # doctest: +SKIP
+            ...     'csv', 'agents.csv',
+            ...     codebook='codebook.csv'  # CSV with keys like "Age in years" -> "age_in_years"
             ... )
         """
         from ..scenarios import ScenarioList
@@ -96,6 +105,9 @@ class AgentListBuilder:
         
         # Apply codebook if specified
         if codebook:
+            # Check if codebook is a CSV file path
+            if isinstance(codebook, str) and codebook.lower().endswith('.csv'):
+                codebook = AgentListBuilder._load_codebook_from_csv(codebook)
             agent_list.set_codebook(codebook)
         
         return agent_list
@@ -124,10 +136,10 @@ class AgentListBuilder:
             
         Examples:
             >>> # Basic usage
-            >>> agents = AgentListBuilder.from_csv('agents.csv')
+            >>> agents = AgentListBuilder.from_csv('agents.csv')  # doctest: +SKIP
             
             >>> # With instructions and name field
-            >>> agents = AgentListBuilder.from_csv(
+            >>> agents = AgentListBuilder.from_csv(  # doctest: +SKIP
             ...     'agents.csv',
             ...     name_field='name',
             ...     instructions='Answer as if you were this person'
@@ -146,3 +158,73 @@ class AgentListBuilder:
             codebook=codebook,
             instructions=instructions
         )
+
+    @staticmethod
+    def _load_codebook_from_csv(csv_path: str) -> dict[str, str]:
+        """
+        Load a codebook from a CSV file and convert keys to pythonic names.
+        
+        The CSV should have exactly 2 columns: the first column contains the original keys,
+        and the second column contains the descriptions/values.
+        
+        Args:
+            csv_path: Path to the CSV file containing the codebook
+            
+        Returns:
+            A dictionary mapping pythonic keys to descriptions
+            
+        Examples:
+            >>> # CSV content:
+            >>> # "Original Key", "Description"
+            >>> # "Age in years", "The person's age in years"
+            >>> # "Job title", "Current job position"
+            >>> # 
+            >>> # Result:
+            >>> # {'age_in_years': 'The person\'s age in years', 'job_title': 'Current job position'}
+        """
+        import csv
+        import os
+        from ..utilities.naming_utilities import sanitize_string
+        from ..utilities.is_valid_variable_name import is_valid_variable_name
+        
+        if not os.path.exists(csv_path):
+            raise FileNotFoundError(f"Codebook CSV file not found: {csv_path}")
+        
+        codebook = {}
+        
+        with open(csv_path, 'r', encoding='utf-8') as file:
+            reader = csv.reader(file)
+            
+            # Skip header row if it exists
+            first_row = next(reader)
+            if len(first_row) != 2:
+                raise ValueError(f"CSV must have exactly 2 columns, found {len(first_row)}")
+            
+            # Check if first row is a header (contains non-descriptive text)
+            if any(header.lower() in ['key', 'field', 'column', 'name', 'trait'] for header in first_row):
+                # This is a header row, skip it
+                pass
+            else:
+                # First row is data, process it
+                original_key, description = first_row
+                pythonic_key = sanitize_string(original_key)
+                if not is_valid_variable_name(pythonic_key):
+                    pythonic_key = f"field_{len(codebook)}"
+                codebook[pythonic_key] = description
+            
+            # Process remaining rows
+            for row in reader:
+                if len(row) != 2:
+                    continue  # Skip malformed rows
+                
+                original_key, description = row
+                if not original_key.strip():  # Skip empty keys
+                    continue
+                    
+                pythonic_key = sanitize_string(original_key)
+                if not is_valid_variable_name(pythonic_key):
+                    pythonic_key = f"field_{len(codebook)}"
+                
+                codebook[pythonic_key] = description
+        
+        return codebook

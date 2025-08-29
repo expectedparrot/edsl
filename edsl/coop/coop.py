@@ -3590,7 +3590,7 @@ class Coop(CoopFunctionsMixin):
             # Running in a standard terminal, show the full URL
             if link_description:
                 rich_print(
-                    "{link_description}\n[#38bdf8][link={url}]{url}[/link][/#38bdf8]"
+                    f"{link_description}\n[#38bdf8][link={url}]{url}[/link][/#38bdf8]"
                 )
             else:
                 rich_print(f"[#38bdf8][link={url}]{url}[/link][/#38bdf8]")
@@ -3912,6 +3912,119 @@ class Coop(CoopFunctionsMixin):
         response = self._send_server_request(uri="api/v0/users/profile", method="GET")
         self._resolve_server_response(response)
         return response.json()
+
+    def execute_firecrawl_request(self, request_dict: Dict[str, Any]) -> Any:
+        """
+        Execute a Firecrawl request through the Extension Gateway.
+
+        This method sends a Firecrawl request dictionary to the Extension Gateway's
+        /firecrawl/execute endpoint, which processes it using FirecrawlScenario
+        and returns EDSL Scenario/ScenarioList objects.
+
+        Parameters:
+            request_dict (Dict[str, Any]): A dictionary containing the Firecrawl request.
+                Must include:
+                - method: The Firecrawl method to execute (scrape, crawl, search, extract, map_urls)
+                - api_key: Optional if provided via environment or this method will add it
+                - Other method-specific parameters (url_or_urls, query_or_queries, etc.)
+
+        Returns:
+            Any: The result from FirecrawlScenario execution:
+                - For scrape/extract with single URL: Scenario object
+                - For scrape/extract with multiple URLs: ScenarioList object
+                - For crawl/search/map_urls: ScenarioList object
+
+        Raises:
+            httpx.HTTPError: If the request to the Extension Gateway fails
+            ValueError: If the request_dict is missing required fields
+            Exception: If the Firecrawl execution fails
+
+        Example:
+            >>> # Scrape a single URL
+            >>> result = coop.execute_firecrawl_request({
+            ...     "method": "scrape",
+            ...     "url_or_urls": "https://example.com",
+            ...     "kwargs": {"formats": ["markdown"]}
+            ... })
+
+            >>> # Search the web
+            >>> results = coop.execute_firecrawl_request({
+            ...     "method": "search",
+            ...     "query_or_queries": "AI research papers",
+            ...     "kwargs": {"limit": 10}
+            ... })
+
+            >>> # Extract structured data
+            >>> result = coop.execute_firecrawl_request({
+            ...     "method": "extract",
+            ...     "url_or_urls": "https://shop.example.com/product",
+            ...     "schema": {"title": "string", "price": "number"},
+            ... })
+        """
+        import httpx
+        from ..config import CONFIG
+
+        # Validate request_dict
+        if not request_dict or not isinstance(request_dict, dict):
+            raise ValueError("request_dict must be a non-empty dictionary")
+
+        if "method" not in request_dict:
+            raise ValueError("request_dict must contain 'method' field")
+
+        # Initialize the Extension Gateway client
+        gateway_url = CONFIG.get_extension_gateway_url()
+
+        # Prepare headers with the Coop API key for authentication
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        # Make the request to the Extension Gateway
+        try:
+            with httpx.Client(timeout=300.0) as client:
+                response = client.post(
+                    f"{gateway_url}/firecrawl/execute",
+                    json=request_dict,
+                    headers=headers,
+                )
+
+                # Check for errors
+                if response.status_code == 400:
+                    error_detail = response.json().get("detail", "Bad request")
+                    raise ValueError(f"Firecrawl request failed: {error_detail}")
+                elif response.status_code == 401:
+                    error_detail = response.json().get("detail", "Unauthorized")
+                    raise ValueError(f"Authentication failed: {error_detail}")
+                elif response.status_code == 500:
+                    error_detail = response.json().get("detail", "Internal error")
+                    raise Exception(f"Firecrawl execution error: {error_detail}")
+
+                response.raise_for_status()
+
+                # Parse the response
+                response_data = response.json()
+
+                if not response_data.get("success", False):
+                    raise Exception(f"Firecrawl request failed: {response_data}")
+
+                # Return the result
+                # The gateway should have already converted it to proper EDSL objects
+                result = response_data.get("result")
+                if "scenarios" in result:
+                    from ..scenarios import ScenarioList
+
+                    return ScenarioList.from_dict(result)
+                else:
+                    from ..scenarios import Scenario
+
+                    return Scenario.from_dict(result)
+
+        except httpx.HTTPError as e:
+            self._logger.error(f"HTTP error calling Extension Gateway: {e}")
+            raise
+        except Exception as e:
+            self._logger.error(f"Error executing Firecrawl request: {e}")
+            raise
 
     async def report_error(self, error: Exception) -> None:
         """

@@ -73,6 +73,7 @@ from ..db_list.sqlite_list import SQLiteList
 
 from .exceptions import ScenarioError
 from .scenario import Scenario
+from .firecrawl_scenario import FirecrawlRequest
 
 
 if TYPE_CHECKING:
@@ -133,6 +134,8 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     __documentation__ = (
         "https://docs.expectedparrot.com/en/latest/scenarios.html#scenariolist"
     )
+    
+    firecrawl = FirecrawlRequest()
 
     def __init__(
         self,
@@ -388,6 +391,47 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 del scenario[field]
             new_scenarios.append(scenario)
         return new_scenarios
+
+    def transform_by_key(self, key_field: str) -> Scenario:
+        """Transform the ScenarioList into a single Scenario with key/value pairs.
+        
+        This method transforms the ScenarioList by:
+        1. Using the value of the specified key_field from each Scenario as a new key
+        2. Automatically formatting the remaining values as "key: value, key: value"
+        3. Creating a single Scenario containing all the transformed key/value pairs
+        
+        Args:
+            key_field: The field name whose value will become the new key
+            
+        Returns:
+            A single Scenario with all the transformed key/value pairs
+            
+        Examples:
+            >>> # Original scenarios: [{'topic': 'party', 'location': 'offsite', 'time': 'evening'}]
+            >>> scenarios = ScenarioList([
+            ...     Scenario({'topic': 'party', 'location': 'offsite', 'time': 'evening'})
+            ... ])
+            >>> transformed = scenarios.transform_by_key('topic')
+            >>> # Result: Scenario({'party': 'location: offsite, time: evening'})
+        """
+        # Create a single dictionary to hold all key/value pairs
+        combined_dict = {}
+        
+        for scenario in self:
+            # Get the new key from the specified field
+            new_key = scenario[key_field]
+            
+            # Get remaining values (excluding the key field)
+            remaining_values = {k: v for k, v in scenario.items() if k != key_field}
+            
+            # Format the remaining values as "key: value, key: value"
+            formatted_value = ", ".join([f"{k}: {v}" for k, v in remaining_values.items()])
+            
+            # Add to the combined dictionary
+            combined_dict[new_key] = formatted_value
+        
+        # Return a single Scenario with all the key/value pairs
+        return Scenario(combined_dict)
 
     @classmethod
     def from_prompt(
@@ -2006,11 +2050,53 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         sj = ScenarioJoin(self, other)
         return sj.left_join(by)
 
-    def to_dict(self, sort: bool = False, add_edsl_version: bool = True) -> dict:
+    def inner_join(self, other: ScenarioList, by: Union[str, list[str]]) -> ScenarioList:
+        """Perform an inner join with another ScenarioList, following SQL join semantics.
+
+        Args:
+            other: The ScenarioList to join with
+            by: String or list of strings representing the key(s) to join on. Cannot be empty.
+
+        Returns:
+            A new ScenarioList containing only scenarios that have matches in both ScenarioLists
+
+        >>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+        >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Los Angeles'})])
+        >>> s4 = s1.inner_join(s2, 'name')
+        >>> s4 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'})])
+        True
+        """
+        from .scenario_join import ScenarioJoin
+
+        sj = ScenarioJoin(self, other)
+        return sj.inner_join(by)
+
+    def right_join(self, other: ScenarioList, by: Union[str, list[str]]) -> ScenarioList:
+        """Perform a right join with another ScenarioList, following SQL join semantics.
+
+        Args:
+            other: The ScenarioList to join with
+            by: String or list of strings representing the key(s) to join on. Cannot be empty.
+
+        Returns:
+            A new ScenarioList containing all right scenarios with matching left data added
+
+        >>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+        >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Los Angeles'})])
+        >>> s5 = s1.right_join(s2, 'name')
+        >>> s5 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'}), Scenario({'age': None, 'location': 'Los Angeles', 'name': 'Charlie'})])
+        True
+        """
+        from .scenario_join import ScenarioJoin
+
+        sj = ScenarioJoin(self, other)
+        return sj.right_join(by)
+
+    def to_dict(self, sort: bool = False, add_edsl_version: bool = False) -> dict:
         """
         >>> s = ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood-fired pizza'})])
-        >>> s.to_dict()  # doctest: +ELLIPSIS
-        {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}, {'food': 'wood-fired pizza', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
+        >>> s.to_dict()
+        {'scenarios': [{'food': 'wood chips'}, {'food': 'wood-fired pizza'}]}
 
         >>> s = ScenarioList([Scenario({'food': 'wood chips'})], codebook={'food': 'description'})
         >>> d = s.to_dict()
@@ -2018,6 +2104,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         True
         >>> d['codebook'] == {'food': 'description'}
         True
+        
+        >>> # To include edsl_version and edsl_class_name, explicitly set add_edsl_version=True
+        >>> s.to_dict(add_edsl_version=True)  # doctest: +ELLIPSIS
+        {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'codebook': {'food': 'description'}, 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
         """
         if sort:
             data = sorted(self, key=lambda x: hash(x))
@@ -2536,6 +2626,67 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                     new_scenario[key] = value
             new_sl.append(Scenario(new_scenario))
         return new_sl
+
+    def fillna(self, value: Any = "", inplace: bool = False) -> "ScenarioList":
+        """
+        Fill None/NaN values in all scenarios with a specified value.
+        
+        This method is equivalent to pandas' df.fillna() functionality, allowing you to
+        replace None, NaN, or other null-like values across all scenarios in the list.
+        
+        Args:
+            value: The value to use for filling None/NaN values. Defaults to empty string "".
+            inplace: If True, modify the original ScenarioList. If False (default), 
+                    return a new ScenarioList with filled values.
+        
+        Returns:
+            ScenarioList: A new ScenarioList with filled values, or self if inplace=True
+        
+        Examples:
+            >>> scenarios = ScenarioList([
+            ...     Scenario({'a': None, 'b': 1, 'c': 'hello'}),
+            ...     Scenario({'a': 2, 'b': None, 'c': None}),
+            ...     Scenario({'a': None, 'b': 3, 'c': 'world'})
+            ... ])
+            >>> # Fill None values with empty string (default)
+            >>> filled = scenarios.fillna()
+            >>> print(filled)
+            ScenarioList([Scenario({'a': '', 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': '', 'c': ''}), Scenario({'a': '', 'b': 3, 'c': 'world'})])
+            >>> # Fill with custom value
+            >>> filled_custom = scenarios.fillna(value="N/A")
+            >>> print(filled_custom)
+            ScenarioList([Scenario({'a': 'N/A', 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': 'N/A', 'c': 'N/A'}), Scenario({'a': 'N/A', 'b': 3, 'c': 'world'})])
+            >>> # Original scenarios remain unchanged
+            >>> print(scenarios)
+            ScenarioList([Scenario({'a': None, 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': None, 'c': None}), Scenario({'a': None, 'b': 3, 'c': 'world'})])
+            >>> # Modify in place
+            >>> _ = scenarios.fillna(value="MISSING", inplace=True)
+            >>> print(scenarios)
+            ScenarioList([Scenario({'a': 'MISSING', 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': 'MISSING', 'c': 'MISSING'}), Scenario({'a': 'MISSING', 'b': 3, 'c': 'world'})])
+        """
+        def is_null(val):
+            """Check if a value is considered null/None."""
+            return val is None or (hasattr(val, '__str__') and str(val).lower() in ['nan', 'none', 'null', ''])
+        
+        if inplace:
+            # Modify the original scenarios
+            for scenario in self:
+                for key in scenario:
+                    if is_null(scenario[key]):
+                        scenario[key] = value
+            return self
+        else:
+            # Create new scenarios with filled values
+            new_sl = ScenarioList(data=[], codebook=self.codebook)
+            for scenario in self:
+                new_scenario = {}
+                for key, val in scenario.items():
+                    if is_null(val):
+                        new_scenario[key] = value
+                    else:
+                        new_scenario[key] = val
+                new_sl.append(Scenario(new_scenario))
+            return new_sl
 
     @classmethod
     @deprecated_classmethod("ScenarioSource.from_source('pdf', ...)")
