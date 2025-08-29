@@ -1250,6 +1250,7 @@ class FirecrawlScenario:
         prompt: Optional[str] = None,
         max_concurrent: int = 5,
         limit: Optional[int] = None,
+        scrape_options: Optional[Dict[str, Any]] = None,
         return_credits: bool = False,
         **kwargs,
     ):
@@ -1268,7 +1269,7 @@ class FirecrawlScenario:
         """
         if isinstance(url_or_urls, str):
             # Single URL - return Scenario
-            result, credits = self._extract_single(url_or_urls, schema, prompt, **kwargs)
+            result, credits = self._extract_single(url_or_urls, schema, prompt, scrape_options=scrape_options, **kwargs)
             return (result, credits) if return_credits else result
         elif isinstance(url_or_urls, list):
             # Multiple URLs - return ScenarioList
@@ -1280,7 +1281,7 @@ class FirecrawlScenario:
 
             result, credits = asyncio.run(
                 self._extract_batch(
-                    url_or_urls, prompt, schema, max_concurrent, **kwargs
+                    url_or_urls, prompt, schema, max_concurrent, scrape_options=scrape_options, **kwargs
                 )
             )
             return (result, credits) if return_credits else result
@@ -1293,6 +1294,7 @@ class FirecrawlScenario:
         schema: Optional[Dict[str, Any]] = None,
         prompt: Optional[str] = None,
         formats: Optional[List[str]] = None,
+        scrape_options: Optional[Dict[str, Any]] = None,
         **kwargs,
     ):
         """
@@ -1310,29 +1312,87 @@ class FirecrawlScenario:
         """
         from .scenario import Scenario
 
-        # Build extraction parameters - note: extract now takes urls (list) not url
-        extract_params = {"urls": [url], **kwargs}
+        # Build extraction parameters according to API spec with proper defaults
+        extract_params = {
+            "urls": [url],
+            "enableWebSearch": False,
+            "ignoreSitemap": False,
+            "includeSubdomains": True,
+            "showSources": False,
+            "ignoreInvalidURLs": True
+        }
 
         if schema:
-            extract_params["schema"] = schema
+            # Convert simple schema format to API expected format
+            if isinstance(schema, dict) and all(isinstance(v, str) for v in schema.values()):
+                # Convert simple {"field": "type"} to API format
+                api_schema = {
+                    "type": "object",
+                    "properties": {}
+                }
+                for field, field_type in schema.items():
+                    if field_type == "string":
+                        api_schema["properties"][field] = {"type": "string"}
+                    elif field_type == "number":
+                        api_schema["properties"][field] = {"type": "number"}
+                    elif field_type == "boolean":
+                        api_schema["properties"][field] = {"type": "boolean"}
+                    else:
+                        # Default to string for unknown types
+                        api_schema["properties"][field] = {"type": "string"}
+                extract_params["schema"] = api_schema
+            else:
+                # Assume it's already in correct API format
+                extract_params["schema"] = schema
         if prompt:
             extract_params["prompt"] = prompt
+            
+        # Build scrapeOptions
+        final_scrape_options = {}
         if formats:
-            extract_params["scrape_options"] = {"formats": formats}
+            final_scrape_options["formats"] = formats
+        if scrape_options:
+            final_scrape_options.update(scrape_options)
+            
+        if final_scrape_options:
+            extract_params["scrapeOptions"] = final_scrape_options
+            
+        # Add any additional kwargs directly to extract params
+        extract_params.update(kwargs)
 
         try:
             # Make HTTP request to Firecrawl API
             result = self._make_request("POST", "extract", extract_params)
-            
-            # Track and print credits used
-            credits_used = sum_credits_used(result)
-            if credits_used > 0:
-                print(f"Firecrawl extract credits used: {credits_used}")
 
             # Handle response
             if not result.get("success"):
                 error_msg = result.get("error", "Unknown extraction error")
                 raise Exception(f"Extraction failed: {error_msg}")
+
+            # For extract jobs, we need to poll for completion if we get an ID
+            extract_id = result.get("id")
+            if extract_id:
+                # Poll for completion
+                import time
+                max_retries = 60  # 10 minutes max
+                retry_count = 0
+                
+                while retry_count < max_retries:
+                    status_result = self._make_request("GET", f"extract/{extract_id}")
+                    
+                    if status_result.get("status") == "completed":
+                        result = status_result
+                        break
+                    elif status_result.get("status") in ["failed", "cancelled"]:
+                        raise Exception(f"Extract failed with status: {status_result.get('status')}")
+                    
+                    time.sleep(10)  # Wait 10 seconds between polls
+                    retry_count += 1
+                
+                if retry_count >= max_retries:
+                    raise Exception("Extract timed out")
+
+            credits_used = sum_credits_used(result)
 
             # Get the extracted data
             extracted_data = result.get("data", {})
@@ -1533,6 +1593,7 @@ class FirecrawlScenario:
         prompt: Optional[str] = None,
         schema: Optional[Dict[str, Any]] = None,
         max_concurrent: int = 5,
+        scrape_options: Optional[Dict[str, Any]] = None,
         **kwargs,
     ):
         """
@@ -1563,7 +1624,7 @@ class FirecrawlScenario:
                 other_kwargs = {k: v for k, v in kwargs.items() if k != 'formats'}
                 
                 return await loop.run_in_executor(
-                    None, self._extract_single, url, schema, prompt, formats, **other_kwargs
+                    None, self._extract_single, url, schema, prompt, formats, scrape_options, **other_kwargs
                 )
 
         # Create tasks for all URLs
