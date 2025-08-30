@@ -304,7 +304,8 @@ def login(timeout: int = 120) -> None:
     from edsl.coop import Coop
     import secrets
     from edsl.config import CONFIG
-    
+    from dotenv import load_dotenv
+
     # If we're in a notebook, handle the UI specially
     if _is_notebook_environment():
         # Generate auth token and URL (mirroring Coop._display_login_url logic)
@@ -325,6 +326,8 @@ def login(timeout: int = 120) -> None:
             if api_key:
                 # Store the key
                 coop.ep_key_handler.store_ep_api_key(api_key)
+                os.environ["EXPECTED_PARROT_API_KEY"] = api_key
+
                 _update_notebook_status("✅ Successfully logged in and stored API key!", is_success=True)
             else:
                 _update_notebook_status("❌ Login timed out. Please try again.")
