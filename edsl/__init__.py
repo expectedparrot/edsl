@@ -326,7 +326,7 @@ def login(timeout: int = 120) -> None:
             if api_key:
                 # Store the key
                 coop.ep_key_handler.store_ep_api_key(api_key)
-                load_dotenv()
+                os.environ["EXPECTED_PARROT_API_KEY"] = api_key
 
                 _update_notebook_status("✅ Successfully logged in and stored API key!", is_success=True)
             else:
