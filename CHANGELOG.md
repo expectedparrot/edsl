@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.3] - 2025-08-29
+### Added
+- **Firecrawl Integration**: Complete web scraping capabilities with new FirecrawlScenario class. Enables scraping, crawling, searching, and structured data extraction from websites, returning results as EDSL Scenario and ScenarioList objects for seamless integration with surveys and analysis workflows.
+
+### Improved
+- **AgentList Enhancements**: Enhanced agent creation with CSV codebook support and improved `from_results()` method allowing users to specify which questions and answers become agent traits.
+- **ScenarioList Functionality**: Added data manipulation methods including `fillna()` for handling missing values and `transform_by_key()` for reshaping scenario data structures.
+- **Model Services**: Improved model availability system to show all compatible services per model rather than just preferred ones, and fixed Azure integration for local usage.
+- **User Experience**: Enhanced Jupyter notebook login with rich UI components and improved environment variable handling.
+
+### Fixed
+- **Agent Generation**: Resolved duplicate agent creation bug in `Results.to_agent_list()` when name fields were present.
+
 ## [1.0.2] - 2025-08-20
 ### Added
 - **AgentList.from_source()**: Unified method for creating agents from various data sources with optional `instructions` parameter.
