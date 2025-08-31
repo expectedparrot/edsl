@@ -10,6 +10,7 @@ import logging
 from collections import defaultdict
 from itertools import product
 
+from ..base.decorators import polly_command
 
 from collections import UserList
 from typing import Any, List, Optional, Union, TYPE_CHECKING
@@ -120,6 +121,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         return self
 
+    @polly_command
     def add_instructions(self, instructions: str) -> "AgentList":
         """Apply instructions to all agents in the list.
 
@@ -141,7 +143,27 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         for agent in self.data:
             agent.instruction = instructions
         return self
-
+    
+    def __add__(self, other: AgentList) -> AgentList:
+        """Add two AgentLists together."""
+        # have to have the same traits + codebook 
+        if self.trait_keys != other.trait_keys:
+            raise ValueError("AgentLists must have the same traits and codebook")
+        
+        if hasattr(self, 'codebook') and hasattr(other, 'codebook'):
+            if self.codebook != other.codebook:
+                raise ValueError("AgentLists must have the same codebook")
+        
+        return AgentList(self.data + other.data, codebook=self.codebook if hasattr(self, 'codebook') else None)
+    
+    @property
+    def trait_keys(self) -> List[str]:
+        """Get the trait keys for the AgentList."""
+        keys = set()
+        for agent in self.data:
+            keys.update(agent.traits.keys())
+        return list(keys)
+    
     @classmethod
     def manage(cls):
         from ..widgets.agent_list_manager import AgentListManagerWidget
@@ -180,6 +202,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         random.shuffle(self.data)
         return self
 
+    @polly_command
     def sample(self, n: int, seed: Optional[str] = None) -> AgentList:
         """Return a random sample of agents.
 
@@ -526,6 +549,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         return AgentListJoiner.join_multiple(*agent_lists, join_type=join_type)
 
+    @polly_command
     def filter(self, expression: str) -> AgentList:
         """Filter agents based on a boolean expression.
 
