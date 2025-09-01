@@ -56,6 +56,17 @@ def _find_template_variables(template_text: str) -> List[str]:
     return list(meta.find_undeclared_variables(ast))
 
 
+@lru_cache(maxsize=2048)
+def _get_compiled_template(template_text: str):
+    """Cache compiled Jinja2 templates for reuse.
+    
+    This is the main performance optimization - instead of recompiling
+    templates for every render, we cache compiled templates by their text.
+    """
+    env = make_env()
+    return env.from_string(template_text)
+
+
 def _make_hashable(value):
     """Convert unhashable types to hashable ones."""
     if isinstance(value, list):
@@ -320,7 +331,7 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
         current_text = text
 
         for _ in range(MAX_NESTING):
-            template = env.from_string(current_text)
+            template = _get_compiled_template(current_text)
             rendered_text = template.render(**all_replacements)
 
             if rendered_text == current_text:
