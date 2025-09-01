@@ -212,6 +212,31 @@ class OpenAIService(InferenceServiceABC):
                         "tpm": int(headers["x-ratelimit-limit-tokens"]),
                     }
 
+            def _filter_parameters_for_service(self, params: dict) -> dict:
+                """
+                Apply service-specific parameter filtering before sending to API.
+
+                Args:
+                    params: Dictionary of API parameters
+
+                Returns:
+                    Filtered parameters dictionary with service-specific adjustments
+                """
+                # XAI service specific filtering
+                if self._inference_service_ == "xai":
+                    if "grok-4" in self.model:
+                        # Grok-4 models don't support penalty parameters
+                        params.pop("presence_penalty", None)
+                        params.pop("frequency_penalty", None)
+
+                # Add additional service-specific filtering logic here as needed
+                # Example:
+                # elif self._inference_service_ == "another_service":
+                #     # Apply other service-specific filters
+                #     pass
+
+                return params
+
             @report_errors_async
             async def async_execute_model_call(
                 self,
@@ -249,6 +274,10 @@ class OpenAIService(InferenceServiceABC):
                     logprobs=self.logprobs,
                     top_logprobs=self.top_logprobs,
                 )
+
+                # Apply service-specific parameter filtering
+                params = self._filter_parameters_for_service(params)
+
                 response = await client.chat.completions.create(**params)
                 return response.model_dump()
 
