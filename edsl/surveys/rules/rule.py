@@ -288,19 +288,34 @@ class Rule:
             """
             jinja_dict = defaultdict(dict)
 
+            def format_value_for_python(value):
+                """Format a value for safe use in Python expressions."""
+                if isinstance(value, str):
+                    # Use JSON dumps to properly escape strings for Python
+                    import json
+
+                    return json.dumps(value)
+                else:
+                    # For non-strings, return as-is (numbers, booleans, etc.)
+                    return value
+
             for key, value in dictionary.items():
                 # print("Now processing key: ", key)
                 # print(f"key: {key}, value: {value}")
+
+                # Format value for safe Python evaluation
+                formatted_value = format_value_for_python(value)
+
                 # Handle special keys
                 if "agent." in key:
                     # print("Agent key found")
-                    jinja_dict["agent"][key.split(".")[1]] = value
+                    jinja_dict["agent"][key.split(".")[1]] = formatted_value
                     # print("jinja dict: ", jinja_dict)
                     continue
 
                 if "scenario." in key:
                     # print("Scenario key found")
-                    jinja_dict["scenario"][key.split(".")[1]] = value
+                    jinja_dict["scenario"][key.split(".")[1]] = formatted_value
                     # print("jinja dict: ", jinja_dict)
                     continue
 
@@ -310,7 +325,7 @@ class Rule:
                     if question_name in key:
                         if question_name == key:
                             # print("question name is key; it's an answer")
-                            jinja_dict[question_name]["answer"] = value
+                            jinja_dict[question_name]["answer"] = formatted_value
                             # print("jinja dict: ", jinja_dict)
                             continue
                         else:
@@ -321,7 +336,9 @@ class Rule:
                                 # print("value_type: ", value_type)
                                 if passed_name == question_name:
                                     # print("passed name is question name; it's a sub-type")
-                                    jinja_dict[question_name][value_type] = value
+                                    jinja_dict[question_name][
+                                        value_type
+                                    ] = formatted_value
                                     # print("jinja dict: ", jinja_dict)
                                     continue
 

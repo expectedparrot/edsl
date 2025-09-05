@@ -211,21 +211,61 @@ class RuleCollection(UserList):
                         # we have a new champ!
                         next_q, highest_priority = rule.next_q, rule.priority
             except SurveyRuleCannotEvaluateError:
-                raise
+                # For stop rules, if they can't be evaluated (missing current answer),
+                # don't raise error during navigation planning
+                if rule.next_q == EndOfSurvey:
+                    continue  # Skip stop rules that can't be evaluated yet
+                else:
+                    raise  # Re-raise for navigation rules
 
         if num_rules_found == 0:
             raise SurveyRuleCollectionHasNoRulesAtNodeError(
                 f"No rules found for question {q_now}"
             )
 
-        ## Now we need to check if the *next question* has any 'before; rules that we should follow
-        for rule in self.applicable_rules(next_q, before_rule=True):
-            if rule.evaluate(answers):  # rule evaluates to True
-                return self.next_question(next_q, answers)
+        # Note: Before rules for the next question should be evaluated when we actually
+        # get to that question, not now. The current implementation was checking
+        # before rules on the next question with incomplete answer context.
 
         return NextQuestion(
             next_q, num_rules_found, expressions_evaluating_to_true, highest_priority
         )
+
+    def should_stop_survey(
+        self, q_answered: int, answers_with_current: dict[str, Any]
+    ) -> bool:
+        """
+        Check if survey should stop after answering a specific question.
+
+        This method should be called AFTER a question is answered, with the answer
+        included in the answers dictionary.
+
+        :param q_answered: The question index that was just answered
+        :param answers_with_current: Answers including the current question's answer
+        :return: True if survey should stop, False otherwise
+
+        >>> rule_collection = RuleCollection()
+        >>> from ..base import EndOfSurvey
+        >>> stop_rule = Rule(current_q=1, expression="{{ q1.answer }} != 'None'",
+        ...                  next_q=EndOfSurvey, priority=0,
+        ...                  question_name_to_index={'q1': 1}, before_rule=False)
+        >>> rule_collection.add_rule(stop_rule)
+        >>> rule_collection.should_stop_survey(1, {'q1.answer': 'yes'})
+        True
+        >>> rule_collection.should_stop_survey(1, {'q1.answer': 'None'})
+        False
+        """
+        for rule in self.applicable_rules(q_answered, before_rule=False):
+            # Only check rules that lead to EndOfSurvey
+            if rule.next_q == EndOfSurvey:
+                try:
+                    if rule.evaluate(answers_with_current):
+                        return True
+                except SurveyRuleCannotEvaluateError:
+                    # If rule can't be evaluated (e.g., missing variables),
+                    # don't stop the survey
+                    continue
+        return False
 
     @property
     def non_default_rules(self) -> List[Rule]:
