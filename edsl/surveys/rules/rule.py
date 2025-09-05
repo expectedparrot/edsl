@@ -348,7 +348,7 @@ class Rule:
         try:
             to_evaluate = substitute_in_answers(self.expression, current_info_env)
         except Exception as e:
-            msg = f"""Exception in evaluation: {e}. The expression is: {self.expression}. The current info env trying to substitute in is: {current_info_env}. After the substition, the expression was: {to_evaluate}."""
+            msg = f"""Exception in evaluation: {e}. The expression is: {self.expression}. The current info env trying to substitute in is: {current_info_env}. Template rendering failed before substitution could complete."""
             raise SurveyRuleCannotEvaluateError(msg)
 
         random_functions = {
