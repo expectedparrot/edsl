@@ -1,9 +1,11 @@
 import os
+import base64
 from typing import Any, Optional, List, TYPE_CHECKING
 from anthropic import AsyncAnthropic
 
 from ..inference_service_abc import InferenceServiceABC
 from ..decorators import report_errors_async
+from .message_builder import MessageBuilder
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -82,26 +84,55 @@ class AnthropicService(InferenceServiceABC):
                     }
                 ]
                 if files_list:
+                    # Create a MessageBuilder instance to use its helper methods
+                    msg_builder = MessageBuilder(model=model_name)
+
                     for file_entry in files_list:
-                        encoded_data = file_entry.base64_string
-
-                        # Use "document" type for PDFs, "image" type for other files
-                        content_type = (
-                            "document"
-                            if file_entry.mime_type == "application/pdf"
-                            else "image"
-                        )
-
-                        messages[0]["content"].append(
-                            {
-                                "type": content_type,
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": file_entry.mime_type,
-                                    "data": encoded_data,
-                                },
-                            }
-                        )
+                        # Handle text files by including their decoded content
+                        if msg_builder._is_text_file(file_entry):
+                            text_content = msg_builder.decode_text_file(file_entry)
+                            filename = getattr(file_entry, "filename", "text_file")
+                            messages[0]["content"].append(
+                                {
+                                    "type": "text",
+                                    "text": f"\n--- Content from '{filename}' ---\n{text_content}\n--- End of {filename} ---\n",
+                                }
+                            )
+                        # Handle PDFs as documents
+                        elif msg_builder._is_pdf_file(file_entry):
+                            encoded_data = file_entry.base64_string
+                            messages[0]["content"].append(
+                                {
+                                    "type": "document",
+                                    "source": {
+                                        "type": "base64",
+                                        "media_type": file_entry.mime_type,
+                                        "data": encoded_data,
+                                    },
+                                }
+                            )
+                        # Handle images
+                        elif msg_builder._is_image_file(file_entry):
+                            encoded_data = file_entry.base64_string
+                            messages[0]["content"].append(
+                                {
+                                    "type": "image",
+                                    "source": {
+                                        "type": "base64",
+                                        "media_type": file_entry.mime_type,
+                                        "data": encoded_data,
+                                    },
+                                }
+                            )
+                        # Handle unsupported file types
+                        else:
+                            filename = getattr(file_entry, "filename", "unknown")
+                            messages[0]["content"].append(
+                                {
+                                    "type": "text",
+                                    "text": f"[Unsupported file '{filename}' of type '{file_entry.mime_type}'. File content cannot be processed.]",
+                                }
+                            )
                 client = AsyncAnthropic(api_key=self.api_token)
 
                 response = await client.messages.create(
