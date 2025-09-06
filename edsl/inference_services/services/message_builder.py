@@ -67,7 +67,9 @@ class MessageBuilder:
         for file_entry in self.files_list:
             if self._is_pdf_file(file_entry):
                 content_parts.append(self._process_pdf_for_reasoning_model(file_entry))
-            elif file_entry.mime_type.startswith("image/"):
+            elif self._is_text_file(file_entry):
+                content_parts.append(self._process_text_for_reasoning_model(file_entry))
+            elif self._is_image_file(file_entry):
                 content_parts.append(
                     self._process_image_for_reasoning_model(file_entry)
                 )
@@ -87,8 +89,19 @@ class MessageBuilder:
                 content.append(
                     self._process_pdf_for_regular_model(file_entry, sync_client)
                 )
-            else:
+            elif self._is_text_file(file_entry):
+                content.append(self._process_text_for_regular_model(file_entry))
+            elif self._is_image_file(file_entry):
                 content.append(self._process_image_for_regular_model(file_entry))
+            else:
+                # Unsupported file type - add as text with warning
+                filename = getattr(file_entry, "filename", "unknown")
+                content.append(
+                    {
+                        "type": "text",
+                        "text": f"[Unsupported file '{filename}' of type '{file_entry.mime_type}'. File content cannot be processed.]",
+                    }
+                )
 
         return content
 
@@ -104,6 +117,111 @@ class MessageBuilder:
                 and getattr(file_entry, "filename", "").lower().endswith(".pdf")
             )
         )
+
+    def _is_text_file(self, file_entry: "Files") -> bool:
+        """Check if a file is a text-based file that should be included as text."""
+        # Check by MIME type
+        text_mime_prefixes = [
+            "text/",
+            "application/json",
+            "application/xml",
+            "application/x-yaml",
+        ]
+        if any(
+            file_entry.mime_type.startswith(prefix) for prefix in text_mime_prefixes
+        ):
+            return True
+
+        # Check by file extension
+        text_extensions = [
+            ".txt",
+            ".md",
+            ".csv",
+            ".log",
+            ".json",
+            ".yaml",
+            ".yml",
+            ".xml",
+            ".html",
+            ".py",
+            ".js",
+            ".java",
+            ".cpp",
+            ".c",
+            ".h",
+            ".hpp",
+            ".tex",
+            ".bib",
+            ".cls",
+            ".sty",
+            ".sh",
+            ".bash",
+            ".zsh",
+            ".fish",
+            ".rs",
+            ".go",
+            ".rb",
+            ".php",
+            ".swift",
+            ".kt",
+            ".ts",
+            ".jsx",
+            ".tsx",
+            ".vue",
+            ".css",
+            ".scss",
+            ".less",
+            ".sql",
+            ".r",
+            ".m",
+            ".jl",
+            ".scala",
+            ".clj",
+            ".ini",
+            ".cfg",
+            ".conf",
+            ".toml",
+            ".env",
+            ".properties",
+        ]
+
+        if hasattr(file_entry, "filename"):
+            filename = getattr(file_entry, "filename", "").lower()
+            return any(filename.endswith(ext) for ext in text_extensions)
+
+        return False
+
+    def _is_image_file(self, file_entry: "Files") -> bool:
+        """Check if a file is an image based on MIME type."""
+        return file_entry.mime_type.startswith("image/")
+
+    def decode_text_file(self, file_entry: "Files", max_chars: int = 100000) -> str:
+        """Decode a text file from base64 to string. Can be used by other services."""
+        filename = getattr(file_entry, "filename", "text_file")
+
+        # If the file has extracted_text attribute, use it
+        if hasattr(file_entry, "extracted_text") and file_entry.extracted_text:
+            text_content = file_entry.extracted_text
+        else:
+            # Decode base64 content to text
+            try:
+                text_bytes = base64.b64decode(file_entry.base64_string)
+                # Try UTF-8 first, then fall back to latin-1
+                try:
+                    text_content = text_bytes.decode("utf-8")
+                except UnicodeDecodeError:
+                    text_content = text_bytes.decode("latin-1", errors="replace")
+            except Exception as e:
+                return f"[Text file '{filename}' could not be decoded: {str(e)}]"
+
+        # Truncate very long text files
+        if len(text_content) > max_chars:
+            text_content = (
+                text_content[:max_chars]
+                + f"\n\n[Text file truncated after {max_chars} characters due to length limits]"
+            )
+
+        return text_content
 
     def _process_pdf_for_reasoning_model(self, file_entry: "Files") -> str:
         """Process PDF files for reasoning models by extracting text content."""
@@ -168,6 +286,25 @@ class MessageBuilder:
                     "type": "text",
                     "text": f"[PDF file could not be processed. Upload error: {str(e)}. Fallback error: {str(fallback_error)}. Please ensure the file is a valid PDF and OpenAI API supports PDF uploads.]",
                 }
+
+    def _process_text_for_regular_model(self, file_entry: "Files") -> Dict[str, Any]:
+        """Process text files for regular models by including their content as text."""
+        filename = getattr(file_entry, "filename", "text_file")
+        text_content = self.decode_text_file(file_entry, max_chars=100000)
+
+        return {
+            "type": "text",
+            "text": f"\n--- Content from '{filename}' ---\n{text_content}\n--- End of {filename} ---\n",
+        }
+
+    def _process_text_for_reasoning_model(self, file_entry: "Files") -> str:
+        """Process text files for reasoning models."""
+        filename = getattr(file_entry, "filename", "text_file")
+        text_content = self.decode_text_file(
+            file_entry, max_chars=50000
+        )  # Lower limit for reasoning models
+
+        return f"\n--- Content from '{filename}' ---\n{text_content}\n--- End of {filename} ---\n"
 
     def _process_image_for_regular_model(self, file_entry: "Files") -> Dict[str, Any]:
         """Process image files for regular models."""
