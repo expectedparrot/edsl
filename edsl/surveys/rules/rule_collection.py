@@ -203,11 +203,6 @@ class RuleCollection(UserList):
         num_rules_found = 0
 
         for rule in self.applicable_rules(q_now, before_rule=False):
-            # Skip stop rules (those that lead to EndOfSurvey) during navigation
-            # Stop rules should only be evaluated by should_stop_survey after a question is answered
-            if rule.next_q == EndOfSurvey:
-                continue
-
             num_rules_found += 1
             try:
                 if rule.evaluate(answers):  # evaluates to True
@@ -215,8 +210,17 @@ class RuleCollection(UserList):
                     if rule.priority > highest_priority:  # higher priority
                         # we have a new champ!
                         next_q, highest_priority = rule.next_q, rule.priority
-            except SurveyRuleCannotEvaluateError:
-                raise
+            except SurveyRuleCannotEvaluateError as e:
+                # Handle undefined variable errors gracefully
+                error_msg = str(e)
+                if "is undefined" in error_msg:
+                    # Skip rules that reference undefined variables (typically future questions)
+                    # This prevents premature evaluation of rules before their variables are available
+                    num_rules_found -= 1
+                    continue
+                else:
+                    # Re-raise other evaluation errors (syntax errors, type errors, etc.)
+                    raise
 
         if num_rules_found == 0:
             raise SurveyRuleCollectionHasNoRulesAtNodeError(

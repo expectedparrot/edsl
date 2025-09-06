@@ -346,13 +346,14 @@ class Rule:
         def substitute_in_answers(expression, current_info_env):
             """Take the dictionary of answers and substitute them into the expression."""
 
-            current_info = self._prepare_replacement(current_info_env)
-
             if "{{" in expression and "}}" in expression:
+                # For Jinja2 templates, use the original values without pre-processing
                 template_expression = Template(self.expression)
-                jinja_dict = jinja_ize_dictionary(current_info)
+                jinja_dict = jinja_ize_dictionary(current_info_env)
                 to_evaluate = template_expression.render(jinja_dict)
             else:
+                # For legacy non-Jinja2 expressions, use _prepare_replacement
+                current_info = self._prepare_replacement(current_info_env)
                 to_evaluate = expression
                 for var, value in current_info.items():
                     to_evaluate = to_evaluate.replace(var, value)
