@@ -203,6 +203,11 @@ class RuleCollection(UserList):
         num_rules_found = 0
 
         for rule in self.applicable_rules(q_now, before_rule=False):
+            # Skip stop rules (those that lead to EndOfSurvey) during navigation
+            # Stop rules should only be evaluated by should_stop_survey after a question is answered
+            if rule.next_q == EndOfSurvey:
+                continue
+
             num_rules_found += 1
             try:
                 if rule.evaluate(answers):  # evaluates to True
@@ -211,12 +216,7 @@ class RuleCollection(UserList):
                         # we have a new champ!
                         next_q, highest_priority = rule.next_q, rule.priority
             except SurveyRuleCannotEvaluateError:
-                # For stop rules, if they can't be evaluated (missing current answer),
-                # don't raise error during navigation planning
-                if rule.next_q == EndOfSurvey:
-                    continue  # Skip stop rules that can't be evaluated yet
-                else:
-                    raise  # Re-raise for navigation rules
+                raise
 
         if num_rules_found == 0:
             raise SurveyRuleCollectionHasNoRulesAtNodeError(

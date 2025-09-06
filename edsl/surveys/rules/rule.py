@@ -291,10 +291,9 @@ class Rule:
             def format_value_for_python(value):
                 """Format a value for safe use in Python expressions."""
                 if isinstance(value, str):
-                    # Use JSON dumps to properly escape strings for Python
-                    import json
-
-                    return json.dumps(value)
+                    # Use repr() to properly escape strings for Python
+                    # This maintains consistency with single quotes like _prepare_replacement
+                    return repr(value)
                 else:
                     # For non-strings, return as-is (numbers, booleans, etc.)
                     return value
