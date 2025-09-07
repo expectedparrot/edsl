@@ -133,18 +133,19 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             agent.traits_manager.set_dynamic_function(function)
 
 
-    def set_dynamic_traits_from_question_map(self, q_to_traits: dict[str, str]) -> "AgentList":
-        """Configure dynamic traits for each agent from a question→trait mapping (in-place).
+    def set_dynamic_traits_from_question_map(self, q_to_traits: dict[str, list[str]]) -> "AgentList":
+        """Configure dynamic traits for each agent from a question→traits mapping (in-place).
 
         Each agent will get a dynamic traits function that, when asked a question whose
-        ``question_name`` is present in ``q_to_traits``, returns a one-key dict mapping the
-        corresponding trait name to the agent's original static value for that trait.
+        ``question_name`` is present in ``q_to_traits``, returns a dict mapping the
+        corresponding trait name(s) to the agent's original static value(s) for those trait(s).
 
         A warning is emitted if the set of mapped trait names does not exactly equal the
         set of trait keys present in this AgentList.
 
         Args:
-            q_to_traits: Mapping from question name to trait key, e.g. ``{"geo": "hometown"}``.
+            q_to_traits: Mapping from question name to list of trait keys, e.g.
+                ``{"geo": ["hometown"], "cuisine": ["food"]}``.
 
         Returns:
             AgentList: self (modified in-place).
@@ -164,7 +165,10 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             >>> al[0].dynamic_traits_function(Q('cuisine'))['food']
             'beans'
         """
-        expected_trait_keys = set(q_to_traits.values())
+        # Flatten mapping values (lists of trait keys only)
+        expected_trait_keys: set[str] = set()
+        for value in q_to_traits.values():
+            expected_trait_keys.update(value)
         actual_trait_keys = set(self.trait_keys)
         if expected_trait_keys != actual_trait_keys:
             missing_in_map = actual_trait_keys - expected_trait_keys
@@ -178,8 +182,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             base = dict(agent.traits)  # snapshot static traits before setting dynamic function
 
             def f(question, base_traits=base, qmap=q_to_traits):
-                key = qmap[question.question_name]
-                return {key: base_traits[key]}
+                keys = qmap[question.question_name]
+                return {k: base_traits[k] for k in keys}
 
             agent.dynamic_traits_function = f
 

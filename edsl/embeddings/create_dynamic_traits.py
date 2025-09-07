@@ -84,9 +84,17 @@ class CreateDynamicTraitsFunction:
         return q_to_traits
 
     def apply_to_agent_list(
-        self, max_traits_included: int = 1
-    ) -> Dict[str, List[str]]:
-        """Compute mapping and return it; caller can pass to AgentList.set_dynamic_traits_from_question_map."""
-        return self.compute_q_to_traits(max_traits_included=max_traits_included)
+        self, max_traits_included: int = 1, *, flatten: bool = True
+    ) -> Dict[str, Any]:
+        """Compute mapping suitable for AgentList.set_dynamic_traits_from_question_map.
+
+        By default returns a flattened mapping Dict[str, str] (one trait per question).
+        If ``flatten=False``, returns Dict[str, List[str]] with up to ``max_traits_included`` traits.
+        """
+        mapping = self.compute_q_to_traits(max_traits_included=max_traits_included)
+        if not flatten:
+            return mapping
+        # AgentList API expects a single trait per question
+        return {q: traits[0] for q, traits in mapping.items() if traits}
 
 
