@@ -98,6 +98,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         if codebook is not None:
             self.set_codebook(codebook)
 
+        self._codebook = codebook
+
     def at(self, index: int) -> "Agent":
         """Get the agent at the specified index position."""
         return self.data[index]
@@ -120,6 +122,71 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             agent.instruction = instruction
 
         return self
+
+    def set_dynamic_traits(self, function: Callable) -> None:
+        """Set the dynamic traits for all agents in the list.
+        
+        Args:
+            function: The function to set.
+        """
+        for agent in self.data:
+            agent.traits_manager.set_dynamic_function(function)
+
+
+    def set_dynamic_traits_from_question_map(self, q_to_traits: dict[str, str]) -> "AgentList":
+        """Configure dynamic traits for each agent from a question→trait mapping (in-place).
+
+        Each agent will get a dynamic traits function that, when asked a question whose
+        ``question_name`` is present in ``q_to_traits``, returns a one-key dict mapping the
+        corresponding trait name to the agent's original static value for that trait.
+
+        A warning is emitted if the set of mapped trait names does not exactly equal the
+        set of trait keys present in this AgentList.
+
+        Args:
+            q_to_traits: Mapping from question name to trait key, e.g. ``{"geo": "hometown"}``.
+
+        Returns:
+            AgentList: self (modified in-place).
+
+        Examples:
+            >>> from edsl import Agent, AgentList
+            >>> a_alice = Agent(name="Alice", traits={'hometown': 'Boston', 'food': 'beans'})
+            >>> a_bob = Agent(name="Bob", traits={'hometown': 'SF', 'food': 'sushi'})
+            >>> al = AgentList([a_alice, a_bob])
+            >>> _ = al.set_dynamic_traits_from_question_map({'geo': 'hometown', 'cuisine': 'food'})
+            >>> class Q:
+            ...     def __init__(self, name): self.question_name = name
+            >>> al[0].dynamic_traits_function(Q('geo'))['hometown']
+            'Boston'
+            >>> al[1].dynamic_traits_function(Q('geo'))['hometown']
+            'SF'
+            >>> al[0].dynamic_traits_function(Q('cuisine'))['food']
+            'beans'
+        """
+        expected_trait_keys = set(q_to_traits.values())
+        actual_trait_keys = set(self.trait_keys)
+        if expected_trait_keys != actual_trait_keys:
+            missing_in_map = actual_trait_keys - expected_trait_keys
+            extra_in_map = expected_trait_keys - actual_trait_keys
+            warnings.warn(
+                "Question→trait map does not perfectly overlap agent traits. "
+                f"Missing in map: {sorted(missing_in_map)}; Extra in map: {sorted(extra_in_map)}"
+            )
+
+        for agent in self.data:
+            base = dict(agent.traits)  # snapshot static traits before setting dynamic function
+
+            def f(question, base_traits=base, qmap=q_to_traits):
+                key = qmap[question.question_name]
+                return {key: base_traits[key]}
+
+            agent.dynamic_traits_function = f
+
+        return self
+
+
+
 
     @polly_command
     def add_instructions(self, instructions: str) -> "AgentList":
@@ -984,6 +1051,18 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         for s1, s2 in list(product(self, other)):
             new_sl.append(s1 + s2)
         return AgentList(new_sl)
+
+    @property
+    def codebook(self) -> dict[str, str]:
+        """Return the codebook for the AgentList."""
+        if self._codebook is None:
+            codebook = self[0].codebook
+            for agent in self:
+                if agent.codebook != codebook:
+                    raise AgentListError("All agents must have the same codebook.")
+            self._codebook = codebook
+        return self._codebook
+
 
     def code(self, string=True) -> Union[str, list[str]]:
         """Return code to construct an AgentList.

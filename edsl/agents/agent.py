@@ -1045,6 +1045,37 @@ class Agent(Base):
         """
         return self.traits_manager.dynamic_function
 
+    @dynamic_traits_function.setter
+    def dynamic_traits_function(self, function: Optional[Callable]) -> None:
+        """Set the dynamic traits function.
+
+        This setter allows you to easily assign a dynamic traits function to an
+        already-instantiated agent using simple assignment syntax.
+
+        Args:
+            function: The function to set, or None to remove the current function
+
+        Examples:
+            Set a dynamic traits function:
+
+            >>> agent = Agent(traits={'age': 30})
+            >>> def my_func():
+            ...     return {'age': 25, 'dynamic': True}
+            >>> agent.dynamic_traits_function = my_func
+            >>> agent.has_dynamic_traits_function
+            True
+
+            Remove a dynamic traits function:
+
+            >>> agent.dynamic_traits_function = None
+            >>> agent.has_dynamic_traits_function
+            False
+        """
+        if function is None:
+            self.traits_manager.remove_dynamic_function()
+        else:
+            self.traits_manager.initialize_dynamic_function(function)
+
     @property
     def dynamic_traits_function_name(self) -> str:
         """The name of the dynamic traits function.
