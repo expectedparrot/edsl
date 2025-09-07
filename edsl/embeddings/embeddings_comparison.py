@@ -39,65 +39,9 @@ class EmbeddingsComparison:
         """
         return CrossDistanceHeatmapView(self, **kwargs)
 
-    def bipartite_nearest_neighbors(self, width: int = 900, height: int = 600, label_size: int = 12) -> str:
-        """Draw bipartite graph: left ids on left, right ids on right; arrows to nearest neighbor across sets."""
-        ids1, vecs1, ids2, vecs2 = self.ids_vectors()
-        # Layout: left column x=120, right column x=width-120, spread vertically
-        margin = 20
-        left_x = 120
-        right_x = width - 120
-        def spread(n: int) -> List[float]:
-            if n <= 1:
-                return [height/2]
-            top = margin + 40
-            bottom = height - margin - 40
-            return [top + i*(bottom-top)/(n-1) for i in range(n)]
-
-        left_y = spread(len(ids1))
-        right_y = spread(len(ids2))
-
-        # For each left, find nearest right
-        def cosine(a: List[float], b: List[float]) -> float:
-            return self.left._cosine_similarity(a, b)  # noqa: SLF001
-
-        arrows: List[Tuple[Tuple[float,float], Tuple[float,float], str, str, float]] = []
-        for i, v1 in enumerate(vecs1):
-            best_j = None
-            best_sim = -2.0
-            for j, v2 in enumerate(vecs2):
-                sim = cosine(v1, v2)
-                if sim > best_sim:
-                    best_sim, best_j = sim, j
-            if best_j is not None:
-                arrows.append(((left_x, left_y[i]), (right_x, right_y[best_j]), ids1[i], ids2[best_j], best_sim))
-
-        parts: List[str] = [
-            f"<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}' viewBox='0 0 {width} {height}'>",
-            "<rect width='100%' height='100%' fill='white' />",
-        ]
-        # Draw nodes
-        for x, y, doc_id in [(left_x, left_y[i], ids1[i]) for i in range(len(ids1))]:
-            label = Viz._escape(Viz._truncate(doc_id, 24))
-            parts.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='4' fill='#1f77b4' />")
-            parts.append(f"<text x='{x - 8:.1f}' y='{y + 4:.1f}' font-size='{label_size}' text-anchor='end' fill='#333'>{label}</text>")
-        for x, y, doc_id in [(right_x, right_y[i], ids2[i]) for i in range(len(ids2))]:
-            label = Viz._escape(Viz._truncate(doc_id, 24))
-            parts.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='4' fill='#ff7f0e' />")
-            parts.append(f"<text x='{x + 8:.1f}' y='{y + 4:.1f}' font-size='{label_size}' text-anchor='start' fill='#333'>{label}</text>")
-
-        # Draw arrows with width mapped to similarity
-        for (x1, y1), (x2, y2), idl, idr, sim in arrows:
-            stroke_w = 0.5 + 2.0 * max(0.0, sim)  # 0..2.5
-            opacity = 0.25 + 0.5 * max(0.0, sim)
-            parts.append(
-                f"<line x1='{x1:.1f}' y1='{y1:.1f}' x2='{x2:.1f}' y2='{y2:.1f}' stroke='#444' stroke-opacity='{opacity:.2f}' stroke-width='{stroke_w:.2f}' marker-end='url(#arrow)' />"
-            )
-
-        # Arrow marker definition
-        parts.insert(1, "<defs><marker id='arrow' markerWidth='10' markerHeight='7' refX='10' refY='3.5' orient='auto'><polygon points='0 0, 10 3.5, 0 7' fill='#444' /></marker></defs>")
-
-        parts.append("</svg>")
-        return "".join(parts)
+    def bipartite_nearest_neighbors(self, width: int = 900, height: int = 600, label_size: int = 12) -> "BipartiteNearestNeighborsView":
+        """Return a notebook-friendly view of a bipartite NN graph between engines."""
+        return BipartiteNearestNeighborsView(self, width=width, height=height, label_size=label_size)
 
     def joint_tsne(self, **kwargs: Any) -> str:
         """Run t-SNE over concatenated embeddings, color left vs right, draw hulls for each side."""
@@ -306,4 +250,90 @@ class CrossDistanceHeatmapView:
     def _repr_html_(self) -> str:
         return self.to_svg()
 
+
+class BipartiteNearestNeighborsView:
+    def __init__(self, comparison: EmbeddingsComparison, *, width: int, height: int, label_size: int) -> None:
+        self._cmp = comparison
+        self._width = width
+        self._height = height
+        self._label_size = label_size
+        self._svg_cache: Optional[str] = None
+
+    def to_svg(self) -> str:
+        if self._svg_cache is None:
+            # Include contents so we can show informative tooltips
+            ids1, vecs1, contents1 = EmbeddingsComparison._get_ids_vectors_contents(self._cmp.left)
+            ids2, vecs2, contents2 = EmbeddingsComparison._get_ids_vectors_contents(self._cmp.right)
+            margin = 20
+            left_x = 120
+            right_x = self._width - 120
+
+            def spread(n: int) -> List[float]:
+                if n <= 1:
+                    return [self._height / 2]
+                top = margin + 40
+                bottom = self._height - margin - 40
+                return [top + i * (bottom - top) / (n - 1) for i in range(n)]
+
+            left_y = spread(len(ids1))
+            right_y = spread(len(ids2))
+
+            def cosine(a: List[float], b: List[float]) -> float:
+                return self._cmp.left._cosine_similarity(a, b)  # noqa: SLF001
+
+            arrows: List[Tuple[Tuple[float, float], Tuple[float, float], str, str, float]] = []
+            for i, v1 in enumerate(vecs1):
+                best_j = None
+                best_sim = -2.0
+                for j, v2 in enumerate(vecs2):
+                    sim = cosine(v1, v2)
+                    if sim > best_sim:
+                        best_sim, best_j = sim, j
+                if best_j is not None:
+                    arrows.append(((left_x, left_y[i]), (right_x, right_y[best_j]), ids1[i], ids2[best_j], best_sim))
+
+            parts: List[str] = [
+                f"<svg xmlns='http://www.w3.org/2000/svg' width='{self._width}' height='{self._height}' viewBox='0 0 {self._width} {self._height}'>",
+                "<rect width='100%' height='100%' fill='white' />",
+                "<defs><marker id='arrow' markerWidth='10' markerHeight='7' refX='10' refY='3.5' orient='auto'><polygon points='0 0, 10 3.5, 0 7' fill='#444' /></marker></defs>",
+            ]
+
+            # Draw nodes
+            for x, y, doc_id in [(left_x, left_y[i], ids1[i]) for i in range(len(ids1))]:
+                label = Viz._escape(Viz._truncate(doc_id, 24))
+                tip = Viz._escape(str(contents1[ids1.index(doc_id)])) if ids1 else label
+                parts.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='4' fill='#1f77b4'><title>{tip}</title></circle>")
+                parts.append(f"<text x='{x - 8:.1f}' y='{y + 4:.1f}' font-size='{self._label_size}' text-anchor='end' fill='#333'>{label}</text>")
+            for x, y, doc_id in [(right_x, right_y[i], ids2[i]) for i in range(len(ids2))]:
+                label = Viz._escape(Viz._truncate(doc_id, 24))
+                tip = Viz._escape(str(contents2[ids2.index(doc_id)])) if ids2 else label
+                parts.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='4' fill='#ff7f0e'><title>{tip}</title></circle>")
+                parts.append(f"<text x='{x + 8:.1f}' y='{y + 4:.1f}' font-size='{self._label_size}' text-anchor='start' fill='#333'>{label}</text>")
+
+            # Draw arrows with width mapped to similarity
+            for (x1, y1), (x2, y2), idl, idr, sim in arrows:
+                stroke_w = 0.5 + 2.0 * max(0.0, sim)
+                opacity = 0.25 + 0.5 * max(0.0, sim)
+                tip = Viz._escape(f"{idl} → {idr}  cos={sim:.2f}")
+                parts.append(
+                    f"<line x1='{x1:.1f}' y1='{y1:.1f}' x2='{x2:.1f}' y2='{y2:.1f}' stroke='#444' stroke-opacity='{opacity:.2f}' stroke-width='{stroke_w:.2f}' marker-end='url(#arrow)'><title>{tip}</title></line>"
+                )
+
+            parts.append("</svg>")
+            self._svg_cache = "".join(parts)
+        return self._svg_cache
+
+    def _repr_html_(self) -> str:
+        return self.to_svg()
+
+    def show(self) -> str:
+        return self.to_svg()
+
+    def save(self, path: str) -> str:
+        svg = self.to_svg()
+        if not path.lower().endswith(".svg"):
+            path = path + ".svg"
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(svg)
+        return path
 
