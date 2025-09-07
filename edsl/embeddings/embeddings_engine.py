@@ -1,6 +1,6 @@
 """Main embeddings engine for document storage and similarity search."""
 
-from typing import List, Dict, Optional, Any, TYPE_CHECKING
+from typing import List, Dict, Optional, Any, TYPE_CHECKING, Union
 import math
 from dataclasses import dataclass
 import html
@@ -67,12 +67,17 @@ class EmbeddingsEngine(Base):
         '0'
     """
     
-    def __init__(self, embedding_function: EmbeddingFunction):
+    def __init__(self, embedding_function: Optional[EmbeddingFunction] = None):
         """Initialize the embeddings engine.
         
         Args:
-            embedding_function: The embedding function to use for generating embeddings
+            embedding_function: The embedding function to use. If omitted, defaults
+                to OpenAIEmbeddingFunction.
         """
+        if embedding_function is None:
+            from .embedding_function import OpenAIEmbeddingFunction
+
+            embedding_function = OpenAIEmbeddingFunction()
         self.embedding_function = embedding_function
         self.documents: List[Document] = []
 
@@ -364,7 +369,7 @@ class EmbeddingsEngine(Base):
             "</table>"
         )
         
-    def add_document(self, id: str, content: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+    def add_document(self, id: str, content: str, metadata: Optional[Dict[str, Any]] = None) -> "EmbeddingsEngine":
         """Add a single document to the engine.
         
         Args:
@@ -378,12 +383,14 @@ class EmbeddingsEngine(Base):
         embedding = self.embedding_function.embed_query(content)
         document = Document(id=id, content=content, metadata=metadata, embedding=embedding)
         self.documents.append(document)
+        return self
         
-    def add_documents(self, documents: List[Dict[str, Any]]) -> None:
+    def add_documents(self, documents: List[Union[str, Dict[str, Any]]]) -> "EmbeddingsEngine":
         """Add multiple documents to the engine.
         
         Args:
-            documents: List of document dictionaries with 'id', 'content', and optional 'metadata' keys
+            documents: Either a list of strings (each string is the content) or
+                a list of document dictionaries with 'id', 'content', and optional 'metadata'.
 
         Examples:
             >>> from edsl.embeddings.embedding_function import MockEmbeddingFunction
@@ -395,17 +402,40 @@ class EmbeddingsEngine(Base):
             >>> engine.count()
             2
         """
-        texts = [doc["content"] for doc in documents]
+        if not documents:
+            return self
+
+        # Normalize inputs to a list of dicts with id, content, metadata
+        normalized: List[Dict[str, Any]] = []
+        for idx, item in enumerate(documents):
+            if isinstance(item, str):
+                normalized.append({"id": str(idx), "content": item, "metadata": {}})
+            else:
+                # Accept dicts; fill defaults
+                content = item.get("content", item.get("text"))
+                if content is None:
+                    # Coerce any non-None value to string if provided under another key
+                    content = str(item)
+                normalized.append(
+                    {
+                        "id": str(item.get("id", idx)),
+                        "content": str(content),
+                        "metadata": item.get("metadata", {}),
+                    }
+                )
+
+        texts = [doc["content"] for doc in normalized]
         embeddings = self.embedding_function.embed_documents(texts)
-        
-        for doc_dict, embedding in zip(documents, embeddings):
+
+        for doc_dict, embedding in zip(normalized, embeddings):
             document = Document(
                 id=doc_dict["id"],
-                content=doc_dict["content"], 
+                content=doc_dict["content"],
                 metadata=doc_dict.get("metadata", {}),
-                embedding=embedding
+                embedding=embedding,
             )
             self.documents.append(document)
+        return self
             
     def search(self, query: str, top_k: int = 5) -> List[SearchResult]:
         """Search for similar documents using cosine similarity.
@@ -661,3 +691,9 @@ class EmbeddingsEngine(Base):
             except Exception:
                 pass
         return view
+
+    def compare(self, other: "Any") -> "Any":
+        """Return an EmbeddingsComparison helper for this engine vs another."""
+        from .embeddings_comparison import EmbeddingsComparison
+
+        return EmbeddingsComparison(self, other)
