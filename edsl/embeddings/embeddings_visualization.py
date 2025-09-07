@@ -93,10 +93,16 @@ class EmbeddingsEngineVisualization:
             # Compute a cell size that yields at least target pixels for the grid
             cell_size = max(cell_size, int(math.ceil(target / n)))
 
-        # Layout dimensions
-        label_space = max(label_size + 2, 14)
-        width = padding * 2 + label_space + cell_size * n
-        height = padding * 2 + label_space + cell_size * n
+        # Layout dimensions with separate left/top label spaces
+        approx_char_w = label_size * 0.6
+        # Left labels use ids; estimate width from longest id (up to 18 chars like we display)
+        left_label_lengths = [len(EmbeddingsEngineVisualization._truncate(doc_id, 18)) for doc_id in ids]
+        label_space_left = max(int(approx_char_w * (max(left_label_lengths) if left_label_lengths else 1)) + 14, label_size + 2, 14)
+        # Top labels are vertical; estimate required height from longest label (up to 18 chars)
+        top_label_lengths = left_label_lengths  # same ids
+        label_space_top = max(int(approx_char_w * (max(top_label_lengths) if top_label_lengths else 1)) + 14, label_size + 2, 24)
+        width = padding * 2 + label_space_left + cell_size * n
+        height = padding * 2 + label_space_top + cell_size * n
 
         # Build SVG elements
         parts: List[str] = [
@@ -108,21 +114,23 @@ class EmbeddingsEngineVisualization:
                 "<style>"
                 ".cell .tip{visibility:hidden;opacity:0;transition:opacity 0.05s linear;}"
                 ".cell:hover .tip{visibility:visible;opacity:1;}"
+                ".cell rect{pointer-events:all;}"
                 "</style>"
             )
 
         # Axis labels
         for i, doc_id in enumerate(ids):
-            x = padding + label_space + i * cell_size + cell_size / 2
-            y = padding + label_space / 2
+            # Vertical labels centered over each square for consistent spacing
+            x = padding + label_space_left + i * cell_size + cell_size / 2
+            y = padding + label_space_top - 4
             truncated = EmbeddingsEngineVisualization._truncate(doc_id, 18)
             parts.append(
-                f"<text x='{x}' y='{y}' font-size='{label_size}' text-anchor='end' transform='rotate(-45 {x} {y})'>{EmbeddingsEngineVisualization._escape(truncated)}</text>"
+                f"<text x='{x}' y='{y}' font-size='{label_size}' text-anchor='middle' dominant-baseline='text-before-edge' transform='rotate(-90 {x} {y})'>{EmbeddingsEngineVisualization._escape(truncated)}</text>"
             )
 
         for i, doc_id in enumerate(ids):
-            x = padding + label_space / 2
-            y = padding + label_space + i * cell_size + cell_size * 0.7
+            x = padding + label_space_left - 4
+            y = padding + label_space_top + i * cell_size + cell_size * 0.7
             truncated = EmbeddingsEngineVisualization._truncate(doc_id, 18)
             parts.append(
                 f"<text x='{x}' y='{y}' font-size='{label_size}' text-anchor='end'>{EmbeddingsEngineVisualization._escape(truncated)}</text>"
@@ -141,8 +149,8 @@ class EmbeddingsEngineVisualization:
                         continue
                 value = matrix[r][c]
                 fill = EmbeddingsEngineVisualization._value_to_color(value)
-                x = padding + label_space + c * cell_size
-                y = padding + label_space + r * cell_size
+                x = padding + label_space_left + c * cell_size
+                y = padding + label_space_top + r * cell_size
                 if instant_tooltips:
                     # Build tooltip with row/col ids and contents
                     row_id = EmbeddingsEngineVisualization._escape(ids[r])
@@ -172,7 +180,8 @@ class EmbeddingsEngineVisualization:
                     if by + box_h > height - 2:
                         by = max(2, height - box_h - 2)
                     parts.append("<g class='cell'>")
-                    parts.append(f"<rect x='{x}' y='{y}' width='{cell_size}' height='{cell_size}' fill='{fill}' />")
+                    # Native tooltip fallback attached to rect for reliable browser behavior
+                    parts.append(f"<rect x='{x}' y='{y}' width='{cell_size}' height='{cell_size}' fill='{fill}'><title>{row_id} | {col_id} | {value_text}</title></rect>")
                     parts.append("<g class='tip'>")
                     parts.append(f"<rect x='{bx}' y='{by}' rx='4' ry='4' width='{box_w}' height='{box_h}' fill='white' stroke='#333' stroke-opacity='0.4' fill-opacity='0.95' />")
                     ty = by + 6 + tooltip_font
@@ -186,7 +195,7 @@ class EmbeddingsEngineVisualization:
                         )
                     parts.append("</g>")
                 else:
-                    parts.append(f"<rect x='{x}' y='{y}' width='{cell_size}' height='{cell_size}' fill='{fill}' />")
+                    parts.append(f"<rect x='{x}' y='{y}' width='{cell_size}' height='{cell_size}' fill='{fill}'><title>{row_id} | {col_id} | {value_text}</title></rect>")
                     if show_values:
                         parts.append(
                             f"<text x='{x + cell_size/2}' y='{y + cell_size*0.65}' font-size='{label_size - 2}' text-anchor='middle' fill='black'>{value:.2f}</text>"
