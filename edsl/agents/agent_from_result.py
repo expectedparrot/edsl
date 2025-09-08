@@ -138,7 +138,8 @@ class AgentFromResult:
             >>> # Returns {"age": "What is your age?"}
         """
         codebook: dict[str, str] = {}
-        question_attrs = getattr(result, "question_to_attributes", None)
+        #question_attrs = getattr(result, "question_to_attributes", None)
+        question_attrs = result["question_to_attributes"]
 
         if question_attrs:
             from ..prompts import Prompt
@@ -160,6 +161,8 @@ class AgentFromResult:
                     rendered_qtext = qtext_template
 
                 codebook[qname] = rendered_qtext
+            #else:
+            #    raise Exception(f"Question {qname} not found in question_attrs. Available questions: {list(question_attrs.keys())}")
 
         return codebook
 

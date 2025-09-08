@@ -96,56 +96,59 @@ class AgentListFactories:
             >>> # To include only specific questions:
             >>> # al = AgentListFactories.from_results(results, question_names=['age', 'preference'])
         """
-        from .agent import Agent
         from .agent_list import AgentList
+        from .agent import Agent
+        return AgentList([Agent.from_result(result) for result in results])
+        # from .agent import Agent
+        # from .agent_list import AgentList
 
-        df = results.select("agent.*", "answer.*", "prompt.*").to_pandas()
+        # df = results.select("agent.*", "answer.*", "prompt.*").to_pandas()
 
-        agents = []
-        for index, row in df.iterrows():
-            traits = {}
-            codebook = {}
-            has_name = False
-            name = None
+        # agents = []
+        # for index, row in df.iterrows():
+        #     traits = {}
+        #     codebook = {}
+        #     has_name = False
+        #     name = None
             
-            for column in df.columns:
-                value = row[column]
+        #     for column in df.columns:
+        #         value = row[column]
         
-                if column.startswith('answer.'):
-                    key = column[7:]  # Remove 'answer.' prefix
-                    # Only include this answer if question_names is None or if the key is in question_names
-                    if question_names is None or key in question_names:
-                        traits[key] = value
+        #         if column.startswith('answer.'):
+        #             key = column[7:]  # Remove 'answer.' prefix
+        #             # Only include this answer if question_names is None or if the key is in question_names
+        #             if question_names is None or key in question_names:
+        #                 traits[key] = value
                     
-                elif column.startswith('prompt.'):
-                    # Only include columns that end with '_user_prompt'
-                    if column.endswith('_user_prompt'):
-                        key = column[7:]  # Remove 'prompt.' prefix
-                        key = key[:-12]  # Remove '_user_prompt' suffix
-                        # Only include this prompt if question_names is None or if the key is in question_names
-                        if question_names is None or key in question_names:
-                            codebook[key] = value
+        #         elif column.startswith('prompt.'):
+        #             # Only include columns that end with '_user_prompt'
+        #             if column.endswith('_user_prompt'):
+        #                 key = column[7:]  # Remove 'prompt.' prefix
+        #                 key = key[:-12]  # Remove '_user_prompt' suffix
+        #                 # Only include this prompt if question_names is None or if the key is in question_names
+        #                 if question_names is None or key in question_names:
+        #                     codebook[key] = value
                         
-                elif column.startswith('agent.'):
-                    # Skip agent.instructions and agent.index
-                    if column == 'agent.agent_name':
-                        name = value  # Store as separate parameter
-                        has_name = True
-                    elif column not in ['agent.agent_instruction', 'agent.agent_index']:
-                        key = column[6:]  # Remove 'agent.' prefix
-                        traits[key] = value
+        #         elif column.startswith('agent.'):
+        #             # Skip agent.instructions and agent.index
+        #             if column == 'agent.agent_name':
+        #                 name = value  # Store as separate parameter
+        #                 has_name = True
+        #             elif column not in ['agent.agent_instruction', 'agent.agent_index']:
+        #                 key = column[6:]  # Remove 'agent.' prefix
+        #                 traits[key] = value
             
-            # Create Agent with or without name parameter
-            if has_name:
-                agent = Agent(name=name, traits=traits, codebook=codebook)
-            else:
-                agent = Agent(traits=traits, codebook=codebook)
-            agents.append(agent)
+        #     # Create Agent with or without name parameter
+        #     if has_name:
+        #         agent = Agent(name=name, traits=traits, codebook=codebook)
+        #     else:
+        #         agent = Agent(traits=traits, codebook=codebook)
+        #     agents.append(agent)
         
-        # Deduplicate agents list -- in case any models had identical questions/answers for an agent
-        unique_agents = list(set(agents))
+        # # Deduplicate agents list -- in case any models had identical questions/answers for an agent
+        # unique_agents = list(set(agents))
         
-        return AgentList(unique_agents)
+        # return AgentList(unique_agents)
 
     @staticmethod
     def from_dict(data: dict) -> "AgentList":

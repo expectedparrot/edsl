@@ -155,7 +155,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             >>> a_alice = Agent(name="Alice", traits={'hometown': 'Boston', 'food': 'beans'})
             >>> a_bob = Agent(name="Bob", traits={'hometown': 'SF', 'food': 'sushi'})
             >>> al = AgentList([a_alice, a_bob])
-            >>> _ = al.set_dynamic_traits_from_question_map({'geo': 'hometown', 'cuisine': 'food'})
+            >>> _ = al.set_dynamic_traits_from_question_map({'geo': ['hometown'], 'cuisine': ['food']})
             >>> class Q:
             ...     def __init__(self, name): self.question_name = name
             >>> al[0].dynamic_traits_function(Q('geo'))['hometown']
