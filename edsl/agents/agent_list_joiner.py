@@ -51,10 +51,7 @@ class AgentListJoiner:
                     right_list.append(other_agent)
                     left_list.append(agent)
 
-        if len(inner_list) != len(right_list) and len(inner_list) != len(left_list):
-            warnings.warn(f"The number of agents in the left list is {len(left_list)} and the number of agents in the right list is {len(right_list)}.")
-            warnings.warn(f"The number of agents in the inner list is {len(inner_list)}.")
-            warnings.warn(f"The number of agents in the left list is {len(left_list)} and the number of agents in the right list is {len(right_list)}.")
+        # Removed noisy warnings that compared inner_list with cartesian-sized lists
         
         if join_type == "inner":
             return AgentList(inner_list)

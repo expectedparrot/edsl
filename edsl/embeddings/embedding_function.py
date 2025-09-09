@@ -278,6 +278,130 @@ class OpenAIEmbeddingFunction(EmbeddingFunction):
         return vector
 
 
+class GemmaEmbeddingFunction(EmbeddingFunction):
+    """Google Gemma embedding function using sentence-transformers.
+
+    Uses Google's EmbeddingGemma model for generating embeddings optimized for retrieval tasks.
+    Supports different prompting strategies for queries vs documents.
+
+    Args:
+        model_id: Gemma model identifier, defaults to ``google/embeddinggemma-300m``.
+        device: Device to run on, defaults to ``"auto"`` (uses CUDA if available, else CPU).
+        normalize: If ``True``, L2-normalize each returned vector.
+
+    Examples:
+        >>> f = GemmaEmbeddingFunction()  # doctest: +SKIP
+        >>> v = f.embed_query("What is machine learning?")  # doctest: +SKIP
+        >>> isinstance(v, list) and isinstance(v[0], float)  # doctest: +SKIP
+        True
+    """
+
+    short_name = "gemma"
+
+    def __init__(
+        self,
+        model_id: str = "google/embeddinggemma-300m",
+        device: str = "auto",
+        normalize: bool = False,
+    ) -> None:
+        # Lazily import to avoid hard dependency when unused
+        try:
+            import torch
+            from sentence_transformers import SentenceTransformer  # type: ignore
+        except Exception as e:  # pragma: no cover - depends on env
+            raise ImportError(
+                "The 'torch' and 'sentence-transformers' packages are required for GemmaEmbeddingFunction. "
+                "Install with 'pip install torch sentence-transformers'."
+            ) from e
+
+        self.model_id = model_id
+        self._normalize = normalize
+        
+        # Determine device
+        if device == "auto":
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        else:
+            self.device = device
+
+        # Load the model
+        try:
+            self._model = SentenceTransformer(model_id).to(device=self.device)
+        except Exception as e:  # pragma: no cover - model loading error
+            error_msg = f"Failed to load Gemma model '{model_id}'. "
+            if "gated" in str(e).lower() or "401" in str(e) or "unauthorized" in str(e).lower():
+                error_msg += (
+                    "This model requires accepting Google's license terms. "
+                    "Please visit https://huggingface.co/google/embeddinggemma-300m, "
+                    "log in to Hugging Face, and accept the license terms. "
+                    "Then authenticate with 'huggingface-cli login' or set HF_TOKEN environment variable."
+                )
+            else:
+                error_msg += "Make sure the model is available and you have proper permissions."
+            raise RuntimeError(error_msg) from e
+
+    def _maybe_normalize(self, vectors: List[List[float]]) -> List[List[float]]:
+        """Apply L2 normalization to vectors if requested."""
+        if not self._normalize:
+            return vectors
+        normalized: List[List[float]] = []
+        for vector in vectors:
+            norm = math.sqrt(sum(value * value for value in vector)) or 1.0
+            normalized.append([value / norm for value in vector])
+        return normalized
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Generate embeddings for a list of documents.
+
+        Uses document-optimized prompting for better retrieval performance.
+
+        Args:
+            texts: List of text documents to embed.
+
+        Returns:
+            List of embedding vectors, one for each input text.
+        """
+        if not texts:
+            return []
+        
+        # Use document prompting - just pass the text directly
+        # The model handles document vs query distinction internally
+        try:
+            embeddings = self._model.encode(texts, convert_to_numpy=False)
+            # Convert to list of lists of floats
+            vectors = [embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding) 
+                      for embedding in embeddings]
+            return self._maybe_normalize(vectors)
+        except Exception as e:  # pragma: no cover - encoding error
+            raise RuntimeError(f"Failed to encode documents: {e}") from e
+
+    def embed_query(self, text: str) -> List[float]:
+        """Generate embedding for a single query text.
+
+        Args:
+            text: Query text to embed.
+
+        Returns:
+            Embedding vector for the query.
+        """
+        try:
+            # Encode query text (try with special prompting first, fallback to regular encoding)
+            try:
+                embedding = self._model.encode(text, prompt_name="Retrieval-query", convert_to_numpy=False)
+            except (TypeError, ValueError):
+                # Fallback to regular encoding if prompt_name is not supported
+                embedding = self._model.encode(text, convert_to_numpy=False)
+            
+            # Convert to list of floats
+            vector = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
+            
+            if self._normalize:
+                norm = math.sqrt(sum(value * value for value in vector)) or 1.0
+                vector = [value / norm for value in vector]
+            return vector
+        except Exception as e:  # pragma: no cover - encoding error
+            raise RuntimeError(f"Failed to encode query: {e}") from e
+
+
 if __name__ == "__main__":
     """Quick demo: compute cosine similarity between sentences using OpenAI embeddings.
 
