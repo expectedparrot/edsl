@@ -2514,7 +2514,7 @@ class Survey(Base):
         return SurveyInspectorWidget(self)
 
     @classmethod
-    def generate_survey_from_topic(
+    def generate_from_topic(
         cls,
         topic: str,
         n_questions: int = 5,
@@ -2661,7 +2661,7 @@ Design tips:
         return cls(questions)
 
     @classmethod
-    def generate_survey_from_questions(
+    def generate_from_questions(
         cls,
         question_texts: List[str],
         question_types: Optional[List[str]] = None,
