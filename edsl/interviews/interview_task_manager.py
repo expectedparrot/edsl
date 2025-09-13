@@ -26,12 +26,15 @@ class InterviewTaskManager:
         self._task_status_log_dict = InterviewStatusLog()
         self.survey_dag = None
 
-    def build_question_tasks(
+    async def build_question_tasks(
         self, answer_func, token_estimator, model_buckets
     ) -> list[asyncio.Task]:
         """Create tasks for all questions with proper dependencies."""
         tasks: list[asyncio.Task] = []
         for question in self.survey.questions:
+            # Yield control to event loop to allow HTTP requests to process
+            await asyncio.sleep(0)
+
             dependencies = self._get_task_dependencies(tasks, question)
             task = self._create_single_task(
                 question=question,
@@ -84,9 +87,9 @@ class InterviewTaskManager:
         The keys are the question names; the values are the lists of status log changes for each task.
         """
         for task_creator in self.task_creators.values():
-            self._task_status_log_dict[task_creator.question.question_name] = (
-                task_creator.status_log
-            )
+            self._task_status_log_dict[
+                task_creator.question.question_name
+            ] = task_creator.status_log
         return self._task_status_log_dict
 
     @property

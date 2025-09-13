@@ -27,6 +27,24 @@ class MessageBuilder:
         # Model type detection
         self.is_reasoning_model = "o1" in self.model or "o3" in self.model
         self.is_o1_mini = "o1-mini" in self.model
+    
+    def get_file_metadata(self) -> List[Dict[str, Any]]:
+        """Extract metadata about files for proxy mode.
+        
+        Returns:
+            List of file metadata dictionaries
+        """
+        metadata = []
+        for file_entry in self.files_list:
+            metadata.append({
+                "filename": getattr(file_entry, "filename", f"file_{len(metadata)}"),
+                "mime_type": file_entry.mime_type,
+                "is_pdf": self._is_pdf_file(file_entry),
+                "is_text": self._is_text_file(file_entry),
+                "is_image": self._is_image_file(file_entry),
+                "has_extracted_text": hasattr(file_entry, "extracted_text") and file_entry.extracted_text
+            })
+        return metadata
 
     def get_messages(self, sync_client=None) -> List[Dict[str, Any]]:
         """Construct the messages array for the OpenAI API call."""
