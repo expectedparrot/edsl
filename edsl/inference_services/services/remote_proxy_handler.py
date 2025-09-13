@@ -66,11 +66,6 @@ class RemoteProxyHandler:
                     )
                     max_keepalive = int(os.getenv("REMOTE_PROXY_MAX_KEEPALIVE", "500"))
 
-                    print(
-                        f"[RemoteProxy] Creating shared HTTP client with max_connections={max_connections}, max_keepalive={max_keepalive}",
-                        flush=True,
-                    )
-
                     # Create transport with connection limits
                     transport = httpx.AsyncHTTPTransport(
                         limits=httpx.Limits(
@@ -83,10 +78,6 @@ class RemoteProxyHandler:
                         timeout=timeout, transport=transport
                     )
 
-                    print(
-                        f"[RemoteProxy] Shared client created successfully with limits: {cls._shared_client._limits}",
-                        flush=True,
-                    )
         return cls._shared_client
 
     @classmethod
@@ -140,10 +131,6 @@ class RemoteProxyHandler:
         )
 
         # Phase 3: Send execution request to proxy
-        print(
-            f"RemoteProxyHandler: Sending request to proxy {self.proxy_url} with model {self.model}",
-            flush=True,
-        )
         result = await self._send_execution_request(request_payload)
 
         return result
@@ -377,59 +364,21 @@ class RemoteProxyHandler:
         Returns:
             The model response from the proxy
         """
-        import time
-
-        print(f"[HTTP DEBUG] Using aiohttp for request {self.request_id}", flush=True)
-        start_time = time.time()
-
-        # Try with aiohttp instead of httpx to bypass connection pooling issues
         timeout = aiohttp.ClientTimeout(
             total=float(os.getenv("REMOTE_PROXY_TIMEOUT", "120"))
         )
 
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            print(
-                f"[HTTP DEBUG] aiohttp session created in {time.time() - start_time:.3f}s",
-                flush=True,
-            )
+            async with session.post(
+                f"{self.proxy_url}/execute",
+                json=request_payload,
+                headers=self.auth_headers,
+            ) as response:
+                response.raise_for_status()
+                result = await response.json()
 
-            http_start = time.time()
-            print(
-                f"[HTTP DEBUG] Making HTTP POST with aiohttp for request {self.request_id}",
-                flush=True,
-            )
-
-            # DEBUGGING: Try to isolate the blocking point
-            try:
-                async with session.post(
-                    f"{self.proxy_url}/execute",
-                    json=request_payload,
-                    headers=self.auth_headers,
-                ) as response:
-                    print(
-                        f"[HTTP DEBUG] Got response object for request {self.request_id}",
-                        flush=True,
-                    )
-
-                    response.raise_for_status()
-                    result = await response.json()
-
-                    http_time = time.time() - http_start
-                    print(
-                        f"[HTTP DEBUG] aiohttp POST completed for request {self.request_id} in {http_time:.3f}s",
-                        flush=True,
-                    )
-
-                    # Extract the actual model response from proxy response
-                    if "response" in result:
-                        return result["response"]
-                    else:
-                        return result
-
-            except Exception as e:
-                http_time = time.time() - http_start
-                print(
-                    f"[HTTP DEBUG] Exception in HTTP request {self.request_id} after {http_time:.3f}s: {e}",
-                    flush=True,
-                )
-                raise
+                # Extract the actual model response from proxy response
+                if "response" in result:
+                    return result["response"]
+                else:
+                    return result
