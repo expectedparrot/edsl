@@ -462,6 +462,19 @@ class Interview:
 
         self.skip_flags = {q.question_name: False for q in self.survey.questions}
 
+        # Set up real-time question tracking if available
+        if (
+            hasattr(run_config.environment, "jobs_runner_status")
+            and run_config.environment.jobs_runner_status
+        ):
+            self.task_manager.stats_tracker = (
+                run_config.environment.jobs_runner_status.stats_tracker
+            )
+            self.task_manager.model_name = self.model.model
+            self.task_manager.interview_id = str(
+                id(self)
+            )  # Use object id as unique interview identifier
+
         self.tasks = await self.task_manager.build_question_tasks(
             answer_func=AnswerQuestionFunctionConstructor(
                 self, key_lookup=run_config.environment.key_lookup

@@ -574,10 +574,10 @@ class Jobs(Base):
             ).show_flow(filename=filename)
 
     def push(self, *args, **kwargs) -> None:
-        """Push the job to the remote server.
-        """
-        from ..agents import AgentList 
+        """Push the job to the remote server."""
+        from ..agents import AgentList
         from ..scenarios import ScenarioList
+
         survey_info = self.survey.push()
         agent_info = AgentList(self.agents).push()
         scenario_info = ScenarioList(self.scenarios).push()
@@ -594,8 +594,8 @@ class Jobs(Base):
         #         add_edsl_version=add_edsl_version
         #     )
 
-        return {'survey': survey_info, 'agents': agent_info, 'scenarios': scenario_info}
-        
+        return {"survey": survey_info, "agents": agent_info, "scenarios": scenario_info}
+
         # [agent.push() for agent in self.agents]
 
         #  d = {
@@ -854,6 +854,14 @@ class Jobs(Base):
             self.run_config.environment.jobs_runner_status = JobsRunnerStatus(
                 self, n=self.run_config.parameters.n
             )
+
+        # Set total questions for real-time tracking
+        total_questions = (
+            len(self.survey.questions) * len(self) * self.run_config.parameters.n
+        )
+        self.run_config.environment.jobs_runner_status.stats_tracker.set_total_questions(
+            total_questions
+        )
 
         # Create a shared function to process interview results
         async def process_interviews(interview_runner, results_obj):

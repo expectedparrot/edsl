@@ -12,7 +12,14 @@ if TYPE_CHECKING:
 class InterviewTaskManager:
     """Handles creation and management of interview tasks."""
 
-    def __init__(self, survey, iteration=0):
+    def __init__(
+        self,
+        survey,
+        iteration=0,
+        stats_tracker=None,
+        model_name=None,
+        interview_id=None,
+    ):
         from ..tasks import TaskCreators
         from . import InterviewStatusLog
 
@@ -25,6 +32,9 @@ class InterviewTaskManager:
         }
         self._task_status_log_dict = InterviewStatusLog()
         self.survey_dag = None
+        self.stats_tracker = stats_tracker
+        self.model_name = model_name
+        self.interview_id = interview_id
 
     async def build_question_tasks(
         self, answer_func, token_estimator, model_buckets
@@ -72,6 +82,9 @@ class InterviewTaskManager:
             token_estimator=token_estimator,
             model_buckets=model_buckets,
             iteration=self.iteration,
+            stats_tracker=self.stats_tracker,
+            model_name=self.model_name,
+            interview_id=self.interview_id,
         )
 
         for dependency in dependencies:

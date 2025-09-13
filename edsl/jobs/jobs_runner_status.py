@@ -25,6 +25,21 @@ class StatisticsTracker:
         self.unfixed_exceptions = 0
         self.exceptions_counter = defaultdict(int)
 
+        # Question-level tracking
+        self.total_questions = 0
+        self.completed_questions = 0
+        self.completed_questions_by_model = defaultdict(int)
+        self.questions_with_exceptions = 0
+        self.question_start_times = {}  # question_id -> start_time
+        self.question_completion_times = []  # List of completion times in seconds
+        self.questions_by_interview = defaultdict(int)  # interview_id -> question_count
+
+        # Real-time metrics
+        self.questions_per_second = 0.0
+        self.last_question_time = None
+        self.recent_question_times = []  # Rolling window for rate calculation
+        self.max_recent_times = 20  # Keep last 20 question times for moving average
+
     def add_completed_interview(
         self,
         model: str,
@@ -68,6 +83,96 @@ class StatisticsTracker:
         avg_time = self.get_average_time_per_interview()
         remaining = self.total_interviews - self.completed_count
         return avg_time * remaining
+
+    def set_total_questions(self, total_questions: int):
+        """Set total expected questions across all interviews."""
+        self.total_questions = total_questions
+
+    def add_question_started(self, question_id: str, model: str, interview_id: str):
+        """Track when a question starts processing."""
+        _ = model, interview_id  # Parameters available for future use
+        self.question_start_times[question_id] = time.time()
+
+    def add_question_completed(
+        self,
+        question_id: str,
+        model: str,
+        interview_id: str,
+        success: bool = True,
+        exception_info: dict = None,
+    ):
+        """Track when a question completes (successfully or with error)."""
+        _ = exception_info  # Parameter available for future use
+        current_time = time.time()
+
+        self.completed_questions += 1
+        self.completed_questions_by_model[model] += 1
+        self.questions_by_interview[interview_id] += 1
+
+        # Track completion time if we have start time
+        if question_id in self.question_start_times:
+            duration = current_time - self.question_start_times[question_id]
+            self.question_completion_times.append(duration)
+            del self.question_start_times[question_id]
+
+        # Update real-time metrics with rolling window
+        if self.last_question_time:
+            time_delta = current_time - self.last_question_time
+            self.recent_question_times.append(time_delta)
+
+            # Keep only recent times for moving average
+            if len(self.recent_question_times) > self.max_recent_times:
+                self.recent_question_times.pop(0)
+
+            # Calculate questions per second as moving average
+            if self.recent_question_times:
+                avg_time_between = sum(self.recent_question_times) / len(
+                    self.recent_question_times
+                )
+                if avg_time_between > 0:
+                    self.questions_per_second = 1.0 / avg_time_between
+
+        self.last_question_time = current_time
+
+        if not success:
+            self.questions_with_exceptions += 1
+
+    def get_question_metrics(self) -> dict:
+        """Get real-time question completion metrics."""
+        avg_question_time = 0
+        if self.question_completion_times:
+            avg_question_time = sum(self.question_completion_times) / len(
+                self.question_completion_times
+            )
+
+        remaining_questions = (
+            self.total_questions - self.completed_questions
+            if self.total_questions > 0
+            else 0
+        )
+
+        # Estimate time remaining based on question rate
+        estimated_time_remaining = 0
+        if self.questions_per_second > 0 and remaining_questions > 0:
+            estimated_time_remaining = remaining_questions / self.questions_per_second
+        elif avg_question_time > 0 and remaining_questions > 0:
+            # Fallback to average time if rate not available
+            estimated_time_remaining = remaining_questions * avg_question_time
+
+        return {
+            "total_questions": self.total_questions,
+            "completed_questions": self.completed_questions,
+            "questions_remaining": remaining_questions,
+            "questions_per_second": round(self.questions_per_second, 2),
+            "average_question_time": round(avg_question_time, 2),
+            "questions_with_exceptions": self.questions_with_exceptions,
+            "completion_percentage": (
+                round((self.completed_questions / self.total_questions * 100), 1)
+                if self.total_questions > 0
+                else 0
+            ),
+            "estimated_time_remaining_questions": round(estimated_time_remaining, 1),
+        }
 
 
 class JobsRunnerStatusBase(ABC):
@@ -175,6 +280,7 @@ class JobsRunnerStatusBase(ABC):
                     question_name,
                 ), count in self.stats_tracker.exceptions_counter.items()
             ],
+            "question_progress": self.stats_tracker.get_question_metrics(),
         }
 
         model_queues = {}

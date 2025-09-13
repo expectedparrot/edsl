@@ -83,6 +83,9 @@ class QuestionTaskCreator(UserList):
         model_buckets: "ModelBuckets",
         token_estimator: Optional[Callable] = None,
         iteration: int = 0,
+        stats_tracker=None,
+        model_name: str = None,
+        interview_id: str = None,
     ):
         """
         Initialize a QuestionTaskCreator for a specific question.
@@ -123,6 +126,16 @@ class QuestionTaskCreator(UserList):
         self.cached_token_usage = TokenUsage(from_cache=True)
         self.new_token_usage = TokenUsage(from_cache=False)
         self.task_status = TaskStatus.NOT_STARTED
+
+        # Store tracking information
+        self.stats_tracker = stats_tracker
+        self.model_name = model_name
+        self.interview_id = interview_id
+        self.question_id = (
+            f"{interview_id}_{question.question_name}_{iteration}"
+            if interview_id
+            else f"{question.question_name}_{iteration}"
+        )
 
     def add_dependency(self, task: asyncio.Task) -> None:
         """Adds a task dependency to the list of dependencies.
@@ -185,13 +198,36 @@ class QuestionTaskCreator(UserList):
         )
 
         self.task_status = TaskStatus.API_CALL_IN_PROGRESS
+
+        # Track question started
+        if self.stats_tracker and self.model_name and self.interview_id:
+            self.stats_tracker.add_question_started(
+                self.question_id, self.model_name, self.interview_id
+            )
+
         try:
             results = await self.answer_question_func(
                 question=self.question, task=None  # self
             )
             self.task_status = TaskStatus.SUCCESS
+
+            # Track question completed successfully
+            if self.stats_tracker and self.model_name and self.interview_id:
+                self.stats_tracker.add_question_completed(
+                    self.question_id, self.model_name, self.interview_id, success=True
+                )
         except Exception as e:
             self.task_status = TaskStatus.FAILED
+
+            # Track question completed with error
+            if self.stats_tracker and self.model_name and self.interview_id:
+                self.stats_tracker.add_question_completed(
+                    self.question_id,
+                    self.model_name,
+                    self.interview_id,
+                    success=False,
+                    exception_info={"exception": str(e)},
+                )
             raise e
 
         if results.cache_used:
