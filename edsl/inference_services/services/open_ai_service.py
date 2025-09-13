@@ -247,13 +247,13 @@ class OpenAIService(InferenceServiceABC):
                 invigilator: Optional[
                     "InvigilatorAI"
                 ] = None,  # TBD - can eventually be used for function-calling
-                remote_proxy: Optional[str] = None,
+                remote_proxy=True,
             ) -> dict[str, Any]:
                 """Calls the OpenAI API and returns the API response.
-                
+
                 Args:
                     user_prompt: The user message or input prompt
-                    system_prompt: The system message or context  
+                    system_prompt: The system message or context
                     question_name: Optional name of the question being asked
                     files_list: Optional list of files to include
                     invigilator: Optional invigilator for function-calling
@@ -261,20 +261,15 @@ class OpenAIService(InferenceServiceABC):
                 """
 
                 # Check if we should use remote proxy
-                if not remote_proxy:
-                    remote_proxy = os.getenv("REMOTE_PROXY_URL")
-                
+                print("remote_proxy: start calling", remote_proxy, flush=True)
                 if remote_proxy:
                     # Use remote proxy mode
                     from .remote_proxy_handler import RemoteProxyHandler
-                    
+
                     handler = RemoteProxyHandler(
-                        proxy_url=remote_proxy,
-                        model=self.model,
-                        api_token=self.api_token,
-                        inference_service=self._inference_service_
+                        model=self.model, inference_service=self._inference_service_
                     )
-                    
+
                     return await handler.execute_model_call(
                         user_prompt=user_prompt,
                         system_prompt=system_prompt,
