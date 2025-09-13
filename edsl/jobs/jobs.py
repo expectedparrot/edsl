@@ -574,10 +574,10 @@ class Jobs(Base):
             ).show_flow(filename=filename)
 
     def push(self, *args, **kwargs) -> None:
-        """Push the job to the remote server.
-        """
-        from ..agents import AgentList 
+        """Push the job to the remote server."""
+        from ..agents import AgentList
         from ..scenarios import ScenarioList
+
         survey_info = self.survey.push()
         agent_info = AgentList(self.agents).push()
         scenario_info = ScenarioList(self.scenarios).push()
@@ -594,8 +594,8 @@ class Jobs(Base):
         #         add_edsl_version=add_edsl_version
         #     )
 
-        return {'survey': survey_info, 'agents': agent_info, 'scenarios': scenario_info}
-        
+        return {"survey": survey_info, "agents": agent_info, "scenarios": scenario_info}
+
         # [agent.push() for agent in self.agents]
 
         #  d = {
@@ -1021,6 +1021,37 @@ class Jobs(Base):
                 f"Remote key check completed in {time.time() - key_check_start:.3f}s"
             )
 
+            # Configure remote proxy for all models when remote inference is enabled
+            proxy_config_start = time.time()
+            self._logger.info("Configuring remote proxy for models")
+            for model in self.models:
+                # Only set to True if it's not already explicitly set to False
+                if (
+                    not hasattr(model, "remote_proxy")
+                    or model.remote_proxy is not False
+                ):
+                    model.remote_proxy = True
+                    self._logger.debug(f"Enabled remote proxy for model: {model.model}")
+                else:
+                    self._logger.debug(
+                        f"Remote proxy disabled by user for model: {model.model}"
+                    )
+            self._logger.info(
+                f"Remote proxy configuration completed in {time.time() - proxy_config_start:.3f}s"
+            )
+        else:
+            # When remote inference is disabled, ensure remote proxy is also disabled
+            proxy_config_start = time.time()
+            self._logger.info(
+                "Disabling remote proxy for models (remote inference disabled)"
+            )
+            for model in self.models:
+                model.remote_proxy = False
+                self._logger.debug(f"Disabled remote proxy for model: {model.model}")
+            self._logger.info(
+                f"Remote proxy disable completed in {time.time() - proxy_config_start:.3f}s"
+            )
+
         # Setup caching
         cache_start = time.time()
         self._logger.info("Setting up caching system")
@@ -1038,7 +1069,10 @@ class Jobs(Base):
         # Try to run the job remotely first
         remote_start = time.time()
         self._logger.info("Attempting remote execution")
-        results, reason = self._remote_results(config)
+        # Disable old remote inference code
+        # results, reason = self._remote_results(config)
+        results, reason = None, ""
+
         if results is not None:
             self._logger.info(
                 f"Remote execution successful in {time.time() - remote_start:.3f}s"

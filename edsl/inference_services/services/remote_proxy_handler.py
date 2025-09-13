@@ -303,7 +303,11 @@ class RemoteProxyHandler:
         file_type = self._get_file_type(file_entry)
 
         if file_type == "pdf":
-            return "upload_to_openai"
+            # Use service-specific upload type for PDFs
+            if self.inference_service == "google":
+                return "upload_to_google"
+            else:
+                return "upload_to_openai"
         elif file_type == "image":
             return "base64_inline"
         elif file_type == "text":
