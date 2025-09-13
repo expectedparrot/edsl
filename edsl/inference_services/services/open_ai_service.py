@@ -247,7 +247,7 @@ class OpenAIService(InferenceServiceABC):
                 invigilator: Optional[
                     "InvigilatorAI"
                 ] = None,  # TBD - can eventually be used for function-calling
-                remote_proxy=True,
+                remote_proxy=False,
             ) -> dict[str, Any]:
                 """Calls the OpenAI API and returns the API response.
 
@@ -261,7 +261,6 @@ class OpenAIService(InferenceServiceABC):
                 """
 
                 # Check if we should use remote proxy
-                print("remote_proxy: start calling", remote_proxy, flush=True)
                 if remote_proxy:
                     # Use remote proxy mode
                     from .remote_proxy_handler import RemoteProxyHandler
