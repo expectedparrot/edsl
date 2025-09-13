@@ -247,7 +247,7 @@ class OpenAIService(InferenceServiceABC):
                 invigilator: Optional[
                     "InvigilatorAI"
                 ] = None,  # TBD - can eventually be used for function-calling
-                remote_proxy=False,
+                remote_proxy=True,
             ) -> dict[str, Any]:
                 """Calls the OpenAI API and returns the API response.
 

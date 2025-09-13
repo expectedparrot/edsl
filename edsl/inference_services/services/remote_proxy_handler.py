@@ -120,6 +120,7 @@ class RemoteProxyHandler:
         # Phase 1: Prepare file uploads if needed
         gcs_file_references = []
         if files_list:
+            print(f"Uploading {len(files_list)} files to GCS via proxy...")
             gcs_file_references = await self._handle_file_uploads(files_list)
 
         # Phase 2: Prepare the execution request
@@ -160,6 +161,9 @@ class RemoteProxyHandler:
         # Step 3: Build GCS file references
         gcs_references = []
         for file_entry, url_info in zip(files_list, signed_urls["upload_urls"]):
+            print(
+                f"Uploaded {getattr(file_entry, 'filename', 'unknown')} to {url_info['gcs_path']}"
+            )
             gcs_references.append(
                 {
                     "type": self._get_file_type(file_entry),
