@@ -173,14 +173,21 @@ class RemoteProxyHandler:
         # Step 3: Build GCS file references
         gcs_references = []
         for file_entry, url_info in zip(files_list, signed_urls["upload_urls"]):
-            print(
-                f"Uploaded {getattr(file_entry, 'filename', 'unknown')} to {url_info['gcs_path']}"
-            )
+            print(file_entry.to_dict())
+            filename = getattr(file_entry, "filename", "unknown")
+            print(f"Uploaded {filename} to {url_info['gcs_path']}")
+
+            # Extract file extension
+            file_extension = ""
+            if "." in filename:
+                file_extension = filename.rsplit(".", 1)[1].lower()
+
             gcs_references.append(
                 {
                     "type": self._get_file_type(file_entry),
                     "gcs_path": url_info["gcs_path"],
-                    "original_filename": getattr(file_entry, "filename", "unknown"),
+                    "original_filename": filename,
+                    "file_extension": file_extension,
                     "mime_type": file_entry.mime_type,
                     "processing": self._get_processing_type(file_entry),
                 }
