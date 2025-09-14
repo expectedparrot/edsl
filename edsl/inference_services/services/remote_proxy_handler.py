@@ -20,6 +20,9 @@ import logging
 # Module-level logger using standard Python logging
 _logger = logging.getLogger("remote_proxy_handler")
 
+# Global request counter
+_request_counter = 0
+
 try:
     import httpx
     import aiohttp
@@ -383,10 +386,13 @@ class RemoteProxyHandler:
         Returns:
             The model response from the proxy
         """
+        global _request_counter
+        _request_counter += 1
+
         timeout = aiohttp.ClientTimeout(
             total=float(os.getenv("REMOTE_PROXY_TIMEOUT", "120"))
         )
-        _logger.debug("Sending request payload to proxy")
+        _logger.debug(f"Sending request payload to proxy (Request #{_request_counter})")
         try:
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
