@@ -15,6 +15,11 @@ import json
 import uuid
 from datetime import datetime, timezone
 
+import logging
+
+# Module-level logger using standard Python logging
+_logger = logging.getLogger("remote_proxy_handler")
+
 try:
     import httpx
     import aiohttp
@@ -381,7 +386,7 @@ class RemoteProxyHandler:
         timeout = aiohttp.ClientTimeout(
             total=float(os.getenv("REMOTE_PROXY_TIMEOUT", "120"))
         )
-
+        _logger.debug("Sending request payload to proxy")
         try:
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
