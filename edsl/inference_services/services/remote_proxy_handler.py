@@ -120,7 +120,6 @@ class RemoteProxyHandler:
         # Phase 1: Prepare file uploads if needed
         gcs_file_references = []
         if files_list:
-            print(f"Uploading {len(files_list)} files to GCS via proxy...")
             gcs_file_references = await self._handle_file_uploads(files_list)
 
         # Phase 2: Prepare the execution request
@@ -133,7 +132,6 @@ class RemoteProxyHandler:
 
         # Phase 3: Send execution request to proxy
         result = await self._send_execution_request(request_payload)
-
         return result
 
     async def _handle_file_uploads(
@@ -306,6 +304,8 @@ class RemoteProxyHandler:
             # Use service-specific upload type for PDFs
             if self.inference_service == "google":
                 return "upload_to_google"
+            elif self.inference_service == "anthropic":
+                return "base64_inline"  # Anthropic handles PDFs as base64 documents
             else:
                 return "upload_to_openai"
         elif file_type == "image":
@@ -376,17 +376,22 @@ class RemoteProxyHandler:
             total=float(os.getenv("REMOTE_PROXY_TIMEOUT", "120"))
         )
 
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(
-                f"{self.proxy_url}/execute",
-                json=request_payload,
-                headers=self.auth_headers,
-            ) as response:
-                response.raise_for_status()
-                result = await response.json()
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(
+                    f"{self.proxy_url}/execute",
+                    json=request_payload,
+                    headers=self.auth_headers,
+                ) as response:
+                    response.raise_for_status()
+                    result = await response.json()
 
-                # Extract the actual model response from proxy response
-                if "response" in result:
-                    return result["response"]
-                else:
-                    return result
+                    # Extract the actual model response from proxy response
+                    if "response" in result:
+                        return result["response"]
+                    else:
+                        return result
+        except aiohttp.ClientError as e:
+            raise
+        except Exception as e:
+            raise

@@ -894,8 +894,8 @@ class LanguageModel(
             TIMEOUT = self._compute_timeout(files_list)
 
             # Execute the model call with timeout
-
             response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
+
             # Store the response in the cache
             new_cache_key = cache.store(
                 **cache_call_params, response=response, service=self._inference_service_
@@ -1005,6 +1005,7 @@ class LanguageModel(
             model_outputs=model_outputs,
             edsl_dict=edsl_dict,
         )
+
         return agent_response_dict
 
     get_response = sync_wrapper(async_get_response)
