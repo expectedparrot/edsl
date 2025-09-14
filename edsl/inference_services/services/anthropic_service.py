@@ -48,7 +48,7 @@ class AnthropicService(InferenceServiceABC):
 
         class LLM(LanguageModel):
             """
-            Child class of LanguageModel for interacting with OpenAI models
+            Child class of LanguageModel for interacting with Anthropic models
             """
 
             key_sequence = cls.key_sequence
@@ -68,6 +68,9 @@ class AnthropicService(InferenceServiceABC):
                 "top_logprobs": 3,
             }
 
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
             @report_errors_async
             async def async_execute_model_call(
                 self,
@@ -75,7 +78,35 @@ class AnthropicService(InferenceServiceABC):
                 system_prompt: str = "",
                 files_list: Optional[List["Files"]] = None,
             ) -> dict[str, Any]:
-                """Calls the Anthropic API and returns the API response."""
+                """Calls the Anthropic API and returns the API response.
+
+                Args:
+                    user_prompt: The user message or input prompt
+                    system_prompt: The system message or context
+                    files_list: Optional list of files to include
+                """
+
+                # Check if we should use remote proxy
+                if self.remote_proxy:
+                    # Use remote proxy mode
+                    from .remote_proxy_handler import RemoteProxyHandler
+
+                    handler = RemoteProxyHandler(
+                        model=self.model, inference_service=self._inference_service_
+                    )
+
+                    return await handler.execute_model_call(
+                        user_prompt=user_prompt,
+                        system_prompt=system_prompt,
+                        files_list=files_list,
+                        temperature=self.temperature,
+                        max_tokens=self.max_tokens,
+                        top_p=self.top_p,
+                        frequency_penalty=self.frequency_penalty,
+                        presence_penalty=self.presence_penalty,
+                        logprobs=self.logprobs,
+                        top_logprobs=self.top_logprobs,
+                    )
 
                 messages = [
                     {
