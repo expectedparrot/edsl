@@ -42,7 +42,13 @@ class RemoteProxyHandler:
             model: The model name to use
             inference_service: The name of the inference service (e.g., "openai")
         """
-        self.proxy_url = os.environ.get("REMOTE_PROXY_URL", "http://localhost:8000")
+        self.proxy_url = os.environ.get("EXPECTED_PARROT_URL", "http://localhost:8000")
+        if "chick" in self.proxy_url:
+            self.proxy_url = "https://chickapi.expectedparrot.com"
+        else:
+            if "localhost" not in self.proxy_url:
+                self.proxy_url = "https://api.expectedparrot.com"
+
         self.model = model
         self.inference_service = inference_service
         self.request_id = str(uuid.uuid4())
