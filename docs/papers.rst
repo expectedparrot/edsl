@@ -22,8 +22,14 @@ If you use the EDSL package in your research or projects, please use the followi
     }
 
 
+| *General Social Agents*
+| Benjamin S. Manning, John J. Horton 
+| September 2025
+| https://arxiv.org/abs/2508.17407
+
+
 | *The Potential of Synthetic Twin Agents for Personalized Behavioural Interventions at Scale*
-| Ustiyanovych, J. & Krpan, D.
+| J. Ustiyanovych, D. Krpan,
 | September 2025
 | https://osf.io/preprints/psyarxiv/vs2mk_v3
 
