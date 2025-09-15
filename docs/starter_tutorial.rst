@@ -13,11 +13,14 @@ We begin with technical setup: instructions for installing the EDSL library and 
 Then we demonstrate some of the basic features of EDSL, with examples for constructing and running surveys with agents and models, and analyzing responses as datasets.
 By the end of this tutorial, you will be able to use EDSL to do each of the following:
 
-* Construct various types of questions tailored to your research objectives.
-* Combine questions into surveys and integrate logical rules to control the survey flow.
-* Design personas for AI agents to simulate responses to your surveys.
-* Choose and deploy large language models to generate responses for AI agents.
-* Analyze responses as datasets with built-in analytical tools.
+* Construct various types of `questions <https://docs.expectedparrot.com/en/latest/questions.html>`_ tailored to your research objectives.
+* Combine questions into `surveys <https://docs.expectedparrot.com/en/latest/surveys.html>`_ and integrate logical rules to control the survey flow.
+* Add context to questions by *piping*answers, adding *memory* of prior questions and answers, and using `scenarios <https://docs.expectedparrot.com/en/latest/scenarios.html>`_ to add data or content to questions.
+* Design personas for AI `agents <https://docs.expectedparrot.com/en/latest/agents.html>`_ to simulate responses to your surveys.
+* Choose and deploy `language models <https://docs.expectedparrot.com/en/latest/language_models.html>`_ to generate responses for AI agents.
+* Analyze `results <https://docs.expectedparrot.com/en/latest/results.html>`_ as datasets with built-in analytical tools.
+* Validate LLM answers with `human respondents <https://docs.expectedparrot.com/en/latest/humanize.html>`_.
+
 
 **Storing & sharing your work** 
 
@@ -28,7 +31,7 @@ Learn more about how :ref:`coop` works in the EDSL documentation.
 
 .. note::
 
-  You can also view and download the contents of this tutorial in a `notebook at Coop <https://www.expectedparrot.com/content/RobinHorton/starter-tutorial-notebook>`_
+  You can also view and download the contents of this tutorial in a `notebook at Coop <https://www.expectedparrot.com/content/RobinHorton/starter-tutorial>`_
 
 
 **Further reading** 
@@ -111,13 +114,31 @@ To update your installation of EDSL to the latest version at PyPI, run the follo
   pip install --upgrade edsl
 
 
+Create an account 
+-----------------
+
+Creating an account allows you to run survey jobs at Expected Parrot using language models of your choice, and automatically cache your results. 
+Your account also allows you to launch human surveys and share your content and workflows with other users. 
+Your account comes with $25 in credits for API calls to LLMs for getting started, and a referal code for earning more credits.
+
+`Create an account <https://www.expectedparrot.com/login>`_ with an email address and password, or run the following code to be prompted automatically:
+
+.. code-block:: python
+
+   from edsl import login
+
+   login()
+
+
+The above code also automatically stores your Expected Parrot API key for use with EDSL (see below).
+
 
 Accessing Language Models
 -------------------------
 
 The next step is to decide how you want to access language models.
 EDSL works with many popular language models that you can choose from to generate responses to your surveys.
-These models are hosted by various service providers, such as Anthropic, Azure, Bedrock, Deep Infra, DeepSeek, Google, Groq, Mistral, OpenAI, Replicate and Together.
+These models are hosted by various service providers, such as Anthropic, Azure, Bedrock, Deep Infra, DeepSeek, Google, Groq, Mistral, OpenAI, Replicate, Together and Xai.
 In order to run a survey, you need to provide API keys for the service providers of models that you want to use.
 There are two methods for providing API keys to EDSL:
 
@@ -129,21 +150,10 @@ Managing keys
 ^^^^^^^^^^^^^
 
 The easiest way to manage your keys is from your Expected Parrot account.
-`Create an account <https://www.expectedparrot.com/login>`_ with an email address and then navigate to your `Keys <https://www.expectedparrot.com/home/keys>`_ page to find options for adding and sharing your keys.
-
-You can also run the following code to log in to your Expected Parrot account from within a notebook:
-
-.. code-block:: python
-
-  from edsl import login
-
-  login() 
-  
+`Log in <https://www.expectedparrot.com/login>`_ to your account and navigate to your `Keys <https://www.expectedparrot.com/home/keys>`_ page to find options for adding and sharing your keys.
 
 Your Expected Parrot key is automatically available to use by default whenever remote inference is activated.
 This key allows you to access the Expected Parrot server and run surveys with all available models.
-The key can be viewed at your `Settings <https://www.expectedparrot.com/home/api>`_ page where you can also find options for activating remote inference and caching.
-Activating these options allows you to run your surveys and store results at the Expected Parrot server instead of your own machine, using whichever keys you have prioritized.
 
 Please see the :ref:`api_keys` section for more details on methods of storing and managing keys.
 
@@ -833,4 +843,4 @@ To post a notebook:
   notebook.push(description="Starter Tutorial", alias = "example-notebook-new-alias", visibility="public")
 
 
-You can view and download a notebook for this tutorial `at the Coop <https://www.expectedparrot.com/content/RobinHorton/starter-tutorial-notebook>`_.
+You can view and download a notebook for this tutorial `at Coop <https://www.expectedparrot.com/content/RobinHorton/starter-tutorial>`_.
