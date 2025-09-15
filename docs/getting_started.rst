@@ -12,7 +12,7 @@ Run the following command to install the EDSL package:
 
 .. code:: 
 
-   pip install edsl
+   ! uv pip install edsl -q
 
 
 If you have previously installed EDSL, you can check which version you have by running: 
@@ -42,6 +42,14 @@ See :ref:`installation` instructions for more details and troubleshooting tips.
 `Sign up <https://www.expectedparrot.com/login>`_ for a free account with your email address.
 This allows you to run surveys at the Expected Parrot server and collaborate with other users at Coop.
 Your account comes with $25 in credits for API calls to any available models.
+
+Run the following code to log in to your account and store your Expected Parrot key:
+
+.. code:: 
+
+   from edsl import login
+   login() 
+
 
 
 3. Choose where to run surveys
