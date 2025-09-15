@@ -306,7 +306,6 @@ class OpenAIService(InferenceServiceABC):
                     logprobs=self.logprobs,
                     top_logprobs=self.top_logprobs,
                 )
-
                 # Apply service-specific parameter filtering
                 params = self._filter_parameters_for_service(params)
 
