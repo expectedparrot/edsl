@@ -1,46 +1,42 @@
 import os
 from typing import Any, Optional, List, TYPE_CHECKING
 from urllib.parse import urlparse, parse_qs
+
 from openai import AsyncAzureOpenAI
-from ..inference_service_abc import InferenceServiceABC
-from ..decorators import report_errors_async
-
-# Use TYPE_CHECKING to avoid circular imports at runtime
-if TYPE_CHECKING:
-    from ...language_models import LanguageModel
-
-if TYPE_CHECKING:
-    from ...scenarios.file_store import FileStore
-
 from azure.ai.inference.aio import ChatCompletionsClient
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.inference.models import SystemMessage, UserMessage
+
+from ..inference_service_abc import InferenceServiceABC
+from ..decorators import report_errors_async
+
+if TYPE_CHECKING:
+    from ...language_models import LanguageModel
+    from ...scenarios.file_store import FileStore
 
 
 def json_handle_none(value: Any) -> Any:
     """
     Handle None values during JSON serialization.
-    - Return "null" if the value is None. Otherwise, don't return anything.
+    Returns "null" if value is None.
     """
     if value is None:
         return "null"
 
 
 class AzureAIService(InferenceServiceABC):
-    """Azure AI service class."""
+    """Service class to interact with Azure AI models."""
 
-    # key_sequence = ["content", 0, "text"]  # ["content"][0]["text"]
     key_sequence = ["choices", 0, "message", "content"]
     usage_sequence = ["usage"]
     input_token_name = "prompt_tokens"
     output_token_name = "completion_tokens"
 
     _inference_service_ = "azure"
-    _env_key_name_ = (
-        "AZURE_ENDPOINT_URL_AND_KEY"  # Environment variable for Azure API key
-    )
+    _env_key_name_ = "AZURE_ENDPOINT_URL_AND_KEY"
     _models_list_cache: Optional[List[str]] = None
     _model_id_to_endpoint_and_key = {}
+
     model_exclude_list = [
         "Cohere-command-r-plus-xncmg",
         "Mistral-Nemo-klfsi",
@@ -49,70 +45,115 @@ class AzureAIService(InferenceServiceABC):
 
     @classmethod
     def get_model_info(cls):
-        """Get raw model info from Azure configuration."""
+        """Retrieve Azure model information from environment variable."""
+
+        # Initialize model map if empty
+        if not cls._model_id_to_endpoint_and_key:
+            cls._model_id_to_endpoint_and_key = {}
+
         models_info = []
-        azure_endpoints = os.getenv("AZURE_ENDPOINT_URL_AND_KEY", None)
+        azure_endpoints = os.getenv(cls._env_key_name_)
         if not azure_endpoints:
-            raise ValueError("AZURE_ENDPOINT_URL_AND_KEY is not defined")
+            raise ValueError(f"{cls._env_key_name_} is not defined")
+
         azure_endpoints = azure_endpoints.split(",")
+
         for data in azure_endpoints:
             try:
-                # Parse endpoint data and create model info objects
-                _, endpoint, azure_endpoint_key = data.split(":")
+                # Handle different formats of AZURE_ENDPOINT_URL_AND_KEY
+                # Format 1: "endpoint:key" (2 parts)
+                # Format 2: "model:endpoint:key" (3 parts, legacy)
+
+                # Find the last colon to separate key from endpoint
+                last_colon_idx = data.rfind(":")
+                if last_colon_idx == -1:
+                    continue
+
+                azure_endpoint_key = data[last_colon_idx + 1 :]
+                endpoint_part = data[:last_colon_idx]
+
+                # Check if there's a model prefix (legacy format)
+                if endpoint_part.startswith("http://") or endpoint_part.startswith(
+                    "https://"
+                ):
+                    # No model prefix, just endpoint
+                    endpoint = endpoint_part
+                else:
+                    # Might have model prefix, check for another colon
+                    first_colon_idx = endpoint_part.find(":")
+                    if first_colon_idx != -1:
+                        # Has model prefix (legacy format: model:endpoint)
+                        endpoint = endpoint_part[first_colon_idx + 1 :]
+                    else:
+                        # No protocol, assume it needs https://
+                        endpoint = f"https://{endpoint_part}"
+
+                # Non-OpenAI Azure endpoint
                 if "openai" not in endpoint:
-                    model_id = endpoint.split(".")[0].replace("/", "")
+                    # Extract model ID from the hostname
+                    # For https://DeepSeek-R1-nqcfe.eastus2.models.ai.azure.com, we want DeepSeek-R1-nqcfe
+                    parsed = urlparse(endpoint)
+                    hostname = (
+                        parsed.netloc or parsed.path
+                    )  # Handle cases with/without protocol
+                    model_id = hostname.split(".")[0]
+
+                    # Remove protocol prefix if present
+                    if "://" in model_id:
+                        model_id = model_id.split("://")[-1]
+
                     model_data = {
-                        "id": model_id,
-                        "endpoint": f"https:{endpoint}",
+                        "id": f"azure:{model_id}",
+                        "endpoint": endpoint,
                         "type": "azure_non_openai",
                         "azure_endpoint_key": azure_endpoint_key,
                         "api_version": None,
                     }
                     models_info.append(model_data)
-                    cls._model_id_to_endpoint_and_key[model_id] = model_data
-                else:
-                    if "/deployments/" in endpoint:
-                        start_idx = endpoint.index("/deployments/") + len(
-                            "/deployments/"
-                        )
-                        end_idx = (
-                            endpoint.index("/", start_idx)
-                            if "/" in endpoint[start_idx:]
-                            else len(endpoint)
-                        )
-                        model_id = endpoint[start_idx:end_idx]
-                        parsed_url = urlparse(endpoint)
-                        api_version = parse_qs(parsed_url.query)["api-version"][0]
+                    cls._model_id_to_endpoint_and_key[f"azure:{model_id}"] = model_data
+                    continue
 
-                        model_data = {
-                            "id": f"azure:{model_id}",
-                            "endpoint": f"https:{endpoint}",
-                            "type": "azure_openai",
-                            "azure_endpoint_key": azure_endpoint_key,
-                            "api_version": api_version,
-                        }
-                        models_info.append(model_data)
-                        cls._model_id_to_endpoint_and_key[f"azure:{model_id}"] = (
-                            model_data
-                        )
+                # Azure OpenAI endpoint
+                if "/deployments/" in endpoint:
+                    start_idx = endpoint.index("/deployments/") + len("/deployments/")
+                    end_idx = endpoint.find("/", start_idx)
+                    end_idx = end_idx if end_idx != -1 else len(endpoint)
+                    model_id = endpoint[start_idx:end_idx]
+
+                    parsed_url = urlparse(endpoint)
+                    api_version = parse_qs(parsed_url.query)["api-version"][0]
+
+                    model_data = {
+                        "id": f"azure:{model_id}",
+                        "endpoint": endpoint,
+                        "type": "azure_openai",
+                        "azure_endpoint_key": azure_endpoint_key,
+                        "api_version": api_version,
+                    }
+                    models_info.append(model_data)
+                    cls._model_id_to_endpoint_and_key[f"azure:{model_id}"] = model_data
+
             except Exception:
                 continue
+
         return models_info
 
     @classmethod
     def create_model(
         cls, model_name: str = "azureai", model_class_name=None
     ) -> "LanguageModel":
+        """Dynamically create a LanguageModel subclass for Azure AI."""
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
 
-        # Import LanguageModel only when actually creating a model
+        # Ensure the model map is initialized
+        if not cls._model_id_to_endpoint_and_key:
+            cls.get_model_info()
+
         from ...language_models import LanguageModel
 
         class LLM(LanguageModel):
-            """
-            Child class of LanguageModel for interacting with Azure OpenAI models.
-            """
+            """Language model class for Azure AI."""
 
             key_sequence = cls.key_sequence
             usage_sequence = cls.usage_sequence
@@ -133,92 +174,120 @@ class AzureAIService(InferenceServiceABC):
                 system_prompt: str = "",
                 files_list: Optional[List["FileStore"]] = None,
             ) -> dict[str, Any]:
-                """Calls the Azure OpenAI API and returns the API response."""
+                """Call Azure OpenAI API and return the response."""
+                # Note: files_list is not yet implemented for Azure AI service
                 try:
                     api_key = cls._model_id_to_endpoint_and_key[model_name][
                         "azure_endpoint_key"
                     ]
-                except (KeyError, TypeError):
-                    api_key = None
-
-                if not api_key:
-                    from ..exceptions import InferenceServiceEnvironmentError
-
-                    raise InferenceServiceEnvironmentError(
-                        f"AZURE_ENDPOINT_URL_AND_KEY doesn't have the endpoint:key pair for your model: {model_name}"
-                    )
-
-                try:
                     endpoint = cls._model_id_to_endpoint_and_key[model_name]["endpoint"]
                 except (KeyError, TypeError):
-                    endpoint = None
-
-                if not endpoint:
                     from ..exceptions import InferenceServiceEnvironmentError
 
                     raise InferenceServiceEnvironmentError(
-                        f"AZURE_ENDPOINT_URL_AND_KEY doesn't have the endpoint:key pair for your model: {model_name}"
+                        f"AZURE_ENDPOINT_URL_AND_KEY missing endpoint:key pair for model {model_name}"
                     )
 
-                if "openai" not in endpoint:
-                    client = ChatCompletionsClient(
-                        endpoint=endpoint,
-                        credential=AzureKeyCredential(api_key),
-                        temperature=self.temperature,
-                        top_p=self.top_p,
-                        max_tokens=self.max_tokens,
-                    )
+                # Extract base endpoint URL and deployment name for Azure OpenAI models
+                # The stored endpoint might include the full path like /openai/deployments/{deployment}/chat/completions
+                deployment_name = None
+                if "/openai/deployments/" in endpoint:
+                    # Parse the URL to extract base endpoint and deployment name
+                    from urllib.parse import urlparse, urlunparse
+
+                    parsed = urlparse(endpoint)
+
+                    # Extract deployment name from path
+                    path_parts = parsed.path.split("/")
+                    if "deployments" in path_parts:
+                        deploy_idx = path_parts.index("deployments")
+                        if deploy_idx + 1 < len(path_parts):
+                            deployment_name = path_parts[deploy_idx + 1]
+
+                    # Construct base endpoint (scheme + netloc + /openai/deployments/{deployment})
+                    if deployment_name:
+                        base_path = f"/openai/deployments/{deployment_name}"
+                        endpoint = urlunparse(
+                            (parsed.scheme, parsed.netloc, base_path, "", "", "")
+                        )
+                    else:
+                        # Fallback to base URL without path
+                        endpoint = urlunparse(
+                            (parsed.scheme, parsed.netloc, "", "", "", "")
+                        )
+
+                # Check if we should use the new unified Azure AI Inference SDK
+                # Both OpenAI and non-OpenAI models can now use ChatCompletionsClient
+                use_unified_sdk = True  # Default to using the unified SDK
+
+                # Optionally check for API version to determine which SDK to use
+                api_version = cls._model_id_to_endpoint_and_key[model_name].get(
+                    "api_version"
+                )
+
+                # Use Azure AI Inference SDK for all models (unified approach)
+                if use_unified_sdk:
+                    # Create client with optional api_version
+                    client_kwargs = {
+                        "endpoint": endpoint,
+                        "credential": AzureKeyCredential(api_key),
+                    }
+
+                    # Add api_version if available (required for some models)
+                    if api_version:
+                        client_kwargs["api_version"] = api_version
+
+                    client = ChatCompletionsClient(**client_kwargs)
+
                     try:
+                        # Build messages
+                        messages = []
+                        if system_prompt:
+                            messages.append(SystemMessage(content=system_prompt))
+                        messages.append(UserMessage(content=user_prompt))
+
+                        # Make the API call with parameters
+                        # Use deployment name if available (for Azure OpenAI), otherwise use model_name
+                        model_to_use = (
+                            deployment_name if deployment_name else model_name
+                        )
+                        print(endpoint, model_to_use)
                         response = await client.complete(
-                            messages=[
-                                SystemMessage(content=system_prompt),
-                                UserMessage(content=user_prompt),
-                            ],
-                            # model_extras={"safe_mode": True},
+                            messages=messages,
+                            temperature=self.temperature,
+                            max_tokens=self.max_tokens,
+                            top_p=self.top_p,
+                            model=model_to_use,  # Use deployment name for Azure OpenAI
                         )
                         return response.as_dict()
                     finally:
                         await client.close()
+
                 else:
-                    api_version = cls._model_id_to_endpoint_and_key[model_name][
-                        "api_version"
-                    ]
+                    # Fallback to traditional Azure OpenAI SDK (if needed)
+                    # This path is kept for backward compatibility
                     client = AsyncAzureOpenAI(
                         azure_endpoint=endpoint,
                         api_version=api_version,
                         api_key=api_key,
                     )
+
+                    # Build messages for OpenAI format
+                    messages = []
+                    if system_prompt:
+                        messages.append({"role": "system", "content": system_prompt})
+                    messages.append({"role": "user", "content": user_prompt})
+
+                    # Use deployment name if available, otherwise use model_name
+                    model_to_use = deployment_name if deployment_name else model_name
                     response = await client.chat.completions.create(
-                        model=model_name,
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": user_prompt,  # Your question can go here
-                            },
-                        ],
+                        model=model_to_use,
+                        messages=messages,
+                        temperature=self.temperature,
+                        max_tokens=self.max_tokens,
+                        top_p=self.top_p,
                     )
                     return response.model_dump()
 
-            # @staticmethod
-            # def parse_response(raw_response: dict[str, Any]) -> str:
-            #     """Parses the API response and returns the response text."""
-            #     if (
-            #         raw_response
-            #         and "choices" in raw_response
-            #         and raw_response["choices"]
-            #     ):
-            #         response = raw_response["choices"][0]["message"]["content"]
-            #         pattern = r"^```json(?:\\n|\n)(.+?)(?:\\n|\n)```$"
-            #         match = re.match(pattern, response, re.DOTALL)
-            #         if match:
-            #             return match.group(1)
-            #         else:
-            #             out = fix_partial_correct_response(response)
-            #             if "error" not in out:
-            #                 response = out["extracted_json"]
-            #             return response
-            #     return "Error parsing response"
-
         LLM.__name__ = model_class_name
-
         return LLM

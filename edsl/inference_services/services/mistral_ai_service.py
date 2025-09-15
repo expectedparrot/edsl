@@ -114,6 +114,26 @@ class MistralAIService(InferenceServiceABC):
                 files_list: Optional[List["FileStore"]] = None,
             ) -> dict[str, Any]:
                 """Calls the Mistral API and returns the API response."""
+
+                # Check if we should use remote proxy
+                if self.remote_proxy:
+                    # Use remote proxy mode
+                    from .remote_proxy_handler import RemoteProxyHandler
+
+                    handler = RemoteProxyHandler(
+                        model=self.model, inference_service=self._inference_service_
+                    )
+
+                    return await handler.execute_model_call(
+                        user_prompt=user_prompt,
+                        system_prompt=system_prompt,
+                        files_list=files_list,
+                        temperature=self.temperature,
+                        max_tokens=self.max_tokens,
+                        top_p=self.top_p,
+                        omit_system_prompt_if_empty=self.omit_system_prompt_if_empty,
+                    )
+
                 s = self.async_client()
 
                 res = await s.chat.complete_async(
