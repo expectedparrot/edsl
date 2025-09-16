@@ -2,13 +2,13 @@ import os
 from typing import Any, Optional, List, TYPE_CHECKING
 from urllib.parse import urlparse, parse_qs
 
-from openai import AsyncAzureOpenAI
 from azure.ai.inference.aio import ChatCompletionsClient
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.inference.models import SystemMessage, UserMessage
 
 from ..inference_service_abc import InferenceServiceABC
 from ..decorators import report_errors_async
+from .service_enums import OPENAI_REASONING_MODELS
 
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
@@ -22,6 +22,44 @@ def json_handle_none(value: Any) -> Any:
     """
     if value is None:
         return "null"
+
+
+class AzureParameterBuilder:
+    """Helper class to construct API parameters based on model type for Azure AI."""
+
+    @staticmethod
+    def build_params(model: str, messages: list, **model_params) -> dict:
+        """Build API parameters, adjusting for specific model types."""
+
+        default_max_tokens = model_params.get("max_tokens", 512)
+        default_temperature = model_params.get("temperature", 0.5)
+
+        # Check if this is a reasoning model (o1, o1-mini, etc.)
+        # Extract the base model name from Azure model names
+        base_model = model.replace("azure:", "")
+        is_reasoning_model = any(
+            reasoning_model in base_model for reasoning_model in OPENAI_REASONING_MODELS
+        )
+
+        if is_reasoning_model:
+            # For reasoning models, only pass minimal parameters (no max tokens, no top_p)
+            temperature = 1
+
+            # For o1 models, only pass messages and temperature
+            params = {
+                "messages": messages,
+                "temperature": temperature,
+            }
+        else:
+            # For regular (non-o1) models, always use max_tokens regardless of type
+            params = {
+                "messages": messages,
+                "temperature": default_temperature,
+                "max_tokens": default_max_tokens,
+                "top_p": model_params.get("top_p", 0.9),
+            }
+
+        return params
 
 
 class AzureAIService(InferenceServiceABC):
@@ -240,78 +278,50 @@ class AzureAIService(InferenceServiceABC):
                             (parsed.scheme, parsed.netloc, "", "", "", "")
                         )
 
-                # Check if we should use the new unified Azure AI Inference SDK
-                # Both OpenAI and non-OpenAI models can now use ChatCompletionsClient
-                use_unified_sdk = True  # Default to using the unified SDK
-
-                # Optionally check for API version to determine which SDK to use
+                # Use Azure AI Inference SDK for all models (unified approach)
                 api_version = cls._model_id_to_endpoint_and_key[model_name].get(
                     "api_version"
                 )
 
-                # Use Azure AI Inference SDK for all models (unified approach)
-                if use_unified_sdk:
-                    # Create client with optional api_version
-                    client_kwargs = {
-                        "endpoint": endpoint,
-                        "credential": AzureKeyCredential(api_key),
-                    }
+                # Create client with optional api_version
+                client_kwargs = {
+                    "endpoint": endpoint,
+                    "credential": AzureKeyCredential(api_key),
+                }
 
-                    # Add api_version if available (required for some models)
-                    if api_version:
-                        client_kwargs["api_version"] = api_version
+                # Add api_version if available (required for some models)
+                if api_version:
+                    client_kwargs["api_version"] = api_version
 
-                    client = ChatCompletionsClient(**client_kwargs)
+                client = ChatCompletionsClient(**client_kwargs)
 
-                    try:
-                        # Build messages
-                        messages = []
-                        if system_prompt:
-                            messages.append(SystemMessage(content=system_prompt))
-                        messages.append(UserMessage(content=user_prompt))
-
-                        # Make the API call with parameters
-                        # Use deployment name if available (for Azure OpenAI), otherwise use model_name
-                        model_to_use = (
-                            deployment_name if deployment_name else model_name
-                        )
-                        print(f"Using model/deployment: {model_to_use}")
-                        response = await client.complete(
-                            messages=messages,
-                            temperature=self.temperature,
-                            max_tokens=self.max_tokens,
-                            top_p=self.top_p,
-                            model=model_to_use,  # Use deployment name for Azure OpenAI
-                        )
-                        return response.as_dict()
-                    finally:
-                        await client.close()
-
-                else:
-                    # Fallback to traditional Azure OpenAI SDK (if needed)
-                    # This path is kept for backward compatibility
-                    client = AsyncAzureOpenAI(
-                        azure_endpoint=endpoint,
-                        api_version=api_version,
-                        api_key=api_key,
-                    )
-
-                    # Build messages for OpenAI format
+                try:
+                    # Build messages
                     messages = []
                     if system_prompt:
-                        messages.append({"role": "system", "content": system_prompt})
-                    messages.append({"role": "user", "content": user_prompt})
+                        messages.append(SystemMessage(content=system_prompt))
+                    messages.append(UserMessage(content=user_prompt))
 
-                    # Use deployment name if available, otherwise use model_name
+                    # Make the API call with parameters
+                    # Use deployment name if available (for Azure OpenAI), otherwise use model_name
                     model_to_use = deployment_name if deployment_name else model_name
-                    response = await client.chat.completions.create(
-                        model=model_to_use,
+
+                    # Use AzureParameterBuilder to construct parameters
+                    params = AzureParameterBuilder.build_params(
+                        model=model_name,
                         messages=messages,
                         temperature=self.temperature,
                         max_tokens=self.max_tokens,
                         top_p=self.top_p,
                     )
-                    return response.model_dump()
+
+                    # Add the model to the parameters
+                    params["model"] = model_to_use
+
+                    response = await client.complete(**params)
+                    return response.as_dict()
+                finally:
+                    await client.close()
 
         LLM.__name__ = model_class_name
         return LLM
