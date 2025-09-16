@@ -162,8 +162,8 @@ class LanguageModel(
         str, ...
     ] = None  # This should be something like ["choices", 0, "message", "content"]
 
-    DEFAULT_RPM = 100
-    DEFAULT_TPM = 1000
+    DEFAULT_RPM = 1000
+    DEFAULT_TPM = 1000000
 
     @classproperty
     def response_handler(cls) -> RawResponseHandler:
@@ -363,6 +363,7 @@ class LanguageModel(
             float: The requests per minute rate limit
         """
         if not hasattr(self, "_rpm"):
+            print(self.model_info)
             if self.model_info is None:
                 self._rpm = self.DEFAULT_RPM
             else:

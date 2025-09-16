@@ -167,6 +167,16 @@ class AzureAIService(InferenceServiceABC):
                 "top_p": 0.9,
             }
 
+            @property
+            def remote_proxy(self) -> bool:
+                """Check if remote proxy is enabled."""
+                return getattr(self, "_remote_proxy", False)
+
+            @remote_proxy.setter
+            def remote_proxy(self, value: bool):
+                """Set the remote proxy flag."""
+                self._remote_proxy = value
+
             @report_errors_async
             async def async_execute_model_call(
                 self,
@@ -175,6 +185,20 @@ class AzureAIService(InferenceServiceABC):
                 files_list: Optional[List["FileStore"]] = None,
             ) -> dict[str, Any]:
                 """Call Azure OpenAI API and return the response."""
+                # Check if remote proxy is enabled
+                if self.remote_proxy:
+                    from .remote_proxy_handler import RemoteProxyHandler
+
+                    handler = RemoteProxyHandler(
+                        model=self._model_, inference_service=self._inference_service_
+                    )
+                    return await handler.execute_model_call(
+                        user_prompt=user_prompt,
+                        system_prompt=system_prompt,
+                        files_list=files_list,
+                        parameters=self._parameters_,
+                    )
+
                 # Note: files_list is not yet implemented for Azure AI service
                 try:
                     api_key = cls._model_id_to_endpoint_and_key[model_name][
@@ -251,7 +275,7 @@ class AzureAIService(InferenceServiceABC):
                         model_to_use = (
                             deployment_name if deployment_name else model_name
                         )
-                        print(endpoint, model_to_use)
+                        print(f"Using model/deployment: {model_to_use}")
                         response = await client.complete(
                             messages=messages,
                             temperature=self.temperature,
