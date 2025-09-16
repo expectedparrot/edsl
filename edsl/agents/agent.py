@@ -287,6 +287,17 @@ class Agent(Base):
         self.trait_categories = trait_categories or {}
 
     @property
+    def traits_presentation_template(self):
+        """Get the traits presentation template."""
+        return self._traits_presentation_template
+
+    @traits_presentation_template.setter
+    def traits_presentation_template(self, value):
+        """Set the traits presentation template and mark it as explicitly set."""
+        self._traits_presentation_template = value
+        self.set_traits_presentation_template = True
+
+    @property
     def invigilator(self):
         """Lazily initialize the invigilator to avoid importing language_models during Survey import"""
         if self._invigilator is None:
