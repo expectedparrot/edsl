@@ -363,7 +363,6 @@ class LanguageModel(
             float: The requests per minute rate limit
         """
         if not hasattr(self, "_rpm"):
-            print(self.model_info)
             if self.model_info is None:
                 self._rpm = self.DEFAULT_RPM
             else:
