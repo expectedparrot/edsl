@@ -162,7 +162,7 @@ class LanguageModel(
         str, ...
     ] = None  # This should be something like ["choices", 0, "message", "content"]
 
-    DEFAULT_RPM = 1000
+    DEFAULT_RPM = 300
     DEFAULT_TPM = 1000000
 
     @classproperty
