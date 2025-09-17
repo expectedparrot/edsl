@@ -166,18 +166,39 @@ class RemoteProxyHandler:
         upload_metadata = self._prepare_upload_metadata(files_list)
         signed_urls = await self._request_signed_urls(upload_metadata)
 
-        # Step 2: Upload files to GCS
+        # Step 2: Upload files to GCS (only if needed)
         upload_tasks = []
         for file_entry, url_info in zip(files_list, signed_urls["upload_urls"]):
-            upload_tasks.append(self._upload_file_to_gcs(file_entry, url_info))
+            # Only upload if file doesn't exist (has signed_url and status is upload_required)
+            if (
+                url_info.get("signed_url")
+                and url_info.get("status") == "upload_required"
+            ):
+                print(f"[UPLOAD] Uploading new file: {url_info.get('filename')}")
+                upload_tasks.append(self._upload_file_to_gcs(file_entry, url_info))
+            elif url_info.get("status") == "file_exists":
+                print(
+                    f"[DEDUP] Skipping upload for existing file: {url_info.get('filename')}"
+                )
 
-        await asyncio.gather(*upload_tasks)
+        # Upload only the files that need uploading
+        if upload_tasks:
+            await asyncio.gather(*upload_tasks)
+        else:
+            print("[DEDUP] No files need uploading - all were deduplicated")
 
         # Step 3: Build GCS file references
         gcs_references = []
         for file_entry, url_info in zip(files_list, signed_urls["upload_urls"]):
             filename = getattr(file_entry, "path", "unknown")
-            print(f"Uploaded {filename} to {url_info['gcs_path']}")
+
+            # Log appropriately based on whether file was uploaded or reused
+            if url_info.get("status") == "file_exists":
+                print(
+                    f"[DEDUP] Using existing file {filename} at {url_info['gcs_path']}"
+                )
+            else:
+                print(f"[UPLOAD] File {filename} available at {url_info['gcs_path']}")
 
             # Extract file extension
             file_extension = ""
@@ -210,16 +231,16 @@ class RemoteProxyHandler:
         """
         metadata = []
         for file_entry in files_list:
-            # Calculate file size from base64
-            file_size = len(base64.b64decode(file_entry.base64_string))
+            # Create file hash from first 2000 chars of base64_string
+            file_hash = file_entry.base64_string[:2000]
 
             metadata.append(
                 {
                     "filename": getattr(
                         file_entry, "filename", f"file_{len(metadata)}"
                     ),
-                    "size": file_size,
                     "mime_type": file_entry.mime_type,
+                    "file_hash": file_hash,
                 }
             )
 
