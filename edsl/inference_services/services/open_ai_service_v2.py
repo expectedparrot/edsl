@@ -178,6 +178,7 @@ class OpenAIServiceV2(InferenceServiceABC):
                 system_prompt: str = "",
                 files_list: Optional[List[Files]] = None,
                 invigilator: Optional[InvigilatorAI] = None,
+                cache_key: Optional[str] = None,  # Cache key for tracking
             ) -> dict[str, Any]:
                 # Check if we should use remote proxy
                 if self.remote_proxy:
@@ -192,6 +193,7 @@ class OpenAIServiceV2(InferenceServiceABC):
                         user_prompt=user_prompt,
                         system_prompt=system_prompt,
                         files_list=files_list,
+                        cache_key=cache_key,
                         temperature=self.temperature,
                         max_tokens=self.max_tokens,
                         top_p=self.top_p,
