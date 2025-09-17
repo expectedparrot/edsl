@@ -118,6 +118,7 @@ class RemoteProxyHandler:
         user_prompt: str,
         system_prompt: str = "",
         files_list: Optional[List["Files"]] = None,
+        cache_key: Optional[str] = None,
         **model_params,
     ) -> Dict[str, Any]:
         """Execute a model call through the remote proxy.
@@ -126,6 +127,7 @@ class RemoteProxyHandler:
             user_prompt: The user message or input prompt
             system_prompt: The system message or context
             files_list: Optional list of files to include
+            cache_key: Optional cache key for tracking
             **model_params: Additional model parameters (temperature, max_tokens, etc.)
 
         Returns:
@@ -142,6 +144,7 @@ class RemoteProxyHandler:
             system_prompt=system_prompt,
             gcs_files=gcs_file_references,
             model_params=model_params,
+            cache_key=cache_key,
         )
 
         # Phase 3: Send execution request to proxy
@@ -341,6 +344,7 @@ class RemoteProxyHandler:
         system_prompt: str,
         gcs_files: List[Dict[str, Any]],
         model_params: Dict[str, Any],
+        cache_key: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Build the execution request payload for the proxy.
 
@@ -349,6 +353,7 @@ class RemoteProxyHandler:
             system_prompt: The system message
             gcs_files: List of GCS file references
             model_params: Model parameters
+            cache_key: Optional cache key for tracking
 
         Returns:
             Complete request payload
@@ -368,7 +373,7 @@ class RemoteProxyHandler:
         # Add user message
         messages.append({"role": "user", "content": user_prompt})
 
-        return {
+        payload = {
             "request_id": self.request_id,
             "inference_service": self.inference_service,
             "model": self.model,
@@ -380,6 +385,12 @@ class RemoteProxyHandler:
                 "omit_system_prompt_if_empty": omit_system_prompt_if_empty,
             },
         }
+
+        # Add cache_key if provided
+        if cache_key:
+            payload["cache_key"] = cache_key
+
+        return payload
 
     async def _send_execution_request(
         self, request_payload: Dict[str, Any]

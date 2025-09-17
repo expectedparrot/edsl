@@ -882,6 +882,7 @@ class LanguageModel(
                 "user_prompt": user_prompt,
                 "system_prompt": system_prompt,
                 "files_list": files_list,
+                "cache_key": cache_key,  # Pass cache key for tracking
             }
             # Add question_name parameter for test models
             if self.model == "test" and invigilator:

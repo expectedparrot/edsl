@@ -77,6 +77,7 @@ class AnthropicService(InferenceServiceABC):
                 user_prompt: str,
                 system_prompt: str = "",
                 files_list: Optional[List["Files"]] = None,
+                cache_key: Optional[str] = None,  # Cache key for tracking
             ) -> dict[str, Any]:
                 """Calls the Anthropic API and returns the API response.
 
@@ -84,6 +85,7 @@ class AnthropicService(InferenceServiceABC):
                     user_prompt: The user message or input prompt
                     system_prompt: The system message or context
                     files_list: Optional list of files to include
+                    cache_key: Optional cache key for tracking
                 """
 
                 # Check if we should use remote proxy
@@ -99,6 +101,7 @@ class AnthropicService(InferenceServiceABC):
                         user_prompt=user_prompt,
                         system_prompt=system_prompt,
                         files_list=files_list,
+                        cache_key=cache_key,
                         temperature=self.temperature,
                         max_tokens=self.max_tokens,
                         top_p=self.top_p,
