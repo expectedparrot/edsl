@@ -205,6 +205,9 @@ class RemoteProxyHandler:
             if "." in filename:
                 file_extension = filename.rsplit(".", 1)[1].lower()
 
+            # Get file hash for this file entry
+            file_hash = file_entry.base64_string[:2000]
+
             gcs_references.append(
                 {
                     "type": self._get_file_type(file_entry),
@@ -213,6 +216,7 @@ class RemoteProxyHandler:
                     "file_extension": file_extension,
                     "mime_type": file_entry.mime_type,
                     "processing": self._get_processing_type(file_entry),
+                    "file_hash": file_hash,  # Include hash for caching after successful processing
                 }
             )
 
@@ -353,7 +357,11 @@ class RemoteProxyHandler:
             else:
                 return "upload_to_openai"
         elif file_type == "image":
-            return "base64_inline"
+            # Use service-specific processing for images
+            if self.inference_service == "google":
+                return "upload_to_google"
+            else:
+                return "base64_inline"
         elif file_type == "text":
             return "text_inline"
         else:
