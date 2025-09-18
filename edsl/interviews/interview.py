@@ -93,7 +93,7 @@ class Interview:
     This class serves as the execution layer that translates a high-level survey definition
     into concrete API calls to language models, with support for caching and fault tolerance.
     """
-    
+
     _logger = get_logger(__name__)
 
     def __init__(
@@ -462,7 +462,7 @@ class Interview:
 
         self.skip_flags = {q.question_name: False for q in self.survey.questions}
 
-        self.tasks = self.task_manager.build_question_tasks(
+        self.tasks = await self.task_manager.build_question_tasks(
             answer_func=AnswerQuestionFunctionConstructor(
                 self, key_lookup=run_config.environment.key_lookup
             )(),
@@ -475,25 +475,32 @@ class Interview:
 
         ## 'Invigilators' are used to administer the survey.
         import time
+
         invigilator_start = time.time()
-        self._logger.info(f"Creating invigilators for {len(self.survey.questions)} questions")
-        
+        self._logger.info(
+            f"Creating invigilators for {len(self.survey.questions)} questions"
+        )
+
         fetcher = FetchInvigilator(
             interview=self,
             current_answers=self.answers,
             key_lookup=run_config.environment.key_lookup,
         )
         self.invigilators = [fetcher(question) for question in self.survey.questions]
-        self._logger.info(f"Invigilator setup completed in {time.time() - invigilator_start:.3f}s")
-        
+        self._logger.info(
+            f"Invigilator setup completed in {time.time() - invigilator_start:.3f}s"
+        )
+
         # Execute all question-answering tasks
         tasks_start = time.time()
         self._logger.info(f"Starting execution of {len(self.tasks)} question tasks")
         await asyncio.gather(
             *self.tasks, return_exceptions=not run_config.parameters.stop_on_exception
         )
-        self._logger.info(f"All question tasks completed in {time.time() - tasks_start:.3f}s")
-        
+        self._logger.info(
+            f"All question tasks completed in {time.time() - tasks_start:.3f}s"
+        )
+
         # Process results
         results_start = time.time()
         self._logger.info("Processing interview results")
@@ -502,7 +509,9 @@ class Interview:
             self._extract_valid_results(self.tasks, self.invigilators, self.exceptions)
         )
         self.valid_results = valid_results
-        self._logger.info(f"Results processing completed in {time.time() - results_start:.3f}s")
+        self._logger.info(
+            f"Results processing completed in {time.time() - results_start:.3f}s"
+        )
         return None
         #
         # return self.answers, valid_results

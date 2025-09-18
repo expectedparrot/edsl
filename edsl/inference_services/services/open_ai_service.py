@@ -247,8 +247,46 @@ class OpenAIService(InferenceServiceABC):
                 invigilator: Optional[
                     "InvigilatorAI"
                 ] = None,  # TBD - can eventually be used for function-calling
+                cache_key: Optional[str] = None,  # Cache key for tracking
             ) -> dict[str, Any]:
-                """Calls the OpenAI API and returns the API response."""
+                """Calls the OpenAI API and returns the API response.
+
+                Args:
+                    user_prompt: The user message or input prompt
+                    system_prompt: The system message or context
+                    question_name: Optional name of the question being asked
+                    files_list: Optional list of files to include
+                    invigilator: Optional invigilator for function-calling
+                    remote_proxy: Optional URL of remote proxy to use instead of direct API call
+                """
+
+                # Check if we should use remote proxy
+                if self.remote_proxy:
+                    # Use remote proxy mode
+                    from .remote_proxy_handler import RemoteProxyHandler
+
+                    handler = RemoteProxyHandler(
+                        model=self.model, inference_service=self._inference_service_
+                    )
+
+                    # Get fresh parameter
+                    fresh_value = getattr(self, "fresh", False)
+
+                    return await handler.execute_model_call(
+                        user_prompt=user_prompt,
+                        system_prompt=system_prompt,
+                        files_list=files_list,
+                        cache_key=cache_key,
+                        temperature=self.temperature,
+                        max_tokens=self.max_tokens,
+                        top_p=self.top_p,
+                        frequency_penalty=self.frequency_penalty,
+                        presence_penalty=self.presence_penalty,
+                        logprobs=self.logprobs,
+                        top_logprobs=self.top_logprobs,
+                        omit_system_prompt_if_empty=self.omit_system_prompt_if_empty,
+                        fresh=fresh_value,  # Pass fresh parameter
+                    )
 
                 # Use MessageBuilder to construct messages
                 message_builder = MessageBuilder(
@@ -274,7 +312,6 @@ class OpenAIService(InferenceServiceABC):
                     logprobs=self.logprobs,
                     top_logprobs=self.top_logprobs,
                 )
-
                 # Apply service-specific parameter filtering
                 params = self._filter_parameters_for_service(params)
 
