@@ -125,6 +125,9 @@ class GoogleService(InferenceServiceABC):
                         model=self.model, inference_service=self._inference_service_
                     )
 
+                    # Get fresh parameter
+                    fresh_value = getattr(self, "fresh", False)
+
                     return await handler.execute_model_call(
                         user_prompt=user_prompt,
                         system_prompt=system_prompt,
@@ -135,6 +138,7 @@ class GoogleService(InferenceServiceABC):
                         topK=self.topK,
                         maxOutputTokens=self.maxOutputTokens,
                         stopSequences=self.stopSequences,
+                        fresh=fresh_value,  # Pass fresh parameter
                     )
 
                 # Get or create cached client (thread-safe)

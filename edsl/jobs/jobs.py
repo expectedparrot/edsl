@@ -1021,9 +1021,9 @@ class Jobs(Base):
                 f"Remote key check completed in {time.time() - key_check_start:.3f}s"
             )
 
-            # Configure remote proxy for all models when remote inference is enabled
+            # Configure remote proxy and fresh parameter for all models when remote inference is enabled
             proxy_config_start = time.time()
-            self._logger.info("Configuring remote proxy for models")
+            self._logger.info("Configuring remote proxy and fresh parameter for models")
             for model in self.models:
                 # Only set to True if it's not already explicitly set to False
                 if (
@@ -1036,6 +1036,10 @@ class Jobs(Base):
                     self._logger.debug(
                         f"Remote proxy disabled by user for model: {model.model}"
                     )
+
+                # Pass fresh parameter to model
+                model.fresh = self.run_config.parameters.fresh
+                self._logger.debug(f"Set fresh={model.fresh} for model: {model.model}")
             self._logger.info(
                 f"Remote proxy configuration completed in {time.time() - proxy_config_start:.3f}s"
             )
@@ -1048,6 +1052,10 @@ class Jobs(Base):
             for model in self.models:
                 model.remote_proxy = False
                 self._logger.debug(f"Disabled remote proxy for model: {model.model}")
+
+                # Pass fresh parameter to model
+                model.fresh = self.run_config.parameters.fresh
+                self._logger.debug(f"Set fresh={model.fresh} for model: {model.model}")
             self._logger.info(
                 f"Remote proxy disable completed in {time.time() - proxy_config_start:.3f}s"
             )

@@ -391,6 +391,7 @@ class RemoteProxyHandler:
         omit_system_prompt_if_empty = model_params.pop(
             "omit_system_prompt_if_empty", True
         )
+        fresh = model_params.pop("fresh", False)
 
         # Build base messages without files (proxy will handle file integration)
         messages = []
@@ -409,6 +410,7 @@ class RemoteProxyHandler:
             "messages": messages,
             "parameters": model_params,
             "gcs_files": gcs_files,
+            "fresh": fresh,
             "metadata": {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "omit_system_prompt_if_empty": omit_system_prompt_if_empty,

@@ -269,6 +269,9 @@ class OpenAIService(InferenceServiceABC):
                         model=self.model, inference_service=self._inference_service_
                     )
 
+                    # Get fresh parameter
+                    fresh_value = getattr(self, "fresh", False)
+
                     return await handler.execute_model_call(
                         user_prompt=user_prompt,
                         system_prompt=system_prompt,
@@ -282,6 +285,7 @@ class OpenAIService(InferenceServiceABC):
                         logprobs=self.logprobs,
                         top_logprobs=self.top_logprobs,
                         omit_system_prompt_if_empty=self.omit_system_prompt_if_empty,
+                        fresh=fresh_value,  # Pass fresh parameter
                     )
 
                 # Use MessageBuilder to construct messages
