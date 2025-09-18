@@ -125,6 +125,9 @@ class MistralAIService(InferenceServiceABC):
                         model=self.model, inference_service=self._inference_service_
                     )
 
+                    # Get fresh parameter
+                    fresh_value = getattr(self, "fresh", False)
+
                     return await handler.execute_model_call(
                         user_prompt=user_prompt,
                         system_prompt=system_prompt,
@@ -134,6 +137,7 @@ class MistralAIService(InferenceServiceABC):
                         max_tokens=self.max_tokens,
                         top_p=self.top_p,
                         omit_system_prompt_if_empty=self.omit_system_prompt_if_empty,
+                        fresh=fresh_value,  # Pass fresh parameter
                     )
 
                 s = self.async_client()

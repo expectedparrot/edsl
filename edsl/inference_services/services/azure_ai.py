@@ -231,12 +231,17 @@ class AzureAIService(InferenceServiceABC):
                     handler = RemoteProxyHandler(
                         model=self._model_, inference_service=self._inference_service_
                     )
+
+                    # Get fresh parameter
+                    fresh_value = getattr(self, "fresh", False)
+
                     return await handler.execute_model_call(
                         user_prompt=user_prompt,
                         system_prompt=system_prompt,
                         files_list=files_list,
                         cache_key=cache_key,
                         parameters=self._parameters_,
+                        fresh=fresh_value,  # Pass fresh parameter
                     )
 
                 # Note: files_list is not yet implemented for Azure AI service
