@@ -86,7 +86,7 @@ Please see the links in the steps below for more details:
 
    .. code:: python
 
-      from edsl import Login
+      from edsl import login
       login()  
 
 
