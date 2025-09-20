@@ -136,6 +136,9 @@ class AgentSerialization:
         if hasattr(agent, "set_instructions"):
             if not agent.set_instructions:
                 raw_data.pop("instruction")
+        if hasattr(agent, "set_traits_presentation_template"):
+            if not agent.set_traits_presentation_template:
+                raw_data.pop("traits_presentation_template", None)
         if agent.codebook == {}:
             raw_data.pop("codebook")
         if agent.name is None:

@@ -187,7 +187,6 @@ class AgentPrompt:
         """
         if traits_presentation_template is not None:
             self.agent._traits_presentation_template = traits_presentation_template
-            self.agent.traits_presentation_template = traits_presentation_template
             self.agent.set_traits_presentation_template = True
         else:
             # Set the default template based on whether a codebook exists
@@ -205,11 +204,11 @@ class AgentPrompt:
                         traits_lines.append(f"{trait_key}: {{{{ {trait_key} }}}}")
 
                 # Join all trait lines with newlines
-                self.agent.traits_presentation_template = "Your traits:\n" + "\n".join(
+                self.agent._traits_presentation_template = "Your traits:\n" + "\n".join(
                     traits_lines
                 )
             else:
                 # Use the standard dictionary format if no codebook
-                self.agent.traits_presentation_template = "Your traits: {{traits}}"
+                self.agent._traits_presentation_template = "Your traits: {{traits}}"
 
             self.agent.set_traits_presentation_template = False
