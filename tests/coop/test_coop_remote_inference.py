@@ -77,7 +77,7 @@ def test_remote_inference_with_jobs(mock_edsl_settings):
 
     # Test a job with no description
     job = Jobs.example()
-    result = job.run()
+    result = job.run(disable_remote_inference = True)
     assert isinstance(result, Results)
     # description = result.select("description").first()
     # status = result.select("status").first()
@@ -99,7 +99,8 @@ def test_no_remote_inference_with_jobs(mock_edsl_settings):
 
     job = Jobs.example()
     results = job.run(
-        remote_inference_description="This job will not be sent to the server"
+        remote_inference_description="This job will not be sent to the server",
+        disable_remote_inference = True
     )
     assert isinstance(results, Results)
     assert results.question_names == ["how_feeling", "how_feeling_yesterday"]

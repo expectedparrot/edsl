@@ -331,7 +331,7 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
         current_text = text
 
         for _ in range(MAX_NESTING):
-            template = _get_compiled_template(current_text)
+            template = env.from_string(current_text)
             rendered_text = template.render(**all_replacements)
 
             if rendered_text == current_text:
