@@ -901,7 +901,7 @@ class QuestionBase(
     def example_results(cls):
         m = cls.example_model()
         q = cls.example()
-        return q.by(m).run(cache=False)
+        return q.by(m).run(cache=False, disable_remote_inference = True)
 
     def rich_print(self):
         """Print the question in a rich format."""

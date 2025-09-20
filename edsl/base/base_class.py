@@ -24,6 +24,9 @@ import inspect
 
 from .. import logger
 
+import inspect
+
+
 if TYPE_CHECKING:
     from ..coop.coop_objects import CoopObjects
 
@@ -998,6 +1001,58 @@ class Base(
         # Query the cloud service to get the UUID based on the hash
         coop = Coop()
         return coop.get_uuid_from_hash(object_hash)
+    
+
+    def apply_command(self, command_name, kwargs):
+        if hasattr(self, command_name):
+            method = getattr(self, command_name)
+            result = method(**kwargs)
+            # If method returns None (like append, shorten), return self
+            # If method returns an object (like to_A, to_B), return that object
+            return result if result is not None else self
+        else:
+            raise ValueError(f"Command method {command_name} not found on {type(self).__name__}")
+
+    
+    @property
+    def polly_commands(self):
+        """Auto-generate commands list from methods decorated with @polly_command"""
+        commands = []
+        # Use dir() and getattr to avoid recursion issues with inspect.getmembers
+        for name in dir(self):
+            if not name.startswith('_'):  # Skip private methods
+                try:
+                    attr = getattr(self, name)
+                    if callable(attr) and hasattr(attr, '_is_polly_command'):
+                        # Get method signature to extract kwargs
+                        sig = inspect.signature(attr)
+                        kwargs = {}
+                        for param_name, param in sig.parameters.items():
+                            if param_name != 'self':  # Skip 'self' parameter
+                                # Use default value if available, otherwise use a placeholder
+                                if param.default != inspect.Parameter.empty:
+                                    kwargs[param_name] = param.default
+                                else:
+                                    # Create a placeholder based on type hint if available
+                                    if param.annotation != inspect.Parameter.empty:
+                                        if param.annotation == int:
+                                            kwargs[param_name] = 1
+                                        elif param.annotation == str:
+                                            kwargs[param_name] = ""
+                                        else:
+                                            kwargs[param_name] = None
+                                    else:
+                                        kwargs[param_name] = None
+                        
+                        commands.append({
+                            'command_name': name,
+                            'kwargs': kwargs
+                        })
+                except:
+                    # Skip any attributes that cause issues during introspection
+                    continue
+        return commands
+
 
     def keys(self):
         """Get the key names in the object's dictionary representation.

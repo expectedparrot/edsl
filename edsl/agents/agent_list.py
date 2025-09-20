@@ -10,6 +10,7 @@ import logging
 from collections import defaultdict
 from itertools import product
 
+from ..base.decorators import polly_command
 
 from collections import UserList
 from typing import Any, List, Optional, Union, TYPE_CHECKING
@@ -97,6 +98,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         if codebook is not None:
             self.set_codebook(codebook)
 
+        self._codebook = codebook
+
     def at(self, index: int) -> "Agent":
         """Get the agent at the specified index position."""
         return self.data[index]
@@ -120,6 +123,76 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         return self
 
+    def set_dynamic_traits(self, function: Callable) -> None:
+        """Set the dynamic traits for all agents in the list.
+        
+        Args:
+            function: The function to set.
+        """
+        for agent in self.data:
+            agent.traits_manager.set_dynamic_function(function)
+
+
+    def set_dynamic_traits_from_question_map(self, q_to_traits: dict[str, list[str]]) -> "AgentList":
+        """Configure dynamic traits for each agent from a question→traits mapping (in-place).
+
+        Each agent will get a dynamic traits function that, when asked a question whose
+        ``question_name`` is present in ``q_to_traits``, returns a dict mapping the
+        corresponding trait name(s) to the agent's original static value(s) for those trait(s).
+
+        A warning is emitted if the set of mapped trait names does not exactly equal the
+        set of trait keys present in this AgentList.
+
+        Args:
+            q_to_traits: Mapping from question name to list of trait keys, e.g.
+                ``{"geo": ["hometown"], "cuisine": ["food"]}``.
+
+        Returns:
+            AgentList: self (modified in-place).
+
+        Examples:
+            >>> from edsl import Agent, AgentList
+            >>> a_alice = Agent(name="Alice", traits={'hometown': 'Boston', 'food': 'beans'})
+            >>> a_bob = Agent(name="Bob", traits={'hometown': 'SF', 'food': 'sushi'})
+            >>> al = AgentList([a_alice, a_bob])
+            >>> _ = al.set_dynamic_traits_from_question_map({'geo': ['hometown'], 'cuisine': ['food']})
+            >>> class Q:
+            ...     def __init__(self, name): self.question_name = name
+            >>> al[0].dynamic_traits_function(Q('geo'))['hometown']
+            'Boston'
+            >>> al[1].dynamic_traits_function(Q('geo'))['hometown']
+            'SF'
+            >>> al[0].dynamic_traits_function(Q('cuisine'))['food']
+            'beans'
+        """
+        # Flatten mapping values (lists of trait keys only)
+        expected_trait_keys: set[str] = set()
+        for value in q_to_traits.values():
+            expected_trait_keys.update(value)
+        actual_trait_keys = set(self.trait_keys)
+        if expected_trait_keys != actual_trait_keys:
+            missing_in_map = actual_trait_keys - expected_trait_keys
+            extra_in_map = expected_trait_keys - actual_trait_keys
+            warnings.warn(
+                "Question→trait map does not perfectly overlap agent traits. "
+                f"Missing in map: {sorted(missing_in_map)}; Extra in map: {sorted(extra_in_map)}"
+            )
+
+        for agent in self.data:
+            base = dict(agent.traits)  # snapshot static traits before setting dynamic function
+
+            def f(question, base_traits=base, qmap=q_to_traits):
+                keys = qmap[question.question_name]
+                return {k: base_traits[k] for k in keys}
+
+            agent.dynamic_traits_function = f
+
+        return self
+
+
+
+
+    @polly_command
     def add_instructions(self, instructions: str) -> "AgentList":
         """Apply instructions to all agents in the list.
 
@@ -141,7 +214,27 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         for agent in self.data:
             agent.instruction = instructions
         return self
-
+    
+    def __add__(self, other: AgentList) -> AgentList:
+        """Add two AgentLists together."""
+        # have to have the same traits + codebook 
+        if self.trait_keys != other.trait_keys:
+            raise ValueError("AgentLists must have the same traits and codebook")
+        
+        if hasattr(self, 'codebook') and hasattr(other, 'codebook'):
+            if self.codebook != other.codebook:
+                raise ValueError("AgentLists must have the same codebook")
+        
+        return AgentList(self.data + other.data, codebook=self.codebook if hasattr(self, 'codebook') else None)
+    
+    @property
+    def trait_keys(self) -> List[str]:
+        """Get the trait keys for the AgentList."""
+        keys = set()
+        for agent in self.data:
+            keys.update(agent.traits.keys())
+        return list(keys)
+    
     @classmethod
     def manage(cls):
         from ..widgets.agent_list_manager import AgentListManagerWidget
@@ -180,6 +273,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         random.shuffle(self.data)
         return self
 
+    @polly_command
     def sample(self, n: int, seed: Optional[str] = None) -> AgentList:
         """Return a random sample of agents.
 
@@ -526,6 +620,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         return AgentListJoiner.join_multiple(*agent_lists, join_type=join_type)
 
+    @polly_command
     def filter(self, expression: str) -> AgentList:
         """Filter agents based on a boolean expression.
 
@@ -960,6 +1055,18 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         for s1, s2 in list(product(self, other)):
             new_sl.append(s1 + s2)
         return AgentList(new_sl)
+
+    @property
+    def codebook(self) -> dict[str, str]:
+        """Return the codebook for the AgentList."""
+        if self._codebook is None:
+            codebook = self[0].codebook
+            for agent in self:
+                if agent.codebook != codebook:
+                    raise AgentListError("All agents must have the same codebook.")
+            self._codebook = codebook
+        return self._codebook
+
 
     def code(self, string=True) -> Union[str, list[str]]:
         """Return code to construct an AgentList.

@@ -181,7 +181,7 @@ def test_jobs_run(valid_job):
 
     cache = Cache()
 
-    results = valid_job.run(cache=cache, check_api_keys=False)
+    results = valid_job.run(cache=cache, check_api_keys=False, disable_remote_inference = True)
     # breakpoint()
 
     assert len(results) == 1
@@ -214,7 +214,7 @@ def test_normal_run():
     from edsl.caching import Cache
 
     cache = Cache()
-    results = q.by(model).run(cache=cache)
+    results = q.by(model).run(cache=cache, disable_remote_inference = True)
     # breakpoint()
     assert results[0]["answer"]["name"] == "SPAM!"
 

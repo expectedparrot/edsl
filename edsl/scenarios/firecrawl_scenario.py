@@ -178,13 +178,13 @@ class FirecrawlRequest:
 
         Examples:
             Basic scraping:
-                >>> firecrawl = FirecrawlRequest(api_key="your_key")
-                >>> result = firecrawl.scrape("https://example.com")
-                >>> print(result["content"])  # Scraped markdown content
+                >>> firecrawl = FirecrawlRequest(api_key="your_key")  # doctest: +SKIP
+                >>> result = firecrawl.scrape("https://example.com")  # doctest: +SKIP
+                >>> print(result["content"])  # Scraped markdown content  # doctest: +SKIP
 
             Multiple URLs with custom options:
-                >>> urls = ["https://example.com", "https://example.org"]
-                >>> results = firecrawl.scrape(
+                >>> urls = ["https://example.com", "https://example.org"]  # doctest: +SKIP
+                >>> results = firecrawl.scrape(  # doctest: +SKIP
                 ...     urls,
                 ...     max_concurrent=5,
                 ...     limit=2,
@@ -193,7 +193,7 @@ class FirecrawlRequest:
                 ... )
 
             Descriptor pattern (no API key):
-                >>> class MyClass:
+                >>> class MyClass:  # doctest: +SKIP
                 ...     scraper = FirecrawlRequest()  # No exception here
                 >>> # my_instance.scraper.scrape("url")  # Would raise ValueError
         """
@@ -243,15 +243,15 @@ class FirecrawlRequest:
 
         Examples:
             Basic web search:
-                >>> firecrawl = FirecrawlRequest(api_key="your_key")
-                >>> results = firecrawl.search("python web scraping")
-                >>> for result in results:
+                >>> firecrawl = FirecrawlRequest(api_key="your_key")  # doctest: +SKIP
+                >>> results = firecrawl.search("python web scraping")  # doctest: +SKIP
+                >>> for result in results:  # doctest: +SKIP
                 ...     print(f"Title: {result['title']}")
                 ...     print(f"Content: {result['content'][:100]}...")
 
             Multiple queries with options:
-                >>> queries = ["AI research", "machine learning trends"]
-                >>> results = firecrawl.search(
+                >>> queries = ["AI research", "machine learning trends"]  # doctest: +SKIP
+                >>> results = firecrawl.search(  # doctest: +SKIP
                 ...     queries,
                 ...     limit=5,
                 ...     sources=["web", "news"],
@@ -259,7 +259,7 @@ class FirecrawlRequest:
                 ... )
 
             News search with custom formatting:
-                >>> results = firecrawl.search(
+                >>> results = firecrawl.search(  # doctest: +SKIP
                 ...     "climate change news",
                 ...     sources=["news"],
                 ...     formats=["markdown", "html"]
@@ -320,32 +320,32 @@ class FirecrawlRequest:
 
         Examples:
             Schema-based extraction:
-                >>> schema = {
+                >>> schema = {  # doctest: +SKIP
                 ...     "title": "string",
                 ...     "price": "number",
                 ...     "description": "string",
                 ...     "availability": "boolean"
                 ... }
-                >>> firecrawl = FirecrawlRequest(api_key="your_key")
-                >>> result = firecrawl.extract("https://shop.example.com/product", schema=schema)
-                >>> print(result["extracted_data"]["title"])
+                >>> firecrawl = FirecrawlRequest(api_key="your_key")  # doctest: +SKIP
+                >>> result = firecrawl.extract("https://shop.example.com/product", schema=schema)  # doctest: +SKIP
+                >>> print(result["extracted_data"]["title"])  # doctest: +SKIP
 
             Prompt-based extraction:
-                >>> result = firecrawl.extract(
+                >>> result = firecrawl.extract(  # doctest: +SKIP
                 ...     "https://news.example.com/article",
                 ...     prompt="Extract the article headline, author, and publication date"
                 ... )
-                >>> print(result["extracted_data"])
+                >>> print(result["extracted_data"])  # doctest: +SKIP
 
             Multiple URLs with schema:
-                >>> urls = ["https://shop1.com/item1", "https://shop2.com/item2"]
-                >>> results = firecrawl.extract(
+                >>> urls = ["https://shop1.com/item1", "https://shop2.com/item2"]  # doctest: +SKIP
+                >>> results = firecrawl.extract(  # doctest: +SKIP
                 ...     urls,
                 ...     schema={"name": "string", "price": "number"},
                 ...     max_concurrent=3,
                 ...     limit=2
                 ... )
-                >>> for result in results:
+                >>> for result in results:  # doctest: +SKIP
                 ...     data = result["extracted_data"]
                 ...     print(f"{data['name']}: ${data['price']}")
         """
@@ -409,14 +409,14 @@ class FirecrawlRequest:
 
         Examples:
             Basic website crawl:
-                >>> firecrawl = FirecrawlRequest(api_key="your_key")
-                >>> results = firecrawl.crawl("https://example.com")
-                >>> print(f"Crawled {len(results)} pages")
-                >>> for page in results:
+                >>> firecrawl = FirecrawlRequest(api_key="your_key")  # doctest: +SKIP
+                >>> results = firecrawl.crawl("https://example.com")  # doctest: +SKIP
+                >>> print(f"Crawled {len(results)} pages")  # doctest: +SKIP
+                >>> for page in results:  # doctest: +SKIP
                 ...     print(f"Page: {page['url']} - {page['title']}")
 
             Limited crawl with constraints:
-                >>> results = firecrawl.crawl(
+                >>> results = firecrawl.crawl(  # doctest: +SKIP
                 ...     "https://docs.example.com",
                 ...     limit=50,
                 ...     max_depth=3,
@@ -425,13 +425,13 @@ class FirecrawlRequest:
                 ... )
 
             Full content crawl with multiple formats:
-                >>> results = firecrawl.crawl(
+                >>> results = firecrawl.crawl(  # doctest: +SKIP
                 ...     "https://blog.example.com",
                 ...     formats=["markdown", "html"],
                 ...     only_main_content=False,
                 ...     limit=100
                 ... )
-                >>> for post in results:
+                >>> for post in results:  # doctest: +SKIP
                 ...     print(f"Title: {post['title']}")
                 ...     print(f"Content length: {len(post['content'])}")
         """
@@ -478,30 +478,30 @@ class FirecrawlRequest:
 
         Examples:
             Basic URL mapping:
-                >>> firecrawl = FirecrawlRequest(api_key="your_key")
-                >>> urls = firecrawl.map_urls("https://example.com")
-                >>> print(f"Discovered {len(urls)} URLs")
-                >>> for url_info in urls:
+                >>> firecrawl = FirecrawlRequest(api_key="your_key")  # doctest: +SKIP
+                >>> urls = firecrawl.map_urls("https://example.com")  # doctest: +SKIP
+                >>> print(f"Discovered {len(urls)} URLs")  # doctest: +SKIP
+                >>> for url_info in urls:  # doctest: +SKIP
                 ...     print(f"URL: {url_info['discovered_url']}")
                 ...     if 'title' in url_info:
                 ...         print(f"Title: {url_info['title']}")
 
             Website structure analysis:
-                >>> urls = firecrawl.map_urls("https://docs.example.com", limit=100)
+                >>> urls = firecrawl.map_urls("https://docs.example.com", limit=100)  # doctest: +SKIP
                 >>> # Group URLs by path pattern
-                >>> doc_urls = [u for u in urls if '/docs/' in u['discovered_url']]
-                >>> api_urls = [u for u in urls if '/api/' in u['discovered_url']]
-                >>> print(f"Documentation pages: {len(doc_urls)}")
-                >>> print(f"API reference pages: {len(api_urls)}")
+                >>> doc_urls = [u for u in urls if '/docs/' in u['discovered_url']]  # doctest: +SKIP
+                >>> api_urls = [u for u in urls if '/api/' in u['discovered_url']]  # doctest: +SKIP
+                >>> print(f"Documentation pages: {len(doc_urls)}")  # doctest: +SKIP
+                >>> print(f"API reference pages: {len(api_urls)}")  # doctest: +SKIP
 
             Link discovery for targeted crawling:
                 >>> # First map URLs to understand site structure
-                >>> all_urls = firecrawl.map_urls("https://blog.example.com")
+                >>> all_urls = firecrawl.map_urls("https://blog.example.com")  # doctest: +SKIP
                 >>> # Then crawl specific sections
-                >>> blog_posts = [u['discovered_url'] for u in all_urls
+                >>> blog_posts = [u['discovered_url'] for u in all_urls  # doctest: +SKIP
                 ...               if '/posts/' in u['discovered_url']]
                 >>> # Use discovered URLs for targeted scraping
-                >>> content = firecrawl.scrape(blog_posts[:10])
+                >>> content = firecrawl.scrape(blog_posts[:10])  # doctest: +SKIP
         """
         return {
             "method": "map_urls",

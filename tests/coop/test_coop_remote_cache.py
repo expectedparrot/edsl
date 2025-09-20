@@ -129,11 +129,11 @@ class TestRemoteCacheWithJobs(unittest.TestCase):
 
         model = self.sky_model
         survey = Survey(questions=[q_1])
-        survey.by(model).run(cache=Cache(), remote_cache_description="Example survey")
+        survey.by(model).run(cache=Cache(), remote_cache_description="Example survey", disable_remote_inference = True)
 
         model = self.grass_model
         survey = Survey(questions=[q_2])
-        survey.by(model).run(cache=Cache(), remote_cache_description="Example survey")
+        survey.by(model).run(cache=Cache(), remote_cache_description="Example survey", disable_remote_inference = True)
 
         descriptions = get_descriptions(coop)
         assert sorted(descriptions) == [
@@ -187,11 +187,11 @@ class TestRemoteCacheWithJobs(unittest.TestCase):
         )
         model = self.sky_model
         survey = Survey(questions=[q_1])
-        survey.by(model).run(cache=local_cache)
+        survey.by(model).run(cache=local_cache, disable_remote_inference = True)
 
         model = self.grass_model
         survey = Survey(questions=[q_2])
-        survey.by(model).run(cache=local_cache)
+        survey.by(model).run(cache=local_cache, disable_remote_inference = True)
 
         # Local cache should not have synced with remote cache
         remote_cache_keys = [entry.key for entry in coop.remote_cache_get()]
@@ -236,7 +236,7 @@ class TestRemoteCacheWithJobs(unittest.TestCase):
             question_options=["red", "green", "blue"],
         )
         model = self.sky_model
-        q_1.by(model).run(cache=local_cache)
+        q_1.by(model).run(cache=local_cache, disable_remote_inference = True)
 
         # Local cache should have synced with remote cache
         remote_cache_keys = [entry.key for entry in coop.remote_cache_get()]
@@ -251,7 +251,7 @@ class TestRemoteCacheWithJobs(unittest.TestCase):
             question_options=["red", "green", "blue"],
         )
         model = self.grass_model
-        q_2.by(model).run(cache=local_cache)
+        q_2.by(model).run(cache=local_cache, disable_remote_inference = True)
 
         # Local cache should have synced with remote cache
         remote_cache_keys = [entry.key for entry in coop.remote_cache_get()]

@@ -156,13 +156,13 @@ def test_throw_file_note_found_error():
 def test_caching():
 
     m = Model("test")
-    m.remote = False
+    #m.remote = False
     c = Cache()
-    results1 = QuestionFreeText.example().by(m).using(c).run(check_api_keys=False)
+    results1 = QuestionFreeText.example().by(m).run(cache = c, disable_remote_inference = True)
     # assert not results.select(
     #     "raw_model_response.how_are_you_raw_model_response"
     # ).first()
-    results2 = QuestionFreeText.example().by(m).using(c).run(check_api_keys=False)
+    results2 = QuestionFreeText.example().by(m).run(cache = c, disable_remote_inference = True)
     print(results1)
     print("####")
     print(results2)
