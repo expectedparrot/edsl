@@ -1,7 +1,7 @@
 import textwrap
 
 from edsl.app.app import AppInteractiveSurvey
-from edsl.app.output import MarkdownSelectOutput
+from edsl.app.output import MarkdownSelectOutput, MarkdownSelectViewOutput, OutputFormatters
 
 from edsl.questions import (
     QuestionFreeText,
@@ -127,35 +127,38 @@ jobs = s.by(a)
 app = AppInteractiveSurvey(
     initial_survey=initial_survey,
     jobs_object=jobs,
-    output_formatter=MarkdownSelectOutput(
-        [
-            'answer.meal_plan_table',
-            'answer.shopping_list',
-            'answer.recipes',
-        ],
-        to_markdown_kwargs={
-            'include_row_headers': False,
-            'include_column_headers': False,
-        },
-    ),
+    output_formatters=OutputFormatters([
+        MarkdownSelectViewOutput(
+            [
+                'answer.meal_plan_table',
+                'answer.shopping_list',
+                'answer.recipes',
+            ],
+            to_markdown_kwargs={
+                'include_row_headers': False,
+                'include_column_headers': False,
+            },
+        )
+    ]),
 )
 
 if __name__ == "__main__":
-    plan = app.output(
-        answers={
-            "number_of_people": 1,
-            "dietary_preferences_or_restrictions": "None",
-            "days_of_the_week": [
-                "Monday",
-                "Tuesday",
-                "Wednesday",
-                "Thursday",
-                "Friday",
-            ],
-            "time_for_cooking": "Very little - ideally meals are almost no preparation",
-            "any_specific_health_goals": "Build muscle and lose body fat",
-            "other": "I'm fine with very simple meals. Almost zero preparation please.",
-            "food_allergies_or_intolerances": None,
-        },
-        verbose=True,
-    )
+    app.run()
+    # plan = app.output(
+    #     answers={
+    #         "number_of_people": 1,
+    #         "dietary_preferences_or_restrictions": "None",
+    #         "days_of_the_week": [
+    #             "Monday",
+    #             "Tuesday",
+    #             "Wednesday",
+    #             "Thursday",
+    #             "Friday",
+    #         ],
+    #         "time_for_cooking": "Very little - ideally meals are almost no preparation",
+    #         "any_specific_health_goals": "Build muscle and lose body fat",
+    #         "other": "I'm fine with very simple meals. Almost zero preparation please.",
+    #         "food_allergies_or_intolerances": None,
+    #     },
+    #     verbose=True,
+    # )
