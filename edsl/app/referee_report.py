@@ -73,7 +73,7 @@ survey = Survey([q_review, q_response_to_review, q_round_two])
 #survey.show_flow()
 
 from .app import AppPDF
-from .output import ReportFromTemplateOutput
+from .output import ReportFromTemplateOutput, OutputFormatters
 
 report_template = """
 # Review by {{ model }} playing role of '{{ agent_name }}'
@@ -92,6 +92,8 @@ report_template = """
 """
 app = AppPDF(
     jobs_object = survey.by(referees).by(models),
-    output_formatter = ReportFromTemplateOutput(template = report_template, save_as = "referee_report.docx")
+    output_formatters = OutputFormatters([
+        ReportFromTemplateOutput(template = report_template, save_as = "referee_report.docx")
+    ])
 )
 app.output(pdf_path = "optimize.pdf")

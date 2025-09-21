@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict, Optional, Type, Iterator, Union
 from abc import ABC, abstractmethod
 
 
@@ -191,4 +191,182 @@ class MarkdownSelectOutput(OutputABC):
             filename=config.get("filename"),
             to_markdown_kwargs=config.get("to_markdown_kwargs", {}),
         )
+
+
+@register_output
+class MarkdownSelectViewOutput(OutputABC):
+    """Render selected result columns to markdown and open the file via FileStore.view().
+
+    Same configuration as MarkdownSelectOutput, but after writing the markdown file,
+    it invokes `.view()` on the returned FileStore for immediate viewing.
+    """
+
+    def __init__(self, columns, filename: str | None = None, to_markdown_kwargs: dict | None = None):
+        self.columns = list(columns)
+        self.filename = filename
+        self.to_markdown_kwargs = dict(to_markdown_kwargs or {})
+
+    def render(self, results: Any) -> Any:
+        dataset = results.select(*self.columns)
+        filestore = dataset.to_markdown(filename=self.filename, **(self.to_markdown_kwargs or {}))
+        try:
+            filestore.view()
+        except Exception:
+            # Fallback silently if view is unavailable in environment
+            pass
+        return filestore
+
+    def _export_config(self) -> Dict[str, Any]:
+        return {
+            "columns": self.columns,
+            "filename": self.filename,
+            "to_markdown_kwargs": self.to_markdown_kwargs,
+        }
+
+    @classmethod
+    def _from_config(cls, config: Dict[str, Any]) -> "MarkdownSelectViewOutput":
+        return cls(
+            columns=config.get("columns", []),
+            filename=config.get("filename"),
+            to_markdown_kwargs=config.get("to_markdown_kwargs", {}),
+        )
+
+
+class OutputFormatters:
+    """Ordered collection of output formatter objects with a designated default.
+
+    - Behaves like a list for iteration and index-based access
+    - Also supports lookup by formatter "id" via __getitem__(str)
+    - If no explicit default is set, the first formatter is considered the default
+
+    Formatter "id" resolution:
+    - If a formatter has an attribute `id`, that is used
+    - Otherwise the class name is used
+    - If duplicates occur, a numeric suffix (e.g., "-2") is appended to ensure uniqueness
+    """
+
+    def __init__(self, formatters: Optional[list[OutputABC]] = None, default_index: Optional[int] = None):
+        self._formatters: list[OutputABC] = list(formatters or [])
+        self._ids: list[str] = []
+        self._rebuild_ids()
+        if self._formatters:
+            if default_index is None:
+                self.default_index: Optional[int] = 0
+            else:
+                if default_index < 0 or default_index >= len(self._formatters):
+                    raise IndexError("default_index out of range for OutputFormatters")
+                self.default_index = default_index
+        else:
+            self.default_index = None
+
+    # Basic sequence protocol
+    def __iter__(self) -> Iterator[OutputABC]:
+        return iter(self._formatters)
+
+    def __len__(self) -> int:
+        return len(self._formatters)
+
+    def __getitem__(self, key: Union[int, str]) -> OutputABC:
+        if isinstance(key, int):
+            return self._formatters[key]
+        # string -> id lookup
+        idx = self._index_for_id(key)
+        return self._formatters[idx]
+
+    # Public API
+    def add(self, formatter: OutputABC, make_default: bool = False) -> None:
+        self._formatters.append(formatter)
+        self._add_id_for(formatter)
+        if self.default_index is None:
+            self.default_index = 0
+        if make_default:
+            self.default_index = len(self._formatters) - 1
+
+    def remove(self, key: Union[int, str, OutputABC]) -> None:
+        idx = self._coerce_to_index(key)
+        del self._formatters[idx]
+        del self._ids[idx]
+        # Adjust default index
+        if self.default_index is not None:
+            if idx < self.default_index:
+                self.default_index -= 1
+            elif idx == self.default_index:
+                self.default_index = 0 if self._formatters else None
+
+    def set_default(self, key: Union[int, str, OutputABC]) -> None:
+        idx = self._coerce_to_index(key)
+        self.default_index = idx
+
+    def get_default(self) -> OutputABC:
+        if self.default_index is None or not self._formatters:
+            raise ValueError("No output formatters have been configured")
+        return self._formatters[self.default_index]
+
+    def get(self, key: Union[int, str]) -> OutputABC:
+        return self[key]
+
+    def ids(self) -> list[str]:
+        return list(self._ids)
+
+    def labels(self) -> list[str]:
+        labels: list[str] = []
+        for fmt, fid in zip(self._formatters, self._ids):
+            label = getattr(fmt, "label", None)
+            labels.append(label if isinstance(label, str) else fid)
+        return labels
+
+    def validate(self) -> None:
+        if len(set(self._ids)) != len(self._ids):
+            raise ValueError("Duplicate formatter ids detected in OutputFormatters")
+        if self._formatters and (self.default_index is None or not (0 <= self.default_index < len(self._formatters))):
+            raise ValueError("Invalid default index for OutputFormatters")
+
+    def to_dict(self, add_edsl_version: bool = True) -> Dict[str, Any]:
+        return {
+            "formatters": [f.to_dict(add_edsl_version=add_edsl_version) for f in self._formatters],
+            "default_index": self.default_index,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Optional[Dict[str, Any]]) -> Optional["OutputFormatters"]:
+        if data is None:
+            return None
+        items = data.get("formatters", [])
+        default_index = data.get("default_index")
+        formatters: list[OutputABC] = [load_output_from_dict(item) for item in items]
+        return cls(formatters=formatters, default_index=default_index)
+
+    # Internal helpers
+    def _rebuild_ids(self) -> None:
+        self._ids = []
+        for fmt in self._formatters:
+            self._add_id_for(fmt)
+
+    def _add_id_for(self, formatter: OutputABC) -> None:
+        base = getattr(formatter, "id", None)
+        if not isinstance(base, str) or not base:
+            base = formatter.__class__.__name__
+        candidate = base
+        counter = 2
+        while candidate in self._ids:
+            candidate = f"{base}-{counter}"
+            counter += 1
+        self._ids.append(candidate)
+
+    def _index_for_id(self, formatter_id: str) -> int:
+        try:
+            return self._ids.index(formatter_id)
+        except ValueError:
+            raise KeyError(f"Unknown formatter id: {formatter_id}")
+
+    def _coerce_to_index(self, key: Union[int, str, OutputABC]) -> int:
+        if isinstance(key, int):
+            return key
+        if isinstance(key, str):
+            return self._index_for_id(key)
+        # assume object instance
+        for idx, fmt in enumerate(self._formatters):
+            if fmt is key:
+                return idx
+        raise ValueError("Formatter not found in OutputFormatters")
 

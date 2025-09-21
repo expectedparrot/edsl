@@ -79,11 +79,11 @@ job = (
 
 if __name__ == "__main__":
     from .app import AppInteractiveSurvey
-    from .output import PassThroughOutput
+    from .output import PassThroughOutput, OutputFormatters
     app = AppInteractiveSurvey(
         initial_survey = initial_survey,
         jobs_object = job,
-        output_formatter = PassThroughOutput(),
+        output_formatters = OutputFormatters([PassThroughOutput()]),
     )
     new_survey = app.output(answers = {"overall_question": "Why did you stop using EDSL?", "population": "Former EDSL users"}, verbose = True)
     print(new_survey)
