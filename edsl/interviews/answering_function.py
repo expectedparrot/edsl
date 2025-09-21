@@ -11,7 +11,10 @@ if TYPE_CHECKING:
 
 from ..data_transfer_models import EDSLResultObjectInput
 from ..jobs.fetch_invigilator import FetchInvigilator
-from ..language_models.exceptions import LanguageModelNoResponseError
+from ..language_models.exceptions import (
+    LanguageModelNoResponseError,
+    LanguageModelInsufficientCreditsError,
+)
 from ..questions.exceptions import QuestionAnswerValidationError
 from ..surveys.base import EndOfSurvey
 from ..tasks import TaskStatus
@@ -311,13 +314,21 @@ class AnswerQuestionFunctionConstructor:
                     f"after {exception.__class__.__name__ if exception else 'error'}: {str(exception) if exception else 'unknown error'}"
                 )
 
+        def should_retry_exception(exception):
+            """Only retry network/service errors, never balance errors"""
+            # Never retry balance errors - they won't be resolved by retrying
+            if isinstance(exception, LanguageModelInsufficientCreditsError):
+                return False
+            # Only retry actual network/service errors
+            return isinstance(exception, LanguageModelNoResponseError)
+
         @retry(
             stop=stop_after_attempt(RetryConfig.EDSL_MAX_ATTEMPTS),
             wait=wait_exponential(
                 multiplier=RetryConfig.EDSL_BACKOFF_START_SEC,
                 max=RetryConfig.EDSL_BACKOFF_MAX_SEC,
             ),
-            retry=retry_if_exception_type(LanguageModelNoResponseError),
+            retry=should_retry_exception,
             reraise=True,
             # before_sleep=log_retry_attempt, --- IGNORE --- Used for debugging retries
         )

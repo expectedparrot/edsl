@@ -904,7 +904,30 @@ class Jobs(Base):
         if run_job_async:
             # For async execution mode (simplified path without progress bar)
             self._logger.info("Starting async interview execution (no progress bar)")
-            await process_interviews(interview_runner, results)
+            try:
+                await process_interviews(interview_runner, results)
+            except Exception as e:
+                from .exceptions import JobTerminationError
+                from ..language_models.exceptions import (
+                    LanguageModelInsufficientCreditsError,
+                )
+
+                if isinstance(e, JobTerminationError):
+                    self._logger.error(f"Job terminated: {e}")
+                    if isinstance(e.cause, LanguageModelInsufficientCreditsError):
+                        # Handle insufficient credits termination
+                        print(f"❌ Job terminated due to insufficient credits")
+                        print(
+                            f"💰 Current balance: {getattr(e.cause, 'current_balance', 'Unknown')}"
+                        )
+                        print(
+                            f"📊 Completed: {len(results)} interviews before termination"
+                        )
+                        print(
+                            f"🔗 Add credits at: https://www.expectedparrot.com/account"
+                        )
+                    return results  # Return partial results
+                raise  # Re-raise other exceptions
         else:
             # For synchronous execution mode (with progress bar)
             self._logger.info("Starting sync interview execution with progress bar")
@@ -918,6 +941,27 @@ class Jobs(Base):
                         survey=self.survey, data=[], task_history=TaskHistory()
                     )
                 except Exception as e:
+                    from .exceptions import JobTerminationError
+                    from ..language_models.exceptions import (
+                        LanguageModelInsufficientCreditsError,
+                    )
+
+                    if isinstance(e, JobTerminationError):
+                        self._logger.error(f"Job terminated: {e}")
+                        if isinstance(e.cause, LanguageModelInsufficientCreditsError):
+                            # Handle insufficient credits termination
+                            print(f"❌ Job terminated due to insufficient credits")
+                            print(
+                                f"💰 Current balance: {getattr(e.cause, 'current_balance', 'Unknown')}"
+                            )
+                            print(
+                                f"📊 Completed: {len(results)} interviews before termination"
+                            )
+                            print(
+                                f"🔗 Add credits at: https://www.expectedparrot.com/account"
+                            )
+                        return results  # Return partial results
+
                     self._logger.error(
                         f"Exception during interview execution: {str(e)}"
                     )

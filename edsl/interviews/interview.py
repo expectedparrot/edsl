@@ -494,9 +494,27 @@ class Interview:
         # Execute all question-answering tasks
         tasks_start = time.time()
         self._logger.info(f"Starting execution of {len(self.tasks)} question tasks")
-        await asyncio.gather(
-            *self.tasks, return_exceptions=not run_config.parameters.stop_on_exception
-        )
+        try:
+            await asyncio.gather(
+                *self.tasks,
+                return_exceptions=not run_config.parameters.stop_on_exception,
+            )
+        except Exception as e:
+            # Check for balance errors which should not be caught here
+            from ..language_models.exceptions import (
+                LanguageModelInsufficientCreditsError,
+            )
+
+            if isinstance(e, LanguageModelInsufficientCreditsError):
+                # Balance errors should not be caught - let them propagate to stop job
+                self._logger.error(f"Balance error in interview: {e}")
+                raise
+            # Handle other exceptions normally
+            if run_config.parameters.stop_on_exception:
+                raise
+            # For other exceptions, continue with result processing
+            self._logger.warning(f"Exception during task execution: {e}")
+
         self._logger.info(
             f"All question tasks completed in {time.time() - tasks_start:.3f}s"
         )

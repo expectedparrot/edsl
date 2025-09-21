@@ -157,7 +157,7 @@ class AsyncInterviewRunner:
     async def _run_single_interview(
         self, interview: "Interview", idx: int
     ) -> Optional[Tuple["Result", "Interview", int]]:
-        """Execute a single interview with error handling."""
+        """Execute a single interview with enhanced balance error handling."""
         try:
             await interview.async_conduct_interview(self.run_config)
             # Create result and explicitly break reference to interview
@@ -170,7 +170,20 @@ class AsyncInterviewRunner:
             )
             # Return tuple that keeps the interview reference
             return (result, interview, idx)
-        except Exception:
+        except Exception as e:
+            # Check for balance error which should stop the entire job
+            from ...language_models.exceptions import (
+                LanguageModelInsufficientCreditsError,
+            )
+            from ..exceptions import JobTerminationError
+
+            if isinstance(e, LanguageModelInsufficientCreditsError):
+                # Balance error should stop entire job
+                self._logger.error(f"Insufficient credits detected: {e}")
+                raise JobTerminationError(
+                    "Job terminated due to insufficient credits", e
+                )
+
             if self.run_config.parameters.stop_on_exception:
                 raise
             # Could log the error here if needed
