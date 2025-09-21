@@ -23,6 +23,9 @@ _logger = logging.getLogger("remote_proxy_handler")
 # Global request counter
 _request_counter = 0
 
+# Global balance error flag to prevent multiple requests after balance failure
+_balance_error_detected = False
+
 try:
     import httpx
     import aiohttp
@@ -434,8 +437,19 @@ class RemoteProxyHandler:
         Returns:
             The model response from the proxy
         """
-        global _request_counter
+        global _request_counter, _balance_error_detected
         _request_counter += 1
+
+        # Check if balance error was already detected - prevent additional requests
+        if _balance_error_detected:
+            from ...language_models.exceptions import (
+                LanguageModelInsufficientCreditsError,
+            )
+
+            raise LanguageModelInsufficientCreditsError(
+                "Insufficient credits: Previous request already detected balance error",
+                current_balance="Unknown",
+            )
 
         # Import at method level to avoid circular imports
         from ...language_models.exceptions import LanguageModelInsufficientCreditsError
@@ -456,6 +470,9 @@ class RemoteProxyHandler:
                         error_detail = await response.text()
                         current_balance = self._extract_balance_from_error(error_detail)
 
+                        # Set global flag to prevent additional requests
+                        _balance_error_detected = True
+
                         raise LanguageModelInsufficientCreditsError(
                             f"Insufficient credits: {error_detail}",
                             current_balance=current_balance,
@@ -468,6 +485,10 @@ class RemoteProxyHandler:
                             current_balance = self._extract_balance_from_error(
                                 error_detail
                             )
+
+                            # Set global flag to prevent additional requests
+                            _balance_error_detected = True
+
                             raise LanguageModelInsufficientCreditsError(
                                 f"Insufficient credits (HTTP 500): {error_detail}",
                                 current_balance=current_balance,
@@ -569,3 +590,59 @@ class RemoteProxyHandler:
         ]
 
         return any(keyword in check_text_lower for keyword in balance_keywords)
+
+
+def reset_balance_error_flag():
+    """Reset the global balance error flag for new job runs."""
+    global _balance_error_detected
+    _balance_error_detected = False
+
+
+async def check_user_balance(proxy_url: str, auth_headers: dict) -> dict:
+    """Check user's current balance from the backend.
+
+    Args:
+        proxy_url: The proxy URL
+        auth_headers: Authentication headers
+
+    Returns:
+        Dict with balance info: {"has_balance": bool, "current_balance": float, "balance_string": str}
+    """
+    try:
+        timeout = aiohttp.ClientTimeout(total=10.0)  # Short timeout for balance check
+
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(
+                f"{proxy_url}/balance",  # Assuming balance endpoint exists
+                headers=auth_headers,
+            ) as response:
+                if response.status == 200:
+                    balance_data = await response.json()
+                    current_balance = balance_data.get("balance", 0)
+                    return {
+                        "has_balance": current_balance > 0,
+                        "current_balance": current_balance,
+                        "balance_string": f"{current_balance} minicredits",
+                    }
+                elif response.status == 402:
+                    # Balance is negative or zero
+                    error_detail = await response.text()
+                    return {
+                        "has_balance": False,
+                        "current_balance": 0,
+                        "balance_string": "0 minicredits",
+                    }
+                else:
+                    # Other error - assume balance check failed, allow job to proceed
+                    return {
+                        "has_balance": True,  # Assume OK if we can't check
+                        "current_balance": float("inf"),
+                        "balance_string": "Unknown (balance check failed)",
+                    }
+    except Exception:
+        # Network error or other issue - assume OK if we can't check
+        return {
+            "has_balance": True,  # Assume OK if we can't check
+            "current_balance": float("inf"),
+            "balance_string": "Unknown (balance check failed)",
+        }
