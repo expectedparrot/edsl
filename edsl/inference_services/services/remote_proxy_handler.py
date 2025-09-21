@@ -437,6 +437,9 @@ class RemoteProxyHandler:
         global _request_counter
         _request_counter += 1
 
+        # Import at method level to avoid circular imports
+        from ...language_models.exceptions import LanguageModelInsufficientCreditsError
+
         timeout = aiohttp.ClientTimeout(
             total=float(os.getenv("REMOTE_PROXY_TIMEOUT", "120"))
         )
@@ -448,6 +451,28 @@ class RemoteProxyHandler:
                     json=request_payload,
                     headers=self.auth_headers,
                 ) as response:
+                    # Check for insufficient credits error (HTTP 402 or 500 with balance keywords)
+                    if response.status == 402:
+                        error_detail = await response.text()
+                        current_balance = self._extract_balance_from_error(error_detail)
+
+                        raise LanguageModelInsufficientCreditsError(
+                            f"Insufficient credits: {error_detail}",
+                            current_balance=current_balance,
+                        )
+
+                    # Also check for HTTP 500 errors that might be balance-related
+                    if response.status == 500:
+                        error_detail = await response.text()
+                        if self._is_balance_related_error(error_detail):
+                            current_balance = self._extract_balance_from_error(
+                                error_detail
+                            )
+                            raise LanguageModelInsufficientCreditsError(
+                                f"Insufficient credits (HTTP 500): {error_detail}",
+                                current_balance=current_balance,
+                            )
+
                     response.raise_for_status()
                     result = await response.json()
 
@@ -456,7 +481,91 @@ class RemoteProxyHandler:
                         return result["response"]
                     else:
                         return result
+        except LanguageModelInsufficientCreditsError:
+            # Re-raise balance errors as-is - they should stop the job
+            raise
         except aiohttp.ClientError as e:
+            # Handle other HTTP errors normally
             raise
         except Exception as e:
             raise
+
+    def _extract_balance_from_error(self, error_text: str) -> Optional[str]:
+        """Extract current balance from backend error message.
+
+        Args:
+            error_text: Error message from backend containing balance info
+
+        Returns:
+            Current balance string if found, None otherwise
+        """
+        import re
+        import json
+
+        # First try to parse as JSON and extract from detail field
+        try:
+            error_data = json.loads(error_text)
+            if "detail" in error_data:
+                detail_text = error_data["detail"]
+            else:
+                detail_text = error_text
+        except (json.JSONDecodeError, TypeError):
+            detail_text = error_text
+
+        # Try to extract balance from common error message patterns
+        # Pattern: "Current balance: X minicredits"
+        balance_match = re.search(r"Current balance:\s*([0-9.,-]+\s*\w+)", detail_text)
+        if balance_match:
+            return balance_match.group(1)
+
+        # Pattern: "balance: X"
+        balance_match = re.search(r"balance:\s*([0-9.,-]+)", detail_text)
+        if balance_match:
+            return balance_match.group(1)
+
+        return None
+
+    def _is_balance_related_error(self, error_text: str) -> bool:
+        """Check if error text indicates a balance/credits issue.
+
+        Args:
+            error_text: Error message from backend
+
+        Returns:
+            True if error appears to be balance-related, False otherwise
+        """
+        if not error_text:
+            return False
+
+        import json
+
+        # First try to parse as JSON and extract from detail field
+        try:
+            error_data = json.loads(error_text)
+            if "detail" in error_data:
+                check_text = error_data["detail"]
+            else:
+                check_text = error_text
+        except (json.JSONDecodeError, TypeError):
+            check_text = error_text
+
+        check_text_lower = check_text.lower()
+
+        # Common balance/credit related keywords
+        balance_keywords = [
+            "insufficient credits",
+            "insufficient funds",
+            "balance",
+            "credit",
+            "payment required",
+            "payment",
+            "billing",
+            "account balance",
+            "minicredits",
+            "credits",
+            "balance too low",
+            "not enough credits",
+            "insufficient balance",
+        ]
+
+        return any(keyword in check_text_lower for keyword in balance_keywords)
