@@ -65,6 +65,135 @@ class SurveyWidget(EDSLBaseWidget):
     progress = traitlets.Dict().tag(sync=True)  # {"current": 1, "total": 5} or similar
     error_message = traitlets.Unicode(default_value="").tag(sync=True)
 
+    # Inline assets to avoid external Coop dependency for this widget
+    _css = """
+    .survey-widget { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; line-height: 1.35; }
+    .survey-widget .survey-progress { color: #666; font-size: 12px; margin-bottom: 8px; }
+    .survey-widget .survey-content { padding: 8px 0; }
+    .survey-widget .survey-controls { margin-top: 12px; display: flex; gap: 8px; }
+    .survey-widget .survey-controls button { appearance: none; border: 1px solid #bbb; background: #f8f8f8; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+    .survey-widget .survey-controls button:hover { background: #f0f0f0; }
+    .survey-widget .survey-controls button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .survey-widget .survey-error { color: #b00020; font-size: 12px; min-height: 16px; margin-top: 6px; }
+    .survey-widget .survey-complete { padding: 12px; border: 1px solid #c6f6d5; background: #f0fff4; border-radius: 6px; }
+    """
+
+    _esm = """
+    export default {
+      render(args) {
+        try {
+          const model = args && args.model;
+          const el = args && args.el;
+          if (!model || !el) { return; }
+
+          const root = document.createElement('div');
+          root.className = 'survey-widget';
+          const progress = document.createElement('div');
+          progress.className = 'survey-progress';
+          const content = document.createElement('div');
+          content.className = 'survey-content';
+          const error = document.createElement('div');
+          error.className = 'survey-error';
+          const controls = document.createElement('div');
+          controls.className = 'survey-controls';
+          const submitBtn = document.createElement('button');
+          submitBtn.textContent = 'Submit';
+          const restartBtn = document.createElement('button');
+          restartBtn.textContent = 'Restart';
+          controls.appendChild(submitBtn);
+          controls.appendChild(restartBtn);
+          root.appendChild(progress);
+          root.appendChild(content);
+          root.appendChild(error);
+          root.appendChild(controls);
+          el.replaceChildren(root);
+
+          function render() {
+            const html = model.get('current_question_html') || '';
+            const qname = model.get('current_question_name') || '';
+            const isComplete = !!model.get('is_complete');
+            const prog = model.get('progress') || {};
+            error.textContent = '';
+            if (prog && typeof prog.current !== 'undefined' && typeof prog.total !== 'undefined') {
+              progress.textContent = `Question ${prog.current} of ${prog.total}`;
+            } else {
+              progress.textContent = '';
+            }
+
+            if (isComplete) {
+              content.innerHTML = html || '<div class=\"survey-complete\"><h3>Survey Complete!</h3><p>Thank you for your responses.</p></div>';
+              submitBtn.disabled = true;
+              return;
+            }
+
+            content.innerHTML = html || '';
+            submitBtn.disabled = !qname;
+          }
+
+          function extractAnswer() {
+            const qname = model.get('current_question_name') || '';
+            if (!qname) return null;
+            const radios = content.querySelectorAll(`input[type=\"radio\"][name=\"${qname}\"]`);
+            if (radios && radios.length) {
+              const selected = Array.from(radios).find(r => r.checked);
+              return selected ? selected.value : null;
+            }
+            const checks = content.querySelectorAll(`input[type=\"checkbox\"][name=\"${qname}\"]`);
+            if (checks && checks.length) {
+              const values = Array.from(checks).filter(c => c.checked).map(c => c.value);
+              return values;
+            }
+            const textarea = content.querySelector(`textarea#${qname}, textarea[name=\"${qname}\"]`);
+            if (textarea) return textarea.value;
+            const input = content.querySelector(`input#${qname}, input[name=\"${qname}\"]`);
+            if (input) {
+              if (input.type === 'number') return input.value === '' ? null : Number(input.value);
+              return input.value;
+            }
+            const select = content.querySelector(`select#${qname}, select[name=\"${qname}\"]`);
+            if (select) return select.value;
+            return null;
+          }
+
+          submitBtn.addEventListener('click', () => {
+            const qname = model.get('current_question_name') || '';
+            const val = extractAnswer();
+            if (val === null || (Array.isArray(val) && val.length === 0)) {
+              error.textContent = 'Please provide an answer.';
+              return;
+            }
+            model.send({ type: 'submit_answer', question_name: qname, answer: val });
+          });
+
+          restartBtn.addEventListener('click', () => {
+            model.send({ type: 'restart_survey' });
+          });
+
+          model.on('change:current_question_html', render);
+          model.on('change:current_question_name', render);
+          model.on('change:is_complete', render);
+          model.on('change:progress', render);
+        model.on('change:error_message', () => {
+          const msg = model.get('error_message') || '';
+          error.textContent = msg;
+        });
+          render();
+
+        // Allow Enter key in text inputs to submit
+        content.addEventListener('keydown', (ev) => {
+          const target = ev.target;
+          if (ev.key === 'Enter' && target && (target.tagName === 'INPUT')) {
+            ev.preventDefault();
+            submitBtn.click();
+          }
+        });
+        } catch (e) {
+          console.error('[survey_widget] render error:', e);
+        }
+      }
+    }
+    """
+
     def __init__(self, survey=None, initial_answers=None, **kwargs):
         """Initialize the Survey Widget.
 
@@ -217,7 +346,7 @@ class SurveyWidget(EDSLBaseWidget):
                     processed_answers.add(current_question_name)
                     
                     # Send the answer to the generator to get the next question
-                    next_question = self._generator.send({current_question_name: answer_value})
+                    next_question = self._generator.send({f"{current_question_name}.answer": answer_value})
                     self._current_question = next_question
                     self._questions_seen += 1
                     
@@ -263,7 +392,7 @@ class SurveyWidget(EDSLBaseWidget):
             self.answers = {**self.answers, question_name: answer_value}
             
             # Send the answer to the generator and get the next question
-            next_question = self._generator.send({question_name: answer_value})
+            next_question = self._generator.send({f"{question_name}.answer": answer_value})
             
             # Update the current question
             self._current_question = next_question

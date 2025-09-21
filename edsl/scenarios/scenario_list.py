@@ -1417,14 +1417,23 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         from ..questions import QuestionBase
         from ..surveys import Survey
 
+
         s = Survey()
-        for scenario in self:
+        for index, scenario in enumerate(self):
             d = scenario.to_dict(add_edsl_version=False)
             if d["question_type"] == "free_text":
                 if "question_options" in d:
                     _ = d.pop("question_options")
-            question = QuestionBase.from_dict(d)
+            if 'question_name' not in d or d['question_name'] == None:
+                d['question_name'] = f"question_{index}"
+
+            if d['question_type'] == None:
+                d['question_type'] = "free_text"
+                d['question_options'] = None
+            new_d = d
+            question = QuestionBase.from_dict(new_d)
             s.add_question(question)
+
         return s
 
     def to_dataset(self) -> "Dataset":

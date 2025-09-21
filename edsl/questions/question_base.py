@@ -569,7 +569,12 @@ class QuestionBase(
             question_class = get_question_class(question_type)
         except ValueError:
             raise QuestionSerializationError(
-                f"No question registered with question_type {question_type}"
+                f"No question registered with question_type {question_type}", 
+                "The passed in dictionary was: " + str(data)
+            )
+        except Exception as e:
+            raise QuestionSerializationError(
+                f"Error in deserialization: {str(e)}. The passed in dictionary was: {data}"
             )
 
         if "model_instructions" in local_data:
@@ -893,7 +898,7 @@ class QuestionBase(
         from ..language_models import Model
 
         q = cls.example()
-        m = Model("test", canned_response=cls._simulate_answer(q)["answer"])
+        m = Model("test", canned_response=q._simulate_answer()["answer"])
 
         return m
 

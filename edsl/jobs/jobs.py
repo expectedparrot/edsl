@@ -349,6 +349,22 @@ class Jobs(Base):
         self._where_clauses.append(expression)
         return self
 
+    def add_scenario_head(self, scenario: "Scenario") -> Jobs:
+        """Add a scenario to the job.
+        
+        Args:
+        ----
+            scenario: The scenario to add to the job.
+        """
+        # Find the head of the job
+        current_job = self
+        while current_job._depends_on is not None:
+            current_job = current_job._depends_on
+        
+        from ..scenarios import ScenarioList
+        current_job.scenarios = ScenarioList([scenario])
+        return self
+
     @property
     def scenarios(self) -> ScenarioList:
         """Get the scenarios associated with this job.
@@ -574,13 +590,51 @@ class Jobs(Base):
             ).show_flow(filename=filename)
 
     def push(self, *args, **kwargs) -> None:
-        """Push the job to the remote server.
+        """
+        Push the job to the remote server, in pieces. 
         """
         from ..agents import AgentList 
         from ..scenarios import ScenarioList
+        from ..language_models import ModelList
         survey_info = self.survey.push()
         agent_info = AgentList(self.agents).push()
         scenario_info = ScenarioList(self.scenarios).push()
+        models_info = ModelList(self.models).push()
+
+        from ..scenarios import Scenario
+        jobs_scenario = Scenario({
+            'survey': survey_info.to_dict(),
+            'agents': agent_info.to_dict(),
+            'scenarios': scenario_info.to_dict(),
+            'models_info': models_info.to_dict(),
+            '_depends_on': self._depends_on.to_dict(add_edsl_version=False) if self._depends_on is not None else None,
+            '_post_run_methods': self._post_run_methods if self._post_run_methods is not None else None
+        })
+        info = jobs_scenario.push()
+        return info
+
+    @classmethod
+    def pull(cls, edsl_uuid: str) -> 'Jobs':
+        """Pull the job from the remote server."""
+        from ..scenarios import Scenario
+        from ..surveys import Survey
+        from ..agents import AgentList
+        from ..language_models import ModelList
+        from ..scenarios import ScenarioList
+
+        jobs_scenario = Scenario.pull(edsl_uuid)
+        # extract the components 
+        survey_info = jobs_scenario.to_dict()['survey']
+        agent_info = jobs_scenario.to_dict()['agents']
+        scenario_info = jobs_scenario.to_dict()['scenarios']
+        models_info = jobs_scenario.to_dict()['models_info']
+        depends_on = jobs_scenario.to_dict()['_depends_on']
+        post_run_methods = jobs_scenario.to_dict()['_post_run_methods']
+
+        jobs = cls(survey = Survey.pull(survey_info['uuid']), agents = AgentList.pull(agent_info['uuid']), scenarios = ScenarioList.pull(scenario_info['uuid']), models = ModelList.pull(models_info['uuid']))
+        jobs._depends_on = depends_on
+        jobs._post_run_methods = post_run_methods
+        return jobs
 
         # This are methods for chaining jobs together
 
@@ -594,7 +648,7 @@ class Jobs(Base):
         #         add_edsl_version=add_edsl_version
         #     )
 
-        return {'survey': survey_info, 'agents': agent_info, 'scenarios': scenario_info}
+        #return {'survey': survey_info, 'agents': agent_info, 'scenarios': scenario_info, 'models_info': models_info}
         
         # [agent.push() for agent in self.agents]
 
@@ -1136,6 +1190,7 @@ class Jobs(Base):
             "rename",
             "to_scenario_list",
             "to_agent_list",
+            "to_survey",
             "concatenate",
             "collapse",
             "expand",

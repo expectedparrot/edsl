@@ -3316,6 +3316,7 @@ class Coop(CoopFunctionsMixin):
         """
         obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
 
+
         # Handle alias-based retrieval with new/old format detection
         if not obj_uuid and owner_username and alias:
             # First, get object info to determine format and UUID

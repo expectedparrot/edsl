@@ -127,6 +127,7 @@ from .question_linear_scale import QuestionLinearScale
 from .question_yes_no import QuestionYesNo
 from .question_top_k import QuestionTopK
 from .question_multiple_choice_with_other import QuestionMultipleChoiceWithOther
+from .question_file_upload import QuestionFileUpload
 
 from .exceptions import QuestionScenarioRenderError
 
@@ -171,6 +172,7 @@ __all__ = [
     "QuestionLikertFive",
     "QuestionYesNo",
     "QuestionMultipleChoiceWithOther",
+    "QuestionFileUpload",
     "QuestionMultipleChoiceWithOther",
     # Validation utilities
     "log_validation_failure",
