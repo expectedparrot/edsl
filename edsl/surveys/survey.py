@@ -1951,7 +1951,10 @@ class Survey(Base):
         """Return a string representation of the survey."""
 
         # questions_string = ", ".join([repr(q) for q in self._questions])
-        questions_string = ", ".join([repr(q) for q in self.raw_passed_questions or []])
+        if self.raw_passed_questions is None:
+            questions_string = ", ".join([repr(q) for q in self.questions])
+        else:
+            questions_string = ", ".join([repr(q) for q in self.raw_passed_questions or []])
         # question_names_string = ", ".join([repr(name) for name in self.question_names])
         return f"Survey(questions=[{questions_string}], memory_plan={self.memory_plan}, rule_collection={self.rule_collection}, question_groups={self.question_groups}, questions_to_randomize={self.questions_to_randomize})"
 
