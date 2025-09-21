@@ -146,6 +146,9 @@ class Coop(CoopFunctionsMixin):
 
     _logger = get_logger(__name__)
 
+    # Class-level error cache shared across all instances
+    _class_error_cache = {}  # {error_signature: last_reported_time}
+
     def __init__(
         self, api_key: Optional[str] = None, url: Optional[str] = None
     ) -> None:
@@ -4034,6 +4037,9 @@ class Coop(CoopFunctionsMixin):
         EDSL operations. It sends error reports to the server for monitoring and
         debugging purposes, while also printing to stderr for immediate feedback.
 
+        Duplicate errors (same error type and message) are not reported if they
+        occurred within the past minute to prevent spam.
+
         Parameters:
             error (Exception): The exception to report
 
@@ -4047,6 +4053,7 @@ class Coop(CoopFunctionsMixin):
         import sys
         import traceback
         import httpx
+        import hashlib
         from datetime import datetime
 
         # Prepare error data for remote logging
@@ -4054,6 +4061,28 @@ class Coop(CoopFunctionsMixin):
             import time
 
             start_time = time.time()
+            current_time = time.time()
+
+            # Create a signature for this error to detect duplicates
+            error_signature = hashlib.md5(
+                f"{type(error).__name__}:{str(error)}".encode()
+            ).hexdigest()
+            # Check if we've reported this same error recently (within 1 minute)
+            if error_signature in Coop._class_error_cache:
+                last_reported = Coop._class_error_cache[error_signature]
+                if current_time - last_reported < 60:  # 60 seconds = 1 minute
+                    # Skip reporting this duplicate error
+                    return
+
+            # Clean up old entries from cache (older than 1 minute)
+            Coop._class_error_cache = {
+                sig: timestamp
+                for sig, timestamp in Coop._class_error_cache.items()
+                if current_time - timestamp < 60
+            }
+
+            # Mark this error as reported BEFORE attempting to send to prevent duplicates
+            Coop._class_error_cache[error_signature] = current_time
 
             error_data = {
                 "error_type": type(error).__name__,

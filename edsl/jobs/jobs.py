@@ -924,7 +924,7 @@ class Jobs(Base):
                             f"📊 Completed: {len(results)} interviews before termination"
                         )
                         print(
-                            f"🔗 Add credits at: https://www.expectedparrot.com/account"
+                            f"🔗 Add credits at: https://www.expectedparrot.com/home/credits"
                         )
                     return results  # Return partial results
                 raise  # Re-raise other exceptions
@@ -958,7 +958,7 @@ class Jobs(Base):
                                 f"📊 Completed: {len(results)} interviews before termination"
                             )
                             print(
-                                f"🔗 Add credits at: https://www.expectedparrot.com/account"
+                                f"🔗 Add credits at: https://www.expectedparrot.com/home/credits"
                             )
                         return results  # Return partial results
 
@@ -1027,6 +1027,13 @@ class Jobs(Base):
 
         start_time = time.time()
 
+        # Reset balance error flag for new job
+        from ..inference_services.services.remote_proxy_handler import (
+            reset_balance_error_flag,
+        )
+
+        reset_balance_error_flag()
+
         self._logger.info("Starting job configuration transfer")
         # Apply configuration from input config to self.run_config
         for attr_name in [
@@ -1064,6 +1071,22 @@ class Jobs(Base):
             self._logger.info(
                 f"Remote key check completed in {time.time() - key_check_start:.3f}s"
             )
+
+            # Pre-flight balance check with cost estimation
+            print("💰 Performing pre-flight balance and cost check...")
+            balance_check_start = time.time()
+            self._logger.info("Performing pre-flight balance check")
+            insufficient_balance_reason = self._check_balance_before_execution()
+            if insufficient_balance_reason:
+                self._logger.info(
+                    f"Pre-flight balance check failed: {insufficient_balance_reason}"
+                )
+                return None, insufficient_balance_reason
+            self._logger.info(
+                f"Pre-flight balance check completed in {time.time() - balance_check_start:.3f}s"
+            )
+            print("✅ Balance and cost check passed")
+            print()
 
             # Configure remote proxy and fresh parameter for all models when remote inference is enabled
             proxy_config_start = time.time()
@@ -1174,6 +1197,99 @@ class Jobs(Base):
         )
 
         return None, reason
+
+    def _check_balance_before_execution(self) -> Optional[str]:
+        """Check if user has sufficient balance to run the job.
+
+        Returns:
+            None if balance is sufficient, error message string if insufficient
+        """
+        try:
+            # Only check balance for remote proxy jobs
+            if not any(getattr(model, "remote_proxy", False) for model in self.models):
+                return None
+
+            # Estimate job cost
+            self._logger.info("Estimating job cost...")
+            try:
+                cost_estimate = self.estimate_job_cost(
+                    iterations=self.run_config.parameters.n
+                )
+                estimated_cost_usd = cost_estimate.get("estimated_total_cost_usd", 0)
+
+                # Get the proper minicredits from the cost estimate
+                estimated_cost_minicredits = cost_estimate.get("total_credits_hold", 0)
+
+                self._logger.info(
+                    f"Estimated job cost: ${estimated_cost_usd:.6f} USD ({estimated_cost_minicredits:.2f} minicredits)"
+                )
+            except Exception as e:
+                print(f"   ⚠️  Could not estimate job cost: {e}")
+                self._logger.warning(
+                    f"Could not estimate job cost: {e}. Proceeding without balance check."
+                )
+                return None
+
+            # Check user balance via Coop
+            self._logger.info("Checking user balance...")
+            try:
+                import time
+                from ..coop import Coop
+
+                balance_check_start = time.time()
+                coop = Coop()
+                balance_data = coop.get_balance()
+                balance_check_time = time.time() - balance_check_start
+
+                # Extract balance from Coop response
+                current_balance = balance_data.get("minicredits", 0)
+                balance_string = f"{current_balance} minicredits"
+
+                # Convert minicredits to dollars for display (1000 minicredits = 1 credit = 1 cent, so 100,000 minicredits = $1 USD)
+                balance_dollars = current_balance / 100000
+
+                print(
+                    f"   💰 Current balance: {balance_string} (${balance_dollars:.3f} USD) - fetched in {balance_check_time:.3f}s"
+                )
+                self._logger.info(
+                    f"Current user balance: {balance_string} (${balance_dollars:.3f} USD) - fetched in {balance_check_time:.3f}s"
+                )
+
+                # Compare estimated cost with balance
+                if current_balance <= 0:
+                    print(f"   ❌ Insufficient balance!")
+                    return f"insufficient funds: Current balance is {balance_string} (${balance_dollars:.3f} USD). Please add credits to your account."
+
+                if estimated_cost_minicredits > current_balance:
+                    estimated_cost_dollars = estimated_cost_minicredits / 100000
+                    print(
+                        f"   ❌ Insufficient balance! Need {estimated_cost_minicredits:.0f} minicredits (${estimated_cost_dollars:.3f} USD), have {current_balance} minicredits (${balance_dollars:.3f} USD)"
+                    )
+                    return (
+                        f"insufficient funds: Estimated job cost ({estimated_cost_minicredits:.0f} minicredits / ${estimated_cost_dollars:.3f} USD) "
+                        f"exceeds current balance ({balance_string} / ${balance_dollars:.3f} USD). Please add credits to your account."
+                    )
+
+                print(
+                    f"   ✅ Balance sufficient: {current_balance} minicredits (${balance_dollars:.3f} USD) >= {estimated_cost_minicredits:.0f} minicredits needed"
+                )
+                self._logger.info(
+                    f"Balance check passed: {balance_string} >= {estimated_cost_minicredits:.2f} minicredits needed"
+                )
+                return None
+
+            except Exception as e:
+                print(f"   ⚠️  Could not check balance: {e}")
+                self._logger.warning(
+                    f"Could not check user balance: {e}. Proceeding without balance check."
+                )
+                return None
+
+        except Exception as e:
+            self._logger.error(
+                f"Error during balance check: {e}. Proceeding without balance check."
+            )
+            return None
 
     def then(self, method_name, *args, **kwargs) -> "Jobs":
         """Schedule a method to be called on the results object after the job runs.
@@ -1375,6 +1491,7 @@ class Jobs(Base):
             ...
 
         """
+
         self._logger.info("Starting job execution")
         self._logger.info(
             f"Job configuration: {self.num_interviews} total interviews, "
@@ -1383,10 +1500,13 @@ class Jobs(Base):
         )
 
         if self._depends_on is not None:
+            print("🔗 Resolving job dependencies...")
             self._logger.info("Checking job dependencies")
             prior_results = self._depends_on.run(config=config)
             self = self.by(prior_results)
             self._logger.info("Job dependencies resolved successfully")
+            print("✅ Job dependencies resolved")
+            print()
 
         self._logger.info("Starting pre-run setup and configuration")
         potentially_completed_results, reason = self._run(config)
@@ -1397,15 +1517,39 @@ class Jobs(Base):
             )
             return self._apply_post_run_methods(potentially_completed_results)
 
-        if reason == "insufficient funds":
-            self._logger.info("Job cancelled due to insufficient funds")
+        if reason and "insufficient funds" in reason:
+            self._logger.info(f"Job cancelled due to insufficient funds: {reason}")
+            print(f"❌ Job cancelled before execution")
+            print(f"💰 {reason}")
+            print(f"🔗 Add credits at: https://www.expectedparrot.com/home/credits")
             return None
+
+        print("🎬 Starting job execution...")
+        print(
+            f"📈 Executing {self.num_interviews} interviews with {len(self.survey.questions)} questions each"
+        )
+        if config.parameters.n > 1:
+            print(f"🔄 Running {config.parameters.n} iterations per interview")
+        print()
 
         self._logger.info("Starting local execution with remote cache")
         results = asyncio.run(self._execute_with_remote_cache(run_job_async=False))
 
         self._logger.info("Applying post-run methods to results")
         final_results = self._apply_post_run_methods(results)
+
+        print()
+        print("🎉 Job execution completed!")
+        if final_results:
+            print(f"📊 Results: {len(final_results)} completed interviews")
+            if hasattr(final_results, "compute_job_cost"):
+                try:
+                    actual_cost = final_results.compute_job_cost()
+                    print(f"💵 Actual cost: ${actual_cost:.6f} USD")
+                except:
+                    pass
+        else:
+            print("📊 Results: No completed interviews")
 
         self._logger.info(
             f"Job execution completed successfully with {len(final_results) if final_results else 0} results"
