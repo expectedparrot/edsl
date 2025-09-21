@@ -150,3 +150,45 @@ class TableOutput(OutputABC):
     def _from_config(cls, config: Dict[str, Any]) -> "TableOutput":
         return cls(columns=config.get("columns", []))
 
+
+@register_output
+class MarkdownSelectOutput(OutputABC):
+    """Render selected result columns to a markdown FileStore via to_markdown().
+
+    Example usage:
+        MarkdownSelectOutput([
+            'answer.meal_plan_table',
+            'answer.shopping_list',
+            'answer.recipes',
+        ])
+
+    Optional parameters:
+        - filename: explicit path for the markdown file
+        - to_markdown_kwargs: extra keyword arguments forwarded to Dataset.to_markdown
+          (e.g., include_row_headers=False, include_column_headers=False)
+    """
+
+    def __init__(self, columns, filename: str | None = None, to_markdown_kwargs: dict | None = None):
+        self.columns = list(columns)
+        self.filename = filename
+        self.to_markdown_kwargs = dict(to_markdown_kwargs or {})
+
+    def render(self, results: Any) -> Any:
+        dataset = results.select(*self.columns)
+        return dataset.to_markdown(filename=self.filename, **(self.to_markdown_kwargs or {}))
+
+    def _export_config(self) -> Dict[str, Any]:
+        return {
+            "columns": self.columns,
+            "filename": self.filename,
+            "to_markdown_kwargs": self.to_markdown_kwargs,
+        }
+
+    @classmethod
+    def _from_config(cls, config: Dict[str, Any]) -> "MarkdownSelectOutput":
+        return cls(
+            columns=config.get("columns", []),
+            filename=config.get("filename"),
+            to_markdown_kwargs=config.get("to_markdown_kwargs", {}),
+        )
+

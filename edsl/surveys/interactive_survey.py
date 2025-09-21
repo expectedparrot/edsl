@@ -216,6 +216,118 @@ class InteractiveSurvey:
         question_text = getattr(question, "question_text", "")
         console.print(Panel.fit(question_text, title=f"{question.question_name}", border_style="magenta"))
 
+        # Checkbox (multi-select) with friendly numeric/text entry and iterative selection
+        if getattr(question, "question_type", None) == "checkbox" and hasattr(question, "question_options") and getattr(question, "question_options"):
+            options = list(getattr(question, "question_options"))
+            table = Table(show_header=True, header_style="bold blue")
+            table.add_column("#", justify="right")
+            table.add_column("Option", justify="left")
+            for idx, option in enumerate(options, start=1):
+                table.add_row(str(idx), str(option))
+            console.print(table)
+
+            use_code = bool(getattr(question, "use_code", False))
+
+            # Guidance and controls
+            console.print(
+                "Select one or more options by number or text. Examples: '1,3,5' or 'Apple, Banana'.",
+                style="dim",
+            )
+            console.print(
+                "Commands: 'done' to finish, 'quit' to finish, 'clear' to reset, 'all' for all options.",
+                style="dim",
+            )
+
+            selected: list[Any] = []
+
+            def _display_selected():
+                if not selected:
+                    console.print("Currently selected: (none)", style="dim")
+                else:
+                    console.print(f"Currently selected: {selected}", style="dim")
+
+            def _add_choice(token: str) -> bool:
+                """Try to add a single token to selection. Returns True if something was added."""
+                nonlocal selected
+                t = token.strip()
+                if not t:
+                    return False
+
+                candidate = None
+                # Numeric 1-based index
+                if t.isdigit():
+                    idx = int(t)
+                    if 1 <= idx <= len(options):
+                        zero = idx - 1
+                        candidate = zero if use_code else options[zero]
+                if candidate is None:
+                    # Try exact, case-insensitive, then unique prefix
+                    exact = [opt for opt in options if str(opt) == t]
+                    if len(exact) == 1:
+                        candidate = options.index(exact[0]) if use_code else exact[0]
+                    else:
+                        lowered = t.lower()
+                        ci = [opt for opt in options if str(opt).lower() == lowered]
+                        if len(ci) == 1:
+                            candidate = options.index(ci[0]) if use_code else ci[0]
+                        else:
+                            prefix = [opt for opt in options if str(opt).lower().startswith(lowered)]
+                            if len(prefix) == 1:
+                                candidate = options.index(prefix[0]) if use_code else prefix[0]
+
+                if candidate is None:
+                    return False
+
+                # Avoid duplicates
+                if candidate not in selected:
+                    selected.append(candidate)
+                    return True
+                return False
+
+            _display_selected()
+            while True:
+                try:
+                    raw = console.input("")
+                except KeyboardInterrupt:
+                    raise SystemExit(0)
+
+                entry = raw.strip()
+                if entry.lower() in {"done", "quit", "q"}:
+                    # Attempt validation and finish
+                    try:
+                        validated = question._validate_answer({"answer": selected})
+                        return validated.get("answer", selected)
+                    except Exception as e:
+                        error_message = Text(str(e), style="bold red")
+                        console.print(Panel.fit(error_message, title="Invalid Selection", border_style="red"))
+                        console.print("Please adjust your selections.", style="dim")
+                        continue
+                if entry.lower() == "clear":
+                    selected = []
+                    _display_selected()
+                    continue
+                if entry.lower() == "all":
+                    selected = list(range(len(options))) if use_code else list(options)
+                    _display_selected()
+                    continue
+
+                tokens = [t for t in entry.split(",") if t.strip()] if "," in entry else [entry]
+                added_any = False
+                for t in tokens:
+                    added_any = _add_choice(t) or added_any
+
+                if not added_any:
+                    console.print("No matching option found. Try numbers or exact/unique text.", style="dim")
+                    continue
+
+                _display_selected()
+                # Soft validate on every update; show constraint errors early but keep editing
+                try:
+                    question._validate_answer({"answer": selected})
+                except Exception as e:
+                    console.print(Text(str(e), style="yellow"))
+                # Loop until user types 'done'/'quit'
+
         # If options exist, show them (and provide numeric selection UX)
         if getattr(question, "question_type", None) == "multiple_choice" and hasattr(question, "question_options") and getattr(question, "question_options"):
             options = list(getattr(question, "question_options"))
