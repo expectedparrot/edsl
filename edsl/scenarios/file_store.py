@@ -815,6 +815,88 @@ class FileStore(Scenario):
 
         return ConstructDownloadLink(self).create_link(custom_filename, style)
 
+    def to_pdf(self, output_path: Optional[str] = None, **options) -> "FileStore":
+        """
+        Convert a markdown FileStore to a PDF and return a new FileStore for the PDF.
+
+        Args:
+            output_path: Optional destination path for the generated PDF. If not provided,
+                a temporary file will be created.
+            **options: Additional conversion options forwarded to the converter, e.g.:
+                - margin (str): Page margin (default: "1in")
+                - font_size (str): Font size (default: "12pt")
+                - font (str): Main font name (optional)
+                - toc (bool): Include table of contents (default: False)
+                - number_sections (bool): Number sections (default: False)
+                - highlight_style (str): Code highlighting style (default: "tango")
+
+        Returns:
+            FileStore: A new FileStore referencing the generated PDF file.
+
+        Raises:
+            TypeError: If the current file is not a markdown file.
+            RuntimeError: If conversion fails.
+        """
+        if self.suffix.lower() not in ("md", "markdown"):
+            raise TypeError("to_pdf() is only supported for markdown FileStore objects")
+
+        import os
+        import tempfile
+        from ..utilities.markdown_to_pdf import MarkdownToPDF
+
+        # Determine output path
+        if output_path is None:
+            temp_dir = tempfile.mkdtemp()
+            base_name = os.path.splitext(os.path.basename(self.path))[0] or "document"
+            output_path = os.path.join(temp_dir, f"{base_name}.pdf")
+
+        converter = MarkdownToPDF(self.text, filename=os.path.splitext(os.path.basename(output_path))[0])
+        success = converter.convert(output_path, **options)
+        if not success:
+            raise RuntimeError("Failed to convert markdown to PDF")
+
+        return self.__class__(output_path)
+
+    def to_docx(self, output_path: Optional[str] = None, **options) -> "FileStore":
+        """
+        Convert a markdown FileStore to a DOCX and return a new FileStore for the DOCX.
+
+        Args:
+            output_path: Optional destination path for the generated DOCX. If not provided,
+                a temporary file will be created.
+            **options: Additional conversion options forwarded to the converter, e.g.:
+                - reference_doc (str): Path to reference docx for styling
+                - toc (bool): Include table of contents (default: False)
+                - number_sections (bool): Number sections (default: False)
+                - highlight_style (str): Code highlighting style (default: "tango")
+
+        Returns:
+            FileStore: A new FileStore referencing the generated DOCX file.
+
+        Raises:
+            TypeError: If the current file is not a markdown file.
+            RuntimeError: If conversion fails.
+        """
+        if self.suffix.lower() not in ("md", "markdown"):
+            raise TypeError("to_docx() is only supported for markdown FileStore objects")
+
+        import os
+        import tempfile
+        from ..utilities.markdown_to_docx import MarkdownToDocx
+
+        # Determine output path
+        if output_path is None:
+            temp_dir = tempfile.mkdtemp()
+            base_name = os.path.splitext(os.path.basename(self.path))[0] or "document"
+            output_path = os.path.join(temp_dir, f"{base_name}.docx")
+
+        converter = MarkdownToDocx(self.text, filename=os.path.splitext(os.path.basename(output_path))[0])
+        success = converter.convert(output_path, **options)
+        if not success:
+            raise RuntimeError("Failed to convert markdown to DOCX")
+
+        return self.__class__(output_path)
+
     def to_pandas(self):
         """
         Convert the file content to a pandas DataFrame if supported by the file handler.
