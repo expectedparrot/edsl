@@ -681,7 +681,7 @@ class Survey(Base):
     def parameters_by_question(self) -> dict[str, set]:
         """Return a dictionary of parameters by question in the survey.
         >>> from edsl import QuestionFreeText
-        >>> q = QuestionFreeText(question_name = "example", question_text = "What is the capital of {{ country}}?")
+        >>> q = QuestionFreeText(question_name = "example", question_text = "What is the capital of {{ country }}?")
         >>> s = Survey([q])
         >>> s.parameters_by_question
         {'example': {'country'}}

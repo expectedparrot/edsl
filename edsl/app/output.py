@@ -66,6 +66,9 @@ def load_output_from_dict(data: Optional[Dict[str, Any]]) -> Optional[OutputABC]
 class RawResultsOutput(OutputABC):
     """Return the raw `results` object unchanged."""
 
+    label = "Raw results"
+    id = "raw_results"
+
     def render(self, results: Any) -> Any:
         return results
 
@@ -74,6 +77,9 @@ class RawResultsOutput(OutputABC):
 class PassThroughOutput(OutputABC):
     """Return the input object unchanged (Survey, ScenarioList, Results, etc.)."""
 
+    label = "Pass through"
+    id = "pass_through"
+
     def render(self, results: Any) -> Any:
         return results
 
@@ -81,6 +87,9 @@ class PassThroughOutput(OutputABC):
 @register_output
 class ReportFromTemplateOutput(OutputABC):
     """Generate a report file from a `results` template and return its path."""
+
+    label = "Generate report (DOCX)"
+    id = "report_docx"
 
     def __init__(
         self,
@@ -137,6 +146,9 @@ class TableOutput(OutputABC):
     ["scenario.tweet", "answer.tweet_sentiment"].
     """
 
+    label = "Table view"
+    id = "table"
+
     def __init__(self, columns):
         self.columns = list(columns)
 
@@ -150,6 +162,67 @@ class TableOutput(OutputABC):
     def _from_config(cls, config: Dict[str, Any]) -> "TableOutput":
         return cls(columns=config.get("columns", []))
 
+    id = "table"
+
+
+@register_output
+class FlippedTableOutput(OutputABC):
+    """Render a flipped results table for selected columns via results.select(...).table().flip().
+
+    Example configuration:
+        FlippedTableOutput([
+            "startup_name",
+            "answer.*",
+        ])
+
+    Optional parameters:
+        - tablefmt: table format (defaults to "rich")
+        - pretty_labels: mapping of column keys to display labels
+        - print_parameters: parameters forwarded to Dataset.table for rendering
+    """
+
+    label = "Flipped table view"
+    id = "table_flipped"
+
+    def __init__(
+        self,
+        columns,
+        tablefmt: str | None = "rich",
+        pretty_labels: dict | None = None,
+        print_parameters: dict | None = None,
+    ) -> None:
+        self.columns = list(columns)
+        self.tablefmt = tablefmt
+        self.pretty_labels = dict(pretty_labels or {})
+        self.print_parameters = dict(print_parameters or {})
+
+    def render(self, results: Any) -> Any:
+        return (
+            results.select(*self.columns)
+            .table(
+                tablefmt=self.tablefmt,
+                pretty_labels=self.pretty_labels or None,
+                print_parameters=self.print_parameters or None,
+            )
+            .flip()
+        )
+
+    def _export_config(self) -> Dict[str, Any]:
+        return {
+            "columns": self.columns,
+            "tablefmt": self.tablefmt,
+            "pretty_labels": self.pretty_labels,
+            "print_parameters": self.print_parameters,
+        }
+
+    @classmethod
+    def _from_config(cls, config: Dict[str, Any]) -> "FlippedTableOutput":
+        return cls(
+            columns=config.get("columns", []),
+            tablefmt=config.get("tablefmt", "rich"),
+            pretty_labels=config.get("pretty_labels", {}),
+            print_parameters=config.get("print_parameters", {}),
+        )
 
 @register_output
 class MarkdownSelectOutput(OutputABC):
@@ -167,6 +240,9 @@ class MarkdownSelectOutput(OutputABC):
         - to_markdown_kwargs: extra keyword arguments forwarded to Dataset.to_markdown
           (e.g., include_row_headers=False, include_column_headers=False)
     """
+
+    label = "Markdown file (save)"
+    id = "markdown_save"
 
     def __init__(self, columns, filename: str | None = None, to_markdown_kwargs: dict | None = None):
         self.columns = list(columns)
@@ -193,6 +269,7 @@ class MarkdownSelectOutput(OutputABC):
         )
 
 
+
 @register_output
 class MarkdownSelectViewOutput(OutputABC):
     """Render selected result columns to markdown and open the file via FileStore.view().
@@ -200,6 +277,9 @@ class MarkdownSelectViewOutput(OutputABC):
     Same configuration as MarkdownSelectOutput, but after writing the markdown file,
     it invokes `.view()` on the returned FileStore for immediate viewing.
     """
+
+    label = "Open Markdown (view)"
+    id = "markdown_view"
 
     def __init__(self, columns, filename: str | None = None, to_markdown_kwargs: dict | None = None):
         self.columns = list(columns)
@@ -229,6 +309,85 @@ class MarkdownSelectViewOutput(OutputABC):
             columns=config.get("columns", []),
             filename=config.get("filename"),
             to_markdown_kwargs=config.get("to_markdown_kwargs", {}),
+        )
+
+
+
+@register_output
+class MarkdownSelectPDFOutput(OutputABC):
+    """Render selected columns to markdown, convert to PDF, and return the PDF FileStore."""
+
+    label = "Export PDF"
+    id = "export_pdf"
+
+    def __init__(self, columns, filename: str | None = None, to_markdown_kwargs: dict | None = None, pdf_options: dict | None = None, output_path: str | None = None):
+        self.columns = list(columns)
+        self.filename = filename
+        self.to_markdown_kwargs = dict(to_markdown_kwargs or {})
+        self.pdf_options = dict(pdf_options or {})
+        self.output_path = output_path
+
+    def render(self, results: Any) -> Any:
+        dataset = results.select(*self.columns)
+        filestore = dataset.to_markdown(filename=self.filename, **(self.to_markdown_kwargs or {}))
+        return filestore.to_pdf(output_path=self.output_path, **(self.pdf_options or {}))
+
+    def _export_config(self) -> Dict[str, Any]:
+        return {
+            "columns": self.columns,
+            "filename": self.filename,
+            "to_markdown_kwargs": self.to_markdown_kwargs,
+            "pdf_options": self.pdf_options,
+            "output_path": self.output_path,
+        }
+
+    @classmethod
+    def _from_config(cls, config: Dict[str, Any]) -> "MarkdownSelectPDFOutput":
+        return cls(
+            columns=config.get("columns", []),
+            filename=config.get("filename"),
+            to_markdown_kwargs=config.get("to_markdown_kwargs", {}),
+            pdf_options=config.get("pdf_options", {}),
+            output_path=config.get("output_path"),
+        )
+
+
+@register_output
+class MarkdownSelectDocxOutput(OutputABC):
+    """Render selected columns to markdown, convert to DOCX, and return the DOCX FileStore."""
+
+    label = "Export DOCX"
+    id = "export_docx"
+
+    def __init__(self, columns, filename: str | None = None, to_markdown_kwargs: dict | None = None, docx_options: dict | None = None, output_path: str | None = None):
+        self.columns = list(columns)
+        self.filename = filename
+        self.to_markdown_kwargs = dict(to_markdown_kwargs or {})
+        self.docx_options = dict(docx_options or {})
+        self.output_path = output_path
+
+    def render(self, results: Any) -> Any:
+        dataset = results.select(*self.columns)
+        filestore = dataset.to_markdown(filename=self.filename, **(self.to_markdown_kwargs or {}))
+        return filestore.to_docx(output_path=self.output_path, **(self.docx_options or {}))
+
+    def _export_config(self) -> Dict[str, Any]:
+        return {
+            "columns": self.columns,
+            "filename": self.filename,
+            "to_markdown_kwargs": self.to_markdown_kwargs,
+            "docx_options": self.docx_options,
+            "output_path": self.output_path,
+        }
+
+    @classmethod
+    def _from_config(cls, config: Dict[str, Any]) -> "MarkdownSelectDocxOutput":
+        return cls(
+            columns=config.get("columns", []),
+            filename=config.get("filename"),
+            to_markdown_kwargs=config.get("to_markdown_kwargs", {}),
+            docx_options=config.get("docx_options", {}),
+            output_path=config.get("output_path"),
         )
 
 

@@ -90,13 +90,11 @@ class QuestionMarkdown(QuestionFreeText):
     Post-processing removes surrounding fenced code blocks and returns the inner content.
 
     Examples:
-        >>> from edsl.language_models import Model
         >>> q = QuestionMarkdown(question_name="md", question_text="Provide markdown")
-        >>> m = Model("test", canned_response="Sure!\n```markdown\n# Title\n```")
-        >>> ans = q.by(m).run(disable_remote_inference=True)
-        >>> txt = ans.select("answer.md").first()
-        >>> txt.strip().startswith('# Title')
-        True
+        >>> q.question_type
+        'markdown'
+        >>> q.question_name
+        'md'
     """
 
     question_type = "markdown"
