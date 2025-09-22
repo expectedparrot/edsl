@@ -129,8 +129,12 @@ q_recipes = QuestionFreeText(
 s = Survey([q_meal_plan, q_meal_plan_table, q_shopping_list, q_recipes])
 jobs = s.by(a)
 
-app = AppInteractiveSurvey(
+from edsl.app.app import AppBase
+
+app = AppBase(
     initial_survey=initial_survey,
+    application_name="Meal Planner",
+    description="Create a meal plan for a given number of people.",
     jobs_object=jobs,
     output_formatters=OutputFormatters([
         MarkdownSelectViewOutput(
@@ -158,7 +162,7 @@ app = AppInteractiveSurvey(
 )
 
 if __name__ == "__main__":
-    app.run()
+    app.output(verbose=True)
     # plan = app.output(
     #     answers={
     #         "number_of_people": 1,

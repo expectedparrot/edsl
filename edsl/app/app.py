@@ -8,12 +8,13 @@ if TYPE_CHECKING:
     from ..jobs import Jobs
     from ..results import Results
     from ..scenarios import ScenarioList
-from .output import OutputFormatters  # runtime import for formatter list helper
+
+#from .output import OutputFormatters  # runtime import for formatter list helper
+from .output_formatter import OutputFormatter, OutputFormatters
+
 
 # We want apps that take a survey
 from abc import ABC, abstractmethod
-
-from .output import PassThroughOutput  # type: ignore
 
 class AppBase(ABC):
     # Registry for subclasses of AppBase
@@ -54,6 +55,15 @@ class AppBase(ABC):
         self.application_name: str = application_name or self.__class__.__name__
         self._validate_parameters()
 
+    @abstractmethod
+    def answers_to_scenario(self, answers: dict) -> 'Scenario':
+        """Converts the answers to a scenario.
+        
+        Args:
+            answers: The answers to the application.
+        """
+        return Scenario(answers)
+
     @property 
     def parameters(self) -> dict:
         """Returns the parameters of the application.
@@ -72,10 +82,18 @@ class AppBase(ABC):
         input_survey_params = [x[0] for x in self.parameters]
         head_params = self.jobs_object.head_parameters
         for param in head_params:
-            _, param_name = param.split('.')
+            if "." not in param:
+                continue # not a scenario parameter - could be a calculated field, for example
+            prefix, param_name = param.split('.')
+            if prefix != 'scenario':
+                continue
             if param_name not in input_survey_params:
                 raise ValueError(f"The parameter {param_name} is not in the input survey."
                 f"Input survey parameters: {input_survey_params}, Head job parameters: {head_params}")
+
+        if self.jobs_object.has_post_run_methods:
+            print(self.jobs_object._post_run_methods)
+            raise ValueError("Cannot have post_run_methods in the jobs object if using output formatters.")
 
     def _collect_answers_interactively(self) -> dict:
         """Collect answers interactively using Textual if available, else fallback.
@@ -177,14 +195,19 @@ class AppBase(ABC):
     def generate_results(self, scenario_or_scenario_list: Union['Scenario','ScenarioList']) -> 'Results':
         return self.jobs_object.add_scenario_head(scenario_or_scenario_list).run()
 
-    def output(self, answers: Optional[dict] = None, verbose: bool = False) -> Any:
+    def output(self, answers: Optional[dict] = None, verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
         """Generate output by running and formatting results via the default output formatter."""
+
+        if formater_to_use is not None:
+            formatter = self.output_formatters.get_formatter(formater_to_use)
+        else:
+            formatter = self.output_formatters.get_default()
+
         if answers is None:
             answers = self._collect_answers_interactively()
 
-        scenario = Scenario(answers)
+        scenario = self.answers_to_scenario(answers)
         results = self.generate_results(scenario)
-        formatter = self.output_formatters.get_default()
         return formatter.render(results)
 
     def run(
@@ -387,6 +410,12 @@ class AppBase(ABC):
         return AppInteractiveSurvey(initial_survey = initial_survey, jobs_object = job, output_formatters = OutputFormatters([AnswersListOutput()]))
 
 
+class App(AppBase):
+    application_type = "basic_app"
+
+    def answers_to_scenario(self, answers: dict) -> 'Scenario':
+        from ..scenarios import Scenario
+        return Scenario(answers)
 
 class AppSurvey(AppBase):
     
@@ -503,12 +532,20 @@ if __name__ == "__main__":
        question_name = "twitter_thread", 
        question_text = "Please take this text: {{scenario.raw_text}} and split into a twitter thread, if necessary.")]
     )
-    app = AppBase(
+
+    twitter_output_formatter = (
+        OutputFormatter(name = "Twitter Thread Splitter")
+        .select('answer.twitter_thread')
+        .expand('answer.twitter_thread')
+        .table()
+    )
+
+    app = App(
         application_name = "Twitter Thread Splitter",
         description = "This application splits text into a twitter thread.",
         initial_survey = initial_survey, 
         jobs_object = jobs_survey.to_jobs(), 
-        output_formatters = OutputFormatters([PassThroughOutput()])
+        output_formatters = OutputFormatters([twitter_output_formatter])
         )
 
     # app = AppText.example()
@@ -522,12 +559,12 @@ if __name__ == "__main__":
     Judgment in Cases of Impeachment shall not extend further than to removal from Office, and disqualification to hold and enjoy any Office of honor, Trust or Profit under the United States: but the Party convicted shall nevertheless be liable and subject to Indictment, Trial, Judgment and Punishment, according to Law.
     """
     # non-interactive mode
-    #output = app.output(answers = {'raw_text': raw_text}, verbose = True)
-    #print(output)
+    output = app.output(answers = {'raw_text': raw_text}, verbose = True)
+    print(output)
 
     # interactive mode
-    output = app.output(verbose = True)
-    print(output)
+    #output = app.output(verbose = True)
+    #print(output)
     #app = App.example()
     # from ..surveys import Survey
     # from ..questions import QuestionFreeText, QuestionMultipleChoice
