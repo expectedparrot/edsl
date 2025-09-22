@@ -1,7 +1,12 @@
 import textwrap
 
 from edsl.app.app import AppInteractiveSurvey
-from edsl.app.output import MarkdownSelectOutput, MarkdownSelectViewOutput, OutputFormatters
+from edsl.app.output import (
+    MarkdownSelectViewOutput,
+    MarkdownSelectPDFOutput,
+    MarkdownSelectDocxOutput,
+    OutputFormatters,
+)
 
 from edsl.questions import (
     QuestionFreeText,
@@ -138,7 +143,17 @@ app = AppInteractiveSurvey(
                 'include_row_headers': False,
                 'include_column_headers': False,
             },
-        )
+        ),
+        MarkdownSelectPDFOutput([
+            'answer.meal_plan_table',
+            'answer.shopping_list',
+            'answer.recipes',
+        ], output_path="meal_plan.pdf"),
+        MarkdownSelectDocxOutput([
+            'answer.meal_plan_table',
+            'answer.shopping_list',
+            'answer.recipes',
+        ], output_path="meal_plan.docx"),
     ]),
 )
 

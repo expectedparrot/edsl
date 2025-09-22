@@ -349,7 +349,22 @@ class Jobs(Base):
         self._where_clauses.append(expression)
         return self
 
-    def add_scenario_head(self, scenario: "Scenario") -> Jobs:
+    @property
+    def head_job(self) -> Jobs:
+        """Get the head job of the job."""
+        current_job = self
+        while current_job._depends_on is not None:
+            current_job = current_job._depends_on
+        return current_job
+
+    @property
+    def head_parameters(self) -> set:
+        params = set()
+        for question in self.head_job.survey.questions:
+            params = params.union(question.detailed_parameters)
+        return params
+
+    def add_scenario_head(self, scenario_or_scenario_list: Union["Scenario", "ScenarioList"]) -> Jobs:
         """Add a scenario to the job.
         
         Args:
@@ -361,9 +376,12 @@ class Jobs(Base):
         while current_job._depends_on is not None:
             current_job = current_job._depends_on
         
-        from ..scenarios import ScenarioList
-        current_job.scenarios = ScenarioList([scenario])
-        return self
+        from ..scenarios import ScenarioList, Scenario
+        if isinstance(scenario_or_scenario_list, Scenario):  
+            current_job.scenarios = ScenarioList([scenario_or_scenario_list])
+        else:       
+            current_job.scenarios = scenario_or_scenario_list
+        return self 
 
     @property
     def scenarios(self) -> ScenarioList:
