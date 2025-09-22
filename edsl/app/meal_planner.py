@@ -1,12 +1,7 @@
 import textwrap
 
-from edsl.app.app import AppInteractiveSurvey
-from edsl.app.output import (
-    MarkdownSelectViewOutput,
-    MarkdownSelectPDFOutput,
-    MarkdownSelectDocxOutput,
-    OutputFormatters,
-)
+from edsl.app.app import App
+from edsl.app.output_formatter import OutputFormatter
 
 from edsl.questions import (
     QuestionFreeText,
@@ -129,55 +124,48 @@ q_recipes = QuestionFreeText(
 s = Survey([q_meal_plan, q_meal_plan_table, q_shopping_list, q_recipes])
 jobs = s.by(a)
 
-from edsl.app.app import AppBase
+from edsl.app.app import App
 
-app = AppBase(
+markdown_viewer = (
+    OutputFormatter(name = "Markdown Viewer")
+    .select('answer.meal_plan_table', 'answer.shopping_list', 'answer.recipes')
+    .to_markdown()
+    .view()
+)
+
+docx_writer = (
+    OutputFormatter(name = "Docx Writer")
+    .select('answer.meal_plan_table', 'answer.shopping_list', 'answer.recipes')
+    .to_markdown()
+    .to_docx()
+)
+
+
+app = App(
     initial_survey=initial_survey,
     application_name="Meal Planner",
     description="Create a meal plan for a given number of people.",
     jobs_object=jobs,
-    output_formatters=OutputFormatters([
-        MarkdownSelectViewOutput(
-            [
-                'answer.meal_plan_table',
-                'answer.shopping_list',
-                'answer.recipes',
-            ],
-            to_markdown_kwargs={
-                'include_row_headers': False,
-                'include_column_headers': False,
-            },
-        ),
-        MarkdownSelectPDFOutput([
-            'answer.meal_plan_table',
-            'answer.shopping_list',
-            'answer.recipes',
-        ], output_path="meal_plan.pdf"),
-        MarkdownSelectDocxOutput([
-            'answer.meal_plan_table',
-            'answer.shopping_list',
-            'answer.recipes',
-        ], output_path="meal_plan.docx"),
-    ]),
+    output_formatters=[docx_writer, markdown_viewer]
 )
 
 if __name__ == "__main__":
-    app.output(verbose=True)
-    # plan = app.output(
-    #     answers={
-    #         "number_of_people": 1,
-    #         "dietary_preferences_or_restrictions": "None",
-    #         "days_of_the_week": [
-    #             "Monday",
-    #             "Tuesday",
-    #             "Wednesday",
-    #             "Thursday",
-    #             "Friday",
-    #         ],
-    #         "time_for_cooking": "Very little - ideally meals are almost no preparation",
-    #         "any_specific_health_goals": "Build muscle and lose body fat",
-    #         "other": "I'm fine with very simple meals. Almost zero preparation please.",
-    #         "food_allergies_or_intolerances": None,
-    #     },
-    #     verbose=True,
-    # )
+    plan = app.output(
+        answers={
+            "number_of_people": 1,
+            "dietary_preferences_or_restrictions": "None",
+            "days_of_the_week": [
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+            ],
+            "time_for_cooking": "Very little - ideally meals are almost no preparation",
+            "any_specific_health_goals": "Build muscle and lose body fat",
+            "other": "I'm fine with very simple meals. Almost zero preparation please.",
+            "food_allergies_or_intolerances": None,
+        },
+        verbose=True,
+    )
+    print(plan)

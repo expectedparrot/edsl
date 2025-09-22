@@ -9,11 +9,7 @@ if TYPE_CHECKING:
     from ..results import Results
     from ..scenarios import ScenarioList
 
-#from .output import OutputFormatters  # runtime import for formatter list helper
 from .output_formatter import OutputFormatter, OutputFormatters
-
-
-# We want apps that take a survey
 from abc import ABC, abstractmethod
 
 class AppBase(ABC):
@@ -30,7 +26,7 @@ class AppBase(ABC):
     """
     def __init__(self, 
         jobs_object: 'Jobs', 
-        output_formatters: OutputFormatters, 
+        output_formatters: Optional[list[OutputFormatter]] = None, 
         description: Optional[str] = None,
         application_name: Optional[str] = None,
         initial_survey: Optional[Survey] = None):
@@ -48,7 +44,7 @@ class AppBase(ABC):
         self.initial_survey = initial_survey
         if output_formatters is None or len(output_formatters) == 0:
             raise ValueError("At least one output formatter is required for all apps")
-        self.output_formatters: OutputFormatters = output_formatters
+        self.output_formatters: OutputFormatters = OutputFormatters(output_formatters)
         if application_name is not None and not isinstance(application_name, str):
             raise TypeError("application_name must be a string if provided")
         # Default to the class name if not provided
@@ -62,7 +58,7 @@ class AppBase(ABC):
         Args:
             answers: The answers to the application.
         """
-        return Scenario(answers)
+        pass
 
     @property 
     def parameters(self) -> dict:
@@ -176,17 +172,16 @@ class AppBase(ABC):
         application_type = data.get("application_type")
         target_cls = AppBase.registry.get(application_type, cls) if application_type else cls
 
-        # Reconstruct output formatters list if serialized
-        from .output import OutputFormatters  # local import to avoid circular refs in type checking
-        output_formatters = OutputFormatters.from_dict(data.get("output_formatters"))
+        from ..jobs import Jobs
+        from ..surveys import Survey
 
         # Prepare constructor kwargs (shared __init__ across subclasses)
         kwargs = {
-            "jobs_object": data.get("jobs_object"),
-            "output_formatters": output_formatters,
+            "jobs_object": Jobs.from_dict(data.get("jobs_object")),
+            "output_formatters": OutputFormatters.from_dict(data.get("output_formatters")),
             "description": data.get("description"),
             "application_name": data.get("application_name"),
-            "initial_survey": data.get("initial_survey"),
+            "initial_survey": Survey.from_dict(data.get("initial_survey")),
         }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
 
@@ -210,131 +205,7 @@ class AppBase(ABC):
         results = self.generate_results(scenario)
         return formatter.render(results)
 
-    def run(
-        self,
-        formatter: Optional[str] = None,
-        interactive: bool = True,
-        verbose: bool = False,
-        input_func: Callable[[str], str] = input,
-        print_func: Callable[[Any], None] = print,
-        **kwargs,
-    ) -> Any:
-        """Run the job, then render results using a chosen output formatter.
-
-        - If `formatter` is provided, use it by id (or index if a string digit)
-        - If `interactive` and no `formatter`, prompt the user to select
-        - Otherwise, use the default formatter
-        """
-        import inspect
-        import sys
-
-        # Run and get results with a spinner if interactive
-        sig = inspect.signature(self.generate_results)
-        call_kwargs = dict(kwargs)
-        if 'verbose' in sig.parameters:
-            call_kwargs['verbose'] = verbose
-
-        # If this is the interactive survey app and we're in interactive mode,
-        # collect survey answers BEFORE starting the spinner so the spinner only
-        # runs during the job execution (not while answering questions).
-        try:
-            is_interactive_survey_app = getattr(self, "application_type", None) == "interactive_survey"
-        except Exception:
-            is_interactive_survey_app = False
-        if is_interactive_survey_app and interactive and sys.stdin and sys.stdin.isatty() and 'answers' not in call_kwargs:
-            try:
-                call_kwargs['answers'] = self._collect_answers_interactively()
-            except Exception:
-                # If pre-collection fails, fall back to normal generate_results behavior
-                pass
-
-        results = None
-        if interactive and sys.stdout and sys.stdout.isatty():
-            import threading
-            import itertools
-            import time
-
-            stop_spinner = False
-
-            def spinner_task():
-                for ch in itertools.cycle("⠋⠙⠚⠞⠖⠦⠴⠲⠳⠓"):
-                    if stop_spinner:
-                        break
-                    try:
-                        sys.stdout.write(f"\rRunning job... {ch}")
-                        sys.stdout.flush()
-                    except Exception:
-                        pass
-                    time.sleep(0.1)
-                try:
-                    sys.stdout.write("\rRunning job... done   \n")
-                    sys.stdout.flush()
-                except Exception:
-                    pass
-
-            spinner_thread = threading.Thread(target=spinner_task, daemon=True)
-            spinner_thread.start()
-            try:
-                results = self.generate_results(**call_kwargs)
-            finally:
-                stop_spinner = True
-                spinner_thread.join()
-        else:
-            results = self.generate_results(**call_kwargs)
-
-        # Resolve formatter
-        chosen_formatter = None
-
-        # Helper to coerce formatter selection
-        def _resolve_formatter(selection: Optional[str]):
-            if selection is None or selection == "default":
-                return self.output_formatters.get_default()
-            # Numeric index provided as string
-            if isinstance(selection, str) and selection.isdigit():
-                idx = int(selection) - 1
-                return self.output_formatters[idx]
-            # Treat as id
-            try:
-                return self.output_formatters[selection]  # type: ignore[index]
-            except Exception:
-                # Fallback to default if invalid
-                return self.output_formatters.get_default()
-
-        if formatter is not None:
-            chosen_formatter = _resolve_formatter(formatter)
-        elif interactive and sys.stdin and sys.stdin.isatty():
-            # Interactive selection
-            ids = self.output_formatters.ids()
-            labels = self.output_formatters.labels()
-            default_idx = self.output_formatters.default_index or 0
-
-            print_func("Select an output option:")
-            for i, (fid, label) in enumerate(zip(ids, labels), start=1):
-                suffix = " (default)" if (i - 1) == default_idx else ""
-                print_func(f"  [{i}] {label} ({fid}){suffix}")
-            prompt = f"Enter number or id [default {default_idx + 1}]: "
-            choice = input_func(prompt).strip()
-            if choice == "":
-                choice = str(default_idx + 1)
-            chosen_formatter = _resolve_formatter(choice)
-        else:
-            chosen_formatter = self.output_formatters.get_default()
-
-        rendered = chosen_formatter.render(results)
-        # Print helpful confirmation/output for common return types
-        try:
-            from ..scenarios.file_store import FileStore  # local import to avoid cycle
-        except Exception:
-            FileStore = None  # type: ignore
-
-        if isinstance(rendered, str):
-            print_func(rendered)
-        elif FileStore is not None and isinstance(rendered, FileStore):
-            # Confirm saved path to user
-            path = getattr(rendered, "path", None)
-            if isinstance(path, str) and path:
-                print_func(f"Saved file: {path}")
-        return rendered
+    # (no fluent formatter management API in legacy behavior)
 
     def push(self, visibility: Optional[str] = "unlisted", description: Optional[str] = None, alias: Optional[str] = None):
         """Pushes the application to the E[P] server."""
@@ -414,8 +285,15 @@ class App(AppBase):
     application_type = "basic_app"
 
     def answers_to_scenario(self, answers: dict) -> 'Scenario':
-        from ..scenarios import Scenario
+        from ..scenarios import FileStore
+        for key, value in answers.items():
+            relevant_question = self.initial_survey[key]
+            if relevant_question.question_type == "file_upload":
+                answers[key] = FileStore(path=value)
+            else:
+                answers[key] = value
         return Scenario(answers)
+
 
 class AppSurvey(AppBase):
     
@@ -433,27 +311,6 @@ class AppScenarioList(AppBase):
         jobs = self.jobs_object.add_scenario_head(scenario_list)
         return jobs.run()
 
-class AppText(AppBase):
-
-    application_type = "text"
-
-    def generate_results(self, text: str) -> 'Results':
-        from ..scenarios import Scenario
-        s = Scenario({'text': text})
-        return self.jobs_object.add_scenario_head(s).run()
-
-    @classmethod
-    def example(cls):
-        from ..questions import QuestionList 
-        from .output import OutputFormatters  # type: ignore
-        survey = QuestionList(question_name = "twitter_thread", 
-        question_text = "Please take this text: {{scenario.text}} and split into a twitter thread.")
-        jobs_object = survey.to_jobs().select('answer.twitter_thread').expand('answer.twitter_thread')
-        return cls(
-            jobs_object = jobs_object,
-            description = "Applications that split text into a twitter thread",
-            output_formatters = OutputFormatters([PassThroughOutput()])
-            )
     
 class AppImage(AppBase):
 
@@ -472,54 +329,6 @@ class AppPDF(AppBase):
         from ..scenarios import FileStore, Scenario
         s = Scenario({'paper': FileStore(path = pdf_path)})
         return self.jobs_object.by(s).run()
-
-class AppInteractiveSurvey(AppBase):
-    
-    application_type = "interactive_survey"
-
-    def generate_results(self, answers: Optional[dict] = None, verbose: bool = False) -> 'Results':
-        """Generates the results of the application.
-        
-        Args:
-            answers: A dictionary of answers to the initial survey. 
-            If None, the user will be prompted to answer the questions.
-
-        Returns:
-            The results object generated by running the jobs object.
-        """
-        from ..scenarios import Scenario
-        if answers is None:
-            from ..surveys import InteractiveSurvey
-            answers = InteractiveSurvey(self.initial_survey).run()
-
-            # if a file was uploaded, we need to store it in the file store
-            for question_name, answer in answers.items():
-                q = self.initial_survey[question_name]
-                if q.question_type == "file_upload":
-                    from ..scenarios import FileStore
-                    answers[question_name] = FileStore(path = answer)
-
-        scenario = Scenario(answers)
-        if verbose:
-            print("Running the application...")
-
-        if verbose:
-            print("Adding scenario to the job...")
-        # add scenario to the job (if it's recursive)
-        self.jobs_object.add_scenario_head(scenario)
-        if verbose:
-            print("Scenario added to the job...")
-            print("Running the job...")
-        results = self.jobs_object.add_scenario_head(scenario).run(verbose = verbose)
-
-        if verbose:
-            print("Complete")
-        self._results = results
-        return results
-
-
-    def code(self):
-        pass
 
 
 if __name__ == "__main__":
@@ -558,8 +367,11 @@ if __name__ == "__main__":
     The Senate shall have the sole Power to try all Impeachments. When sitting for that Purpose, they shall be on Oath or Affirmation. When the President of the United States is tried, the Chief Justice shall preside: And no Person shall be convicted without the Concurrence of two thirds of the Members present.
     Judgment in Cases of Impeachment shall not extend further than to removal from Office, and disqualification to hold and enjoy any Office of honor, Trust or Profit under the United States: but the Party convicted shall nevertheless be liable and subject to Indictment, Trial, Judgment and Punishment, according to Law.
     """
+
+    lazarus_app = App.from_dict(app.to_dict())
+    
     # non-interactive mode
-    output = app.output(answers = {'raw_text': raw_text}, verbose = True)
+    output = lazarus_app.output(answers = {'raw_text': raw_text}, verbose = True)
     print(output)
 
     # interactive mode
