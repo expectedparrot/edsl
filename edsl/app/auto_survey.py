@@ -1,6 +1,7 @@
+import textwrap
+
 from ..surveys import Survey
 from ..questions import QuestionList, QuestionMultipleChoice, QuestionFreeText
-import textwrap
 
 initial_survey = Survey([
     QuestionFreeText(
@@ -14,7 +15,6 @@ initial_survey = Survey([
 ])
 
 
-# First prompt: ask the LLM to propose a concrete survey question.
 initial_question = QuestionList(
     question_text=textwrap.dedent("""\
     Please create survey questions that would help a researcher answer: {{ scenario.overall_question }}
@@ -22,8 +22,6 @@ initial_question = QuestionList(
     """),
     question_name="generated_question_text",
 )
-
-from ..surveys import Survey
 
 survey = Survey([
     QuestionMultipleChoice(
@@ -50,7 +48,7 @@ survey = Survey([
             Just return the name, no other text."""),
             question_name="generated_question_name",
         ),
-    ])
+    ]).add_skip_rule("generated_question_options", "{{ generated_question_type.answer }} not in ['multiple_choice', 'checkbox']")
 
 job = (
     Survey([initial_question]).to_jobs()
@@ -58,32 +56,38 @@ job = (
     .to_scenario_list()
     .expand("generated_question_text")
     .to(survey)
-    .select(
-        "generated_question_text",
-        "generated_question_type",
-        "generated_question_options",
-  #      "generated_question_name",
-    )
-    .to_scenario_list()
-    .then(
-        "rename",
-        {
-            "generated_question_text": "question_text",
-            "generated_question_type": "question_type",
-            "generated_question_options": "question_options",
-   #         "generated_question_name": "question_name",
-        },
-    )
-    .to_survey()
+)
+
+ 
+from .app import App
+from .output_formatter import OutputFormatter
+
+output_formatter = OutputFormatter(name = "Pass Through").select('scenario.generated_question_text', 'answer.*').table()
+
+output_formatter = (
+    OutputFormatter(name = "Survey").select(
+    "generated_question_text",
+    "generated_question_type",
+    "generated_question_options",
+    "generated_question_name",
+)
+.to_scenario_list()
+.rename(
+    {
+        "generated_question_text": "question_text",
+        "generated_question_type": "question_type",
+        "generated_question_options": "question_options",
+        "generated_question_name": "question_name",
+    }
+).to_survey()
+)
+
+app = App(
+    initial_survey = initial_survey,
+    jobs_object = job,
+    output_formatters = [output_formatter],
 )
 
 if __name__ == "__main__":
-    from .app import AppInteractiveSurvey
-    from .output import PassThroughOutput, OutputFormatters
-    app = AppInteractiveSurvey(
-        initial_survey = initial_survey,
-        jobs_object = job,
-        output_formatters = OutputFormatters([PassThroughOutput()]),
-    )
     new_survey = app.output(answers = {"overall_question": "Why did you stop using EDSL?", "population": "Former EDSL users"}, verbose = True)
     print(new_survey)

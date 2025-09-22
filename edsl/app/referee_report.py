@@ -70,10 +70,9 @@ from ..questions import QuestionFileUpload
 initial_survey = Survey([QuestionFileUpload(question_name = "paper", question_text = "Please upload your paper")])
 
 survey = Survey([q_review, q_response_to_review, q_round_two])
-#survey.show_flow()
 
-from .app import AppPDF
-from .output import ReportFromTemplateOutput, OutputFormatters
+from .app import App
+from .output_formatter import OutputFormatter
 
 report_template = """
 # Review by {{ model }} playing role of '{{ agent_name }}'
@@ -90,10 +89,15 @@ report_template = """
 
 {{ reviewer_round_2 }}
 """
-app = AppPDF(
-    jobs_object = survey.by(referees).by(models),
-    output_formatters = OutputFormatters([
-        ReportFromTemplateOutput(template = report_template, save_as = "referee_report.docx")
-    ])
+
+output_formatter = (OutputFormatter(name = "Report From Template")
+.report_from_template(template=report_template, format='docx')
+.save('referee_report.docx')
 )
-app.output(pdf_path = "optimize.pdf")
+
+app = App(
+    initial_survey = initial_survey,
+    jobs_object = survey.by(referees).by(models),
+    output_formatters = [output_formatter])
+
+app.output({'paper': "optimize.pdf"})

@@ -1,12 +1,17 @@
+import inspect
+
 from typing import Any, Optional
 from ..results import Results
 from ..dataset import Dataset
 from ..dataset.display.table_display import TableDisplay
+from ..scenarios import ScenarioList, FileStore
 
 relevant_classes = {
-    Results: ['to_scenario_list', 'select', 'table'], 
-    Dataset: ['table', 'expand'], 
+    Results: ['to_scenario_list', 'select', 'table', 'report_from_template'], 
+    Dataset: ['table', 'expand', 'to_markdown'], 
     TableDisplay: ['flip'],
+    FileStore: ['view', 'to_docx', 'save'],
+    ScenarioList: ['to_survey', 'rename'],
 }
 
 white_list_methods = []
@@ -14,7 +19,6 @@ for cls, methods in relevant_classes.items():
     for method in methods:
         white_list_methods.append(getattr(cls, method))
 
-import inspect
 
 white_list_commands = [f.__name__ for f in white_list_methods]
 return_types = {f.__name__: inspect.signature(f).return_annotation for f in white_list_methods}
@@ -138,7 +142,7 @@ class OutputFormatters(UserList):
     def __init__(self, data: list[OutputFormatter] = None):
         super().__init__(data)
 
-        self.mapping = {f.name: f for f in data}
+        self.mapping = {f.name: f for f in (data or [])}
         self.default = None
 
     def __repr__(self) -> str:
@@ -153,6 +157,57 @@ class OutputFormatters(UserList):
         if self.default is not None:
             return self.mapping[self.default]
         return self.data[0]
+
+    def to_dict(self, add_edsl_version: bool = True) -> dict[str, Any]:
+        """Serialize the collection of formatters and default selection to a dict.
+
+        Doctest:
+
+        >>> of1 = OutputFormatter(name='a', description=None, allowed_commands=['table']).table()
+        >>> of2 = OutputFormatter(name='b', description=None, allowed_commands=['flip'])
+        >>> ofs = OutputFormatters([of1, of2])
+        >>> ofs.set_default('a')
+        >>> data = ofs.to_dict()
+        >>> set(['formatters','default']).issubset(set(data.keys()))
+        True
+        >>> data['default']
+        'a'
+        >>> len(data['formatters'])
+        2
+        """
+        return {
+            "formatters": [formatter.to_dict() for formatter in self.data],
+            "default": self.default,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "OutputFormatters":
+        """Create an OutputFormatters instance from a dict produced by to_dict.
+
+        Doctest:
+
+        >>> payload = {
+        ...   'formatters': [
+        ...       {'name': 'a', 'description': None, 'allowed_commands': ['table'], 'stored_commands': [{'name':'table','args': [], 'kwargs': {}}]},
+        ...       {'name': 'b', 'description': None, 'allowed_commands': ['flip'], 'stored_commands': []},
+        ...   ],
+        ...   'default': 'a',
+        ... }
+        >>> ofs = OutputFormatters.from_dict(payload)
+        >>> isinstance(ofs, OutputFormatters)
+        True
+        >>> ofs.get_default().name
+        'a'
+        >>> len(ofs)
+        2
+        """
+        formatter_dicts = data.get("formatters", [])
+        formatters = [OutputFormatter.from_dict(fd) for fd in formatter_dicts]
+        instance = cls(formatters)
+        default_name = data.get("default")
+        if default_name is not None:
+            instance.set_default(default_name)
+        return instance
 
 if __name__ == "__main__":
 
