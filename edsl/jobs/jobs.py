@@ -1231,6 +1231,11 @@ class Jobs(Base):
             f"Use .then('{name}', ...) for post-run method chaining."
         )
 
+    @property
+    def has_post_run_methods(self) -> bool:
+        """Check if the jobs object has post-run methods."""
+        return len(self._post_run_methods) > 0
+
     def _apply_post_run_methods(self, results) -> Any:
         """Apply all post-run methods to the results object.
 

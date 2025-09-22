@@ -31,6 +31,7 @@ from .exceptions import (
 if TYPE_CHECKING:
     from docx import Document
     from .dataset import Dataset
+    from ..scenarios import ScenarioList
     from ..jobs import Job  # noqa: F401
 
 
@@ -600,7 +601,7 @@ class DataOperationsBase:
 
         return Tree(self, node_order=node_order)
 
-    def to_scenario_list(self, remove_prefix: bool = True) -> list[dict]:
+    def to_scenario_list(self, remove_prefix: bool = True) -> "ScenarioList":
         """Convert the results to a list of dictionaries, one per scenario.
 
         :param remove_prefix: Whether to remove the prefix from the column names.
