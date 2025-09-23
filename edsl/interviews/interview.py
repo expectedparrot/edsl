@@ -464,7 +464,9 @@ class Interview:
 
         self.tasks = await self.task_manager.build_question_tasks(
             answer_func=AnswerQuestionFunctionConstructor(
-                self, key_lookup=run_config.environment.key_lookup
+                self,
+                key_lookup=run_config.environment.key_lookup,
+                run_config=run_config,
             )(),
             token_estimator=RequestTokenEstimator(self),
             model_buckets=model_buckets,

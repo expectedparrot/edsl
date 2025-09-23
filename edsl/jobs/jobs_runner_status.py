@@ -14,9 +14,12 @@ if TYPE_CHECKING:
 
 
 class StatisticsTracker:
-    def __init__(self, total_interviews: int, distinct_models: list[str]):
+    def __init__(
+        self, total_interviews: int, distinct_models: list[str], total_questions: int
+    ):
         self.start_time = time.time()
         self.total_interviews = total_interviews
+        self.total_questions = total_questions
         self.completed_count = 0
         self.completed_by_model = defaultdict(int)
         self.distinct_models = distinct_models
@@ -24,6 +27,9 @@ class StatisticsTracker:
         self.total_exceptions = 0
         self.unfixed_exceptions = 0
         self.exceptions_counter = defaultdict(int)
+        # Question-level tracking
+        self.questions_answered = 0
+        self.questions_answered_by_model = defaultdict(int)
 
     def add_completed_interview(
         self,
@@ -31,6 +37,7 @@ class StatisticsTracker:
         exceptions: list[dict],
         num_exceptions: int = 0,
         num_unfixed: int = 0,
+        num_questions: int = 0,
     ):
         self.completed_count += 1
         self.completed_by_model[model] += 1
@@ -38,6 +45,10 @@ class StatisticsTracker:
         self.unfixed_exceptions += num_unfixed
         if num_exceptions > 0:
             self.interviews_with_exceptions += 1
+
+        # Track questions answered
+        self.questions_answered += num_questions
+        self.questions_answered_by_model[model] += num_questions
 
         for exception in exceptions:
             key = (
@@ -69,6 +80,18 @@ class StatisticsTracker:
         remaining = self.total_interviews - self.completed_count
         return avg_time * remaining
 
+    def get_questions_pending(self) -> int:
+        """Return the number of questions still pending to be answered."""
+        return self.total_questions - self.questions_answered
+
+    def get_questions_progress_percent(self) -> float:
+        """Return the percentage of questions answered."""
+        return (
+            (self.questions_answered / self.total_questions * 100)
+            if self.total_questions > 0
+            else 0
+        )
+
 
 class JobsRunnerStatusBase(ABC):
     def __init__(
@@ -98,14 +121,22 @@ class JobsRunnerStatusBase(ABC):
             "exceptions",
             "unfixed_exceptions",
             "throughput",
+            "questions_answered",
+            "questions_pending",
         ]
         self.num_total_interviews = n * len(self.jobs)
+        # Calculate total questions across all interviews
+        questions_per_interview = (
+            len(self.jobs.survey) if hasattr(self.jobs, "survey") else 0
+        )
+        self.num_total_questions = self.num_total_interviews * questions_per_interview
 
         self.distinct_models = list(set(model.model for model in self.jobs.models))
 
         self.stats_tracker = StatisticsTracker(
             total_interviews=self.num_total_interviews,
             distinct_models=self.distinct_models,
+            total_questions=self.num_total_questions,
         )
 
         self.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
@@ -152,6 +183,12 @@ class JobsRunnerStatusBase(ABC):
                     if self.num_total_interviews > 0
                     else 0
                 ),
+            },
+            "questions_progress": {
+                "answered": self.stats_tracker.questions_answered,
+                "pending": self.stats_tracker.get_questions_pending(),
+                "total": self.num_total_questions,
+                "percent": self.stats_tracker.get_questions_progress_percent(),
             },
             "language_model_progress": model_progress,
             "statistics": stats,
@@ -212,13 +249,20 @@ class JobsRunnerStatusBase(ABC):
         status_dict["language_model_queues"] = model_queues
         return status_dict
 
+    def add_completed_question(self, model_name: str, question_name: str):
+        """Records a single completed question for real-time progress tracking."""
+        self.stats_tracker.questions_answered += 1
+        self.stats_tracker.questions_answered_by_model[model_name] += 1
+
     def add_completed_interview(self, interview: "Interview"):
         """Records a completed interview without storing the full interview data."""
+        # Don't count questions here - they're tracked in real-time via add_completed_question
         self.stats_tracker.add_completed_interview(
             model=interview.model.model,
             exceptions=interview.exceptions.list(),
             num_exceptions=interview.exceptions.num_exceptions(),
             num_unfixed=interview.exceptions.num_unfixed_exceptions(),
+            num_questions=0,  # Questions are now tracked in real-time
         )
 
     def _compute_statistic(self, stat_name: str):
@@ -254,6 +298,15 @@ class JobsRunnerStatusBase(ABC):
         elif stat_name == "throughput":
             value = self.stats_tracker.get_throughput()
             return {"throughput": (value, 2, "interviews/sec.")}
+
+        elif stat_name == "questions_answered":
+            return {
+                "questions_answered": (self.stats_tracker.questions_answered, None, "")
+            }
+
+        elif stat_name == "questions_pending":
+            value = self.stats_tracker.get_questions_pending()
+            return {"questions_pending": (value, None, "")}
 
     def update_progress(self, stop_event):
         while not stop_event.is_set():
@@ -314,7 +367,7 @@ class JobsRunnerStatus(JobsRunnerStatusBase):
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.api_key or 'None'}",
             }
-
+            print(status_dict)
             response = requests.patch(
                 self.update_url,
                 json=status_dict,
