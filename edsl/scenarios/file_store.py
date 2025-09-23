@@ -665,6 +665,12 @@ class FileStore(Scenario):
         return None
         # raise TypeError("No text method found for this file type.")
 
+    def to_scenario_list(self):
+        handler = FileMethods.get_handler(self.suffix)
+        if handler and hasattr(handler, "to_scenario_list"):
+            return handler(self.path).to_scenario_list()
+        raise TypeError("No scenario list method found for this file type.")
+
     def push(
         self,
         description: Optional[str] = None,
