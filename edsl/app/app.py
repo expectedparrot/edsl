@@ -1,3 +1,4 @@
+from re import A
 from typing import TYPE_CHECKING, Optional, Any, Callable, Union
 from ..base import Base
 from ..scenarios import Scenario
@@ -10,13 +11,41 @@ if TYPE_CHECKING:
     from ..scenarios import ScenarioList
 
 from .output_formatter import OutputFormatter, OutputFormatters
-from abc import ABC, abstractmethod
 
-class AppBase(ABC):
-    # Registry for subclasses of AppBase
-    registry = {}
-    application_type = None
+class AppDeployment:
+    license_type: str
+    github_repo: str
+    timestamp: str
+    source_available: bool
+    documentation: str
+    thumbnail: str
 
+from functools import partial
+
+def single_scenario_prepare(app: 'App', params: dict) -> 'Jobs':
+    from ..scenarios import FileStore
+    for key, value in params.items():
+        relevant_question = app.initial_survey[key]
+        if relevant_question.question_type == "file_upload":
+            params[key] = FileStore(path=value)
+        else:
+            params[key] = value
+    scenario = Scenario(params)
+    return app.jobs_object.add_scenario_head(scenario)
+
+def edsl_survey_as_input(app: 'App', params: dict) -> 'Jobs':
+    return app.jobs_object.add_scenario_head(params.to_scenario_list())
+
+def give_survey_to_agents(app: 'App', params: dict) -> 'Jobs':
+    return app.jobs_object.add_survey_to_head(params)
+
+APPLICATION_INPUT_STRATEGIES = {
+ 'single_scenario_input': single_scenario_prepare,
+ 'edsl_survey_as_input': edsl_survey_as_input, 
+ 'give_to_agents': give_survey_to_agents,
+}
+
+class App:
     """
     A class representing an EDSL application.
 
@@ -29,8 +58,9 @@ class AppBase(ABC):
         output_formatters: Optional[list[OutputFormatter]] = None, 
         description: Optional[str] = None,
         application_name: Optional[str] = None,
-        initial_survey: Optional[Survey] = None):
-        """Instantiate an AppBase object.
+        initial_survey: Optional[Survey] = None, 
+        application_type: Optional[str] = 'single_scenario_input'):
+        """Instantiate an App object.
         
         Args:
             jobs_object: The jobs object that is the logic of the application.
@@ -42,6 +72,7 @@ class AppBase(ABC):
         self.jobs_object = jobs_object
         self.description = description
         self.initial_survey = initial_survey
+        self.application_type = application_type
         if output_formatters is None or len(output_formatters) == 0:
             raise ValueError("At least one output formatter is required for all apps")
         self.output_formatters: OutputFormatters = OutputFormatters(output_formatters)
@@ -51,30 +82,56 @@ class AppBase(ABC):
         self.application_name: str = application_name or self.__class__.__name__
         self._validate_parameters()
 
-    @abstractmethod
-    def answers_to_scenario(self, answers: dict) -> 'Scenario':
-        """Converts the answers to a scenario.
-        
-        Args:
-            answers: The answers to the application.
-        """
-        pass
+        if application_type not in APPLICATION_INPUT_STRATEGIES:
+            raise ValueError(f"Invalid application type: {application_type}")
+
+        self._prepare_jobs_object = partial(APPLICATION_INPUT_STRATEGIES[application_type], app = self)
+
+    @classmethod
+    def list(cls) -> list[str]:
+        """List all apps."""
+        from ..coop.coop import Coop
+        coop = Coop()
+        return coop.list_apps()
+
+    def _generate_results(self, modified_jobs_object: 'Jobs') -> 'Results':
+        return modified_jobs_object.run()
+
+    def output(self, answers: Optional[dict] = None, verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
+        """Generate output by running and formatting results via the default output formatter."""
+
+        if formater_to_use is not None:
+            formatter = self.output_formatters.get_formatter(formater_to_use)
+        else:
+            formatter = self.output_formatters.get_default()
+
+        if answers is None:
+            answers = self._collect_answers_interactively()
+
+        modified_jobs_object = self._prepare_jobs_object(params = answers)
+        results = self._generate_results(modified_jobs_object)
+        return formatter.render(results)
+
 
     @property 
     def parameters(self) -> dict:
         """Returns the parameters of the application.
         
-        >>> AppBase.example().parameters
+        >>> App.example().parameters
         [('raw_text', 'text', 'What is the text to split into a twitter thread?')]
         """
+        if self.initial_survey is None:
+            return []
         return [(q.question_name, q.question_type, q.question_text) for q in self.initial_survey]
 
 
     def __repr__(self) -> str:
-        return f"AppBase: application_name={self.application_name}, description={self.description}"
-
+        return f"App: application_name={self.application_name}, description={self.description}"
 
     def _validate_parameters(self) -> None:
+
+        if self.initial_survey is None: # Some apps do not require a survey
+            return
         input_survey_params = [x[0] for x in self.parameters]
         head_params = self.jobs_object.head_parameters
         for param in head_params:
@@ -126,22 +183,8 @@ class AppBase(ABC):
 
         return answers or {}
 
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        # Do not register the base class itself
-        if cls is AppBase:
-            return
-        # Enforce that subclasses define a non-None application_type
-        application_type = getattr(cls, "application_type", None)
-        if application_type is None:
-            raise TypeError(f"{cls.__name__} must define a non-None class variable 'application_type'")
-        # Register by class name and by application_type
-        AppBase.registry[cls.__name__] = cls
-        AppBase.registry[application_type] = cls
-
-
     def to_dict(self, add_edsl_version: bool = True) -> dict:
-        """Convert the app to a dictionary.
+        """Convert the app to a dictionary for serialization.
         
         Args:
             add_edsl_version: Whether to add the E[P] version to the dictionary.
@@ -159,7 +202,7 @@ class AppBase(ABC):
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'AppBase':
+    def from_dict(cls, data: dict) -> 'App':
         """Create an app from a dictionary.
         
         Args:
@@ -169,9 +212,6 @@ class AppBase(ABC):
             An app object.
         """
         # Choose subclass via registry using application_type (if available)
-        application_type = data.get("application_type")
-        target_cls = AppBase.registry.get(application_type, cls) if application_type else cls
-
         from ..jobs import Jobs
         from ..surveys import Survey
 
@@ -185,27 +225,8 @@ class AppBase(ABC):
         }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
 
-        return target_cls(**kwargs)
+        return cls(**kwargs)
 
-    def generate_results(self, scenario_or_scenario_list: Union['Scenario','ScenarioList']) -> 'Results':
-        return self.jobs_object.add_scenario_head(scenario_or_scenario_list).run()
-
-    def output(self, answers: Optional[dict] = None, verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
-        """Generate output by running and formatting results via the default output formatter."""
-
-        if formater_to_use is not None:
-            formatter = self.output_formatters.get_formatter(formater_to_use)
-        else:
-            formatter = self.output_formatters.get_default()
-
-        if answers is None:
-            answers = self._collect_answers_interactively()
-
-        scenario = self.answers_to_scenario(answers)
-        results = self.generate_results(scenario)
-        return formatter.render(results)
-
-    # (no fluent formatter management API in legacy behavior)
 
     def push(self, visibility: Optional[str] = "unlisted", description: Optional[str] = None, alias: Optional[str] = None):
         """Pushes the application to the E[P] server."""
@@ -227,7 +248,7 @@ class AppBase(ABC):
         return app_info
 
     @classmethod
-    def pull(cls, edsl_uuid: str) -> 'AppBase':
+    def pull(cls, edsl_uuid: str) -> 'App':
         """Pulls the application from the E[P]."""
         from ..surveys import Survey
         from ..jobs import Jobs
@@ -243,15 +264,6 @@ class AppBase(ABC):
         from .output import OutputFormatters  # type: ignore
         output_formatters = OutputFormatters.from_dict(app_info.get('output_formatters_info'))
 
-        # Resolve the concrete application class via the registry
-        application_type = app_info.get('application_type')
-        # Resolve by application_type first, then by class name, finally fallback to cls
-        target_cls = (
-            AppBase.registry.get(application_type)
-            or AppBase.registry.get(app_info.get('class_name'))
-            or cls
-        )
-
         # Prepare kwargs (shared __init__ across subclasses)
         kwargs = {
             'jobs_object': jobs_object,
@@ -262,14 +274,13 @@ class AppBase(ABC):
         }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
 
-        return target_cls(**kwargs)
+        return cls(**kwargs)
 
     @classmethod
     def example(cls):
         from ..surveys import Survey
         from ..language_models import Model 
         from ..questions import QuestionFreeText, QuestionList
-        from .output import AnswersListOutput, OutputFormatters  # type: ignore
         initial_survey = Survey([QuestionFreeText(question_text = "What is your intended college major", question_name = "intended_college_major")])
 
         logic_survey = QuestionList(
@@ -278,57 +289,45 @@ class AppBase(ABC):
         )
         m = Model()
         job = logic_survey.by(m) 
-        return AppInteractiveSurvey(initial_survey = initial_survey, jobs_object = job, output_formatters = OutputFormatters([AnswersListOutput()]))
+        return App(initial_survey = initial_survey, jobs_object = job, output_formatters = OutputFormatters([AnswersListOutput()]))
 
 
-class App(AppBase):
-    application_type = "basic_app"
+# class App(AppBase):
+#     application_type = "basic_app"
 
-    def answers_to_scenario(self, answers: dict) -> 'Scenario':
-        from ..scenarios import FileStore
-        for key, value in answers.items():
-            relevant_question = self.initial_survey[key]
-            if relevant_question.question_type == "file_upload":
-                answers[key] = FileStore(path=value)
-            else:
-                answers[key] = value
-        return Scenario(answers)
+    # def answers_to_scenario(self, answers: dict) -> 'Scenario':
+    #     from ..scenarios import FileStore
+    #     for key, value in answers.items():
+    #         relevant_question = self.initial_survey[key]
+    #         if relevant_question.question_type == "file_upload":
+    #             answers[key] = FileStore(path=value)
+    #         else:
+    #             answers[key] = value
+    #     return Scenario(answers)
 
 
-class AppSurvey(AppBase):
+# class AppSurvey(AppBase):
+#     """An app that takes a survey as input."""
     
-    application_type = "survey"
+#     application_type = "survey"
 
-    def generate_results(self, survey: 'Survey') -> 'Results':
-        sl = survey.to_scenario_list()
-        return self.jobs_object.add_scenario_head(sl).run()
-    
-class AppScenarioList(AppBase):
+#     def answers_to_scenario(self, answers: dict) -> 'Scenario':
+#         return answers.to_scenario_list()
 
-    application_type = "scenario_list"
-
-    def generate_results(self, scenario_list: 'ScenarioList') -> 'Results':
-        jobs = self.jobs_object.add_scenario_head(scenario_list)
-        return jobs.run()
-
-    
-class AppImage(AppBase):
-
-    application_type = "image"
-
-    def generate_results(self, image_path: Any) -> 'Results':
-        from ..scenarios import FileStore, Scenario
-        s = Scenario({'image': FileStore(path = image_path)})
-        return self.jobs_object.by(s).run()
-
-class AppPDF(AppBase):
-    
-    application_type = "pdf"
-    
-    def generate_results(self, pdf_path: Any) -> 'Results':
-        from ..scenarios import FileStore, Scenario
-        s = Scenario({'paper': FileStore(path = pdf_path)})
-        return self.jobs_object.by(s).run()
+#     @classmethod
+#     def example(cls):
+#         from ..surveys import Survey
+#         from ..questions import QuestionFreeText
+#         initial_survey = None
+#         jobs_object = Survey([QuestionFreeText(
+#             question_name = "typos", 
+#             question_text = "Are there any typos in {{ scenario.question_text }}?")]).to_jobs()
+#         output_formatter = OutputFormatter(name = "Typo Checker").select('answer.typos').table()
+#         a = AppSurvey(
+#             initial_survey = initial_survey, 
+#             jobs_object = jobs_object, 
+#             output_formatters = OutputFormatters([output_formatter]))
+#         return a
 
 
 if __name__ == "__main__":
@@ -357,7 +356,6 @@ if __name__ == "__main__":
         output_formatters = OutputFormatters([twitter_output_formatter])
         )
 
-    # app = AppText.example()
     raw_text = """ 
     The Senate of the United States shall be composed of two Senators from each State, chosen by the Legislature thereof, for six Years; and each Senator shall have one Vote.
     Immediately after they shall be assembled in Consequence of the first Election, they shall be divided as equally as may be into three Classes. The Seats of the Senators of the first Class shall be vacated at the Expiration of the second Year, of the second Class at the Expiration of the fourth Year, and of the third Class at the Expiration of the sixth Year, so that one third may be chosen every second Year; and if Vacancies happen by Resignation, or otherwise, during the Recess of the Legislature of any State, the Executive thereof may make temporary Appointments until the next Meeting of the Legislature, which shall then fill such Vacancies.

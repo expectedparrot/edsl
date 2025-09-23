@@ -1,7 +1,7 @@
 import textwrap
 
 from edsl.app.app import App
-from edsl.app.output_formatter import OutputFormatter
+from edsl.app.output_formatter import OutputFormatter, OutputFormatters
 
 from edsl.questions import (
     QuestionFreeText,
@@ -146,7 +146,7 @@ app = App(
     application_name="Meal Planner",
     description="Create a meal plan for a given number of people.",
     jobs_object=jobs,
-    output_formatters=[docx_writer, markdown_viewer]
+    output_formatters=OutputFormatters([docx_writer, markdown_viewer])
 )
 
 if __name__ == "__main__":
