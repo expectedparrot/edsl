@@ -461,4 +461,19 @@ class AnswerQuestionFunctionConstructor:
             self._handle_exception(
                 original_error, self.invigilator_fetcher(question), task
             )
+
+            # Track permanently failed question for progress tracking
+            interview = self._interview_ref()
+            if (
+                interview is not None
+                and self.run_config
+                and hasattr(self.run_config, "environment")
+                and hasattr(self.run_config.environment, "jobs_runner_status")
+                and self.run_config.environment.jobs_runner_status is not None
+            ):
+                self.run_config.environment.jobs_runner_status.add_failed_question(
+                    model_name=interview.model.model,
+                    question_name=question.question_name,
+                )
+
             raise original_error
