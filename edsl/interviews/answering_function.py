@@ -181,10 +181,13 @@ class SkipHandler:
 class AnswerQuestionFunctionConstructor:
     """Constructs a function that answers a question and records the answer."""
 
-    def __init__(self, interview: "Interview", key_lookup: "KeyLookup"):
+    def __init__(
+        self, interview: "Interview", key_lookup: "KeyLookup", run_config=None
+    ):
         # Store a weak reference to the interview
         self._interview_ref = weakref.ref(interview)
         self.key_lookup = key_lookup
+        self.run_config = run_config
         self._logger = get_logger(__name__)
 
         # Store configuration settings that won't change during lifecycle
@@ -386,6 +389,21 @@ class AnswerQuestionFunctionConstructor:
                         )
                         if self.skip_handler:
                             self.skip_handler.cancel_skipped_questions(question)
+
+                        # Track question completion for real-time progress
+                        if (
+                            self.run_config
+                            and hasattr(self.run_config, "environment")
+                            and hasattr(
+                                self.run_config.environment, "jobs_runner_status"
+                            )
+                            and self.run_config.environment.jobs_runner_status
+                            is not None
+                        ):
+                            self.run_config.environment.jobs_runner_status.add_completed_question(
+                                model_name=interview.model.model,
+                                question_name=question.question_name,
+                            )
                 else:
                     if (
                         hasattr(response, "exception_occurred")
