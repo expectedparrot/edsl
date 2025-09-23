@@ -319,7 +319,7 @@ class JobsRunnerStatus(JobsRunnerStatusBase):
                 self.update_url,
                 json=status_dict,
                 headers=headers,
-                timeout=1,
+                timeout=10,
             )
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
