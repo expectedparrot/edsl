@@ -15,7 +15,7 @@ By the end of this tutorial, you will be able to use EDSL to do each of the foll
 
 * Construct various types of `questions <https://docs.expectedparrot.com/en/latest/questions.html>`_ tailored to your research objectives.
 * Combine questions into `surveys <https://docs.expectedparrot.com/en/latest/surveys.html>`_ and integrate logical rules to control the survey flow.
-* Add context to questions by *piping*answers, adding *memory* of prior questions and answers, and using `scenarios <https://docs.expectedparrot.com/en/latest/scenarios.html>`_ to add data or content to questions.
+* Add context to questions by piping answers, adding memory of prior questions and answers, and using `scenarios <https://docs.expectedparrot.com/en/latest/scenarios.html>`_ to add data or content to questions.
 * Design personas for AI `agents <https://docs.expectedparrot.com/en/latest/agents.html>`_ to simulate responses to your surveys.
 * Choose and deploy `language models <https://docs.expectedparrot.com/en/latest/language_models.html>`_ to generate responses for AI agents.
 * Analyze `results <https://docs.expectedparrot.com/en/latest/results.html>`_ as datasets with built-in analytical tools.
