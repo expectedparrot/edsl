@@ -1,6 +1,5 @@
-from re import A
-from typing import TYPE_CHECKING, Optional, Any, Callable, Union
-from ..base import Base
+from typing import TYPE_CHECKING, Optional, Any, TypedDict
+from abc import ABC, abstractmethod
 from ..scenarios import Scenario
 from ..surveys import Survey
 
@@ -20,32 +19,7 @@ class AppDeployment:
     documentation: str
     thumbnail: str
 
-from functools import partial
-
-def single_scenario_prepare(app: 'App', params: dict) -> 'Jobs':
-    from ..scenarios import FileStore
-    for key, value in params.items():
-        relevant_question = app.initial_survey[key]
-        if relevant_question.question_type == "file_upload":
-            params[key] = FileStore(path=value)
-        else:
-            params[key] = value
-    scenario = Scenario(params)
-    return app.jobs_object.add_scenario_head(scenario)
-
-def edsl_survey_as_input(app: 'App', params: dict) -> 'Jobs':
-    return app.jobs_object.add_scenario_head(params.to_scenario_list())
-
-def give_survey_to_agents(app: 'App', params: dict) -> 'Jobs':
-    return app.jobs_object.add_survey_to_head(params)
-
-APPLICATION_INPUT_STRATEGIES = {
- 'single_scenario_input': single_scenario_prepare,
- 'edsl_survey_as_input': edsl_survey_as_input, 
- 'give_to_agents': give_survey_to_agents,
-}
-
-class App:
+class App(ABC):
     """
     A class representing an EDSL application.
 
@@ -53,13 +27,32 @@ class App:
     This creates parameters that are used to run a jobs object.
     The jobs object has the logic for the application.
     """
+    # Subclass registry: maps application_type -> subclass
+    _registry: dict[str, type['App']] = {}
+
+    # Each subclass should set a unique application_type
+    application_type: str = "base"
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # Skip base class itself
+        if cls is App:
+            return
+        app_type = getattr(cls, "application_type", None)
+        if not isinstance(app_type, str) or not app_type.strip():
+            raise TypeError(f"{cls.__name__} must define a non-empty 'application_type' class attribute.")
+        # Enforce uniqueness
+        if app_type in App._registry and App._registry[app_type] is not cls:
+            existing = App._registry[app_type].__name__
+            raise ValueError(f"Duplicate application_type '{app_type}' for {cls.__name__}; already registered by {existing}.")
+        App._registry[app_type] = cls
+
     def __init__(self, 
         jobs_object: 'Jobs', 
         output_formatters: Optional[list[OutputFormatter]] = None, 
         description: Optional[str] = None,
         application_name: Optional[str] = None,
-        initial_survey: Optional[Survey] = None, 
-        application_type: Optional[str] = 'single_scenario_input'):
+        initial_survey: Optional[Survey] = None):
         """Instantiate an App object.
         
         Args:
@@ -72,7 +65,6 @@ class App:
         self.jobs_object = jobs_object
         self.description = description
         self.initial_survey = initial_survey
-        self.application_type = application_type
         if output_formatters is None or len(output_formatters) == 0:
             raise ValueError("At least one output formatter is required for all apps")
         self.output_formatters: OutputFormatters = OutputFormatters(output_formatters)
@@ -81,11 +73,6 @@ class App:
         # Default to the class name if not provided
         self.application_name: str = application_name or self.__class__.__name__
         self._validate_parameters()
-
-        if application_type not in APPLICATION_INPUT_STRATEGIES:
-            raise ValueError(f"Invalid application type: {application_type}")
-
-        self._prepare_jobs_object = partial(APPLICATION_INPUT_STRATEGIES[application_type], app = self)
 
     @classmethod
     def list(cls) -> list[str]:
@@ -97,21 +84,52 @@ class App:
     def _generate_results(self, modified_jobs_object: 'Jobs') -> 'Results':
         return modified_jobs_object.run()
 
-    def output(self, answers: Optional[dict] = None, verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
-        """Generate output by running and formatting results via the default output formatter."""
-
+    def _render(self, jobs: 'Jobs', formater_to_use: Optional[str]) -> Any:
         if formater_to_use is not None:
             formatter = self.output_formatters.get_formatter(formater_to_use)
         else:
             formatter = self.output_formatters.get_default()
-
-        if answers is None:
-            answers = self._collect_answers_interactively()
-
-        modified_jobs_object = self._prepare_jobs_object(params = answers)
-        results = self._generate_results(modified_jobs_object)
+        results = self._generate_results(jobs)
         return formatter.render(results)
 
+    def output(self, answers: Any, verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
+        """Subclasses must provide a typed output signature and delegate to _render."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def _prepare_from_params(self, params: Any) -> 'Jobs':
+        """Map external params into a Jobs object ready to run."""
+
+
+    def add_output_formatter(self, formatter: OutputFormatter, set_default: bool = False) -> "App":
+        """Add an additional output formatter to this app (fluent).
+
+        Args:
+            formatter: An `OutputFormatter` instance to add.
+            set_default: If True, set this formatter as the default for subsequent outputs.
+
+        Returns:
+            The `App` instance to allow fluent chaining.
+
+        Raises:
+            TypeError: If `formatter` is not an `OutputFormatter`.
+            ValueError: If the formatter has no name or the name already exists.
+        """
+        if not isinstance(formatter, OutputFormatter):
+            raise TypeError("formatter must be an OutputFormatter")
+        if not getattr(formatter, "name", None):
+            raise ValueError("formatter must have a unique, non-empty name")
+        if formatter.name in self.output_formatters.mapping:
+            raise ValueError(f"Formatter with name '{formatter.name}' already exists")
+
+        # Append and keep the mapping in sync
+        self.output_formatters.data.append(formatter)
+        self.output_formatters.mapping[formatter.name] = formatter
+
+        if set_default:
+            self.output_formatters.set_default(formatter.name)
+
+        return self
 
     @property 
     def parameters(self) -> dict:
@@ -201,6 +219,10 @@ class App:
             "output_formatters": self.output_formatters.to_dict(add_edsl_version = add_edsl_version),
         }
 
+    @property
+    def application_type(self) -> str:  # type: ignore[override]
+        return getattr(self.__class__, "application_type", self.__class__.__name__)
+
     @classmethod
     def from_dict(cls, data: dict) -> 'App':
         """Create an app from a dictionary.
@@ -225,7 +247,14 @@ class App:
         }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
 
-        return cls(**kwargs)
+        app_type = data.get("application_type")
+        target_cls: type[App]
+        if isinstance(app_type, str) and app_type in App._registry:
+            target_cls = App._registry[app_type]
+        else:
+            target_cls = cls
+
+        return target_cls(**kwargs)
 
 
     def push(self, visibility: Optional[str] = "unlisted", description: Optional[str] = None, alias: Optional[str] = None):
@@ -261,7 +290,6 @@ class App:
             initial_survey = Survey.pull(app_info['initial_survey_info']['uuid'])
         else:
             initial_survey = None
-        from .output import OutputFormatters  # type: ignore
         output_formatters = OutputFormatters.from_dict(app_info.get('output_formatters_info'))
 
         # Prepare kwargs (shared __init__ across subclasses)
@@ -274,7 +302,86 @@ class App:
         }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
 
-        return cls(**kwargs)
+        app_type = app_info.get('application_type')
+        target_cls: type[App]
+        if isinstance(app_type, str) and app_type in App._registry:
+            target_cls = App._registry[app_type]
+        else:
+            target_cls = cls
+
+        return target_cls(**kwargs)
+
+class SingleScenarioApp(App):
+    application_type: str = "single_scenario_input"
+
+    def _prepare_from_params(self, params: dict) -> 'Jobs':
+        from ..scenarios import FileStore
+        normalized: dict = {}
+        for key, value in params.items():
+            relevant_question = self.initial_survey[key] if self.initial_survey else None
+            if relevant_question is not None and getattr(relevant_question, 'question_type', None) == "file_upload":
+                normalized[key] = FileStore(path=value)
+            else:
+                normalized[key] = value
+        scenario = Scenario(normalized)
+        return self.jobs_object.add_scenario_head(scenario)
+
+    def output(self, params: Optional[dict] = None, verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
+        if params is None:
+            params = self._collect_answers_interactively()
+        jobs = self._prepare_from_params(params)
+        return self._render(jobs, formater_to_use)
+
+
+class SurveyInputApp(App):
+    application_type: str = "edsl_survey_as_input"
+
+    def _prepare_from_params(self, params: 'Survey') -> 'Jobs':
+        return self.jobs_object.add_scenario_head(params.to_scenario_list())
+
+    def output(self, params: 'Survey', verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
+        jobs = self._prepare_from_params(params)
+        return self._render(jobs, formater_to_use)
+
+
+class GiveToAgentsApp(App):
+    application_type: str = "give_to_agents"
+
+    def _prepare_from_params(self, params: 'Survey') -> 'Jobs':
+        return self.jobs_object.add_survey_to_head(params)
+
+    def output(self, params: 'Survey', verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
+        jobs = self._prepare_from_params(params)
+        return self._render(jobs, formater_to_use)
+
+
+class DataLabelingParams(TypedDict):
+    file_path: str
+    labeling_question: Any
+
+
+class DataLabelingApp(App):
+    application_type: str = "data_labeling"
+
+    def _prepare_from_params(self, params: DataLabelingParams) -> 'Jobs':
+        if 'labeling_question' not in params:
+            raise ValueError("labeling_question is required for data labeling")
+        if 'file_path' not in params:
+            raise ValueError("file_path is required for data labeling")
+
+        from ..scenarios import FileStore
+        file_store = FileStore(path=params['file_path'])
+        try:
+            sl = file_store.to_scenario_list()
+        except Exception as e:
+            raise ValueError(f"Error converting file to scenario list: {e}. Allowed formats are csv and xlsx.")
+
+        labeling_question = params['labeling_question']
+        return labeling_question.by(sl)
+
+    def output(self, params: DataLabelingParams, verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
+        jobs = self._prepare_from_params(params)
+        return self._render(jobs, formater_to_use)
 
     @classmethod
     def example(cls):
@@ -289,7 +396,13 @@ class App:
         )
         m = Model()
         job = logic_survey.by(m) 
-        return App(initial_survey = initial_survey, jobs_object = job, output_formatters = OutputFormatters([AnswersListOutput()]))
+        return SingleScenarioApp(
+            initial_survey = initial_survey,
+            jobs_object = job,
+            output_formatters = OutputFormatters([
+                OutputFormatter(name = "Courses To Take").select('scenario.intended_college_major','answer.courses_to_take').table()
+            ])
+        )
 
 
 # class App(AppBase):
@@ -348,7 +461,7 @@ if __name__ == "__main__":
         .table()
     )
 
-    app = App(
+    app = SingleScenarioApp(
         application_name = "Twitter Thread Splitter",
         description = "This application splits text into a twitter thread.",
         initial_survey = initial_survey, 
@@ -369,7 +482,7 @@ if __name__ == "__main__":
     lazarus_app = App.from_dict(app.to_dict())
     
     # non-interactive mode
-    output = lazarus_app.output(answers = {'raw_text': raw_text}, verbose = True)
+    output = lazarus_app.output(params = {'raw_text': raw_text}, verbose = True)
     print(output)
 
     # interactive mode

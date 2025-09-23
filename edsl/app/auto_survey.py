@@ -59,7 +59,7 @@ job = (
 )
 
  
-from .app import App
+from .app import SingleScenarioApp
 from .output_formatter import OutputFormatter
 
 output_formatter = OutputFormatter(name = "Pass Through").select('scenario.generated_question_text', 'answer.*').table()
@@ -82,12 +82,12 @@ output_formatter = (
 ).to_survey()
 )
 
-app = App(
+app = SingleScenarioApp(
     initial_survey = initial_survey,
     jobs_object = job,
     output_formatters = [output_formatter],
 )
 
 if __name__ == "__main__":
-    new_survey = app.output(answers = {"overall_question": "Why did you stop using EDSL?", "population": "Former EDSL users"}, verbose = True)
+    new_survey = app.output(params = {"overall_question": "Why did you stop using EDSL?", "population": "Former EDSL users"}, verbose = True)
     print(new_survey)
