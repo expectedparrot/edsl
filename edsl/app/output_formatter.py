@@ -158,6 +158,12 @@ class OutputFormatters(UserList):
             return self.mapping[self.default]
         return self.data[0]
 
+    def get_formatter(self, name: str) -> OutputFormatter:
+        """Get a formatter by name."""
+        if name not in self.mapping:
+            raise ValueError(f"Formatter '{name}' not found. Available formatters: {list(self.mapping.keys())}")
+        return self.mapping[name]
+
     def to_dict(self, add_edsl_version: bool = True) -> dict[str, Any]:
         """Serialize the collection of formatters and default selection to a dict.
 

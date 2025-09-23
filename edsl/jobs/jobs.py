@@ -364,6 +364,11 @@ class Jobs(Base):
             params = params.union(question.detailed_parameters)
         return params
 
+    def add_survey_to_head(self, survey: "Survey") -> Jobs:
+        """Add a survey to the head job of the job."""
+        self.head_job.survey = survey
+        return self
+
     def add_scenario_head(self, scenario_or_scenario_list: Union["Scenario", "ScenarioList"]) -> Jobs:
         """Add a scenario to the job.
         

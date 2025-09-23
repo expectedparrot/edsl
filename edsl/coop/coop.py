@@ -874,6 +874,12 @@ class Coop(CoopFunctionsMixin):
             widgets.append(scenario)
         return ScenarioList(widgets)
 
+    ## - App-related methods 
+    def list_apps(self) -> list[str]:
+        """List all apps."""
+        from ..app.client import EDSLAppClient
+        return EDSLAppClient().list_apps()
+
     def get_widget_metadata(self, short_name: str) -> Dict:
         """
         Get metadata for a specific widget by short name.
