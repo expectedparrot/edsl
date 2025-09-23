@@ -1,7 +1,10 @@
-from typing import TYPE_CHECKING, Optional, Any, TypedDict
+from typing import TYPE_CHECKING, Optional, Any, TypedDict, Union
+from pathlib import Path
 from abc import ABC, abstractmethod
 from ..scenarios import Scenario
 from ..surveys import Survey
+from ..questions import QuestionMultipleChoice
+from ..scenarios.ranking_algorithm import results_to_ranked_scenario_list
 
 if TYPE_CHECKING:
     from ..surveys import Survey
@@ -92,7 +95,8 @@ class App(ABC):
         results = self._generate_results(jobs)
         return formatter.render(results)
 
-    def output(self, answers: Any, verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
+    @abstractmethod
+    def output(self, params: Any, verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
         """Subclasses must provide a typed output signature and delegate to _render."""
         raise NotImplementedError
 
@@ -353,6 +357,112 @@ class GiveToAgentsApp(App):
     def output(self, params: 'Survey', verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
         jobs = self._prepare_from_params(params)
         return self._render(jobs, formater_to_use)
+
+
+class RankingApp(App):
+    application_type: str = "pairwise_ranking"
+
+    def __init__(
+        self,
+        ranking_question: QuestionMultipleChoice,
+        application_name: Optional[str] = None,
+        description: Optional[str] = None,
+        option_base: Optional[str] = None,
+        rank_field: str = "rank",
+        output_formatters: Optional[list[OutputFormatter]] = None,
+        max_pairwise_count: int = 500,
+    ):
+        """An app that ranks items from a ScenarioList via pairwise comparisons.
+
+        Args:
+            ranking_question: A QuestionMultipleChoice configured to compare two options
+                using Jinja placeholders like '{{ scenario.<field>_1 }}' and '{{ scenario.<field>_2 }}'.
+            application_name: Optional human-readable name.
+            description: Optional description.
+            option_base: Optional base field name (e.g., 'food'). If omitted, inferred from the input ScenarioList.
+            rank_field: Name of the rank field to include in the output ScenarioList.
+            output_formatters: Optional output formatters (not used by this app's output but required by base class).
+        """
+        # Create a minimal Jobs object around this question; not used directly by output(),
+        # but required by the base App constructor.
+        survey = Survey([ranking_question])
+        jobs_object = survey.to_jobs()
+
+        if output_formatters is None or len(output_formatters) == 0:
+            output_formatters = [OutputFormatter(name="Ranked Scenario List")]
+
+        self.ranking_question = ranking_question
+        self.option_base = option_base
+        self.rank_field = rank_field
+        self.max_pairwise_count = max_pairwise_count
+
+        super().__init__(
+            jobs_object=jobs_object,
+            output_formatters=output_formatters,
+            description=description,
+            application_name=application_name,
+            initial_survey=None,
+        )
+
+    def _prepare_from_params(self, params: 'ScenarioList') -> 'Jobs':
+        # Construct pairwise comparisons (choose 2) for the provided ScenarioList
+        return self.ranking_question.by(params.choose_k(2))
+
+    def output(self, params: Union['ScenarioList', str, Path], verbose: bool = False, formater_to_use: Optional[str] = None, force: bool = False) -> 'ScenarioList':
+        """Run the ranking question over pairwise comparisons and return ranked ScenarioList.
+
+        Args:
+            params: Either a ScenarioList of single-field scenarios (e.g., {'food': 'bread'})
+                or a path (CSV/XLSX) to convert via FileStore(...).to_scenario_list().
+            verbose: Unused; present for API compatibility.
+            formater_to_use: Unused; present for API compatibility.
+            force: If True, proceed even if the number of pairwise comparisons exceeds the
+                configured max_pairwise_count threshold.
+
+        Returns:
+            ScenarioList ordered best-to-worst with an added rank field.
+        """
+        from ..scenarios import ScenarioList as _ScenarioList
+        from ..scenarios import FileStore
+
+        # Normalize input to ScenarioList
+        if isinstance(params, (str, Path)):
+            scenario_list: _ScenarioList = FileStore(path=str(params)).to_scenario_list()
+        else:
+            scenario_list = params
+
+        if scenario_list is None or len(scenario_list) == 0:
+            return _ScenarioList([])
+
+        # Enforce maximum number of pairwise comparisons unless forced
+        num_items = len(scenario_list)
+        pairwise_needed = (num_items * (num_items - 1)) // 2
+        if pairwise_needed > self.max_pairwise_count and not force:
+            raise ValueError(
+                f"Pairwise comparisons required ({pairwise_needed}) exceed the limit ({self.max_pairwise_count}). "
+                f"Pass force=True to override or initialize RankingApp with a higher max_pairwise_count."
+            )
+
+        # Determine option base from input if not provided
+        base_field = self.option_base
+        if base_field is None:
+            first_keys = list(scenario_list[0].keys())
+            if len(first_keys) != 1:
+                raise ValueError("Input ScenarioList must have exactly one field per scenario to infer option_base.")
+            base_field = first_keys[0]
+
+        # Generate pairwise comparisons and run the ranking question
+        pairwise_sl = scenario_list.choose_k(2)
+        results = self.ranking_question.by(pairwise_sl).run(stop_on_exception=True)
+
+        # Convert to ranked ScenarioList (best-to-worst) including rank field
+        ranked = results_to_ranked_scenario_list(
+            results,
+            option_base=base_field,
+            include_rank=True,
+            rank_field=self.rank_field,
+        )
+        return ranked
 
 
 class DataLabelingParams(TypedDict):

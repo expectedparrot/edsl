@@ -545,10 +545,23 @@ class QuestionMultipleChoice(QuestionBase):
                     f"The question options were: '{question_options}'."
                 )
         else:
-            translated_options = [
-                Template(str(option)).render(substitution_dict)
-                for option in question_options
-            ]
+            try:
+                translated_options = [
+                    Template(str(option)).render(substitution_dict)
+                    for option in question_options
+                ]
+            except Exception as e:
+                # In case where user used question_options = [{{scenario.opt1}, {{scenario.opt2}}]
+                from collections import defaultdict
+                with_scenario_prefix = defaultdict(dict)
+                for key, value in substitution_dict.items():
+                    with_scenario_prefix['scenario'][key] = value
+                    new_dict = {**with_scenario_prefix, **substitution_dict}
+                    translated_options = [
+                        Template(str(option)).render(new_dict)
+                        for option in question_options
+                    ]
+
         return translated_options
 
     def _translate_answer_code_to_answer(
