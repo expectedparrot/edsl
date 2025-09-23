@@ -30,6 +30,8 @@ class StatisticsTracker:
         # Question-level tracking
         self.questions_answered = 0
         self.questions_answered_by_model = defaultdict(int)
+        self.questions_failed_permanently = 0
+        self.questions_failed_permanently_by_model = defaultdict(int)
 
     def add_completed_interview(
         self,
@@ -80,9 +82,13 @@ class StatisticsTracker:
         remaining = self.total_interviews - self.completed_count
         return avg_time * remaining
 
-    def get_questions_pending(self) -> int:
-        """Return the number of questions still pending to be answered."""
-        return self.total_questions - self.questions_answered
+    def get_questions_in_progress(self) -> int:
+        """Return the number of questions currently in progress (not answered, not failed)."""
+        return (
+            self.total_questions
+            - self.questions_answered
+            - self.questions_failed_permanently
+        )
 
     def get_questions_progress_percent(self) -> float:
         """Return the percentage of questions answered."""
@@ -122,7 +128,8 @@ class JobsRunnerStatusBase(ABC):
             "unfixed_exceptions",
             "throughput",
             "questions_answered",
-            "questions_pending",
+            "questions_failed_permanently",
+            "questions_in_progress",
         ]
         self.num_total_interviews = n * len(self.jobs)
         # Calculate total questions across all interviews
@@ -186,7 +193,8 @@ class JobsRunnerStatusBase(ABC):
             },
             "questions_progress": {
                 "answered": self.stats_tracker.questions_answered,
-                "pending": self.stats_tracker.get_questions_pending(),
+                "failed_permanently": self.stats_tracker.questions_failed_permanently,
+                "in_progress": self.stats_tracker.get_questions_in_progress(),
                 "total": self.num_total_questions,
                 "percent": self.stats_tracker.get_questions_progress_percent(),
             },
@@ -254,6 +262,11 @@ class JobsRunnerStatusBase(ABC):
         self.stats_tracker.questions_answered += 1
         self.stats_tracker.questions_answered_by_model[model_name] += 1
 
+    def add_failed_question(self, model_name: str, question_name: str):
+        """Records a question that failed permanently after all retries."""
+        self.stats_tracker.questions_failed_permanently += 1
+        self.stats_tracker.questions_failed_permanently_by_model[model_name] += 1
+
     def add_completed_interview(self, interview: "Interview"):
         """Records a completed interview without storing the full interview data."""
         # Don't count questions here - they're tracked in real-time via add_completed_question
@@ -304,9 +317,18 @@ class JobsRunnerStatusBase(ABC):
                 "questions_answered": (self.stats_tracker.questions_answered, None, "")
             }
 
-        elif stat_name == "questions_pending":
-            value = self.stats_tracker.get_questions_pending()
-            return {"questions_pending": (value, None, "")}
+        elif stat_name == "questions_failed_permanently":
+            return {
+                "questions_failed_permanently": (
+                    self.stats_tracker.questions_failed_permanently,
+                    None,
+                    "",
+                )
+            }
+
+        elif stat_name == "questions_in_progress":
+            value = self.stats_tracker.get_questions_in_progress()
+            return {"questions_in_progress": (value, None, "")}
 
     def update_progress(self, stop_event):
         while not stop_event.is_set():
