@@ -2426,6 +2426,40 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_scenarios.extend(replacement_scenarios)
         return ScenarioList(new_scenarios)
 
+    def choose_k(self, k: int, order_matters: bool = False) -> "ScenarioList":
+        """Create a ScenarioList of all choose-k selections with suffixed keys.
+
+        The input must be a ScenarioList where each scenario has exactly one key, e.g.:
+        ``ScenarioList.from_list('item', ['a', 'b', 'c'])``.
+
+        Example:
+            >>> s = ScenarioList.from_list('x', ['a', 'b', 'c'])
+            >>> s.choose_k(2)
+            ScenarioList([Scenario({'x_1': 'a', 'x_2': 'b'}), Scenario({'x_1': 'a', 'x_2': 'c'}), Scenario({'x_1': 'b', 'x_2': 'c'})])
+            >>> s.choose_k(2, order_matters=True)  # doctest: +ELLIPSIS
+            ScenarioList([...])
+
+        Args:
+            k: Number of items to choose for each scenario.
+            order_matters: If True, use ordered selections (permutations). If False, use
+                unordered selections (combinations).
+
+        Returns:
+            ScenarioList: A new list containing all generated scenarios.
+        """
+        return ScenarioList(list(self._iter_choose_k(k=k, order_matters=order_matters)))
+
+    def _iter_choose_k(self, k: int, order_matters: bool = False):
+        """Delegate generator for choose-k to the ScenarioCombinator module.
+
+        Returns a generator yielding `Scenario` instances.
+        """
+        from importlib import import_module
+        ScenarioCombinator = import_module(
+            "edsl.scenarios.scenario_combinator"
+        ).ScenarioCombinator
+        return ScenarioCombinator.iter_choose_k(self, k=k, order_matters=order_matters)
+
     def to_agent_blueprint(self):
         """Create an AgentBlueprint from a ScenarioList"""
         from .agent_blueprint import AgentBlueprint
