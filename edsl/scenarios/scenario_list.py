@@ -392,6 +392,78 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_scenarios.append(scenario)
         return new_scenarios
 
+    def zip(self, field_a: str, field_b: str, new_name: str) -> ScenarioList:
+        """Zip two iterable fields in each Scenario into a dict under a new key.
+
+        For every Scenario in the list, this method computes
+        ``dict(zip(scenario[field_a], scenario[field_b]))`` and stores the result
+        in a new key named ``new_name``. It returns a new ScenarioList containing
+        the updated Scenarios.
+
+        Args:
+            field_a: Name of the first iterable field whose values become dict keys.
+            field_b: Name of the second iterable field whose values become dict values.
+            new_name: Name of the new field to store the resulting dictionary under.
+
+        Returns:
+            A new ScenarioList with the zipped dictionary added to each Scenario.
+
+        Raises:
+            KeyError: If either field name does not exist in any Scenario.
+            ScenarioError: If referenced fields are not iterable in any Scenario.
+
+        Examples:
+            >>> sl = ScenarioList([
+            ...     Scenario({"keys": ["a", "b"], "vals": [1, 2]}),
+            ...     Scenario({"keys": ["x", "y"], "vals": [9, 8]}),
+            ... ])
+            >>> sl2 = sl.zip("keys", "vals", "mapping")
+            >>> sl2[0]["mapping"], sl2[1]["mapping"]
+            ({'a': 1, 'b': 2}, {'x': 9, 'y': 8})
+        """
+        new_list = ScenarioList(data=[], codebook=self.codebook)
+        for scenario in self:
+            new_list.append(scenario.zip(field_a, field_b, new_name))
+        return new_list
+
+    def string_cat(
+        self,
+        key: str,
+        addend: str,
+        position: str = "suffix",
+        inplace: bool = False,
+    ) -> ScenarioList:
+        """Concatenate a string to a field across all Scenarios.
+
+        Applies the same behavior as ``Scenario.string_cat`` to each Scenario in the list.
+        By default, returns a new ``ScenarioList``; set ``inplace=True`` to modify this list.
+
+        Args:
+            key: The key whose value will be concatenated in each Scenario.
+            addend: The string to concatenate to the existing value.
+            position: Either "suffix" (default) or "prefix".
+            inplace: If True, modify scenarios in place and return self.
+
+        Returns:
+            A ``ScenarioList`` with updated Scenarios.
+
+        Raises:
+            KeyError: If ``key`` is missing in any Scenario.
+            TypeError: If any value under ``key`` is not a string.
+            ValueError: If ``position`` is not "suffix" or "prefix".
+        """
+        if inplace:
+            for scenario in self:
+                scenario.string_cat(key, addend, position=position, inplace=True)
+            return self
+
+        new_list = ScenarioList(data=[], codebook=self.codebook)
+        for scenario in self:
+            new_list.append(
+                scenario.string_cat(key, addend, position=position, inplace=False)
+            )
+        return new_list
+
     def transform_by_key(self, key_field: str) -> Scenario:
         """Transform the ScenarioList into a single Scenario with key/value pairs.
         
@@ -1463,6 +1535,25 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ]
         return Dataset(data)
 
+    def to_scenario_of_lists(self) -> "Scenario":
+        """Return a single Scenario whose values are lists across the list.
+
+        The resulting Scenario contains every key that appears in any member
+        of the list. For each key, the value is a list of that key's values
+        taken row-wise from the ScenarioList, padding with None when a row is
+        missing the key.
+
+        >>> s = ScenarioList.from_list("a", [1, 2, 3])
+        >>> s.to_scenario_of_lists()
+        Scenario({'a': [1, 2, 3]})
+        >>> s2 = ScenarioList([Scenario({'a': 1}), Scenario({'b': 2})])
+        >>> s2.to_scenario_of_lists()
+        Scenario({'a': [1, None], 'b': [None, 2]})
+        """
+        from .scenario_list_transformer import ScenarioListTransformer
+
+        return ScenarioListTransformer.to_scenario_of_lists(self)
+
     def unpack(
         self, field: str, new_names: Optional[List[str]] = None, keep_original=True
     ) -> ScenarioList:
@@ -2460,11 +2551,34 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ).ScenarioCombinator
         return ScenarioCombinator.iter_choose_k(self, k=k, order_matters=order_matters)
 
-    def to_agent_blueprint(self):
-        """Create an AgentBlueprint from a ScenarioList"""
+    def to_agent_blueprint(
+        self,
+        *,
+        seed: Optional[int] = None,
+        cycle: bool = True,
+        dimension_name_field: str = "dimension",
+        dimension_values_field: str = "dimension_values",
+        dimension_description_field: Optional[str] = None,
+    ):
+        """Create an AgentBlueprint from this ScenarioList.
+
+        Args:
+            seed: Optional seed for deterministic permutation order.
+            cycle: Whether to continue cycling through permutations indefinitely.
+            dimension_name_field: Field name to read the dimension name from.
+            dimension_values_field: Field name to read the dimension values from.
+            dimension_description_field: Optional field name for the dimension description.
+        """
         from .agent_blueprint import AgentBlueprint
 
-        return AgentBlueprint(self)
+        return AgentBlueprint(
+            self,
+            seed=seed,
+            cycle=cycle,
+            dimension_name_field=dimension_name_field,
+            dimension_values_field=dimension_values_field,
+            dimension_description_field=dimension_description_field,
+        )
 
     def collapse(
         self,

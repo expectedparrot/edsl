@@ -50,6 +50,9 @@ class App(ABC):
             raise ValueError(f"Duplicate application_type '{app_type}' for {cls.__name__}; already registered by {existing}.")
         App._registry[app_type] = cls
 
+    # Subclasses must define a default_output_formatter used when none is supplied
+    default_output_formatter: Optional[OutputFormatter] = None
+
     def __init__(self, 
         jobs_object: 'Jobs', 
         output_formatters: Optional[list[OutputFormatter]] = None, 
@@ -68,8 +71,11 @@ class App(ABC):
         self.jobs_object = jobs_object
         self.description = description
         self.initial_survey = initial_survey
+        # Enforce default_output_formatter contract
         if output_formatters is None or len(output_formatters) == 0:
-            raise ValueError("At least one output formatter is required for all apps")
+            if getattr(self.__class__, 'default_output_formatter', None) is None:
+                raise ValueError("Subclasses of App must define a class-level default_output_formatter or pass output_formatters")
+            output_formatters = [self.__class__.default_output_formatter]
         self.output_formatters: OutputFormatters = OutputFormatters(output_formatters)
         if application_name is not None and not isinstance(application_name, str):
             raise TypeError("application_name must be a string if provided")
@@ -359,8 +365,222 @@ class GiveToAgentsApp(App):
         return self._render(jobs, formater_to_use)
 
 
+class PersonSimulator(App):
+    application_type: str = "person_simulator"
+    default_output_formatter: OutputFormatter = OutputFormatter(name="Persona Answers").select('answer.*').to_list()
+
+    def __init__(
+        self,
+        persona_context: str,
+        application_name: Optional[str] = None,
+        description: Optional[str] = None,
+        agent_name: Optional[str] = None,
+        output_formatters: Optional[list[OutputFormatter]] = None,
+    ):
+        """Answer free-text questions in character using a provided persona context.
+
+        Args:
+            persona_context: Descriptive text about the person/persona to simulate.
+            application_name: Optional human-readable name.
+            description: Optional description.
+            agent_name: Optional name for the simulated persona.
+            output_formatters: Optional output formatters. Defaults to a pass-through formatter.
+        """
+        from ..surveys import Survey
+        from ..agents import Agent
+
+        # default output_formatters handled by base class via default_output_formatter
+
+        instruction = (
+            "You are answering questions fully in character as the following person.\n"
+            "Context:\n" + persona_context + "\n"
+            "Stay strictly in character and do not break persona."
+        )
+        self.persona_agent = Agent(name=agent_name or "Persona", instruction=instruction)
+
+        # Minimal jobs object for base constructor
+        jobs_object = Survey([]).to_jobs()
+
+        super().__init__(
+            jobs_object=jobs_object,
+            output_formatters=output_formatters,
+            description=description,
+            application_name=application_name or "Person Simulator",
+            initial_survey=None,
+        )
+
+    def _prepare_from_params(self, params: Any) -> 'Jobs':
+        from ..surveys import Survey
+        from ..questions import QuestionFreeText
+
+        # Normalize params into a Survey of free-text questions
+        if isinstance(params, Survey):
+            survey = params
+        elif isinstance(params, list) and all(isinstance(q, str) for q in params):
+            questions = [
+                QuestionFreeText(question_name=f"q_{i}", question_text=text)
+                for i, text in enumerate(params)
+            ]
+            survey = Survey(questions)
+        else:
+            raise TypeError(
+                "params must be either a Survey or a list[str] of question texts"
+            )
+
+        jobs = survey.to_jobs()
+        return jobs.by(self.persona_agent)
+
+    def output(self, params: Any, verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
+        jobs = self._prepare_from_params(params)
+        return self._render(jobs, formater_to_use)
+
+    @classmethod
+    def from_directory(
+        cls,
+        directory_path: Union[str, Path],
+        *,
+        agent_name: Optional[str] = None,
+        application_name: Optional[str] = None,
+        description: Optional[str] = None,
+        output_formatters: Optional[list[OutputFormatter]] = None,
+        recursive: bool = False,
+        glob_pattern: Optional[str] = None,
+    ) -> "PersonSimulator":
+        """Construct a PersonSimulator by extracting text from files in a directory.
+
+        Each file is loaded via FileStore and its extracted text is wrapped in XML-like tags
+        to preserve source separation in the assembled persona context.
+
+        Args:
+            directory_path: Directory containing files to build the persona from.
+            agent_name: Optional agent name.
+            application_name: Optional app name.
+            description: Optional app description.
+            output_formatters: Optional output formatters.
+            recursive: If True, recurse into subdirectories.
+            glob_pattern: Optional custom glob (e.g., "**/*.pdf"); overrides recursive flag.
+
+        Returns:
+            PersonSimulator: Instance configured with aggregated context from directory.
+        """
+        from ..scenarios import FileStore
+        from pathlib import Path as _Path
+
+        base = _Path(directory_path)
+        if not base.exists() or not base.is_dir():
+            raise ValueError(f"Directory not found or not a directory: {directory_path}")
+
+        if glob_pattern is not None:
+            paths = sorted(base.glob(glob_pattern))
+        else:
+            pattern = "**/*" if recursive else "*"
+            paths = sorted(base.glob(pattern))
+
+        sections: list[str] = []
+        for p in paths:
+            if not p.is_file():
+                continue
+            try:
+                fs = FileStore(path=str(p))
+                text = fs.extract_text()
+                if isinstance(text, str) and text.strip():
+                    sections.append(f"<source path=\"{p}\">\n{text.strip()}\n</source>")
+            except Exception:
+                # Skip files that cannot be processed
+                continue
+
+        persona_context = "\n\n".join(sections)
+        return cls(
+            persona_context=persona_context,
+            agent_name=agent_name or base.name,
+            application_name=application_name or f"Person Simulator: {base.name}",
+            description=description,
+            output_formatters=output_formatters,
+        )
+
+    @classmethod
+    def from_firecrawl(
+        cls,
+        person_name: str,
+        *,
+        fallback_bio: str = "",
+        agent_name: Optional[str] = None,
+        application_name: Optional[str] = None,
+        description: Optional[str] = None,
+        output_formatters: Optional[list[OutputFormatter]] = None,
+        max_pages: int = 3,
+    ) -> "PersonSimulator":
+        """Construct a PersonSimulator by attempting to fetch context via Firecrawl.
+
+        If Firecrawl is unavailable or yields no usable text, falls back to the provided
+        fallback_bio.
+
+        Args:
+            person_name: Name to search (e.g., "John Horton economist MIT").
+            fallback_bio: Used if Firecrawl is not configured or returns no content.
+            agent_name: Optional agent name.
+            application_name: Optional app name.
+            description: Optional app description.
+            output_formatters: Optional output formatters.
+            max_pages: Maximum pages to aggregate if Firecrawl returns multiple results.
+        """
+        persona_context = fallback_bio or person_name
+        try:
+            # Prefer high-level convenience; fall back gracefully if unavailable
+            from ..scenarios.firecrawl_scenario import search_web, scrape_url
+
+            # Step 1: Search for top results with URLs
+            search_result = search_web(person_name, limit=max_pages)
+            search_scenarios = search_result[0] if isinstance(search_result, tuple) else search_result
+
+            urls: list[str] = []
+            for scenario in search_scenarios:
+                try:
+                    if "url" in scenario and isinstance(scenario["url"], str) and scenario["url"].strip():
+                        urls.append(scenario["url"].strip())
+                except Exception:
+                    continue
+
+            # Step 2: Scrape the found URLs for full content (markdown)
+            if urls:
+                scrape_result = scrape_url(
+                    urls,
+                    formats=["markdown"],
+                    only_main_content=True,
+                    limit=max_pages,
+                )
+                scraped = scrape_result[0] if isinstance(scrape_result, tuple) else scrape_result
+
+                text_chunks: list[str] = []
+                count = 0
+                for scenario in scraped:
+                    if count >= max_pages:
+                        break
+                    # Prefer full content/markdown fields
+                    if "content" in scenario and isinstance(scenario["content"], str) and scenario["content"].strip():
+                        text_chunks.append(scenario["content"].strip())
+                    elif "markdown" in scenario and isinstance(scenario["markdown"], str) and scenario["markdown"].strip():
+                        text_chunks.append(scenario["markdown"].strip())
+                    count += 1
+
+                aggregated = "\n\n".join(text_chunks).strip()
+                if aggregated:
+                    persona_context = aggregated
+        except Exception:
+            # Firecrawl not configured/failed; keep fallback persona_context
+            pass
+
+        return cls(
+            persona_context=persona_context,
+            agent_name=agent_name or person_name,
+            application_name=application_name or f"Person Simulator: {person_name}",
+            description=description,
+            output_formatters=output_formatters,
+        )
+
 class RankingApp(App):
     application_type: str = "pairwise_ranking"
+    default_output_formatter: OutputFormatter = OutputFormatter(name="Ranked Scenario List")
 
     def __init__(
         self,
@@ -388,8 +608,7 @@ class RankingApp(App):
         survey = Survey([ranking_question])
         jobs_object = survey.to_jobs()
 
-        if output_formatters is None or len(output_formatters) == 0:
-            output_formatters = [OutputFormatter(name="Ranked Scenario List")]
+        # default output_formatters handled by base class via default_output_formatter
 
         self.ranking_question = ranking_question
         self.option_base = option_base
