@@ -229,7 +229,9 @@ class AzureAIService(InferenceServiceABC):
                     from .remote_proxy_handler import RemoteProxyHandler
 
                     handler = RemoteProxyHandler(
-                        model=self._model_, inference_service=self._inference_service_
+                        model=self._model_,
+                        inference_service=self._inference_service_,
+                        job_uuid=getattr(self, "job_uuid", None),
                     )
 
                     # Get fresh parameter

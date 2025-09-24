@@ -45,13 +45,16 @@ class RemoteProxyHandler:
     _shared_client: Optional[httpx.AsyncClient] = None
     _client_lock = asyncio.Lock()
 
-    def __init__(self, model: str, inference_service: str):
+    def __init__(
+        self, model: str, inference_service: str, job_uuid: Optional[str] = None
+    ):
         """Initialize the remote proxy handler.
 
         Args:
             proxy_url: The URL of the remote proxy server
             model: The model name to use
             inference_service: The name of the inference service (e.g., "openai")
+            job_uuid: Optional job UUID for progress tracking
         """
         self.proxy_url = os.environ.get("EXPECTED_PARROT_URL", "http://localhost:8000")
         if "chick" in self.proxy_url:
@@ -62,6 +65,7 @@ class RemoteProxyHandler:
 
         self.model = model
         self.inference_service = inference_service
+        self.job_uuid = job_uuid
         self.request_id = str(uuid.uuid4())
 
         # Get Expected Parrot API key for authentication
@@ -419,6 +423,10 @@ class RemoteProxyHandler:
                 "omit_system_prompt_if_empty": omit_system_prompt_if_empty,
             },
         }
+
+        # Add job_uuid if provided
+        if self.job_uuid:
+            payload["job_uuid"] = self.job_uuid
 
         # Add cache_key if provided
         if cache_key:
