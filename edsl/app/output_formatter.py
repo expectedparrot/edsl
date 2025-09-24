@@ -11,7 +11,7 @@ relevant_classes = {
     Dataset: ['table', 'expand', 'to_markdown', 'to_list'], 
     TableDisplay: ['flip'],
     FileStore: ['view', 'to_docx', 'save'],
-    ScenarioList: ['to_survey', 'rename', 'zip', 'string_cat', 'add_value'],
+    ScenarioList: ['to_survey', 'rename', 'zip', 'string_cat', 'add_value', 'to_ranked_scenario_list'],
 }
 
 white_list_methods = []

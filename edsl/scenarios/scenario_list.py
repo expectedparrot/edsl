@@ -1583,26 +1583,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_sl.append(new_scenario)
         return new_sl
 
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('list_of_tuples', ...)")
-    def from_list_of_tuples(
-        cls, field_names: list[str], values: list[tuple], use_indexes: bool = False
-    ) -> ScenarioList:
-        """Create a ScenarioList from a list of tuples with specified field names.
-
-        Args:
-            field_names: A list of field names for the tuples
-            values: A list of tuples with values matching the field_names
-            use_indexes: Whether to add an index field to each scenario
-
-        Returns:
-            A ScenarioList containing the data from the tuples
-        """
-        from .scenario_source import TuplesSource
-
-        source = TuplesSource(field_names, values, use_indexes)
-        return source.to_scenario_list()
-
     def add_list(self, name: str, values: List[Any]) -> ScenarioList:
         """Add a list of values to a ScenarioList.
 
@@ -1747,169 +1727,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         replacement_dict = dict(zip(old_names, new_names))
         return self.rename(replacement_dict)
 
-    ## NEEDS TO BE FIXED
-    # def new_column_names(self, new_names: List[str]) -> ScenarioList:
-    #     """Rename the fields in the scenarios.
-
-    #     Example:
-
-    #     >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
-    #     >>> s.new_column_names(['first_name', 'years'])
-    #     ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
-
-    #     """
-    #     new_list = ScenarioList([])
-    #     for obj in self:
-    #         new_obj = obj.new_column_names(new_names)
-    #         new_list.append(new_obj)
-    #     return new_list
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('sqlite', ...)")
-    def from_sqlite(
-        cls, filepath: str, table: Optional[str] = None, sql_query: Optional[str] = None
-    ):
-        """Create a ScenarioList from a SQLite database.
-
-        Args:
-            filepath (str): Path to the SQLite database file
-            table (Optional[str]): Name of table to query. If None, sql_query must be provided.
-            sql_query (Optional[str]): SQL query to execute. Used if table is None.
-
-        Returns:
-            ScenarioList: List of scenarios created from database rows
-
-        Raises:
-            ValueError: If both table and sql_query are None
-            sqlite3.Error: If there is an error executing the database query
-        """
-        from .scenario_source import SQLiteSource
-
-        # Handle the case where sql_query is provided instead of table
-        if table is None and sql_query is None:
-            from .exceptions import ValueScenarioError
-
-            raise ValueScenarioError("Either table or sql_query must be provided")
-
-        if table is None:
-            # We need to use the old implementation for SQL queries
-            import sqlite3
-
-            try:
-                with sqlite3.connect(filepath) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute(sql_query)
-                    columns = [description[0] for description in cursor.description]
-                    data = cursor.fetchall()
-
-                return cls([Scenario(dict(zip(columns, row))) for row in data])
-
-            except sqlite3.Error as e:
-                raise sqlite3.Error(f"Database error occurred: {str(e)}")
-        else:
-            # If a table is specified, use SQLiteSource
-            source = SQLiteSource(filepath, table)
-            return source.to_scenario_list()
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('latex', ...)")
-    def from_latex(
-        cls, tex_file_path: str, table_index: int = 0, has_header: bool = True
-    ):
-        """Create a ScenarioList from a LaTeX file.
-
-        Args:
-            tex_file_path: The path to the LaTeX file.
-            table_index: The index of the table to extract (if multiple tables exist).
-                Default is 0 (first table).
-            has_header: Whether the table has a header row. Default is True.
-
-        Returns:
-            ScenarioList: A new ScenarioList containing the data from the LaTeX table.
-        """
-        from .scenario_source import LaTeXSource
-
-        source = LaTeXSource(tex_file_path, table_index, has_header)
-        return source.to_scenario_list()
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('google_doc', ...)")
-    def from_google_doc(cls, url: str) -> ScenarioList:
-        """Create a ScenarioList from a Google Doc.
-
-        This method downloads the Google Doc as a Word file (.docx), saves it to a temporary file,
-        and then reads it using the from_docx class method.
-
-        Args:
-            url (str): The URL to the Google Doc.
-
-        Returns:
-            ScenarioList: An instance of the ScenarioList class.
-
-        """
-        from .scenario_source import GoogleDocSource
-
-        source = GoogleDocSource(url)
-        return source.to_scenario_list()
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('pandas', ...)")
-    def from_pandas(cls, df) -> ScenarioList:
-        """Create a ScenarioList from a pandas DataFrame.
-
-        Example:
-
-        >>> import pandas as pd
-        >>> from edsl.scenarios.scenario_source import ScenarioSource
-        >>> df = pd.DataFrame({'name': ['Alice', 'Bob'], 'age': [30, 25], 'location': ['New York', 'Los Angeles']})
-        >>> ScenarioSource.from_source('pandas', df)
-        ScenarioList([Scenario({'name': 'Alice', 'age': 30, 'location': 'New York'}), Scenario({'name': 'Bob', 'age': 25, 'location': 'Los Angeles'})])
-        """
-        from .scenario_source import PandasSource
-
-        source = PandasSource(df)
-        return source.to_scenario_list()
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('dta', ...)")
-    def from_dta(cls, filepath: str, include_metadata: bool = True) -> ScenarioList:
-        """Create a ScenarioList from a Stata file.
-
-        Args:
-            filepath (str): Path to the Stata (.dta) file
-            include_metadata (bool): If True, extract and preserve variable labels and value labels
-                                    as additional metadata in the ScenarioList
-
-        Returns:
-            ScenarioList: A ScenarioList containing the data from the Stata file
-        """
-        from .scenario_source import StataSource
-
-        source = StataSource(filepath, include_metadata)
-        return source.to_scenario_list()
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('wikipedia', ...)")
-    def from_wikipedia(cls, url: str, table_index: int = 0, header: bool = True):
-        """
-        Extracts a table from a Wikipedia page.
-
-        Parameters:
-            url (str): The URL of the Wikipedia page.
-            table_index (int): The index of the table to extract (default is 0).
-            header (bool): Whether the table has a header row (default is True).
-
-        Returns:
-            ScenarioList: A ScenarioList containing data from the Wikipedia table.
-
-        Example usage:
-            url = "https://en.wikipedia.org/wiki/List_of_countries_by_GDP_(nominal)"
-            scenarios = ScenarioList.from_wikipedia(url, 0)
-        """
-        from .scenario_source import WikipediaSource
-
-        source = WikipediaSource(url, table_index, header)
-        return source.to_scenario_list()
 
     def to_key_value(self, field: str, value=None) -> Union[dict, set]:
         """Return the set of values in the field.
@@ -1927,210 +1744,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             return {scenario[field] for scenario in self}
         else:
             return {scenario[field]: scenario[value] for scenario in self}
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('excel', ...)")
-    def from_excel(
-        cls,
-        filename: str,
-        sheet_name: Optional[str] = None,
-        skip_rows: Optional[List[int]] = None,
-        use_codebook: bool = False,
-        **kwargs,
-    ) -> ScenarioList:
-        """Create a ScenarioList from an Excel file.
-
-        If the Excel file contains multiple sheets and no sheet_name is provided,
-        the method will print the available sheets and require the user to specify one.
-
-        Args:
-            filename (str): Path to the Excel file
-            sheet_name (Optional[str]): Name of the sheet to load. If None and multiple sheets exist,
-                                      will raise an error listing available sheets.
-            skip_rows (Optional[List[int]]): List of row indices to skip (0-based). If None, all rows are included.
-            use_codebook (bool): If True, rename columns to standard format and store original names in codebook.
-            **kwargs: Additional parameters to pass to pandas.read_excel.
-
-        Example:
-
-        >>> import tempfile
-        >>> import os
-        >>> import pandas as pd
-        >>> with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as f:
-        ...     df1 = pd.DataFrame({
-        ...         'name': ['Alice', 'Bob', 'Charlie'],
-        ...         'age': [30, 25, 35],
-        ...         'location': ['New York', 'Los Angeles', 'Chicago']
-        ...     })
-        ...     df2 = pd.DataFrame({
-        ...         'name': ['David', 'Eve'],
-        ...         'age': [40, 45],
-        ...         'location': ['Boston', 'Seattle']
-        ...     })
-        ...     with pd.ExcelWriter(f.name) as writer:
-        ...         df1.to_excel(writer, sheet_name='Sheet1', index=False)
-        ...         df2.to_excel(writer, sheet_name='Sheet2', index=False)
-        ...     temp_filename = f.name
-        >>> # Load all rows
-        >>> from edsl.scenarios.scenario_source import ScenarioSource
-        >>> scenario_list = ScenarioSource.from_source('excel', temp_filename, sheet_name='Sheet1')
-        >>> len(scenario_list)
-        3
-        >>> # Skip the second row (index 1)
-        >>> scenario_list = ScenarioSource.from_source('excel', temp_filename, sheet_name='Sheet1', skip_rows=[1])
-        >>> len(scenario_list)
-        2
-        >>> scenario_list[0]['name']
-        'Alice'
-        >>> scenario_list[1]['name']
-        'Charlie'
-        """
-        from .scenario_source import ExcelSource
-
-        source = ExcelSource(
-            file_path=filename,
-            sheet_name=sheet_name,
-            skip_rows=skip_rows,
-            use_codebook=use_codebook,
-            **kwargs,
-        )
-        return source.to_scenario_list()
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('google_sheet', ...)")
-    def from_google_sheet(
-        cls,
-        url: str,
-        sheet_name: str = None,
-        column_names: Optional[List[str]] = None,
-        **kwargs,
-    ) -> ScenarioList:
-        """Create a ScenarioList from a Google Sheet.
-
-        This method downloads the Google Sheet as an Excel file, saves it to a temporary file,
-        and then reads it using the from_excel class method.
-
-        Args:
-            url (str): The URL to the Google Sheet.
-            sheet_name (str, optional): The name of the sheet to load. If None, the method will behave
-                                        the same as from_excel regarding multiple sheets.
-            column_names (List[str], optional): If provided, use these names for the columns instead
-                                              of the default column names from the sheet.
-            **kwargs: Additional parameters to pass to pandas.read_excel.
-
-        Returns:
-            ScenarioList: An instance of the ScenarioList class.
-
-        """
-        from .scenario_source import GoogleSheetSource
-
-        source = GoogleSheetSource(
-            url, sheet_name=sheet_name, column_names=column_names, **kwargs
-        )
-        return source.to_scenario_list()
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('delimited_file', ...)")
-    def from_delimited_file(
-        cls,
-        source: Union[str, "ParseResult"],
-        delimiter: str = ",",
-        encoding: str = "utf-8",
-        **kwargs,
-    ) -> ScenarioList:
-        """Create a ScenarioList from a delimited file (CSV/TSV) or URL.
-
-        Args:
-            source: Path to a local file or URL to a remote file.
-            delimiter: The delimiter character used in the file (default is ',').
-            encoding: The file encoding to use (default is 'utf-8').
-            **kwargs: Additional parameters for csv reader.
-
-        Returns:
-            ScenarioList: An instance of the ScenarioList class.
-        """
-        from .scenario_source import DelimitedFileSource
-        from urllib.parse import ParseResult
-
-        if isinstance(source, ParseResult):
-            # Convert ParseResult to string URL
-            file_or_url = source.geturl()
-        else:
-            file_or_url = source
-
-        source = DelimitedFileSource(
-            file_or_url=file_or_url, delimiter=delimiter, encoding=encoding, **kwargs
-        )
-        return source.to_scenario_list()
-
-    # Convenience methods for specific file types
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('csv', ...)")
-    def from_csv(
-        cls,
-        source: Union[str, "ParseResult"],
-        has_header: bool = True,
-        encoding: str = "utf-8",
-        **kwargs,
-    ) -> ScenarioList:
-        """Create a ScenarioList from a CSV file or URL.
-
-        Args:
-            source: Path to a local file or URL to a remote file.
-            has_header: Whether the file has a header row (default is True).
-            encoding: The file encoding to use (default is 'utf-8').
-            **kwargs: Additional parameters for csv reader.
-
-        Returns:
-            ScenarioList: An instance of the ScenarioList class.
-        """
-        from .scenario_source import CSVSource
-        from urllib.parse import ParseResult
-
-        if isinstance(source, ParseResult):
-            # Convert ParseResult to string URL
-            file_or_url = source.geturl()
-        else:
-            file_or_url = source
-
-        source = CSVSource(
-            file_or_url=file_or_url, has_header=has_header, encoding=encoding, **kwargs
-        )
-        return source.to_scenario_list()
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('tsv', ...)")
-    def from_tsv(
-        cls,
-        source: Union[str, "ParseResult"],
-        has_header: bool = True,
-        encoding: str = "utf-8",
-        **kwargs,
-    ) -> ScenarioList:
-        """Create a ScenarioList from a TSV file or URL.
-
-        Args:
-            source: Path to a local file or URL to a remote file.
-            has_header: Whether the file has a header row (default is True).
-            encoding: The file encoding to use (default is 'utf-8').
-            **kwargs: Additional parameters for csv reader.
-
-        Returns:
-            ScenarioList: An instance of the ScenarioList class.
-        """
-        from .scenario_source import TSVSource
-        from urllib.parse import ParseResult
-
-        if isinstance(source, ParseResult):
-            # Convert ParseResult to string URL
-            file_or_url = source.geturl()
-        else:
-            file_or_url = source
-
-        source = TSVSource(
-            file_or_url=file_or_url, has_header=has_header, encoding=encoding, **kwargs
-        )
-        return source.to_scenario_list()
 
     def left_join(self, other: ScenarioList, by: Union[str, list[str]]) -> ScenarioList:
         """Perform a left join with another ScenarioList, following SQL join semantics.
@@ -2489,6 +2102,36 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return AgentList.from_scenario_list(self)
 
+    def to_ranked_scenario_list(
+        self,
+        option_fields: Sequence[str],
+        answer_field: str,
+        include_rank: bool = True,
+        rank_field: str = "rank",
+        item_field: str = "item"
+    ) -> "ScenarioList":
+        """Convert the ScenarioList to a ranked ScenarioList based on pairwise comparisons.
+
+        Args:
+            option_fields: List of scenario column names containing options to compare.
+            answer_field: Name of the answer column containing the chosen option's value.
+            include_rank: If True, include a rank field on each returned Scenario.
+            rank_field: Name of the rank field to include when include_rank is True.
+            item_field: Field name used to store the ranked item value on each Scenario.
+
+        Returns:
+            ScenarioList ordered best-to-worst according to pairwise ranking.
+        """
+        from .ranking_algorithm import results_to_ranked_scenario_list
+        return results_to_ranked_scenario_list(
+            self,
+            option_fields=option_fields,
+            answer_field=answer_field,
+            include_rank=include_rank,
+            rank_field=rank_field,
+            item_field=item_field
+        )
+
     def chunk(
         self,
         field,
@@ -2735,22 +2378,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return ScenarioList(result)
 
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('parquet', ...)")
-    def from_parquet(cls, filepath: str) -> ScenarioList:
-        """Create a ScenarioList from a Parquet file.
-
-        Args:
-            filepath (str): The path to the Parquet file.
-
-        Returns:
-            ScenarioList: A new ScenarioList containing the scenarios from the Parquet file.
-        """
-        from .scenario_source import ParquetSource
-
-        source = ParquetSource(filepath)
-        return source.to_scenario_list()
-
     def replace_values(self, replacements: dict) -> "ScenarioList":
         """
         Create new scenarios with values replaced according to the provided replacement dictionary.
@@ -2845,27 +2472,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 new_sl.append(Scenario(new_scenario))
             return new_sl
 
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('pdf', ...)")
-    def from_pdf(cls, filename_or_url, collapse_pages=False):
-        """Create a ScenarioList from a PDF file or URL."""
-        from .scenario_source import PDFSource
-
-        source = PDFSource(
-            file_path=filename_or_url,
-            chunk_type="page" if not collapse_pages else "text",
-            chunk_size=1,
-        )
-        return source.to_scenario_list()
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('pdf_to_image', ...)")
-    def from_pdf_to_image(cls, pdf_path, image_format="jpeg"):
-        """Create a ScenarioList with images extracted from a PDF file."""
-        from .scenario_source import PDFImageSource
-
-        source = PDFImageSource(file_path=pdf_path, base_width=2000, include_text=True)
-        return source.to_scenario_list()
 
     @classmethod
     def from_source(cls, source_type: str, *args, **kwargs) -> "ScenarioList":
@@ -2896,7 +2502,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         from .scenario_source import ScenarioSource
 
         return ScenarioSource.from_source(source_type, *args, **kwargs)
-
 
 if __name__ == "__main__":
     import doctest

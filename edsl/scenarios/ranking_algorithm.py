@@ -1,5 +1,5 @@
 from collections import defaultdict, deque
-from typing import Optional
+from typing import Optional, Sequence
 
 from .scenario_list import ScenarioList
 from .scenario import Scenario
@@ -214,81 +214,72 @@ class PairwiseRanker:
 
 
 def results_to_ranked_scenario_list(
-    results,
-    option_base: Optional[str] = None,
+    scenario_list: "ScenarioList",
+    option_fields: Sequence[str],
+    answer_field: str,
     include_rank: bool = True,
     rank_field: str = "rank",
+    item_field: str = "item",
 ) -> "ScenarioList":
     """
-    Convert Results/Dataset of pairwise comparisons into a ranked ScenarioList.
+    Convert pairwise comparison rows into a ranked `ScenarioList`.
 
-    Expects the input to contain two scenario option columns (e.g., "scenario.food_1",
-    "scenario.food_2") and one answer column (e.g., "answer.rank_foods") where the
-    answer value equals the chosen option's value.
+    The caller explicitly provides the option fields (two or more `scenario.*` columns)
+    and the single `answer.*` column. For each row, the value in `answer_field` is
+    assumed to equal exactly one of the option field values; that option is treated
+    as the winner versus all other options in the row.
 
     Args:
-        results: EDSL Results or Dataset. Should include 'scenario.*' and one 'answer.*' column.
-        option_base: Optional base name for the option fields (e.g., 'food'). If not provided,
-            the base is auto-detected from the scenario columns that have suffixes '_1' and '_2'.
+        scenario_list: The data containing `scenario.*` and `answer.*` columns.
+        option_fields: List/sequence of `scenario.*` column names (length >= 2).
+        answer_field: Name of the `answer.*` column containing the chosen option's value.
+        include_rank: If True, include a rank field on each returned `Scenario`.
+        rank_field: Name of the rank field to include when `include_rank` is True.
+        item_field: Field name used to store the ranked item value on each `Scenario`.
 
     Returns:
-        ScenarioList: items ordered best-to-worst according to pairwise ranking. If
-        include_rank is True, each Scenario has an additional field with the rank.
+        ScenarioList ordered best-to-worst according to pairwise ranking.
     """
-    # Obtain a dataset view with only scenario and answer columns if possible
-    dataset = results.select('scenario.*', 'answer.*') if hasattr(results, 'select') else results
+    if not option_fields or len(option_fields) < 2:
+        raise ValueError("option_fields must include at least two scenario columns")
 
-    # Identify the single answer column (with prefix)
-    keys = dataset.keys()
-    answer_keys = [k for k in keys if k.startswith('answer.')]
-    if not answer_keys:
-        raise ValueError("No answer.* column found in results")
-    if len(answer_keys) > 1:
-        raise ValueError("Multiple answer.* columns found; please reduce to one before ranking")
-    answer_key_full = answer_keys[0]
+    # Convert to row dicts with original prefixes so we can reference provided field names
+    rows = scenario_list.to_dicts(remove_prefix=False)
 
-    # Identify scenario option columns and detect the option base (e.g., 'food')
-    scenario_keys = [k for k in keys if k.startswith('scenario.')]
-    leaf_names = [k.split('.')[-1] for k in scenario_keys]
-    suffix_map = {}
-    for name in leaf_names:
-        if '_' in name:
-            base, suffix = name.rsplit('_', 1)
-            if suffix in ('1', '2'):
-                suffix_map.setdefault(base, set()).add(suffix)
-
-    if option_base is None:
-        candidates = [b for b, s in suffix_map.items() if {'1', '2'}.issubset(s)]
-        if not candidates:
-            raise ValueError("Could not auto-detect option base from scenario columns (need *_1 and *_2)")
-        option_base = candidates[0]
-
-    left_key = f"{option_base}_1"
-    right_key = f"{option_base}_2"
-
-    # Convert to row dicts without prefixes for easy access
-    rows = dataset.to_dicts(remove_prefix=True)
-    answer_leaf = answer_key_full.split('.')[-1]
+    # Validate provided fields exist
+    first_row_keys = set(rows[0].keys()) if rows else set()
+    missing_options = [f for f in option_fields if f not in first_row_keys]
+    if missing_options:
+        raise ValueError(f"Missing option fields in data: {missing_options}")
+    if answer_field not in first_row_keys:
+        raise ValueError(f"Missing answer field in data: {answer_field}")
 
     # Aggregate pairwise wins as weighted edges
     edge_counts = {}
     all_items = set()
+
     for row in rows:
-        a = row.get(left_key)
-        b = row.get(right_key)
-        winner = row.get(answer_leaf)
-        if a is None or b is None or winner is None:
+        option_values = [row.get(field) for field in option_fields]
+        if any(value is None for value in option_values):
             continue
-        all_items.add(a)
-        all_items.add(b)
-        if winner == a:
-            edge = (a, b)
-        elif winner == b:
-            edge = (b, a)
-        else:
-            # Skip rows where the answer does not match either option value
+
+        answer_value = row.get(answer_field)
+        if answer_value is None:
             continue
-        edge_counts[edge] = edge_counts.get(edge, 0.0) + 1.0
+
+        winner_indices = [idx for idx, value in enumerate(option_values) if value == answer_value]
+        if len(winner_indices) != 1:
+            # Skip rows where the answer does not uniquely match one option
+            continue
+
+        winner_value = option_values[winner_indices[0]]
+        for idx, value in enumerate(option_values):
+            if idx == winner_indices[0]:
+                continue
+            all_items.add(value)
+            all_items.add(winner_value)
+            edge = (winner_value, value)
+            edge_counts[edge] = edge_counts.get(edge, 0.0) + 1.0
 
     pairwise = [(u, v, w) for (u, v), w in edge_counts.items()]
     if not pairwise and all_items:
@@ -297,9 +288,9 @@ def results_to_ranked_scenario_list(
         scenarios = []
         for idx, item in enumerate(sorted_items, start=1):
             if include_rank:
-                scenarios.append(Scenario({option_base: item, rank_field: idx}))
+                scenarios.append(Scenario({item_field: item, rank_field: idx}))
             else:
-                scenarios.append(Scenario({option_base: item}))
+                scenarios.append(Scenario({item_field: item}))
         return ScenarioList(scenarios)
 
     ranker = PairwiseRanker(pairwise)
@@ -312,9 +303,9 @@ def results_to_ranked_scenario_list(
     for item in sorted_items:
         rank_value = rankings[item]
         if include_rank:
-            scenarios.append(Scenario({option_base: item, rank_field: rank_value}))
+            scenarios.append(Scenario({item_field: item, rank_field: rank_value}))
         else:
-            scenarios.append(Scenario({option_base: item}))
+            scenarios.append(Scenario({item_field: item}))
     return ScenarioList(scenarios)
 
 # Example usage

@@ -1,4 +1,5 @@
-from .app import AppInteractiveSurvey
+from edsl.app import SingleScenarioApp
+from edsl.app import OutputFormatter
 
 from edsl import (
     QuestionLinearScale,
@@ -18,7 +19,6 @@ initial_survey = Survey([
     ),
 ])
 
-
 q1 = QuestionLinearScale(
     question_name="exceptional_achievement",
     question_text="What exceptional achievements do the founders have? : {{ scenario.startup_description}}",
@@ -31,7 +31,6 @@ q1 = QuestionLinearScale(
         15: "MacArthur genius grant, Nobel laureate, founded unicorn company, Olympic medalist",
     },
 )
-
 
 q2 = QuestionLinearScale(
     question_name="market_timing_and_tailwinds",
@@ -89,36 +88,26 @@ q6 = QuestionCompute(
     """,
 )
 
-from edsl.app.output import OutputFormatters, FlippedTableOutput
 
 survey = Survey([q1, q2, q3, q4, q5, q6])
 
-from edsl.app.app import AppBase
-from .output_formatter import OutputFormatters, OutputFormatter
 
 of1 = OutputFormatter(name = "Robot VC").select('answer.*').table().flip()
-
 of2 = OutputFormatter(name = "Robot VC").select('comment.*').table().flip()
 
-from edsl.app.app import App
-
-app = App(
+app = SingleScenarioApp(
     initial_survey=initial_survey,
     application_name="Robot VC",
     description="Score a startup for a VC investment.",
     jobs_object=survey.to_jobs(),
-    output_formatters=OutputFormatters([of2, of1])
+    output_formatters=[of1, of2]
 )
 
 if __name__ == "__main__":
-    #output = app.output(verbose=True)
-
     output = app.output(
-        answers = {
+        params = {
             'startup_name': 'Test Startup', 
             'startup_description': """A startup that makes a new kind of dog collar.
                 Both founders just graduated from high school (barely). No patents. No revenue. No customers. Pet ownership is declining. """},
         verbose=True)
     print(output)
-    #output = app.run()
-    #print(output)
