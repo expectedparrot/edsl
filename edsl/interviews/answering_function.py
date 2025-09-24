@@ -317,13 +317,32 @@ class AnswerQuestionFunctionConstructor:
                     f"after {exception.__class__.__name__ if exception else 'error'}: {str(exception) if exception else 'unknown error'}"
                 )
 
-        def should_retry_exception(exception):
+        def should_retry_exception(retry_state):
             """Only retry network/service errors, never balance errors"""
+            # Extract the actual exception from the retry state
+            if hasattr(retry_state, "outcome") and retry_state.outcome:
+                exception = retry_state.outcome.exception()
+            else:
+                return False
+
             # Never retry balance errors - they won't be resolved by retrying
             if isinstance(exception, LanguageModelInsufficientCreditsError):
                 return False
+
             # Only retry actual network/service errors
-            return isinstance(exception, LanguageModelNoResponseError)
+            if isinstance(exception, LanguageModelNoResponseError):
+                return True
+
+            # When stop_on_exception is False, also retry InferenceServiceIntendedError
+            if not self._stop_on_exception:
+                from ..inference_services.exceptions import (
+                    InferenceServiceIntendedError,
+                )
+
+                if isinstance(exception, InferenceServiceIntendedError):
+                    return True
+
+            return False
 
         @retry(
             stop=stop_after_attempt(RetryConfig.EDSL_MAX_ATTEMPTS),
@@ -432,6 +451,8 @@ class AnswerQuestionFunctionConstructor:
             except Exception as e:
                 # For generic exceptions, record them immediately as they won't be retried
                 self._handle_exception(e, invigilator, task)
+                # Re-raise the exception so it can be checked by the retry mechanism
+                raise
 
             if "response" not in locals():
                 had_language_model_no_response_error = True
