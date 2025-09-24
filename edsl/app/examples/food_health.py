@@ -1,6 +1,5 @@
 from edsl import ScenarioList, QuestionMultipleChoice
-from edsl.app.app import RankingApp
-
+from edsl.app import RankingApp
 
 """Construct a RankingApp configured to rank foods by healthiness.
 
@@ -17,6 +16,7 @@ q = QuestionMultipleChoice(
 
 app = RankingApp(
     ranking_question=q,
+    option_fields=['food_1', 'food_2'],
     application_name="Food Health Ranking",
     description="Ranks foods from healthiest to least healthy using pairwise comparisons.",
     option_base="food",

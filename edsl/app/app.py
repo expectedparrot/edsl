@@ -1,12 +1,14 @@
 from typing import TYPE_CHECKING, Optional, Any, TypedDict, Union
 from pathlib import Path
 from abc import ABC, abstractmethod
-from ..scenarios import Scenario
+from ..scenarios import Scenario, ScenarioList
 from ..surveys import Survey
+from ..agents import AgentList
 from ..questions import QuestionMultipleChoice
 from ..scenarios.ranking_algorithm import results_to_ranked_scenario_list
 
 if TYPE_CHECKING:
+    from ..scenarios import ScenarioList
     from ..surveys import Survey
     from ..jobs import Jobs
     from ..results import Results
@@ -15,13 +17,32 @@ if TYPE_CHECKING:
 
 from .output_formatter import OutputFormatter, OutputFormatters
 
-class AppDeployment:
-    license_type: str
-    github_repo: str
-    timestamp: str
-    source_available: bool
-    documentation: str
-    thumbnail: str
+from dataclasses import dataclass
+
+class HeadAttachments:
+    """A class to attach objects to the head of a jobs object."""
+
+    def __init__(self, *, scenario: Optional[ScenarioList] = None, survey: Optional[Survey] = None, agent_list: Optional[AgentList] = None):
+        self.scenario = scenario
+        self.survey = survey
+        self.agent_list = agent_list
+
+    def attach_to_head(self, jobs: 'Jobs') -> 'Jobs':
+        if self.scenario: 
+            jobs = jobs.add_scenario_head(self.scenario)
+        if self.survey:
+            jobs = jobs.add_survey_to_head(self.survey)
+        if self.agent_list:
+            jobs = jobs.add_agent_list_to_head(self.agent_list)
+        return jobs
+
+# class AppDeployment:
+#     license_type: str
+#     github_repo: str
+#     timestamp: str
+#     source_available: bool
+#     documentation: str
+#     thumbnail: str
 
 class App(ABC):
     """
@@ -56,9 +77,9 @@ class App(ABC):
 
     def __init__(self, 
         jobs_object: 'Jobs', 
-        output_formatters: Optional[list[OutputFormatter]] = None, 
-        description: Optional[str] = None,
-        application_name: Optional[str] = None,
+        description: str,
+        application_name: str,
+        output_formatters: Optional[list[OutputFormatter] | OutputFormatter] = None, 
         initial_survey: Optional[Survey] = None):
         """Instantiate an App object.
         
@@ -73,10 +94,15 @@ class App(ABC):
         self.description = description
         self.initial_survey = initial_survey
         # Enforce default_output_formatter contract
-        if output_formatters is None or len(output_formatters) == 0:
+
+        if output_formatters is None:
             if getattr(self.__class__, 'default_output_formatter', None) is None:
                 raise ValueError("Subclasses of App must define a class-level default_output_formatter or pass output_formatters")
             output_formatters = [self.__class__.default_output_formatter]
+        if not isinstance(output_formatters, list):
+            output_formatters = [output_formatters]
+        if len(output_formatters) == 0:
+            raise ValueError("output_formatters must be a non-empty list")
         self.output_formatters: OutputFormatters = OutputFormatters(output_formatters)
         if application_name is not None and not isinstance(application_name, str):
             raise TypeError("application_name must be a string if provided")
@@ -92,9 +118,16 @@ class App(ABC):
         return coop.list_apps()
 
     def _generate_results(self, modified_jobs_object: 'Jobs') -> 'Results':
+        """Generate results from a modified jobs object."""
         return modified_jobs_object.run()
 
+    def output(self, params: 'Any', verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
+        head_attachments = self._prepare_from_params(params)
+        jobs = head_attachments.attach_to_head(self.jobs_object)
+        return self._render(jobs, formater_to_use)
+
     def _render(self, jobs: 'Jobs', formater_to_use: Optional[str]) -> Any:
+        """Render the results of a jobs object by applying the appropriate output formatter."""
         if formater_to_use is not None:
             formatter = self.output_formatters.get_formatter(formater_to_use)
         else:
@@ -103,14 +136,15 @@ class App(ABC):
         return formatter.render(results)
 
     @abstractmethod
-    def output(self, params: Any, verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
-        """Subclasses must provide a typed output signature and delegate to _render."""
-        raise NotImplementedError
-
-    @abstractmethod
     def _prepare_from_params(self, params: Any) -> 'Jobs':
-        """Map external params into a Jobs object ready to run."""
+        """Map external params into a Jobs object ready to run.
+        
+        Args:
+            params: The parameters to use to generate the jobs object.
 
+        Returns:
+            A Jobs object ready to run.
+        """
 
     def add_output_formatter(self, formatter: OutputFormatter, set_default: bool = False) -> "App":
         """Add an additional output formatter to this app (fluent).
@@ -323,9 +357,29 @@ class App(ABC):
         return target_cls(**kwargs)
 
 class SingleScenarioApp(App):
+    """This is for the case when the app takes a single scenario as input.
+    
+    - might make more sense to:
+       - find out what it is / declare what it is 
+       - have a InputTransformer before it is applied
+    
+    Input possibilities:
+    - A scenario (either as params = {} or from _collect_answers_interactively)
+    -- A scenario list (either as params = {} or from _collect_answers_interactively)
+  
+    -- A agent list (either as params = {} or from _collect_answers_interactively)
+    -- A survey (either as params = {} or from _collect_answers_interactively)
+
+    For a survey, we might either run it or turn it to a scenario list first. 
+
+    Three modification possibilities:
+    --- adds a scenario / scenario list to head 
+    --- adds a agent_list 
+    --- adds a survey
+    """
     application_type: str = "single_scenario_input"
 
-    def _prepare_from_params(self, params: dict) -> 'Jobs':
+    def _prepare_from_params(self, params: dict) -> HeadAttachments:
         from ..scenarios import FileStore
         normalized: dict = {}
         for key, value in params.items():
@@ -335,51 +389,40 @@ class SingleScenarioApp(App):
             else:
                 normalized[key] = value
         scenario = Scenario(normalized)
-        return self.jobs_object.add_scenario_head(scenario)
+        return HeadAttachments(scenario=scenario)
 
     def output(self, params: Optional[dict] = None, verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
         if params is None:
             params = self._collect_answers_interactively()
-        jobs = self._prepare_from_params(params)
+        head_attachments = self._prepare_from_params(params)
+        jobs = head_attachments.attach_to_head(self.jobs_object)
         return self._render(jobs, formater_to_use)
 
 
 class SurveyInputApp(App):
     application_type: str = "edsl_survey_as_input"
 
-    def _prepare_from_params(self, params: 'Survey') -> 'Jobs':
-        return self.jobs_object.add_scenario_head(params.to_scenario_list())
-
-    def output(self, params: 'Survey', verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
-        jobs = self._prepare_from_params(params)
-        return self._render(jobs, formater_to_use)
-
+    def _prepare_from_params(self, params: 'Survey') -> HeadAttachments:
+        return HeadAttachments(scenario=params.to_scenario_list())
 
 class AgentsInputApp(App):
     application_type: str = "edsl_agents_as_input"
 
-    def _prepare_from_params(self, params: 'AgentList') -> 'Jobs':
-        return self.jobs_object.add_agent_list_to_head(params)
-
-    def output(self, params: 'AgentList', verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
-        jobs = self._prepare_from_params(params)
-        return self._render(jobs, formater_to_use)
-
+    def _prepare_from_params(self, params: 'AgentList') -> HeadAttachments:
+        return HeadAttachments(agent_list=params)
 
 class GiveToAgentsApp(App):
     application_type: str = "give_to_agents"
 
-    def _prepare_from_params(self, params: 'Survey') -> 'Jobs':
-        return self.jobs_object.add_survey_to_head(params)
-
-    def output(self, params: 'Survey', verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
-        jobs = self._prepare_from_params(params)
-        return self._render(jobs, formater_to_use)
-
+    def _prepare_from_params(self, params: 'Survey') -> HeadAttachments:
+        return HeadAttachments(survey=params)
 
 class PersonSimulator(App):
     application_type: str = "person_simulator"
     default_output_formatter: OutputFormatter = OutputFormatter(name="Persona Answers").select('answer.*').to_list()
+
+    input_type: Survey
+    modified_jobs_component: Survey
 
     def __init__(
         self,
@@ -411,7 +454,7 @@ class PersonSimulator(App):
         self.persona_agent = Agent(name=agent_name or "Persona", instruction=instruction)
 
         # Minimal jobs object for base constructor
-        jobs_object = Survey([]).to_jobs()
+        jobs_object = Survey([]).by(self.persona_agent)
 
         super().__init__(
             jobs_object=jobs_object,
@@ -421,7 +464,7 @@ class PersonSimulator(App):
             initial_survey=None,
         )
 
-    def _prepare_from_params(self, params: Any) -> 'Jobs':
+    def _prepare_from_params(self, params: Any) -> 'HeadAttachments':
         from ..surveys import Survey
         from ..questions import QuestionFreeText
 
@@ -438,13 +481,7 @@ class PersonSimulator(App):
             raise TypeError(
                 "params must be either a Survey or a list[str] of question texts"
             )
-
-        jobs = survey.to_jobs()
-        return jobs.by(self.persona_agent)
-
-    def output(self, params: Any, verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
-        jobs = self._prepare_from_params(params)
-        return self._render(jobs, formater_to_use)
+        return HeadAttachments(survey=survey)
 
     @classmethod
     def from_directory(
@@ -590,110 +627,6 @@ class PersonSimulator(App):
             output_formatters=output_formatters,
         )
 
-class RankingApp(App):
-    application_type: str = "pairwise_ranking"
-    default_output_formatter: OutputFormatter = OutputFormatter(name="Ranked Scenario List")
-
-    def __init__(
-        self,
-        ranking_question: QuestionMultipleChoice,
-        application_name: Optional[str] = None,
-        description: Optional[str] = None,
-        option_base: Optional[str] = None,
-        rank_field: str = "rank",
-        output_formatters: Optional[list[OutputFormatter]] = None,
-        max_pairwise_count: int = 500,
-    ):
-        """An app that ranks items from a ScenarioList via pairwise comparisons.
-
-        Args:
-            ranking_question: A QuestionMultipleChoice configured to compare two options
-                using Jinja placeholders like '{{ scenario.<field>_1 }}' and '{{ scenario.<field>_2 }}'.
-            application_name: Optional human-readable name.
-            description: Optional description.
-            option_base: Optional base field name (e.g., 'food'). If omitted, inferred from the input ScenarioList.
-            rank_field: Name of the rank field to include in the output ScenarioList.
-            output_formatters: Optional output formatters (not used by this app's output but required by base class).
-        """
-        # Create a minimal Jobs object around this question; not used directly by output(),
-        # but required by the base App constructor.
-        survey = Survey([ranking_question])
-        jobs_object = survey.to_jobs()
-
-        # default output_formatters handled by base class via default_output_formatter
-
-        self.ranking_question = ranking_question
-        self.option_base = option_base
-        self.rank_field = rank_field
-        self.max_pairwise_count = max_pairwise_count
-
-        super().__init__(
-            jobs_object=jobs_object,
-            output_formatters=output_formatters,
-            description=description,
-            application_name=application_name,
-            initial_survey=None,
-        )
-
-    def _prepare_from_params(self, params: 'ScenarioList') -> 'Jobs':
-        # Construct pairwise comparisons (choose 2) for the provided ScenarioList
-        return self.ranking_question.by(params.choose_k(2))
-
-    def output(self, params: Union['ScenarioList', str, Path], verbose: bool = False, formater_to_use: Optional[str] = None, force: bool = False) -> 'ScenarioList':
-        """Run the ranking question over pairwise comparisons and return ranked ScenarioList.
-
-        Args:
-            params: Either a ScenarioList of single-field scenarios (e.g., {'food': 'bread'})
-                or a path (CSV/XLSX) to convert via FileStore(...).to_scenario_list().
-            verbose: Unused; present for API compatibility.
-            formater_to_use: Unused; present for API compatibility.
-            force: If True, proceed even if the number of pairwise comparisons exceeds the
-                configured max_pairwise_count threshold.
-
-        Returns:
-            ScenarioList ordered best-to-worst with an added rank field.
-        """
-        from ..scenarios import ScenarioList as _ScenarioList
-        from ..scenarios import FileStore
-
-        # Normalize input to ScenarioList
-        if isinstance(params, (str, Path)):
-            scenario_list: _ScenarioList = FileStore(path=str(params)).to_scenario_list()
-        else:
-            scenario_list = params
-
-        if scenario_list is None or len(scenario_list) == 0:
-            return _ScenarioList([])
-
-        # Enforce maximum number of pairwise comparisons unless forced
-        num_items = len(scenario_list)
-        pairwise_needed = (num_items * (num_items - 1)) // 2
-        if pairwise_needed > self.max_pairwise_count and not force:
-            raise ValueError(
-                f"Pairwise comparisons required ({pairwise_needed}) exceed the limit ({self.max_pairwise_count}). "
-                f"Pass force=True to override or initialize RankingApp with a higher max_pairwise_count."
-            )
-
-        # Determine option base from input if not provided
-        base_field = self.option_base
-        if base_field is None:
-            first_keys = list(scenario_list[0].keys())
-            if len(first_keys) != 1:
-                raise ValueError("Input ScenarioList must have exactly one field per scenario to infer option_base.")
-            base_field = first_keys[0]
-
-        # Generate pairwise comparisons and run the ranking question
-        pairwise_sl = scenario_list.choose_k(2)
-        results = self.ranking_question.by(pairwise_sl).run(stop_on_exception=True)
-
-        # Convert to ranked ScenarioList (best-to-worst) including rank field
-        ranked = results_to_ranked_scenario_list(
-            results,
-            option_base=base_field,
-            include_rank=True,
-            rank_field=self.rank_field,
-        )
-        return ranked
 
 
 class DataLabelingParams(TypedDict):
@@ -704,7 +637,7 @@ class DataLabelingParams(TypedDict):
 class DataLabelingApp(App):
     application_type: str = "data_labeling"
 
-    def _prepare_from_params(self, params: DataLabelingParams) -> 'Jobs':
+    def _prepare_from_params(self, params: DataLabelingParams) -> 'HeadAttachments':
         if 'labeling_question' not in params:
             raise ValueError("labeling_question is required for data labeling")
         if 'file_path' not in params:
@@ -718,11 +651,7 @@ class DataLabelingApp(App):
             raise ValueError(f"Error converting file to scenario list: {e}. Allowed formats are csv and xlsx.")
 
         labeling_question = params['labeling_question']
-        return labeling_question.by(sl)
-
-    def output(self, params: DataLabelingParams, verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
-        jobs = self._prepare_from_params(params)
-        return self._render(jobs, formater_to_use)
+        return HeadAttachments(scenario=sl, survey=labeling_question.to_survey())
 
     @classmethod
     def example(cls):
@@ -744,44 +673,6 @@ class DataLabelingApp(App):
                 OutputFormatter(name = "Courses To Take").select('scenario.intended_college_major','answer.courses_to_take').table()
             ])
         )
-
-
-# class App(AppBase):
-#     application_type = "basic_app"
-
-    # def answers_to_scenario(self, answers: dict) -> 'Scenario':
-    #     from ..scenarios import FileStore
-    #     for key, value in answers.items():
-    #         relevant_question = self.initial_survey[key]
-    #         if relevant_question.question_type == "file_upload":
-    #             answers[key] = FileStore(path=value)
-    #         else:
-    #             answers[key] = value
-    #     return Scenario(answers)
-
-
-# class AppSurvey(AppBase):
-#     """An app that takes a survey as input."""
-    
-#     application_type = "survey"
-
-#     def answers_to_scenario(self, answers: dict) -> 'Scenario':
-#         return answers.to_scenario_list()
-
-#     @classmethod
-#     def example(cls):
-#         from ..surveys import Survey
-#         from ..questions import QuestionFreeText
-#         initial_survey = None
-#         jobs_object = Survey([QuestionFreeText(
-#             question_name = "typos", 
-#             question_text = "Are there any typos in {{ scenario.question_text }}?")]).to_jobs()
-#         output_formatter = OutputFormatter(name = "Typo Checker").select('answer.typos').table()
-#         a = AppSurvey(
-#             initial_survey = initial_survey, 
-#             jobs_object = jobs_object, 
-#             output_formatters = OutputFormatters([output_formatter]))
-#         return a
 
 
 if __name__ == "__main__":
@@ -825,50 +716,4 @@ if __name__ == "__main__":
     # non-interactive mode
     output = lazarus_app.output(params = {'raw_text': raw_text}, verbose = True)
     print(output)
-
-    # interactive mode
-    #output = app.output(verbose = True)
-    #print(output)
-    #app = App.example()
-    # from ..surveys import Survey
-    # from ..questions import QuestionFreeText, QuestionMultipleChoice
-    # s = Survey([
-    #     QuestionFreeText(
-    #         question_name = "confusion", 
-    #         question_text = "What might survey respondents be confused by: {{scenario.question_text }}?"),
-    # ])
-    # from ..scenarios import ScenarioList
-
-    # sl = ScenarioList.from_list("tweet", ["I hate this movie", "I love this movie", "I think this movie is ok"])
-    # jobs_object = Survey([
-    #     QuestionMultipleChoice(
-    #         question_name = "tweet_sentiment", 
-    #         question_text = "What is the sentiment of the following tweet: {{scenario.tweet}}?",
-    #         question_options = ["positive", "negative", "neutral"]
-    #     )
-    # ]).to_jobs()
-    # from .output import RawResultsOutput  # type: ignore
-    # from .output import TableOutput, OutputFormatters  # type: ignore
-    # app = AppScenarioList(
-    #     jobs_object = jobs_object,
-    #     output_formatters = OutputFormatters([
-    #         TableOutput([
-    #         'scenario.tweet',
-    #         'answer.tweet_sentiment',
-    #         ]),
-    #     ])
-    # )
-
-    # info = app.push()
-    # new_app = AppBase.pull(info['uuid'])
-    # output = new_app.output(scenario_list = sl, verbose = True)
-    # print(output)
-    
-    #output = app.output(scenario_list = sl, verbose = True)
-    #print(output)
-
-    #results.select('scenario.question_text','answer.confusion').table()
-
-    #output = app.output(verbose = True)
-    #print(output)
 
