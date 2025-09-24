@@ -391,19 +391,23 @@ class AnswerQuestionFunctionConstructor:
                             self.skip_handler.cancel_skipped_questions(question)
 
                         # Track question completion for real-time progress
-                        if (
-                            self.run_config
-                            and hasattr(self.run_config, "environment")
-                            and hasattr(
-                                self.run_config.environment, "jobs_runner_status"
-                            )
-                            and self.run_config.environment.jobs_runner_status
-                            is not None
-                        ):
-                            self.run_config.environment.jobs_runner_status.add_completed_question(
-                                model_name=interview.model.model,
-                                question_name=question.question_name,
-                            )
+                        try:
+                            if (
+                                self.run_config
+                                and hasattr(self.run_config, "environment")
+                                and hasattr(
+                                    self.run_config.environment, "jobs_runner_status"
+                                )
+                                and self.run_config.environment.jobs_runner_status
+                                is not None
+                            ):
+                                self.run_config.environment.jobs_runner_status.add_completed_question(
+                                    model_name=interview.model.model,
+                                    question_name=question.question_name,
+                                )
+                        except Exception as e:
+                            # Don't let progress tracking break question answering
+                            self._logger.warning(f"Progress tracking failed: {e}")
                 else:
                     if (
                         hasattr(response, "exception_occurred")

@@ -139,7 +139,7 @@ def test_handle_timeout_exception(create_survey, capsys):
     survey = create_survey(num_questions=5, chained=False)
 
     cache = Cache()
-    results = survey.by(model).run(cache=cache, print_exceptions=False)
+    results = survey.by(model).run(cache=False, print_exceptions=False)
     captured = capsys.readouterr()
     # assert (
     #     "WARNING: At least one question in the survey was not answered." in captured.out
