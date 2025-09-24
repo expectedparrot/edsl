@@ -302,6 +302,108 @@ class Scenario(Base, UserDict):
             new_scenario[new_name] = value
         return new_scenario
 
+    def zip(self, field_a: str, field_b: str, new_name: str) -> "Scenario":
+        """Zip two iterable fields into a dict and store it under a new key.
+
+        Creates a new Scenario identical to this one, with an additional key
+        named ``new_name`` whose value is ``dict(zip(self[field_a], self[field_b]))``.
+
+        Args:
+            field_a: Name of the first iterable field whose values become dict keys.
+            field_b: Name of the second iterable field whose values become dict values.
+            new_name: Name of the new field to store the resulting dictionary under.
+
+        Returns:
+            A new Scenario with the added zipped dictionary field.
+
+        Raises:
+            KeyError: If either field name does not exist in the Scenario.
+            ScenarioError: If the referenced fields are not iterable.
+
+        Examples:
+            >>> s = Scenario({"keys": ["a", "b"], "vals": [1, 2]})
+            >>> s2 = s.zip("keys", "vals", "mapping")
+            >>> s2["mapping"]
+            {'a': 1, 'b': 2}
+        """
+        a_values = self[field_a]
+        b_values = self[field_b]
+
+        try:
+            zipped_dict = dict(zip(a_values, b_values))
+        except TypeError as e:
+            raise ScenarioError(
+                f"Fields '{field_a}' and '{field_b}' must be iterable to be zipped."
+            ) from e
+
+        new_scenario = Scenario(copy.deepcopy(self.data))
+        new_scenario[new_name] = zipped_dict
+        return new_scenario
+
+    def string_cat(
+        self,
+        key: str,
+        addend: str,
+        position: str = "suffix",
+        inplace: bool = False,
+    ) -> "Scenario":
+        """Concatenate a string to the value at ``key``.
+
+        Appends or prepends ``addend`` to the existing string value stored at
+        ``key``. By default, concatenation happens as a suffix. Set
+        ``position='prefix'`` to prepend. Returns a new ``Scenario`` unless
+        ``inplace`` is True.
+
+        Args:
+            key: The key whose value will be concatenated.
+            addend: The string to concatenate to the existing value.
+            position: Either "suffix" (default) or "prefix" for where to add ``addend``.
+            inplace: If True, modify this Scenario and return it. Otherwise, return a copy.
+
+        Returns:
+            A ``Scenario`` with the updated value.
+
+        Raises:
+            KeyError: If ``key`` does not exist in the Scenario.
+            TypeError: If the existing value at ``key`` is not a string.
+            ValueError: If ``position`` is not "suffix" or "prefix".
+
+        Examples:
+            >>> s = Scenario({"greeting": "Hello"})
+            >>> s2 = s.string_cat("greeting", ", world!")
+            >>> s2["greeting"]
+            'Hello, world!'
+
+            >>> s3 = s.string_cat("greeting", "Well, ", position="prefix")
+            >>> s3["greeting"]
+            'Well, Hello'
+
+            In-place modification:
+            >>> s_in = Scenario({"name": "Alice"})
+            >>> _ = s_in.string_cat("name", " Smith", inplace=True)
+            >>> s_in["name"]
+            'Alice Smith'
+        """
+        if key not in self:
+            raise KeyError(f"Key '{key}' not found in Scenario")
+
+        current_value = self[key]
+        if not isinstance(current_value, str):
+            raise TypeError(
+                f"Value for key '{key}' must be a string to concatenate; got {type(current_value)}"
+            )
+
+        if position not in {"suffix", "prefix"}:
+            raise ValueError("position must be either 'suffix' or 'prefix'")
+
+        target = self if inplace else Scenario(copy.deepcopy(self.data))
+        if position == "suffix":
+            target[key] = current_value + addend if inplace else target[key] + addend
+        else:  # prefix
+            target[key] = addend + current_value if inplace else addend + target[key]
+
+        return target
+
     def table(self, tablefmt: str = "grid") -> str:
         """Display a scenario as a formatted table.
 

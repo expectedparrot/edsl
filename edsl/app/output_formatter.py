@@ -8,10 +8,10 @@ from ..scenarios import ScenarioList, FileStore
 
 relevant_classes = {
     Results: ['to_scenario_list', 'select', 'table', 'report_from_template'], 
-    Dataset: ['table', 'expand', 'to_markdown'], 
+    Dataset: ['table', 'expand', 'to_markdown', 'to_list'], 
     TableDisplay: ['flip'],
     FileStore: ['view', 'to_docx', 'save'],
-    ScenarioList: ['to_survey', 'rename'],
+    ScenarioList: ['to_survey', 'rename', 'zip', 'string_cat', 'add_value'],
 }
 
 white_list_methods = []

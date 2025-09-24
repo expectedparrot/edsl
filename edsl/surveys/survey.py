@@ -761,6 +761,85 @@ class Survey(Base):
         """
         return EditSurvey(self).add_question(question, index)
 
+    def add_summation_question(
+        self,
+        question_name: str = "total_score",
+        include: Optional[List[Union[str, "QuestionBase"]]] = None,
+    ) -> "Survey":
+        """Add a compute question that sums answers from prior numeric questions.
+
+        This convenience method appends a `compute` question that renders the sum of
+        answers from all previous questions of type `numerical` or `linear_scale`.
+        Optionally, pass a subset to include. Prior answers are available automatically
+        to the compute template; no extra memory wiring is required.
+
+        Args:
+            question_name: Name for the new compute question.
+            include: Optional list of question names or question objects to include;
+                if omitted, all prior `numerical` and `linear_scale` questions are used.
+
+        Returns:
+            Survey: The updated survey (supports chaining).
+
+        Raises:
+            SurveyCreationError: If any included question is not of an
+                allowed type, or if none are available.
+
+        Example:
+            Adds a `total_score` question that sums prior numeric answers.
+        """
+        # Resolve included questions
+        if include is None:
+            included_questions: List["QuestionBase"] = [
+                q
+                for q in self.questions
+                if getattr(q, "question_type", None) in ("numerical", "linear_scale")
+            ]
+        else:
+            name_to_q = self.question_names_to_questions()
+            included_questions = []
+            for item in include:
+                if isinstance(item, str):
+                    if item not in name_to_q:
+                        raise SurveyCreationError(
+                            f"Question '{item}' not found in survey."
+                        )
+                    q_obj = name_to_q[item]
+                else:
+                    q_obj = item
+
+                if getattr(q_obj, "question_type", None) not in (
+                    "numerical",
+                    "linear_scale",
+                ):
+                    raise SurveyCreationError(
+                        f"Question '{q_obj.question_name}' must be of type 'numerical' or 'linear_scale'."
+                    )
+                included_questions.append(q_obj)
+
+        # Must have at least one valid prior question
+        if not included_questions:
+            raise SurveyCreationError(
+                "No prior 'numerical' or 'linear_scale' questions available to sum."
+            )
+
+        # Build the Jinja template to sum answers
+        answers_expr = ", ".join(
+            f"{q.question_name}.answer" for q in included_questions
+        )
+        question_text = (
+            f"{{% set numbers = [{answers_expr}] %}}\n"  # list of answers
+            "{{ numbers | sum }}"
+        )
+
+        # Create and add the compute question
+        from ..questions import QuestionCompute
+
+        compute_q = QuestionCompute(
+            question_name=question_name, question_text=question_text
+        )
+        return self.add_question(compute_q)
+
     def _recombined_questions_and_instructions(
         self,
     ) -> List[Union["QuestionBase", "Instruction"]]:
