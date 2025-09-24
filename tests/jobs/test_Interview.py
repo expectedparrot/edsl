@@ -41,17 +41,12 @@ def test_order(create_survey):
     # model = Model("test")
     model = create_language_model(ValueError, 100)()
     jobs = survey.by(model).by(sl)
-    results = jobs.run()
+    results = jobs.run(disable_remote_inference = True)
 
     hashes = []
     # TODO: Need to fix this
     for result, interview in zip(results, jobs.interviews()):
         hashes.append((interview.initial_hash, result.interview_hash))
-
-    # Something is going wrong here - the hashes are not matching
-
-    # breakpoint()
-    # assert result.interview_hash == interview.initial_hash  # hash(interview)
 
 
 def test_token_usage(create_survey):
@@ -60,7 +55,7 @@ def test_token_usage(create_survey):
     jobs = survey.by(model)
 
     cache = Cache()
-    results = jobs.run(cache=cache)
+    results = jobs.run(cache=cache, disable_remote_inference = True)
     token_usage = jobs.interviews()[0].token_usage
 
     # from edsl.jobs.tokens.TokenUsage import TokenUsage
@@ -79,7 +74,7 @@ def test_task_management(create_survey):
     jobs = survey.by(model)
 
     cache = Cache()
-    results = jobs.run(cache=cache)
+    results = jobs.run(cache=cache, disable_remote_inference = True)
 
     from edsl.interviews import InterviewStatusDictionary
 
@@ -139,7 +134,7 @@ def test_handle_timeout_exception(create_survey, capsys):
     survey = create_survey(num_questions=5, chained=False)
 
     cache = Cache()
-    results = survey.by(model).run(cache=False, print_exceptions=False)
+    results = survey.by(model).run(cache=cache, print_exceptions=False, disable_remote_inference = True)
     captured = capsys.readouterr()
     # assert (
     #     "WARNING: At least one question in the survey was not answered." in captured.out

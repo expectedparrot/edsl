@@ -88,8 +88,8 @@ CONFIG_MAP = {
         "info": "This config var holds the URL of the Expected Parrot API.",
     },
     "EDSL_MAX_CONCURRENT_TASKS": {
-        "default": "1000",
-        "info": "This config var determines the maximum number of concurrent tasks that can be run by the async job-runner",
+        "default": "50",
+        "info": "This config var determines the maximum number of concurrent tasks that can be run by the async job-runner. Reduced from 1000 to 50 for better performance with fewer context switches.",
     },
     "EDSL_OPEN_EXCEPTION_REPORT_URL": {
         "default": "False",

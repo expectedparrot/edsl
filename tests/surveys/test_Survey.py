@@ -131,7 +131,7 @@ class TestSurvey(unittest.TestCase):
 
         from edsl.caching import Cache
 
-        results = jobs.run(cache=Cache())
+        results = jobs.run(cache=Cache(), disable_remote_inference = True)
         # with this skip logic, the second question should not be answered
         assert results[0].answer["own_shovel"] == None
 

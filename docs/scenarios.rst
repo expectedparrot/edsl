@@ -1,3 +1,5 @@
+.. _scenarios:
+
 Scenarios
 =========
 
@@ -386,7 +388,7 @@ Scenario methods
 ----------------
 
 There are a variety of methods for working with scenarios and scenario lists, including:
-`concatenate`, `concatenate_to_list`, `concatenate_to_set`, `drop`, `duplicate` `expand`, `filter`, `keep`, `mutate`, `order_by`, `rename`, `sample`, `shuffle`, `times`, `tranform`, `unpack_dict`
+`concatenate`, `concatenate_to_list`, `concatenate_to_set`, `condense`, `drop`, `duplicate` `expand`, `filter`, `keep`, `mutate`, `order_by`, `rename`, `sample`, `shuffle`, `times`, `tranform`, `unpack_dict`
 
 These methods can be used to manipulate scenarios and scenario lists in various ways, such as sampling a subset of scenarios, shuffling the order of scenarios, concatenating scenarios together, filtering scenarios based on certain criteria, and more.
 Examples of some of these methods are provided below.
@@ -652,6 +654,78 @@ This will return:
     - green
     - ['spinach']
     
+
+The method `condense()` can be used to combine all scenarios in a ScenarioList into a single Scenario object:
+
+.. code-block:: python
+
+  from edsl import Scenario, ScenarioList
+
+  scenarios = ScenarioList([
+    Scenario({"id": 1, "text": "First"}),
+    Scenario({"id": 2, "text": "Second"}),
+    Scenario({"id": 3, "text": "Third"})
+  ])
+
+  # Condense with default prefix and index
+  combined = scenarios.condense()
+
+  combined
+
+
+This will return:
+
+.. list-table::
+  :header-rows: 1
+
+  * - scenario_0
+    - scenario_1
+    - scenario_2
+  * - {'id': 1, 'text': 'First'}
+    - {'id': 2, 'text': 'Second'}
+    - {'id': 3, 'text': 'Third'}
+
+
+The condensed scenario can then be used in EDSL questions with dot notation:
+
+.. code-block:: python
+
+  from edsl import QuestionFreeText
+
+  q = QuestionFreeText(
+    question_name="first_text",
+    question_text="What is the text from the first scenario: {{ scenario.scenario_0.text }}?"
+  )
+
+  # Run with the condensed scenario
+  results = q.by(combined).run()
+
+
+You can also use custom prefixes and control whether to include indices:
+
+.. code-block:: python
+
+  # Custom prefix
+  combined_custom = scenarios.condense(prefix="item")
+
+  # Without index (first item uses just prefix, others get index to avoid conflicts)
+  combined_no_index = scenarios.condense(prefix="data", include_index=False)
+
+  combined_custom
+
+
+This will return:
+
+.. list-table::
+  :header-rows: 1
+
+  * - item_0
+    - item_1
+    - item_2
+  * - {'id': 1, 'text': 'First'}
+    - {'id': 2, 'text': 'Second'}
+    - {'id': 3, 'text': 'Third'}
+
 
 The method `from_source("sqlite")` can be used to create a scenario list from a SQLite database. It takes a `filepath` to the database file and optional parameters `table` and `sql_query`.
 
@@ -1833,7 +1907,7 @@ Then we use the `show_prompts()` method to examine the user prompts that are cre
   for sentiment in sentiments:
     q = QuestionFreeText(
       question_name = f"{ sentiment }_activity",
-      question_text = f"How much do you { sentiment } {{ scenario.activity }}?"
+      question_text = f"How much do you { sentiment } " + "{{ scenario.activity }}?"
     )
     questions.append(q)
 

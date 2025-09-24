@@ -73,7 +73,7 @@ Please see the links in the steps below for more details:
 
    .. code:: 
 
-      pip show edsl
+      ! uv pip install edsl -q
 
 
    See :ref:`installation` instructions for more details.
@@ -82,10 +82,18 @@ Please see the links in the steps below for more details:
 
    `Create an account <https://www.expectedparrot.com/login>`_ to access the Expected Parrot server, free storage and special features and collaboration tools.
 
+   You can also log into Expected Parrot and import dependencies by running:
+
+   .. code:: python
+
+      from edsl import login
+      login()  
+
+
 3. **Manage API keys for language models**
 
-   Your account comes with a key that allows you to run surveys with all available models at the Expected Parrot server.
-   You can also use and share your own keys from service providers.
+   Your account comes with a key that allows you to run surveys with all `available models <https://www.expectedparrot.com/models.html>`_.
+   You can also provide and share your own keys from service providers.
 
    See instructions on :ref:`api_keys` for details and options.
 
@@ -96,10 +104,10 @@ Please see the links in the steps below for more details:
 
 5. **Validate with real respondents.**
 
-   You can run surveys with real respondents using the Coop platform or at your workspace.
-   Learn about methods for generating web-based surveys and collecting responses in the :ref:`survey_builder` and :ref:`humanize` sections.
+   Choose when to add a human-in-the-loop by automatically launching a web-based survey to share with real respondents. 
+   Learn about collecting responses in the :ref:`survey_builder` and :ref:`humanize` sections.
 
-Join our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_ to ask questions and chat with other users!
+Join our `Discord <https://discord.com/invite/mxAYkjfy9m>`_ to ask questions and chat with other users!
 
 
 Researchers

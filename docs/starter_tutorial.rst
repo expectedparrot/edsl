@@ -13,11 +13,14 @@ We begin with technical setup: instructions for installing the EDSL library and 
 Then we demonstrate some of the basic features of EDSL, with examples for constructing and running surveys with agents and models, and analyzing responses as datasets.
 By the end of this tutorial, you will be able to use EDSL to do each of the following:
 
-* Construct various types of questions tailored to your research objectives.
-* Combine questions into surveys and integrate logical rules to control the survey flow.
-* Design personas for AI agents to simulate responses to your surveys.
-* Choose and deploy large language models to generate responses for AI agents.
-* Analyze responses as datasets with built-in analytical tools.
+* Construct various types of `questions <https://docs.expectedparrot.com/en/latest/questions.html>`_ tailored to your research objectives.
+* Combine questions into `surveys <https://docs.expectedparrot.com/en/latest/surveys.html>`_ and integrate logical rules to control the survey flow.
+* Add context to questions by piping answers, adding memory of prior questions and answers, and using `scenarios <https://docs.expectedparrot.com/en/latest/scenarios.html>`_ to add data or content to questions.
+* Design personas for AI `agents <https://docs.expectedparrot.com/en/latest/agents.html>`_ to simulate responses to your surveys.
+* Choose and deploy `language models <https://docs.expectedparrot.com/en/latest/language_models.html>`_ to generate responses for AI agents.
+* Analyze `results <https://docs.expectedparrot.com/en/latest/results.html>`_ as datasets with built-in analytical tools.
+* Validate LLM answers with `human respondents <https://docs.expectedparrot.com/en/latest/humanize.html>`_.
+
 
 **Storing & sharing your work** 
 
@@ -28,7 +31,7 @@ Learn more about how :ref:`coop` works in the EDSL documentation.
 
 .. note::
 
-  You can also view and download the contents of this tutorial in a `notebook at Coop <https://www.expectedparrot.com/content/RobinHorton/starter-tutorial-notebook>`_
+  You can also view and download the contents of this tutorial in a `notebook at Coop <https://www.expectedparrot.com/content/RobinHorton/starter-tutorial>`_
 
 
 **Further reading** 
@@ -83,7 +86,7 @@ From PyPI
 
 .. code-block:: bash
 
-  pip install edsl
+  ! uv pip install edsl -q
 
 
 From GitHub
@@ -111,13 +114,31 @@ To update your installation of EDSL to the latest version at PyPI, run the follo
   pip install --upgrade edsl
 
 
+Create an account 
+-----------------
+
+Creating an account allows you to run survey jobs at Expected Parrot using language models of your choice, and automatically cache your results. 
+Your account also allows you to launch human surveys and share your content and workflows with other users. 
+Your account comes with $25 in credits for API calls to LLMs for getting started, and a referal code for earning more credits.
+
+`Create an account <https://www.expectedparrot.com/login>`_ with an email address and password, or run the following code to be prompted automatically:
+
+.. code-block:: python
+
+   from edsl import login
+
+   login()
+
+
+The above code also automatically stores your Expected Parrot API key for use with EDSL (see below).
+
 
 Accessing Language Models
 -------------------------
 
 The next step is to decide how you want to access language models.
 EDSL works with many popular language models that you can choose from to generate responses to your surveys.
-These models are hosted by various service providers, such as Anthropic, Azure, Bedrock, Deep Infra, DeepSeek, Google, Groq, Mistral, OpenAI, Replicate and Together.
+These models are hosted by various service providers, such as Anthropic, Azure, Bedrock, Deep Infra, DeepSeek, Google, Groq, Mistral, OpenAI, Replicate, Together and Xai.
 In order to run a survey, you need to provide API keys for the service providers of models that you want to use.
 There are two methods for providing API keys to EDSL:
 
@@ -129,18 +150,10 @@ Managing keys
 ^^^^^^^^^^^^^
 
 The easiest way to manage your keys is from your Expected Parrot account.
-`Create an account <https://www.expectedparrot.com/login>`_ with an email address and then navigate to your `Keys <https://www.expectedparrot.com/home/keys>`_ page to find options for adding and sharing your keys:
-
-.. image:: static/home-keys.png
-  :alt: View stored keys
-  :align: center
-  :width: 75%
-  
+`Log in <https://www.expectedparrot.com/login>`_ to your account and navigate to your `Keys <https://www.expectedparrot.com/home/keys>`_ page to find options for adding and sharing your keys.
 
 Your Expected Parrot key is automatically available to use by default whenever remote inference is activated.
 This key allows you to access the Expected Parrot server and run surveys with all available models.
-The key can be viewed at your `Settings <https://www.expectedparrot.com/home/api>`_ page where you can also find options for activating remote inference and caching.
-Activating these options allows you to run your surveys and store results at the Expected Parrot server instead of your own machine, using whichever keys you have prioritized.
 
 Please see the :ref:`api_keys` section for more details on methods of storing and managing keys.
 
@@ -163,65 +176,7 @@ After installing EDSL and storing API keys you are ready to run some examples!
 Example: Running a simple question
 ----------------------------------
 
-EDSL comes with a `variety of question types <https://docs.expectedparrot.com/en/latest/questions.html>`_ that we can choose from based on the form of the response that we want to get back from a model.
-We can see a list of all question types and examples of each of them by running the following code:
-
-.. code-block:: python
-
-  from edsl import Question
-
-  Question.available()
-
-
-Output:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 15 20 65
-
-   * - question_type
-     - question_class
-     - example_question
-   * - checkbox
-     - QuestionCheckBox
-     - Question('checkbox', question_name="""never_eat""", question_text="""Which of the following foods would you eat if you had to?""", min_selections=2, max_selections=5, question_options=['soggy meatpie', 'rare snails', 'mouldy bread', 'panda milk custard', 'McDonalds'], include_comment=False, use_code=True)
-   * - extract
-     - QuestionExtract
-     - Question('extract', question_name="""extract_name""", question_text="""My name is Moby Dick. I have a PhD in astrology, but I'm actually a truck driver""", answer_template={'name': 'John Doe', 'profession': 'Carpenter'})
-   * - free_text
-     - QuestionFreeText
-     - Question('free_text', question_name="""how_are_you""", question_text="""How are you?""")
-   * - functional
-     - QuestionFunctional
-     - Question('functional', question_name="""sum_and_multiply""", question_text="""Calculate the sum of the list and multiply it by the agent trait multiplier.""")
-   * - likert_five
-     - QuestionLikertFive
-     - Question('likert_five', question_name="""happy_raining""", question_text="""I'm only happy when it rains.""", question_options=['Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree'])
-   * - linear_scale
-     - QuestionLinearScale
-     - Question('linear_scale', question_name="""ice_cream""", question_text="""How much do you like ice cream?""", question_options=[1, 2, 3, 4, 5], option_labels={1: 'I hate it', 5: 'I love it'})
-   * - list
-     - QuestionList
-     - Question('list', question_name="""list_of_foods""", question_text="""What are your favorite foods?""", max_list_items=None)
-   * - matrix
-     - QuestionMatrix
-     - Question('matrix', question_name="""child_happiness""", question_text="""How happy would you be with different numbers of children?""", question_items=['No children', '1 child', '2 children', '3 or more children'], question_options=[1, 2, 3, 4, 5], option_labels={1: 'Very sad', 3: 'Neutral', 5: 'Extremely happy'})
-   * - multiple_choice
-     - QuestionMultipleChoice
-     - Question('multiple_choice', question_name="""how_feeling""", question_text="""How are you?""", question_options=['Good', 'Great', 'OK', 'Bad'], include_comment=False)
-   * - numerical
-     - QuestionNumerical
-     - Question('numerical', question_name="""age""", question_text="""You are a 45 year old man. How old are you in years?""", min_value=0, max_value=86.7, include_comment=False)
-   * - rank
-     - QuestionRank
-     - Question('rank', question_name="""rank_foods""", question_text="""Rank your favorite foods.""", question_options=['Pizza', 'Pasta', 'Salad', 'Soup'], num_selections=2)
-   * - top_k
-     - QuestionTopK
-     - Question('top_k', question_name="""two_fruits""", question_text="""Which of the following fruits do you prefer?""", min_selections=2, max_selections=2, question_options=['apple', 'banana', 'carrot', 'durian'], use_code=True)
-   * - yes_no
-     - QuestionYesNo
-     - Question('yes_no', question_name="""is_it_equal""", question_text="""Is 5 + 5 equal to 11?""", question_options=['No', 'Yes'])
- 
+EDSL comes with a `variety of question types <https://docs.expectedparrot.com/en/latest/questions.html>`_ that we can choose from based on the form of the response that we want to get back from a model, including multiple choice, checkbox, rank, top-k, linear scale, likert five, yes/no, numerical, free text, extract, list, matrix and functional questions.
 
 We can inspect the components of a particular question type by importing the question type class and calling the `example` method on it:
 
@@ -783,217 +738,6 @@ Output:
      - Ah, my favorite place for running is along the rugged coastline, where the salty sea breeze fills the air and the waves crash against the rocks, reminding me of the vastness of the ocean.
 
 
-Adding scenarios using the `loop` method
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Here we add scenarios to questions when constructing a survey, as opposed to when running it.
-When we run the survey the results will include columns for each question and no `scenario` field. 
-Note that we can also optionally use the scenario key in the question names (they are otherwise incremented by default):
-
-.. code-block:: python
-
-  from edsl import QuestionLinearScale, QuestionFreeText
-
-  q_enjoy = QuestionLinearScale(
-    question_name = "enjoy_{{ activity }}", # optional use of scenario key
-    question_text = "On a scale from 1 to 5, how much do you enjoy {{ activity }}?",
-    question_options = [1, 2, 3, 4, 5],
-    option_labels = {1:"Not at all", 5:"Very much"}
-  )
-
-  q_favorite_place = QuestionFreeText(
-    question_name = "favorite_place_{{ activity }}", # optional use of scenario key
-    question_text = "In a brief sentence, describe your favorite place for {{ activity }}."
-  )
-
-
-Looping the scenarios to create a lists of versions of the `enjoy` question:
-
-.. code-block:: python 
-
-  enjoy_questions = q_enjoy.loop(scenarios)
-  enjoy_questions
-
-
-Output:
-
-.. code_block:: text 
-
-  [Question('linear_scale', question_name = """enjoy_reading""", question_text = """On a scale from 1 to 5, how much do you enjoy reading?""", question_options = [1, 2, 3, 4, 5], option_labels = {1: 'Not at all', 5: 'Very much'}),
-  Question('linear_scale', question_name = """enjoy_running""", question_text = """On a scale from 1 to 5, how much do you enjoy running?""", question_options = [1, 2, 3, 4, 5], option_labels = {1: 'Not at all', 5: 'Very much'}),
-  Question('linear_scale', question_name = """enjoy_relaxing""", question_text = """On a scale from 1 to 5, how much do you enjoy relaxing?""", question_options = [1, 2, 3, 4, 5], option_labels = {1: 'Not at all', 5: 'Very much'})]
-
-
-Looping the scenarios to create a lists of versions of the `favorite_place` question:
-
-.. code-block:: python 
-
-  favorite_place_questions = q_favorite_place.loop(scenarios)
-  favorite_place_questions
-
-
-Output:
-
-.. code-block:: text 
-
-  [Question('free_text', question_name = """favorite_place_reading""", question_text = """In a brief sentence, describe your favorite place for reading."""),
-  Question('free_text', question_name = """favorite_place_running""", question_text = """In a brief sentence, describe your favorite place for running."""),
-  Question('free_text', question_name = """favorite_place_relaxing""", question_text = """In a brief sentence, describe your favorite place for relaxing.""")]
-
-
-Combining the questions into a survey and running it:
-
-.. code-block:: python 
-
-  survey = Survey(questions = enjoy_questions + favorite_place_questions)
-
-  results = survey.by(agents).by(models).run()
-
-
-We can see that there are additional question fields and no scenario fields:
-
-.. code-block:: python
-
-  results.columns
-
-
-Output:
-
-.. list-table::
-   :header-rows: 1
-
-   * - 0
-   * - Fields
-   * - agent.agent_instruction
-   * - agent.agent_name
-   * - agent.persona
-   * - answer.enjoy_reading
-   * - answer.enjoy_relaxing
-   * - answer.enjoy_running
-   * - answer.favorite_place_reading
-   * - answer.favorite_place_relaxing
-   * - answer.favorite_place_running
-   * - comment.enjoy_reading_comment
-   * - comment.enjoy_relaxing_comment
-   * - comment.enjoy_running_comment
-   * - comment.favorite_place_reading_comment
-   * - comment.favorite_place_relaxing_comment
-   * - comment.favorite_place_running_comment
-   * - generated_tokens.enjoy_reading_generated_tokens
-   * - generated_tokens.enjoy_relaxing_generated_tokens
-   * - generated_tokens.enjoy_running_generated_tokens
-   * - generated_tokens.favorite_place_reading_generated_tokens
-   * - generated_tokens.favorite_place_relaxing_generated_tokens
-   * - generated_tokens.favorite_place_running_generated_tokens
-   * - iteration.iteration
-   * - model.frequency_penalty
-   * - model.logprobs
-   * - model.maxOutputTokens
-   * - model.max_tokens
-   * - model.model
-   * - model.presence_penalty
-   * - model.stopSequences
-   * - model.temperature
-   * - model.topK
-   * - model.topP
-   * - model.top_logprobs
-   * - model.top_p
-   * - prompt.enjoy_reading_system_prompt
-   * - prompt.enjoy_reading_user_prompt
-   * - prompt.enjoy_relaxing_system_prompt
-   * - prompt.enjoy_relaxing_user_prompt
-   * - prompt.enjoy_running_system_prompt
-   * - prompt.enjoy_running_user_prompt
-   * - prompt.favorite_place_reading_system_prompt
-   * - prompt.favorite_place_reading_user_prompt
-   * - prompt.favorite_place_relaxing_system_prompt
-   * - prompt.favorite_place_relaxing_user_prompt
-   * - prompt.favorite_place_running_system_prompt
-   * - prompt.favorite_place_running_user_prompt
-   * - question_options.enjoy_reading_question_options
-   * - question_options.enjoy_relaxing_question_options
-   * - question_options.enjoy_running_question_options
-   * - question_options.favorite_place_reading_question_options
-   * - question_options.favorite_place_relaxing_question_options
-   * - question_options.favorite_place_running_question_options
-   * - question_text.enjoy_reading_question_text
-   * - question_text.enjoy_relaxing_question_text
-   * - question_text.enjoy_running_question_text
-   * - question_text.favorite_place_reading_question_text
-   * - question_text.favorite_place_relaxing_question_text
-   * - question_text.favorite_place_running_question_text
-   * - question_type.enjoy_reading_question_type
-   * - question_type.enjoy_relaxing_question_type
-   * - question_type.enjoy_running_question_type
-   * - question_type.favorite_place_reading_question_type
-   * - question_type.favorite_place_relaxing_question_type
-   * - question_type.favorite_place_running_question_type
-   * - raw_model_response.enjoy_reading_cost
-   * - raw_model_response.enjoy_reading_one_usd_buys
-   * - raw_model_response.enjoy_reading_raw_model_response
-   * - raw_model_response.enjoy_relaxing_cost
-   * - raw_model_response.enjoy_relaxing_one_usd_buys
-   * - raw_model_response.enjoy_relaxing_raw_model_response
-   * - raw_model_response.enjoy_running_cost
-   * - raw_model_response.enjoy_running_one_usd_buys
-   * - raw_model_response.enjoy_running_raw_model_response
-   * - raw_model_response.favorite_place_reading_cost
-   * - raw_model_response.favorite_place_reading_one_usd_buys
-   * - raw_model_response.favorite_place_reading_raw_model_response
-   * - raw_model_response.favorite_place_relaxing_cost
-   * - raw_model_response.favorite_place_relaxing_one_usd_buys
-   * - raw_model_response.favorite_place_relaxing_raw_model_response
-   * - raw_model_response.favorite_place_running_cost
-   * - raw_model_response.favorite_place_running_one_usd_buys
-   * - raw_model_response.favorite_place_running_raw_model_response
-
-
-Here we inspect a subset of results:
-
-.. code-block:: python
-
-  (
-    results
-    .filter("model.model == 'gpt-4o'")
-    .sort_by("persona")
-    .select("persona", "enjoy_reading", "enjoy_running", "enjoy_relaxing", "favorite_place_reading", "favorite_place_running", "favorite_place_relaxing")
-  )
-
-
-Output:
-
-.. list-table::
-   :header-rows: 1
-
-  * - agent.persona
-    - answer.enjoy_reading
-    - answer.enjoy_running
-    - answer.enjoy_relaxing
-    - answer.favorite_place_reading
-    - answer.favorite_place_running
-    - answer.favorite_place_relaxing
-  * - artist
-    - 4
-    - 2
-    - 4
-    - My favorite place for reading is a cozy nook by a large window, where the natural light spills over the pages, surrounded by plants and the gentle hum of city life outside.
-    - My favorite place for running is a winding forest trail where the sunlight filters through the leaves, creating a dappled pattern on the ground.
-    - My favorite place for relaxing is a sun-dappled studio filled with the scent of fresh paint and the gentle hum of creativity.
-  * - mechanic
-    - 2
-    - 1
-    - 3
-    - My favorite place for reading is in my garage, surrounded by the hum of engines and the scent of motor oil, where I can escape into a good book during breaks.
-    - My favorite place for running is a quiet trail through the woods, where the fresh air and natural surroundings make each step feel refreshing.
-    - My favorite place for relaxing is in my garage, tinkering with an old engine, where the hum of tools and the smell of grease help me unwind.
-  * - sailor
-    - 3
-    - 2
-    - 3
-    - Ah, my favorite place for reading is out on the deck of a ship, with the salty sea breeze in my hair and the gentle rocking of the waves beneath me.
-    - Ah, my favorite place for running is along the rugged coastline, where the salty sea breeze fills the air and the waves crash against the rocks, reminding me of the vastness of the ocean.
-    - There's nothing quite like the gentle sway of a hammock on the deck of a ship, with the sound of the ocean waves lapping against the hull and the salty breeze in the air.
-
 
 Exploring `Results`
 -------------------
@@ -1004,7 +748,6 @@ For example, you can call the `to_pandas` method to convert results into a dataf
 .. code-block:: python 
     
   df = results.to_pandas(remove_prefix=True)
-  # df # uncomment to view output
 
 
 The `Results` object also supports SQL-like queries with the the `sql` method:
@@ -1060,14 +803,14 @@ Output:
     - Ah, my favorite place for reading is out on th...
 
 
-Posting to the Coop
--------------------
+Posting to Coop
+---------------
 
 The `Coop <https://www.expectedparrot.com/content/explore>`_ is a platform for creating, storing and sharing LLM-based research.
 It is fully integrated with EDSL and accessible from your workspace or Coop account page.
-Learn more about `creating an account <https://www.expectedparrot.com/login>`_ and `using the Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_.
+Learn more about `creating an account <https://www.expectedparrot.com/login>`_ and `using Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_.
 
-We can post any EDSL object to the Coop by call the `push` method on it, optionally passing a `description`, a convenient `alias` for the Coop URL that is created and a `visibility` status (*public*, *private* or *unlisted* by default):
+We can post any EDSL object to Coop by calling the `push` method on it, optionally passing a `description`, a convenient `alias` for the Coop URL that is created and a `visibility` status (*public*, *private* or *unlisted* by default):
 
 .. code-block:: python 
 
@@ -1100,4 +843,4 @@ To post a notebook:
   notebook.push(description="Starter Tutorial", alias = "example-notebook-new-alias", visibility="public")
 
 
-You can view and download a notebook for this tutorial `at the Coop <https://www.expectedparrot.com/content/RobinHorton/starter-tutorial-notebook>`_.
+You can view and download a notebook for this tutorial `at Coop <https://www.expectedparrot.com/content/RobinHorton/starter-tutorial>`_.
