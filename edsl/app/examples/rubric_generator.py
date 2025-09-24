@@ -1,13 +1,12 @@
 import textwrap
 
-from .app import SingleScenarioApp
+from edsl.app import SingleScenarioApp
 
-from ..surveys import Survey
-from ..questions import QuestionList, QuestionFreeText
-from .output_formatter import OutputFormatter
+from edsl.surveys import Survey
+from edsl.questions import QuestionList, QuestionFreeText
+from edsl.app import OutputFormatter
+from edsl import Scenario
 
-
-# 1) Collect what the user wants to evaluate (e.g., "a technical blog post")
 initial_survey = Survey([
     QuestionFreeText(
         question_name="artifact_description",
@@ -51,7 +50,7 @@ q_scales = QuestionList(
    Just include the scale labels, no other text.
    """ 
 )
-from edsl import Scenario
+
 s = Scenario({"artifact_description": "a technical blog post"})
 jobs_object = (
     Survey([dimensions_question]).by(s)
@@ -59,8 +58,6 @@ jobs_object = (
 .expand('answer.dimensions')
 .to(q_scales.to_survey())
 )
-
-
 
 rubric_formatter = (OutputFormatter("Rubric Survey")
 .select('scenario.dimensions', 'answer.scales')
@@ -73,46 +70,16 @@ rubric_formatter = (OutputFormatter("Rubric Survey")
 .zip('question_options', 'option_labels', 'option_labels')
 ).to_survey()
 
-
-#question_info = jobs.run()
-
-#.to_survey()
-
-# # 3) Build a job that expands the generated dimensions into one row per dimension
-# job = (
-#     Survey([dimensions_question, q_scales]).to_jobs()
-#     .select("artifact_description", "dimensions")
-#     .to_scenario_list()
-#     .expand("dimensions")
-# )
-
-
-# # 4) Output formatter turns the expanded list into a Survey (skeleton: free-text questions)
-# #    You can adjust this to set question_type = "linear_scale" and add options/labels.
-# rubric_formatter = (
-#     OutputFormatter(name="Rubric Survey")
-#     .select("dimensions")
-#     .to_scenario_list()
-#     .rename({"dimensions": "question_text"})
-#     .to_survey()
-# )
-
-
 app = SingleScenarioApp(
      initial_survey=initial_survey,
+     description = "A rubric generator.",
+     application_name = "rubric_generator",
      jobs_object=jobs_object,
      output_formatters=[rubric_formatter],
 )
 
-
-#rubric_survey = app.output({'artifact_description':"Technical Blog Post"})
-#print(rubric_survey.table())
-
-
-#rubric_survey = app.output({'artifact_description':"A chicken dinner"})
-#print(rubric_survey.table())
-
-
-rubric_survey = app.output({'artifact_description':"A Python script"})
-print(rubric_survey.table())
+ 
+if __name__ == "__main__":
+    rubric_survey = app.output({'artifact_description':"A used Honda Civic"})
+    print(rubric_survey.table())
 

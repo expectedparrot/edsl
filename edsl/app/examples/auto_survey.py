@@ -1,7 +1,9 @@
 import textwrap
 
-from ..surveys import Survey
-from ..questions import QuestionList, QuestionMultipleChoice, QuestionFreeText
+from edsl.surveys import Survey
+from edsl.questions import QuestionList, QuestionMultipleChoice, QuestionFreeText
+from edsl.app import SingleScenarioApp
+from edsl.app.output_formatter import OutputFormatter
 
 initial_survey = Survey([
     QuestionFreeText(
@@ -57,12 +59,12 @@ job = (
     .expand("generated_question_text")
     .to(survey)
 )
-
  
-from .app import SingleScenarioApp
-from .output_formatter import OutputFormatter
 
-output_formatter = OutputFormatter(name = "Pass Through").select('scenario.generated_question_text', 'answer.*').table()
+# output_formatter = (OutputFormatter(name = "Pass Through")
+# .select('scenario.generated_question_text', 'answer.*')
+# .table()
+# )
 
 output_formatter = (
     OutputFormatter(name = "Survey").select(
@@ -83,6 +85,8 @@ output_formatter = (
 )
 
 app = SingleScenarioApp(
+    description = "Automatically generate a survey based on the user's input.",
+    application_name = "auto_survey",
     initial_survey = initial_survey,
     jobs_object = job,
     output_formatters = [output_formatter],

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Any, TypedDict, Union
+from typing import TYPE_CHECKING, Optional, Any, TypedDict, Union, List
 from pathlib import Path
 from abc import ABC, abstractmethod
 from ..scenarios import Scenario, ScenarioList
@@ -110,6 +110,14 @@ class App(ABC):
         self.application_name: str = application_name or self.__class__.__name__
         self._validate_parameters()
 
+        # Debug storage for post-hoc inspection
+        self._debug_params_last: Any | None = None
+        self._debug_head_attachments_last: Any | None = None
+        self._debug_jobs_last: Any | None = None
+        self._debug_results_last: Any | None = None
+        self._debug_output_last: Any | None = None
+        self._debug_history: list[dict] = []
+
     @classmethod
     def list(cls) -> list[str]:
         """List all apps."""
@@ -119,12 +127,30 @@ class App(ABC):
 
     def _generate_results(self, modified_jobs_object: 'Jobs') -> 'Results':
         """Generate results from a modified jobs object."""
-        return modified_jobs_object.run()
+        return modified_jobs_object.run(stop_on_exception = True)
 
     def output(self, params: 'Any', verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
+        if params is None:
+            params = self._collect_answers_interactively()
+        # Capture params and head attachments/jobs for debugging
+        self._debug_params_last = params
         head_attachments = self._prepare_from_params(params)
+        self._debug_head_attachments_last = head_attachments
         jobs = head_attachments.attach_to_head(self.jobs_object)
-        return self._render(jobs, formater_to_use)
+        self._debug_jobs_last = jobs
+        formatted_output = self._render(jobs, formater_to_use)
+
+        # Record consolidated snapshot after _render populates results/output
+        snapshot = {
+            'params': self._debug_params_last,
+            'head_attachments': self._debug_head_attachments_last,
+            'jobs': self._debug_jobs_last,
+            'results': self._debug_results_last,
+            'formatted_output': self._debug_output_last,
+        }
+        self._debug_history.append(snapshot)
+
+        return formatted_output
 
     def _render(self, jobs: 'Jobs', formater_to_use: Optional[str]) -> Any:
         """Render the results of a jobs object by applying the appropriate output formatter."""
@@ -133,17 +159,20 @@ class App(ABC):
         else:
             formatter = self.output_formatters.get_default()
         results = self._generate_results(jobs)
-        return formatter.render(results)
+        self._debug_results_last = results
+        formatted = formatter.render(results)
+        self._debug_output_last = formatted
+        return formatted
 
     @abstractmethod
-    def _prepare_from_params(self, params: Any) -> 'Jobs':
-        """Map external params into a Jobs object ready to run.
+    def _prepare_from_params(self, params: Any) -> 'HeadAttachments':
+        """Map external params into HeadAttachments ready to apply to the jobs object.
         
         Args:
             params: The parameters to use to generate the jobs object.
 
         Returns:
-            A Jobs object ready to run.
+            A HeadAttachments instance ready to attach to the jobs object.
         """
 
     def add_output_formatter(self, formatter: OutputFormatter, set_default: bool = False) -> "App":
@@ -301,6 +330,22 @@ class App(ABC):
 
         return target_cls(**kwargs)
 
+    @property
+    def debug_last(self) -> dict:
+        """Return the most recent debug snapshot of the app run."""
+        return {
+            'params': self._debug_params_last,
+            'head_attachments': self._debug_head_attachments_last,
+            'jobs': self._debug_jobs_last,
+            'results': self._debug_results_last,
+            'formatted_output': self._debug_output_last,
+        }
+
+    @property
+    def debug_history(self) -> List[dict]:
+        """Return the list of all debug snapshots captured so far."""
+        return self._debug_history
+
 
     def push(self, visibility: Optional[str] = "unlisted", description: Optional[str] = None, alias: Optional[str] = None):
         """Pushes the application to the E[P] server."""
@@ -390,13 +435,6 @@ class SingleScenarioApp(App):
                 normalized[key] = value
         scenario = Scenario(normalized)
         return HeadAttachments(scenario=scenario)
-
-    def output(self, params: Optional[dict] = None, verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
-        if params is None:
-            params = self._collect_answers_interactively()
-        head_attachments = self._prepare_from_params(params)
-        jobs = head_attachments.attach_to_head(self.jobs_object)
-        return self._render(jobs, formater_to_use)
 
 
 class SurveyInputApp(App):

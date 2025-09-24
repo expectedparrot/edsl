@@ -1,5 +1,5 @@
 from edsl.app.app import SurveyInputApp
-from edsl.app.output_formatter import OutputFormatter, OutputFormatters
+from edsl.app.output_formatter import OutputFormatter
 
 from edsl.surveys import Survey
 from edsl.questions import QuestionList, QuestionFreeText
@@ -74,9 +74,11 @@ output_formatter = (
 initial_survey = None
 
 a = SurveyInputApp(
+    description = "A persona generator.",
+    application_name = "create_personas",
     initial_survey=initial_survey,
     jobs_object=jobs_object,
-    output_formatters=OutputFormatters([output_formatter]),
+    output_formatters=[output_formatter],
 )
 
 if __name__ == "__main__":
