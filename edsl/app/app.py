@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from ..jobs import Jobs
     from ..results import Results
     from ..scenarios import ScenarioList
+    from ..agents import AgentList
 
 from .output_formatter import OutputFormatter, OutputFormatters
 
@@ -350,6 +351,17 @@ class SurveyInputApp(App):
         return self.jobs_object.add_scenario_head(params.to_scenario_list())
 
     def output(self, params: 'Survey', verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
+        jobs = self._prepare_from_params(params)
+        return self._render(jobs, formater_to_use)
+
+
+class AgentsInputApp(App):
+    application_type: str = "edsl_agents_as_input"
+
+    def _prepare_from_params(self, params: 'AgentList') -> 'Jobs':
+        return self.jobs_object.add_agent_list_to_head(params)
+
+    def output(self, params: 'AgentList', verbose: bool = False, formater_to_use: Optional[str] = None) -> Any:
         jobs = self._prepare_from_params(params)
         return self._render(jobs, formater_to_use)
 
