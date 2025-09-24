@@ -94,7 +94,9 @@ class AnthropicService(InferenceServiceABC):
                     from .remote_proxy_handler import RemoteProxyHandler
 
                     handler = RemoteProxyHandler(
-                        model=self.model, inference_service=self._inference_service_
+                        model=self.model,
+                        inference_service=self._inference_service_,
+                        job_uuid=getattr(self, "job_uuid", None),
                     )
 
                     # Get fresh parameter

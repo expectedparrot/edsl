@@ -220,6 +220,9 @@ class LanguageModel(
         # Initialize basic settings
         self.remote = False
         self.remote_proxy = True  # Default to using remote proxy when available
+        self.job_uuid = (
+            None  # Job UUID for progress tracking, set when progress bar is enabled
+        )
         self.omit_system_prompt_if_empty = omit_system_prompt_if_empty_string
 
         # Set up API key lookup and fetch model information
