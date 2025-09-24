@@ -248,7 +248,7 @@ def test_int_options():
         question_text="Select all the numbers that are prime.",
         question_options=[0, 1, 2, 3, 5, 7, 9],
     )
-    results = q.by(m).run()
+    results = q.by(m).run(disable_remote_inference = True)
 
 
 def test_QuestionCheckBox_answers():
