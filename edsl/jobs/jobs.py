@@ -369,6 +369,11 @@ class Jobs(Base):
         self.head_job.survey = survey
         return self
 
+    def add_agent_list_to_head(self, agent_list: "AgentList") -> Jobs:
+        """Add an agent list to the head job of the job."""
+        self.head_job.agents = agent_list
+        return self
+
     def add_scenario_head(self, scenario_or_scenario_list: Union["Scenario", "ScenarioList"]) -> Jobs:
         """Add a scenario to the job.
         
