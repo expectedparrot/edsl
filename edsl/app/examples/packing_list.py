@@ -130,9 +130,8 @@ s = Survey([q_packing_list, q_packing_checklist, q_packing_tips, q_weight_estima
 jobs = s.by(a)
 
 
-
-from .app import App
-from .output_formatter import OutputFormatter
+from edsl.app import SingleScenarioApp
+from edsl.app import OutputFormatter
 
 markdown_viewer = (
     OutputFormatter(name = "Markdown Viewer")
@@ -141,11 +140,22 @@ markdown_viewer = (
     .view()
 )
 
-app = App(
+app = SingleScenarioApp(
+    description = "A packing list generator.",
+    application_name = "packing_list",
     initial_survey=initial_survey,
     jobs_object=jobs,
     output_formatters=[markdown_viewer],
 )
 
 if __name__ == "__main__":
-    plan = app.output(verbose=True)
+    plan = app.output(
+        params = {
+            'trip_duration': '1 week',
+            'destination': 'Paris',
+            'weather_conditions': 'sunny',
+            'planned_activities': 'sightseeing',
+            'travel_style': 'luxury',
+            'special_considerations': 'none',
+        },
+        verbose=True)
