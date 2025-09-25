@@ -39,6 +39,9 @@ from __future__ import annotations
 import json
 import warnings
 from typing import Optional, Callable, Any, Union, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..widgets.results_viewer import ResultsViewerWidget
 from collections.abc import MutableSequence
 
 from ..base import Base
@@ -248,7 +251,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
 
-    def view(self) -> None:
+    def view(self) -> "ResultsViewerWidget":
         """View the results in a Jupyter notebook."""
         from ..widgets.results_viewer import ResultsViewerWidget
 
@@ -926,7 +929,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         )
 
     @ensure_ready
-    def select(self, *columns: Union[str, list[str]]) -> "Dataset":
+    def select(self, *columns: Union[str, list[str]]) -> Optional["Dataset"]:
         """Extract specific columns from the Results into a Dataset.
 
         This method allows you to select specific columns from the Results object
@@ -1021,7 +1024,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def _parse_column(self, column: str) -> tuple[str, str]:
         """Parse a column name into a data type and key."""
         if "." in column:
-            return column.split(".", 1)
+            parts = column.split(".", 1)
+            return parts[0], parts[1]
         return self._cache_manager.key_to_data_type[column], column
 
     @ensure_ready
@@ -1368,7 +1372,7 @@ def main():  # pragma: no cover
     """
     from ..results import Results
 
-    results = Results.example(debug=True)
+    results = Results.example()
     print(results.filter("how_feeling == 'Great'").select("how_feeling"))
     print(results.mutate("how_feeling_x = how_feeling + 'x'").select("how_feeling_x"))
 

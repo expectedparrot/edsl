@@ -177,7 +177,8 @@ class ResultsUtilities:
             tuple[str, str]: Data type and key components
         """
         if "." in column:
-            return column.split(".", 1)
+            parts = column.split(".", 1)
+            return (parts[0], parts[1])
         return self._results._cache_manager.key_to_data_type[column], column
 
     def get_answers(self, question_name: str) -> list:

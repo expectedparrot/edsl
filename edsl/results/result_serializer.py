@@ -142,10 +142,10 @@ class ResultSerializer:
         )
 
         if "interview_hash" in json_dict:
-            result.interview_hash = json_dict["interview_hash"]
+            setattr(result, 'interview_hash', json_dict["interview_hash"])
 
         # Restore the order attribute if it exists in the dictionary
         if "order" in json_dict:
-            result.order = json_dict["order"]
+            setattr(result, 'order', json_dict["order"])
 
         return result
