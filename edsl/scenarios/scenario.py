@@ -964,6 +964,34 @@ class Scenario(Base, UserDict):
         from .scenario_factory import ScenarioFactory
         return ScenarioFactory.from_docx(docx_path)
 
+    def chunk_text(self, 
+    field: str,
+    chunk_size_field: str, 
+    unit: str = "word",
+    include_original: bool = False,
+    hash_original: bool = False,
+    ) -> "ScenarioList":
+        """
+        Chunks a text field into smaller chunks of a specified size, creating a ScenarioList.
+
+        This method takes a field containing text and divides it into smaller chunks
+        based on either word count or line count. It's particularly useful for processing
+        large text documents in manageable pieces, such as for summarization, analysis,
+        or when working with models that have token limits.
+        """
+        from .document_chunker import DocumentChunker
+        if unit == "word":
+            num_words = self[chunk_size_field]
+            num_lines = None
+        elif unit == "line":
+            num_lines = self[chunk_size_field]
+            num_words = None
+        else:
+            raise Exception(f"Invalid unit: {unit}. Must be 'word' or 'line'.")
+        return  DocumentChunker(self).chunk(
+            field, num_words, num_lines, include_original, hash_original
+        )
+        
     def chunk(
         self,
         field: str,

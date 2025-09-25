@@ -16,16 +16,31 @@ if TYPE_CHECKING:
     from ..agents import AgentList
 
 from .output_formatter import OutputFormatter, OutputFormatters
-
-from dataclasses import dataclass
+from .output_formatter import ObjectFormatter
+## We need the notion of modifying elements before they are attached. 
+## The Outformat would be the natural way to do this. 
+## Maybe rename to ObjectTransformer?
 
 class HeadAttachments:
     """A class to attach objects to the head of a jobs object."""
 
-    def __init__(self, *, scenario: Optional[ScenarioList] = None, survey: Optional[Survey] = None, agent_list: Optional[AgentList] = None):
+    def __init__(self, *, 
+        scenario: Optional[ScenarioList] = None, 
+        survey: Optional[Survey] = None, 
+        agent_list: Optional[AgentList] = None,
+        ):
         self.scenario = scenario
         self.survey = survey
         self.agent_list = agent_list
+
+    def apply_formatter(self, formatter: ObjectFormatter) -> 'HeadAttachments':
+        if formatter.target == 'scenario':
+            self.scenario = formatter.render(self.scenario)
+        elif formatter.target == 'survey':
+            self.survey = formatter.render(self.survey)
+        elif formatter.target == 'agent_list':
+            self.agent_list = formatter.render(self.agent_list)
+        return self
 
     def attach_to_head(self, jobs: 'Jobs') -> 'Jobs':
         if self.scenario: 
@@ -35,14 +50,6 @@ class HeadAttachments:
         if self.agent_list:
             jobs = jobs.add_agent_list_to_head(self.agent_list)
         return jobs
-
-# class AppDeployment:
-#     license_type: str
-#     github_repo: str
-#     timestamp: str
-#     source_available: bool
-#     documentation: str
-#     thumbnail: str
 
 class App(ABC):
     """
@@ -80,6 +87,7 @@ class App(ABC):
         description: str,
         application_name: str,
         output_formatters: Optional[list[OutputFormatter] | OutputFormatter] = None, 
+        attachment_formatters: Optional[list[ObjectFormatter] | ObjectFormatter] = None,
         initial_survey: Optional[Survey] = None):
         """Instantiate an App object.
         
@@ -103,7 +111,16 @@ class App(ABC):
             output_formatters = [output_formatters]
         if len(output_formatters) == 0:
             raise ValueError("output_formatters must be a non-empty list")
+
         self.output_formatters: OutputFormatters = OutputFormatters(output_formatters)
+
+        if attachment_formatters is None:
+            attachment_formatters = []
+        if attachment_formatters and not isinstance(attachment_formatters, list):
+            attachment_formatters = [attachment_formatters]
+           
+        self.attachment_formatters = attachment_formatters
+
         if application_name is not None and not isinstance(application_name, str):
             raise TypeError("application_name must be a string if provided")
         # Default to the class name if not provided
@@ -135,6 +152,10 @@ class App(ABC):
         # Capture params and head attachments/jobs for debugging
         self._debug_params_last = params
         head_attachments = self._prepare_from_params(params)
+        # Apply attachment formatters
+        for formatter in self.attachment_formatters:
+            head_attachments = head_attachments.apply_formatter(formatter)
+
         self._debug_head_attachments_last = head_attachments
         jobs = head_attachments.attach_to_head(self.jobs_object)
         self._debug_jobs_last = jobs
@@ -204,6 +225,17 @@ class App(ABC):
             self.output_formatters.set_default(formatter.name)
 
         return self
+
+    def with_output_formatter(self, formatter: OutputFormatter) -> 'App':
+        """Make a new app with the same parameters but with the additional output formatter."""
+        target_class = type(self)
+        return target_class(
+            jobs_object=self.jobs_object,
+            output_formatters=[formatter],
+            description=self.description,
+            application_name=self.application_name,
+            initial_survey=self.initial_survey,
+        )
 
     @property 
     def parameters(self) -> dict:
