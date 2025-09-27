@@ -108,9 +108,6 @@ class QuestionInstructionPromptBuilder:
         import time
 
         start_total = time.time()
-        print(
-            f"[DEBUG]                 QuestionInstructionPromptBuilder.build() started"
-        )
 
         # Create base prompt
         start_base = time.time()
@@ -142,9 +139,6 @@ class QuestionInstructionPromptBuilder:
         append_time = time.time() - start_append
 
         total_time = time.time() - start_total
-        print(
-            f"[DEBUG]                 QuestionInstructionPromptBuilder: base={base_time:.3f}s, enrich={enrich_time:.3f}s, render={render_time:.3f}s, validate={validate_time:.3f}s, append={append_time:.3f}s, total={total_time:.3f}s"
-        )
 
         return final_prompt
 
@@ -246,17 +240,11 @@ class QuestionInstructionPromptBuilder:
         import time
 
         start_total = time.time()
-        print(f"[DEBUG]                   _render_prompt() started")
 
         # Build replacement dict
         start_replacement = time.time()
-        print(f"[DEBUG]                     Starting build_replacement_dict()")
         replacement_dict = self.qtrb.build_replacement_dict(prompt_data["data"])
         replacement_time = time.time() - start_replacement
-        if replacement_time > 0.050:  # Log slow operations
-            print(
-                f"[DEBUG]                     SLOW build_replacement_dict took {replacement_time:.3f}s"
-            )
 
         # Render with dict
         start_render = time.time()
@@ -270,9 +258,6 @@ class QuestionInstructionPromptBuilder:
         capture_time = time.time() - start_capture
 
         total_time = time.time() - start_total
-        print(
-            f"[DEBUG]                   _render_prompt: replacement={replacement_time:.3f}s, render={render_time:.3f}s, capture={capture_time:.3f}s, total={total_time:.3f}s"
-        )
 
         return rendered_prompt
 

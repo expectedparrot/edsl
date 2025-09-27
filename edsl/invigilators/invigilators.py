@@ -278,16 +278,12 @@ class InvigilatorAI(InvigilatorBase):
         import time
 
         start_total = time.time()
-        print(f"[DEBUG]         get_prompts() started")
 
         start_constructor = time.time()
         result = self.prompt_constructor.get_prompts()
         constructor_time = time.time() - start_constructor
 
         total_time = time.time() - start_total
-        print(
-            f"[DEBUG]         get_prompts() completed: constructor={constructor_time:.3f}s, total={total_time:.3f}s"
-        )
 
         return result
 

@@ -457,7 +457,6 @@ class PromptConstructor:
         import time
 
         start_total = time.time()
-        print(f"[DEBUG]               file_keys_from_question() started")
 
         start_builder = time.time()
         builder = QuestionTemplateReplacementsBuilder.from_prompt_constructor(self)
@@ -468,9 +467,6 @@ class PromptConstructor:
         keys_time = time.time() - start_keys
 
         total_time = time.time() - start_total
-        print(
-            f"[DEBUG]               file_keys: builder={builder_time:.3f}s, keys={keys_time:.3f}s, total={total_time:.3f}s"
-        )
 
         return result
 
@@ -517,7 +513,6 @@ class PromptConstructor:
         import time
 
         start_total = time.time()
-        print(f"[DEBUG]               build_question_instructions_prompt() started")
 
         from .question_instructions_prompt_builder import (
             QuestionInstructionPromptBuilder,
@@ -537,9 +532,6 @@ class PromptConstructor:
         capture_time = time.time() - start_capture
 
         total_time = time.time() - start_total
-        print(
-            f"[DEBUG]               build_question_instructions: create={create_time:.3f}s, build={build_time:.3f}s, capture={capture_time:.3f}s, total={total_time:.3f}s"
-        )
 
         return prompt
 
@@ -554,7 +546,6 @@ class PromptConstructor:
         import time
 
         start_total = time.time()
-        print(f"[DEBUG]               prior_question_memory_prompt() started")
 
         from ..prompts import Prompt
 
@@ -564,9 +555,6 @@ class PromptConstructor:
             from ..jobs.jobs_pricing_estimation import is_cost_estimation
 
             if is_cost_estimation():
-                print(
-                    f"[DEBUG]               COST ESTIMATION: Skipping prior memory processing"
-                )
                 return Prompt(text="")
         except ImportError:
             # Fallback if import fails
@@ -613,9 +601,6 @@ class PromptConstructor:
                 for k, v in self.scenario.items()
                 if k not in scenario_file_keys or k in referenced_file_keys
             }
-            print(
-                f"[DEBUG]                 MEMORY OPTIMIZATION: Processing {len(referenced_file_keys)} referenced files instead of {len(scenario_file_keys)} total files"
-            )
 
             rendered_memory = memory_creation.render(
                 optimized_scenario | self.prior_answers_dict
@@ -625,14 +610,8 @@ class PromptConstructor:
             memory_prompt += rendered_memory
 
             total_time = time.time() - start_total
-            print(
-                f"[DEBUG]               prior_memory: creation={memory_creation_time:.3f}s, render={render_time:.3f}s, total={total_time:.3f}s"
-            )
         else:
             total_time = time.time() - start_total
-            print(
-                f"[DEBUG]               prior_memory: no memory_plan, total={total_time:.3f}s"
-            )
 
         return memory_prompt
 
@@ -712,7 +691,6 @@ class PromptConstructor:
         import time
 
         start_total = time.time()
-        print(f"[DEBUG]           prompt_constructor.get_prompts() started")
 
         # Build all the components
         start_agent_instr = time.time()
@@ -730,10 +708,6 @@ class PromptConstructor:
         start_prior_memory = time.time()
         prior_question_memory = self.prior_question_memory_prompt
         prior_memory_time = time.time() - start_prior_memory
-
-        print(
-            f"[DEBUG]             Components: agent_instr={agent_instr_time:.3f}s, agent_persona={agent_persona_time:.3f}s, question_instr={question_instr_time:.3f}s, prior_memory={prior_memory_time:.3f}s"
-        )
 
         # Get components dict
         start_components = time.time()
@@ -760,9 +734,6 @@ class PromptConstructor:
         file_keys_time = time.time() - start_file_keys
 
         total_time = time.time() - start_total
-        print(
-            f"[DEBUG]             Timing: components={components_time:.3f}s, prompt_plan={prompt_plan_time:.3f}s, file_keys={file_keys_time:.3f}s, total={total_time:.3f}s"
-        )
 
         return prompts
 

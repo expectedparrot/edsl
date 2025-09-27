@@ -200,9 +200,6 @@ class QuestionTemplateReplacementsBuilder:
             # Return minimal scenario representation with just non-file items
             # This avoids iterating through all 1000 scenario items
             total_scenario_repl_time = time.time() - start_scenario_repl
-            print(
-                f"[DEBUG]                     FAST PATH: No file references, skipping scenario processing ({total_scenario_repl_time:.3f}s)"
-            )
             return {"scenario": {}}
 
         start_scenario_keys = time.time()
@@ -210,10 +207,6 @@ class QuestionTemplateReplacementsBuilder:
         scenario_keys_time = time.time() - start_scenario_keys
 
         # Debug logging to verify optimization
-        if len(all_scenario_file_keys) > 50:  # Only log for large scenarios
-            print(
-                f"[DEBUG]                     OPTIMIZATION: Processing {len(referenced_file_keys)} referenced files instead of {len(all_scenario_file_keys)} total files"
-            )
 
         # File references dictionary - only for referenced files
         start_file_refs = time.time()
@@ -232,10 +225,6 @@ class QuestionTemplateReplacementsBuilder:
         scenario_items_time = time.time() - start_scenario_items
 
         total_scenario_repl_time = time.time() - start_scenario_repl
-        if total_scenario_repl_time > 0.020:  # Log slow operations
-            print(
-                f"[DEBUG]                       SLOW _scenario_replacements: file_keys={file_keys_time:.3f}s, scenario_keys={scenario_keys_time:.3f}s, file_refs={file_refs_time:.3f}s, scenario_items={scenario_items_time:.3f}s, total={total_scenario_repl_time:.3f}s"
-            )
 
         return {**file_refs, **scenario_items, **scenario_items_with_prefix}
 
@@ -303,10 +292,6 @@ class QuestionTemplateReplacementsBuilder:
         combine_time = time.time() - start_combine
 
         total_time = time.time() - start_total
-        if total_time > 0.050:  # Log slow operations
-            print(
-                f"[DEBUG]                       SLOW build_replacement_dict: scenario={scenario_time:.3f}s, question={question_time:.3f}s, combine={combine_time:.3f}s, total={total_time:.3f}s"
-            )
 
         return replacement_dict
 
