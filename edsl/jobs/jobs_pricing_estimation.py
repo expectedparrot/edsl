@@ -1,5 +1,6 @@
 import logging
 import math
+import threading
 
 from typing import List, TYPE_CHECKING
 
@@ -15,6 +16,19 @@ if TYPE_CHECKING:
 from .fetch_invigilator import FetchInvigilator
 
 logger = logging.getLogger(__name__)
+
+# Thread-local storage for cost estimation context
+_cost_estimation_context = threading.local()
+
+
+def is_cost_estimation() -> bool:
+    """Check if we're currently in cost estimation mode."""
+    return getattr(_cost_estimation_context, "estimating_cost", False)
+
+
+def set_cost_estimation_mode(enabled: bool):
+    """Set cost estimation mode."""
+    _cost_estimation_context.estimating_cost = enabled
 
 
 class PromptCostEstimator:
@@ -257,7 +271,12 @@ class JobsPrompts:
         >>> JobsPrompts._extract_prompt_details(invigilator)
         {'user_prompt': ...
         """
+        import time
+
+        start_prompts = time.time()
         prompts = invigilator.get_prompts()
+        prompts_time = time.time() - start_prompts
+
         user_prompt = prompts["user_prompt"]
         system_prompt = prompts["system_prompt"]
         inference_service = invigilator.model._inference_service_
@@ -302,18 +321,37 @@ class JobsPrompts:
         - 1 token = 4 characters.
         - For each prompt, output tokens = input tokens * 0.75, rounded up to the nearest integer.
         """
+        import time
+
+        # Set cost estimation mode to skip expensive operations
+        set_cost_estimation_mode(True)
+
+        start_total = time.time()
+
         # Collect all prompt data
         data = []
-        for interview in self.interviews:
+        for interview_idx, interview in enumerate(self.interviews):
+            # Create invigilators
             invigilators = [
                 FetchInvigilator(interview)(question)
                 for question in self.survey.questions
             ]
-            for invigilator in invigilators:
+
+            for invig_idx, invigilator in enumerate(invigilators):
+                start_single = time.time()
+
+                # Extract prompt details
+                start_extract = time.time()
                 prompt_details = self._extract_prompt_details(invigilator)
+                extract_time = time.time() - start_extract
+
+                # Estimate cost
+                start_cost = time.time()
                 prompt_cost = self.estimate_prompt_cost(
                     **prompt_details, price_lookup=price_lookup
                 )
+                cost_time = time.time() - start_cost
+
                 price_estimates = {
                     "estimated_input_price_per_million_tokens": prompt_cost[
                         "input_price_per_million_tokens"
@@ -335,6 +373,7 @@ class JobsPrompts:
                 )
 
         # Group by service, model, token type, and price
+        start_group = time.time()
         detailed_groups = {}
         for item in data:
             for token_type in ["input", "output"]:
@@ -346,6 +385,7 @@ class JobsPrompts:
                     detailed_groups[key]["cost_usd"] += group_data["cost_usd"]
 
         # Apply iterations and prepare final output
+        start_iterations = time.time()
         detailed_costs = []
         for group in detailed_groups.values():
             group["tokens"] *= iterations
@@ -380,6 +420,10 @@ class JobsPrompts:
             "estimated_total_output_tokens": estimated_total_output_tokens,
             "detailed_costs": detailed_costs,
         }
+
+        # Reset cost estimation mode
+        set_cost_estimation_mode(False)
+
         return output
 
     def estimate_job_cost(self, iterations: int = 1) -> dict:
