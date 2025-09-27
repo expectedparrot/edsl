@@ -269,8 +269,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             >>> 
             >>> # Check the traits
             >>> agent.traits
-            {'scenario_name': 'Alice', 'age': 25, 'city': 'New York', 'scenario_name_1': 'Bob', 'age_1': 30, 
-             'occupation': 'Engineer', 'scenario_name_2': 'Charlie', 'age_2': 35, 'hobby': 'Reading'}
+            {'scenario_name': 'Alice', 'age': 25, 'city': 'New York', 'scenario_name_1': 'Bob', 'age_1': 30, 'occupation': 'Engineer', 'scenario_name_2': 'Charlie', 'age_2': 35, 'hobby': 'Reading'}
             >>> agent.name
             'MultiPersona'
             

@@ -2621,10 +2621,9 @@ class Survey(Base):
             Survey: A new Survey instance with generated questions
             
         Examples:
-            >>> survey = Survey.generate_survey_from_topic("workplace satisfaction", n_questions=3)
-            >>> survey = Survey.generate_survey_from_topic("AI ethics", n_questions=7, model=my_model)
-            >>> survey = Survey.generate_survey_from_topic("product feedback", scenario_keys=["product_name", "version"])
-            >>> survey = Survey.generate_survey_from_topic("feedback", verbose=False)
+            >>> survey = Survey.generate_from_topic("workplace satisfaction", n_questions=3)  # doctest: +SKIP
+            >>> survey = Survey.generate_from_topic("product feedback", scenario_keys=["product_name", "version"])  # doctest: +SKIP
+            >>> survey = Survey.generate_from_topic("feedback", verbose=False)  # doctest: +SKIP
         """
         from ..language_models import Model
         from ..questions import QuestionList, QuestionFreeText, QuestionMultipleChoice, QuestionLinearScale, QuestionCheckBox
@@ -2772,14 +2771,12 @@ Design tips:
             
         Examples:
             >>> texts = ["How satisfied are you?", "What is your age?"]
-            >>> survey = Survey.generate_survey_from_questions(texts)
-            >>> 
+            >>> survey = Survey.generate_from_questions(texts)  # doctest: +SKIP
             >>> types = ["LinearScale", "Numerical"]
             >>> names = ["satisfaction", "age"]
-            >>> survey = Survey.generate_survey_from_questions(texts, types, names)
-            >>> 
-            >>> survey = Survey.generate_survey_from_questions(texts, scenario_keys=["product_name"])
-            >>> survey = Survey.generate_survey_from_questions(texts, verbose=False)
+            >>> survey = Survey.generate_from_questions(texts, types, names)  # doctest: +SKIP
+            >>> survey = Survey.generate_from_questions(texts, scenario_keys=["product_name"])  # doctest: +SKIP
+            >>> survey = Survey.generate_from_questions(texts, verbose=False)  # doctest: +SKIP
         """
         from ..language_models import Model
         
