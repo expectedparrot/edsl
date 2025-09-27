@@ -36,7 +36,7 @@ If EDSL is already installed, you will see the following output, including the a
 .. code:: 
 
     Name: edsl
-    Version: 0.1.###
+    Version: 1.0.###
     ...
 
 
@@ -51,19 +51,20 @@ Or:
 
 .. code:: 
 
-    ! uv pip install --system -q edsl
+    ! uv pip install edsl -q
 
 
-This is how the code looks in a Jupyter notebook and in Colab:
+Then get your API key from Expected Parrot and import dependencies:
 
-.. image:: static/notebook_install_edsl.png
-   :alt: Jupyter notebook install edsl code
-   :width: 300px
+.. code-block:: python 
+
+    from edsl import login
+
+    login()
 
 
-.. image:: static/colab_install_edsl.png
-   :alt: Colab install edsl code
-   :width: 300px
+This will prompt you to log into your Expected Parrot account and automatically retrieve your API key.
+See the `Managing Keys <https://docs.expectedparrot.com/en/latest/api_keys.html>`_ section for more details on managing your API keys for language models.
 
 
 Installing from source
@@ -122,7 +123,7 @@ Or:
 
 .. code:: 
 
-    ! uv pip install --system -q edsl
+    ! uv pip install edsl -q
 
 
 You will have access to EDSL while your virtual environment is activated.

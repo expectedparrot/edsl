@@ -276,7 +276,6 @@ Output:
 
 .. list-table::
    :header-rows: 1
-   :widths: 30 50 
 
    * - user_prompt
    * - What is your favorite subject?
@@ -338,7 +337,6 @@ Output:
 
 .. list-table::
    :header-rows: 1
-   :widths: 30 50
 
    * - user_prompt
    * - What is your favorite subject?

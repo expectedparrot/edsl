@@ -241,6 +241,86 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return result
 
+    def to_agent_traits(self, agent_name: Optional[str] = None) -> "Agent":
+        """Convert all Scenario objects in this ScenarioList into traits of a single Agent.
+        
+        This method combines all key-value pairs from all Scenario objects into a single
+        Agent's traits. If multiple scenarios have identical keys, the keys are automatically
+        incremented to ensure they remain unique (e.g., 'age' becomes 'age_1', 'age_2', etc.).
+        
+        Args:
+            agent_name: Optional name for the created Agent. If None, a default name is used.
+            
+        Returns:
+            Agent: A new Agent instance with traits from all scenarios in this ScenarioList.
+            
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> from edsl.agents import Agent
+            >>> 
+            >>> # Create scenarios with some overlapping keys
+            >>> s1 = Scenario({"name": "Alice", "age": 25, "city": "New York"})
+            >>> s2 = Scenario({"name": "Bob", "age": 30, "occupation": "Engineer"})
+            >>> s3 = Scenario({"name": "Charlie", "age": 35, "hobby": "Reading"})
+            >>> 
+            >>> # Convert to agent traits
+            >>> sl = ScenarioList([s1, s2, s3])
+            >>> agent = sl.to_agent_traits("MultiPersona")
+            >>> 
+            >>> # Check the traits
+            >>> agent.traits
+            {'scenario_name': 'Alice', 'age': 25, 'city': 'New York', 'scenario_name_1': 'Bob', 'age_1': 30, 
+             'occupation': 'Engineer', 'scenario_name_2': 'Charlie', 'age_2': 35, 'hobby': 'Reading'}
+            >>> agent.name
+            'MultiPersona'
+            
+        Notes:
+            - Keys are incremented in the order they appear in the ScenarioList
+            - The first occurrence of a key keeps the original name
+            - Subsequent occurrences get incremented names (key_1, key_2, etc.)
+            - All values are preserved, including complex objects
+        """
+        from ..agents import Agent
+        
+        # Collect all traits from all scenarios
+        all_traits = {}
+        key_counts = {}  # Track how many times each key appears
+        
+        for scenario in self.data:
+            # Convert scenario to dict (without EDSL metadata)
+            scenario_dict = scenario.to_dict(add_edsl_version=False)
+            
+            for key, value in scenario_dict.items():
+                # Skip EDSL internal keys
+                if key in ['edsl_version', 'edsl_class_name']:
+                    continue
+                
+                # Handle special case: 'name' conflicts with Agent.name attribute
+                if key == 'name':
+                    key = 'scenario_name'  # Rename to avoid conflict
+                
+                # Handle key conflicts by incrementing
+                if key in all_traits:
+                    # Key already exists, increment it
+                    key_counts[key] = key_counts.get(key, 0) + 1
+                    new_key = f"{key}_{key_counts[key]}"
+                else:
+                    # First occurrence, use original key
+                    key_counts[key] = 0
+                    new_key = key
+                
+                all_traits[new_key] = value
+        
+        # Create agent name if not provided
+        if agent_name is None:
+            agent_name = f"Agent_from_{len(self)}_scenarios"
+        
+        # Create and return the Agent
+        return Agent(
+            traits=all_traits,
+            name=agent_name
+        )
+
     @property
     def has_jinja_braces(self) -> bool:
         """

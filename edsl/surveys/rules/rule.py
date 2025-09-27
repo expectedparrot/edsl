@@ -288,19 +288,33 @@ class Rule:
             """
             jinja_dict = defaultdict(dict)
 
+            def format_value_for_python(value):
+                """Format a value for safe use in Python expressions."""
+                if isinstance(value, str):
+                    # Use repr() to properly escape strings for Python
+                    # This maintains consistency with single quotes like _prepare_replacement
+                    return repr(value)
+                else:
+                    # For non-strings, return as-is (numbers, booleans, etc.)
+                    return value
+
             for key, value in dictionary.items():
                 # print("Now processing key: ", key)
                 # print(f"key: {key}, value: {value}")
+
+                # Format value for safe Python evaluation
+                formatted_value = format_value_for_python(value)
+
                 # Handle special keys
                 if "agent." in key:
                     # print("Agent key found")
-                    jinja_dict["agent"][key.split(".")[1]] = value
+                    jinja_dict["agent"][key.split(".")[1]] = formatted_value
                     # print("jinja dict: ", jinja_dict)
                     continue
 
                 if "scenario." in key:
                     # print("Scenario key found")
-                    jinja_dict["scenario"][key.split(".")[1]] = value
+                    jinja_dict["scenario"][key.split(".")[1]] = formatted_value
                     # print("jinja dict: ", jinja_dict)
                     continue
 
@@ -310,7 +324,7 @@ class Rule:
                     if question_name in key:
                         if question_name == key:
                             # print("question name is key; it's an answer")
-                            jinja_dict[question_name]["answer"] = value
+                            jinja_dict[question_name]["answer"] = formatted_value
                             # print("jinja dict: ", jinja_dict)
                             continue
                         else:
@@ -321,7 +335,9 @@ class Rule:
                                 # print("value_type: ", value_type)
                                 if passed_name == question_name:
                                     # print("passed name is question name; it's a sub-type")
-                                    jinja_dict[question_name][value_type] = value
+                                    jinja_dict[question_name][
+                                        value_type
+                                    ] = formatted_value
                                     # print("jinja dict: ", jinja_dict)
                                     continue
 
@@ -330,13 +346,14 @@ class Rule:
         def substitute_in_answers(expression, current_info_env):
             """Take the dictionary of answers and substitute them into the expression."""
 
-            current_info = self._prepare_replacement(current_info_env)
-
             if "{{" in expression and "}}" in expression:
+                # For Jinja2 templates, use the original values without pre-processing
                 template_expression = Template(self.expression)
-                jinja_dict = jinja_ize_dictionary(current_info)
+                jinja_dict = jinja_ize_dictionary(current_info_env)
                 to_evaluate = template_expression.render(jinja_dict)
             else:
+                # For legacy non-Jinja2 expressions, use _prepare_replacement
+                current_info = self._prepare_replacement(current_info_env)
                 to_evaluate = expression
                 for var, value in current_info.items():
                     to_evaluate = to_evaluate.replace(var, value)
@@ -348,7 +365,7 @@ class Rule:
         try:
             to_evaluate = substitute_in_answers(self.expression, current_info_env)
         except Exception as e:
-            msg = f"""Exception in evaluation: {e}. The expression is: {self.expression}. The current info env trying to substitute in is: {current_info_env}. After the substition, the expression was: {to_evaluate}."""
+            msg = f"""Exception in evaluation: {e}. The expression is: {self.expression}. The current info env trying to substitute in is: {current_info_env}. Template rendering failed before substitution could complete."""
             raise SurveyRuleCannotEvaluateError(msg)
 
         random_functions = {
