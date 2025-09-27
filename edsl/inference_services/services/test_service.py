@@ -76,6 +76,7 @@ class TestService(InferenceServiceABC):
                 # func: Optional[callable] = None,
                 files_list: Optional[List["File"]] = None,
                 question_name: Optional[str] = None,
+                cache_key: Optional[str] = None,  # Cache key for tracking
             ) -> dict[str, Any]:
                 await asyncio.sleep(0.1)
 

@@ -76,7 +76,7 @@ CONFIG_MAP = {
         "info": "This config var determines the maximum number of times to retry a failed API call.",
     },
     "EDSL_SERVICE_RPM_BASELINE": {
-        "default": "100",
+        "default": "1000",
         "info": "This config var holds the maximum number of requests per minute. Model-specific values provided in env vars such as EDSL_SERVICE_RPM_OPENAI will override this. value for the corresponding model",
     },
     "EDSL_SERVICE_TPM_BASELINE": {

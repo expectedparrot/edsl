@@ -203,3 +203,29 @@ class JobsTypeError(JobsErrors):
 
     def __init__(self, message="Type mismatch in jobs module", **kwargs):
         super().__init__(message, **kwargs)
+
+
+class JobTerminationError(JobsErrors):
+    """
+    Exception raised when a job needs to be terminated immediately.
+
+    This exception is used to signal that a job should stop all processing
+    immediately, typically due to critical errors like insufficient credits
+    that make continuing execution pointless.
+
+    This exception triggers immediate job termination and preserves any
+    partial results that were completed before the termination occurred.
+
+    Common causes:
+    - Insufficient account credits
+    - Critical API authentication failures
+    - Unrecoverable system errors
+
+    Attributes:
+        message (str): The termination reason
+        cause (Exception, optional): The underlying exception that caused termination
+    """
+
+    def __init__(self, message: str, cause: Exception = None):
+        super().__init__(message)
+        self.cause = cause

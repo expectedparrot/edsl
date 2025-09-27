@@ -99,13 +99,49 @@ class GoogleService(InferenceServiceABC):
                 user_prompt: str,
                 system_prompt: str = "",
                 files_list: Optional["Files"] = None,
+                cache_key: Optional[str] = None,  # Cache key for tracking
             ) -> Dict[str, Any]:
+                """Calls the Google API and returns the API response.
+
+                Args:
+                    user_prompt: The user message or input prompt
+                    system_prompt: The system message or context
+                    files_list: Optional list of files to include
+                    remote_proxy: Optional flag to use remote proxy instead of direct API call
+                """
                 import time
 
                 method_start = time.time()
 
                 if files_list is None:
                     files_list = []
+
+                # Check if we should use remote proxy
+                if self.remote_proxy:
+                    # Use remote proxy mode
+                    from .remote_proxy_handler import RemoteProxyHandler
+
+                    handler = RemoteProxyHandler(
+                        model=self.model,
+                        inference_service=self._inference_service_,
+                        job_uuid=getattr(self, "job_uuid", None),
+                    )
+
+                    # Get fresh parameter
+                    fresh_value = getattr(self, "fresh", False)
+
+                    return await handler.execute_model_call(
+                        user_prompt=user_prompt,
+                        system_prompt=system_prompt,
+                        files_list=files_list,
+                        cache_key=cache_key,
+                        temperature=self.temperature,
+                        topP=self.topP,
+                        topK=self.topK,
+                        maxOutputTokens=self.maxOutputTokens,
+                        stopSequences=self.stopSequences,
+                        fresh=fresh_value,  # Pass fresh parameter
+                    )
 
                 # Get or create cached client (thread-safe)
                 client_start = time.time()

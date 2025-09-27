@@ -178,25 +178,123 @@ class OpenAIServiceV2(InferenceServiceABC):
                 system_prompt: str = "",
                 files_list: Optional[List[Files]] = None,
                 invigilator: Optional[InvigilatorAI] = None,
+                cache_key: Optional[str] = None,  # Cache key for tracking
             ) -> dict[str, Any]:
+                # Check if we should use remote proxy
+                if self.remote_proxy:
+                    # Use remote proxy mode
+                    from .remote_proxy_handler import RemoteProxyHandler
+
+                    handler = RemoteProxyHandler(
+                        model=self.model,
+                        inference_service=self._inference_service_,
+                        job_uuid=getattr(self, "job_uuid", None),
+                    )
+
+                    return await handler.execute_model_call(
+                        user_prompt=user_prompt,
+                        system_prompt=system_prompt,
+                        files_list=files_list,
+                        cache_key=cache_key,
+                        temperature=self.temperature,
+                        max_tokens=self.max_tokens,
+                        top_p=self.top_p,
+                        frequency_penalty=self.frequency_penalty,
+                        presence_penalty=self.presence_penalty,
+                        logprobs=self.logprobs,
+                        top_logprobs=self.top_logprobs,
+                    )
+
                 content = user_prompt
                 if files_list:
-                    # embed files as separate inputs
-                    content = [{"type": "text", "text": user_prompt}]
+                    # embed files as separate inputs for Responses API
+                    content = [{"type": "input_text", "text": user_prompt}]
                     for f in files_list:
-                        content.append(
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:{f.mime_type};base64,{f.base64_string}"
-                                },
-                            }
-                        )
+                        if f.mime_type.startswith("image/"):
+                            content.append(
+                                {
+                                    "type": "input_image",
+                                    "image_url": f"data:{f.mime_type};base64,{f.base64_string}",
+                                }
+                            )
+                        elif f.mime_type == "application/pdf":
+                            # For PDF files, upload to OpenAI first and then reference
+                            filename = getattr(f, "filename", "document.pdf")
+                            try:
+                                import base64
+                                import tempfile
+                                import os
+
+                                # Create temporary file from base64 data
+                                file_content = base64.b64decode(f.base64_string)
+                                with tempfile.NamedTemporaryFile(
+                                    delete=False, suffix=f"_{filename}"
+                                ) as temp_file:
+                                    temp_file.write(file_content)
+                                    temp_file_path = temp_file.name
+
+                                try:
+                                    # Upload file to OpenAI
+                                    with open(temp_file_path, "rb") as file_obj:
+                                        uploaded_file = self.sync_client().files.create(
+                                            file=file_obj, purpose="user_data"
+                                        )
+
+                                    content.append(
+                                        {
+                                            "type": "input_file",
+                                            "file_id": uploaded_file.id,
+                                        }
+                                    )
+                                finally:
+                                    # Clean up temporary file
+                                    if os.path.exists(temp_file_path):
+                                        os.unlink(temp_file_path)
+
+                            except Exception as e:
+                                # If upload fails, fall back to text description
+                                content.append(
+                                    {
+                                        "type": "input_text",
+                                        "text": f"[Error uploading PDF '{filename}': {str(e)}]",
+                                    }
+                                )
+                        else:
+                            # For other non-image files, try to include as text
+                            filename = getattr(f, "filename", "file")
+                            if hasattr(f, "base64_string"):
+                                try:
+                                    # Try to decode as text
+                                    import base64
+
+                                    text_content = base64.b64decode(
+                                        f.base64_string
+                                    ).decode("utf-8")
+                                    content.append(
+                                        {
+                                            "type": "input_text",
+                                            "text": f"--- Content from '{filename}' ---\n{text_content}\n--- End of {filename} ---",
+                                        }
+                                    )
+                                except (UnicodeDecodeError, Exception):
+                                    # If we can't decode, mention the file
+                                    content.append(
+                                        {
+                                            "type": "input_text",
+                                            "text": f"[File '{filename}' of type '{f.mime_type}' cannot be displayed as text]",
+                                        }
+                                    )
                 # build input sequence
                 messages: Any
                 if system_prompt and not self.omit_system_prompt_if_empty:
+                    # For Responses API, system content should also be properly formatted
+                    system_content = (
+                        system_prompt
+                        if isinstance(system_prompt, str)
+                        else [{"type": "input_text", "input_text": system_prompt}]
+                    )
                     messages = [
-                        {"role": "system", "content": system_prompt},
+                        {"role": "system", "content": system_content},
                         {"role": "user", "content": content},
                     ]
                 else:

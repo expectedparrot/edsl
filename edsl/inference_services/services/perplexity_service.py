@@ -133,6 +133,7 @@ class PerplexityService(OpenAIService):
                 invigilator: Optional[
                     "InvigilatorAI"
                 ] = None,  # TBD - can eventually be used for function-calling
+                cache_key: Optional[str] = None,  # Cache key for tracking
             ) -> dict[str, Any]:
                 """Calls the OpenAI API and returns the API response."""
                 if files_list:

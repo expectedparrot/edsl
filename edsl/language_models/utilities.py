@@ -46,6 +46,7 @@ def create_language_model(
             system_prompt: str,
             files_list: Optional[List[Any]] = None,
             question_name: Optional[str] = None,
+            cache_key: Optional[str] = None,
         ) -> dict[str, Any]:
             question_number = int(
                 user_prompt.split("XX")[1]

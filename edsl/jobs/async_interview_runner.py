@@ -111,6 +111,7 @@ class AsyncInterviewRunner:
                 AsyncGenerator[tuple["Result", "Interview", int], None]
             ):
                 import time
+
                 batch_count = 0
                 while True:
                     chunk = self._get_next_chunk(interview_generator)
@@ -119,24 +120,28 @@ class AsyncInterviewRunner:
 
                     batch_count += 1
                     batch_start = time.time()
-                    self._logger.info(f"Processing batch {batch_count} with {len(chunk)} interviews")
+                    self._logger.info(
+                        f"Processing batch {batch_count} with {len(chunk)} interviews"
+                    )
 
                     async with self._process_chunk(chunk) as results:
                         for result_tuple in results:
                             # Yield the full tuple (result, interview, idx)
                             yield result_tuple
-                    
+
                     batch_time = time.time() - batch_start
-                    self._logger.info(f"Batch {batch_count} completed in {batch_time:.3f}s "
-                                     f"({batch_time/len(chunk):.3f}s per interview)")
-                    
+                    self._logger.info(
+                        f"Batch {batch_count} completed in {batch_time:.3f}s "
+                        f"({batch_time/len(chunk):.3f}s per interview)"
+                    )
+
                     # Clean up chunk to help with garbage collection
                     for idx, interview in chunk:
                         # Explicitly clear any interview references when done with the chunk
                         if hasattr(interview, "clear_references"):
                             interview.clear_references()
                     del chunk
-                
+
                 self._logger.info(f"All {batch_count} batches processed")
 
             yield process_batches()
@@ -152,7 +157,7 @@ class AsyncInterviewRunner:
     async def _run_single_interview(
         self, interview: "Interview", idx: int
     ) -> Optional[Tuple["Result", "Interview", int]]:
-        """Execute a single interview with error handling."""
+        """Execute a single interview with enhanced balance error handling."""
         try:
             await interview.async_conduct_interview(self.run_config)
             # Create result and explicitly break reference to interview
@@ -165,7 +170,20 @@ class AsyncInterviewRunner:
             )
             # Return tuple that keeps the interview reference
             return (result, interview, idx)
-        except Exception:
+        except Exception as e:
+            # Check for balance error which should stop the entire job
+            from ...language_models.exceptions import (
+                LanguageModelInsufficientCreditsError,
+            )
+            from ..exceptions import JobTerminationError
+
+            if isinstance(e, LanguageModelInsufficientCreditsError):
+                # Balance error should stop entire job
+                self._logger.error(f"Insufficient credits detected: {e}")
+                raise JobTerminationError(
+                    "Job terminated due to insufficient credits", e
+                )
+
             if self.run_config.parameters.stop_on_exception:
                 raise
             # Could log the error here if needed
@@ -181,10 +199,13 @@ class AsyncInterviewRunner:
             for idx, interview in chunk
         ]
 
+        # Yield control to event loop to allow HTTP requests to process
+        await asyncio.sleep(0)
+
         async with self._manage_tasks(tasks):
             results = await asyncio.gather(
                 *tasks,
-                return_exceptions=not self.run_config.parameters.stop_on_exception
+                return_exceptions=not self.run_config.parameters.stop_on_exception,
             )
             # Filter out None results and yield a new list to avoid keeping the original tuple references
             valid_results = []
@@ -272,32 +293,40 @@ class AsyncInterviewRunner:
 
         """
         import time
+
         runner_start = time.time()
         results_count = 0
-        
-        self._logger.info(f"Starting async interview runner with max concurrency: {self.MAX_CONCURRENT}")
-        
+
+        self._logger.info(
+            f"Starting async interview runner with max concurrency: {self.MAX_CONCURRENT}"
+        )
+
         async with self._interview_batch_processor() as processor:
             async for result_tuple in processor:
                 # For each result tuple in the processor
                 result, interview, idx = result_tuple
                 results_count += 1
-                
+
                 if results_count % 10 == 0:  # Log every 10 results to avoid spam
                     elapsed = time.time() - runner_start
-                    self._logger.info(f"Processed {results_count} interviews in {elapsed:.3f}s "
-                                     f"(avg: {elapsed/results_count:.3f}s per interview)")
-                
+                    self._logger.info(
+                        f"Processed {results_count} interviews in {elapsed:.3f}s "
+                        f"(avg: {elapsed/results_count:.3f}s per interview)"
+                    )
+
                 # Yield a new tuple to break reference to the original tuple
                 yield result, interview, idx
 
                 # Help garbage collection by removing references
                 del result_tuple
-        
+
         total_time = time.time() - runner_start
-        self._logger.info(f"Async interview runner completed: {results_count} interviews "
-                         f"in {total_time:.3f}s (avg: {total_time/results_count:.3f}s per interview)" 
-                         if results_count > 0 else f"in {total_time:.3f}s")
+        self._logger.info(
+            f"Async interview runner completed: {results_count} interviews "
+            f"in {total_time:.3f}s (avg: {total_time/results_count:.3f}s per interview)"
+            if results_count > 0
+            else f"in {total_time:.3f}s"
+        )
 
 
 if __name__ == "__main__":

@@ -379,3 +379,60 @@ class LanguageModelIndexError(LanguageModelExceptions):
         self, message="Index out of range in language model operation", **kwargs
     ):
         super().__init__(message, **kwargs)
+
+
+class LanguageModelBalanceError(LanguageModelExceptions):
+    """
+    Base exception class for all balance-related errors.
+
+    This is the parent class for all exceptions related to account balance,
+    credits, and payment issues in language model operations.
+    """
+
+    def __init__(self, message="Balance-related error in language model operation"):
+        super().__init__(message)
+
+
+class LanguageModelInsufficientCreditsError(LanguageModelBalanceError):
+    """
+    Exception raised when there are insufficient credits to complete a language model operation.
+
+    This exception is specifically designed to trigger immediate job termination,
+    as continuing execution would be futile without credits.
+
+    This exception occurs when:
+    - The backend returns HTTP 402 (Payment Required)
+    - Account balance is too low to process the request
+    - Credit limit has been exceeded
+    - Payment method issues prevent credit deduction
+
+    To fix this error:
+    1. Add credits to your account
+    2. Check your payment method
+    3. Verify account status
+    4. Contact support if balance appears incorrect
+
+    This exception has special handling:
+    - It bypasses retry mechanisms (no point retrying without credits)
+    - It triggers immediate job termination to conserve resources
+    - It preserves partial results completed before the error occurred
+
+    Examples:
+        ```python
+        # This would raise LanguageModelInsufficientCreditsError if balance is low
+        model.generate(prompt="Expensive prompt requiring many tokens")
+        ```
+
+    Attributes:
+        message (str): Error message from the backend
+        current_balance (str, optional): Current account balance if provided
+        should_stop_job (bool): Always True - signals job should terminate immediately
+    """
+
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models.html#billing-and-credits"
+    explanation = "This happens when your account has insufficient credits to complete the language model operation."
+
+    def __init__(self, message: str, current_balance: Optional[str] = None):
+        super().__init__(message)
+        self.current_balance = current_balance
+        self.should_stop_job = True  # Flag for job-level termination

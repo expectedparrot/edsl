@@ -11,7 +11,10 @@ if TYPE_CHECKING:
 
 from ..data_transfer_models import EDSLResultObjectInput
 from ..jobs.fetch_invigilator import FetchInvigilator
-from ..language_models.exceptions import LanguageModelNoResponseError
+from ..language_models.exceptions import (
+    LanguageModelNoResponseError,
+    LanguageModelInsufficientCreditsError,
+)
 from ..questions.exceptions import QuestionAnswerValidationError
 from ..surveys.base import EndOfSurvey
 from ..tasks import TaskStatus
@@ -178,10 +181,13 @@ class SkipHandler:
 class AnswerQuestionFunctionConstructor:
     """Constructs a function that answers a question and records the answer."""
 
-    def __init__(self, interview: "Interview", key_lookup: "KeyLookup"):
+    def __init__(
+        self, interview: "Interview", key_lookup: "KeyLookup", run_config=None
+    ):
         # Store a weak reference to the interview
         self._interview_ref = weakref.ref(interview)
         self.key_lookup = key_lookup
+        self.run_config = run_config
         self._logger = get_logger(__name__)
 
         # Store configuration settings that won't change during lifecycle
@@ -311,13 +317,40 @@ class AnswerQuestionFunctionConstructor:
                     f"after {exception.__class__.__name__ if exception else 'error'}: {str(exception) if exception else 'unknown error'}"
                 )
 
+        def should_retry_exception(retry_state):
+            """Only retry network/service errors, never balance errors"""
+            # Extract the actual exception from the retry state
+            if hasattr(retry_state, "outcome") and retry_state.outcome:
+                exception = retry_state.outcome.exception()
+            else:
+                return False
+
+            # Never retry balance errors - they won't be resolved by retrying
+            if isinstance(exception, LanguageModelInsufficientCreditsError):
+                return False
+
+            # Only retry actual network/service errors
+            if isinstance(exception, LanguageModelNoResponseError):
+                return True
+
+            # When stop_on_exception is False, also retry InferenceServiceIntendedError
+            if not self._stop_on_exception:
+                from ..inference_services.exceptions import (
+                    InferenceServiceIntendedError,
+                )
+
+                if isinstance(exception, InferenceServiceIntendedError):
+                    return True
+
+            return False
+
         @retry(
             stop=stop_after_attempt(RetryConfig.EDSL_MAX_ATTEMPTS),
             wait=wait_exponential(
                 multiplier=RetryConfig.EDSL_BACKOFF_START_SEC,
                 max=RetryConfig.EDSL_BACKOFF_MAX_SEC,
             ),
-            retry=retry_if_exception_type(LanguageModelNoResponseError),
+            retry=should_retry_exception,
             reraise=True,
             # before_sleep=log_retry_attempt, --- IGNORE --- Used for debugging retries
         )
@@ -375,6 +408,25 @@ class AnswerQuestionFunctionConstructor:
                         )
                         if self.skip_handler:
                             self.skip_handler.cancel_skipped_questions(question)
+
+                        # Track question completion for real-time progress
+                        try:
+                            if (
+                                self.run_config
+                                and hasattr(self.run_config, "environment")
+                                and hasattr(
+                                    self.run_config.environment, "jobs_runner_status"
+                                )
+                                and self.run_config.environment.jobs_runner_status
+                                is not None
+                            ):
+                                self.run_config.environment.jobs_runner_status.add_completed_question(
+                                    model_name=interview.model.model,
+                                    question_name=question.question_name,
+                                )
+                        except Exception as e:
+                            # Don't let progress tracking break question answering
+                            self._logger.warning(f"Progress tracking failed: {e}")
                 else:
                     if (
                         hasattr(response, "exception_occurred")
@@ -399,6 +451,8 @@ class AnswerQuestionFunctionConstructor:
             except Exception as e:
                 # For generic exceptions, record them immediately as they won't be retried
                 self._handle_exception(e, invigilator, task)
+                # Re-raise the exception so it can be checked by the retry mechanism
+                raise
 
             if "response" not in locals():
                 had_language_model_no_response_error = True
@@ -432,4 +486,19 @@ class AnswerQuestionFunctionConstructor:
             self._handle_exception(
                 original_error, self.invigilator_fetcher(question), task
             )
+
+            # Track permanently failed question for progress tracking
+            interview = self._interview_ref()
+            if (
+                interview is not None
+                and self.run_config
+                and hasattr(self.run_config, "environment")
+                and hasattr(self.run_config.environment, "jobs_runner_status")
+                and self.run_config.environment.jobs_runner_status is not None
+            ):
+                self.run_config.environment.jobs_runner_status.add_failed_question(
+                    model_name=interview.model.model,
+                    question_name=question.question_name,
+                )
+
             raise original_error
