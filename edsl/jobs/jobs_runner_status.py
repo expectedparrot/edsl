@@ -333,7 +333,9 @@ class JobsRunnerStatusBase(ABC):
     def update_progress(self, stop_event):
         while not stop_event.is_set():
             self.send_status_update()
-            time.sleep(self.refresh_rate)
+            # Wait for either the stop event or the next refresh,
+            # avoiding busy-waiting and eliminating extra delay
+            stop_event.wait(self.refresh_rate)
         self.send_status_update()
 
     @abstractmethod
