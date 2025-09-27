@@ -493,8 +493,16 @@ class JobsRemoteInferenceHandler:
         object_fetcher: Callable,
     ) -> "Results":
         "Fetches the results object and logs the results URL."
+        import time
+
         job_info.logger.add_info("results_uuid", results_uuid)
+
+        # Time measurement for results download
+        start_time = time.time()
+        print(f"[TIME_LOG] Starting download of results object...")
         results = object_fetcher(results_uuid, expected_object_type="results")
+        download_time = time.time() - start_time
+        print(f"[TIME_LOG] Results object downloaded and loaded {download_time:.3f}s")
 
         model_cost_dicts = self._get_expenses_from_results(results)
 
