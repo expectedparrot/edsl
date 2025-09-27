@@ -1785,10 +1785,15 @@ class Coop(CoopFunctionsMixin):
             >>> job_info = coop.remote_inference_create(job=job, description="My job")
             >>> print(f"Job created with UUID: {job_info['uuid']}")
         """
+        import time
+
         self._logger.info(
             f"Creating remote inference job with description: {description}"
         )
 
+        # Step 1: Request signed URL for GCS upload
+        start_time = time.time()
+        print(f"[TIME_LOG] Starting request for GCS signed URL...")
         response = self._send_server_request(
             uri="api/v0/new-remote-inference",
             method="POST",
@@ -1806,23 +1811,40 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         response_json = response.json()
         upload_signed_url = response_json.get("upload_signed_url")
+        signed_url_time = time.time() - start_time
+        print(f"[TIME_LOG] GCS signed URL request completed in {signed_url_time:.3f}s")
+
         if not upload_signed_url:
             from .exceptions import CoopResponseError
 
             raise CoopResponseError("No signed url was provided.")
 
+        # Step 2: Serialize Jobs to JSON and upload to GCS
+        start_time = time.time()
+        print(f"[TIME_LOG] Starting Jobs serialization...")
+        job_dict = job.to_dict()
+        serialization_time = time.time() - start_time
+        print(f"[TIME_LOG] Jobs serialization completed in {serialization_time:.3f}s")
+
+        start_time = time.time()
+        print(f"[TIME_LOG] Starting upload to GCS bucket...")
         response = requests.put(
             upload_signed_url,
             data=json.dumps(
-                job.to_dict(),
+                job_dict,
                 default=self._json_handle_none,
             ).encode(),
             headers={"Content-Type": "application/json"},
         )
         self._resolve_gcs_response(response)
+        upload_time = time.time() - start_time
+        print(f"[TIME_LOG] GCS upload completed in {upload_time:.3f}s")
 
         job_uuid = response_json.get("job_uuid")
 
+        # Step 3: Notify server that upload is complete
+        start_time = time.time()
+        print(f"[TIME_LOG] Starting upload notification...")
         response = self._send_server_request(
             uri="api/v0/new-remote-inference/uploaded",
             method="POST",
@@ -1831,6 +1853,8 @@ class Coop(CoopFunctionsMixin):
                 "message": "Job uploaded successfully",
             },
         )
+        notification_time = time.time() - start_time
+        print(f"[TIME_LOG] Upload notification completed in {notification_time:.3f}s")
         response_json = response.json()
 
         job_uuid = response_json.get("job_uuid")
@@ -3344,7 +3368,11 @@ class Coop(CoopFunctionsMixin):
             if not is_new_format:
                 return self.get(url_or_uuid, expected_object_type)
 
-        # Send the request to the API endpoint with the resolved UUID
+        import time
+
+        # Step 1: Request signed URL for results download
+        start_time = time.time()
+        print(f"[TIME_LOG] Requesting Google bucket download link for results...")
         response = self._send_server_request(
             uri="api/v0/object/pull",
             method="POST",
@@ -3357,14 +3385,25 @@ class Coop(CoopFunctionsMixin):
 
             raise CoopResponseError("No signed url was provided.")
         signed_url = response.json().get("signed_url")
+        download_link_time = time.time() - start_time
+        print(
+            f"[TIME_LOG] Google bucket download link request completed in {download_link_time:.3f}s"
+        )
 
         if signed_url == "":  # it is in old format
             return self.get(url_or_uuid, expected_object_type)
 
         try:
+            # Step 2: Download results from GCS bucket
+            start_time = time.time()
+            print(f"[TIME_LOG] Downloading results object from Google bucket...")
             response = requests.get(signed_url)
 
             self._resolve_gcs_response(response)
+            bucket_download_time = time.time() - start_time
+            print(
+                f"[TIME_LOG] Results object download from bucket completed in {bucket_download_time:.3f}s"
+            )
 
         except Exception:
             return self.get(url_or_uuid, expected_object_type)
@@ -3551,6 +3590,7 @@ class Coop(CoopFunctionsMixin):
 
             raise CoopResponseError("No object uuid was provided received")
 
+        print(f"confirm Uploaded object with UUID: {object_uuid}", flush=True)
         # Confirm the upload completion
         confirm_response = self._send_server_request(
             uri="api/v0/object/confirm-upload",
