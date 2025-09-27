@@ -1,7 +1,7 @@
 from typing import Optional, Sequence
-from .app import App, HeadAttachments
+from .app import App
 from ..questions import QuestionMultipleChoice, QuestionEDSLObject
-from .output_formatter import OutputFormatter
+from .output_formatter import OutputFormatter, ScenarioAttachmentFormatter
 from ..surveys import Survey
 
 class RankingApp(App):
@@ -51,6 +51,10 @@ class RankingApp(App):
         super().__init__(
             jobs_object=jobs_object,
             output_formatters=output_formatters,
+            attachment_formatters=[
+                # Transform the provided ScenarioList into pairwise comparisons
+                ScenarioAttachmentFormatter(name="Pairwise choose_k").choose_k(2)
+            ],
             description=description,
             application_name=application_name,
             initial_survey=Survey(
@@ -63,27 +67,6 @@ class RankingApp(App):
                 ]
             ),
         )
-
-    def _prepare_from_params(self, params: dict) -> 'HeadAttachments':
-        # Use base App to instantiate edsl_object answers and build attachments
-        base_attachments = super()._prepare_from_params(params)
-        scenario_list = base_attachments.scenario
-
-        if scenario_list is None or len(scenario_list) == 0:
-            from ..scenarios import ScenarioList as _ScenarioList
-            return HeadAttachments(scenario=_ScenarioList([]))
-
-        # Enforce maximum number of pairwise comparisons
-        num_items = len(scenario_list)
-        pairwise_needed = (num_items * (num_items - 1)) // 2
-        if pairwise_needed > self.max_pairwise_count:
-            raise ValueError(
-                f"Pairwise comparisons required ({pairwise_needed}) exceed the limit ({self.max_pairwise_count})."
-            )
-
-        # Generate pairwise comparisons
-        pairwise_sl = scenario_list.choose_k(2)
-        return HeadAttachments(scenario=pairwise_sl)
 
 if __name__ == "__main__":
     pass
