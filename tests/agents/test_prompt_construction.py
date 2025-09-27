@@ -21,7 +21,7 @@ def test_option_expansion_from_current_answers_list_not_present_yet():
     )
     i = InvigilatorBase.example(question=q1, survey=Survey([q0, q1]))
     i.current_answers = {}
-    assert "example_question" in i.prompt_constructor.prior_answers_dict()
+    assert "example_question" in i.prompt_constructor.prior_answers_dict
     # breakpoint()
     _ = i.prompt_constructor.question_instructions_prompt
 
@@ -40,7 +40,7 @@ def test_option_expansion_from_current_answers_list():
     )
     i = InvigilatorBase.example(question=q1, survey=Survey([q0, q1]))
     i.current_answers = {"age_levels": ["10-20", "20-30"]}
-    assert "example_question" in i.prompt_constructor.prior_answers_dict()
+    assert "example_question" in i.prompt_constructor.prior_answers_dict
     assert "10-20" in i.prompt_constructor.question_instructions_prompt
 
 
@@ -58,7 +58,7 @@ def test_option_expansion_from_current_answers():
     )
     i = InvigilatorBase.example(question=q1, survey=Survey([q0, q1]))
     i.current_answers = {"age_levels": ["10-20", "20-30"]}
-    assert "example_question" in i.prompt_constructor.prior_answers_dict()
+    assert "example_question" in i.prompt_constructor.prior_answers_dict
     assert "10-20" in i.prompt_constructor.question_instructions_prompt
 
 

@@ -338,7 +338,7 @@ class PromptConstructor:
         Examples:
             >>> from edsl.invigilators.invigilators import InvigilatorBase
             >>> i = InvigilatorBase.example()
-            >>> i.prompt_constructor.prior_answers_dict()
+            >>> i.prompt_constructor.prior_answers_dict
             {'q0': ..., 'q1': ...}
         """
         return self._add_answers(
