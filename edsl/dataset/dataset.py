@@ -1079,7 +1079,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
         Examples:
             >>> from edsl.dataset import Dataset
-            >>> content = "```markdown\n# Title\n\nSome text.\n```"
+            >>> content = "```markdown\\n# Title\\n\\nSome text.\\n```"
             >>> d = Dataset([{ 'md': [content] }])
             >>> fs = d.to_markdown()  # doctest: +ELLIPSIS
             >>> fs.suffix

@@ -6,20 +6,10 @@ expected by SurveyJS, enabling EDSL surveys to be rendered in React applications
 the SurveyJS library.
 """
 
-from typing import Dict, List, Any, Optional, TYPE_CHECKING
+from typing import Dict, Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from surveys.Survey import Survey
-    from questions.question_base import QuestionBase
-    from questions.question_free_text import QuestionFreeText
-    from questions.question_multiple_choice import QuestionMultipleChoice
-    from questions.question_check_box import QuestionCheckBox
-    from questions.question_numerical import QuestionNumerical
-    from questions.question_yes_no import QuestionYesNo
-    from questions.question_likert_five import QuestionLikertFive
-    from questions.question_linear_scale import QuestionLinearScale
-    from questions.question_rank import QuestionRank
-    from questions.question_matrix import QuestionMatrix
+    pass
 
 
 class EDSLToSurveyJSConverter:

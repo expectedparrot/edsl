@@ -39,7 +39,6 @@ import pickle
 
 
 # Import for refactoring to Source classes
-from edsl.scenarios.scenario_source import deprecated_classmethod
 
 from simpleeval import EvalWithCompoundTypes, NameNotDefined  # type: ignore
 from tabulate import tabulate_formats
@@ -52,7 +51,6 @@ except ImportError:
 from ..config import CONFIG
 
 if TYPE_CHECKING:
-    from urllib.parse import ParseResult
     from ..dataset import Dataset
     from ..jobs import Jobs, Job
     from ..surveys import Survey
@@ -424,6 +422,14 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         new_list = ScenarioList(data=[], codebook=self.codebook)
         for scenario in self:
             new_list.append(scenario.zip(field_a, field_b, new_name))
+        return new_list
+
+    def add_scenario_reference(self, key, scenario_field_name: str) -> ScenarioList:
+        """Add a reference to the scenario to a field across all Scenarios."""
+        new_list = ScenarioList(data=[], codebook=self.codebook)
+        for scenario in self:
+            scenario[key] = scenario[key] + "{{ scenario." + scenario_field_name + " }}"
+            new_list.append(scenario)
         return new_list
 
     def string_cat(

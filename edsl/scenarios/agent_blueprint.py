@@ -163,6 +163,8 @@ class AgentBlueprint:
 
     def create_agent_list(self, n: int = 10):
         """Create a list of agents by randomly sampling a value from each dimension_values field"""
+        if isinstance(n, str):
+            n = int(n)
         if n > self._total_combinations:
             raise ValueError(
                 f"Requested {n} agents but only {self._total_combinations} unique permutations exist."

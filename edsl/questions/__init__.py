@@ -35,6 +35,7 @@ Derived Question Types:
 - QuestionYesNo: Simple binary yes/no response
 - QuestionTopK: Selection of top K items from a list of options
 - QuestionMultipleChoiceWithOther: Multiple choice with option to specify "Other" custom response
+- QuestionEDSLObject: Expects JSON representation of any EDSL object (questions, surveys, agents, scenarios, etc.) as answer
 
 Technical Architecture:
 ---------------------
@@ -129,6 +130,7 @@ from .question_yes_no import QuestionYesNo
 from .question_top_k import QuestionTopK
 from .question_multiple_choice_with_other import QuestionMultipleChoiceWithOther
 from .question_file_upload import QuestionFileUpload
+from .question_edsl_object import QuestionEDSLObject
 
 from .exceptions import QuestionScenarioRenderError
 
@@ -175,7 +177,7 @@ __all__ = [
     "QuestionYesNo",
     "QuestionMultipleChoiceWithOther",
     "QuestionFileUpload",
-    "QuestionMultipleChoiceWithOther",
+    "QuestionEDSLObject",
     # Validation utilities
     "log_validation_failure",
     "get_validation_failure_logs",

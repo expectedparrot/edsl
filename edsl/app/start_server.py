@@ -2,8 +2,6 @@
 """Startup script for EDSL App FastAPI server."""
 
 import sys
-import os
-from pathlib import Path
 
 def start_server():
     """Start the FastAPI server."""

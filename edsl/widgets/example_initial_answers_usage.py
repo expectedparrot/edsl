@@ -191,7 +191,7 @@ def example_survey_templates():
     print("Template 2: Dissatisfied Employee") 
     widget2 = SurveyWidget(employee_survey, dissatisfied_template)
     print(f"  Completed: {widget2.is_complete}")
-    print(f"  Shows negative feedback pattern")
+    print("  Shows negative feedback pattern")
     
     print("Template 3: Partial Response")
     widget3 = SurveyWidget(employee_survey, partial_template)

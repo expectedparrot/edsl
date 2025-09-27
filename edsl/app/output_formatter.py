@@ -1,4 +1,5 @@
 import inspect
+from jinja2 import Template, StrictUndefined
 
 from typing import Any, Optional
 from collections import UserList
@@ -8,6 +9,7 @@ from ..dataset import Dataset
 from ..dataset.display.table_display import TableDisplay
 from ..scenarios import ScenarioList, FileStore
 from ..scenarios import Scenario
+from ..scenarios.agent_blueprint import AgentBlueprint
 
 relevant_classes = {
     Results: ["to_scenario_list", "select", "table", "report_from_template"],
@@ -21,10 +23,13 @@ relevant_classes = {
         "string_cat",
         "add_value",
         "to_ranked_scenario_list",
+        "to_agent_blueprint",
         "__getitem__",
+        'add_scenario_reference'
     ],
     Scenario: ["chunk_text"],
     list: ["__getitem__"],
+    AgentBlueprint: ["create_agent_list"],
 }
 
 white_list_methods = []
@@ -46,7 +51,7 @@ return_types = {f.__name__: _get_return_annotation_safe(f) for f in white_list_m
 
 parent_class = {f.__name__: f.__qualname__.split(".")[0] for f in white_list_methods}
 
-from abc import ABC, abstractmethod
+from abc import ABC
 
 # Build disambiguated maps keyed by (owner_class_name, method_name)
 # This avoids collisions for methods that share the same name across classes
@@ -119,6 +124,7 @@ class ObjectFormatter(ABC):
         name: Optional[str] = None,
         description: Optional[str] = None,
         allowed_commands: Optional[list[str]] = None,
+        params: Optional[Any] = None,
     ) -> None:
         self.name = name
         self.description = description
@@ -127,6 +133,8 @@ class ObjectFormatter(ABC):
         self.allowed_commands = allowed_commands
 
         self._stored_commands = []
+        # Optional declarative params spec (names or defaults) supplied by user
+        self.params = params
 
     def __getattr__(self, name: str) -> Any:
 
@@ -144,12 +152,39 @@ class ObjectFormatter(ABC):
             f"Use .then('{name}', ...) for post-run method chaining."
         )
 
-    def render(self, results: Any) -> Any:
+    def render(self, results: Any, params: Optional[dict] = None) -> Any:
         if not self._stored_commands:
             return results
 
+        def _render_template_string(value: str, ctx: dict) -> str:
+            # Render only if it looks like a jinja2 template AND references a key present in ctx
+            if (("{{" in value) or ("{%" in value)) and ctx:
+                # If none of the provided context keys appear in the template, skip rendering
+                # to avoid accidentally resolving placeholders intended for later stages (e.g., results fields)
+                try:
+                    keys = list(ctx.keys())
+                except Exception:
+                    keys = []
+                if keys and any(("{{" + k in value) or ("{{ " + k in value) for k in keys):
+                    return Template(value, undefined=StrictUndefined).render(**ctx)
+            return value
+
+        def _resolve_templates(value: Any, ctx: dict) -> Any:
+            if isinstance(value, str):
+                return _render_template_string(value, ctx)
+            if isinstance(value, (list, tuple)):
+                resolved = [ _resolve_templates(v, ctx) for v in value ]
+                return type(value)(resolved)
+            if isinstance(value, dict):
+                return { k: _resolve_templates(v, ctx) for k, v in value.items() }
+            return value
+
+        context = params or {}
+
         for command, args, kwargs in self._stored_commands:
-            results = getattr(results, command)(*args, **kwargs)
+            resolved_args = _resolve_templates(args, context)
+            resolved_kwargs = _resolve_templates(kwargs, context)
+            results = getattr(results, command)(*resolved_args, **resolved_kwargs)
 
         return results
 
@@ -249,6 +284,7 @@ class ObjectFormatter(ABC):
             "description": self.description,
             "allowed_commands": list(self.allowed_commands),
             "target": self.target,
+            "params": self.params,
             "stored_commands": [
                 {"name": name, "args": list(args), "kwargs": kwargs}
                 for name, args, kwargs in self._stored_commands
@@ -296,6 +332,7 @@ class ObjectFormatter(ABC):
             name=data.get("name"),
             description=data.get("description"),
             allowed_commands=allowed,
+            params=data.get("params"),
         )
         stored = []
         for item in data.get("stored_commands", []):

@@ -1,7 +1,6 @@
-from typing import Optional, Union, Sequence
-from pathlib import Path
+from typing import Optional, Sequence
 from .app import App, HeadAttachments
-from ..questions import QuestionMultipleChoice
+from ..questions import QuestionMultipleChoice, QuestionEDSLObject
 from .output_formatter import OutputFormatter
 from ..surveys import Survey
 
@@ -41,11 +40,12 @@ class RankingApp(App):
         self.max_pairwise_count = max_pairwise_count
 
 
-        output_formatters = (OutputFormatter(
-            name="Ranked Scenario List")
+        output_formatters = (
+            OutputFormatter(name="Ranked Scenario List")
             .to_scenario_list()
-            .to_ranked_scenario_list(option_fields = option_fields, 
-             answer_field = ranking_question.question_name)
+            .to_ranked_scenario_list(
+                option_fields=option_fields, answer_field=ranking_question.question_name
+            )
         )
 
         super().__init__(
@@ -53,41 +53,35 @@ class RankingApp(App):
             output_formatters=output_formatters,
             description=description,
             application_name=application_name,
-            initial_survey=None,
+            initial_survey=Survey(
+                [
+                    QuestionEDSLObject(
+                        question_name="input_items",
+                        question_text="Provide the items to rank as a ScenarioList",
+                        expected_object_type="ScenarioList",
+                    )
+                ]
+            ),
         )
 
-    def _prepare_from_params(self, params: 'ScenarioList') -> 'HeadAttachments':
-        # Construct pairwise comparisons (choose 2) for the provided ScenarioList
-        from ..scenarios import ScenarioList as _ScenarioList
-        from ..scenarios import FileStore
-
-        # Normalize input to ScenarioList
-        if isinstance(params, (str, Path)):
-            scenario_list: _ScenarioList = FileStore(path=str(params)).to_scenario_list()
-        else:
-            scenario_list = params
+    def _prepare_from_params(self, params: dict) -> 'HeadAttachments':
+        # Use base App to instantiate edsl_object answers and build attachments
+        base_attachments = super()._prepare_from_params(params)
+        scenario_list = base_attachments.scenario
 
         if scenario_list is None or len(scenario_list) == 0:
-            return _ScenarioList([])
+            from ..scenarios import ScenarioList as _ScenarioList
+            return HeadAttachments(scenario=_ScenarioList([]))
 
-        # Enforce maximum number of pairwise comparisons unless forced
+        # Enforce maximum number of pairwise comparisons
         num_items = len(scenario_list)
         pairwise_needed = (num_items * (num_items - 1)) // 2
         if pairwise_needed > self.max_pairwise_count:
             raise ValueError(
-                f"Pairwise comparisons required ({pairwise_needed}) exceed the limit ({self.max_pairwise_count}). "
-                f"Pass force=True to override or initialize RankingApp with a higher max_pairwise_count."
+                f"Pairwise comparisons required ({pairwise_needed}) exceed the limit ({self.max_pairwise_count})."
             )
 
-        # Determine option base from input if not provided
-        base_field = self.option_base
-        if base_field is None:
-            first_keys = list(scenario_list[0].keys())
-            if len(first_keys) != 1:
-                raise ValueError("Input ScenarioList must have exactly one field per scenario to infer option_base.")
-            base_field = first_keys[0]
-
-        # Generate pairwise comparisons and run the ranking question
+        # Generate pairwise comparisons
         pairwise_sl = scenario_list.choose_k(2)
         return HeadAttachments(scenario=pairwise_sl)
 

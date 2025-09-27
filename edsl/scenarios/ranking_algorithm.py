@@ -1,5 +1,5 @@
 from collections import defaultdict, deque
-from typing import Optional, Sequence
+from typing import Sequence
 
 from .scenario_list import ScenarioList
 from .scenario import Scenario

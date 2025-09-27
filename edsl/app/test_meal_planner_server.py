@@ -5,8 +5,6 @@ import threading
 import time
 import sys
 import requests
-import signal
-import os
 from pathlib import Path
 
 # Add the parent directories to the path so we can import edsl modules
@@ -108,7 +106,7 @@ def test_meal_planner_deployment():
             "other": "I prefer simple, nutritious meals"
         }
 
-        print(f"\n6. Executing meal planner with test parameters...")
+        print("\n6. Executing meal planner with test parameters...")
         print(f"   Parameters: {test_answers}")
 
         # Execute the app remotely
@@ -141,7 +139,7 @@ def test_meal_planner_deployment():
                 print(f"   Error: {execution['error']}")
 
         # Test with different formatter
-        print(f"\n8. Testing with different formatter (Docx Writer)...")
+        print("\n8. Testing with different formatter (Docx Writer)...")
         execution2 = client.execute_app(
             app_id=app_id,
             answers=test_answers,
@@ -157,13 +155,13 @@ def test_meal_planner_deployment():
             print(f"   ❌ Second execution failed: {execution2.get('error', 'Unknown error')}")
 
         # Get server stats
-        print(f"\n9. Final server statistics...")
+        print("\n9. Final server statistics...")
         stats = client.get_stats()
         print(f"   Total apps: {stats['total_apps']}")
         print(f"   Total executions: {stats['total_executions']}")
 
-        print(f"\n✅ ALL TESTS COMPLETED SUCCESSFULLY!")
-        print(f"🎉 Meal planner app successfully deployed and executed on FastAPI server!")
+        print("\n✅ ALL TESTS COMPLETED SUCCESSFULLY!")
+        print("🎉 Meal planner app successfully deployed and executed on FastAPI server!")
 
         return True
 
@@ -193,25 +191,25 @@ def main():
         success = test_meal_planner_deployment()
 
         if success:
-            print(f"\n🎊 Integration test completed successfully!")
-            print(f"📊 Server is still running at http://127.0.0.1:8000")
-            print(f"📚 API docs available at http://127.0.0.1:8000/docs")
-            print(f"🔄 You can manually test more apps or press Ctrl+C to exit")
+            print("\n🎊 Integration test completed successfully!")
+            print("📊 Server is still running at http://127.0.0.1:8000")
+            print("📚 API docs available at http://127.0.0.1:8000/docs")
+            print("🔄 You can manually test more apps or press Ctrl+C to exit")
 
             # Keep the main thread alive to let user explore
             try:
                 while True:
                     time.sleep(1)
             except KeyboardInterrupt:
-                print(f"\n👋 Shutting down...")
+                print("\n👋 Shutting down...")
 
         else:
-            print(f"\n💥 Integration test failed!")
+            print("\n💥 Integration test failed!")
 
         return success
 
     except KeyboardInterrupt:
-        print(f"\n👋 Test interrupted by user")
+        print("\n👋 Test interrupted by user")
         return False
     except Exception as e:
         print(f"\n💥 Unexpected error: {e}")

@@ -8,7 +8,6 @@ Run this in a Jupyter notebook to see the interactive interface.
 
 import pandas as pd
 import numpy as np
-from datetime import datetime
 import sys
 import os
 
@@ -62,7 +61,7 @@ def main():
     print(df.head())
     
     # Create the widget
-    print(f"\n🎯 Creating DataFrameGridChartsWidget...")
+    print("\n🎯 Creating DataFrameGridChartsWidget...")
     widget = DataFrameGridChartsWidget(dataframe=df)
     
     # Configure for a nice default view
@@ -79,36 +78,36 @@ def main():
         selection_mode='multiple'
     )
     
-    print(f"✅ Widget configured with:")
+    print("✅ Widget configured with:")
     print(f"   • Layout: {widget.layout_mode} (default - clean tabbed interface)")
     print(f"   • Chart: {widget.chart_type} chart ({widget.chart_x_column} vs {widget.chart_y_column})")
     print(f"   • Grid: {widget.page_size} rows per page, selection enabled")
     
-    print(f"\n📈 Available columns for charting:")
+    print("\n📈 Available columns for charting:")
     print(f"   • Numeric: {', '.join(widget.numeric_columns[:5])}...")
     print(f"   • Categorical: {', '.join(widget.categorical_columns)}")
     print(f"   • Datetime: {', '.join(widget.datetime_columns)}")
     
-    print(f"\n💡 To use in Jupyter notebook:")
-    print(f"   from dataframe_grid_charts_widget import DataFrameGridChartsWidget")
-    print(f"   widget = DataFrameGridChartsWidget(dataframe=your_df)")
-    print(f"   display(widget)")
+    print("\n💡 To use in Jupyter notebook:")
+    print("   from dataframe_grid_charts_widget import DataFrameGridChartsWidget")
+    print("   widget = DataFrameGridChartsWidget(dataframe=your_df)")
+    print("   display(widget)")
     
-    print(f"\n🎛️ Try different configurations:")
-    print(f"   # Change chart type")
-    print(f"   widget.configure_chart(chart_type='line', x_column='Date', y_column='Revenue')")
-    print(f"   ")
-    print(f"   # Change layout (default is now 'tabs')")
-    print(f"   widget.set_layout_mode('split')  # or 'grid-only', 'charts-only')")
-    print(f"   ")
-    print(f"   # Access selected data")
-    print(f"   selected_df = widget.get_selected_dataframe()")
+    print("\n🎛️ Try different configurations:")
+    print("   # Change chart type")
+    print("   widget.configure_chart(chart_type='line', x_column='Date', y_column='Revenue')")
+    print("   ")
+    print("   # Change layout (default is now 'tabs')")
+    print("   widget.set_layout_mode('split')  # or 'grid-only', 'charts-only')")
+    print("   ")
+    print("   # Access selected data")
+    print("   selected_df = widget.get_selected_dataframe()")
     
-    print(f"\n✨ New tabbed interface features:")
-    print(f"   • Clean separation between Table and Charts views")
-    print(f"   • Row count display in Table tab")
-    print(f"   • Selected row count in Charts tab")
-    print(f"   • Enhanced visual styling with hover effects")
+    print("\n✨ New tabbed interface features:")
+    print("   • Clean separation between Table and Charts views")
+    print("   • Row count display in Table tab")
+    print("   • Selected row count in Charts tab")
+    print("   • Enhanced visual styling with hover effects")
     
     return widget
 

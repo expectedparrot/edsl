@@ -50,10 +50,8 @@ Functions:
 from contextlib import contextmanager
 from pathlib import Path
 import tempfile
-import os
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Callable, Any, List, Sequence
-from dataclasses import dataclass, fields as dataclass_fields
+from typing import Dict, Optional, Any, List, Sequence
 
 import numpy as np
 
@@ -116,7 +114,6 @@ TextColumn = getattr(rich, 'TextColumn', None)
 SENTENCE_TRANSFORMERS_AVAILABLE = bool(sentence_transformers)
 RICH_AVAILABLE = bool(rich)
 
-from edsl import Results
 
 # ----------------------------
 # Local caching context manager
@@ -169,7 +166,6 @@ def local_results_cache(job, cache_dir: str | None = None, verbose: bool = True)
         - The context manager properly handles exceptions including debugger quits
     """
 
-    from edsl import Results  # local import to avoid heavy import cost
 
     # Determine cache directory and file locations (single cache per script)
     root = Path(cache_dir) if cache_dir else Path(tempfile.gettempdir()) / "edsl_job_cache"

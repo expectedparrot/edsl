@@ -1,6 +1,6 @@
 import textwrap
 
-from edsl.app import SingleScenarioApp
+from edsl.app import App
 
 from edsl.surveys import Survey
 from edsl.questions import QuestionList, QuestionFreeText
@@ -70,7 +70,7 @@ rubric_formatter = (OutputFormatter("Rubric Survey")
 .zip('question_options', 'option_labels', 'option_labels')
 ).to_survey()
 
-app = SingleScenarioApp(
+app = App(
      initial_survey=initial_survey,
      description = "A rubric generator.",
      application_name = "rubric_generator",
@@ -80,6 +80,6 @@ app = SingleScenarioApp(
 
  
 if __name__ == "__main__":
-    rubric_survey = app.output({'artifact_description':"A used Honda Civic"})
+    rubric_survey = app.output({'artifact_description':"A new mattress"})
     print(rubric_survey.table())
 

@@ -108,7 +108,7 @@ def main():
     with open('comprehensive_survey.json', 'w') as f:
         json.dump(surveyjs_json, f, indent=2)
     
-    print(f"\n📄 Comprehensive survey saved to: comprehensive_survey.json")
+    print("\n📄 Comprehensive survey saved to: comprehensive_survey.json")
     
     # Create TypeScript version
     ts_content = f"""// Comprehensive SurveyJS JSON from EDSL Survey
@@ -118,7 +118,7 @@ export const comprehensiveSurveyJson = {json.dumps(surveyjs_json, indent=2)};
     with open('comprehensive_survey.ts', 'w') as f:
         f.write(ts_content)
     
-    print(f"📄 TypeScript version saved to: comprehensive_survey.ts")
+    print("📄 TypeScript version saved to: comprehensive_survey.ts")
 
 if __name__ == "__main__":
     main()

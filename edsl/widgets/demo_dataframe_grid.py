@@ -6,7 +6,6 @@ This script demonstrates how to use the AG-Grid widget with pandas DataFrames.
 
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
 import sys
 import os
 

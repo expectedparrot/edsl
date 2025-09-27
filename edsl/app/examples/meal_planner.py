@@ -1,6 +1,6 @@
 import textwrap
 
-from edsl.app import SingleScenarioApp
+from edsl.app import App
 from edsl.app.output_formatter import OutputFormatter
 from edsl.questions import (
     QuestionFreeText,
@@ -140,7 +140,7 @@ docx_writer = (
 )
 
 
-app = SingleScenarioApp(
+app = App(
     initial_survey=initial_survey,
     application_name="Meal Planner",
     description="Create a meal plan for a given number of people.",
@@ -149,8 +149,7 @@ app = SingleScenarioApp(
 )
 
 if __name__ == "__main__":
-    plan = app.output(
-        params={
+    plan = app.output({
             "number_of_people": 1,
             "dietary_preferences_or_restrictions": "None",
             "days_of_the_week": [

@@ -1,5 +1,4 @@
 import os
-import base64
 from typing import Any, Optional, List, TYPE_CHECKING
 from anthropic import AsyncAnthropic
 
