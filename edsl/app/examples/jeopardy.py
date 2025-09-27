@@ -1,4 +1,4 @@
-from edsl.app.app import App
+# App is already available from `edsl.app`
 from edsl.app.output_formatter import OutputFormatter
 from edsl import QuestionList, QuestionFreeText, QuestionNumerical
 from edsl import Scenario

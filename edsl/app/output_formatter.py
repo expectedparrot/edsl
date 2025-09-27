@@ -25,7 +25,8 @@ relevant_classes = {
         "to_ranked_scenario_list",
         "to_agent_blueprint",
         "__getitem__",
-        'add_scenario_reference'
+        'add_scenario_reference',
+        'choose_k'
     ],
     Scenario: ["chunk_text"],
     list: ["__getitem__"],

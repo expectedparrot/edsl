@@ -1,4 +1,4 @@
-from edsl.app.app import App
+from edsl.app import App
 from edsl.app import OutputFormatter
 
 from edsl.surveys import Survey

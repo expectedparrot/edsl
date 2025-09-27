@@ -123,7 +123,7 @@ q_recipes = QuestionFreeText(
 s = Survey([q_meal_plan, q_meal_plan_table, q_shopping_list, q_recipes])
 jobs = s.by(a)
 
-from edsl.app.app import App
+
 
 markdown_viewer = (
     OutputFormatter(name = "Markdown Viewer")
