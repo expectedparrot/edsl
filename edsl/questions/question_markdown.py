@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Optional
 
-from pydantic import BaseModel
 
 from .question_free_text import QuestionFreeText, FreeTextResponse
 from .response_validator_abc import ResponseValidatorABC

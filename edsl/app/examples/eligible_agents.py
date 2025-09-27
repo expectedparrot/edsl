@@ -1,4 +1,4 @@
-from edsl.app.app import AgentsInputApp
+from edsl.app.app import App
 from edsl.app.output_formatter import OutputFormatter
 from edsl.agents import AgentList, Agent
 from edsl import QuestionYesNo
@@ -18,11 +18,11 @@ jobs = q.to_jobs()
 of = OutputFormatter(name="Eligible Agents").select('answer.eligible').to_list(
 
 )
-app = AgentsInputApp(jobs_object = jobs, 
+app = App(jobs_object = jobs, 
     application_name = "Eligible Agents",
     description = "This is a constructed agent. It is randomly collected from a population. Is the agent eligible to participate in the study?",
     output_formatters = [of]
     )
 
 if __name__ == "__main__":
-    print(app.output(params = al))
+    print(app.output(params = {'agent_list': al}))

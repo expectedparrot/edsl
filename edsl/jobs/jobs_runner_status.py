@@ -258,7 +258,10 @@ class JobsRunnerStatusBase(ABC):
     def update_progress(self, stop_event):
         while not stop_event.is_set():
             self.send_status_update()
-            time.sleep(self.refresh_rate)
+            print(f"Sent status update at {time.time()}")
+            # Wait for either the stop event or the next refresh interval,
+            # avoiding busy-waiting and eliminating extra delay on shutdown.
+            stop_event.wait(self.refresh_rate)
         self.send_status_update()
 
     @abstractmethod

@@ -16,5 +16,5 @@ results = q.by(sl_combo).run(stop_on_exception = True)
 print(results)
 
 # Rank items best-to-worst using pairwise ranking
-ranked_sl = results_to_ranked_scenario_list(results)
+ranked_sl = results_to_ranked_scenario_list(results, option_fields=['food_1', 'food_2'], answer_field='rank_foods')
 print(ranked_sl)

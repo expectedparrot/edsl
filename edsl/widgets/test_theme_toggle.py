@@ -8,7 +8,6 @@ Tests:
 3. Theme switching logic is implemented
 """
 
-import os
 from pathlib import Path
 
 def test_css_theme_classes():
@@ -55,7 +54,7 @@ def test_css_theme_classes():
 def test_react_theme_functionality():
     """Test that React component includes theme functionality."""
     
-    print(f"\n⚛️ Testing React Theme Functionality")
+    print("\n⚛️ Testing React Theme Functionality")
     print("=" * 50)
     
     react_file = Path(__file__).parent / "src" / "source" / "react_files" / "agent_list_builder.tsx"
@@ -99,7 +98,7 @@ def test_react_theme_functionality():
 def test_compiled_js_theme_code():
     """Test that compiled JavaScript includes theme code."""
     
-    print(f"\n🔧 Testing Compiled JavaScript")
+    print("\n🔧 Testing Compiled JavaScript")
     print("=" * 50)
     
     js_file = Path(__file__).parent / "src" / "compiled" / "esm_files" / "agent_list_builder.js"
@@ -139,7 +138,7 @@ def test_compiled_js_theme_code():
 def simulate_theme_toggle_behavior():
     """Simulate how the theme toggle would work."""
     
-    print(f"\n🔄 Theme Toggle Simulation")
+    print("\n🔄 Theme Toggle Simulation")
     print("=" * 50)
     
     # Simulate the theme state transitions
@@ -164,7 +163,7 @@ def simulate_theme_toggle_behavior():
         action = "Initial" if i == 0 else f"Click {i}"
         print(f"   {action}: {icon} {description} → <div class=\"{classes}\">")
     
-    print(f"\n✅ Theme toggle simulation completed")
+    print("\n✅ Theme toggle simulation completed")
     
     return True
 
@@ -190,7 +189,7 @@ def main():
     all_passed = css_test and react_test and js_test and simulation_test
     
     if all_passed:
-        print(f"\n🎉 SUCCESS! Theme toggle functionality is ready:")
+        print("\n🎉 SUCCESS! Theme toggle functionality is ready:")
         print("   🌙 Manual dark mode control")
         print("   ☀️ Manual light mode control") 
         print("   🔄 System theme auto-detection")
@@ -198,14 +197,14 @@ def main():
         print("   🔧 Auto button to reset to system theme")
         print("   🎨 Complete CSS theme class support")
         
-        print(f"\n💡 How to use:")
+        print("\n💡 How to use:")
         print("   • Click the Sun/Moon icon to toggle between light/dark")
         print("   • Click 'Auto' to follow system theme preference")
         print("   • Widget remembers manual theme choice within session")
         print("   • Supports both manual override and system auto-detection")
         
     else:
-        print(f"\n❌ Some tests failed. Check the output above for details.")
+        print("\n❌ Some tests failed. Check the output above for details.")
 
 if __name__ == "__main__":
     main()

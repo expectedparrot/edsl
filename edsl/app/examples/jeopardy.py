@@ -1,7 +1,7 @@
-from edsl.app.app import SingleScenarioApp
+from edsl.app.app import App
 from edsl.app.output_formatter import OutputFormatter
 from edsl import QuestionList, QuestionFreeText, QuestionNumerical
-from edsl import ScenarioList, Scenario
+from edsl import Scenario
 from edsl import Survey
 
 from edsl.app.output_formatter import ScenarioAttachmentFormatter
@@ -38,11 +38,13 @@ of = (OutputFormatter(name="Topics")
 .to_survey()
 )
 
+# This modifies the scenario by chunking the text
+# before attaching it to the jobs object. 
 sa = (ScenarioAttachmentFormatter(name="Scenario Attachment Formatter")
     .chunk_text(field = 'input_text', chunk_size_field = 'words_per_chunk', unit='word')
 )
 
-app = SingleScenarioApp(
+app = App(
     initial_survey = input_survey,
     description = "A jeopardy question generator.",
     application_name = "jeopardy",

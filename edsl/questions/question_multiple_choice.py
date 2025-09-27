@@ -550,7 +550,7 @@ class QuestionMultipleChoice(QuestionBase):
                     Template(str(option)).render(substitution_dict)
                     for option in question_options
                 ]
-            except Exception as e:
+            except Exception:
                 # In case where user used question_options = [{{scenario.opt1}, {{scenario.opt2}}]
                 from collections import defaultdict
                 with_scenario_prefix = defaultdict(dict)

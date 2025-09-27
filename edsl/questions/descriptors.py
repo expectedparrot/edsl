@@ -396,7 +396,9 @@ class QuestionTextDescriptor(BaseDescriptor):
 
             raise QuestionCreationValidationError("Question is too short!")
         if not isinstance(value, str):
-            raise QuestionCreationValidationError("Question must be a string!")
+            raise QuestionCreationValidationError("Question must be a string!"
+            f"Received: {value}"
+            )
 
         return None
 

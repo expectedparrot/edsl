@@ -1,8 +1,8 @@
-from edsl.app.app import SurveyInputApp
-from edsl.app.output_formatter import OutputFormatter
+from edsl.app.app import App
+from edsl.app.output_formatter import OutputFormatter, SurveyAttachmentFormatter
 
 from edsl.surveys import Survey
-from edsl.questions import QuestionList, QuestionFreeText
+from edsl.questions import QuestionList, QuestionFreeText, QuestionEDSLObject
 
 
 # Prompt the model for dimensions given each survey question
@@ -56,11 +56,28 @@ jobs_object = (
     .to(Survey([q_levels, q_name]))
 )
 
+"""
+Expected inputs (via initial_survey):
+- A Survey to analyze (as an EDSL object)
+- n: number of personas to generate
+"""
+
+initial_survey = Survey([
+    QuestionEDSLObject(
+        question_name="input_survey",
+        question_text="Provide the Survey to analyze",
+        expected_object_type="Survey",
+    ),
+    QuestionFreeText(
+        question_name="n",
+        question_text="How many personas should be generated?",
+    ),
+])
+
 # Output an AgentBlueprint using the answers
 output_formatter = (
     OutputFormatter(
         name="Agent Blueprint",
-        allowed_commands=["select", "to_scenario_list", "to_agent_blueprint"],
     )
     .select("scenario.*", "answer.*")
     .to_scenario_list()
@@ -68,19 +85,24 @@ output_formatter = (
         dimension_name_field="dimension_name",
         dimension_values_field="levels",
         dimension_description_field="dimension_description",
-    )
+    ).create_agent_list(n="{{n}}")
 )
 
-initial_survey = None
-
-a = SurveyInputApp(
+a = App(
     description = "A persona generator.",
     application_name = "create_personas",
     initial_survey=initial_survey,
     jobs_object=jobs_object,
     output_formatters=[output_formatter],
+    attachment_formatters=[
+        # Convert the passed Survey into a ScenarioList and attach as scenarios
+        SurveyAttachmentFormatter(name="Survey->ScenarioList").to_scenario_list()
+    ],
 )
 
 if __name__ == "__main__":
-    output = a.output(params=Survey.example())
+    output = a.output(params={
+        'input_survey': Survey.example(),
+        'n': 3,
+    })
     print(output)

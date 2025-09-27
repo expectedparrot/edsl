@@ -3,7 +3,6 @@ import textwrap
 from edsl.questions import (
     QuestionFreeText,
     QuestionMultipleChoice,
-    QuestionNumerical,
     QuestionCheckBox,
     QuestionMarkdown,
 )
@@ -130,7 +129,7 @@ s = Survey([q_packing_list, q_packing_checklist, q_packing_tips, q_weight_estima
 jobs = s.by(a)
 
 
-from edsl.app import SingleScenarioApp
+from edsl.app import App
 from edsl.app import OutputFormatter
 
 markdown_viewer = (
@@ -140,7 +139,7 @@ markdown_viewer = (
     .view()
 )
 
-app = SingleScenarioApp(
+app = App(
     description = "A packing list generator.",
     application_name = "packing_list",
     initial_survey=initial_survey,

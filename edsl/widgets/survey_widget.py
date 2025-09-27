@@ -5,7 +5,7 @@ An interactive widget for presenting EDSL surveys to users one question at a tim
 collecting their responses, and generating the final answer dictionary.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 import traitlets
 from .base_widget import EDSLBaseWidget
 

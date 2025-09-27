@@ -43,7 +43,7 @@ sl = ScenarioList.from_list(
 
 
 if __name__ == "__main__":
-    ranked = app.output(sl)
+    ranked = app.output({"input_items": sl})
     print(ranked)
 
 

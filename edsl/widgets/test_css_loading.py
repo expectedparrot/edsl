@@ -9,7 +9,6 @@ This script tests:
 4. Tailwind CSS class verification
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -97,7 +96,7 @@ def test_widget_css_loading():
                 print("❌ Widget CSS not loaded or empty")
                 
             # Test a few key widget properties
-            print(f"📋 Widget properties:")
+            print("📋 Widget properties:")
             print(f"   - Loading state: {widget.loading}")
             print(f"   - Error message: {repr(widget.error_message)}")
             print(f"   - Agent list data keys: {list(widget.agent_list_data.keys())}")
@@ -159,7 +158,7 @@ def test_html_output_simulation():
             else:
                 print(f"   ⚠️ Found {element_found}/{len(classes)} classes")
         
-        print(f"\n📊 Overall results:")
+        print("\n📊 Overall results:")
         print(f"   Total classes tested: {total_classes}")
         print(f"   Classes found: {found_classes}")
         print(f"   Success rate: {(found_classes/total_classes)*100:.1f}%")

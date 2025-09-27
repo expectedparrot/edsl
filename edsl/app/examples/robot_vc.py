@@ -1,4 +1,4 @@
-from edsl.app import SingleScenarioApp
+from edsl.app import App
 from edsl.app import OutputFormatter
 
 from edsl import (
@@ -95,7 +95,7 @@ survey = Survey([q1, q2, q3, q4, q5, q6])
 of1 = OutputFormatter(name = "Robot VC").select('answer.*').table().flip()
 of2 = OutputFormatter(name = "Robot VC").select('comment.*').table().flip()
 
-app = SingleScenarioApp(
+app = App(
     initial_survey=initial_survey,
     application_name="Robot VC",
     description="Score a startup for a VC investment.",
@@ -105,9 +105,10 @@ app = SingleScenarioApp(
 
 if __name__ == "__main__":
     output = app.output(
-        params = {
+        params={
             'startup_name': 'Test Startup', 
             'startup_description': """A startup that makes a new kind of dog collar.
-                Both founders just graduated from high school (barely). No patents. No revenue. No customers. Pet ownership is declining. """},
+            Both founders just graduated from high school (barely).
+            No patents. No revenue. No customers. Pet ownership is declining."""},
         verbose=True)
     print(output)

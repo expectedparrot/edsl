@@ -6,7 +6,6 @@ import uuid
 import json
 import logging
 import sqlite3
-import os
 from pathlib import Path
 
 try:
@@ -23,7 +22,6 @@ except ImportError:
     )
 
 from .app import AppBase
-from ..base import Base
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

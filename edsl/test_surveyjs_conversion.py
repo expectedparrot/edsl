@@ -96,7 +96,7 @@ def create_sample_json_file():
     with open('sample_survey.json', 'w') as f:
         json.dump(surveyjs_json, f, indent=2)
     
-    print(f"\n📄 Sample survey JSON saved to: sample_survey.json")
+    print("\n📄 Sample survey JSON saved to: sample_survey.json")
     
     # Also create a JavaScript/TypeScript module
     js_content = f"""// Auto-generated SurveyJS JSON from EDSL Survey
@@ -106,7 +106,7 @@ export const sampleSurveyJson = {json.dumps(surveyjs_json, indent=2)};
     with open('sample_survey.ts', 'w') as f:
         f.write(js_content)
     
-    print(f"📄 Sample survey TypeScript module saved to: sample_survey.ts")
+    print("📄 Sample survey TypeScript module saved to: sample_survey.ts")
 
 if __name__ == "__main__":
     create_sample_json_file()

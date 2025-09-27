@@ -4,7 +4,6 @@ from edsl.agents import Agent, AgentList
 from edsl.questions import QuestionFreeText
 from edsl.surveys import Survey
 from edsl.language_models import Model
-from edsl.scenarios import Scenario
 
 models = [
     Model("claude-opus-4-20250514", service_name="anthropic"),
@@ -72,7 +71,7 @@ initial_survey = Survey([QuestionFileUpload(question_name = "paper", question_te
 
 survey = Survey([q_review, q_response_to_review, q_round_two])
 
-from edsl.app import SingleScenarioApp
+from edsl.app import App
 from edsl.app import OutputFormatter
 
 report_template = """
@@ -96,7 +95,7 @@ output_formatter = (OutputFormatter(name = "Report From Template")
 .save('referee_report.docx')
 )
 
-app = SingleScenarioApp(
+app = App(
     description = "A referee report generator.",
     application_name = "referee_report",
     initial_survey = initial_survey,
@@ -104,4 +103,5 @@ app = SingleScenarioApp(
     output_formatters = [output_formatter])
 
 if __name__ == "__main__":
+    # Pass initial_survey-derived params directly (no legacy 'scenario' wrapper)
     app.output({'paper': "optimize.pdf"})

@@ -3,7 +3,6 @@
 Simple CSS asset inspection for agent_list_builder widget.
 """
 
-import os
 from pathlib import Path
 
 def inspect_css_assets():
@@ -46,13 +45,13 @@ def inspect_css_assets():
         
         # Show first few lines
         lines = content.splitlines()
-        print(f"\n📄 First 10 lines:")
+        print("\n📄 First 10 lines:")
         for i, line in enumerate(lines[:10], 1):
             print(f"   {i:2d}: {line[:80]}")
             
         # Show some key utility classes
         key_classes = [".p-5", ".max-w-6xl", ".text-2xl", ".bg-white", ".flex", ".grid"]
-        print(f"\n🎨 Sample utility classes:")
+        print("\n🎨 Sample utility classes:")
         for cls in key_classes:
             if cls + " {" in content:
                 # Find the class definition
@@ -74,7 +73,7 @@ def check_js_assets():
     current_dir = Path(__file__).parent
     js_file = current_dir / "src" / "compiled" / "esm_files" / "agent_list_builder.js"
     
-    print(f"\n🔍 JavaScript Asset Inspection")
+    print("\n🔍 JavaScript Asset Inspection")
     print("=" * 50)
     
     if js_file.exists():
@@ -95,7 +94,7 @@ def check_js_assets():
             "Lucide icons": "lucide-react" in content,
         }
         
-        print(f"\n📋 Content Analysis:")
+        print("\n📋 Content Analysis:")
         for desc, found in indicators.items():
             status = "✅" if found else "❌"
             print(f"   {status} {desc}")
