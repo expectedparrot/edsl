@@ -102,7 +102,7 @@ class QuestionAttributeProcessor:
     @classmethod
     def from_prompt_constructor(cls, prompt_constructor):
         scenario = prompt_constructor.scenario
-        prior_answers_dict = prompt_constructor.prior_answers_dict()
+        prior_answers_dict = prompt_constructor.prior_answers_dict
 
         return cls(scenario, prior_answers_dict)
 

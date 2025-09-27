@@ -257,7 +257,15 @@ class JobsPrompts:
         >>> JobsPrompts._extract_prompt_details(invigilator)
         {'user_prompt': ...
         """
+        import time
+
+        start_prompts = time.time()
         prompts = invigilator.get_prompts()
+        prompts_time = time.time() - start_prompts
+
+        # if prompts_time > 0.1:  # Log if it takes more than 100ms
+        print(f"[DEBUG]       get_prompts() took {prompts_time:.3f}s")
+
         user_prompt = prompts["user_prompt"]
         system_prompt = prompts["system_prompt"]
         inference_service = invigilator.model._inference_service_
@@ -302,18 +310,53 @@ class JobsPrompts:
         - 1 token = 4 characters.
         - For each prompt, output tokens = input tokens * 0.75, rounded up to the nearest integer.
         """
+        import time
+
+        start_total = time.time()
+        print(f"[DEBUG] Starting estimate_job_cost_from_external_prices")
+        print(f"[DEBUG] Number of interviews: {len(self.interviews)}")
+        print(f"[DEBUG] Number of questions: {len(self.survey.questions)}")
+
         # Collect all prompt data
         data = []
-        for interview in self.interviews:
+        for interview_idx, interview in enumerate(self.interviews):
+            start_interview = time.time()
+            print(
+                f"[DEBUG] Processing interview {interview_idx + 1}/{len(self.interviews)}"
+            )
+
+            # Create invigilators
+            start_invig = time.time()
             invigilators = [
                 FetchInvigilator(interview)(question)
                 for question in self.survey.questions
             ]
-            for invigilator in invigilators:
+            print(
+                f"[DEBUG]   Created {len(invigilators)} invigilators in {time.time() - start_invig:.3f}s"
+            )
+
+            for invig_idx, invigilator in enumerate(invigilators):
+                start_single = time.time()
+
+                # Extract prompt details
+                start_extract = time.time()
                 prompt_details = self._extract_prompt_details(invigilator)
+                extract_time = time.time() - start_extract
+
+                # Estimate cost
+                start_cost = time.time()
                 prompt_cost = self.estimate_prompt_cost(
                     **prompt_details, price_lookup=price_lookup
                 )
+                cost_time = time.time() - start_cost
+
+                if invig_idx % 100 == 0:
+                    print(
+                        f"[DEBUG]     Invigilator {invig_idx + 1}/{len(invigilators)}: "
+                        f"extract={extract_time:.3f}s, cost={cost_time:.3f}s, "
+                        f"total={time.time() - start_single:.3f}s"
+                    )
+
                 price_estimates = {
                     "estimated_input_price_per_million_tokens": prompt_cost[
                         "input_price_per_million_tokens"
@@ -334,7 +377,15 @@ class JobsPrompts:
                     }
                 )
 
+            print(
+                f"[DEBUG]   Interview {interview_idx + 1} completed in {time.time() - start_interview:.3f}s"
+            )
+
+        print(f"[DEBUG] Data collection completed in {time.time() - start_total:.3f}s")
+        print(f"[DEBUG] Total prompts processed: {len(data)}")
+
         # Group by service, model, token type, and price
+        start_group = time.time()
         detailed_groups = {}
         for item in data:
             for token_type in ["input", "output"]:
@@ -344,13 +395,16 @@ class JobsPrompts:
                 else:
                     detailed_groups[key]["tokens"] += group_data["tokens"]
                     detailed_groups[key]["cost_usd"] += group_data["cost_usd"]
+        print(f"[DEBUG] Grouping completed in {time.time() - start_group:.3f}s")
 
         # Apply iterations and prepare final output
+        start_iterations = time.time()
         detailed_costs = []
         for group in detailed_groups.values():
             group["tokens"] *= iterations
             group["cost_usd"] *= iterations
             detailed_costs.append(group)
+        print(f"[DEBUG] Iterations applied in {time.time() - start_iterations:.3f}s")
 
         # Convert to credits
         from ..coop.utils import CostConverter
@@ -380,6 +434,8 @@ class JobsPrompts:
             "estimated_total_output_tokens": estimated_total_output_tokens,
             "detailed_costs": detailed_costs,
         }
+
+        print(f"[DEBUG] Total execution time: {time.time() - start_total:.3f}s")
         return output
 
     def estimate_job_cost(self, iterations: int = 1) -> dict:

@@ -23,12 +23,11 @@ class QuestionInstructionPromptBuilder:
 
     @classmethod
     def from_prompt_constructor(cls, prompt_constructor: "PromptConstructor"):
-
         model = prompt_constructor.model
         survey = prompt_constructor.survey
         question = prompt_constructor.question
         scenario = prompt_constructor.scenario
-        prior_answers_dict = prompt_constructor.prior_answers_dict()
+        prior_answers_dict = prompt_constructor.prior_answers_dict
         agent = prompt_constructor.agent
         return cls(
             prompt_constructor,
@@ -50,7 +49,6 @@ class QuestionInstructionPromptBuilder:
         prior_answers_dict: Dict[str, Any],
         agent: "Agent",
     ):
-
         self.qtrb = QTRB(scenario, question, prior_answers_dict, agent)
 
         self.model = model
@@ -107,24 +105,46 @@ class QuestionInstructionPromptBuilder:
         <BLANKLINE>
         After the answer, you can put a comment explaining why you chose that option on the next line.\""")
         """
+        import time
+
+        start_total = time.time()
+        print(
+            f"[DEBUG]                 QuestionInstructionPromptBuilder.build() started"
+        )
+
         # Create base prompt
+        start_base = time.time()
         base_prompt = self._create_base_prompt()
+        base_time = time.time() - start_base
 
         # Enrich with options
+        start_enrich = time.time()
         enriched_prompt = self._enrich_with_question_options(
             prompt_data=base_prompt,
             scenario=self.scenario,
             prior_answers_dict=self.prior_answers_dict,
         )
+        enrich_time = time.time() - start_enrich
 
         # Render prompt
+        start_render = time.time()
         rendered_prompt = self._render_prompt(enriched_prompt)
+        render_time = time.time() - start_render
 
         # Validate template variables
+        start_validate = time.time()
         self._validate_template_variables(rendered_prompt)
+        validate_time = time.time() - start_validate
 
         # Append survey instructions
+        start_append = time.time()
         final_prompt = self._append_survey_instructions(rendered_prompt)
+        append_time = time.time() - start_append
+
+        total_time = time.time() - start_total
+        print(
+            f"[DEBUG]                 QuestionInstructionPromptBuilder: base={base_time:.3f}s, enrich={enrich_time:.3f}s, render={render_time:.3f}s, validate={validate_time:.3f}s, append={append_time:.3f}s, total={total_time:.3f}s"
+        )
 
         return final_prompt
 
@@ -207,10 +227,10 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Dict: Enriched prompt data
         """
-        prompt_data["data"] = (
-            QuestionInstructionPromptBuilder._process_question_options(
-                prompt_data["data"], scenario, prior_answers_dict
-            )
+        prompt_data[
+            "data"
+        ] = QuestionInstructionPromptBuilder._process_question_options(
+            prompt_data["data"], scenario, prior_answers_dict
         )
         return prompt_data
 
@@ -223,14 +243,32 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Prompt: Rendered instructions
         """
+        import time
+
+        start_total = time.time()
+        print(f"[DEBUG]                   _render_prompt() started")
+
         # Build replacement dict
+        start_replacement = time.time()
         replacement_dict = self.qtrb.build_replacement_dict(prompt_data["data"])
+        replacement_time = time.time() - start_replacement
 
         # Render with dict
+        start_render = time.time()
         rendered_prompt = prompt_data["prompt"].render(replacement_dict)
+        render_time = time.time() - start_render
+
+        start_capture = time.time()
         if rendered_prompt.captured_variables:
             self.captured_variables.update(rendered_prompt.captured_variables)
             # print(f"Captured variables in QIPB: {self.captured_variables}")
+        capture_time = time.time() - start_capture
+
+        total_time = time.time() - start_total
+        print(
+            f"[DEBUG]                   _render_prompt: replacement={replacement_time:.3f}s, render={render_time:.3f}s, capture={capture_time:.3f}s, total={total_time:.3f}s"
+        )
+
         return rendered_prompt
 
     def _validate_template_variables(self, rendered_prompt: "Prompt") -> None:

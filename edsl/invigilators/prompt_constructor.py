@@ -327,6 +327,7 @@ class PromptConstructor:
 
         return self.agent.prompt()
 
+    @cached_property
     def prior_answers_dict(self) -> dict[str, "QuestionBase"]:
         """
         Get a dictionary of prior answers if they exist.
@@ -341,7 +342,7 @@ class PromptConstructor:
             {'q0': ..., 'q1': ...}
         """
         return self._add_answers(
-            self.survey.question_names_to_questions(), self.current_answers
+            self.survey.question_names_to_questions, self.current_answers
         )
 
     @staticmethod
@@ -453,9 +454,25 @@ class PromptConstructor:
         Returns:
             list: A list of file keys found in the question text
         """
-        return QuestionTemplateReplacementsBuilder.from_prompt_constructor(
-            self
-        ).question_file_keys()
+        import time
+
+        start_total = time.time()
+        print(f"[DEBUG]               file_keys_from_question() started")
+
+        start_builder = time.time()
+        builder = QuestionTemplateReplacementsBuilder.from_prompt_constructor(self)
+        builder_time = time.time() - start_builder
+
+        start_keys = time.time()
+        result = builder.question_file_keys()
+        keys_time = time.time() - start_keys
+
+        total_time = time.time() - start_total
+        print(
+            f"[DEBUG]               file_keys: builder={builder_time:.3f}s, keys={keys_time:.3f}s, total={total_time:.3f}s"
+        )
+
+        return result
 
     @cached_property
     def question_instructions_prompt(self) -> "Prompt":
@@ -497,14 +514,32 @@ class PromptConstructor:
             - Updates the captured_variables dictionary with any new variables
             - Returns a complete Prompt object ready for rendering
         """
+        import time
+
+        start_total = time.time()
+        print(f"[DEBUG]               build_question_instructions_prompt() started")
+
         from .question_instructions_prompt_builder import (
             QuestionInstructionPromptBuilder,
         )
 
+        start_create = time.time()
         qipb = QuestionInstructionPromptBuilder.from_prompt_constructor(self)
+        create_time = time.time() - start_create
+
+        start_build = time.time()
         prompt = qipb.build()
+        build_time = time.time() - start_build
+
+        start_capture = time.time()
         if prompt.captured_variables:
             self.captured_variables.update(prompt.captured_variables)
+        capture_time = time.time() - start_capture
+
+        total_time = time.time() - start_total
+        print(
+            f"[DEBUG]               build_question_instructions: create={create_time:.3f}s, build={build_time:.3f}s, capture={capture_time:.3f}s, total={total_time:.3f}s"
+        )
 
         return prompt
 
@@ -516,13 +551,75 @@ class PromptConstructor:
         Returns:
             Prompt: A prompt containing the relevant prior question memory
         """
+        import time
+
+        start_total = time.time()
+        print(f"[DEBUG]               prior_question_memory_prompt() started")
+
         from ..prompts import Prompt
 
         memory_prompt = Prompt(text="")
         if self.memory_plan is not None:
-            memory_prompt += self.create_memory_prompt(
-                self.question.question_name
-            ).render(self.scenario | self.prior_answers_dict())
+            start_memory = time.time()
+            memory_creation = self.create_memory_prompt(self.question.question_name)
+            memory_creation_time = time.time() - start_memory
+
+            start_render = time.time()
+            # OPTIMIZATION: Only pass scenario files that are actually referenced in the memory template
+            memory_template_variables = (
+                QuestionTemplateReplacementsBuilder.get_jinja2_variables(
+                    memory_creation.text
+                )
+            )
+            scenario_file_keys = [
+                key
+                for key, value in self.scenario.items()
+                if hasattr(value, "__class__") and "FileStore" in str(value.__class__)
+            ]
+
+            # Find which scenario files are actually referenced in the memory template
+            referenced_file_keys = []
+            for var in memory_template_variables:
+                if var in scenario_file_keys:
+                    referenced_file_keys.append(var)
+                elif var == "scenario":
+                    # Check for scenario.file_key patterns
+                    import re
+
+                    scenario_refs = re.findall(
+                        r"{{\\s*scenario\\.(\\w+)\\s*}}", memory_creation.text
+                    )
+                    for key in scenario_refs:
+                        if key in scenario_file_keys:
+                            referenced_file_keys.append(key)
+
+            # Only include referenced files and all non-file scenario items
+            optimized_scenario = {
+                k: v
+                for k, v in self.scenario.items()
+                if k not in scenario_file_keys or k in referenced_file_keys
+            }
+            print(
+                f"[DEBUG]                 MEMORY OPTIMIZATION: Processing {len(referenced_file_keys)} referenced files instead of {len(scenario_file_keys)} total files"
+            )
+
+            rendered_memory = memory_creation.render(
+                optimized_scenario | self.prior_answers_dict
+            )
+            render_time = time.time() - start_render
+
+            memory_prompt += rendered_memory
+
+            total_time = time.time() - start_total
+            print(
+                f"[DEBUG]               prior_memory: creation={memory_creation_time:.3f}s, render={render_time:.3f}s, total={total_time:.3f}s"
+            )
+        else:
+            total_time = time.time() - start_total
+            print(
+                f"[DEBUG]               prior_memory: no memory_plan, total={total_time:.3f}s"
+            )
+
         return memory_prompt
 
     def create_memory_prompt(self, question_name: str) -> "Prompt":
@@ -598,28 +695,60 @@ class PromptConstructor:
             - Handles file attachments if specified in the question
             - Returns a complete dictionary ready for use with the language model
         """
+        import time
+
+        start_total = time.time()
+        print(f"[DEBUG]           prompt_constructor.get_prompts() started")
+
         # Build all the components
+        start_agent_instr = time.time()
         agent_instructions = self.agent_instructions_prompt
+        agent_instr_time = time.time() - start_agent_instr
+
+        start_agent_persona = time.time()
         agent_persona = self.agent_persona_prompt
+        agent_persona_time = time.time() - start_agent_persona
+
+        start_question_instr = time.time()
         question_instructions = self.question_instructions_prompt
+        question_instr_time = time.time() - start_question_instr
+
+        start_prior_memory = time.time()
         prior_question_memory = self.prior_question_memory_prompt
+        prior_memory_time = time.time() - start_prior_memory
+
+        print(
+            f"[DEBUG]             Components: agent_instr={agent_instr_time:.3f}s, agent_persona={agent_persona_time:.3f}s, question_instr={question_instr_time:.3f}s, prior_memory={prior_memory_time:.3f}s"
+        )
 
         # Get components dict
+        start_components = time.time()
         components = {
             "agent_instructions": agent_instructions.text,
             "agent_persona": agent_persona.text,
             "question_instructions": question_instructions.text,
             "prior_question_memory": prior_question_memory.text,
         }
+        components_time = time.time() - start_components
 
+        start_prompt_plan = time.time()
         prompts = self.prompt_plan.get_prompts(**components)
+        prompt_plan_time = time.time() - start_prompt_plan
+
         # Handle file keys if present
+        start_file_keys = time.time()
         file_keys = self.file_keys_from_question
         if file_keys:
             files_list = []
             for key in file_keys:
                 files_list.append(self.scenario[key])
             prompts["files_list"] = files_list
+        file_keys_time = time.time() - start_file_keys
+
+        total_time = time.time() - start_total
+        print(
+            f"[DEBUG]             Timing: components={components_time:.3f}s, prompt_plan={prompt_plan_time:.3f}s, file_keys={file_keys_time:.3f}s, total={total_time:.3f}s"
+        )
 
         return prompts
 

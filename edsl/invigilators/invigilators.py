@@ -275,7 +275,21 @@ class InvigilatorAI(InvigilatorBase):
 
     def get_prompts(self) -> Dict[PromptType, "Prompt"]:
         """Return the prompts used."""
-        return self.prompt_constructor.get_prompts()
+        import time
+
+        start_total = time.time()
+        print(f"[DEBUG]         get_prompts() started")
+
+        start_constructor = time.time()
+        result = self.prompt_constructor.get_prompts()
+        constructor_time = time.time() - start_constructor
+
+        total_time = time.time() - start_total
+        print(
+            f"[DEBUG]         get_prompts() completed: constructor={constructor_time:.3f}s, total={total_time:.3f}s"
+        )
+
+        return result
 
     def get_captured_variables(self) -> dict:
         """Get the captured variables."""
@@ -378,7 +392,7 @@ class InvigilatorAI(InvigilatorBase):
         jinja2 template might be referencing these values with a dot notation.
 
         """
-        question_dict = survey.duplicate().question_names_to_questions()
+        question_dict = survey.duplicate().question_names_to_questions
 
         # iterates through the current answers and updates the question_dict (which is all questions)
         for other_question, answer in current_answers.items():
@@ -440,7 +454,7 @@ class InvigilatorAI(InvigilatorBase):
         try:
             # if the question has jinja parameters, it is easier to make a new question with the parameters
             if self.question.parameters:
-                prior_answers_dict = self.prompt_constructor.prior_answers_dict()
+                prior_answers_dict = self.prompt_constructor.prior_answers_dict
 
                 # question options have be treated differently because of dynamic question
                 # this logic is all in the prompt constructor
@@ -585,7 +599,7 @@ class InvigilatorFunctional(InvigilatorBase):
         """Return the answer to the question."""
         func = self.question.answer_question_directly
         # Get prior answers to make them available in the scenario context
-        prior_answers_dict = self.prompt_constructor.prior_answers_dict()
+        prior_answers_dict = self.prompt_constructor.prior_answers_dict
         # Combine scenario with prior answers and agent traits like other invigilators
         enriched_scenario = (
             self.scenario | prior_answers_dict | {"agent": self.agent.traits}

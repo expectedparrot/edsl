@@ -11,12 +11,11 @@ if TYPE_CHECKING:
 
 
 class QuestionTemplateReplacementsBuilder:
-
     @classmethod
     def from_prompt_constructor(cls, prompt_constructor: "PromptConstructor"):
         scenario = prompt_constructor.scenario
         question = prompt_constructor.question
-        prior_answers_dict = prompt_constructor.prior_answers_dict()
+        prior_answers_dict = prompt_constructor.prior_answers_dict
         agent = prompt_constructor.agent
 
         return cls(scenario, question, prior_answers_dict, agent)
@@ -185,14 +184,27 @@ class QuestionTemplateReplacementsBuilder:
         >>> q.by(s).prompts().select('user_prompt')
         Dataset([{'user_prompt': [Prompt(text=\"""How are you john?\""")]}])
         """
-        # File references dictionary
+        # OPTIMIZATION: Only process file keys that are actually referenced in the question
+        # Instead of processing ALL scenario file keys (could be 1000s), only process the ones
+        # that are actually used in the question template (typically 1-2)
+        referenced_file_keys = self.question_file_keys()
+        all_scenario_file_keys = self.scenario_file_keys()
+
+        # Debug logging to verify optimization
+        if len(all_scenario_file_keys) > 50:  # Only log for large scenarios
+            print(
+                f"[DEBUG]                     OPTIMIZATION: Processing {len(referenced_file_keys)} referenced files instead of {len(all_scenario_file_keys)} total files"
+            )
+
+        # File references dictionary - only for referenced files
         file_refs = {
-            key: replacement_string.format(key=key) for key in self.scenario_file_keys()
+            key: replacement_string.format(key=key) for key in referenced_file_keys
         }
 
-        # Scenario items excluding file keys
+        # Scenario items excluding ALL file keys (not just referenced ones)
+        # This maintains the same behavior as before for non-file scenario items
         scenario_items = {
-            k: v for k, v in self.scenario.items() if k not in self.scenario_file_keys()
+            k: v for k, v in self.scenario.items() if k not in all_scenario_file_keys
         }
         scenario_items_with_prefix = {"scenario": scenario_items}
 
