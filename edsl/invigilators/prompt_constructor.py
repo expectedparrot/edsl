@@ -558,6 +558,20 @@ class PromptConstructor:
 
         from ..prompts import Prompt
 
+        # OPTIMIZATION: Skip memory processing during cost estimation
+        # Since we don't have real answers yet, processing prior memory is pointless
+        try:
+            from ..jobs.jobs_pricing_estimation import is_cost_estimation
+
+            if is_cost_estimation():
+                print(
+                    f"[DEBUG]               COST ESTIMATION: Skipping prior memory processing"
+                )
+                return Prompt(text="")
+        except ImportError:
+            # Fallback if import fails
+            pass
+
         memory_prompt = Prompt(text="")
         if self.memory_plan is not None:
             start_memory = time.time()

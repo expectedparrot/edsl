@@ -250,8 +250,13 @@ class QuestionInstructionPromptBuilder:
 
         # Build replacement dict
         start_replacement = time.time()
+        print(f"[DEBUG]                     Starting build_replacement_dict()")
         replacement_dict = self.qtrb.build_replacement_dict(prompt_data["data"])
         replacement_time = time.time() - start_replacement
+        if replacement_time > 0.050:  # Log slow operations
+            print(
+                f"[DEBUG]                     SLOW build_replacement_dict took {replacement_time:.3f}s"
+            )
 
         # Render with dict
         start_render = time.time()

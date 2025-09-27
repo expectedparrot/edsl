@@ -1,5 +1,6 @@
 import logging
 import math
+import threading
 
 from typing import List, TYPE_CHECKING
 
@@ -15,6 +16,19 @@ if TYPE_CHECKING:
 from .fetch_invigilator import FetchInvigilator
 
 logger = logging.getLogger(__name__)
+
+# Thread-local storage for cost estimation context
+_cost_estimation_context = threading.local()
+
+
+def is_cost_estimation() -> bool:
+    """Check if we're currently in cost estimation mode."""
+    return getattr(_cost_estimation_context, "estimating_cost", False)
+
+
+def set_cost_estimation_mode(enabled: bool):
+    """Set cost estimation mode."""
+    _cost_estimation_context.estimating_cost = enabled
 
 
 class PromptCostEstimator:
@@ -312,6 +326,9 @@ class JobsPrompts:
         """
         import time
 
+        # Set cost estimation mode to skip expensive operations
+        set_cost_estimation_mode(True)
+
         start_total = time.time()
         print(f"[DEBUG] Starting estimate_job_cost_from_external_prices")
         print(f"[DEBUG] Number of interviews: {len(self.interviews)}")
@@ -436,6 +453,10 @@ class JobsPrompts:
         }
 
         print(f"[DEBUG] Total execution time: {time.time() - start_total:.3f}s")
+
+        # Reset cost estimation mode
+        set_cost_estimation_mode(False)
+
         return output
 
     def estimate_job_cost(self, iterations: int = 1) -> dict:

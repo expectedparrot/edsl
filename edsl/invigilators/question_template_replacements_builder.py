@@ -187,8 +187,27 @@ class QuestionTemplateReplacementsBuilder:
         # OPTIMIZATION: Only process file keys that are actually referenced in the question
         # Instead of processing ALL scenario file keys (could be 1000s), only process the ones
         # that are actually used in the question template (typically 1-2)
+        import time
+
+        start_scenario_repl = time.time()
+
+        start_file_keys = time.time()
         referenced_file_keys = self.question_file_keys()
+        file_keys_time = time.time() - start_file_keys
+
+        # MAJOR OPTIMIZATION: Skip all scenario processing if no files are referenced
+        if not referenced_file_keys:
+            # Return minimal scenario representation with just non-file items
+            # This avoids iterating through all 1000 scenario items
+            total_scenario_repl_time = time.time() - start_scenario_repl
+            print(
+                f"[DEBUG]                     FAST PATH: No file references, skipping scenario processing ({total_scenario_repl_time:.3f}s)"
+            )
+            return {"scenario": {}}
+
+        start_scenario_keys = time.time()
         all_scenario_file_keys = self.scenario_file_keys()
+        scenario_keys_time = time.time() - start_scenario_keys
 
         # Debug logging to verify optimization
         if len(all_scenario_file_keys) > 50:  # Only log for large scenarios
@@ -197,16 +216,26 @@ class QuestionTemplateReplacementsBuilder:
             )
 
         # File references dictionary - only for referenced files
+        start_file_refs = time.time()
         file_refs = {
             key: replacement_string.format(key=key) for key in referenced_file_keys
         }
+        file_refs_time = time.time() - start_file_refs
 
         # Scenario items excluding ALL file keys (not just referenced ones)
         # This maintains the same behavior as before for non-file scenario items
+        start_scenario_items = time.time()
         scenario_items = {
             k: v for k, v in self.scenario.items() if k not in all_scenario_file_keys
         }
         scenario_items_with_prefix = {"scenario": scenario_items}
+        scenario_items_time = time.time() - start_scenario_items
+
+        total_scenario_repl_time = time.time() - start_scenario_repl
+        if total_scenario_repl_time > 0.020:  # Log slow operations
+            print(
+                f"[DEBUG]                       SLOW _scenario_replacements: file_keys={file_keys_time:.3f}s, scenario_keys={scenario_keys_time:.3f}s, file_refs={file_refs_time:.3f}s, scenario_items={scenario_items_time:.3f}s, total={total_scenario_repl_time:.3f}s"
+            )
 
         return {**file_refs, **scenario_items, **scenario_items_with_prefix}
 
@@ -247,18 +276,37 @@ class QuestionTemplateReplacementsBuilder:
 
 
         """
+        import time
+
+        start_total = time.time()
+
         rpl = {}
+
+        start_scenario = time.time()
         rpl["scenario"] = self._scenario_replacements()
+        scenario_time = time.time() - start_scenario
+
+        start_question = time.time()
         rpl["question"] = self._question_data_replacements(self.question, question_data)
+        question_time = time.time() - start_question
+
         # rpl["prior_answers"] = self.prompt_constructor.prior_answers_dict()
         rpl["prior_answers"] = self.prior_answers_dict
         # rpl["agent"] = {"agent": self.prompt_constructor.agent}
         rpl["agent"] = {"agent": self.agent}
 
         # Combine all dictionaries using dict.update() for clarity
+        start_combine = time.time()
         replacement_dict = {}
         for r in rpl.values():
             replacement_dict.update(r)
+        combine_time = time.time() - start_combine
+
+        total_time = time.time() - start_total
+        if total_time > 0.050:  # Log slow operations
+            print(
+                f"[DEBUG]                       SLOW build_replacement_dict: scenario={scenario_time:.3f}s, question={question_time:.3f}s, combine={combine_time:.3f}s, total={total_time:.3f}s"
+            )
 
         return replacement_dict
 
