@@ -322,6 +322,12 @@ test-coop: ## Run Coop tests (no regular tests, requires Coop local server runni
 	make clean-test
 	pytest -xv tests --coop
 
+test-no-env: ## Run tests without .env file (like CI) using poetry environment
+	@if [ -f .env ]; then mv .env .env.backup; fi
+	@echo "Running tests in CI-like environment (no .env file, poetry environment)"
+	poetry run make test
+	@if [ -f .env.backup ]; then mv .env.backup .env; echo ".env file restored"; fi
+
 test-coverage: ## Run regular tests and get a coverage report. Use 'make test-coverage DIR' to generate coverage for specific directory
 	make clean-test
 	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \

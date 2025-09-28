@@ -389,7 +389,6 @@ class QuestionEDSLObject(QuestionBase):
             # First try question registry
             question_registry = RegisterQuestionsMeta.question_types_to_classes()
             object_class = question_registry.get(self.expected_object_type)
-
             # If not found in questions, try broader EDSL registry
             if object_class is None:
                 edsl_registry = RegisterSubclassesMeta.get_registry()
@@ -407,8 +406,7 @@ class QuestionEDSLObject(QuestionBase):
                     "edsl_version": "1.0.5.dev1",
                     "edsl_class_name": "Base"
                 }
-        except Exception:
-            # Fallback in case of any errors
+        except Exception as e:
             simulated_object = {
                 "object_type": self.expected_object_type,
                 "name": "example",
