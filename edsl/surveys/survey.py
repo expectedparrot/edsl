@@ -449,21 +449,8 @@ class Survey(Base):
 
     def question_names_to_questions(self) -> dict:
         """Return a dictionary mapping question names to question attributes."""
-        import time
-
-        start_time = time.time()
-        print(
-            f"DEBUG - survey.question_names_to_questions: called with {len(self.questions)} questions"
-        )
-
         # For performance: avoid expensive duplication, just return question references
         result = {q.question_name: q for q in self.questions}
-
-        total_time = time.time() - start_time
-        print(
-            f"DEBUG - survey.question_names_to_questions: no_duplication={total_time:.4f}s"
-        )
-
         return result
 
     @property
