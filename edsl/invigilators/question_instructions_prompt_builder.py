@@ -23,14 +23,30 @@ class QuestionInstructionPromptBuilder:
 
     @classmethod
     def from_prompt_constructor(cls, prompt_constructor: "PromptConstructor"):
+        import time
 
+        start_time = time.time()
+        print(
+            f"DEBUG - QuestionInstructionPromptBuilder.from_prompt_constructor called"
+        )
+
+        attrs_start = time.time()
         model = prompt_constructor.model
         survey = prompt_constructor.survey
         question = prompt_constructor.question
         scenario = prompt_constructor.scenario
+        attrs_time = time.time() - attrs_start
+
+        prior_start = time.time()
         prior_answers_dict = prompt_constructor.prior_answers_dict()
+        prior_time = time.time() - prior_start
+
+        agent_start = time.time()
         agent = prompt_constructor.agent
-        return cls(
+        agent_time = time.time() - agent_start
+
+        init_start = time.time()
+        instance = cls(
             prompt_constructor,
             model,
             survey,
@@ -39,6 +55,16 @@ class QuestionInstructionPromptBuilder:
             prior_answers_dict,
             agent,
         )
+        init_time = time.time() - init_start
+
+        total_time = time.time() - start_time
+        print(
+            f"DEBUG - QuestionInstructionPromptBuilder.from_prompt_constructor: "
+            f"attrs={attrs_time:.4f}s, prior_answers={prior_time:.4f}s, "
+            f"agent={agent_time:.4f}s, init={init_time:.4f}s, total={total_time:.4f}s"
+        )
+
+        return instance
 
     def __init__(
         self,
@@ -50,17 +76,30 @@ class QuestionInstructionPromptBuilder:
         prior_answers_dict: Dict[str, Any],
         agent: "Agent",
     ):
+        import time
 
+        start_time = time.time()
+        print(f"DEBUG - QuestionInstructionPromptBuilder.__init__ called")
+
+        qtrb_start = time.time()
         self.qtrb = QTRB(scenario, question, prior_answers_dict, agent)
+        qtrb_time = time.time() - qtrb_start
 
+        attrs_start = time.time()
         self.model = model
         self.survey = survey
         self.question = question
         self.agent = agent
         self.scenario = scenario
         self.prior_answers_dict = prior_answers_dict
-
         self.captured_variables = {}
+        attrs_time = time.time() - attrs_start
+
+        total_time = time.time() - start_time
+        print(
+            f"DEBUG - QuestionInstructionPromptBuilder.__init__: "
+            f"qtrb_create={qtrb_time:.4f}s, attrs={attrs_time:.4f}s, total={total_time:.4f}s"
+        )
 
     def build(self) -> "Prompt":
         """Builds the complete question instructions prompt with all necessary components.
@@ -107,24 +146,47 @@ class QuestionInstructionPromptBuilder:
         <BLANKLINE>
         After the answer, you can put a comment explaining why you chose that option on the next line.\""")
         """
+        import time
+
+        start_time = time.time()
+        print(f"DEBUG - QuestionInstructionPromptBuilder.build called")
+
         # Create base prompt
+        base_start = time.time()
         base_prompt = self._create_base_prompt()
+        base_time = time.time() - base_start
 
         # Enrich with options
+        enrich_start = time.time()
         enriched_prompt = self._enrich_with_question_options(
             prompt_data=base_prompt,
             scenario=self.scenario,
             prior_answers_dict=self.prior_answers_dict,
         )
+        enrich_time = time.time() - enrich_start
 
         # Render prompt
+        render_start = time.time()
         rendered_prompt = self._render_prompt(enriched_prompt)
+        render_time = time.time() - render_start
 
         # Validate template variables
+        validate_start = time.time()
         self._validate_template_variables(rendered_prompt)
+        validate_time = time.time() - validate_start
 
         # Append survey instructions
+        append_start = time.time()
         final_prompt = self._append_survey_instructions(rendered_prompt)
+        append_time = time.time() - append_start
+
+        total_time = time.time() - start_time
+        print(
+            f"DEBUG - QuestionInstructionPromptBuilder.build: "
+            f"base={base_time:.4f}s, enrich={enrich_time:.4f}s, "
+            f"render={render_time:.4f}s, validate={validate_time:.4f}s, "
+            f"append={append_time:.4f}s, total={total_time:.4f}s"
+        )
 
         return final_prompt
 
@@ -207,10 +269,10 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Dict: Enriched prompt data
         """
-        prompt_data["data"] = (
-            QuestionInstructionPromptBuilder._process_question_options(
-                prompt_data["data"], scenario, prior_answers_dict
-            )
+        prompt_data[
+            "data"
+        ] = QuestionInstructionPromptBuilder._process_question_options(
+            prompt_data["data"], scenario, prior_answers_dict
         )
         return prompt_data
 
