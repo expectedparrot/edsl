@@ -1,6 +1,5 @@
 from typing import Dict, Any, Optional, TYPE_CHECKING
 import weakref
-import time
 
 if TYPE_CHECKING:
     from ..questions import QuestionBase
@@ -71,13 +70,7 @@ class FetchInvigilator:
         :param question: the question to be answered
         :param debug: whether to use debug mode, in which case `InvigilatorDebug` is used.
         """
-        start_time = time.time()
-        print(
-            f"DEBUG - FetchInvigilator.get_invigilator called for question: {question.question_name}"
-        )
-
         # Use cached properties instead of accessing through the interview reference
-        create_start = time.time()
         invigilator = self._agent.create_invigilator(
             question=question,
             scenario=self._scenario,
@@ -89,12 +82,6 @@ class FetchInvigilator:
             cache=self._cache,
             raise_validation_errors=self._raise_validation_errors,
             key_lookup=self.key_lookup,
-        )
-        create_time = time.time() - create_start
-
-        total_time = time.time() - start_time
-        print(
-            f"DEBUG - FetchInvigilator.get_invigilator: create_invigilator={create_time:.4f}s, total={total_time:.4f}s"
         )
         return invigilator
 
