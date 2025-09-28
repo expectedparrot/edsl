@@ -1491,8 +1491,11 @@ class Jobs(Base):
 
         Example:
             >>> from edsl.jobs import Jobs
-            >>> job = Jobs.example()
-            >>> results = job.run_batch(num_batches=2, disable_remote_inference=True)
+            >>> from edsl import Model
+            >>> job = Jobs.example().by(Model('test'))
+            >>> results = job.run_batch(num_batches=2, disable_remote_inference=True, progress_bar=False) # doctest: +ELLIPSIS
+            >>> len(results) > 0
+            True
 
         """
         import random
@@ -1521,24 +1524,36 @@ class Jobs(Base):
         )
         config = RunConfig(environment=environment, parameters=parameters)
 
+        import time
+        start_time = time.time()
+        print(f"[DEBUG] Starting batch execution with {num_batches} batches at {time.time():.3f}")
         self._logger.info(f"Starting batch execution with {num_batches} batches")
         self._logger.info(
             f"Job configuration: {self.num_interviews} total interviews, "
             f"remote_inference={'disabled' if config.parameters.disable_remote_inference else 'enabled'}, "
             f"progress_bar={config.parameters.progress_bar}"
         )
+        print(f"[DEBUG] Config setup completed in {time.time() - start_time:.3f}s")
 
         # Handle job dependencies first
         if self._depends_on is not None:
+            dep_start = time.time()
+            print(f"[DEBUG] Starting dependency resolution at {time.time():.3f}")
             self._logger.info("Checking job dependencies")
             prior_results = self._depends_on.run(config=config)
             self = self.by(prior_results)
             self._logger.info("Job dependencies resolved successfully")
+            print(f"[DEBUG] Dependencies resolved in {time.time() - dep_start:.3f}s")
+        else:
+            print(f"[DEBUG] No dependencies to resolve")
 
         # Get all interviews and create a list with original indices
+        interview_gen_start = time.time()
+        print(f"[DEBUG] Starting interview generation at {time.time():.3f}")
         self._logger.info("Generating interviews and preserving original ordering")
         all_interviews = list(self.generate_interviews())
         total_interviews = len(all_interviews)
+        print(f"[DEBUG] Generated {total_interviews} interviews in {time.time() - interview_gen_start:.3f}s")
 
         if num_batches > total_interviews:
             self._logger.warning(f"num_batches ({num_batches}) is greater than total interviews ({total_interviews}), adjusting to {total_interviews}")
@@ -1548,8 +1563,11 @@ class Jobs(Base):
         indexed_interviews = list(enumerate(all_interviews))
 
         # Shuffle to ensure even distribution of models/agents/scenarios across batches
+        shuffle_start = time.time()
+        print(f"[DEBUG] Starting shuffle at {time.time():.3f}")
         random.shuffle(indexed_interviews)
         self._logger.info("Shuffled interviews for even distribution across batches")
+        print(f"[DEBUG] Shuffle completed in {time.time() - shuffle_start:.3f}s")
 
         # Split into batches
         batch_size = len(indexed_interviews) // num_batches
@@ -1564,44 +1582,63 @@ class Jobs(Base):
             batches.append(indexed_interviews[start_idx:end_idx])
             start_idx = end_idx
 
+        batch_split_time = time.time()
         self._logger.info(f"Split interviews into {num_batches} batches: {[len(batch) for batch in batches]}")
+        print(f"[DEBUG] Batch splitting completed in {batch_split_time - start_time:.3f}s total")
 
         # Run each batch separately
         batch_results = []
+        print(f"[DEBUG] Starting batch execution loop at {time.time():.3f}")
         for i, batch in enumerate(batches):
             if not batch:  # Skip empty batches
                 continue
 
+            batch_start = time.time()
+            print(f"[DEBUG] Starting batch {i+1}/{num_batches} at {time.time():.3f}")
             self._logger.info(f"Running batch {i+1}/{num_batches} with {len(batch)} interviews")
 
             # Extract just the interviews (without original indices) for this batch
+            extract_start = time.time()
             batch_interviews = [interview for _, interview in batch]
+            print(f"[DEBUG] Batch {i+1}: extracted interviews in {time.time() - extract_start:.3f}s")
 
             # Create a job for this batch
+            job_create_start = time.time()
             batch_job = Jobs.from_interviews(batch_interviews)
+            print(f"[DEBUG] Batch {i+1}: created job in {time.time() - job_create_start:.3f}s")
 
             # Run the batch job with the same config
+            run_start = time.time()
+            print(f"[DEBUG] Batch {i+1}: starting run() at {time.time():.3f}")
             batch_result = batch_job.run(config=config)
+            print(f"[DEBUG] Batch {i+1}: run() completed in {time.time() - run_start:.3f}s")
 
             if batch_result is not None:
                 # Add original indices back to results for proper ordering
+                ordering_start = time.time()
                 for j, result in enumerate(batch_result.data):
                     if j < len(batch):  # Safety check
                         original_index = batch[j][0]  # Get original index from batch
                         result.order = original_index
                     else:
                         self._logger.warning(f"Batch {i+1}: more results ({len(batch_result.data)}) than expected ({len(batch)})")
+                print(f"[DEBUG] Batch {i+1}: ordering completed in {time.time() - ordering_start:.3f}s")
 
                 batch_results.append(batch_result)
                 self._logger.info(f"Batch {i+1} completed with {len(batch_result)} results")
+                print(f"[DEBUG] Batch {i+1}: total time {time.time() - batch_start:.3f}s")
             else:
                 self._logger.warning(f"Batch {i+1} returned None results")
+                print(f"[DEBUG] Batch {i+1}: returned None in {time.time() - batch_start:.3f}s")
 
         if not batch_results:
             self._logger.warning("No batch results to merge")
+            print(f"[DEBUG] No batch results to merge, returning None")
             return None
 
         # Merge all batch results while preserving original order
+        merge_start = time.time()
+        print(f"[DEBUG] Starting result merging at {time.time():.3f}")
         self._logger.info("Merging batch results and restoring original order")
         final_results = Results(
             survey=self.survey,
@@ -1610,6 +1647,7 @@ class Jobs(Base):
         )
 
         # Collect all individual results from all batches
+        collect_start = time.time()
         all_results = []
         all_task_histories = []
         for batch_result in batch_results:
@@ -1617,29 +1655,41 @@ class Jobs(Base):
             # Collect task histories for merging
             if batch_result.task_history:
                 all_task_histories.append(batch_result.task_history)
+        print(f"[DEBUG] Result collection completed in {time.time() - collect_start:.3f}s")
 
         # Sort results by their original order
+        sort_start = time.time()
         all_results.sort(key=lambda x: x.order)
         final_results.data = all_results
+        print(f"[DEBUG] Result sorting completed in {time.time() - sort_start:.3f}s")
 
         # Merge task histories - create a new TaskHistory with all interviews
         if all_task_histories:
+            history_start = time.time()
             merged_task_history = TaskHistory()
             for task_history in all_task_histories:
                 # Add each interview from the task history to the merged one
                 for interview in task_history.total_interviews:
                     merged_task_history.add_interview(interview)
             final_results.task_history = merged_task_history
+            print(f"[DEBUG] Task history merging completed in {time.time() - history_start:.3f}s")
 
         # Merge other attributes from the first batch result
         if batch_results:
             first_batch = batch_results[0]
             final_results.cache = first_batch.cache
-            final_results.bucket_collection = first_batch.bucket_collection
+            # Only set bucket_collection if it exists on the first batch
+            if hasattr(first_batch, 'bucket_collection'):
+                final_results.bucket_collection = first_batch.bucket_collection
 
+        post_run_start = time.time()
+        print(f"[DEBUG] Starting post-run methods at {time.time():.3f}")
         self._logger.info("Applying post-run methods to merged results")
         final_results = self._apply_post_run_methods(final_results)
+        print(f"[DEBUG] Post-run methods completed in {time.time() - post_run_start:.3f}s")
 
+        total_time = time.time() - start_time
+        print(f"[DEBUG] Total batch execution time: {total_time:.3f}s")
         self._logger.info(
             f"Batch execution completed successfully with {len(final_results) if final_results else 0} results"
         )

@@ -89,6 +89,36 @@ class AgentBlueprint:
 
         self.scenario_list = scenario_list
 
+    def __repr__(self) -> str:  # pragma: no cover
+        """Return a concise, human-friendly summary of dimensions and values.
+
+        Example output (weights shown only when relevant):
+
+            AgentBlueprint: 3 dimensions, 18 combinations (seed=42, cycle=True)
+              - politics [3]: 'left', 'right', 'center'
+              - age [3]: '18-25':2, '26-35':3, '36-45':1
+              - gender [2]: 'male', 'female'
+        """
+        header = (
+            f"AgentBlueprint: {len(self.dimensions)} dimensions, {self._total_combinations} combinations "
+            f"(seed={self.seed}, cycle={self.cycle})"
+        )
+
+        lines: list[str] = [header]
+        for dim_name in self.dimensions:
+            dim = self._dimension_map[dim_name]
+            # Show weights only if any weight differs from the default 1.0
+            show_weights = any(dv.weight != 1.0 for dv in dim.values)
+            if show_weights:
+                values_repr = ", ".join(
+                    f"{dv.value!r}:{dv.weight:g}" for dv in dim.values
+                )
+            else:
+                values_repr = ", ".join(repr(v) for v in dim.to_plain_list())
+            lines.append(f"  - {dim_name} [{len(dim)}]: {values_repr}")
+
+        return "\n".join(lines)
+
     # ---------------------------------------------------------------------
     # Internal helpers
     # ---------------------------------------------------------------------
