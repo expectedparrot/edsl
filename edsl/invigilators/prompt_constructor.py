@@ -4,6 +4,9 @@ from functools import cached_property
 import logging
 import time
 
+# Module-level cache for prior_answers_dict to avoid recomputation across questions
+_prior_answers_dict_cache = {}
+
 from .prompt_helpers import PromptPlan
 from .question_template_replacements_builder import (
     QuestionTemplateReplacementsBuilder,

@@ -285,14 +285,32 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Prompt: Rendered instructions
         """
+        import time
+
+        start_time = time.time()
+
         # Build replacement dict
+        dict_start = time.time()
         replacement_dict = self.qtrb.build_replacement_dict(prompt_data["data"])
+        dict_time = time.time() - dict_start
 
         # Render with dict
+        render_start = time.time()
         rendered_prompt = prompt_data["prompt"].render(replacement_dict)
+        render_time = time.time() - render_start
+
+        # Handle captured variables
+        captured_start = time.time()
         if rendered_prompt.captured_variables:
             self.captured_variables.update(rendered_prompt.captured_variables)
             # print(f"Captured variables in QIPB: {self.captured_variables}")
+        captured_time = time.time() - captured_start
+
+        total_time = time.time() - start_time
+        print(
+            f"DEBUG - _render_prompt: build_dict={dict_time:.4f}s, render={render_time:.4f}s, captured={captured_time:.4f}s, total={total_time:.4f}s"
+        )
+
         return rendered_prompt
 
     def _validate_template_variables(self, rendered_prompt: "Prompt") -> None:
