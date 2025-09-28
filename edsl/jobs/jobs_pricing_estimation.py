@@ -247,20 +247,39 @@ class JobsPrompts:
         >>> Jobs.example().prompts()
         Dataset(...)
         """
+        import time
         from ..dataset import Dataset
 
-        print("CALLING prompts")
+        start_time = time.time()
+        print(
+            f"DEBUG - JobsPrompts.prompts() called with {len(self.interviews)} interviews, {iterations} iterations"
+        )
+
+        # Initialize dataset
+        init_start = time.time()
         dataset_of_prompts = {k: [] for k in self.relevant_keys}
-
         interviews = self.interviews
+        init_time = time.time() - init_start
 
-        # Process each interview and invigilator
+        # Process interviews
+        interview_processing_start = time.time()
+        total_invigilator_creation_time = 0
+        total_invigilator_processing_time = 0
+
         for interview_index, interview in enumerate(interviews):
+            interview_start = time.time()
+
+            # Create invigilators
+            invig_creation_start = time.time()
             invigilators = [
                 FetchInvigilator(interview)(question)
                 for question in interview.survey.questions
             ]
+            invig_creation_time = time.time() - invig_creation_start
+            total_invigilator_creation_time += invig_creation_time
 
+            # Process invigilators
+            invig_processing_start = time.time()
             for invigilator in invigilators:
                 # Process the invigilator and get all data as a dictionary
                 data = self._process_one_invigilator(
@@ -268,8 +287,36 @@ class JobsPrompts:
                 )
                 for k in self.relevant_keys:
                     dataset_of_prompts[k].append(data[k])
+            invig_processing_time = time.time() - invig_processing_start
+            total_invigilator_processing_time += invig_processing_time
 
-        return Dataset([{k: dataset_of_prompts[k]} for k in self.relevant_keys])
+            interview_time = time.time() - interview_start
+            print(
+                f"DEBUG - Interview {interview_index}: invig_creation={invig_creation_time:.4f}s, invig_processing={invig_processing_time:.4f}s, total={interview_time:.4f}s"
+            )
+
+        # Create final dataset
+        dataset_creation_start = time.time()
+        result = Dataset([{k: dataset_of_prompts[k]} for k in self.relevant_keys])
+        dataset_creation_time = time.time() - dataset_creation_start
+
+        total_time = time.time() - start_time
+        print(f"DEBUG - JobsPrompts.prompts() BREAKDOWN:")
+        print(
+            f"DEBUG -   Initialization: {init_time:.4f}s ({init_time/total_time*100:.1f}%)"
+        )
+        print(
+            f"DEBUG -   Invigilator Creation: {total_invigilator_creation_time:.4f}s ({total_invigilator_creation_time/total_time*100:.1f}%)"
+        )
+        print(
+            f"DEBUG -   Invigilator Processing: {total_invigilator_processing_time:.4f}s ({total_invigilator_processing_time/total_time*100:.1f}%)"
+        )
+        print(
+            f"DEBUG -   Dataset Creation: {dataset_creation_time:.4f}s ({dataset_creation_time/total_time*100:.1f}%)"
+        )
+        print(f"DEBUG -   Total Time: {total_time:.4f}s")
+
+        return result
 
     @staticmethod
     def estimate_prompt_cost(
