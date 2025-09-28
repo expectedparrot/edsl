@@ -19,8 +19,8 @@ class ModelList(Base, UserList):
     def __init__(self, data: Optional["LanguageModel"] = None):
         """Initialize the ModelList class.
 
-        >>> from edsl import Model
-        >>> m = ModelList.from_scenario_list(Model.available())
+        # >>> from edsl import Model
+        # >>> m = ModelList.from_scenario_list(Model.available())
 
         """
         if data is not None:

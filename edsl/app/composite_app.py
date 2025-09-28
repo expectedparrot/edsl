@@ -28,6 +28,8 @@ class CompositeApp:
 
         Args:
             first_app: The app executed first to produce initial output.
+            pipe: The `ObjectFormatter` that transforms the first app's output
+                into the parameters expected by the second app.
             second_app: The app executed after transformation; receives the
                 transformed output as its `params`.
             pipe: The `ObjectFormatter` that transforms the first app's output
