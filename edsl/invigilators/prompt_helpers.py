@@ -136,10 +136,28 @@ class PromptPlan:
 
     def get_prompts(self, **kwargs) -> Dict[str, "Prompt"]:
         """Get both prompts for the LLM call."""
+        import time
+
+        start_time = time.time()
+        print(f"DEBUG - PromptPlan.get_prompts called")
+
         from ..prompts import Prompt
 
+        arrange_start = time.time()
         prompts = self.arrange_components(**kwargs)
-        return {
+        arrange_time = time.time() - arrange_start
+
+        create_start = time.time()
+        result = {
             "user_prompt": Prompt("".join(str(p) for p in prompts["user_prompt"])),
             "system_prompt": Prompt("".join(str(p) for p in prompts["system_prompt"])),
         }
+        create_time = time.time() - create_start
+
+        total_time = time.time() - start_time
+        print(
+            f"DEBUG - PromptPlan.get_prompts: arrange={arrange_time:.4f}s, "
+            f"create={create_time:.4f}s, total={total_time:.4f}s"
+        )
+
+        return result

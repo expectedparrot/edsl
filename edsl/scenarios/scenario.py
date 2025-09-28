@@ -79,7 +79,11 @@ class Scenario(Base, UserDict):
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/scenarios.html"
 
-    def __init__(self, data: Optional[Union[Dict[str, Any], Mapping[str, Any]]] = None, name: Optional[str] = None):
+    def __init__(
+        self,
+        data: Optional[Union[Dict[str, Any], Mapping[str, Any]]] = None,
+        name: Optional[str] = None,
+    ):
         """
         Initialize a new Scenario.
 
@@ -142,7 +146,6 @@ class Scenario(Base, UserDict):
             raise TypeError(
                 f"Cannot multiply Scenario with {type(scenario_list_or_scenario)}"
             )
-        
 
     def replicate(self, n: int) -> "ScenarioList":
         """Replicate a scenario n times to return a ScenarioList.
@@ -163,7 +166,7 @@ class Scenario(Base, UserDict):
         """
         if n < 0:
             raise ValueError("Number of replications must be non-negative")
-            
+
         from .scenario_list import ScenarioList
 
         return ScenarioList([copy.deepcopy(self) for _ in range(n)])
@@ -261,7 +264,9 @@ class Scenario(Base, UserDict):
         """
         if isinstance(old_name_or_replacement_dict, str):
             if new_name is None:
-                raise TypeError("new_name must be provided when old_name_or_replacement_dict is a string")
+                raise TypeError(
+                    "new_name must be provided when old_name_or_replacement_dict is a string"
+                )
             replacement_dict = {old_name_or_replacement_dict: new_name}
         else:
             replacement_dict = old_name_or_replacement_dict
@@ -330,7 +335,7 @@ class Scenario(Base, UserDict):
         This method delegates to ScenarioOffloader for the actual offloading logic.
         It handles three types of base64 content:
         1. Direct base64_string in the scenario (from FileStore.to_dict())
-        2. FileStore objects containing base64 content  
+        2. FileStore objects containing base64 content
         3. Dictionary values containing base64_string fields
 
         Args:
@@ -357,9 +362,12 @@ class Scenario(Base, UserDict):
             'offloaded'
         """
         from .scenario_offloader import ScenarioOffloader
+
         return ScenarioOffloader(self).offload(inplace)
 
-    def save_to_gcs_bucket(self, signed_url_or_dict: Union[str, Dict[str, str]]) -> Dict[str, Any]:
+    def save_to_gcs_bucket(
+        self, signed_url_or_dict: Union[str, Dict[str, str]]
+    ) -> Dict[str, Any]:
         """
         Saves FileStore objects contained within this Scenario to a Google Cloud Storage bucket.
 
@@ -381,6 +389,7 @@ class Scenario(Base, UserDict):
             requests.RequestException: If any upload fails
         """
         from .scenario_gcs import ScenarioGCS
+
         return ScenarioGCS(self).save_to_gcs_bucket(signed_url_or_dict)
 
     def get_filestore_info(self) -> Dict[str, Any]:
@@ -402,6 +411,7 @@ class Scenario(Base, UserDict):
 
         """
         from .scenario_gcs import ScenarioGCS
+
         return ScenarioGCS(self).get_filestore_info()
 
     def to(self, question_or_survey: Union["Question", "Survey"]) -> "Jobs":
@@ -444,6 +454,7 @@ class Scenario(Base, UserDict):
             )
 
         import webbrowser
+
         webbrowser.open(urls[position])
 
     def to_dict(
@@ -467,6 +478,7 @@ class Scenario(Base, UserDict):
 
         """
         from .scenario_serializer import ScenarioSerializer
+
         return ScenarioSerializer(self).to_dict(add_edsl_version, offload_base64)
 
     def __hash__(self) -> int:
@@ -478,7 +490,9 @@ class Scenario(Base, UserDict):
         >>> hash(s)
         1153210385458344214
         """
+        print("Compute hash called", type(self))
         from .scenario_serializer import ScenarioSerializer
+
         return ScenarioSerializer(self).compute_hash()
 
     def __repr__(self):
@@ -492,13 +506,14 @@ class Scenario(Base, UserDict):
         Dataset([{'key': ['food']}, {'value': ['wood chips']}])
         """
         from .scenario_serializer import ScenarioSerializer
+
         return ScenarioSerializer(self).to_dataset()
 
     def select(self, *args: Union[str, Iterable[str]]) -> "Scenario":
         """Select a subset of keys from a scenario.
 
         This method delegates to ScenarioSelector for the actual selection logic.
-        It supports both individual string arguments and collection arguments 
+        It supports both individual string arguments and collection arguments
         for backward compatibility.
 
         Args:
@@ -528,13 +543,14 @@ class Scenario(Base, UserDict):
             Scenario({'food': 'wood chips'})
         """
         from .scenario_selector import ScenarioSelector
+
         return ScenarioSelector(self).select(*args)
 
     def drop(self, *args: Union[str, Iterable[str]]) -> "Scenario":
         """Drop a subset of keys from a scenario.
 
         This method delegates to ScenarioSelector for the actual dropping logic.
-        It supports both individual string arguments and collection arguments 
+        It supports both individual string arguments and collection arguments
         for backward compatibility.
 
         Args:
@@ -563,6 +579,7 @@ class Scenario(Base, UserDict):
             Scenario({'food': 'wood chips', 'dessert': 'cookies'})
         """
         from .scenario_selector import ScenarioSelector
+
         return ScenarioSelector(self).drop(*args)
 
     def keep(self, *args: Union[str, Iterable[str]]) -> "Scenario":
@@ -594,6 +611,7 @@ class Scenario(Base, UserDict):
             Scenario({'food': 'wood chips', 'drink': 'water'})
         """
         from .scenario_selector import ScenarioSelector
+
         return ScenarioSelector(self).keep(*args)
 
     @classmethod
@@ -636,6 +654,7 @@ class Scenario(Base, UserDict):
             - When using BeautifulSoup, it extracts text from paragraph and heading tags.
         """
         from .scenario_factory import ScenarioFactory
+
         return ScenarioFactory.from_url(url, field_name, testing)
 
     @classmethod
@@ -672,6 +691,7 @@ class Scenario(Base, UserDict):
               and manage file operations appropriate to the file type
         """
         from .scenario_factory import ScenarioFactory
+
         return ScenarioFactory.from_file(file_path, field_name)
 
     @classmethod
@@ -710,6 +730,7 @@ class Scenario(Base, UserDict):
             - The image is stored as a base64-encoded string for portability
         """
         from .scenario_factory import ScenarioFactory
+
         return ScenarioFactory.from_image(image_path, image_name)
 
     @classmethod
@@ -743,6 +764,7 @@ class Scenario(Base, UserDict):
             - The extraction process parses the PDF to maintain structure where possible
         """
         from .scenario_factory import ScenarioFactory
+
         return ScenarioFactory.from_pdf(pdf_path)
 
     @classmethod
@@ -781,9 +803,8 @@ class Scenario(Base, UserDict):
             - Useful when the HTML structure or specific elements are needed
         """
         from .scenario_factory import ScenarioFactory
+
         return ScenarioFactory.from_html(url, field_name)
-
-
 
     @classmethod
     def from_pdf_to_image(cls, pdf_path: str, image_format: str = "jpeg") -> "Scenario":
@@ -822,6 +843,7 @@ class Scenario(Base, UserDict):
             - Images are created in a temporary directory which is automatically cleaned up
         """
         from .scenario_factory import ScenarioFactory
+
         return ScenarioFactory.from_pdf_to_image(pdf_path, image_format)
 
     @classmethod
@@ -860,6 +882,7 @@ class Scenario(Base, UserDict):
             - Requires the python-docx library to be installed
         """
         from .scenario_factory import ScenarioFactory
+
         return ScenarioFactory.from_docx(docx_path)
 
     def chunk(
@@ -963,6 +986,7 @@ class Scenario(Base, UserDict):
             - This method is commonly used when deserializing scenarios from JSON or other formats
         """
         from .scenario_serializer import ScenarioSerializer
+
         return ScenarioSerializer.from_dict(d)
 
     def _table(self) -> tuple[List[Dict[str, str]], List[str]]:
@@ -1008,6 +1032,7 @@ class Scenario(Base, UserDict):
             True
         """
         from .scenario_factory import ScenarioFactory
+
         return ScenarioFactory.example(randomize)
 
     def code(self) -> List[str]:

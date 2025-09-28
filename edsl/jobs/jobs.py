@@ -502,9 +502,38 @@ class Jobs(Base):
             dict: Cost estimation details.
 
         """
-        return JobsPrompts.from_jobs(self).estimate_job_cost_from_external_prices(
+        import time
+
+        start_time = time.time()
+
+        print(
+            f"DEBUG - Jobs.estimate_job_cost_from_external_prices called with iterations={iterations}"
+        )
+
+        # Create JobsPrompts object
+        prompts_creation_start = time.time()
+        jobs_prompts = JobsPrompts.from_jobs(self)
+        prompts_creation_time = time.time() - prompts_creation_start
+        print(
+            f"DEBUG - JobsPrompts.from_jobs() completed in {prompts_creation_time:.4f}s"
+        )
+
+        # Call the actual estimation method
+        estimation_start = time.time()
+        result = jobs_prompts.estimate_job_cost_from_external_prices(
             price_lookup, iterations
         )
+        estimation_time = time.time() - estimation_start
+        print(
+            f"DEBUG - JobsPrompts.estimate_job_cost_from_external_prices() completed in {estimation_time:.4f}s"
+        )
+
+        total_time = time.time() - start_time
+        print(
+            f"DEBUG - Jobs.estimate_job_cost_from_external_prices total time: {total_time:.4f}s"
+        )
+
+        return result
 
     @staticmethod
     def compute_job_cost(job_results: Results) -> float:
@@ -574,10 +603,10 @@ class Jobs(Base):
             ).show_flow(filename=filename)
 
     def push(self, *args, **kwargs) -> None:
-        """Push the job to the remote server.
-        """
-        from ..agents import AgentList 
+        """Push the job to the remote server."""
+        from ..agents import AgentList
         from ..scenarios import ScenarioList
+
         survey_info = self.survey.push()
         agent_info = AgentList(self.agents).push()
         scenario_info = ScenarioList(self.scenarios).push()
@@ -594,8 +623,8 @@ class Jobs(Base):
         #         add_edsl_version=add_edsl_version
         #     )
 
-        return {'survey': survey_info, 'agents': agent_info, 'scenarios': scenario_info}
-        
+        return {"survey": survey_info, "agents": agent_info, "scenarios": scenario_info}
+
         # [agent.push() for agent in self.agents]
 
         #  d = {
@@ -629,7 +658,18 @@ class Jobs(Base):
         >>> j.interviews()[0]
         Interview(agent = Agent(traits = {'status': 'Joyful'}), survey = Survey(...), scenario = Scenario({'period': 'morning'}), model = Model(...))
         """
-        return list(self.generate_interviews())
+        import time
+
+        start_time = time.time()
+        print(f"DEBUG - Jobs.interviews() called")
+
+        result = list(self.generate_interviews())
+
+        total_time = time.time() - start_time
+        print(
+            f"DEBUG - Jobs.interviews() completed in {total_time:.4f}s, generated {len(result)} interviews"
+        )
+        return result
 
     @classmethod
     def from_interviews(cls, interview_list: list["Interview"]) -> Jobs:
