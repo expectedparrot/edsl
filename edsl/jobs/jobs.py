@@ -448,7 +448,8 @@ class Jobs(Base):
         >>> Jobs.example().prompts()
         Dataset(...)
         """
-        return JobsPrompts.from_jobs(self).prompts(iterations=iterations)
+        jobs_prompts = JobsPrompts.from_jobs(self)
+        return jobs_prompts.prompts(iterations=iterations)
 
     def show_prompts(self, all: bool = False) -> None:
         """Print the prompts."""
@@ -502,9 +503,15 @@ class Jobs(Base):
             dict: Cost estimation details.
 
         """
-        return JobsPrompts.from_jobs(self).estimate_job_cost_from_external_prices(
+        # Create JobsPrompts object
+        jobs_prompts = JobsPrompts.from_jobs(self)
+
+        # Call the actual estimation method
+        result = jobs_prompts.estimate_job_cost_from_external_prices(
             price_lookup, iterations
         )
+
+        return result
 
     @staticmethod
     def compute_job_cost(job_results: Results) -> float:
@@ -629,7 +636,8 @@ class Jobs(Base):
         >>> j.interviews()[0]
         Interview(agent = Agent(traits = {'status': 'Joyful'}), survey = Survey(...), scenario = Scenario({'period': 'morning'}), model = Model(...))
         """
-        return list(self.generate_interviews())
+        result = list(self.generate_interviews())
+        return result
 
     @classmethod
     def from_interviews(cls, interview_list: list["Interview"]) -> Jobs:
