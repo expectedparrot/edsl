@@ -5,6 +5,7 @@ SurveyInputApp = App
 
 # Common app types
 from .ranking_app import RankingApp
+from .true_skill_app import TrueSkillApp
 from .person_simulator import PersonSimulator
 from .data_labeling_app import DataLabelingApp, DataLabelingParams
 

@@ -2217,6 +2217,55 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             item_field=item_field
         )
 
+    def to_true_skill_ranked_list(
+        self,
+        option_fields: Sequence[str],
+        answer_field: str,
+        include_rank: bool = True,
+        rank_field: str = "rank",
+        item_field: str = "item",
+        mu_field: str = "mu",
+        sigma_field: str = "sigma",
+        conservative_rating_field: str = "conservative_rating",
+        initial_mu: float = 25.0,
+        initial_sigma: float = 8.333,
+        beta: float = None,
+        tau: float = None
+    ) -> "ScenarioList":
+        """Convert the ScenarioList to a ranked ScenarioList using TrueSkill algorithm.
+        Args:
+            option_fields: List of scenario column names containing options to compare.
+            answer_field: Name of the answer column containing the ranking order.
+            include_rank: If True, include a rank field on each returned Scenario.
+            rank_field: Name of the rank field to include when include_rank is True.
+            item_field: Field name used to store the ranked item value on each Scenario.
+            mu_field: Field name for TrueSkill mu (skill estimate) value.
+            sigma_field: Field name for TrueSkill sigma (uncertainty) value.
+            conservative_rating_field: Field name for conservative rating (mu - 3*sigma).
+            initial_mu: Initial skill rating (default 25.0).
+            initial_sigma: Initial uncertainty (default 8.333).
+            beta: Skill class width (defaults to initial_sigma/2).
+            tau: Dynamics factor (defaults to initial_sigma/300).
+        Returns:
+            ScenarioList ordered best-to-worst according to TrueSkill ranking.
+        """
+        from .true_skill_algorithm import results_to_true_skill_ranked_list
+        return results_to_true_skill_ranked_list(
+            self,
+            option_fields=option_fields,
+            answer_field=answer_field,
+            include_rank=include_rank,
+            rank_field=rank_field,
+            item_field=item_field,
+            mu_field=mu_field,
+            sigma_field=sigma_field,
+            conservative_rating_field=conservative_rating_field,
+            initial_mu=initial_mu,
+            initial_sigma=initial_sigma,
+            beta=beta,
+            tau=tau
+        )
+
     def chunk(
         self,
         field,
@@ -2557,6 +2606,63 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 new_sl.append(Scenario(new_scenario))
             return new_sl
 
+
+    def create_conjoint_comparisons(
+        self,
+        attribute_field: str = 'attribute',
+        levels_field: str = 'levels',
+        count: int = 1,
+        random_seed: Optional[int] = None
+    ) -> "ScenarioList":
+        """
+        Generate random product profiles for conjoint analysis from attribute definitions.
+
+        This method uses the current ScenarioList (which should contain attribute definitions)
+        to create random product profiles by sampling from the attribute levels. Each scenario
+        in the current list should represent one attribute with its possible levels.
+
+        Args:
+            attribute_field: Field name containing the attribute names (default: 'attribute')
+            levels_field: Field name containing the list of levels (default: 'levels')
+            count: Number of product profiles to generate (default: 1)
+            random_seed: Optional seed for reproducible random sampling
+
+        Returns:
+            ScenarioList containing randomly generated product profiles
+
+        Example:
+            >>> from edsl.scenarios import ScenarioList, Scenario
+            >>> # Create attribute definitions
+            >>> attributes = ScenarioList([
+            ...     Scenario({'attribute': 'price', 'levels': ['$100', '$200', '$300']}),
+            ...     Scenario({'attribute': 'color', 'levels': ['Red', 'Blue', 'Green']}),
+            ...     Scenario({'attribute': 'size', 'levels': ['Small', 'Medium', 'Large']})
+            ... ])
+            >>> # Generate conjoint profiles
+            >>> profiles = attributes.create_conjoint_comparisons(count=3, random_seed=42)
+            >>> len(profiles)
+            3
+            >>> # Each profile will have price, color, and size with random values
+
+        Raises:
+            ScenarioError: If the current ScenarioList doesn't have the required fields
+            ValueError: If count is not positive
+        """
+        from .conjoint_profile_generator import ConjointProfileGenerator
+
+        if count <= 0:
+            raise ValueError("Count must be positive")
+
+        # Create the generator with the current ScenarioList
+        generator = ConjointProfileGenerator(
+            self,
+            attribute_field=attribute_field,
+            levels_field=levels_field,
+            random_seed=random_seed
+        )
+
+        # Generate the requested number of profiles
+        return generator.generate_batch(count)
 
     @classmethod
     def from_source(cls, source_type: str, *args, **kwargs) -> "ScenarioList":
