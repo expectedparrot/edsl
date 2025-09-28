@@ -385,18 +385,39 @@ class QuestionTemplateReplacementsBuilder:
 
 
         """
+        import time
+
+        start_time = time.time()
+
         rpl = {}
+
+        scenario_start = time.time()
         rpl["scenario"] = self._scenario_replacements()
+        scenario_time = time.time() - scenario_start
+
+        question_start = time.time()
         rpl["question"] = self._question_data_replacements(self.question, question_data)
-        # rpl["prior_answers"] = self.prompt_constructor.prior_answers_dict()
+        question_time = time.time() - question_start
+
+        prior_start = time.time()
         rpl["prior_answers"] = self.prior_answers_dict
-        # rpl["agent"] = {"agent": self.prompt_constructor.agent}
+        prior_time = time.time() - prior_start
+
+        agent_start = time.time()
         rpl["agent"] = {"agent": self.agent}
+        agent_time = time.time() - agent_start
 
         # Combine all dictionaries using dict.update() for clarity
+        combine_start = time.time()
         replacement_dict = {}
         for r in rpl.values():
             replacement_dict.update(r)
+        combine_time = time.time() - combine_start
+
+        total_time = time.time() - start_time
+        print(
+            f"DEBUG - build_replacement_dict: scenario={scenario_time:.4f}s, question={question_time:.4f}s, prior={prior_time:.4f}s, agent={agent_time:.4f}s, combine={combine_time:.4f}s, total={total_time:.4f}s"
+        )
 
         return replacement_dict
 
