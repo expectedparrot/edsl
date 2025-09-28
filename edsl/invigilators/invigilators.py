@@ -275,7 +275,8 @@ class InvigilatorAI(InvigilatorBase):
 
     def get_prompts(self) -> Dict[PromptType, "Prompt"]:
         """Return the prompts used."""
-        return self.prompt_constructor.get_prompts()
+        result = self.prompt_constructor.get_prompts()
+        return result
 
     def get_captured_variables(self) -> dict:
         """Get the captured variables."""
