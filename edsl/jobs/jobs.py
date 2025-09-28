@@ -575,10 +575,14 @@ class Jobs(Base):
         """
         from .jobs_interview_constructor import InterviewsConstructor
 
-        self.replace_missing_objects()
-        yield from InterviewsConstructor(
-            self, cache=self.run_config.environment.cache
-        ).create_interviews()
+        # If we have pre-stored interviews (from from_interviews method), use those
+        if hasattr(self, '_interviews') and self._interviews:
+            yield from self._interviews
+        else:
+            self.replace_missing_objects()
+            yield from InterviewsConstructor(
+                self, cache=self.run_config.environment.cache
+            ).create_interviews()
 
     def show_flow(self, filename: Optional[str] = None) -> None:
         """Visualize either the *Job* dependency/post-processing flow **or** the underlying survey flow.
@@ -1414,6 +1418,233 @@ class Jobs(Base):
         )
         return final_results
 
+    def run_batch(self, num_batches: int, **kwargs) -> Optional["Results"]:
+        """Run the job by splitting interviews into batches and running them separately.
+
+        This method splits all interviews into the specified number of batches, shuffles
+        them to ensure even distribution of models/agents/scenarios across batches,
+        runs each batch as a separate job, and then merges the results while preserving
+        the original ordering.
+
+        Parameters
+        ----------
+        config : RunConfig
+            Configuration object containing runtime parameters and environment settings
+        num_batches : int
+            Number of batches to split the interviews into
+        n : int, optional
+            Number of iterations to run each interview (default: 1)
+        progress_bar : bool, optional
+            Whether to show a progress bar (default: False)
+        stop_on_exception : bool, optional
+            Whether to stop the job if an exception is raised (default: False)
+        check_api_keys : bool, optional
+            Whether to verify API keys before running (default: False)
+        verbose : bool, optional
+            Whether to print extra messages during execution (default: True)
+        print_exceptions : bool, optional
+            Whether to print exceptions as they occur (default: True)
+        remote_cache_description : str, optional
+            Description for entries in the remote cache
+        remote_inference_description : str, optional
+            Description for the remote inference job
+        remote_inference_results_visibility : VisibilityType, optional
+            Visibility of results on Coop ("private", "public", "unlisted")
+        disable_remote_cache : bool, optional
+            Whether to disable the remote cache (default: False)
+        disable_remote_inference : bool, optional
+            Whether to disable remote inference (default: False)
+        fresh : bool, optional
+            Whether to ignore cache and force new results (default: False)
+        skip_retry : bool, optional
+            Whether to skip retrying failed interviews (default: False)
+        raise_validation_errors : bool, optional
+            Whether to raise validation errors (default: False)
+        background : bool, optional
+            Whether to run in background mode (default: False)
+        job_uuid : str, optional
+            UUID for the job, used for tracking
+        cache : Cache, optional
+            Cache object to store results
+        bucket_collection : BucketCollection, optional
+            Object to track API keys
+        key_lookup : KeyLookup, optional
+            Object to manage API keys
+        memory_threshold : int, optional
+            Memory threshold in bytes for the Results object's SQLList,
+            controlling when data is offloaded to SQLite storage
+        new_format : bool, optional
+            If True, uses remote_inference_create method, if False uses old_remote_inference_create method (default: True)
+        expected_parrot_api_key : str, optional
+            Custom EXPECTED_PARROT_API_KEY to use for this job run
+
+        Returns
+        -------
+            Results: A Results object containing all responses and metadata
+
+        Notes
+        -----
+            - This method is useful for large jobs that need to be split for resource management
+            - Interviews are shuffled before splitting to ensure even distribution across batches
+            - The final results maintain the original interview ordering regardless of batch execution order
+            - Each batch runs as a completely separate job, allowing for different execution environments
+
+        Example:
+            >>> from edsl.jobs import Jobs
+            >>> job = Jobs.example()
+            >>> results = job.run_batch(num_batches=2, disable_remote_inference=True)
+
+        """
+        import random
+        from ..results import Results
+        from ..tasks import TaskHistory
+        from .data_structures import RunEnvironment, RunParameters, RunConfig
+
+        if num_batches <= 0:
+            raise ValueError("num_batches must be greater than 0")
+
+        # Manually create config from kwargs like @with_config would do
+        parameter_fields = {
+            name: field.default
+            for name, field in RunParameters.__dataclass_fields__.items()
+        }
+        environment_fields = {
+            name: field.default
+            for name, field in RunEnvironment.__dataclass_fields__.items()
+        }
+
+        environment = RunEnvironment(
+            **{k: v for k, v in kwargs.items() if k in environment_fields}
+        )
+        parameters = RunParameters(
+            **{k: v for k, v in kwargs.items() if k in parameter_fields}
+        )
+        config = RunConfig(environment=environment, parameters=parameters)
+
+        self._logger.info(f"Starting batch execution with {num_batches} batches")
+        self._logger.info(
+            f"Job configuration: {self.num_interviews} total interviews, "
+            f"remote_inference={'disabled' if config.parameters.disable_remote_inference else 'enabled'}, "
+            f"progress_bar={config.parameters.progress_bar}"
+        )
+
+        # Handle job dependencies first
+        if self._depends_on is not None:
+            self._logger.info("Checking job dependencies")
+            prior_results = self._depends_on.run(config=config)
+            self = self.by(prior_results)
+            self._logger.info("Job dependencies resolved successfully")
+
+        # Get all interviews and create a list with original indices
+        self._logger.info("Generating interviews and preserving original ordering")
+        all_interviews = list(self.generate_interviews())
+        total_interviews = len(all_interviews)
+
+        if num_batches > total_interviews:
+            self._logger.warning(f"num_batches ({num_batches}) is greater than total interviews ({total_interviews}), adjusting to {total_interviews}")
+            num_batches = total_interviews
+
+        # Create (interview, original_index) pairs
+        indexed_interviews = list(enumerate(all_interviews))
+
+        # Shuffle to ensure even distribution of models/agents/scenarios across batches
+        random.shuffle(indexed_interviews)
+        self._logger.info("Shuffled interviews for even distribution across batches")
+
+        # Split into batches
+        batch_size = len(indexed_interviews) // num_batches
+        remainder = len(indexed_interviews) % num_batches
+
+        batches = []
+        start_idx = 0
+        for i in range(num_batches):
+            # Add one extra interview to the first 'remainder' batches
+            current_batch_size = batch_size + (1 if i < remainder else 0)
+            end_idx = start_idx + current_batch_size
+            batches.append(indexed_interviews[start_idx:end_idx])
+            start_idx = end_idx
+
+        self._logger.info(f"Split interviews into {num_batches} batches: {[len(batch) for batch in batches]}")
+
+        # Run each batch separately
+        batch_results = []
+        for i, batch in enumerate(batches):
+            if not batch:  # Skip empty batches
+                continue
+
+            self._logger.info(f"Running batch {i+1}/{num_batches} with {len(batch)} interviews")
+
+            # Extract just the interviews (without original indices) for this batch
+            batch_interviews = [interview for _, interview in batch]
+
+            # Create a job for this batch
+            batch_job = Jobs.from_interviews(batch_interviews)
+
+            # Run the batch job with the same config
+            batch_result = batch_job.run(config=config)
+
+            if batch_result is not None:
+                # Add original indices back to results for proper ordering
+                for j, result in enumerate(batch_result.data):
+                    if j < len(batch):  # Safety check
+                        original_index = batch[j][0]  # Get original index from batch
+                        result.order = original_index
+                    else:
+                        self._logger.warning(f"Batch {i+1}: more results ({len(batch_result.data)}) than expected ({len(batch)})")
+
+                batch_results.append(batch_result)
+                self._logger.info(f"Batch {i+1} completed with {len(batch_result)} results")
+            else:
+                self._logger.warning(f"Batch {i+1} returned None results")
+
+        if not batch_results:
+            self._logger.warning("No batch results to merge")
+            return None
+
+        # Merge all batch results while preserving original order
+        self._logger.info("Merging batch results and restoring original order")
+        final_results = Results(
+            survey=self.survey,
+            data=[],
+            task_history=TaskHistory()
+        )
+
+        # Collect all individual results from all batches
+        all_results = []
+        all_task_histories = []
+        for batch_result in batch_results:
+            all_results.extend(batch_result.data)
+            # Collect task histories for merging
+            if batch_result.task_history:
+                all_task_histories.append(batch_result.task_history)
+
+        # Sort results by their original order
+        all_results.sort(key=lambda x: x.order)
+        final_results.data = all_results
+
+        # Merge task histories - create a new TaskHistory with all interviews
+        if all_task_histories:
+            merged_task_history = TaskHistory()
+            for task_history in all_task_histories:
+                # Add each interview from the task history to the merged one
+                for interview in task_history.total_interviews:
+                    merged_task_history.add_interview(interview)
+            final_results.task_history = merged_task_history
+
+        # Merge other attributes from the first batch result
+        if batch_results:
+            first_batch = batch_results[0]
+            final_results.cache = first_batch.cache
+            final_results.bucket_collection = first_batch.bucket_collection
+
+        self._logger.info("Applying post-run methods to merged results")
+        final_results = self._apply_post_run_methods(final_results)
+
+        self._logger.info(
+            f"Batch execution completed successfully with {len(final_results) if final_results else 0} results"
+        )
+        return final_results
+
     @with_config
     async def run_async(self, *, config: RunConfig) -> "Results":
         """Asynchronously runs the job by conducting interviews and returns their results.
@@ -1518,6 +1749,10 @@ class Jobs(Base):
         >>> len(Jobs.example())
         4
         """
+        # If we have pre-stored interviews (from from_interviews method), count those
+        if hasattr(self, '_interviews') and self._interviews:
+            return len(self._interviews)
+
         number_of_interviews = (
             len(self.agents or [1])
             * len(self.scenarios or [1])
