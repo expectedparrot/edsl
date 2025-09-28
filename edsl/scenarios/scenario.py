@@ -490,27 +490,16 @@ class Scenario(Base, UserDict):
         >>> hash(s)
         1153210385458344214
         """
-        # OPTIMIZATION: Cache hash computation to avoid repeated expensive operations
-        # Use object id as cache key since scenarios are immutable once created
-        cache_key = id(self)
+        # Use cached hash if already computed
+        if hasattr(self, "_cached_hash"):
+            return self._cached_hash
 
-        # Check module-level cache
-        if not hasattr(self.__class__, "_hash_cache"):
-            self.__class__._hash_cache = {}
-
-        if cache_key in self.__class__._hash_cache:
-            return self.__class__._hash_cache[cache_key]
-
-        # Compute hash for first time
+        # Compute hash for first time and cache it in the object
         from .scenario_serializer import ScenarioSerializer
 
         serializer = ScenarioSerializer(self)
-        result_hash = serializer.compute_hash()
-
-        # Cache the result
-        self.__class__._hash_cache[cache_key] = result_hash
-
-        return result_hash
+        self._cached_hash = serializer.compute_hash()
+        return self._cached_hash
 
     def __repr__(self):
         return "Scenario(" + repr(self.data) + ")"
