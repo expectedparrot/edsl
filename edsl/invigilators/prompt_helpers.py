@@ -139,7 +139,8 @@ class PromptPlan:
         from ..prompts import Prompt
 
         prompts = self.arrange_components(**kwargs)
-        return {
+        result = {
             "user_prompt": Prompt("".join(str(p) for p in prompts["user_prompt"])),
             "system_prompt": Prompt("".join(str(p) for p in prompts["system_prompt"])),
         }
+        return result
