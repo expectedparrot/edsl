@@ -378,6 +378,11 @@ class JobsPrompts:
         data_collection_start = time.time()
         data = []
 
+        # Component timing accumulators
+        total_invigilator_creation_time = 0
+        total_prompt_extraction_time = 0
+        total_cost_calculation_time = 0
+
         for interview_idx, interview in enumerate(self.interviews):
             interview_start_time = time.time()
 
@@ -387,6 +392,7 @@ class JobsPrompts:
                 for question in self.survey.questions
             ]
             invigilators_creation_time = time.time() - invigilators_creation_start
+            total_invigilator_creation_time += invigilators_creation_time
             print(
                 f"DEBUG - Interview {interview_idx}: Created {len(invigilators)} invigilators in {invigilators_creation_time:.4f}s"
             )
@@ -398,6 +404,7 @@ class JobsPrompts:
                 prompt_extract_start = time.time()
                 prompt_details = self._extract_prompt_details(invigilator)
                 prompt_extract_time = time.time() - prompt_extract_start
+                total_prompt_extraction_time += prompt_extract_time
 
                 # Calculate prompt cost
                 prompt_cost_start = time.time()
@@ -405,6 +412,7 @@ class JobsPrompts:
                     **prompt_details, price_lookup=price_lookup
                 )
                 prompt_cost_time = time.time() - prompt_cost_start
+                total_cost_calculation_time += prompt_cost_time
 
                 price_estimates = {
                     "estimated_input_price_per_million_tokens": prompt_cost[
