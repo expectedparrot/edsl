@@ -571,14 +571,80 @@ class PromptConstructor:
         Returns:
             Prompt: A prompt containing the relevant prior question memory
         """
+        import time
         from ..prompts import Prompt
+
+        start_time = time.time()
+        print(
+            f"DEBUG - prior_question_memory_prompt called for question: {self.question.question_name}"
+        )
+
+        # OPTIMIZATION: For cost estimation, skip memory processing entirely
+        # Cost estimation doesn't have real answers, so memory is just overhead
+        if self._is_cost_estimation_mode():
+            total_time = time.time() - start_time
+            print(
+                f"DEBUG - prior_question_memory_prompt: skipping memory for cost estimation, total={total_time:.4f}s"
+            )
+            return Prompt(text="")
 
         memory_prompt = Prompt(text="")
         if self.memory_plan is not None:
-            memory_prompt += self.create_memory_prompt(
-                self.question.question_name
-            ).render(self.scenario | self.prior_answers_dict())
+            # Create memory prompt
+            create_start = time.time()
+            memory_template = self.create_memory_prompt(self.question.question_name)
+            create_time = time.time() - create_start
+
+            # Get render data
+            render_data_start = time.time()
+            render_data = self.scenario | self.prior_answers_dict()
+            render_data_time = time.time() - render_data_start
+
+            # Render the prompt
+            render_start = time.time()
+            rendered_memory = memory_template.render(render_data)
+            render_time = time.time() - render_start
+
+            memory_prompt += rendered_memory
+
+            total_time = time.time() - start_time
+            print(
+                f"DEBUG - prior_question_memory_prompt: create={create_time:.4f}s, render_data={render_data_time:.4f}s, render={render_time:.4f}s, total={total_time:.4f}s"
+            )
+        else:
+            total_time = time.time() - start_time
+            print(
+                f"DEBUG - prior_question_memory_prompt: no memory_plan, total={total_time:.4f}s"
+            )
+
         return memory_prompt
+
+    def _is_cost_estimation_mode(self) -> bool:
+        """
+        Detect if we're in cost estimation mode where memory processing should be skipped.
+
+        Cost estimation doesn't have real answers, so memory is just overhead.
+        """
+        # Check if current_answers is empty or contains only placeholder/default values
+        if not self.current_answers:
+            return True
+
+        # Check if all answers are None or empty (common in cost estimation)
+        if all(
+            answer is None or answer == "" for answer in self.current_answers.values()
+        ):
+            return True
+
+        # Additional heuristic: If we're processing many questions with no real answers,
+        # this is likely cost estimation
+        if (
+            len(self.current_answers) == 0
+            and hasattr(self, "survey")
+            and len(getattr(self.survey, "questions", [])) > 10
+        ):
+            return True
+
+        return False
 
     def create_memory_prompt(self, question_name: str) -> "Prompt":
         """
@@ -599,9 +665,19 @@ class PromptConstructor:
             >>> p.text.strip().replace("\\n", " ").replace("\\t", " ")
             'Before the question you are now answering, you already answered the following question(s):          Question: Do you like school?  Answer: Prior answer'
         """
-        return self.memory_plan.get_memory_prompt_fragment(
+        import time
+
+        start_time = time.time()
+        print(f"DEBUG - create_memory_prompt called for question: {question_name}")
+
+        result = self.memory_plan.get_memory_prompt_fragment(
             question_name, self.current_answers
         )
+
+        total_time = time.time() - start_time
+        print(f"DEBUG - create_memory_prompt completed in {total_time:.4f}s")
+
+        return result
 
     def get_prompts(self) -> Dict[str, Any]:
         """
@@ -658,11 +734,28 @@ class PromptConstructor:
 
         # Build all the components
         components_start = time.time()
+
+        agent_instr_start = time.time()
         agent_instructions = self.agent_instructions_prompt
+        agent_instr_time = time.time() - agent_instr_start
+
+        agent_persona_start = time.time()
         agent_persona = self.agent_persona_prompt
+        agent_persona_time = time.time() - agent_persona_start
+
+        question_instr_start = time.time()
         question_instructions = self.question_instructions_prompt
+        question_instr_time = time.time() - question_instr_start
+
+        prior_memory_start = time.time()
         prior_question_memory = self.prior_question_memory_prompt
+        prior_memory_time = time.time() - prior_memory_start
+
         components_time = time.time() - components_start
+
+        print(
+            f"DEBUG - PromptConstructor components breakdown: agent_instr={agent_instr_time:.4f}s, agent_persona={agent_persona_time:.4f}s, question_instr={question_instr_time:.4f}s, prior_memory={prior_memory_time:.4f}s"
+        )
 
         # Get components dict
         dict_start = time.time()
