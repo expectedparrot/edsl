@@ -3,6 +3,11 @@ from typing import Any, Set, TYPE_CHECKING
 
 from jinja2 import Environment, meta, TemplateSyntaxError
 
+# Module-level cache for compiled templates and scenario file keys
+_template_variables_cache = {}
+_scenario_file_keys_cache = {}
+_file_keys_extraction_cache = {}
+
 if TYPE_CHECKING:
     from .prompt_constructor import PromptConstructor
     from ..questions import QuestionBase
@@ -11,7 +16,6 @@ if TYPE_CHECKING:
 
 
 class QuestionTemplateReplacementsBuilder:
-
     @classmethod
     def from_prompt_constructor(cls, prompt_constructor: "PromptConstructor"):
         scenario = prompt_constructor.scenario
@@ -59,17 +63,30 @@ class QuestionTemplateReplacementsBuilder:
         >>> sorted(qtrb.question_file_keys())
         ['file1', 'file2']
         """
-        question_text = self.question.question_text
-        file_keys = self._find_file_keys(self.scenario)
-        return self._extract_file_keys_from_question_text(question_text, file_keys)
+        # Add caching to avoid repeated template parsing for same question text
+        if not hasattr(self, "_cached_question_file_keys"):
+            question_text = self.question.question_text
+            file_keys = self._find_file_keys(self.scenario)
+            result = self._extract_file_keys_from_question_text(
+                question_text, file_keys
+            )
+            self._cached_question_file_keys = result
+
+        return self._cached_question_file_keys
 
     def scenario_file_keys(self) -> list:
-        return self._find_file_keys(self.scenario)
+        # Add caching to avoid repeated file key detection for same scenario
+        if not hasattr(self, "_cached_scenario_file_keys"):
+            result = self._find_file_keys(self.scenario)
+            self._cached_scenario_file_keys = result
+
+        return self._cached_scenario_file_keys
 
     @staticmethod
     def get_jinja2_variables(template_str: str) -> Set[str]:
         """
         Extracts all variable names from a Jinja2 template using Jinja2's built-in parsing.
+        Uses module-level caching to avoid re-parsing identical templates.
 
         Args:
         template_str (str): The Jinja2 template string
@@ -77,6 +94,11 @@ class QuestionTemplateReplacementsBuilder:
         Returns:
         Set[str]: A set of variable names found in the template
         """
+        # Check cache first
+        if template_str in _template_variables_cache:
+            return _template_variables_cache[template_str]
+
+        # Parse template for the first time
         env = Environment()
         try:
             ast = env.parse(template_str)
@@ -84,12 +106,18 @@ class QuestionTemplateReplacementsBuilder:
             print(f"Error parsing template: {template_str}")
             raise
 
-        return meta.find_undeclared_variables(ast)
+        result = meta.find_undeclared_variables(ast)
+
+        # Cache the result
+        _template_variables_cache[template_str] = result
+
+        return result
 
     @staticmethod
     def _find_file_keys(scenario: "Scenario") -> list:
         """We need to find all the keys in the scenario that refer to FileStore objects.
         These will be used to append to the prompt a list of files that are part of the scenario.
+        Uses module-level caching to avoid re-scanning large scenarios.
 
         >>> from ..scenarios import Scenario
         >>> from ..scenarios import FileStore
@@ -102,9 +130,25 @@ class QuestionTemplateReplacementsBuilder:
         ...     QuestionTemplateReplacementsBuilder._find_file_keys(scenario)
         ['fs_file']
         """
+        # Create a cache key based on scenario content
+        # Using id() is fast but only works within same process
+        scenario_id = id(scenario)
+
+        # Check cache first
+        if scenario_id in _scenario_file_keys_cache:
+            return _scenario_file_keys_cache[scenario_id]
+
+        # Find file keys for the first time
         from ..scenarios import FileStore
 
-        return [key for key, value in scenario.items() if isinstance(value, FileStore)]
+        result = [
+            key for key, value in scenario.items() if isinstance(value, FileStore)
+        ]
+
+        # Cache the result
+        _scenario_file_keys_cache[scenario_id] = result
+
+        return result
 
     @staticmethod
     def _extract_file_keys_from_question_text(
@@ -113,6 +157,7 @@ class QuestionTemplateReplacementsBuilder:
         """
         Extracts the file keys from a question text, handling both direct references ({{ file_key }})
         and scenario-prefixed references ({{ scenario.file_key }}).
+        Uses module-level caching for identical question text and scenario combinations.
 
         >>> from edsl import Scenario
         >>> from edsl.scenarios import FileStore
@@ -139,6 +184,15 @@ class QuestionTemplateReplacementsBuilder:
         ...     sorted(QuestionTemplateReplacementsBuilder._extract_file_keys_from_question_text("Compare {{ file1 }} with {{ scenario.file2 }}", ['file1', 'file2']))
         ['file1', 'file2']
         """
+        # Create cache key from question text and scenario file keys
+        cache_key = (question_text, tuple(sorted(scenario_file_keys)))
+
+        # Check cache first
+        if cache_key in _file_keys_extraction_cache:
+            return _file_keys_extraction_cache[cache_key]
+
+        # Extract file keys for the first time
+
         variables = QuestionTemplateReplacementsBuilder.get_jinja2_variables(
             question_text
         )
@@ -172,7 +226,12 @@ class QuestionTemplateReplacementsBuilder:
                     # If there's any issue parsing, just continue with what we have
                     pass
 
-        return list(set(question_file_keys))  # Remove duplicates
+        result = list(set(question_file_keys))  # Remove duplicates
+
+        # Cache the result
+        _file_keys_extraction_cache[cache_key] = result
+
+        return result
 
     def _scenario_replacements(
         self, replacement_string: str = "<see file {key}>"
@@ -185,18 +244,43 @@ class QuestionTemplateReplacementsBuilder:
         >>> q.by(s).prompts().select('user_prompt')
         Dataset([{'user_prompt': [Prompt(text=\"""How are you john?\""")]}])
         """
-        # File references dictionary
+        # OPTIMIZATION: Only process files that are actually referenced in the question
+        referenced_file_keys = self.question_file_keys()  # Only files used in question
+
+        # File references dictionary - ONLY for referenced files
         file_refs = {
-            key: replacement_string.format(key=key) for key in self.scenario_file_keys()
+            key: replacement_string.format(key=key) for key in referenced_file_keys
         }
 
-        # Scenario items excluding file keys
+        # Get all scenario file keys for exclusion (cached call)
+        all_file_keys = set(self.scenario_file_keys())  # Convert to set for O(1) lookup
+
+        # OPTIMIZATION: Only include scenario variables that are actually referenced in the template
+
+        # Get variables actually used in the question template
+        question_text = getattr(self.question, "question_text", "")
+        template_vars = self.get_jinja2_variables(question_text)
+
+        # Extract scenario variables (those that start with 'scenario.')
+        referenced_scenario_vars = set()
+        for var in template_vars:
+            if var.startswith("scenario."):
+                # Extract the variable name after 'scenario.'
+                scenario_var = var[9:]  # Remove 'scenario.' prefix
+                referenced_scenario_vars.add(scenario_var)
+
+        # Only include scenario items that are actually referenced AND not file keys
         scenario_items = {
-            k: v for k, v in self.scenario.items() if k not in self.scenario_file_keys()
+            k: v
+            for k, v in self.scenario.items()
+            if k not in all_file_keys
+            and (not referenced_scenario_vars or k in referenced_scenario_vars)
         }
         scenario_items_with_prefix = {"scenario": scenario_items}
 
-        return {**file_refs, **scenario_items, **scenario_items_with_prefix}
+        result = {**file_refs, **scenario_items, **scenario_items_with_prefix}
+
+        return result
 
     @staticmethod
     def _question_data_replacements(
@@ -236,11 +320,10 @@ class QuestionTemplateReplacementsBuilder:
 
         """
         rpl = {}
+
         rpl["scenario"] = self._scenario_replacements()
         rpl["question"] = self._question_data_replacements(self.question, question_data)
-        # rpl["prior_answers"] = self.prompt_constructor.prior_answers_dict()
         rpl["prior_answers"] = self.prior_answers_dict
-        # rpl["agent"] = {"agent": self.prompt_constructor.agent}
         rpl["agent"] = {"agent": self.agent}
 
         # Combine all dictionaries using dict.update() for clarity
