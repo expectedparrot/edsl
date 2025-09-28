@@ -3,6 +3,9 @@ from typing import Dict, Any, Optional, TYPE_CHECKING, Literal
 from functools import cached_property
 import logging
 
+# Module-level cache for prior_answers_dict to avoid recomputation across questions
+_prior_answers_dict_cache = {}
+
 from .prompt_helpers import PromptPlan
 from .question_template_replacements_builder import (
     QuestionTemplateReplacementsBuilder,
@@ -340,9 +343,13 @@ class PromptConstructor:
             >>> i.prompt_constructor.prior_answers_dict()
             {'q0': ..., 'q1': ...}
         """
-        return self._add_answers(
-            self.survey.question_names_to_questions(), self.current_answers
-        )
+        # Add caching to avoid repeated computation for same survey and current_answers
+        if not hasattr(self, "_cached_prior_answers_dict"):
+            question_names_dict = self.survey.question_names_to_questions()
+            result = self._add_answers(question_names_dict, self.current_answers)
+            self._cached_prior_answers_dict = result
+
+        return self._cached_prior_answers_dict
 
     @staticmethod
     def _extract_question_and_entry_type(key_entry: str) -> tuple[str, str]:
@@ -453,9 +460,10 @@ class PromptConstructor:
         Returns:
             list: A list of file keys found in the question text
         """
-        return QuestionTemplateReplacementsBuilder.from_prompt_constructor(
-            self
-        ).question_file_keys()
+        builder = QuestionTemplateReplacementsBuilder.from_prompt_constructor(self)
+        result = builder.question_file_keys()
+
+        return result
 
     @cached_property
     def question_instructions_prompt(self) -> "Prompt":
@@ -503,6 +511,7 @@ class PromptConstructor:
 
         qipb = QuestionInstructionPromptBuilder.from_prompt_constructor(self)
         prompt = qipb.build()
+
         if prompt.captured_variables:
             self.captured_variables.update(prompt.captured_variables)
 
@@ -518,12 +527,51 @@ class PromptConstructor:
         """
         from ..prompts import Prompt
 
+        # OPTIMIZATION: For cost estimation, skip memory processing entirely
+        # Cost estimation doesn't have real answers, so memory is just overhead
+        if self._is_cost_estimation_mode():
+            return Prompt(text="")
+
         memory_prompt = Prompt(text="")
         if self.memory_plan is not None:
-            memory_prompt += self.create_memory_prompt(
-                self.question.question_name
-            ).render(self.scenario | self.prior_answers_dict())
+            # Create memory prompt
+            memory_template = self.create_memory_prompt(self.question.question_name)
+
+            # Get render data
+            render_data = self.scenario | self.prior_answers_dict()
+
+            # Render the prompt
+            rendered_memory = memory_template.render(render_data)
+            memory_prompt += rendered_memory
+
         return memory_prompt
+
+    def _is_cost_estimation_mode(self) -> bool:
+        """
+        Detect if we're in cost estimation mode where memory processing should be skipped.
+
+        Cost estimation doesn't have real answers, so memory is just overhead.
+        """
+        # Check if current_answers is empty or contains only placeholder/default values
+        if not self.current_answers:
+            return True
+
+        # Check if all answers are None or empty (common in cost estimation)
+        if all(
+            answer is None or answer == "" for answer in self.current_answers.values()
+        ):
+            return True
+
+        # Additional heuristic: If we're processing many questions with no real answers,
+        # this is likely cost estimation
+        if (
+            len(self.current_answers) == 0
+            and hasattr(self, "survey")
+            and len(getattr(self.survey, "questions", [])) > 10
+        ):
+            return True
+
+        return False
 
     def create_memory_prompt(self, question_name: str) -> "Prompt":
         """
@@ -544,9 +592,11 @@ class PromptConstructor:
             >>> p.text.strip().replace("\\n", " ").replace("\\t", " ")
             'Before the question you are now answering, you already answered the following question(s):          Question: Do you like school?  Answer: Prior answer'
         """
-        return self.memory_plan.get_memory_prompt_fragment(
+        result = self.memory_plan.get_memory_prompt_fragment(
             question_name, self.current_answers
         )
+
+        return result
 
     def get_prompts(self) -> Dict[str, Any]:
         """
@@ -612,7 +662,9 @@ class PromptConstructor:
             "prior_question_memory": prior_question_memory.text,
         }
 
+        # Generate prompts from plan
         prompts = self.prompt_plan.get_prompts(**components)
+
         # Handle file keys if present
         file_keys = self.file_keys_from_question
         if file_keys:

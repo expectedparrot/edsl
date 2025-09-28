@@ -23,14 +23,14 @@ class QuestionInstructionPromptBuilder:
 
     @classmethod
     def from_prompt_constructor(cls, prompt_constructor: "PromptConstructor"):
-
         model = prompt_constructor.model
         survey = prompt_constructor.survey
         question = prompt_constructor.question
         scenario = prompt_constructor.scenario
         prior_answers_dict = prompt_constructor.prior_answers_dict()
         agent = prompt_constructor.agent
-        return cls(
+
+        instance = cls(
             prompt_constructor,
             model,
             survey,
@@ -39,6 +39,8 @@ class QuestionInstructionPromptBuilder:
             prior_answers_dict,
             agent,
         )
+
+        return instance
 
     def __init__(
         self,
@@ -50,16 +52,13 @@ class QuestionInstructionPromptBuilder:
         prior_answers_dict: Dict[str, Any],
         agent: "Agent",
     ):
-
         self.qtrb = QTRB(scenario, question, prior_answers_dict, agent)
-
         self.model = model
         self.survey = survey
         self.question = question
         self.agent = agent
         self.scenario = scenario
         self.prior_answers_dict = prior_answers_dict
-
         self.captured_variables = {}
 
     def build(self) -> "Prompt":
@@ -207,10 +206,10 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Dict: Enriched prompt data
         """
-        prompt_data["data"] = (
-            QuestionInstructionPromptBuilder._process_question_options(
-                prompt_data["data"], scenario, prior_answers_dict
-            )
+        prompt_data[
+            "data"
+        ] = QuestionInstructionPromptBuilder._process_question_options(
+            prompt_data["data"], scenario, prior_answers_dict
         )
         return prompt_data
 
@@ -228,9 +227,11 @@ class QuestionInstructionPromptBuilder:
 
         # Render with dict
         rendered_prompt = prompt_data["prompt"].render(replacement_dict)
+
+        # Handle captured variables
         if rendered_prompt.captured_variables:
             self.captured_variables.update(rendered_prompt.captured_variables)
-            # print(f"Captured variables in QIPB: {self.captured_variables}")
+
         return rendered_prompt
 
     def _validate_template_variables(self, rendered_prompt: "Prompt") -> None:

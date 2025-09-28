@@ -47,6 +47,7 @@ class PromptCostEstimator:
         return 1
 
     def __call__(self):
+        # Calculate character counts and piping multipliers
         user_prompt_chars = len(str(self.user_prompt)) * self.get_piping_multiplier(
             str(self.user_prompt)
         )
@@ -57,6 +58,7 @@ class PromptCostEstimator:
         input_tokens = (user_prompt_chars + system_prompt_chars) // self.CHARS_PER_TOKEN
         output_tokens = math.ceil(self.OUTPUT_TOKENS_PER_INPUT_TOKEN * input_tokens)
 
+        # Get pricing information
         relevant_prices = self.price_retriever.get_price(
             self.inference_service, self.model
         )
@@ -68,12 +70,14 @@ class PromptCostEstimator:
             self.price_retriever.get_price_per_million_tokens(relevant_prices, "output")
         )
 
+        # Calculate final costs
         input_price_per_token = input_price_per_million_tokens / 1_000_000
         output_price_per_token = output_price_per_million_tokens / 1_000_000
 
         input_cost = input_tokens * input_price_per_token
         output_cost = output_tokens * output_price_per_token
         cost = input_cost + output_cost
+
         return {
             "input_price_per_million_tokens": input_price_per_million_tokens,
             "output_price_per_million_tokens": output_price_per_million_tokens,
@@ -210,17 +214,19 @@ class JobsPrompts:
         """
         from ..dataset import Dataset
 
+        # Initialize dataset
         dataset_of_prompts = {k: [] for k in self.relevant_keys}
-
         interviews = self.interviews
 
-        # Process each interview and invigilator
+        # Process interviews
         for interview_index, interview in enumerate(interviews):
+            # Create invigilators
             invigilators = [
                 FetchInvigilator(interview)(question)
                 for question in interview.survey.questions
             ]
 
+            # Process invigilators
             for invigilator in invigilators:
                 # Process the invigilator and get all data as a dictionary
                 data = self._process_one_invigilator(
@@ -229,7 +235,9 @@ class JobsPrompts:
                 for k in self.relevant_keys:
                     dataset_of_prompts[k].append(data[k])
 
-        return Dataset([{k: dataset_of_prompts[k]} for k in self.relevant_keys])
+        # Create final dataset
+        result = Dataset([{k: dataset_of_prompts[k]} for k in self.relevant_keys])
+        return result
 
     @staticmethod
     def estimate_prompt_cost(
@@ -240,13 +248,14 @@ class JobsPrompts:
         model: str,
     ) -> dict:
         """Estimates the cost of a prompt, taking piping into account."""
-        return PromptCostEstimator(
+        estimator = PromptCostEstimator(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             price_lookup=price_lookup,
             inference_service=inference_service,
             model=model,
-        )()
+        )
+        return estimator()
 
     @staticmethod
     def _extract_prompt_details(invigilator: FetchInvigilator) -> dict:
@@ -258,10 +267,12 @@ class JobsPrompts:
         {'user_prompt': ...
         """
         prompts = invigilator.get_prompts()
+
         user_prompt = prompts["user_prompt"]
         system_prompt = prompts["system_prompt"]
         inference_service = invigilator.model._inference_service_
         model = invigilator.model.model
+
         return {
             "user_prompt": user_prompt,
             "system_prompt": system_prompt,
@@ -304,16 +315,22 @@ class JobsPrompts:
         """
         # Collect all prompt data
         data = []
-        for interview in self.interviews:
+
+        for interview_idx, interview in enumerate(self.interviews):
             invigilators = [
                 FetchInvigilator(interview)(question)
                 for question in self.survey.questions
             ]
-            for invigilator in invigilators:
+
+            for invig_idx, invigilator in enumerate(invigilators):
+                # Extract prompt details
                 prompt_details = self._extract_prompt_details(invigilator)
+
+                # Calculate prompt cost
                 prompt_cost = self.estimate_prompt_cost(
                     **prompt_details, price_lookup=price_lookup
                 )
+
                 price_estimates = {
                     "estimated_input_price_per_million_tokens": prompt_cost[
                         "input_price_per_million_tokens"
@@ -380,6 +397,7 @@ class JobsPrompts:
             "estimated_total_output_tokens": estimated_total_output_tokens,
             "detailed_costs": detailed_costs,
         }
+
         return output
 
     def estimate_job_cost(self, iterations: int = 1) -> dict:
