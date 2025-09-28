@@ -451,6 +451,27 @@ class JobsPrompts:
             f"DEBUG - Data collection phase completed in {data_collection_time:.4f}s. Collected {len(data)} items"
         )
 
+        # Print detailed component breakdown
+        print(f"DEBUG - COMPONENT BREAKDOWN:")
+        print(
+            f"DEBUG -   Invigilator Creation: {total_invigilator_creation_time:.4f}s ({total_invigilator_creation_time/data_collection_time*100:.1f}%)"
+        )
+        print(
+            f"DEBUG -   Prompt Extraction: {total_prompt_extraction_time:.4f}s ({total_prompt_extraction_time/data_collection_time*100:.1f}%)"
+        )
+        print(
+            f"DEBUG -   Cost Calculation: {total_cost_calculation_time:.4f}s ({total_cost_calculation_time/data_collection_time*100:.1f}%)"
+        )
+        other_time = (
+            data_collection_time
+            - total_invigilator_creation_time
+            - total_prompt_extraction_time
+            - total_cost_calculation_time
+        )
+        print(
+            f"DEBUG -   Other/Overhead: {other_time:.4f}s ({other_time/data_collection_time*100:.1f}%)"
+        )
+
         # Group by service, model, token type, and price
         grouping_start_time = time.time()
         detailed_groups = {}
