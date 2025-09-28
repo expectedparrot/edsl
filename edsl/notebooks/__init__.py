@@ -6,7 +6,8 @@ to other formats such as LaTeX.
 """
 
 from .notebook import Notebook
-from .notebook_to_latex import NotebookToLaTeX
+
+# from .notebook_to_latex import NotebookToLaTeX
 from .exceptions import (
     NotebookError,
     NotebookValueError,
@@ -17,7 +18,7 @@ from .exceptions import (
 
 __all__ = [
     "Notebook",
-    "NotebookToLaTeX",
+    # "NotebookToLaTeX",
     "NotebookError",
     "NotebookValueError",
     "NotebookFormatError",
