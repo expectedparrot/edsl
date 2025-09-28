@@ -323,19 +323,42 @@ class QuestionTemplateReplacementsBuilder:
 
         # Get all scenario file keys for exclusion (cached call)
         all_file_keys_start = time.time()
-        all_file_keys = self.scenario_file_keys()
+        all_file_keys = set(self.scenario_file_keys())  # Convert to set for O(1) lookup
         all_file_keys_time = time.time() - all_file_keys_start
 
-        # Scenario items excluding file keys
+        # OPTIMIZATION: Only include scenario variables that are actually referenced in the template
         scenario_items_start = time.time()
+
+        # Get variables actually used in the question template
+        question_text = getattr(self.question, "question_text", "")
+        template_vars = self.get_jinja2_variables(question_text)
+
+        # Extract scenario variables (those that start with 'scenario.')
+        referenced_scenario_vars = set()
+        for var in template_vars:
+            if var.startswith("scenario."):
+                # Extract the variable name after 'scenario.'
+                scenario_var = var[9:]  # Remove 'scenario.' prefix
+                referenced_scenario_vars.add(scenario_var)
+
+        # Only include scenario items that are actually referenced AND not file keys
         scenario_items = {
-            k: v for k, v in self.scenario.items() if k not in all_file_keys
+            k: v
+            for k, v in self.scenario.items()
+            if k not in all_file_keys
+            and (not referenced_scenario_vars or k in referenced_scenario_vars)
         }
+        print(
+            f"DEBUG - _scenario_replacements: referenced_scenario_vars={referenced_scenario_vars}"
+        )
+        print(
+            f"DEBUG - _scenario_replacements: scenario_items keys={list(scenario_items.keys())}"
+        )
         scenario_items_with_prefix = {"scenario": scenario_items}
         scenario_items_time = time.time() - scenario_items_start
 
         result = {**file_refs, **scenario_items, **scenario_items_with_prefix}
-
+        print(result)
         total_time = time.time() - start_time
         print(
             f"DEBUG - _scenario_replacements: referenced_files={referenced_file_keys_time:.4f}s, "
