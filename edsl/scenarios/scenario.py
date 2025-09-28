@@ -490,10 +490,48 @@ class Scenario(Base, UserDict):
         >>> hash(s)
         1153210385458344214
         """
-        print("Compute hash called", type(self))
+        import time
+
+        start_time = time.time()
+        print(
+            f"DEBUG - Scenario.__hash__ called for {type(self)} with {len(self.data)} items"
+        )
+
+        # OPTIMIZATION: Cache hash computation to avoid repeated expensive operations
+        # Use object id as cache key since scenarios are immutable once created
+        cache_key = id(self)
+
+        # Check module-level cache
+        if not hasattr(self.__class__, "_hash_cache"):
+            self.__class__._hash_cache = {}
+
+        if cache_key in self.__class__._hash_cache:
+            total_time = time.time() - start_time
+            print(
+                f"DEBUG - Scenario.__hash__: using cached result, total={total_time:.4f}s"
+            )
+            return self.__class__._hash_cache[cache_key]
+
+        # Compute hash for first time
         from .scenario_serializer import ScenarioSerializer
 
-        return ScenarioSerializer(self).compute_hash()
+        serializer_start = time.time()
+        serializer = ScenarioSerializer(self)
+        serializer_time = time.time() - serializer_start
+
+        compute_start = time.time()
+        result_hash = serializer.compute_hash()
+        compute_time = time.time() - compute_start
+
+        # Cache the result
+        self.__class__._hash_cache[cache_key] = result_hash
+
+        total_time = time.time() - start_time
+        print(
+            f"DEBUG - Scenario.__hash__: serializer={serializer_time:.4f}s, compute={compute_time:.4f}s, total={total_time:.4f}s [CACHED]"
+        )
+
+        return result_hash
 
     def __repr__(self):
         return "Scenario(" + repr(self.data) + ")"
