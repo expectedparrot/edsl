@@ -210,8 +210,6 @@ class JobsPrompts:
 
         # Generate cache keys for each iteration
         files_list = prompts.get("files_list", None)
-        print(prompts)
-        print("DEBUG ########", len(files_list))
         if files_list:
             # Sort hashes to ensure consistent cache keys regardless of file order
             files_hash = "+".join(sorted([str(hash(file)) for file in files_list]))
