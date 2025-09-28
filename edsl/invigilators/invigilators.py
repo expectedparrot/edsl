@@ -275,15 +275,7 @@ class InvigilatorAI(InvigilatorBase):
 
     def get_prompts(self) -> Dict[PromptType, "Prompt"]:
         """Return the prompts used."""
-        import time
-
-        start_time = time.time()
-        print(f"DEBUG - InvigilatorAI.get_prompts called")
-
         result = self.prompt_constructor.get_prompts()
-
-        total_time = time.time() - start_time
-        print(f"DEBUG - InvigilatorAI.get_prompts completed in {total_time:.4f}s")
         return result
 
     def get_captured_variables(self) -> dict:

@@ -448,29 +448,8 @@ class Jobs(Base):
         >>> Jobs.example().prompts()
         Dataset(...)
         """
-        import time
-
-        start_time = time.time()
-        print(
-            f"DEBUG - Jobs.prompts() called with {len(self.interviews())} interviews, {iterations} iterations"
-        )
-
-        # Create JobsPrompts instance
-        jobs_prompts_start = time.time()
         jobs_prompts = JobsPrompts.from_jobs(self)
-        jobs_prompts_time = time.time() - jobs_prompts_start
-
-        # Generate prompts
-        prompts_gen_start = time.time()
-        result = jobs_prompts.prompts(iterations=iterations)
-        prompts_gen_time = time.time() - prompts_gen_start
-
-        total_time = time.time() - start_time
-        print(
-            f"DEBUG - Jobs.prompts(): jobs_prompts_creation={jobs_prompts_time:.4f}s, prompts_generation={prompts_gen_time:.4f}s, total={total_time:.4f}s"
-        )
-
-        return result
+        return jobs_prompts.prompts(iterations=iterations)
 
     def show_prompts(self, all: bool = False) -> None:
         """Print the prompts."""

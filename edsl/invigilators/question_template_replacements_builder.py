@@ -65,46 +65,20 @@ class QuestionTemplateReplacementsBuilder:
         """
         # Add caching to avoid repeated template parsing for same question text
         if not hasattr(self, "_cached_question_file_keys"):
-            import time
-
-            start_time = time.time()
-            print(f"DEBUG - question_file_keys: parsing template for first time")
-
             question_text = self.question.question_text
             file_keys = self._find_file_keys(self.scenario)
             result = self._extract_file_keys_from_question_text(
                 question_text, file_keys
             )
-
             self._cached_question_file_keys = result
-            parse_time = time.time() - start_time
-            print(
-                f"DEBUG - question_file_keys: template parsing took {parse_time:.4f}s, found {len(result)} keys"
-            )
-        else:
-            print(f"DEBUG - question_file_keys: using cached result")
 
         return self._cached_question_file_keys
 
     def scenario_file_keys(self) -> list:
         # Add caching to avoid repeated file key detection for same scenario
         if not hasattr(self, "_cached_scenario_file_keys"):
-            import time
-
-            start_time = time.time()
-            print(f"DEBUG - scenario_file_keys: finding file keys for first time")
-
             result = self._find_file_keys(self.scenario)
             self._cached_scenario_file_keys = result
-
-            find_time = time.time() - start_time
-            print(
-                f"DEBUG - scenario_file_keys: finding {len(result)} file keys took {find_time:.4f}s"
-            )
-        else:
-            print(
-                f"DEBUG - scenario_file_keys: using cached result with {len(self._cached_scenario_file_keys)} keys"
-            )
 
         return self._cached_scenario_file_keys
 
@@ -120,17 +94,11 @@ class QuestionTemplateReplacementsBuilder:
         Returns:
         Set[str]: A set of variable names found in the template
         """
-        import time
-
         # Check cache first
         if template_str in _template_variables_cache:
-            print(f"DEBUG - get_jinja2_variables: using cached result for template")
             return _template_variables_cache[template_str]
 
         # Parse template for the first time
-        start_time = time.time()
-        print(f"DEBUG - get_jinja2_variables: parsing template for first time")
-
         env = Environment()
         try:
             ast = env.parse(template_str)
@@ -142,11 +110,6 @@ class QuestionTemplateReplacementsBuilder:
 
         # Cache the result
         _template_variables_cache[template_str] = result
-
-        parse_time = time.time() - start_time
-        print(
-            f"DEBUG - get_jinja2_variables: template parsing took {parse_time:.4f}s, found {len(result)} variables"
-        )
 
         return result
 
@@ -167,21 +130,15 @@ class QuestionTemplateReplacementsBuilder:
         ...     QuestionTemplateReplacementsBuilder._find_file_keys(scenario)
         ['fs_file']
         """
-        import time
-
         # Create a cache key based on scenario content
         # Using id() is fast but only works within same process
         scenario_id = id(scenario)
 
         # Check cache first
         if scenario_id in _scenario_file_keys_cache:
-            print(f"DEBUG - _find_file_keys: using cached result for scenario")
             return _scenario_file_keys_cache[scenario_id]
 
         # Find file keys for the first time
-        start_time = time.time()
-        print(f"DEBUG - _find_file_keys: scanning scenario for FileStore objects")
-
         from ..scenarios import FileStore
 
         result = [
@@ -190,11 +147,6 @@ class QuestionTemplateReplacementsBuilder:
 
         # Cache the result
         _scenario_file_keys_cache[scenario_id] = result
-
-        scan_time = time.time() - start_time
-        print(
-            f"DEBUG - _find_file_keys: scenario scanning took {scan_time:.4f}s, found {len(result)} file keys"
-        )
 
         return result
 
@@ -232,21 +184,14 @@ class QuestionTemplateReplacementsBuilder:
         ...     sorted(QuestionTemplateReplacementsBuilder._extract_file_keys_from_question_text("Compare {{ file1 }} with {{ scenario.file2 }}", ['file1', 'file2']))
         ['file1', 'file2']
         """
-        import time
-
         # Create cache key from question text and scenario file keys
         cache_key = (question_text, tuple(sorted(scenario_file_keys)))
 
         # Check cache first
         if cache_key in _file_keys_extraction_cache:
-            print(f"DEBUG - _extract_file_keys_from_question_text: using cached result")
             return _file_keys_extraction_cache[cache_key]
 
         # Extract file keys for the first time
-        start_time = time.time()
-        print(
-            f"DEBUG - _extract_file_keys_from_question_text: extracting file keys for first time"
-        )
 
         variables = QuestionTemplateReplacementsBuilder.get_jinja2_variables(
             question_text
@@ -286,11 +231,6 @@ class QuestionTemplateReplacementsBuilder:
         # Cache the result
         _file_keys_extraction_cache[cache_key] = result
 
-        extract_time = time.time() - start_time
-        print(
-            f"DEBUG - _extract_file_keys_from_question_text: extraction took {extract_time:.4f}s, found {len(result)} file keys"
-        )
-
         return result
 
     def _scenario_replacements(
@@ -304,30 +244,18 @@ class QuestionTemplateReplacementsBuilder:
         >>> q.by(s).prompts().select('user_prompt')
         Dataset([{'user_prompt': [Prompt(text=\"""How are you john?\""")]}])
         """
-        import time
-
-        start_time = time.time()
-        print(f"DEBUG - _scenario_replacements called")
-
         # OPTIMIZATION: Only process files that are actually referenced in the question
-        referenced_file_keys_start = time.time()
         referenced_file_keys = self.question_file_keys()  # Only files used in question
-        referenced_file_keys_time = time.time() - referenced_file_keys_start
 
         # File references dictionary - ONLY for referenced files
-        file_refs_start = time.time()
         file_refs = {
             key: replacement_string.format(key=key) for key in referenced_file_keys
         }
-        file_refs_time = time.time() - file_refs_start
 
         # Get all scenario file keys for exclusion (cached call)
-        all_file_keys_start = time.time()
         all_file_keys = set(self.scenario_file_keys())  # Convert to set for O(1) lookup
-        all_file_keys_time = time.time() - all_file_keys_start
 
         # OPTIMIZATION: Only include scenario variables that are actually referenced in the template
-        scenario_items_start = time.time()
 
         # Get variables actually used in the question template
         question_text = getattr(self.question, "question_text", "")
@@ -348,26 +276,9 @@ class QuestionTemplateReplacementsBuilder:
             if k not in all_file_keys
             and (not referenced_scenario_vars or k in referenced_scenario_vars)
         }
-        print(
-            f"DEBUG - _scenario_replacements: referenced_scenario_vars={referenced_scenario_vars}"
-        )
-        print(
-            f"DEBUG - _scenario_replacements: scenario_items keys={list(scenario_items.keys())}"
-        )
         scenario_items_with_prefix = {"scenario": scenario_items}
-        scenario_items_time = time.time() - scenario_items_start
 
         result = {**file_refs, **scenario_items, **scenario_items_with_prefix}
-        print(result)
-        total_time = time.time() - start_time
-        print(
-            f"DEBUG - _scenario_replacements: referenced_files={referenced_file_keys_time:.4f}s, "
-            f"file_refs={file_refs_time:.4f}s, all_files={all_file_keys_time:.4f}s, "
-            f"scenario_items={scenario_items_time:.4f}s, total={total_time:.4f}s"
-        )
-        print(
-            f"DEBUG - _scenario_replacements: processing {len(referenced_file_keys)} referenced files instead of {len(all_file_keys)} total files"
-        )
 
         return result
 
@@ -408,39 +319,17 @@ class QuestionTemplateReplacementsBuilder:
 
 
         """
-        import time
-
-        start_time = time.time()
-
         rpl = {}
 
-        scenario_start = time.time()
         rpl["scenario"] = self._scenario_replacements()
-        scenario_time = time.time() - scenario_start
-
-        question_start = time.time()
         rpl["question"] = self._question_data_replacements(self.question, question_data)
-        question_time = time.time() - question_start
-
-        prior_start = time.time()
         rpl["prior_answers"] = self.prior_answers_dict
-        prior_time = time.time() - prior_start
-
-        agent_start = time.time()
         rpl["agent"] = {"agent": self.agent}
-        agent_time = time.time() - agent_start
 
         # Combine all dictionaries using dict.update() for clarity
-        combine_start = time.time()
         replacement_dict = {}
         for r in rpl.values():
             replacement_dict.update(r)
-        combine_time = time.time() - combine_start
-
-        total_time = time.time() - start_time
-        print(
-            f"DEBUG - build_replacement_dict: scenario={scenario_time:.4f}s, question={question_time:.4f}s, prior={prior_time:.4f}s, agent={agent_time:.4f}s, combine={combine_time:.4f}s, total={total_time:.4f}s"
-        )
 
         return replacement_dict
 

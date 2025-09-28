@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import Dict, Any, Optional, TYPE_CHECKING, Literal
 from functools import cached_property
 import logging
-import time
 
 # Module-level cache for prior_answers_dict to avoid recomputation across questions
 _prior_answers_dict_cache = {}
@@ -346,26 +345,9 @@ class PromptConstructor:
         """
         # Add caching to avoid repeated computation for same survey and current_answers
         if not hasattr(self, "_cached_prior_answers_dict"):
-            start_time = time.time()
-            print(f"DEBUG - prior_answers_dict called (computing for first time)")
-
-            names_start = time.time()
             question_names_dict = self.survey.question_names_to_questions()
-            names_time = time.time() - names_start
-
-            add_start = time.time()
             result = self._add_answers(question_names_dict, self.current_answers)
-            add_time = time.time() - add_start
-
             self._cached_prior_answers_dict = result
-
-            total_time = time.time() - start_time
-            print(
-                f"DEBUG - prior_answers_dict: names={names_time:.4f}s, "
-                f"add_answers={add_time:.4f}s, total={total_time:.4f}s"
-            )
-        else:
-            print(f"DEBUG - prior_answers_dict: using cached result")
 
         return self._cached_prior_answers_dict
 
@@ -478,22 +460,8 @@ class PromptConstructor:
         Returns:
             list: A list of file keys found in the question text
         """
-        start_time = time.time()
-        print(f"DEBUG - file_keys_from_question called")
-
-        builder_start = time.time()
         builder = QuestionTemplateReplacementsBuilder.from_prompt_constructor(self)
-        builder_time = time.time() - builder_start
-
-        keys_start = time.time()
         result = builder.question_file_keys()
-        keys_time = time.time() - keys_start
-
-        total_time = time.time() - start_time
-        print(
-            f"DEBUG - file_keys_from_question: builder={builder_time:.4f}s, "
-            f"keys={keys_time:.4f}s, total={total_time:.4f}s, found={len(result)} keys"
-        )
 
         return result
 
@@ -537,29 +505,15 @@ class PromptConstructor:
             - Updates the captured_variables dictionary with any new variables
             - Returns a complete Prompt object ready for rendering
         """
-        start_time = time.time()
-        print(f"DEBUG - build_question_instructions_prompt called")
-
         from .question_instructions_prompt_builder import (
             QuestionInstructionPromptBuilder,
         )
 
-        builder_start = time.time()
         qipb = QuestionInstructionPromptBuilder.from_prompt_constructor(self)
-        builder_time = time.time() - builder_start
-
-        build_start = time.time()
         prompt = qipb.build()
-        build_time = time.time() - build_start
 
         if prompt.captured_variables:
             self.captured_variables.update(prompt.captured_variables)
-
-        total_time = time.time() - start_time
-        print(
-            f"DEBUG - build_question_instructions_prompt: builder_create={builder_time:.4f}s, "
-            f"build={build_time:.4f}s, total={total_time:.4f}s"
-        )
 
         return prompt
 
@@ -571,51 +525,24 @@ class PromptConstructor:
         Returns:
             Prompt: A prompt containing the relevant prior question memory
         """
-        import time
         from ..prompts import Prompt
-
-        start_time = time.time()
-        print(
-            f"DEBUG - prior_question_memory_prompt called for question: {self.question.question_name}"
-        )
 
         # OPTIMIZATION: For cost estimation, skip memory processing entirely
         # Cost estimation doesn't have real answers, so memory is just overhead
         if self._is_cost_estimation_mode():
-            total_time = time.time() - start_time
-            print(
-                f"DEBUG - prior_question_memory_prompt: skipping memory for cost estimation, total={total_time:.4f}s"
-            )
             return Prompt(text="")
 
         memory_prompt = Prompt(text="")
         if self.memory_plan is not None:
             # Create memory prompt
-            create_start = time.time()
             memory_template = self.create_memory_prompt(self.question.question_name)
-            create_time = time.time() - create_start
 
             # Get render data
-            render_data_start = time.time()
             render_data = self.scenario | self.prior_answers_dict()
-            render_data_time = time.time() - render_data_start
 
             # Render the prompt
-            render_start = time.time()
             rendered_memory = memory_template.render(render_data)
-            render_time = time.time() - render_start
-
             memory_prompt += rendered_memory
-
-            total_time = time.time() - start_time
-            print(
-                f"DEBUG - prior_question_memory_prompt: create={create_time:.4f}s, render_data={render_data_time:.4f}s, render={render_time:.4f}s, total={total_time:.4f}s"
-            )
-        else:
-            total_time = time.time() - start_time
-            print(
-                f"DEBUG - prior_question_memory_prompt: no memory_plan, total={total_time:.4f}s"
-            )
 
         return memory_prompt
 
@@ -665,17 +592,9 @@ class PromptConstructor:
             >>> p.text.strip().replace("\\n", " ").replace("\\t", " ")
             'Before the question you are now answering, you already answered the following question(s):          Question: Do you like school?  Answer: Prior answer'
         """
-        import time
-
-        start_time = time.time()
-        print(f"DEBUG - create_memory_prompt called for question: {question_name}")
-
         result = self.memory_plan.get_memory_prompt_fragment(
             question_name, self.current_answers
         )
-
-        total_time = time.time() - start_time
-        print(f"DEBUG - create_memory_prompt completed in {total_time:.4f}s")
 
         return result
 
@@ -729,66 +648,30 @@ class PromptConstructor:
             - Handles file attachments if specified in the question
             - Returns a complete dictionary ready for use with the language model
         """
-        start_time = time.time()
-        print(f"DEBUG - PromptConstructor.get_prompts called")
-
         # Build all the components
-        components_start = time.time()
-
-        agent_instr_start = time.time()
         agent_instructions = self.agent_instructions_prompt
-        agent_instr_time = time.time() - agent_instr_start
-
-        agent_persona_start = time.time()
         agent_persona = self.agent_persona_prompt
-        agent_persona_time = time.time() - agent_persona_start
-
-        question_instr_start = time.time()
         question_instructions = self.question_instructions_prompt
-        question_instr_time = time.time() - question_instr_start
-
-        prior_memory_start = time.time()
         prior_question_memory = self.prior_question_memory_prompt
-        prior_memory_time = time.time() - prior_memory_start
-
-        components_time = time.time() - components_start
-
-        print(
-            f"DEBUG - PromptConstructor components breakdown: agent_instr={agent_instr_time:.4f}s, agent_persona={agent_persona_time:.4f}s, question_instr={question_instr_time:.4f}s, prior_memory={prior_memory_time:.4f}s"
-        )
 
         # Get components dict
-        dict_start = time.time()
         components = {
             "agent_instructions": agent_instructions.text,
             "agent_persona": agent_persona.text,
             "question_instructions": question_instructions.text,
             "prior_question_memory": prior_question_memory.text,
         }
-        dict_time = time.time() - dict_start
 
         # Generate prompts from plan
-        plan_start = time.time()
         prompts = self.prompt_plan.get_prompts(**components)
-        plan_time = time.time() - plan_start
 
         # Handle file keys if present
-        file_start = time.time()
         file_keys = self.file_keys_from_question
         if file_keys:
-            print(f"DEBUG - Processing {len(file_keys)} file keys")
             files_list = []
             for key in file_keys:
                 files_list.append(self.scenario[key])
             prompts["files_list"] = files_list
-        file_time = time.time() - file_start
-
-        total_time = time.time() - start_time
-        print(
-            f"DEBUG - PromptConstructor.get_prompts: components={components_time:.4f}s, "
-            f"dict={dict_time:.4f}s, plan={plan_time:.4f}s, files={file_time:.4f}s, "
-            f"total={total_time:.4f}s"
-        )
 
         return prompts
 
