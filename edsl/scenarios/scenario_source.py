@@ -35,6 +35,7 @@ from typing import (
 
 # Local imports
 from .scenario import Scenario
+from .scenario_list import ScenarioList  # Re-export for tests expecting this symbol here
 from .directory_scanner import DirectoryScanner
 from .exceptions import ScenarioError
 
