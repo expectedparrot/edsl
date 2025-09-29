@@ -1,0 +1,196 @@
+---
+title: "Updating agent traits"
+description: "This notebook demonstrates how to update an agent’s traits with new answers to questions using the `add traits()` and `to_agent_list()` methods."
+---
+
+Learn more about designing and using AI agents with surveys in the [documentation](/en/latest/agents).
+
+## Updating a single agent
+
+We start by creating an agent and using it with a survey:
+
+```python
+from edsl import Agent, QuestionFreeText, QuestionMultipleChoice, Survey
+```
+
+```python
+agent = Agent(
+    name = "college student",
+    traits = {
+        "persona": "You are a sophomore at a community college in upstate New York.",
+        "year": "sophomore",
+        "school": "community college",
+        "major": "biology",
+        "state": "New York"
+    }
+)
+```
+
+```python
+q1 = QuestionFreeText(
+    question_name = "career_interests",
+    question_text = "What are your career interests?"
+)
+
+q2 = QuestionMultipleChoice(
+    question_name = "attend_grad_school",
+    question_text = "Do you plan to attend grad school?",
+    question_options = ["Yes", "No", "Undecided"]
+)
+
+survey = Survey([q1, q2])
+
+results = survey.by(agent).run()
+```
+
+```python
+results.select("career_interests", "attend_grad_school")
+```
+
+|  | answer.career_interests | answer.attend_grad_school |
+| :--- | :--- | :--- |
+| 0 | I'm really interested in pursuing a career in the biological sciences. Since I'm majoring in biology, I'm exploring options like working in environmental conservation or possibly going into research. I'm also considering the healthcare field, as I've always been fascinated by how the human body works and how we can improve health outcomes. I still have some time to decide, so I'm keeping my options open while I learn more about each path. | Undecided |
+
+### Creating a new agent with original and new traits
+
+Here we use the `to_agent_list()` method to create a new agent that has both the original traits and new traits for the survey responses:
+
+```python
+new_agent = results.select("persona", "year", "school", "major", "state", "career_interests", "attend_grad_school").to_agent_list()[0]
+```
+
+```python
+type(new_agent)
+```
+```
+edsl.agents.agent.Agent
+```
+```python
+new_agent
+```
+
+[Agent](/en/latest/agents)
+
+|  | key | value |
+| :--- | :--- | :--- |
+| 0 | traits:persona | You are a sophomore at a community college in upstate New York. |
+| 1 | traits:year | sophomore |
+| 2 | traits:school | community college |
+| 3 | traits:major | biology |
+| 4 | traits:state | New York |
+| 5 | traits:career_interests | I'm really interested in pursuing a career in the biological sciences. Since I'm majoring in biology, I'm exploring options like working in environmental conservation or possibly going into research. I'm also considering the healthcare field, as I've always been fascinated by how the human body works and how we can improve health outcomes. I still have some time to decide, so I'm keeping my options open while I learn more about each path. |
+| 6 | traits:attend_grad_school | Undecided |
+
+### Updating an existing agent
+
+Here we use the `add_traits()` method to add the agent’s answers to its existing traits:
+
+```python
+career_interests = results.select("career_interests").to_list()[0] # there is only 1 answer
+career_interests
+```
+```
+"I'm really interested in pursuing a career in the biological sciences. Since I'm majoring in biology, I'm exploring options like working in environmental conservation or possibly going into research. I'm also considering the healthcare field, as I've always been fascinated by how the human body works and how we can improve health outcomes. I still have some time to decide, so I'm keeping my options open while I learn more about each path."
+```
+```python
+attend_grad_school = results.select("attend_grad_school").to_list()[0]
+attend_grad_school
+```
+```
+'Undecided'
+```
+```python
+agent.add_trait({
+    "career_interests": career_interests,
+    "attend_grad_school": attend_grad_school
+})
+agent
+```
+
+[Agent](/en/latest/agents)
+
+|  | key | value |
+| :--- | :--- | :--- |
+| 0 | traits:persona | You are a sophomore at a community college in upstate New York. |
+| 1 | traits:year | sophomore |
+| 2 | traits:school | community college |
+| 3 | traits:major | biology |
+| 4 | traits:state | New York |
+| 5 | name | college student |
+
+## Updating an agent list
+
+Here we update a list of agents all at once:
+
+```python
+from edsl import AgentList
+```
+```python
+agents = AgentList(
+    Agent(traits = {"persona":p}) for p in ["School principal", "Nurse"]
+)
+```
+
+```python
+q1 = QuestionFreeText(
+    question_name = "ideal_vacation",
+    question_text = "Describe your ideal vacation."
+)
+
+q2 = QuestionMultipleChoice(
+    question_name = "commute",
+    question_text = "How do you typically commute to work?",
+    question_options = ["Car", "Bus", "Train", "Bike", "Walk", "Other"]
+)
+
+survey = Survey([q1, q2])
+
+results = survey.by(agents).run()
+```
+
+```python
+results.select("persona", "ideal_vacation", "commute")
+```
+
+|  | agent.persona | answer.ideal_vacation | answer.commute |
+| :--- | :--- | :--- | :--- |
+| 0 | School principal | As a school principal, my ideal vacation would be a blend of relaxation and enrichment. I'd love to escape to a quiet coastal town where I can unwind with a good book, ideally something educational or related to leadership. Mornings would be for long walks on the beach, afternoons for exploring local museums or historical sites, and evenings for enjoying local cuisine. It would be a chance to recharge and gather new ideas to bring back to the school. A little time for reflection and planning for the upcoming school year would also be part of the itinerary. | Car |
+| 1 | Nurse | As a nurse, my ideal vacation would be a mix of relaxation and adventure. I'd love to spend some time at a serene beach resort where I can unwind and soak up the sun, perhaps with a good book in hand. It's important to recharge and escape the hustle and bustle of a hospital environment. After a few days of relaxation, I'd enjoy exploring local culture and cuisine, perhaps visiting markets or taking a cooking class. A bit of hiking or a nature excursion would also be perfect to stay active and enjoy the beauty of nature. Overall, a balance of rest and exploration would make for a perfect getaway. | Car |
+
+```python
+new_agents = results.select("persona", "ideal_vacation", "commute").to_agent_list()
+```
+
+```python
+type(new_agents)
+```
+```
+edsl.agents.agent_list.AgentList
+```
+
+```python
+new_agents
+```
+
+[AgentList](/en/latest/agents) agents: 2;
+
+|  | persona | ideal_vacation | commute |
+| :--- | :--- | :--- | :--- |
+| 0 | School principal | As a school principal, my ideal vacation would be a blend of relaxation and enrichment. I'd love to escape to a quiet coastal town where I can unwind with a good book, ideally something educational or related to leadership. Mornings would be for long walks on the beach, afternoons for exploring local museums or historical sites, and evenings for enjoying local cuisine. It would be a chance to recharge and gather new ideas to bring back to the school. A little time for reflection and planning for the upcoming school year would also be part of the itinerary. | Car |
+| 1 | Nurse | As a nurse, my ideal vacation would be a mix of relaxation and adventure. I'd love to spend some time at a serene beach resort where I can unwind and soak up the sun, perhaps with a good book in hand. It's important to recharge and escape the hustle and bustle of a hospital environment. After a few days of relaxation, I'd enjoy exploring local culture and cuisine, perhaps visiting markets or taking a cooking class. A bit of hiking or a nature excursion would also be perfect to stay active and enjoy the beauty of nature. Overall, a balance of rest and exploration would make for a perfect getaway. | Car |
+
+## Posting to Coop
+
+Here we show how to post content to [Coop](https://www.expectedparrot.com/content/explore), an integrated platform for creating and sharing AI research. [Learn more](/en/latest/coop) about how it works.
+
+```python
+from edsl import Notebook
+
+nb = Notebook(path = "updating_agents.ipynb")
+
+nb.push(
+    description = "Updating agent traits with new answers",
+    alias = "updating-agents-notebook",
+    visibility = "public"
+)
+```

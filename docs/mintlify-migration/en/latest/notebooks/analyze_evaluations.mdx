@@ -1,0 +1,571 @@
+---
+title: "Analyzing course evaluations"
+description: "This notebook provides sample [EDSL](https://pypi.org/project/edsl/) code for using a language model to analyze course evaluations. The analysis is designed as a survey of questions about a set of evaluations that we prompt an AI agent to answer, using a language model to generate the responses as a dataset."
+---
+
+[EDSL is an open-source library](https://github.com/expectedparrot/edsl) for simulating surveys, experiments and other research with AI agents and large language models. Before running the code below, please see instructions on [getting started](https://www.expectedparrot.com/getting-started), and tips and tutorials at our [documentation page](/en/latest/index).
+
+## Create questions
+
+We start by creating questions about a set of course evaluations for an agent to answer. EDSL comes with a [variety of question types](/en/latest/questions) that we can choose from based on the form of the response that we want to get back from a model (multiple choice, linear scale, checkbox, free text, numerical, dictionary, etc.). We can use a `{{ placeholder }}` in the question texts to parameterize them with each evaluation. This allows us to create different “scenarios” of the questions that we can administer at once.
+
+We start by importing some question types and composing questions in the relevant templates (see [examples of all types](/en/latest/questions#question-type-classes) in the docs):
+
+```python expandable
+from edsl import QuestionList, QuestionMultipleChoice
+
+q_sentiment = QuestionMultipleChoice(
+    question_name="sentiment",
+    question_text="What is the overall sentiment of this evaluation: {{ scenario.evaluation }}",
+    question_options=["Positive", "Neutral", "Negative"],
+)
+
+q_themes = QuestionList(
+    question_name="themes",
+    question_text="Summarize the key points of this evaluation: {{ scenario.evaluation }}",
+    max_list_items=3,  # Optional
+)
+
+q_improvements = QuestionList(
+    question_name="improvements",
+    question_text="Identify areas for improvement based on this evaluation: {{ scenario.evaluation }}",
+    max_list_items=3,
+)
+```
+
+## Construct a survey
+
+Next we combine our questions into a survey. This allows us to administer the questions asynchronously (by default), or according to any desired [survey logic or rules](/en/latest/surveys) that we want to add, such as skip/stop rules or giving an agent “memories” of other questions in the survey. Here we create a simple asynchronous survey by passing the list of questions to a `Survey` object:
+
+```python
+from edsl import Survey
+
+survey = Survey(questions=[q_sentiment, q_themes, q_improvements])
+
+survey
+```
+```
+Survey # questions: 3; question_name list: ['sentiment', 'themes', 'improvements'];
+```
+
+|  | question_options | question_name | question_text | question_type | max_list_items |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | ['Positive', 'Neutral', 'Negative'] | sentiment | What is the overall sentiment of this evaluation: {`{ scenario.evaluation }`} | multiple_choice | nan |
+| 1 | nan | themes | Summarize the key points of this evaluation: {`{ scenario.evaluation }`} | list | 3.000000 |
+| 2 | nan | improvements | Identify areas for improvement based on this evaluation: {`{ scenario.evaluation }`} | list | 3.000000 |
+
+## Add data to the questions
+
+Next we identify the data to be analyzed and create `Scenario` objects for it. This allows us to efficiently readminister questions with different data. We can create data using EDSL or [import it from other sources](/en/latest/scenarios) (CSV, PDF, PNG, MP4, DOC, tables, lists, dicts, etc.). Here we use some mock evaluations for an Econ 101 course stored as a list of texts:
+
+```python expandable
+evaluations = [
+    "I found the course very engaging and informative. The professor did an excellent job breaking down complex concepts, making them accessible to those of us new to economics. However, the pace was a bit fast, and I sometimes struggled to keep up with the weekly readings.",
+    "This class was a struggle for me. The material felt dry and difficult to connect with real-world applications, which I think could have made it more interesting. More examples from current events would definitely have helped spark my interest.",
+    "Excellent introductory course! The professor was enthusiastic and always willing to offer extra help during office hours. The interactive lectures and the practical assignments made the theory much more digestible and engaging.",
+    "As someone with a strong background in math, I appreciated the analytical rigor of this course. However, I wish there had been more discussions that connected the theories we learned to everyday economic issues. It felt a bit isolated from practical realities at times.",
+    "I enjoyed the course, especially the group projects, which were both challenging and rewarding. It was great to apply economic concepts to solve real-life problems. I did feel, however, that the feedback on assignments could be more detailed to help us understand our mistakes.",
+    "The course content was well-organized, but the lectures were somewhat monotonous and hard to follow. I would suggest incorporating more visual aids and maybe some guest lectures from industry professionals to liven up the sessions.",
+    "This was my favorite class this semester! The mix of theory and case studies was perfect, and the exams were fair. I also really appreciated the diversity of perspectives we explored in class, especially in terms of global economic policies.",
+    "I found the textbook to be overly complex for an introductory course. It often used jargon that hadn't been explained in lectures, which was confusing. Simpler reading materials or more explanatory lectures would make a big difference for newcomers to economics.",
+    "The professor was knowledgeable and clearly passionate about economics, but I felt the course relied too heavily on tests rather than more creative forms of assessment. More varied assignments would make the course more accessible to students with different learning styles.",
+    "This class was a solid introduction to economics, though it leaned heavily on theoretical aspects. I would have liked more opportunities to discuss the real-world implications of economic theories, which I believe would enhance understanding and retention of the material.",
+]
+```
+
+```python
+from edsl import ScenarioList
+
+scenarios = ScenarioList.from_source("list", "evaluation", evaluations)
+```
+
+## Design AI agents
+
+Next we design agents with relevant traits and personas for a language model to use in answering the questions. This can be useful if we want to compare responses among different audiences. We do this by passing dictionaries of `traits` to `Agent` objects. We can also choose whether to give an agent additional instructions for answering the survey (independent of individual question texts). Please see documentation for more [details and example code for creating agents to use with surveys](/en/latest/agents).
+
+Here we create a persona for the professor of the course and pass it some special instructions:
+
+```python
+from edsl import Agent
+
+persona = "You are a professor reviewing student evaluations for your recent Econ 101 course."
+instruction = "Be very specific and constructive in providing feedback and suggestions."
+
+agent = Agent(traits={"persona": persona}, instruction=instruction)
+```
+
+## Select language models
+
+[EDSL works with many popular language models](/en/latest/language_models) that we can use to generate responses for our survey. A current list of available models, performance and pricing is available [here](https://www.expectedparrot.com/models).
+
+We select models to use with a survey by creating `Model` objects for them (if no model is specified, gpt-4o is currently used by default):
+
+```python
+from edsl import Model
+
+model = Model("gemini-1.5-flash", service_name = "google")
+model
+```
+```
+gemini-1.5-flash
+```
+
+|  | key | value |
+| :--- | :--- | :--- |
+| 0 | model | gemini-1.5-flash |
+| 1 | parameters:temperature | 0.500000 |
+| 2 | parameters:topP | 1 |
+| 3 | parameters:topK | 1 |
+| 4 | parameters:maxOutputTokens | 2048 |
+| 5 | parameters:stopSequences | [] |
+| 6 | inference_service | google |
+
+## Run the survey
+
+Next we add the scenarios and agent to the survey, and then run it with the specified model. This will generate a dataset of `Results` that we can store and begin analyzing:
+
+```python
+results = survey.by(scenarios).by(agent).by(model).run()
+```
+
+## Analyzing results
+
+EDSL comes with [built-in methods for analyzing results](/en/latest/results) in data tables, dataframes, SQL queries and other formats. We can print a list of all the components that can be accessed:
+
+```python
+results.columns
+```
+
+|  | 0 |
+| :--- | :--- |
+| 0 | agent.agent_index |
+| 1 | agent.agent_instruction |
+| 2 | agent.agent_name |
+| 3 | agent.persona |
+| 4 | answer.improvements |
+| 5 | answer.sentiment |
+| 6 | answer.themes |
+| 7 | cache_keys.improvements_cache_key |
+| 8 | cache_keys.sentiment_cache_key |
+| 9 | cache_keys.themes_cache_key |
+| 10 | cache_used.improvements_cache_used |
+| 11 | cache_used.sentiment_cache_used |
+| 12 | cache_used.themes_cache_used |
+| 13 | comment.improvements_comment |
+| 14 | comment.sentiment_comment |
+| 15 | comment.themes_comment |
+| 16 | generated_tokens.improvements_generated_tokens |
+| 17 | generated_tokens.sentiment_generated_tokens |
+| 18 | generated_tokens.themes_generated_tokens |
+| 19 | iteration.iteration |
+| 20 | model.inference_service |
+| 21 | model.maxOutputTokens |
+| 22 | model.model |
+| 23 | model.model_index |
+| 24 | model.stopSequences |
+| 25 | model.temperature |
+| 26 | model.topK |
+| 27 | model.topP |
+| 28 | prompt.improvements_system_prompt |
+| 29 | prompt.improvements_user_prompt |
+| 30 | prompt.sentiment_system_prompt |
+| 31 | prompt.sentiment_user_prompt |
+| 32 | prompt.themes_system_prompt |
+| 33 | prompt.themes_user_prompt |
+| 34 | question_options.improvements_question_options |
+| 35 | question_options.sentiment_question_options |
+| 36 | question_options.themes_question_options |
+| 37 | question_text.improvements_question_text |
+| 38 | question_text.sentiment_question_text |
+| 39 | question_text.themes_question_text |
+| 40 | question_type.improvements_question_type |
+| 41 | question_type.sentiment_question_type |
+| 42 | question_type.themes_question_type |
+| 43 | raw_model_response.improvements_cost |
+| 44 | raw_model_response.improvements_input_price_per_million_tokens |
+| 45 | raw_model_response.improvements_input_tokens |
+| 46 | raw_model_response.improvements_one_usd_buys |
+| 47 | raw_model_response.improvements_output_price_per_million_tokens |
+| 48 | raw_model_response.improvements_output_tokens |
+| 49 | raw_model_response.improvements_raw_model_response |
+| 50 | raw_model_response.sentiment_cost |
+| 51 | raw_model_response.sentiment_input_price_per_million_tokens |
+| 52 | raw_model_response.sentiment_input_tokens |
+| 53 | raw_model_response.sentiment_one_usd_buys |
+| 54 | raw_model_response.sentiment_output_price_per_million_tokens |
+| 55 | raw_model_response.sentiment_output_tokens |
+| 56 | raw_model_response.sentiment_raw_model_response |
+| 57 | raw_model_response.themes_cost |
+| 58 | raw_model_response.themes_input_price_per_million_tokens |
+| 59 | raw_model_response.themes_input_tokens |
+| 60 | raw_model_response.themes_one_usd_buys |
+| 61 | raw_model_response.themes_output_price_per_million_tokens |
+| 62 | raw_model_response.themes_output_tokens |
+| 63 | raw_model_response.themes_raw_model_response |
+| 64 | reasoning_summary.improvements_reasoning_summary |
+| 65 | reasoning_summary.sentiment_reasoning_summary |
+| 66 | reasoning_summary.themes_reasoning_summary |
+| 67 | scenario.evaluation |
+| 68 | scenario.scenario_index |
+
+Here we select just the responses to the questions and display them in a table:
+
+```python
+results.select("sentiment", "themes", "themes_generated_tokens", "improvements")
+```
+
+|  | answer.sentiment | answer.themes | generated_tokens.themes_generated_tokens | answer.improvements |
+| :--- | :--- | :--- | :--- | :--- |
+| 0 | Positive | ['Engaging and informative course content', 'Effective explanation of complex concepts', 'Fast pace and challenging readings'] | ["Engaging and informative course content", "Effective explanation of complex concepts", "Fast pace and challenging readings"] The summary focuses on the student's main points: positive feedback on engagement and clarity, and constructive criticism regarding the pace. This is concise and addresses both strengths and weaknesses. | ['Adjust the pace of lectures and incorporate more in-class activities to reinforce concepts', 'Provide more structured guidance on readings, perhaps with suggested pacing or key concepts to focus on', 'Consider offering supplemental resources such as online tutorials or practice problems to support student learning'] |
+| 1 | Negative | ['Student found the material dry and difficult', 'Lack of real-world connection and examples cited', 'Desire for more current event examples to increase engagement'] | ["Student found the material dry and difficult", "Lack of real-world connection and examples cited", "Desire for more current event examples to increase engagement"] The student's feedback clearly highlights three key areas: difficulty with the material's dryness, a need for better real-world application, and a specific suggestion for using current events to improve engagement. These points are concise and address the core concerns expressed. | ['Incorporate more real-world examples and case studies', 'Connect course material to current events', 'Develop more engaging teaching methods to enhance student interest'] |
+| 2 | Positive | ['Enthusiastic and helpful professor', 'Engaging and interactive lectures', 'Practical and digestible assignments'] | ["Enthusiastic and helpful professor", "Engaging and interactive lectures", "Practical and digestible assignments"] The student highlighted three key strengths: the professor's positive attitude and availability, the lecture style, and the nature of the assignments. These are the most concise and impactful points for summarizing the feedback. | ['Consider incorporating more diverse teaching methods to cater to various learning styles', 'Explore opportunities to integrate current economic events into lectures for enhanced relevance', 'Evaluate the assessment methods to ensure a comprehensive evaluation of student understanding'] |
+| 3 | Neutral | ['Appreciated analytical rigor', 'Desired more real-world application discussions', 'Felt disconnect between theory and practice'] | ["Appreciated analytical rigor", "Desired more real-world application discussions", "Felt disconnect between theory and practice"] The student's evaluation highlights both positive and negative aspects. The first point captures the student's appreciation for the mathematical strength of the course. The second and third points address the student's main concern: a perceived lack of connection between the theoretical concepts and their practical relevance. These three points concisely summarize the core message of the evaluation. | ['Incorporate real-world case studies into lectures', 'Facilitate more in-class discussions relating theoretical concepts to current events', 'Develop supplementary materials (e.g., articles, videos) illustrating practical applications of economic theories'] |
+| 4 | Positive | ['Positive experience with group projects and real-world application', 'Desire for more detailed assignment feedback', 'Overall enjoyment of the course'] | ["Positive experience with group projects and real-world application", "Desire for more detailed assignment feedback", "Overall enjoyment of the course"] The student enjoyed the course and its practical application but wants more thorough feedback on assignments. These three points capture the essence of the evaluation concisely. | ['Enhance feedback detail on assignments', 'Explore alternative assessment methods to supplement group projects', 'Consider incorporating more diverse real-life case studies'] |
+| 5 | Neutral | ['Well-organized course content', 'Monotonous and hard-to-follow lectures', 'Suggestions for visual aids and guest lecturers'] | ["Well-organized course content", "Monotonous and hard-to-follow lectures", "Suggestions for visual aids and guest lecturers"] The three points accurately reflect the student's main criticisms and suggestions, concisely summarizing the evaluation. | ['Incorporate more visual aids into lectures', 'Consider inviting guest lecturers from the industry', 'Review lecture delivery to enhance engagement and clarity'] |
+| 6 | Positive | ['Enjoyed the balance of theory and case studies', 'Exams perceived as fair', 'Appreciated diverse perspectives on global economic policies'] | ["Enjoyed the balance of theory and case studies", "Exams perceived as fair", "Appreciated diverse perspectives on global economic policies"] The student highlights three distinct aspects of the course: the pedagogical approach (theory and case studies), assessment (fair exams), and content (global policy diversity). These are concise and represent the core positive feedback. | ['Increase quantitative problem sets', 'Incorporate more interactive learning activities', 'Explore current events more explicitly'] |
+| 7 | Negative | ['Textbook complexity', 'Uneven lecture-textbook integration', 'Suggestion for simpler materials or enhanced lectures'] | ["Textbook complexity", "Uneven lecture-textbook integration", "Suggestion for simpler materials or enhanced lectures"] The student clearly identifies textbook complexity and jargon as major obstacles, highlighting a disconnect between lectures and the textbook's content. The suggestion for improvement directly addresses these issues. | ['Simplify textbook selection or supplement with clearer introductory materials', 'Incorporate more definitions and explanations of jargon in lectures', 'Designate specific lecture time for clarifying complex textbook concepts'] |
+| 8 | Neutral | ["Professor's strong subject knowledge and passion were evident", 'Over-reliance on testing as assessment method', 'Need for diverse assignment types to cater to varied learning styles'] | ["Professor's strong subject knowledge and passion were evident", "Over-reliance on testing as assessment method", "Need for diverse assignment types to cater to varied learning styles"] The summary accurately reflects the student's main points without unnecessary detail, focusing on the core strengths and weaknesses highlighted in the evaluation. | ['Incorporate more diverse assessment methods (e.g., group projects, presentations, essays) to cater to varied learning styles.', 'Reduce over-reliance on high-stakes testing by incorporating lower-stakes assignments that allow for more frequent feedback and practice.', 'Explore alternative assessment formats such as problem-solving exercises or case studies to complement traditional testing.'] |
+| 9 | Neutral | ["Positive assessment of the course's introductory nature", 'Critique of the overemphasis on theory', 'Suggestion for increased real-world application discussions'] | ["Positive assessment of the course's introductory nature", "Critique of the overemphasis on theory", "Suggestion for increased real-world application discussions"] The three points accurately reflect the student's main concerns and suggestions, concisely summarizing the evaluation. | ['Incorporate more case studies illustrating real-world applications of economic theories', 'Develop in-class activities or assignments that directly connect theoretical concepts to current events or policy debates', 'Increase opportunities for student-led discussions focusing on the practical implications of economic models'] |
+
+We can do a quick tally of the sentiments:
+
+```python
+results.select("sentiment").tally()
+```
+
+|  | answer.sentiment | count |
+| :--- | :--- | :--- |
+| 0 | Positive | 4 |
+| 1 | Neutral | 4 |
+| 2 | Negative | 2 |
+
+We can also transform the results into a dataframe:
+
+```python
+df = results.to_pandas()
+df.head()
+```
+
+|  | answer.themes | answer.improvements | answer.sentiment | scenario.evaluation | scenario.scenario_index | agent.persona | agent.agent_instruction | agent.agent_name | agent.agent_index | model.model_index | ... | generated_tokens.themes_generated_tokens | cache_used.themes_cache_used | cache_used.improvements_cache_used | cache_used.sentiment_cache_used | cache_keys.sentiment_cache_key | cache_keys.improvements_cache_key | cache_keys.themes_cache_key | reasoning_summary.themes_reasoning_summary | reasoning_summary.improvements_reasoning_summary | reasoning_summary.sentiment_reasoning_summary |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | ['Engaging and informative course content', 'E... | ['Adjust the pace of lectures and incorporate ... | Positive | I found the course very engaging and informati... | 0 | You are a professor reviewing student evaluati... | Be very specific and constructive in providing... | Agent_0 | 0 | 0 | ... | ["Engaging and informative course content", "E... | True | True | True | e87ac1ab46560676c8556b25de720b5b | 045a6cd433b9f8a594e69c16650dc906 | 4cc05ab07126f12c0286e8d4017ee4e9 | NaN | NaN | NaN |
+| 1 | ['Student found the material dry and difficult... | ['Incorporate more real-world examples and cas... | Negative | This class was a struggle for me. The material... | 1 | You are a professor reviewing student evaluati... | Be very specific and constructive in providing... | Agent_1 | 0 | 0 | ... | ["Student found the material dry and difficult... | True | True | True | fae9b208b15d5716d7cf557f161b1da1 | c9a6ea81091088296924b083c0f5277e | 7e35a3d2becc5f4fe912e97490c496ce | NaN | NaN | NaN |
+| 2 | ['Enthusiastic and helpful professor', 'Engagi... | ['Consider incorporating more diverse teaching... | Positive | Excellent introductory course! The professor w... | 2 | You are a professor reviewing student evaluati... | Be very specific and constructive in providing... | Agent_2 | 0 | 0 | ... | ["Enthusiastic and helpful professor", "Engagi... | True | True | True | 1ac91057e39cf9900951ee30cc7928fe | 22262c2d5bb750a06b3707026b3bdee3 | 13432bad75496e0aebe8a06ba32a4550 | NaN | NaN | NaN |
+| 3 | ['Appreciated analytical rigor', 'Desired more... | ['Incorporate real-world case studies into lec... | Neutral | As someone with a strong background in math, I... | 3 | You are a professor reviewing student evaluati... | Be very specific and constructive in providing... | Agent_3 | 0 | 0 | ... | ["Appreciated analytical rigor", "Desired more... | True | True | True | 265dbbf39a6f044e3d9ac8879834a0a5 | c093f46806b11c1a6f3bb185458ca959 | 45750924adf6ee05ff3fb690a17b0f49 | NaN | NaN | NaN |
+| 4 | ['Positive experience with group projects and ... | ['Enhance feedback detail on assignments', 'Ex... | Positive | I enjoyed the course, especially the group pro... | 4 | You are a professor reviewing student evaluati... | Be very specific and constructive in providing... | Agent_4 | 0 | 0 | ... | ["Positive experience with group projects and ... | True | True | True | 957ab53fb4cae05d4e89dc02cda69b43 | 5dabf9b39b444bd678989962dbe91e65 | c5d6a3a504fbb6afb1c48f60981619a2 | NaN | NaN | NaN |
+
+5 rows × 69 columns
+
+We can also use pandas methods by first converting:
+
+```python
+df_sentiment = results.to_pandas()["answer.sentiment"]
+df_sentiment.value_counts()
+```
+
+```python
+answer.sentiment
+Positive    4
+Neutral     4
+Negative    2
+Name: count, dtype: int64
+```
+
+## Use responses to construct new questions
+
+We can use the responses to our initial questions to construct more questions about the texts. For example, we can prompt a model to condense the individual lists of themes and areas for improvement into short lists, and then use the new lists to quantify the topics across the set of evaluations.
+
+Here we take the lists of themes in each evaluation, flatten them into a (duplicative) list, and then create a new question prompting a model to condense it for us:
+
+```python
+results.select("themes", "themes_generated_tokens")
+```
+
+|  | answer.themes | generated_tokens.themes_generated_tokens |
+| :--- | :--- | :--- |
+| 0 | ['Engaging and informative course content', 'Effective explanation of complex concepts', 'Fast pace and challenging readings'] | ["Engaging and informative course content", "Effective explanation of complex concepts", "Fast pace and challenging readings"] The summary focuses on the student's main points: positive feedback on engagement and clarity, and constructive criticism regarding the pace. This is concise and addresses both strengths and weaknesses. |
+| 1 | ['Student found the material dry and difficult', 'Lack of real-world connection and examples cited', 'Desire for more current event examples to increase engagement'] | ["Student found the material dry and difficult", "Lack of real-world connection and examples cited", "Desire for more current event examples to increase engagement"] The student's feedback clearly highlights three key areas: difficulty with the material's dryness, a need for better real-world application, and a specific suggestion for using current events to improve engagement. These points are concise and address the core concerns expressed. |
+| 2 | ['Enthusiastic and helpful professor', 'Engaging and interactive lectures', 'Practical and digestible assignments'] | ["Enthusiastic and helpful professor", "Engaging and interactive lectures", "Practical and digestible assignments"] The student highlighted three key strengths: the professor's positive attitude and availability, the lecture style, and the nature of the assignments. These are the most concise and impactful points for summarizing the feedback. |
+| 3 | ['Appreciated analytical rigor', 'Desired more real-world application discussions', 'Felt disconnect between theory and practice'] | ["Appreciated analytical rigor", "Desired more real-world application discussions", "Felt disconnect between theory and practice"] The student's evaluation highlights both positive and negative aspects. The first point captures the student's appreciation for the mathematical strength of the course. The second and third points address the student's main concern: a perceived lack of connection between the theoretical concepts and their practical relevance. These three points concisely summarize the core message of the evaluation. |
+| 4 | ['Positive experience with group projects and real-world application', 'Desire for more detailed assignment feedback', 'Overall enjoyment of the course'] | ["Positive experience with group projects and real-world application", "Desire for more detailed assignment feedback", "Overall enjoyment of the course"] The student enjoyed the course and its practical application but wants more thorough feedback on assignments. These three points capture the essence of the evaluation concisely. |
+| 5 | ['Well-organized course content', 'Monotonous and hard-to-follow lectures', 'Suggestions for visual aids and guest lecturers'] | ["Well-organized course content", "Monotonous and hard-to-follow lectures", "Suggestions for visual aids and guest lecturers"] The three points accurately reflect the student's main criticisms and suggestions, concisely summarizing the evaluation. |
+| 6 | ['Enjoyed the balance of theory and case studies', 'Exams perceived as fair', 'Appreciated diverse perspectives on global economic policies'] | ["Enjoyed the balance of theory and case studies", "Exams perceived as fair", "Appreciated diverse perspectives on global economic policies"] The student highlights three distinct aspects of the course: the pedagogical approach (theory and case studies), assessment (fair exams), and content (global policy diversity). These are concise and represent the core positive feedback. |
+| 7 | ['Textbook complexity', 'Uneven lecture-textbook integration', 'Suggestion for simpler materials or enhanced lectures'] | ["Textbook complexity", "Uneven lecture-textbook integration", "Suggestion for simpler materials or enhanced lectures"] The student clearly identifies textbook complexity and jargon as major obstacles, highlighting a disconnect between lectures and the textbook's content. The suggestion for improvement directly addresses these issues. |
+| 8 | ["Professor's strong subject knowledge and passion were evident", 'Over-reliance on testing as assessment method', 'Need for diverse assignment types to cater to varied learning styles'] | ["Professor's strong subject knowledge and passion were evident", "Over-reliance on testing as assessment method", "Need for diverse assignment types to cater to varied learning styles"] The summary accurately reflects the student's main points without unnecessary detail, focusing on the core strengths and weaknesses highlighted in the evaluation. |
+| 9 | ["Positive assessment of the course's introductory nature", 'Critique of the overemphasis on theory', 'Suggestion for increased real-world application discussions'] | ["Positive assessment of the course's introductory nature", "Critique of the overemphasis on theory", "Suggestion for increased real-world application discussions"] The three points accurately reflect the student's main concerns and suggestions, concisely summarizing the evaluation. |
+
+```python
+themes = results.select("themes").to_list(flatten = True)
+```
+
+Next we construct a question to condense the list into a new list:
+
+```python
+from edsl import Scenario
+
+scenario = Scenario({"themes":themes})
+```
+
+```python
+q_condensed_themes = QuestionList(
+    question_name="condensed_themes",
+    question_text="""Combine the following list of themes extracted from the evaluations
+    into a consolidated, non-redundant list: {{ scenario.themes }}""",
+    max_list_items=10,
+)
+```
+
+Now we run the question and select the new list. Note that we can choose whether we want to use the agent for this question by not adding it to the question when we run it:
+
+```python
+condensed_themes = q_condensed_themes.by(scenario).run().select("condensed_themes").to_list()[0]
+condensed_themes
+```
+
+```python
+['Engaging and informative course content',
+ 'Effective explanation of complex concepts',
+ 'Desire for more real-world applications and examples',
+ 'Enthusiastic and knowledgeable professor',
+ 'Well-organized and interactive lectures',
+ 'Practical and digestible assignments',
+ 'Need for diverse assessment methods',
+ 'Appreciated analytical rigor and diverse perspectives',
+ 'Suggestions for improved lecture materials',
+ 'Positive experience with group projects and case studies']
+```
+
+Now we can create a question to identify all the themes in the list that appear in each evaluation (our new list becomes the list of answer options):
+
+```python
+from edsl import QuestionCheckBox
+
+q_themes_list = QuestionCheckBox(
+    question_name="themes_list",
+    question_text="Select all of the themes that are mentioned in this evaluation: {{ scenario.evaluation }}",
+    question_options=condensed_themes,
+)
+```
+
+Here we run the question and show a table listing all the themes for each evaluation in the results:
+
+```python
+themes_lists = q_themes_list.by(scenarios).by(agent).run()
+themes_lists.select("evaluation", "themes_list")
+```
+
+|  | scenario.evaluation | answer.themes_list |
+| :--- | :--- | :--- |
+| 0 | I found the course very engaging and informative. The professor did an excellent job breaking down complex concepts, making them accessible to those of us new to economics. However, the pace was a bit fast, and I sometimes struggled to keep up with the weekly readings. | ['Engaging and informative course content', 'Effective explanation of complex concepts'] |
+| 1 | This class was a struggle for me. The material felt dry and difficult to connect with real-world applications, which I think could have made it more interesting. More examples from current events would definitely have helped spark my interest. | ['Desire for more real-world applications and examples', 'Suggestions for improved lecture materials'] |
+| 2 | Excellent introductory course! The professor was enthusiastic and always willing to offer extra help during office hours. The interactive lectures and the practical assignments made the theory much more digestible and engaging. | ['Engaging and informative course content', 'Enthusiastic and knowledgeable professor', 'Well-organized and interactive lectures', 'Practical and digestible assignments'] |
+| 3 | As someone with a strong background in math, I appreciated the analytical rigor of this course. However, I wish there had been more discussions that connected the theories we learned to everyday economic issues. It felt a bit isolated from practical realities at times. | ['Desire for more real-world applications and examples', 'Appreciated analytical rigor and diverse perspectives'] |
+| 4 | I enjoyed the course, especially the group projects, which were both challenging and rewarding. It was great to apply economic concepts to solve real-life problems. I did feel, however, that the feedback on assignments could be more detailed to help us understand our mistakes. | ['Positive experience with group projects and case studies', 'Desire for more real-world applications and examples', 'Suggestions for improved lecture materials'] |
+| 5 | The course content was well-organized, but the lectures were somewhat monotonous and hard to follow. I would suggest incorporating more visual aids and maybe some guest lectures from industry professionals to liven up the sessions. | ['Suggestions for improved lecture materials', 'Desire for more real-world applications and examples'] |
+| 6 | This was my favorite class this semester! The mix of theory and case studies was perfect, and the exams were fair. I also really appreciated the diversity of perspectives we explored in class, especially in terms of global economic policies. | ['Engaging and informative course content', 'Appreciated analytical rigor and diverse perspectives', 'Positive experience with group projects and case studies'] |
+| 7 | I found the textbook to be overly complex for an introductory course. It often used jargon that hadn't been explained in lectures, which was confusing. Simpler reading materials or more explanatory lectures would make a big difference for newcomers to economics. | ['Suggestions for improved lecture materials'] |
+| 8 | The professor was knowledgeable and clearly passionate about economics, but I felt the course relied too heavily on tests rather than more creative forms of assessment. More varied assignments would make the course more accessible to students with different learning styles. | ['Enthusiastic and knowledgeable professor', 'Need for diverse assessment methods'] |
+| 9 | This class was a solid introduction to economics, though it leaned heavily on theoretical aspects. I would have liked more opportunities to discuss the real-world implications of economic theories, which I believe would enhance understanding and retention of the material. | ['Desire for more real-world applications and examples'] |
+
+```python
+wide_evaluation_themes = themes_lists.select("evaluation", "themes_list").to_scenario_list().expand("themes_list").rename({"themes_list": "theme"})
+wide_evaluation_themes
+```
+
+[ScenarioList](/en/latest/scenarios) scenarios: 22; keys: ['evaluation', 'theme'];
+
+|  | evaluation | theme |
+| :--- | :--- | :--- |
+| 0 | I found the course very engaging and informative. The professor did an excellent job breaking down complex concepts, making them accessible to those of us new to economics. However, the pace was a bit fast, and I sometimes struggled to keep up with the weekly readings. | Engaging and informative course content |
+| 1 | I found the course very engaging and informative. The professor did an excellent job breaking down complex concepts, making them accessible to those of us new to economics. However, the pace was a bit fast, and I sometimes struggled to keep up with the weekly readings. | Effective explanation of complex concepts |
+| 2 | This class was a struggle for me. The material felt dry and difficult to connect with real-world applications, which I think could have made it more interesting. More examples from current events would definitely have helped spark my interest. | Desire for more real-world applications and examples |
+| 3 | This class was a struggle for me. The material felt dry and difficult to connect with real-world applications, which I think could have made it more interesting. More examples from current events would definitely have helped spark my interest. | Suggestions for improved lecture materials |
+| 4 | Excellent introductory course! The professor was enthusiastic and always willing to offer extra help during office hours. The interactive lectures and the practical assignments made the theory much more digestible and engaging. | Engaging and informative course content |
+| 5 | Excellent introductory course! The professor was enthusiastic and always willing to offer extra help during office hours. The interactive lectures and the practical assignments made the theory much more digestible and engaging. | Enthusiastic and knowledgeable professor |
+| 6 | Excellent introductory course! The professor was enthusiastic and always willing to offer extra help during office hours. The interactive lectures and the practical assignments made the theory much more digestible and engaging. | Well-organized and interactive lectures |
+| 7 | Excellent introductory course! The professor was enthusiastic and always willing to offer extra help during office hours. The interactive lectures and the practical assignments made the theory much more digestible and engaging. | Practical and digestible assignments |
+| 8 | As someone with a strong background in math, I appreciated the analytical rigor of this course. However, I wish there had been more discussions that connected the theories we learned to everyday economic issues. It felt a bit isolated from practical realities at times. | Desire for more real-world applications and examples |
+| 9 | As someone with a strong background in math, I appreciated the analytical rigor of this course. However, I wish there had been more discussions that connected the theories we learned to everyday economic issues. It felt a bit isolated from practical realities at times. | Appreciated analytical rigor and diverse perspectives |
+| 10 | I enjoyed the course, especially the group projects, which were both challenging and rewarding. It was great to apply economic concepts to solve real-life problems. I did feel, however, that the feedback on assignments could be more detailed to help us understand our mistakes. | Positive experience with group projects and case studies |
+| 11 | I enjoyed the course, especially the group projects, which were both challenging and rewarding. It was great to apply economic concepts to solve real-life problems. I did feel, however, that the feedback on assignments could be more detailed to help us understand our mistakes. | Desire for more real-world applications and examples |
+| 12 | I enjoyed the course, especially the group projects, which were both challenging and rewarding. It was great to apply economic concepts to solve real-life problems. I did feel, however, that the feedback on assignments could be more detailed to help us understand our mistakes. | Suggestions for improved lecture materials |
+| 13 | The course content was well-organized, but the lectures were somewhat monotonous and hard to follow. I would suggest incorporating more visual aids and maybe some guest lectures from industry professionals to liven up the sessions. | Suggestions for improved lecture materials |
+| 14 | The course content was well-organized, but the lectures were somewhat monotonous and hard to follow. I would suggest incorporating more visual aids and maybe some guest lectures from industry professionals to liven up the sessions. | Desire for more real-world applications and examples |
+| 15 | This was my favorite class this semester! The mix of theory and case studies was perfect, and the exams were fair. I also really appreciated the diversity of perspectives we explored in class, especially in terms of global economic policies. | Engaging and informative course content |
+| 16 | This was my favorite class this semester! The mix of theory and case studies was perfect, and the exams were fair. I also really appreciated the diversity of perspectives we explored in class, especially in terms of global economic policies. | Appreciated analytical rigor and diverse perspectives |
+| 17 | This was my favorite class this semester! The mix of theory and case studies was perfect, and the exams were fair. I also really appreciated the diversity of perspectives we explored in class, especially in terms of global economic policies. | Positive experience with group projects and case studies |
+| 18 | I found the textbook to be overly complex for an introductory course. It often used jargon that hadn't been explained in lectures, which was confusing. Simpler reading materials or more explanatory lectures would make a big difference for newcomers to economics. | Suggestions for improved lecture materials |
+| 19 | The professor was knowledgeable and clearly passionate about economics, but I felt the course relied too heavily on tests rather than more creative forms of assessment. More varied assignments would make the course more accessible to students with different learning styles. | Enthusiastic and knowledgeable professor |
+| 20 | The professor was knowledgeable and clearly passionate about economics, but I felt the course relied too heavily on tests rather than more creative forms of assessment. More varied assignments would make the course more accessible to students with different learning styles. | Need for diverse assessment methods |
+| 21 | This class was a solid introduction to economics, though it leaned heavily on theoretical aspects. I would have liked more opportunities to discuss the real-world implications of economic theories, which I believe would enhance understanding and retention of the material. | Desire for more real-world applications and examples |
+
+```python
+wide_evaluation_themes.tally("theme")
+```
+
+|  | theme | count |
+| :--- | :--- | :--- |
+| 0 | Desire for more real-world applications and examples | 5 |
+| 1 | Suggestions for improved lecture materials | 4 |
+| 2 | Engaging and informative course content | 3 |
+| 3 | Enthusiastic and knowledgeable professor | 2 |
+| 4 | Appreciated analytical rigor and diverse perspectives | 2 |
+| 5 | Positive experience with group projects and case studies | 2 |
+| 6 | Effective explanation of complex concepts | 1 |
+| 7 | Well-organized and interactive lectures | 1 |
+| 8 | Practical and digestible assignments | 1 |
+| 9 | Need for diverse assessment methods | 1 |
+
+We can do the same thing with the areas of improvement:
+
+```python
+improvements = results.select("improvements").to_list(flatten=True)
+improvements
+```
+
+```python expandable
+['Adjust the pace of lectures and incorporate more in-class activities to reinforce concepts',
+ 'Provide more structured guidance on readings, perhaps with suggested pacing or key concepts to focus on',
+ 'Consider offering supplemental resources such as online tutorials or practice problems to support student learning',
+ 'Incorporate more real-world examples and case studies',
+ 'Connect course material to current events',
+ 'Develop more engaging teaching methods to enhance student interest',
+ 'Consider incorporating more diverse teaching methods to cater to various learning styles',
+ 'Explore opportunities to integrate current economic events into lectures for enhanced relevance',
+ 'Evaluate the assessment methods to ensure a comprehensive evaluation of student understanding',
+ 'Incorporate real-world case studies into lectures',
+ 'Facilitate more in-class discussions relating theoretical concepts to current events',
+ 'Develop supplementary materials (e.g., articles, videos) illustrating practical applications of economic theories',
+ 'Enhance feedback detail on assignments',
+ 'Explore alternative assessment methods to supplement group projects',
+ 'Consider incorporating more diverse real-life case studies',
+ 'Incorporate more visual aids into lectures',
+ 'Consider inviting guest lecturers from the industry',
+ 'Review lecture delivery to enhance engagement and clarity',
+ 'Increase quantitative problem sets',
+ 'Incorporate more interactive learning activities',
+ 'Explore current events more explicitly',
+ 'Simplify textbook selection or supplement with clearer introductory materials',
+ 'Incorporate more definitions and explanations of jargon in lectures',
+ 'Designate specific lecture time for clarifying complex textbook concepts',
+ 'Incorporate more diverse assessment methods (e.g., group projects, presentations, essays) to cater to varied learning styles.',
+ 'Reduce over-reliance on high-stakes testing by incorporating lower-stakes assignments that allow for more frequent feedback and practice.',
+ 'Explore alternative assessment formats such as problem-solving exercises or case studies to complement traditional testing.',
+ 'Incorporate more case studies illustrating real-world applications of economic theories',
+ 'Develop in-class activities or assignments that directly connect theoretical concepts to current events or policy debates',
+ 'Increase opportunities for student-led discussions focusing on the practical implications of economic models']
+```
+
+```python
+scenario = Scenario({"improvements":improvements})
+
+q_condensed_improvements = QuestionList(
+    question_name="condensed_improvements",
+    question_text="""Combine the following list of areas for improvement from the evaluations
+    into a consolidated, non-redundant list: {{ scenario.improvements }}""",
+    max_list_items=10,
+)
+```
+
+```python
+condensed_improvements = q_condensed_improvements.by(scenario).run().select("condensed_improvements").to_list()[0]
+condensed_improvements
+```
+
+```python
+['Adjust lecture pace and include more in-class activities to reinforce concepts',
+ 'Provide structured guidance and supplemental resources for readings',
+ 'Incorporate diverse teaching methods and real-world examples',
+ 'Connect course material to current events and economic events',
+ 'Evaluate and diversify assessment methods',
+ 'Enhance feedback on assignments',
+ 'Include visual aids and guest lecturers',
+ 'Simplify textbook selection and clarify complex concepts',
+ 'Increase opportunities for student-led discussions',
+ 'Reduce reliance on high-stakes testing with more frequent feedback opportunities']
+```
+
+```python
+q_improvements_list = QuestionCheckBox(
+    question_name="improvements_list",
+    question_text="Select all of the improvements that are mentioned in this evaluation: {{ scenario.evaluation }}",
+    question_options=condensed_improvements,
+)
+```
+
+```python
+improvements_lists = q_improvements_list.by(scenarios).by(agent).run()
+improvements_lists.select("evaluation", "improvements_list")
+```
+
+|  | scenario.evaluation | answer.improvements_list |
+| :--- | :--- | :--- |
+| 0 | I found the course very engaging and informative. The professor did an excellent job breaking down complex concepts, making them accessible to those of us new to economics. However, the pace was a bit fast, and I sometimes struggled to keep up with the weekly readings. | ['Adjust lecture pace and include more in-class activities to reinforce concepts', 'Provide structured guidance and supplemental resources for readings'] |
+| 1 | This class was a struggle for me. The material felt dry and difficult to connect with real-world applications, which I think could have made it more interesting. More examples from current events would definitely have helped spark my interest. | ['Incorporate diverse teaching methods and real-world examples', 'Connect course material to current events and economic events'] |
+| 2 | Excellent introductory course! The professor was enthusiastic and always willing to offer extra help during office hours. The interactive lectures and the practical assignments made the theory much more digestible and engaging. | [] |
+| 3 | As someone with a strong background in math, I appreciated the analytical rigor of this course. However, I wish there had been more discussions that connected the theories we learned to everyday economic issues. It felt a bit isolated from practical realities at times. | ['Incorporate diverse teaching methods and real-world examples', 'Connect course material to current events and economic events', 'Increase opportunities for student-led discussions'] |
+| 4 | I enjoyed the course, especially the group projects, which were both challenging and rewarding. It was great to apply economic concepts to solve real-life problems. I did feel, however, that the feedback on assignments could be more detailed to help us understand our mistakes. | ['Enhance feedback on assignments'] |
+| 5 | The course content was well-organized, but the lectures were somewhat monotonous and hard to follow. I would suggest incorporating more visual aids and maybe some guest lectures from industry professionals to liven up the sessions. | ['Include visual aids and guest lecturers'] |
+| 6 | This was my favorite class this semester! The mix of theory and case studies was perfect, and the exams were fair. I also really appreciated the diversity of perspectives we explored in class, especially in terms of global economic policies. | [] |
+| 7 | I found the textbook to be overly complex for an introductory course. It often used jargon that hadn't been explained in lectures, which was confusing. Simpler reading materials or more explanatory lectures would make a big difference for newcomers to economics. | ['Simplify textbook selection and clarify complex concepts', 'Provide structured guidance and supplemental resources for readings'] |
+| 8 | The professor was knowledgeable and clearly passionate about economics, but I felt the course relied too heavily on tests rather than more creative forms of assessment. More varied assignments would make the course more accessible to students with different learning styles. | ['Evaluate and diversify assessment methods'] |
+| 9 | This class was a solid introduction to economics, though it leaned heavily on theoretical aspects. I would have liked more opportunities to discuss the real-world implications of economic theories, which I believe would enhance understanding and retention of the material. | ['Incorporate diverse teaching methods and real-world examples', 'Connect course material to current events and economic events', 'Increase opportunities for student-led discussions'] |
+
+```python
+wide_themes = (
+    improvements_lists
+    .select("evaluation", "improvements_list")
+    .to_scenario_list()
+    .expand("improvements_list")
+    .rename({"improvements_list": "theme"})
+)
+```
+
+```python
+wide_themes.tally("theme")
+```
+
+|  | theme | count |
+| :--- | :--- | :--- |
+| 0 | Incorporate diverse teaching methods and real-world examples | 3 |
+| 1 | Connect course material to current events and economic events | 3 |
+| 2 | Provide structured guidance and supplemental resources for readings | 2 |
+| 3 | Increase opportunities for student-led discussions | 2 |
+| 4 | Adjust lecture pace and include more in-class activities to reinforce concepts | 1 |
+| 5 | Enhance feedback on assignments | 1 |
+| 6 | Include visual aids and guest lecturers | 1 |
+| 7 | Simplify textbook selection and clarify complex concepts | 1 |
+| 8 | Evaluate and diversify assessment methods | 1 |
+
+## Other examples
+
+Please check out the [EDSL Docs](/en/latest/index) for examples of other methods and templates for use cases!
+
+## Posting to the Coop
+
+The [Coop](https://www.expectedparrot.com/content/explore) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Coop account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [using Coop](/en/latest/coop).
+
+We can post any EDSL object to the Coop by calling the `push()` method on it, including this notebook:
+
+```python
+# from edsl import Notebook
+
+# nb = Notebook("analyze_evaluations.ipynb")
+
+# nb.push(
+#     description = "Example code for analyzing course evaluations",
+#     alias = "course-evaluations-notebook",
+#     visibility = "public"
+# )
+```
+
+To upate an object at Coop:
+
+```python
+from edsl import Notebook
+
+nb = Notebook(path = "analyze_evaluations.ipynb") # resave
+
+nb.patch("https://www.expectedparrot.com/content/RobinHorton/course-evaluations-notebook", value = nb)
+```
+

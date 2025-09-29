@@ -1,0 +1,480 @@
+---
+title: "Using EDSL to sense check data"
+description: "This notebook provides example code for sense checking survey data using [EDSL](/en/latest/index), an open-source library for simulating surveys, experiments and market research with AI agents and large language models."
+---
+
+## Contents
+
+Using a set of responses to a survey about online marketplaces as an example, we demonstrate EDSL methods for:
+
+<Steps>
+    <Step>
+    Evaluating survey questions (e.g., for clarity and improvements)
+    </Step>
+    <Step>
+    Analyzing each respondent’s set of answers (e.g., to summarize or identify sentiment, themes, etc.)
+    </Step>
+    <Step>
+    Reviewing each answer individually (e.g., to evaluate its relevance or usefulness)
+    </Step>
+</Steps>
+
+## Coop
+
+We also show how to post EDSL questions, surveys, results and notebooks (like this one) to [Coop: an integrated platform for creating and sharing LLM-based research](https://www.expectedparrot.com/explore).
+
+## How EDSL works
+
+EDSL is a flexible library that can be used to perform a broad variety of research tasks. A typical workflow consists of the following steps:
+
+- Construct questions
+- Add data to the questions (e.g., for data labeling tasks)
+- Use an AI agent to answer the questions
+- Select a language model to generate the answers
+- Analyze results in a formatted dataset
+
+## Technical setup
+
+Before running the code below please ensure that you have completed setup:
+
+- [Install](/en/latest/installation) the EDSL library.
+- Create a [Coop account](https://www.expectedparrot.com/login) and activate [remote inference](/en/latest/remote_inference) OR store your own [API Keys](/en/latest/api_keys) for language models that you want to use.
+
+Our [Starter Tutorial](/en/latest/starter_tutorial) provides examples of EDSL basic components.
+
+## Example data
+
+Our example data is a CSV consisting of several questions and a few rows of responses. Here we store it at the Coop and then re-import it.
+
+To post an object:
+
+```python
+from edsl import FileStore
+
+fs = FileStore("marketplace_survey_results.csv")
+fs.push(
+    description = "mock marketplace survey results",
+    alias = "mock-marketplace-survey-results",
+    visibility = "public"
+)
+```
+
+This returns details of the object we can use to retrieve it:
+
+```json
+{'description': 'mock marketplace survey results',
+ 'object_type': 'scenario',
+ 'url': 'https://www.expectedparrot.com/content/2e56db7a-27de-4c40-bb72-36a5b1d21e6a',
+ 'alias_url': 'https://www.expectedparrot.com/content/RobinHorton/mock-marketplace-survey-results',
+ 'uuid': '2e56db7a-27de-4c40-bb72-36a5b1d21e6a',
+ 'version': '0.1.62.dev1',
+ 'visibility': 'public'}
+```
+
+
+```python
+from edsl import FileStore
+```
+
+
+```python
+csv_file = FileStore.pull("https://www.expectedparrot.com/content/RobinHorton/mock-marketplace-survey-results")
+```
+
+## Creating questions about the data
+
+There are many questions we might want to ask about the data, such as:
+
+- Does this survey question have any logical or syntactical problems? `{{ *question* }}`
+- What is the overall sentiment of this respondent’s answers? `{{ *responses* }}`
+- Is this answer responsive to the question that was asked? `{{ *question* }}` `{{ *answer* }}`
+
+## Question types
+
+EDSL comes with many common question types that we can select from based on the form of the response that we want to get back from the model: multiple choice, checkbox, linear scale, free text, etc. [Learn more about EDSL question types](/en/latest/questions).
+
+Here we construct `Question` objects for the questions that we want to ask about the data, using `{{ placeholders }}` for the information that we will add to the questions in the steps that follow:
+
+
+```python
+from edsl import QuestionFreeText, QuestionMultipleChoice, QuestionYesNo
+```
+
+
+```python
+q_logic = QuestionFreeText(
+    question_name = "logic",
+    question_text = """
+    Describe any logical or syntactical problems in the following survey question:
+    {{ scenario.question }}
+    """
+)
+```
+
+
+```python
+q_sentiment = QuestionMultipleChoice(
+    question_name = "sentiment",
+    question_text = """
+    Identify the overall sentiment of this respondent's survey answers:
+    {{ scenario.responses }}
+    """,
+    question_options = ["Very unsatisfied", "Somewhat unsatisfied", "Somewhat satisfied", "Very satisfied"]
+)
+```
+
+
+```python
+q_responsive = QuestionYesNo(
+    question_name = "responsive",
+    question_text = """
+    Is this answer responsive to the question that was asked?
+    Question: {{ scenario.question }}
+    Answer: {{ scenario.answer }}
+    """
+)
+```
+
+## Adding survey data to the questions
+
+Next we’ll add our data to our questions. This can be done efficiently by creating a `ScenarioList` representing the data. The individual `Scenario` objects in the list can be constructed in a variety of ways depending on the information that we want to include in a particular question.
+
+We start by calling the `from_source()` method to create a `ScenarioList` for the data in its original form. We can see that this generates a `Scenario` dictionary for each respondent’s set of answers with key/value pairs for the individual questions and answers:
+
+
+```python
+from edsl import ScenarioList
+```
+
+
+```python
+sl = ScenarioList.from_source("csv", csv_file.to_tempfile()) # equivalent to importing a local file
+sl
+```
+
+
+[ScenarioList](/en/latest/scenarios) scenarios: 3; keys: ['Respondent ID', 'What do you like most about using our online marketplace?', 'What is one feature you would like to see added to improve your shopping experience?', 'Is there anything else you would like to share about your experience with us?', 'How do you feel about the current product search and filtering options?', 'Can you describe a recent experience where you were dissatisfied with our service?'];
+
+|  | Respondent ID | What do you like most about using our online marketplace? | What is one feature you would like to see added to improve your shopping experience? | Can you describe a recent experience where you were dissatisfied with our service? | How do you feel about the current product search and filtering options? | Is there anything else you would like to share about your experience with us? |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | 101 | The wide variety of products and the ease of use. | It would be great to have a personalized recommendation system based on my browsing history. | I was disappointed when an item I ordered arrived damaged, but customer service quickly resolved it. | The search and filtering options are intuitive and work well for me. | No, keep up the great work! |
+| 1 | 102 | I enjoy the simplicity of the interface. | A feature that helps compare similar products side by side would be useful. | No complaints here. | I find the product search to be pretty effective. | I think the sky is a beautiful shade of purple today. |
+| 2 | 103 | The platform is user-friendly and offers a vast selection of products. | Would love to see an option to save and compare different products. | My delivery was late by a few days, which was frustrating. | It’s okay. | No. |
+
+## Evaluating the questions
+
+For our first question we want to create a `Scenario` for each survey question:
+
+
+```python expandable
+from edsl import QuestionFreeText, Survey
+
+q_logic = QuestionFreeText(
+    question_name = "logic",
+    question_text = """
+    Describe any logical or syntactical problems in the following survey question:
+    {{ scenario.question }}
+    """
+)
+
+q_improved = QuestionFreeText(
+    question_name = "improved",
+    question_text = """
+    You were previously asked to describe any problems with the following survey question:
+    {{ scenario.question }}
+    You answered: '{{ logic.answer }}'
+    Now please draft an improved version of this survey question.
+    Return only the revised question text.
+    """
+)
+
+survey = Survey(questions = [q_logic, q_improved])
+```
+
+The survey questions are the `parameters` of the `ScenarioList` created above:
+
+
+```python
+questions = list(sl.parameters)
+questions
+```
+
+
+['Respondent ID',
+ 'What do you like most about using our online marketplace?',
+ 'What is one feature you would like to see added to improve your shopping experience?',
+ 'Is there anything else you would like to share about your experience with us?',
+ 'How do you feel about the current product search and filtering options?',
+ 'Can you describe a recent experience where you were dissatisfied with our service?']
+
+We can pass them to the `from_source()` method to create a new `ScenarioList`, specifying that the key for each `Scenario` will be `question` in order to match the parameter of our logic question:
+
+
+```python
+sl_questions = ScenarioList.from_source("list", "question", questions)
+sl_questions
+```
+
+
+[ScenarioList](/en/latest/scenarios) scenarios: 6; keys: ['question'];
+
+|  | question |
+| :--- | :--- |
+| 0 | Respondent ID |
+| 1 | What do you like most about using our online marketplace? |
+| 2 | What is one feature you would like to see added to improve your shopping experience? |
+| 3 | Is there anything else you would like to share about your experience with us? |
+| 4 | How do you feel about the current product search and filtering options? |
+| 5 | Can you describe a recent experience where you were dissatisfied with our service? |
+
+We select a model to use, and then add the scenarios to the survey when we run it:
+
+
+```python
+from edsl import Model
+
+m = Model("gemini-1.5-flash", service_name = "google")
+```
+
+
+```python
+results = survey.by(sl_questions).by(m).run()
+```
+
+This generates a dataset of `Results` that we can access with built-in methods for analysis:
+
+
+```python
+results.select("question", "logic", "improved")
+```
+
+
+|  | scenario.question | answer.logic | answer.improved |
+| :--- | :--- | :--- | :--- |
+| 0 | Respondent ID | "Respondent ID" is not a survey *question*; it's a field for identifying the respondent's unique entry in the dataset. There's no logical or syntactical problem *within* the term itself, but its placement as if it were a question is problematic. The issue is its function: it's not something a respondent *answers*, it's something assigned to them by the survey system. Including it as if it were a question is a design flaw. | (No change needed; remove "Respondent ID" from the survey entirely.) |
+| 1 | What do you like most about using our online marketplace? | The question "What do you like most about using our online marketplace?" has a few potential problems: * **Leading Question (subtle):** While not overtly leading, it presupposes the respondent *likes* something about the marketplace. Someone with a negative experience might struggle to answer honestly, potentially leading to biased results or a lack of negative feedback. A neutral question would be better. * **Open-ended and difficult to analyze:** The open-ended nature makes it hard to quantify and analyze the responses. You'll get a wide variety of answers requiring significant manual coding and categorization, making it time-consuming and prone to subjective interpretation. This is less of a logical problem and more of a practical one for data analysis. * **Ambiguity on "using":** Does "using" refer to the buying process, selling process, browsing, customer service interactions, or something else? The question could be more specific to elicit more targeted and useful feedback. To improve it, consider several options: * **Multiple choice with an "other" option:** This allows for easier analysis and quantification while still capturing a range of opinions. * **Rating scales:** Ask respondents to rate different aspects of the marketplace (e.g., ease of use, selection, customer service) on a scale. * **A more neutral open-ended question:** "What is your overall experience with our online marketplace?" or "What could we improve about our online marketplace?" These avoid the presumption of positive feelings. Even better would be to break this down into more specific questions about different aspects of the marketplace. | How would you rate your overall experience with our online marketplace? |
+| 2 | What is one feature you would like to see added to improve your shopping experience? | The question has a few potential problems: * **Ambiguity of "feature":** The term "feature" is quite broad. A respondent might interpret it as a website feature (e.g., better search functionality), a store feature (e.g., more parking), a product feature (e.g., sustainable packaging), or a service feature (e.g., faster delivery). This lack of specificity makes the responses difficult to categorize and analyze meaningfully. * **Leading question (slightly):** While not overtly leading, the phrasing implies that there *is* something to improve. Some respondents might have a perfectly satisfactory shopping experience and struggle to answer, leading to potentially biased results or low response rates. A neutral phrasing would be preferable. * **Limited to one feature:** Respondents might have multiple suggestions. Limiting them to one forces prioritization which might not accurately reflect their preferences. They might choose a less important feature simply because it's easier to articulate than a more complex issue. * **Lack of context:** The question doesn't specify *what* shopping experience is being referred to. Is it online shopping, in-store shopping, or both? This ambiguity could lead to responses that are irrelevant or difficult to compare. In short, the question needs more precision and clarity to be effective. | Thinking about your recent online shopping experience with [Company Name], what is one specific website feature you would like to see improved or added? |
+| 3 | Is there anything else you would like to share about your experience with us? | The question "Is there anything else you would like to share about your experience with us?" is syntactically fine, but it has a few logical problems: * **Vague Scope:** "Your experience with us" is too broad. The respondent might not know what timeframe or aspects of their interaction the question refers to. Did it cover a single interaction, a product, a service, a period of time? More specific framing is needed. * **Lack of Guidance:** Open-ended questions like this can yield unhelpful answers (e.g., "Nothing," "Yes," or irrelevant information). It would benefit from prompting more specific feedback, such as suggesting categories (e.g., "Regarding the product itself...", "Regarding customer service...", "Regarding the website..."). * **Potential for Bias:** The phrasing is slightly leading. A more neutral phrasing might be "What additional comments do you have about your experience?" This avoids the implication that the respondent *should* have something else to share. In short, while grammatically correct, the question lacks the precision and guidance needed to elicit useful and actionable feedback. | To help us improve, please share your thoughts on your recent experience with us. Specifically, we'd appreciate your feedback on: the product itself; our customer service; and the website. |
+| 4 | How do you feel about the current product search and filtering options? | The question "How do you feel about the current product search and filtering options?" has several potential problems: * **Ambiguity:** "How do you feel" is too broad. It doesn't specify what kind of feeling the respondent should express. Do they want to express satisfaction, frustration, ease of use, speed, or something else? The question needs to be more specific about the type of feedback desired (e.g., "How satisfied are you with...?" or "How easy is it to...?"). * **Lack of Specificity (Compound Question):** It combines two distinct aspects – search and filtering – into a single question. A respondent might have a positive opinion on search but a negative one on filtering, making it difficult to give a concise and accurate answer. It's better to separate these into two distinct questions. * **No Scale or Structure:** There's no guidance on how the respondent should answer. Should they write an essay? Choose from a list of options? Rate their feelings on a scale? Providing a structured response format (e.g., a Likert scale, multiple-choice options, or a rating system) will make the data easier to analyze and interpret. * **Assumes Familiarity:** The question assumes the respondent has actually used the product search and filtering options. It should include a filter to ensure only those who have used the features answer the question. In short, the question is too vague and lacks structure, making it difficult for respondents to answer meaningfully and for researchers to analyze the results effectively. | How satisfied are you with the product search functionality? And how satisfied are you with the product filtering functionality? (Please rate each on a scale of 1 to 5, where 1 is very dissatisfied and 5 is very satisfied.) |
+| 5 | Can you describe a recent experience where you were dissatisfied with our service? | The question has a few potential problems: * **Leading Question:** It presupposes the respondent *has* had a negative experience. People might feel pressured to answer even if they don't have a recent negative experience, leading to potentially inaccurate or fabricated responses. A better approach would be to first ask if they had a recent negative experience, and *then* ask for a description only if they answer affirmatively. * **Ambiguous "our service":** The phrase "our service" lacks specificity. Depending on the context (e.g., a restaurant, a bank, a software company), "our service" could encompass many different things. The question would benefit from clarifying what aspect of the service is being inquired about (e.g., "Can you describe a recent experience where you were dissatisfied with our customer service?", "Can you describe a recent experience where you were dissatisfied with the speed of our delivery?"). * **"Recent" is undefined:** What constitutes "recent"? A week? A month? A year? Defining a timeframe will make the responses more consistent and comparable. In short, the question needs to be more precise and less leading to gather reliable and useful data. | In the past month, have you had a negative experience with our customer service? If so, please describe it. |
+
+[Learn more about working with results](/en/latest/results).
+
+## Evaluating respondents’ collective answers
+
+Next we can create a `ScenarioList` for each respondent’s answers to use with our question about sentiment:
+
+
+```python
+sl
+```
+
+
+[ScenarioList](/en/latest/scenarios) scenarios: 3; keys: ['Respondent ID', 'What do you like most about using our online marketplace?', 'What is one feature you would like to see added to improve your shopping experience?', 'Is there anything else you would like to share about your experience with us?', 'How do you feel about the current product search and filtering options?', 'Can you describe a recent experience where you were dissatisfied with our service?'];
+
+|  | Respondent ID | What do you like most about using our online marketplace? | What is one feature you would like to see added to improve your shopping experience? | Can you describe a recent experience where you were dissatisfied with our service? | How do you feel about the current product search and filtering options? | Is there anything else you would like to share about your experience with us? |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | 101 | The wide variety of products and the ease of use. | It would be great to have a personalized recommendation system based on my browsing history. | I was disappointed when an item I ordered arrived damaged, but customer service quickly resolved it. | The search and filtering options are intuitive and work well for me. | No, keep up the great work! |
+| 1 | 102 | I enjoy the simplicity of the interface. | A feature that helps compare similar products side by side would be useful. | No complaints here. | I find the product search to be pretty effective. | I think the sky is a beautiful shade of purple today. |
+| 2 | 103 | The platform is user-friendly and offers a vast selection of products. | Would love to see an option to save and compare different products. | My delivery was late by a few days, which was frustrating. | It’s okay. | No. |
+
+
+```python
+sl_responses = ScenarioList.from_source("list", "responses", [str(x) for x in sl])
+sl_responses
+```
+
+
+[ScenarioList](/en/latest/scenarios) scenarios: 3; keys: ['responses'];
+
+|  | responses |
+| :--- | :--- |
+| 0 | Scenario(`{'Respondent ID': '101', 'What do you like most about using our online marketplace?': 'The wide variety of products and the ease of use.', 'What is one feature you would like to see added to improve your shopping experience?': 'It would be great to have a personalized recommendation system based on my browsing history.', 'Can you describe a recent experience where you were dissatisfied with our service?': 'I was disappointed when an item I ordered arrived damaged, but customer service quickly resolved it.', 'How do you feel about the current product search and filtering options?': 'The search and filtering options are intuitive and work well for me.', 'Is there anything else you would like to share about your experience with us?': 'No, keep up the great work!'}`) |
+| 1 | Scenario(`{'Respondent ID': '102', 'What do you like most about using our online marketplace?': 'I enjoy the simplicity of the interface.', 'What is one feature you would like to see added to improve your shopping experience?': 'A feature that helps compare similar products side by side would be useful.', 'Can you describe a recent experience where you were dissatisfied with our service?': 'No complaints here.', 'How do you feel about the current product search and filtering options?': 'I find the product search to be pretty effective.', 'Is there anything else you would like to share about your experience with us?': 'I think the sky is a beautiful shade of purple today.'}`) |
+| 2 | Scenario(`{'Respondent ID': '103', 'What do you like most about using our online marketplace?': 'The platform is user-friendly and offers a vast selection of products.', 'What is one feature you would like to see added to improve your shopping experience?': 'Would love to see an option to save and compare different products.', 'Can you describe a recent experience where you were dissatisfied with our service?': 'My delivery was late by a few days, which was frustrating.', 'How do you feel about the current product search and filtering options?': 'It’s okay.', 'Is there anything else you would like to share about your experience with us?': 'No.'}`) |
+
+Next we add these scenarios to our sentiment question (and any others we want to add) and run it:
+
+
+```python expandable
+from edsl import QuestionMultipleChoice, QuestionLinearScale, Survey
+
+q_sentiment = QuestionMultipleChoice(
+    question_name = "sentiment",
+    question_text = """
+    What is the overall sentiment of this respondent's survey answers?
+    {{ scenario.responses }}
+    """,
+    question_options = ["Very unsatisfied", "Somewhat unsatisfied", "Somewhat satisfied", "Very satisfied"]
+)
+
+q_recommend = QuestionLinearScale(
+    question_name = "recommend",
+    question_text = """
+    On a scale from 1 to 5, how likely do you think this respondent is to recommend the company to a friend?
+    {{ scenario.responses }}
+    """,
+    question_options = [1, 2, 3, 4, 5],
+    option_labels = {1:"Not at all likely", 5:"Very likely"}
+)
+
+survey = Survey(questions = [q_sentiment, q_recommend])
+
+
+jobs = results = survey.by(sl_responses).by(m)
+
+jobs.prompts().select("user_prompt")
+```
+
+
+|  | user_prompt |
+| :--- | :--- |
+| 0 | What is the overall sentiment of this respondent's survey answers? Scenario(`{'Respondent ID': '101', 'What do you like most about using our online marketplace?': 'The wide variety of products and the ease of use.', 'What is one feature you would like to see added to improve your shopping experience?': 'It would be great to have a personalized recommendation system based on my browsing history.', 'Can you describe a recent experience where you were dissatisfied with our service?': 'I was disappointed when an item I ordered arrived damaged, but customer service quickly resolved it.', 'How do you feel about the current product search and filtering options?': 'The search and filtering options are intuitive and work well for me.', 'Is there anything else you would like to share about your experience with us?': 'No, keep up the great work!'}`) Very unsatisfied Somewhat unsatisfied Somewhat satisfied Very satisfied Only 1 option may be selected. Respond only with a string corresponding to one of the options. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 1 | On a scale from 1 to 5, how likely do you think this respondent is to recommend the company to a friend? Scenario(`{'Respondent ID': '101', 'What do you like most about using our online marketplace?': 'The wide variety of products and the ease of use.', 'What is one feature you would like to see added to improve your shopping experience?': 'It would be great to have a personalized recommendation system based on my browsing history.', 'Can you describe a recent experience where you were dissatisfied with our service?': 'I was disappointed when an item I ordered arrived damaged, but customer service quickly resolved it.', 'How do you feel about the current product search and filtering options?': 'The search and filtering options are intuitive and work well for me.', 'Is there anything else you would like to share about your experience with us?': 'No, keep up the great work!'}`) 1 : Not at all likely 2 : 3 : 4 : 5 : Very likely Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 2 | What is the overall sentiment of this respondent's survey answers? Scenario(`{'Respondent ID': '102', 'What do you like most about using our online marketplace?': 'I enjoy the simplicity of the interface.', 'What is one feature you would like to see added to improve your shopping experience?': 'A feature that helps compare similar products side by side would be useful.', 'Can you describe a recent experience where you were dissatisfied with our service?': 'No complaints here.', 'How do you feel about the current product search and filtering options?': 'I find the product search to be pretty effective.', 'Is there anything else you would like to share about your experience with us?': 'I think the sky is a beautiful shade of purple today.'}`) Very unsatisfied Somewhat unsatisfied Somewhat satisfied Very satisfied Only 1 option may be selected. Respond only with a string corresponding to one of the options. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 3 | On a scale from 1 to 5, how likely do you think this respondent is to recommend the company to a friend? Scenario(`{'Respondent ID': '102', 'What do you like most about using our online marketplace?': 'I enjoy the simplicity of the interface.', 'What is one feature you would like to see added to improve your shopping experience?': 'A feature that helps compare similar products side by side would be useful.', 'Can you describe a recent experience where you were dissatisfied with our service?': 'No complaints here.', 'How do you feel about the current product search and filtering options?': 'I find the product search to be pretty effective.', 'Is there anything else you would like to share about your experience with us?': 'I think the sky is a beautiful shade of purple today.'}`) 1 : Not at all likely 2 : 3 : 4 : 5 : Very likely Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 4 | What is the overall sentiment of this respondent's survey answers? Scenario(`{'Respondent ID': '103', 'What do you like most about using our online marketplace?': 'The platform is user-friendly and offers a vast selection of products.', 'What is one feature you would like to see added to improve your shopping experience?': 'Would love to see an option to save and compare different products.', 'Can you describe a recent experience where you were dissatisfied with our service?': 'My delivery was late by a few days, which was frustrating.', 'How do you feel about the current product search and filtering options?': 'It’s okay.', 'Is there anything else you would like to share about your experience with us?': 'No.'}`) Very unsatisfied Somewhat unsatisfied Somewhat satisfied Very satisfied Only 1 option may be selected. Respond only with a string corresponding to one of the options. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 5 | On a scale from 1 to 5, how likely do you think this respondent is to recommend the company to a friend? Scenario(`{'Respondent ID': '103', 'What do you like most about using our online marketplace?': 'The platform is user-friendly and offers a vast selection of products.', 'What is one feature you would like to see added to improve your shopping experience?': 'Would love to see an option to save and compare different products.', 'Can you describe a recent experience where you were dissatisfied with our service?': 'My delivery was late by a few days, which was frustrating.', 'How do you feel about the current product search and filtering options?': 'It’s okay.', 'Is there anything else you would like to share about your experience with us?': 'No.'}`) 1 : Not at all likely 2 : 3 : 4 : 5 : Very likely Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+
+
+```python
+results = survey.by(sl_responses).by(m).run()
+```
+
+
+```python
+results.select("responses", "sentiment", "recommend")
+```
+
+
+|  | scenario.responses | answer.sentiment | answer.recommend |
+| :--- | :--- | :--- | :--- |
+| 0 | Scenario(`{'Respondent ID': '101', 'What do you like most about using our online marketplace?': 'The wide variety of products and the ease of use.', 'What is one feature you would like to see added to improve your shopping experience?': 'It would be great to have a personalized recommendation system based on my browsing history.', 'Can you describe a recent experience where you were dissatisfied with our service?': 'I was disappointed when an item I ordered arrived damaged, but customer service quickly resolved it.', 'How do you feel about the current product search and filtering options?': 'The search and filtering options are intuitive and work well for me.', 'Is there anything else you would like to share about your experience with us?': 'No, keep up the great work!'}`) | Very satisfied | 4 |
+| 1 | Scenario(`{'Respondent ID': '102', 'What do you like most about using our online marketplace?': 'I enjoy the simplicity of the interface.', 'What is one feature you would like to see added to improve your shopping experience?': 'A feature that helps compare similar products side by side would be useful.', 'Can you describe a recent experience where you were dissatisfied with our service?': 'No complaints here.', 'How do you feel about the current product search and filtering options?': 'I find the product search to be pretty effective.', 'Is there anything else you would like to share about your experience with us?': 'I think the sky is a beautiful shade of purple today.'}`) | Very satisfied | 4 |
+| 2 | Scenario(`{'Respondent ID': '103', 'What do you like most about using our online marketplace?': 'The platform is user-friendly and offers a vast selection of products.', 'What is one feature you would like to see added to improve your shopping experience?': 'Would love to see an option to save and compare different products.', 'Can you describe a recent experience where you were dissatisfied with our service?': 'My delivery was late by a few days, which was frustrating.', 'How do you feel about the current product search and filtering options?': 'It’s okay.', 'Is there anything else you would like to share about your experience with us?': 'No.'}`) | Somewhat satisfied | 3 |
+
+## Evaluating individual answers
+
+Next we create a `ScenarioList` for each individual question and answer to use with our question about the responsiveness of each answer. We can use the `unpivot()` method to expand the scenarios by desired identifiers (e.g., respondent ID):
+
+
+```python
+sl_qa = sl.unpivot(id_vars = ["Respondent ID"])
+sl_qa
+```
+
+
+[ScenarioList](/en/latest/scenarios) scenarios: 15; keys: ['variable', 'value', 'Respondent ID'];
+
+|  | Respondent ID | variable | value |
+| :--- | :--- | :--- | :--- |
+| 0 | 101 | What do you like most about using our online marketplace? | The wide variety of products and the ease of use. |
+| 1 | 101 | What is one feature you would like to see added to improve your shopping experience? | It would be great to have a personalized recommendation system based on my browsing history. |
+| 2 | 101 | Can you describe a recent experience where you were dissatisfied with our service? | I was disappointed when an item I ordered arrived damaged, but customer service quickly resolved it. |
+| 3 | 101 | How do you feel about the current product search and filtering options? | The search and filtering options are intuitive and work well for me. |
+| 4 | 101 | Is there anything else you would like to share about your experience with us? | No, keep up the great work! |
+| 5 | 102 | What do you like most about using our online marketplace? | I enjoy the simplicity of the interface. |
+| 6 | 102 | What is one feature you would like to see added to improve your shopping experience? | A feature that helps compare similar products side by side would be useful. |
+| 7 | 102 | Can you describe a recent experience where you were dissatisfied with our service? | No complaints here. |
+| 8 | 102 | How do you feel about the current product search and filtering options? | I find the product search to be pretty effective. |
+| 9 | 102 | Is there anything else you would like to share about your experience with us? | I think the sky is a beautiful shade of purple today. |
+| 10 | 103 | What do you like most about using our online marketplace? | The platform is user-friendly and offers a vast selection of products. |
+| 11 | 103 | What is one feature you would like to see added to improve your shopping experience? | Would love to see an option to save and compare different products. |
+| 12 | 103 | Can you describe a recent experience where you were dissatisfied with our service? | My delivery was late by a few days, which was frustrating. |
+| 13 | 103 | How do you feel about the current product search and filtering options? | It’s okay. |
+| 14 | 103 | Is there anything else you would like to share about your experience with us? | No. |
+
+We can call the `rename()` method to rename the keys as desired to match our question parameters syntax:
+
+
+```python
+sl_qa = sl_qa.rename({"Respondent ID": "id", "variable": "question", "value": "answer"})
+sl_qa
+```
+
+
+[ScenarioList](/en/latest/scenarios) scenarios: 15; keys: ['question', 'id', 'answer'];
+
+|  | id | question | answer |
+| :--- | :--- | :--- | :--- |
+| 0 | 101 | What do you like most about using our online marketplace? | The wide variety of products and the ease of use. |
+| 1 | 101 | What is one feature you would like to see added to improve your shopping experience? | It would be great to have a personalized recommendation system based on my browsing history. |
+| 2 | 101 | Can you describe a recent experience where you were dissatisfied with our service? | I was disappointed when an item I ordered arrived damaged, but customer service quickly resolved it. |
+| 3 | 101 | How do you feel about the current product search and filtering options? | The search and filtering options are intuitive and work well for me. |
+| 4 | 101 | Is there anything else you would like to share about your experience with us? | No, keep up the great work! |
+| 5 | 102 | What do you like most about using our online marketplace? | I enjoy the simplicity of the interface. |
+| 6 | 102 | What is one feature you would like to see added to improve your shopping experience? | A feature that helps compare similar products side by side would be useful. |
+| 7 | 102 | Can you describe a recent experience where you were dissatisfied with our service? | No complaints here. |
+| 8 | 102 | How do you feel about the current product search and filtering options? | I find the product search to be pretty effective. |
+| 9 | 102 | Is there anything else you would like to share about your experience with us? | I think the sky is a beautiful shade of purple today. |
+| 10 | 103 | What do you like most about using our online marketplace? | The platform is user-friendly and offers a vast selection of products. |
+| 11 | 103 | What is one feature you would like to see added to improve your shopping experience? | Would love to see an option to save and compare different products. |
+| 12 | 103 | Can you describe a recent experience where you were dissatisfied with our service? | My delivery was late by a few days, which was frustrating. |
+| 13 | 103 | How do you feel about the current product search and filtering options? | It’s okay. |
+| 14 | 103 | Is there anything else you would like to share about your experience with us? | No. |
+
+
+```python
+from edsl import QuestionYesNo
+
+q_responsive = QuestionYesNo(
+    question_name = "responsive",
+    question_text = """
+    Is this answer responsive to the question that was asked?
+    Question: {{ scenario.question }}
+    Answer: {{ scenario.answer }}
+    """
+)
+```
+
+
+```python
+results = q_responsive.by(sl_qa).by(m).run()
+```
+
+
+```python
+(
+    results
+    .filter("responsive == 'No'")
+    .select("id", "question", "answer")
+)
+```
+
+
+|  | scenario.id | scenario.question | scenario.answer |
+| :--- | :--- | :--- | :--- |
+| 0 | 102 | Can you describe a recent experience where you were dissatisfied with our service? | No complaints here. |
+| 1 | 102 | How do you feel about the current product search and filtering options? | I find the product search to be pretty effective. |
+| 2 | 102 | Is there anything else you would like to share about your experience with us? | I think the sky is a beautiful shade of purple today. |
+| 3 | 103 | How do you feel about the current product search and filtering options? | It’s okay. |
+
+## Uploading content to Coop
+
+[Coop](https://www.expectedparrot.com/content/content/explore) is a new platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL, and a convenient place to post and access surveys, agents, results and notebooks. [Learn more about using Coop](/en/latest/coop).
+
+Here we post the contents of this notebook:
+
+
+```python
+from edsl import Notebook
+
+nb = Notebook(path = "scenariolist_unpivot.ipynb")
+
+nb.push(
+    description = "ScenarioList methods for sense checking survey data",
+    alias = "scenariolist-sense-checking-survey-notebook",
+    visibility = "public"
+)
+```
+
+
+```json
+{'description': 'ScenarioList methods for sense checking survey data',
+ 'object_type': 'notebook',
+ 'url': 'https://www.expectedparrot.com/content/08340981-2497-4be1-b9dc-be8e2f92e4ef',
+ 'alias_url': 'https://www.expectedparrot.com/content/RobinHorton/scenariolist-sense-checking-survey-notebook',
+ 'uuid': '08340981-2497-4be1-b9dc-be8e2f92e4ef',
+ 'version': '0.1.62.dev1',
+ 'visibility': 'public'}
+```

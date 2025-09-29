@@ -1,0 +1,1266 @@
+---
+title: "Remote Caching"
+description: "Remote caching allows you to store responses from language models at the Expected Parrot server, and retrieve responses to questions that have already been run. The logs of your remote surveys and results are also automatically stored at the Expected Parrot server, and can be viewed and managed at the [Cache](https://www.expectedparrot.com/home/remote-cache) page of your account."
+---
+
+<Note>
+*Note: You must have a Coop account in order to use remote inference and caching. By using remote inference you agree to any terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with our terms of use.*
+</Note>
+
+## Activate remote caching
+
+Remote caching is automatically activated with remote inference. To activate remote inference, navigate to the [Settings](https://www.expectedparrot.com/home/settings) page of your account and toggle on *remote inference*. Learn more about how remote inference works at the [Remote Inference](/en/latest/remote_inference) section.
+
+When you run a survey remotely at the Expected Parrot server your results are also cached at the server. You can access them at your [Cache](https://www.expectedparrot.com/home/remote-cache) page or from your workspace (see examples of methods below).
+
+## Universal remote cache
+
+The universal remote cache is a collection of all the unique prompts that have been sent to any language models via the Expected Parrot server, and the responses that were returned. It is a shared resource that is available to all users for free.
+
+When you run a survey at the Expected Parrot server your survey results will draw from the universal remote cache by default. This means that if your survey includes any prompts that have been run before, the stored response to those prompts is retrieved from the universal remote cache and included in your results, at no cost to you. If a set of prompts has not been run before, then a new response is generated, included in your results and added to the universal remote cache.
+
+(By “prompts” we mean a unique user prompt for a question together with a unique system prompt for an agent, if one was used with the question.)
+
+### Fresh responses
+
+If you want to draw fresh responses, you can pass a parameter fresh=True to the run() method. Your results object will still have a cache automatically attached to it, and the universal remote cache will be updated with any new responses that are generated. (There can be multiple stored responses for a set of prompts if fresh responses are specified for a survey.)
+
+### Features of the universal remote cache
+
+The universal remote cache offers the following features:
+
+- **Free access:** It is free to use and available to all users, regardless of whether you are running surveys remotely with your own keys for language models or an Expected Parrot API key.
+- **Free storage & retrieval:** There is no limit on the number of responses that you can add to the universal remote cache or retrieve from it.
+- **Automatic updates:** It is automatically updated whenever a survey is run remotely.
+- **Multiple responses:** If a fresh response is generated for a question that is different from a response already stored in the universal remote cache, the new response is added with an iteration index.
+- **No deletions:** You cannot delete entries from the universal remote cache.
+- **No manual additions:** You cannot manually add entries. The only way to add responses to the universal remote cache is by running a survey remotely at the Expected Parrot server.
+- **Sharing & reproducibility:** A new cache is automatically attached to each results object, which can be posted and shared with other users at the Coop.
+- **Privacy:** It is not queryable, and no user information is available. You must run a survey to retrieve responses from the universal remote cache.
+
+<Note>
+*Note:* The universal remote cache is not available for local inference (surveys run on your own machine).
+</Note>
+
+### Frequently asked questions
+
+<AccordionGroup>
+<Accordion title="How do I add responses to the universal remote cache?">
+This happens automatically when you run a survey remotely.
+</Accordion>
+
+<Accordion title="How do I get a stored response?">
+When you run a question you will retrieve a stored response by default if it exists. If you want to generate a fresh response you can use run(fresh=True).
+</Accordion>
+
+<Accordion title="How do I know whether I will retrieve a stored response?">
+Results that were generated at the Expected Parrot server will show a verified checkmark ✓ at Coop. If you rerun a survey with verified results you will retrieve stored responses.
+</Accordion>
+
+<Accordion title="Is the universal remote cache queryable? Can I check whether there is a stored response for a question?">
+No, the universal remote cache is not queryable. You will only know that a response is available by rerunning verified results.
+</Accordion>
+
+<Accordion title="Can I see which user generated a stored response in the universal remote cache?">
+No, there is no user information in the universal remote cache.
+</Accordion>
+
+<Accordion title="Is my legacy remote cache in the universal remote cache?">
+No, your legacy remote cache is only available to you. If you want your existing stored responses (local or remote) to be added to the universal remote cache you need to rerun the questions to regenerate them. Please let us know if you would like free credits to rerun your surveys.
+</Accordion>
+
+<Accordion title="Can I still access my legacy remote cache?">
+Yes, your legacy remote cache will be available at your Cache page for 30 days. During this time you can pull the entries at any time. After 30 days the entries will be removed.
+</Accordion>
+
+<Accordion title="Why can’t I add my existing caches to the universal remote cache?">
+The purpose of the universal remote cache is to provide a canonical, verified collection of responses to allow researchers to be confident in results and easily reproduce them at no cost. By only allowing responses generated at the Expected Parrot server we can verify the results that are reproduced.
+</Accordion>
+
+<Accordion title="What if I want to run a survey remotely but do not want my responses added to the universal remote cache?">
+This is not allowed. Any new or fresh responses generated at the Expected Parrot server are automatically added to the universal remote cache. If you do not want to add responses to the universal remote cache you must run your surveys locally.
+</Accordion>
+
+<Accordion title="Can I access the universal remote cache when I run a survey locally?">
+No, the universal remote cache is only available when running a survey remotely. However, you can pull entries from your Cache to use them locally at any time (responses that you generated or retrieved from the universal remote cache).
+</Accordion>
+
+<Accordion title="Can I delete a response in the universal remote cache?">
+No, this is not allowed.
+</Accordion>
+
+<Accordion title="What happens if I delete my account?">
+Any remote cache entries that you generated will remain in the universal remote cache. All information about your account will be deleted.
+</Accordion>
+</AccordionGroup>
+
+## Legacy remote cache
+
+Responses to questions that you ran remotely prior to the launch of the universal remote cache are stored in a legacy remote cache that can be found at the [Cache](https://www.expectedparrot.com/home/remote-cache) page of your account. You can pull these entries to use them locally at any time.
+
+<Note>
+*Note: Your legacy remote cache is not part of the universal remote cache. If you would like to have your legacy remote cache entries available in the universal remote cache, please contact us for free credits to rerun your surveys.*
+</Note>
+
+## Using your remote cache
+
+You can view and search all of your remote cache entries and logs at your [Cache](https://www.expectedparrot.com/home/remote-cache) page. These entries include all of the responses to questions that you have run remotely and generated or retrieved from the universal remote cache, and all the logs of your remote surveys.
+
+For example, here we run a survey with remote caching activated, and pass a description to readily identify the job at Coop:
+
+```python
+from edsl import Model, QuestionFreeText, Survey
+
+m = Model("gemini-1.5-flash")
+
+q = QuestionFreeText(
+  question_name = "prime",
+  question_text = "Is 2 a prime number?"
+)
+
+survey = Survey(questions = [q])
+
+results = survey.by(m).run(
+  remote_inference_description = "Example survey", # optional
+  remote_inference_visibility = "public" # optional
+)
+
+```
+
+We can see the job has been added:
+
+<Frame>
+![Page displaying a remote cache at the Coop web app](/images/en/latest/home-remote-cache-logs.png)
+</Frame>
+
+### Reproducing results
+
+When you share a results object (e.g., post it publicly at Coop or share it privately with other users) the cache attached to it is automatically shared with it. This can be useful if you want to share a specific historic cache for a survey or project (e.g., to allow other users to reproduce your results). You can inspect the cache for a results object by calling the cache property on a results object.
+
+For example, here we inspect the cache for the survey that we ran above:
+
+```python
+results.cache
+```
+
+Output:
+
+| model | parameters | system_prompt | user_prompt | output | iteration | timestamp | cache_key |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| gemini-1.5-flash | ``` {‘temperature’: 0.5, ‘topP’: 1, ‘topK’: 1, ‘maxOutputTokens’: 2048, ‘stopSequences’: []} ``` | nan | Is 2 a prime number? | ``` {“candidates”: [{“content”: {“parts”: [{“text”: “Yes, 2 is a prime number. It’s the only even prime number.n”}], “role”: “model”}, “finish_reason”: 1, “safety_ratings”: [{“category”: 8, “probability”: 1, “blocked”: false}, {“category”: 10, “probability”: 1, “blocked”: false}, {“category”: 7, “probability”: 1, “blocked”: false}, {“category”: 9, “probability”: 1, “blocked”: false}], “avg_logprobs”: -0.0006228652317076921, “token_count”: 0, “grounding_attributions”: []}], “usage_metadata”: {“prompt_token_count”: 7, “candidates_token_count”: 20, “total_token_count”: 27, “cached_content_token_count”: 0}, “model_version”: “gemini-1.5-flash”} ``` | 0 | 1738759640 | b939c0cf262061c7aedbbbfedc540689 |
+
+
+See [Caching LLM Calls](/en/latest/data#caching) for more details on caching results locally.
+
+## Remote cache methods
+
+When remote caching is activated, EDSL will automatically send responses to the server when you run a job (i.e., you do not need to execute methods manually).
+
+If you want to interact with the remote cache programatically, you can use the following methods:
+
+### Coop class
+
+
+> #### *class* edsl.coop.coop.Coop(*api_key: str | None = None*, *url: str | None = None*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Bases: `CoopFunctionsMixin`
+
+Client for the Expected Parrot API that provides cloud-based functionality for EDSL.
+
+The Coop class is the main interface for interacting with Expected Parrot’s cloud services. It enables:
+
+1. Storing and retrieving EDSL objects (surveys, agents, models, results, etc.)
+2. Running inference jobs remotely for better performance and scalability
+3. Retrieving and caching interview results
+4. Managing API keys and authentication
+5. Accessing model availability and pricing information
+
+The client handles authentication, serialization/deserialization of EDSL objects, and communication with the Expected Parrot API endpoints. It also provides methods for tracking job status and managing results.
+
+When initialized without parameters, Coop will attempt to use an API key from: 1. The EXPECTED_PARROT_API_KEY environment variable 2. A stored key in the user’s config directory 3. Interactive login if needed
+
+***Attributes***:
+
+api_key (str): The API key used for authentication url (str): The base URL for the Expected Parrot API api_url (str): The URL for API endpoints (derived from base URL)
+
+> #### __init__(*api_key: str | None = None*, *url: str | None = None*) → None[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Initialize the Expected Parrot API client.
+
+This constructor sets up the connection to Expected Parrot’s cloud services. If not provided explicitly, it will attempt to obtain an API key from environment variables or from a stored location in the user’s config directory.
+
+> **Parameters**:
+
+api_key (str, optional): API key for authentication with Expected Parrot.
+
+If not provided, will attempt to obtain from environment or stored location.
+
+url (str, optional): Base URL for the Expected Parrot service.
+
+If not provided, uses the default from configuration.
+
+> **Notes**:
+
+- The API key is stored in the EXPECTED_PARROT_API_KEY environment variable or in a platform-specific config directory
+- The URL is determined based on whether it’s a production, staging, or development environment
+- The api_url for actual API endpoints is derived from the base URL
+
+Example:
+
+```bash
+>>> coop = Coop()  # Uses API key from environment or stored location
+>>> coop = Coop(api_key="your-api-key")  # Explicitly provide API key
+```
+
+> #### approve_prolific_study_submission(*project_uuid: str*, *study_id: str*, *submission_id: str*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Approve a Prolific study submission.
+
+>check_for_updates(*silent: bool = False*) → dict | None[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Check if there’s a newer version of EDSL available.
+
+**Args:**
+
+silent: If True, don’t print any messages to console
+
+**Returns:**
+
+dict with version info if update is available, None otherwise
+
+> #### create(*object: [Agent](/en/latest/agents#agent-class "edsl.agents.agent.Agent") | [AgentList](/en/latest/agents#agentlist-class "edsl.agents.agent_list.AgentList") | [Cache](/en/latest/data#cache-class "edsl.caching.cache.Cache") | [LanguageModel](/en/latest/language_models#languagemodel-class "edsl.language_models.LanguageModel") | [ModelList](/en/latest/language_models#modellist-class "edsl.language_models.ModelList") | Notebook | Type[[QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.question_base.QuestionBase")] | [Results](/en/latest/results#result-class "edsl.results.results.Results") | [Scenario](/en/latest/scenarios#scenario-class "edsl.scenarios.scenario.Scenario") | [ScenarioList](/en/latest/scenarios#scenariolist-class "edsl.scenarios.scenario_list.ScenarioList") | [Survey](/en/latest/surveys#survey-class "edsl.surveys.survey.Survey")*, *description: str | None = None*, *alias: str | None = None*, *visibility: Literal['private', 'public', 'unlisted'] | None = 'unlisted'*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Store an EDSL object in the Expected Parrot cloud service.
+
+This method uploads an EDSL object (like a Survey, Agent, or Results) to the Expected Parrot cloud service for storage, sharing, or further processing.
+
+> **Parameters**:
+
+object (EDSLObject): The EDSL object to store (Survey, Agent, Results, etc.) description (str, optional): A human-readable description of the object alias (str, optional): A custom alias for easier reference later visibility (VisibilityType, optional): Access level for the object. One of:
+
+- “private”: Only accessible by the owner
+- “public”: Accessible by anyone
+- “unlisted”: Accessible with the link, but not listed publicly
+
+> **Returns:**
+
+**dict: Information about the created object including:**
+
+- url: The URL to access the object
+- alias_url: The URL with the custom alias (if provided)
+- uuid: The unique identifier for the object
+- visibility: The visibility setting
+- version: The EDSL version used to create the object
+
+> **Raises:**
+
+CoopServerResponseError: If there’s an error communicating with the server
+
+> **Example:**
+
+```bash
+>>> survey = Survey(questions=[QuestionFreeText(question_name="name")])
+>>> result = coop.create(survey, description="Basic survey", visibility="public")
+>>> print(result["url"])  # URL to access the survey
+```
+
+> #### create_project(*survey: [Survey](/en/latest/surveys#survey-class "edsl.surveys.Survey")*, *scenario_list: [ScenarioList](/en/latest/scenarios#scenariolist-class "edsl.scenarios.ScenarioList") | None = None*, *scenario_list_method: Literal['randomize', 'loop', 'single_scenario', 'ordered'] | None = None*, *project_name: str = 'Project'*, *survey_description: str | None = None*, *survey_alias: str | None = None*, *survey_visibility: Literal['private', 'public', 'unlisted'] | None = 'unlisted'*, *scenario_list_description: str | None = None*, *scenario_list_alias: str | None = None*, *scenario_list_visibility: Literal['private', 'public', 'unlisted'] | None = 'unlisted'*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Create a survey object on Coop, then create a project from the survey.
+
+> #### create_project_run(*project_uuid: str*, *name: str | None = None*, *scenario_list_uuid: str | UUID | None = None*, *scenario_list_method: Literal['randomize', 'loop', 'single_scenario', 'ordered'] | None = None*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Create a project run.
+
+> #### create_prolific_study(*project_uuid: str*, *project_run_uuid: str*, *name: str*, *description: str*, *num_participants: int*, *estimated_completion_time_minutes: int*, *participant_payment_cents: int*, *device_compatibility: List[Literal['desktop', 'tablet', 'mobile']] | None = None*, *peripheral_requirements: List[Literal['audio', 'camera', 'download', 'microphone']] | None = None*, *filters: List[Dict] | None = None*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Create a Prolific study for a project. Returns a dict with the study details.
+
+To add filters to your study, you should first pull the list of supported filters using Coop.list_prolific_filters(). Then, you can use the create_study_filter method of the returned CoopProlificFilters object to create a valid filter dict.
+
+> #### create_widget(*short_name: str*, *display_name: str*, *esm_code: str*, *css_code: str | None = None*, *description: str | None = None*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Create a new widget.
+
+> **Parameters:**
+
+short_name (str): The short name identifier for the widget. Must start with a lowercase letter and contain only lowercase letters, digits, and underscores display_name (str): The display name of the widget description (str): A human-readable description of the widget esm_code (str): The ESM JavaScript code for the widget css_code (str): The CSS code for the widget
+
+> **Returns:**
+
+dict: Information about the created widget including:
+
+- short_name: The widget’s short name
+- display_name: The widget’s display name
+- description: The widget’s description
+
+> **Raises:**
+
+CoopServerResponseError: If there’s an error communicating with the server
+
+> #### delete(*url_or_uuid: str | UUID*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Delete an object from the server.
+
+> **Parameters:**
+
+**url_or_uuid** – The UUID or URL of the object. URLs can be in the form content/uuid or content/username/alias.
+
+> #### delete_project_run(*project_uuid: str*, *project_run_uuid: str*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Delete a project run.
+
+> #### delete_prolific_study(*project_uuid: str*, *study_id: str*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Deletes a Prolific study.
+
+<Note>
+Note: Only draft studies can be deleted. Once you publish a study, it cannot be deleted.
+</Note>
+
+> #### delete_widget(*short_name: str*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Delete a widget by short name.
+
+> **Parameters:**
+
+short_name (str): The short name of the widget to delete
+
+> **Returns:**
+
+dict: Success status
+
+> **Raises:**
+
+CoopServerResponseError: If there’s an error communicating with the server
+
+> #### *property* edsl_settings*: dict*[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Retrieve and return the EDSL settings stored on Coop. If no response is received within 5 seconds, return an empty dict.
+
+> #### execute_firecrawl_request(*request_dict: Dict[str, Any]*) → Any[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Execute a Firecrawl request through the Extension Gateway.
+
+This method sends a Firecrawl request dictionary to the Extension Gateway’s /firecrawl/execute endpoint, which processes it using FirecrawlScenario and returns EDSL Scenario/ScenarioList objects.
+
+> **Parameters:**
+
+request_dict (Dict[str, Any]): A dictionary containing the Firecrawl request.
+
+Must include: - method: The Firecrawl method to execute (scrape, crawl, search, extract, map_urls) - api_key: Optional if provided via environment or this method will add it - Other method-specific parameters (url_or_urls, query_or_queries, etc.)
+
+> **Returns:**
+
+Any: The result from FirecrawlScenario execution:
+
+- For scrape/extract with single URL: Scenario object
+- For scrape/extract with multiple URLs: ScenarioList object
+- For crawl/search/map_urls: ScenarioList object
+
+> **Raises:**
+
+httpx.HTTPError: If the request to the Extension Gateway fails ValueError: If the request_dict is missing required fields Exception: If the Firecrawl execution fails
+
+> **Example:**
+
+```bash
+>>> # Scrape a single URL
+>>> result = coop.execute_firecrawl_request({
+...     "method": "scrape",
+...     "url_or_urls": "https://example.com",
+...     "kwargs": {"formats": ["markdown"]}
+... })
+
+```
+
+```bash
+>>> # Search the web
+>>> results = coop.execute_firecrawl_request({
+...     "method": "search",
+...     "query_or_queries": "AI research papers",
+...     "kwargs": {"limit": 10}
+... })
+
+```
+
+```bash
+>>> # Extract structured data
+>>> result = coop.execute_firecrawl_request({
+...     "method": "extract",
+...     "url_or_urls": "https://shop.example.com/product",
+...     "schema": {"title": "string", "price": "number"},
+... })
+```
+
+> #### fetch_models() → Dict[str, List[str]][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Fetch information about available language models from Expected Parrot.
+
+This method retrieves the current list of available language models grouped by service provider (e.g., OpenAI, Anthropic, etc.). This information is useful for programmatically selecting models based on availability and for ensuring that jobs only use supported models.
+
+> **Returns:**
+
+ServiceToModelsMapping: A mapping of service providers to their available models.
+
+> **Example structure:**
+
+```json
+{
+“openai”: [“gpt-4”, “gpt-3.5-turbo”, …], “anthropic”: [“claude-3-opus”, “claude-3-sonnet”, …], …
+}
+```
+
+> **Raises:**
+
+CoopServerResponseError: If there’s an error communicating with the server
+
+> **Notes:**
+
+- The availability of models may change over time
+- Not all models may be accessible with your current API keys
+- Use this method to check for model availability before creating jobs
+- Models may have different capabilities (text-only, multimodal, etc.)
+
+> **Example:**
+
+```bash
+>>> models = coop.fetch_models()
+>>> if "gpt-4" in models.get("openai", []):
+...     print("GPT-4 is available")
+>>> available_services = list(models.keys())
+>>> print(f"Available services: {available_services}")
+```
+
+
+> #### fetch_prices() → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+
+Fetch the current pricing information for language models.
+
+This method retrieves the latest pricing information for all supported language models from the Expected Parrot API. The pricing data is used to estimate costs for jobs and to optimize model selection based on budget constraints.
+
+> **Returns:**
+
+> **dict: A dictionary mapping (service, model) tuples to pricing information.**
+
+Each entry contains token pricing for input and output tokens. Example structure:
+
+```json
+{
+(‘openai’, ‘gpt-4’):
+{
+‘input’: {‘usd_per_1M_tokens’: 30.0, …}, ‘output’: {‘usd_per_1M_tokens’: 60.0, …}
+}
+}
+```
+
+> **Raises:**
+
+ValueError: If the EDSL_FETCH_TOKEN_PRICES configuration setting is invalid
+
+> **Notes:**
+
+- Returns an empty dict if EDSL_FETCH_TOKEN_PRICES is set to “False”
+- The pricing data is cached to minimize API calls
+- Pricing may vary based on the model, provider, and token type (input/output)
+- All prices are in USD per million tokens
+
+> **Example:**
+
+```bash
+>>> prices = coop.fetch_prices()
+>>> gpt4_price = prices.get(('openai', 'gpt-4'), {})
+>>> print(f"GPT-4 input price: ${gpt4_price.get('input', {}).get('usd_per_1M_tokens')}")
+```
+
+> #### fetch_rate_limit_config_vars() → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Fetch a dict of rate limit config vars from Coop.
+
+The dict keys are RPM and TPM variables like EDSL_SERVICE_RPM_OPENAI.
+
+> #### fetch_working_models() → List[dict][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Fetch a list of working models from Coop.
+
+> **Example output:**
+
+```json
+[{
+“service”: “openai”, “model”: “gpt-4o”, “works_with_text”: True, “works_with_images”: True, “usd_per_1M_input_tokens”: 2.5, “usd_per_1M_output_tokens”: 10.0,
+}]
+```
+
+> #### get(*url_or_uuid: str | UUID*, *expected_object_type: Literal['agent', 'agent_list', 'cache', 'model', 'model_list', 'notebook', 'question', 'results', 'scenario', 'scenario_list', 'survey'] | None = None*) → [Agent](/en/latest/agents#agent-class "edsl.agents.agent.Agent") | [AgentList](/en/latest/agents#agentlist-class "edsl.agents.agent_list.AgentList") | [Cache](/en/latest/data#cache-class "edsl.caching.cache.Cache") | [LanguageModel](/en/latest/language_models#languagemodel-class "edsl.language_models.LanguageModel") | [ModelList](/en/latest/language_models#modellist-class "edsl.language_models.ModelList") | Notebook | Type[[QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.question_base.QuestionBase")] | [Results](/en/latest/results#result-class "edsl.results.results.Results") | [Scenario](/en/latest/scenarios#scenario-class "edsl.scenarios.scenario.Scenario") | [ScenarioList](/en/latest/scenarios#scenariolist-class "edsl.scenarios.scenario_list.ScenarioList") | [Survey](/en/latest/surveys#survey-class "edsl.surveys.survey.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Retrieve an EDSL object from the Expected Parrot cloud service.
+
+This method downloads and deserializes an EDSL object from the cloud service using either its UUID, URL, or username/alias combination.
+
+> **Parameters:**
+
+**url_or_uuid (Union[str, UUID]): Identifier for the object to retrieve.**
+
+Can be one of: - UUID string (e.g., “123e4567-e89b-12d3-a456-426614174000”) - Full URL (e.g., “[https://expectedparrot.com/content/123e4567](https://expectedparrot.com/content/123e4567)…”) - Alias URL (e.g., “[https://expectedparrot.com/content/username/my-survey](https://expectedparrot.com/content/username/my-survey)”)
+
+**expected_object_type (ObjectType, optional): If provided, validates that the**
+
+retrieved object is of the expected type (e.g., “survey”, “agent”)
+
+> **Returns:**
+
+EDSLObject: The retrieved object as its original EDSL class instance (e.g., Survey, Agent, Results)
+
+> **Raises:**
+
+CoopNoUUIDError: If no UUID or URL is provided CoopInvalidURLError: If the URL format is invalid CoopServerResponseError: If the server returns an error (e.g., not found, unauthorized access)
+
+Exception: If the retrieved object doesn’t match the expected type
+
+> **Notes:**
+
+- If the object’s visibility is set to “private”, you must be the owner to access it
+- For objects stored with an alias, you can use either the UUID or the alias URL
+
+> **Example:**
+
+```bash
+>>> survey = coop.get("123e4567-e89b-12d3-a456-426614174000")
+>>> survey = coop.get("https://expectedparrot.com/content/username/my-survey")
+>>> survey = coop.get(url, expected_object_type="survey")  # Validates the type
+```
+
+> #### get_balance() → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Get the current credit balance for the authenticated user.
+
+This method retrieves the user’s current credit balance information from the Expected Parrot platform.
+
+> **Returns:**
+
+dict: Information about the user’s credit balance, including:
+
+- credits: The current number of credits in the user’s account
+- usage_history: Recent credit usage if available
+
+> **Raises:**
+
+CoopServerResponseError: If there’s an error communicating with the server
+
+> **Example:**
+
+```bash
+>>> balance = coop.get_balance()
+>>> print(f"You have {balance['credits']} credits available.")
+```
+
+> #### get_metadata(*url_or_uuid: str | UUID*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Get an object’s metadata from the server.
+
+> **Parameters:**
+
+**url_or_uuid** – The UUID or URL of the object. URLs can be in the form content/uuid or content/username/alias.
+
+> #### get_profile() → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Get the current user’s profile information.
+
+This method retrieves the authenticated user’s profile information from the Expected Parrot platform using their API key.
+
+> **Returns:**
+
+dict: User profile information including:
+
+- username: The user’s username
+- email: The user’s email address
+
+> **Raises:**
+
+CoopServerResponseError: If there’s an error communicating with the server
+
+> **Example:**
+
+```python
+>>> profile = coop.get_profile()
+>>> print(f"Welcome, {profile['username']}!")
+```
+
+> #### get_progress_bar_url()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+> #### get_project(*project_uuid: str*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Get a project from Coop.
+
+> #### get_project_human_responses(*project_uuid: str*, *project_run_uuid: str | None = None*) → [Results](/en/latest/results#result-class "edsl.results.Results") | [ScenarioList](/en/latest/scenarios#scenariolist-class "edsl.scenarios.ScenarioList")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Return a Results object with the human responses for a project.
+
+If generating the Results object fails, a ScenarioList will be returned instead.
+
+> #### get_prolific_study(*project_uuid: str*, *study_id: str*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Get a Prolific study. Returns a dict with the study details.
+
+> #### get_prolific_study_responses(*project_uuid: str*, *study_id: str*) → [Results](/en/latest/results#result-class "edsl.results.Results") | [ScenarioList](/en/latest/scenarios#scenariolist-class "edsl.scenarios.ScenarioList")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Return a Results object with the human responses for a project.
+
+If generating the Results object fails, a ScenarioList will be returned instead.
+
+> #### get_running_jobs() → List[str][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Get a list of currently running job IDs.
+
+> **Returns:**
+
+list[str]: List of running job UUIDs
+
+> #### get_upload_url(*object_uuid: str*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Get a signed upload URL for updating the content of an existing object.
+
+This method gets a signed URL that allows direct upload to Google Cloud Storage for objects stored in the new format, while preserving the existing UUID.
+
+> **Parameters:**
+
+object_uuid (str): The UUID of the object to get an upload URL for
+
+> **Returns:**
+
+**dict: A response containing:**
+
+- signed_url: The signed URL for uploading new content
+- object_uuid: The UUID of the object
+- message: Success message
+
+> **Raises:**
+
+CoopServerResponseError: If there’s an error communicating with the server HTTPException: If the object is not found, not owned by user, or not in new format
+
+> **Notes:**
+
+- Only works with objects stored in the new format (transition table)
+- User must be the owner of the object
+- The signed URL expires after 60 minutes
+
+> **Example:**
+
+```python
+>>> response = coop.get_upload_url("123e4567-e89b-12d3-a456-426614174000")
+>>> upload_url = response['signed_url']
+>>> # Use the upload_url to PUT new content directly to GCS
+```
+
+
+> #### get_uuid_from_hash(*hash_value: str*) → str[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Retrieve the UUID for an object based on its hash.
+
+This method calls the remote endpoint to get the UUID associated with an object hash.
+
+**Args:**
+
+hash_value (str): The hash value of the object to look up
+
+**Returns:**
+
+str: The UUID of the object if found
+
+**Raises:**
+
+CoopServerResponseError: If the object is not found or there’s an error
+
+communicating with the server
+
+> #### get_widget(*short_name: str*) → Dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Get a specific widget by short name.
+
+**Parameters:**
+
+short_name (str): The short name of the widget
+
+**Returns:**
+
+Dict: Complete widget data including ESM and CSS code
+
+**Raises:**
+
+CoopServerResponseError: If there’s an error communicating with the server
+
+> #### get_widget_metadata(*short_name: str*) → Dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Get metadata for a specific widget by short name.
+
+> **Parameters:**
+
+short_name (str): The short name of the widget
+
+> **Returns:**
+
+Dict: Widget metadata including size information
+
+> **Raises:**
+
+CoopServerResponseError: If there’s an error communicating with the server
+
+> #### *property* headers*: dict*[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Return the headers for the request.
+
+> #### list(*object_type: Literal['agent', 'agent_list', 'cache', 'model', 'model_list', 'notebook', 'question', 'results', 'scenario', 'scenario_list', 'survey'] | List[Literal['agent', 'agent_list', 'cache', 'model', 'model_list', 'notebook', 'question', 'results', 'scenario', 'scenario_list', 'survey']] | None = None*, *visibility: Literal['private', 'public', 'unlisted'] | List[Literal['private', 'public', 'unlisted']] | None = None*, *search_query: str | None = None*, *page: int = 1*, *page_size: int = 10*, *sort_ascending: bool = False*, *community: bool = False*) → CoopRegularObjects[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Retrieve objects either owned by the user or shared with them.
+
+Notes: - search_query only works with the description field. - If sort_ascending is False, then the most recently created objects are returned first. - If community is False, then only objects owned by the user or shared with the user are returned. - If community is True, then only public objects not owned by the user are returned.
+
+> #### list_prolific_filters() → CoopProlificFilters[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Get a ScenarioList of supported Prolific filters. This list has several methods that you can use to create valid filter dicts for use with Coop.create_prolific_study().
+
+Call find() to examine a specific filter by ID: >>> filters = coop.list_prolific_filters() >>> filters.find(“age”) Scenario(
+
+```json
+{
+“filter_id”: “age”, “type”: “range”, “range_filter_min”: 18, “range_filter_max”: 100, …
+}
+```
+
+
+Call create_study_filter() to create a valid filter dict: >>> filters.create_study_filter(“age”, min=30, max=40)
+
+```json
+{
+  “filter_id”: “age”, “selected_range”:
+  {
+  “lower”: 30, “upper”: 40,
+  },
+}
+```
+
+> #### list_widgets(*search_query: str | None = None*, *page: int = 1*, *page_size: int = 10*) → [ScenarioList](/en/latest/scenarios#scenariolist-class "edsl.scenarios.ScenarioList")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Get metadata for all widgets.
+
+> **Parameters:**
+
+page (int): Page number for pagination (default: 1) page_size (int): Number of widgets per page (default: 10, max: 100)
+
+> **Returns:**
+
+List[Dict]: List of widget metadata
+
+> **Raises:**
+
+CoopValueError: If page or page_size parameters are invalid CoopServerResponseError: If there’s an error communicating with the server
+
+> #### login()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Starts the EDSL auth token login flow.
+
+> #### login_gradio(*timeout: int = 120*, *launch: bool = True*, ***launch_kwargs*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Start the EDSL auth token login flow inside a **Gradio** application.
+
+This helper mirrors the behaviour of [`Coop.login_streamlit()`](/en/latest/#edsl.coop.coop.Coop.login_streamlit "edsl.coop.coop.Coop.login_streamlit") but renders the login link and status updates inside a Gradio UI. It will poll the Expected Parrot server for the API-key associated with a newly generated auth-token and, once received, store it via [:pyclass:`~edsl.coop.ep_key_handling.ExpectedParrotKeyHandler`](/en/latest/#id5) as well as in the local `.env` file so subsequent sessions pick it up automatically.
+
+#### Parameters
+
+**timeoutint, default 120**
+
+How many seconds to wait for the user to complete the login before giving up.
+
+**launchbool, default True**
+
+If `True` the Gradio app is immediately launched with `demo.launch(**launch_kwargs)`. Set this to `False` if you want to embed the returned `gradio.Blocks` object into an existing Gradio interface.
+
+**[**](/en/latest/#id7)launch_kwargs**
+
+Additional keyword-arguments forwarded to `gr.Blocks.launch` when *launch* is `True`.
+
+#### Returns
+
+**str | gradio.Blocks | None**
+
+- If the API-key is retrieved within *timeout* seconds while the function is executing (e.g. when *launch* is `False` and the caller integrates the Blocks into another app) the key is returned.
+- If *launch* is `True` the method returns `None` after the Gradio app has been launched.
+- If *launch* is `False` the constructed `gr.Blocks` is returned so the caller can compose it further.
+
+> #### login_streamlit(*timeout: int = 120*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Start the EDSL auth token login flow inside a Streamlit application.
+
+This helper is functionally equivalent to `Coop.login` but renders the login link and status updates directly in the Streamlit UI. The method will automatically poll the Expected Parrot server for the API-key associated with the generated auth-token and, once received, store it via `ExpectedParrotKeyHandler` and write it to the local `.env` file so subsequent sessions pick it up automatically.
+
+#### Parameters
+
+**timeoutint, default 120**
+
+How many seconds to wait for the user to complete the login before giving up and showing an error in the Streamlit app.
+
+#### Returns
+
+**str | None**
+
+The API-key if the user logged-in successfully, otherwise `None`.
+
+> #### new_remote_inference_get(*job_uuid: str | None = None*, *results_uuid: str | None = None*, *include_json_string: bool | None = False*) → RemoteInferenceResponse[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Get the status and details of a remote inference job.
+
+This method retrieves the current status and information about a remote job, including links to results if the job has completed successfully.
+
+>**Parameters:**
+
+job_uuid (str, optional): The UUID of the remote job to check results_uuid (str, optional): The UUID of the results associated with the job
+
+> (can be used if you only have the results UUID)
+
+include_json_string (bool, optional): If True, include the json string for the job in the response
+
+> **Returns:**
+
+>**RemoteInferenceResponse: Information about the job including:**
+
+job_uuid: The unique identifier for the job results_uuid: The UUID of the results results_url: URL to access the results status: Current status (“queued”, “running”, “completed”, “failed”) version: EDSL version used for the job job_json_string: The json string for the job (if include_json_string is True) latest_job_run_details: Metadata about the job status
+
+> **interview_details: Metadata about the job interview status (for jobs that have reached running status)**
+
+total_interviews: The total number of interviews in the job completed_interviews: The number of completed interviews interviews_with_exceptions: The number of completed interviews that have exceptions exception_counters: A list of exception counts for the job
+
+
+exception_type: The type of exception inference_service: The inference service model: The model question_name: The name of the question exception_count: The number of exceptions
+
+
+failure_reason: The reason the job failed (failed jobs only) failure_description: The description of the failure (failed jobs only) error_report_uuid: The UUID of the error report (partially failed jobs only) cost_credits: The cost of the job run in credits cost_usd: The cost of the job run in USD expenses: The expenses incurred by the job run
+
+
+service: The service model: The model token_type: The type of token (input or output) price_per_million_tokens: The price per million tokens tokens_count: The number of tokens consumed cost_credits: The cost of the service/model/token type combination in credits cost_usd: The cost of the service/model/token type combination in USD
+
+> **Raises:**
+
+ValueError: If neither job_uuid nor results_uuid is provided CoopServerResponseError: If there’s an error communicating with the server
+
+> **Notes:**
+
+- Either job_uuid or results_uuid must be provided
+- If both are provided, job_uuid takes precedence
+- For completed jobs, you can use the results_url to view or download results
+- For failed jobs, check the latest_error_report_url for debugging information
+
+> **Example:**
+
+```python
+>>> job_status = coop.new_remote_inference_get("9f8484ee-b407-40e4-9652-4133a7236c9c")
+>>> print(f"Job status: {job_status['status']}")
+>>> if job_status['status'] == 'completed':
+...     print(f"Results available at: {job_status['results_url']}")
+```
+
+> #### old_remote_inference_create(*job: [Jobs](/en/latest/jobs#jobs-class "edsl.jobs.Jobs")*, *description: str | None = None*, *status: Literal['queued', 'running', 'completed', 'failed', 'cancelled', 'cancelling', 'partial_failed'] = 'queued'*, *visibility: Literal['private', 'public', 'unlisted'] | None = 'unlisted'*, *initial_results_visibility: Literal['private', 'public', 'unlisted'] | None = 'unlisted'*, *iterations: int | None = 1*, *fresh: bool | None = False*) → RemoteInferenceCreationInfo[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Create a remote inference job for execution in the Expected Parrot cloud.
+
+This method sends a job to be executed in the cloud, which can be more efficient for large jobs or when you want to run jobs in the background. The job execution is handled by Expected Parrot’s infrastructure, and you can check the status and retrieve results later.
+
+> **Parameters:**
+
+job (Jobs): The EDSL job to run in the cloud description (str, optional): A human-readable description of the job status (RemoteJobStatus): Initial status, should be “queued” for normal use
+
+ Possible values: “queued”, “running”, “completed”, “failed”
+
+visibility (VisibilityType): Access level for the job information. One of:
+
+- “private”: Only accessible by the owner
+- “public”: Accessible by anyone
+- “unlisted”: Accessible with the link, but not listed publicly
+
+initial_results_visibility (VisibilityType): Access level for the job results iterations (int): Number of times to run each interview (default: 1) fresh (bool): If True, ignore existing cache entries and generate new results
+
+>**Returns:**
+
+RemoteInferenceCreationInfo: Information about the created job including:
+
+- uuid: The unique identifier for the job
+- description: The job description
+- status: Current status of the job
+- iterations: Number of iterations for each interview
+- visibility: Access level for the job
+- version: EDSL version used to create the job
+
+>**Raises:**
+
+CoopServerResponseError: If there’s an error communicating with the server
+
+> **Notes:**
+
+- Remote jobs run asynchronously and may take time to complete
+- Use remote_inference_get() with the returned UUID to check status
+- Credits are consumed based on the complexity of the job
+
+>**Example:**
+
+```python
+>>> from edsl.jobs import Jobs
+>>> job = Jobs.example()
+>>> job_info = coop.remote_inference_create(job=job, description="My job")
+>>> print(f"Job created with UUID: {job_info['uuid']}")
+```
+
+>#### patch(*url_or_uuid: str | UUID*, *description: str | None = None*, *alias: str | None = None*, *value: [Agent](/en/latest/agents#agent-class "edsl.agents.agent.Agent") | [AgentList](/en/latest/agents#agentlist-class "edsl.agents.agent_list.AgentList") | [Cache](/en/latest/data#cache-class "edsl.caching.cache.Cache") | [LanguageModel](/en/latest/language_models#languagemodel-class "edsl.language_models.LanguageModel") | [ModelList](/en/latest/language_models#modellist-class "edsl.language_models.ModelList") | Notebook | Type[[QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.question_base.QuestionBase")] | [Results](/en/latest/results#result-class "edsl.results.results.Results") | [Scenario](/en/latest/scenarios#scenario-class "edsl.scenarios.scenario.Scenario") | [ScenarioList](/en/latest/scenarios#scenariolist-class "edsl.scenarios.scenario_list.ScenarioList") | [Survey](/en/latest/surveys#survey-class "edsl.surveys.survey.Survey") | None = None*, *visibility: Literal['private', 'public', 'unlisted'] | None = None*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Change the attributes of an uploaded object
+
+>Parameters:
+
+- **url_or_uuid** – The UUID or URL of the object. URLs can be in the form content/uuid or content/username/alias.
+- **description** – Optional new description
+- **alias** – Optional new alias
+- **value** – Optional new object value
+- **visibility** – Optional new visibility setting
+
+pay_for_service(*credits_transferred: int*, *recipient_username: str*, *service_name: str*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Pay for a service.
+
+This method transfers a specified number of credits from the authenticated user’s account to another user’s account on the Expected Parrot platform.
+
+>**Parameters:**
+
+credits_transferred (int): The number of credits to transfer to the recipient recipient_username (str): The username of the recipient service_name (str): The name of the service to pay for
+
+>**Returns:**
+
+**dict: Information about the transfer transaction, including:**
+- success: Whether the transaction was successful
+- transaction_id: A unique identifier for the transaction
+- remaining_credits: The number of credits remaining in the sender’s account
+
+> **Raises:**
+
+**CoopServerResponseError: If there’s an error communicating with the server**
+
+or if the transfer criteria aren’t met (e.g., insufficient credits)
+
+> **Example:**
+
+```python
+>>> result = coop.pay_for_service(
+...     credits_transferred=100,
+...     service_name="service_name",
+...     recipient_username="friend_username",
+... )
+>>> print(f"Transfer successful! You have {result['remaining_credits']} credits left.")
+```
+
+> #### publish_prolific_study(*project_uuid: str*, *study_id: str*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Publish a Prolific study.
+
+> #### pull(*url_or_uuid: str | UUID | None = None*, *expected_object_type: Literal['agent', 'agent_list', 'cache', 'model', 'model_list', 'notebook', 'question', 'results', 'scenario', 'scenario_list', 'survey'] | None = None*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Generate a signed URL for pulling an object directly from Google Cloud Storage.
+
+This method gets a signed URL that allows direct download access to the object from Google Cloud Storage, which is more efficient for large files.
+
+>**Parameters:**
+
+**url_or_uuid (Union[str, UUID], optional): Identifier for the object to retrieve.**
+
+Can be one of: - UUID string (e.g., “123e4567-e89b-12d3-a456-426614174000”) - Full URL (e.g., “[https://expectedparrot.com/content/123e4567](https://expectedparrot.com/content/123e4567)…”) - Alias URL (e.g., “[https://expectedparrot.com/content/username/my-survey](https://expectedparrot.com/content/username/my-survey)”)
+
+**expected_object_type (ObjectType, optional): If provided, validates that the**
+
+retrieved object is of the expected type (e.g., “survey”, “agent”)
+
+> **Returns:**
+
+dict: A response containing the signed_url for direct download
+
+> **Raises:**
+
+CoopNoUUIDError: If no UUID or URL is provided CoopInvalidURLError: If the URL format is invalid CoopServerResponseError: If there’s an error communicating with the server HTTPException: If the object or object files are not found
+
+> **Example:**
+
+```python
+>>> response = coop.pull("123e4567-e89b-12d3-a456-426614174000")
+>>> response = coop.pull("https://expectedparrot.com/content/username/my-survey")
+>>> print(f"Download URL: {response['signed_url']}")
+>>> # Use the signed_url to download the object directly
+```
+
+> #### push(*object: [Agent](/en/latest/agents#agent-class "edsl.agents.agent.Agent") | [AgentList](/en/latest/agents#agentlist-class "edsl.agents.agent_list.AgentList") | [Cache](/en/latest/data#cache-class "edsl.caching.cache.Cache") | [LanguageModel](/en/latest/language_models#languagemodel-class "edsl.language_models.LanguageModel") | [ModelList](/en/latest/language_models#modellist-class "edsl.language_models.ModelList") | Notebook | Type[[QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.question_base.QuestionBase")] | [Results](/en/latest/results#result-class "edsl.results.results.Results") | [Scenario](/en/latest/scenarios#scenario-class "edsl.scenarios.scenario.Scenario") | [ScenarioList](/en/latest/scenarios#scenariolist-class "edsl.scenarios.scenario_list.ScenarioList") | [Survey](/en/latest/surveys#survey-class "edsl.surveys.survey.Survey")*, *description: str | None = None*, *alias: str | None = None*, *visibility: Literal['private', 'public', 'unlisted'] | None = 'unlisted'*) → [Scenario](/en/latest/scenarios#scenario-class "edsl.scenarios.Scenario")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Generate a signed URL for pushing an object directly to Google Cloud Storage.
+
+This method gets a signed URL that allows direct upload access to Google Cloud Storage, which is more efficient for large files.
+
+>**Parameters:**
+
+object_type (ObjectType): The type of object to be uploaded
+
+> **Returns:**
+
+dict: A response containing the signed_url for direct upload and optionally a job_id
+
+> **Raises:**
+
+CoopServerResponseError: If there’s an error communicating with the server
+
+Example:
+
+```python
+>>> response = coop.push("scenario")
+>>> print(f"Upload URL: {response['signed_url']}")
+>>> # Use the signed_url to upload the object directly
+```
+
+> #### reject_prolific_study_submission(*project_uuid: str*, *study_id: str*, *submission_id: str*, *reason: Literal['TOO_QUICKLY', 'TOO_SLOWLY', 'FAILED_INSTRUCTIONS', 'INCOMP_LONGITUDINAL', 'FAILED_CHECK', 'LOW_EFFORT', 'MALINGERING', 'NO_CODE', 'BAD_CODE', 'NO_DATA', 'UNSUPP_DEVICE', 'OTHER']*, *explanation: str*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Reject a Prolific study submission.
+
+> #### *async* remote_async_execute_model_call(*model_dict: dict*, *user_prompt: str*, *system_prompt: str*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+> #### remote_cache_get(*job_uuid: str | UUID | None = None*) → List[CacheEntry][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Get all remote cache entries.
+
+**Parameters:**
+
+**select_keys** (*optional*) – Only return CacheEntry objects with these keys.
+
+```python
+>>> coop.remote_cache_get(job_uuid="...")
+[CacheEntry(...), CacheEntry(...), ...]
+```
+
+> #### remote_cache_get_by_key(*select_keys: List[str] | None = None*) → List[CacheEntry][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Get all remote cache entries.
+
+Parameters:
+
+**select_keys** (*optional*) – Only return CacheEntry objects with these keys.
+
+```python
+>>> coop.remote_cache_get_by_key(selected_keys=["..."])
+[CacheEntry(...), CacheEntry(...), ...]
+```
+
+> #### remote_inference_cost(*input: [Jobs](/en/latest/jobs#jobs-class "edsl.jobs.Jobs") | [Survey](/en/latest/surveys#survey-class "edsl.surveys.Survey")*, *iterations: int = 1*) → int[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Get the estimated cost in credits of a remote inference job.
+
+**Parameters**:
+
+**input** – The EDSL job to send to the server.
+
+```python
+>>> job = Jobs.example()
+>>> coop.remote_inference_cost(input=job)
+{'credits_hold': 0.77, 'usd': 0.0076950000000000005}
+```
+
+
+> #### remote_inference_create(*job: [Jobs](/en/latest/jobs#jobs-class "edsl.jobs.Jobs")*, *description: str | None = None*, *status: Literal['queued', 'running', 'completed', 'failed', 'cancelled', 'cancelling', 'partial_failed'] = 'queued'*, *visibility: Literal['private', 'public', 'unlisted'] | None = 'unlisted'*, *initial_results_visibility: Literal['private', 'public', 'unlisted'] | None = 'unlisted'*, *iterations: int | None = 1*, *fresh: bool | None = False*) → RemoteInferenceCreationInfo[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Create a remote inference job for execution in the Expected Parrot cloud.
+
+This method sends a job to be executed in the cloud, which can be more efficient for large jobs or when you want to run jobs in the background. The job execution is handled by Expected Parrot’s infrastructure, and you can check the status and retrieve results later.
+
+> **Parameters:**
+
+job (Jobs): The EDSL job to run in the cloud description (str, optional): A human-readable description of the job status (RemoteJobStatus): Initial status, should be “queued” for normal use
+
+Possible values: “queued”, “running”, “completed”, “failed”
+
+visibility (VisibilityType): Access level for the job information. One of:
+
+- “private”: Only accessible by the owner
+- “public”: Accessible by anyone
+- “unlisted”: Accessible with the link, but not listed publicly
+
+initial_results_visibility (VisibilityType): Access level for the job results iterations (int): Number of times to run each interview (default: 1) fresh (bool): If True, ignore existing cache entries and generate new results
+
+> **Returns:**
+
+RemoteInferenceCreationInfo: Information about the created job including:
+
+- uuid: The unique identifier for the job
+- description: The job description
+- status: Current status of the job
+- iterations: Number of iterations for each interview
+- visibility: Access level for the job
+- version: EDSL version used to create the job
+
+> **Raises:**
+
+CoopServerResponseError: If there’s an error communicating with the server
+
+> **Notes:**
+
+- Remote jobs run asynchronously and may take time to complete
+- Use remote_inference_get() with the returned UUID to check status
+- Credits are consumed based on the complexity of the job
+
+Example:
+
+```python
+>>> from edsl.jobs import Jobs
+>>> job = Jobs.example()
+>>> job_info = coop.remote_inference_create(job=job, description="My job")
+>>> print(f"Job created with UUID: {job_info['uuid']}")
+```
+
+>#### remote_inference_get(*job_uuid: str | None = None*, *results_uuid: str | None = None*, *include_json_string: bool | None = False*) → RemoteInferenceResponse[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Get the status and details of a remote inference job.
+
+This method retrieves the current status and information about a remote job, including links to results if the job has completed successfully.
+
+>**Parameters:**
+
+job_uuid (str, optional): The UUID of the remote job to check results_uuid (str, optional): The UUID of the results associated with the job
+
+> (can be used if you only have the results UUID)
+
+include_json_string (bool, optional): If True, include the json string for the job in the response
+
+>**Returns:**
+
+>RemoteInferenceResponse: Information about the job including:
+
+job_uuid: The unique identifier for the job results_uuid: The UUID of the results results_url: URL to access the results status: Current status (“queued”, “running”, “completed”, “failed”) version: EDSL version used for the job job_json_string: The json string for the job (if include_json_string is True) latest_job_run_details: Metadata about the job status
+
+> interview_details: Metadata about the job interview status (for jobs that have reached running status)
+
+total_interviews: The total number of interviews in the job completed_interviews: The number of completed interviews interviews_with_exceptions: The number of completed interviews that have exceptions exception_counters: A list of exception counts for the job
+
+exception_type: The type of exception inference_service: The inference service model: The model question_name: The name of the question exception_count: The number of exceptions
+
+failure_reason: The reason the job failed (failed jobs only) failure_description: The description of the failure (failed jobs only) error_report_uuid: The UUID of the error report (partially failed jobs only) cost_credits: The cost of the job run in credits cost_usd: The cost of the job run in USD expenses: The expenses incurred by the job run
+
+service: The service model: The model token_type: The type of token (input or output) price_per_million_tokens: The price per million tokens tokens_count: The number of tokens consumed cost_credits: The cost of the service/model/token type combination in credits cost_usd: The cost of the service/model/token type combination in USD
+
+>**Raises:**
+
+ValueError: If neither job_uuid nor results_uuid is provided CoopServerResponseError: If there’s an error communicating with the server
+
+>**Notes:**
+
+- Either job_uuid or results_uuid must be provided
+- If both are provided, job_uuid takes precedence
+- For completed jobs, you can use the results_url to view or download results
+- For failed jobs, check the latest_error_report_url for debugging information
+
+Example:
+
+```python
+>>> job_status = coop.remote_inference_get("9f8484ee-b407-40e4-9652-4133a7236c9c")
+>>> print(f"Job status: {job_status['status']}")
+>>> if job_status['status'] == 'completed':
+...     print(f"Results available at: {job_status['results_url']}")
+```
+
+>remote_inference_list(*status: Literal['queued', 'running', 'completed', 'failed', 'cancelled', 'cancelling', 'partial_failed'] | List[Literal['queued', 'running', 'completed', 'failed', 'cancelled', 'cancelling', 'partial_failed']] | None = None*, *search_query: str | None = None*, *page: int = 1*, *page_size: int = 10*, *sort_ascending: bool = False*) → CoopJobsObjects[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Retrieve jobs owned by the user.
+
+<Note>
+Notes: - search_query only works with the description field. - If sort_ascending is False, then the most recently created jobs are returned first.
+</Note>
+
+*async* report_error(*error: Exception*) → None[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Report an error for debugging purposes.
+
+This method provides a non-blocking way to report errors that occur during EDSL operations. It sends error reports to the server for monitoring and debugging purposes, while also printing to stderr for immediate feedback.
+
+>**Parameters:**
+
+error (Exception): The exception to report
+
+>**Example:**
+
+```python
+>>> try:
+...     # some operation that might fail
+...     pass
+... except Exception as e:
+...     await coop.report_error(e)
+```
+
+> #### reset_scenario_sampling_state(*project_uuid: str*, *project_run_uuid: str*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Reset the scenario sampling state for a project.
+
+This is useful if you have scenario_list_method=”ordered” and you want to start over with the first scenario in the list.
+
+> #### test_scenario_sampling(*project_uuid: str*, *project_run_uuid: str*) → List[int][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Get a sample for a project.
+
+> #### transfer_credits(*credits_transferred: int*, *recipient_username: str*, *transfer_note: str = None*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Transfer credits to another user.
+
+This method transfers a specified number of credits from the authenticated user’s account to another user’s account on the Expected Parrot platform.
+
+> **Parameters:**
+
+credits_transferred (int): The number of credits to transfer to the recipient recipient_username (str): The username of the recipient transfer_note (str, optional): A personal note to include with the transfer
+
+> **Returns:**
+
+dict: Information about the transfer transaction, including:
+
+- success: Whether the transaction was successful
+- transaction_id: A unique identifier for the transaction
+- remaining_credits: The number of credits remaining in the sender’s account
+
+> **Raises:**
+
+CoopServerResponseError: If there’s an error communicating with the server
+
+or if the transfer criteria aren’t met (e.g., insufficient credits)
+
+> **Example:**
+
+```python
+>>> result = coop.transfer_credits(
+...     credits_transferred=100,
+...     recipient_username="friend_username",
+...     transfer_note="Thanks for your help!"
+... )
+>>> print(f"Transfer successful! You have {result['remaining_credits']} credits left.")
+```
+
+> #### update_project_run(*project_uuid: str*, *project_run_uuid: str*, *name: str | None = None*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Update a project run.
+
+> #### update_prolific_study(*project_uuid: str*, *study_id: str*, *project_run_uuid: str | None = None*, *name: str | None = None*, *description: str | None = None*, *num_participants: int | None = None*, *estimated_completion_time_minutes: int | None = None*, *participant_payment_cents: int | None = None*, *device_compatibility: List[Literal['desktop', 'tablet', 'mobile']] | None = None*, *peripheral_requirements: List[Literal['audio', 'camera', 'download', 'microphone']] | None = None*, *filters: List[Dict] | None = None*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Update a Prolific study. Returns a dict with the study details.
+
+> #### update_widget(*existing_short_name: str*, *short_name: str | None = None*, *display_name: str | None = None*, *esm_code: str | None = None*, *css_code: str | None = None*, *description: str | None = None*) → Dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
+
+Update a widget by short name.
+
+> **Parameters:**
+
+existing_short_name (str): The current short name of the widget short_name (str, optional): New short name for the widget. Must start with a lowercase letter and contain only lowercase letters, digits, and underscores display_name (str, optional): New display name for the widget description (str, optional): New description for the widget esm_code (str, optional): New ESM JavaScript code for the widget css_code (str, optional): New CSS code for the widget
+
+> **Returns:**
+
+dict: Success status
+
+> **Raises:**
+
+CoopServerResponseError: If there’s an error communicating with the server
+
+
+> #### web(*survey: dict*, *platform: Literal['google_forms', 'lime_survey', 'survey_monkey'] = 'lime_survey'*, *email=None*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)

@@ -1,0 +1,245 @@
+---
+title: "Creating a digital twin"
+description: "This notebook contains sample [EDSL](/en/latest/index) code for creating an AI agent and prompting it to critique some content. The code is readily editable to create other agents and survey questions with any available language models."
+---
+
+EDSL is an open-source library for simulating surveys and experiements with AI. Please see our [documentation page](/en/latest/index) for tips and tutorials on getting started.
+
+```python
+from edsl import (
+    QuestionMultipleChoice,
+    QuestionCheckBox,
+    QuestionFreeText,
+    QuestionLinearScale,
+    Agent,
+    ScenarioList,
+    Survey
+)
+```
+
+```python
+# Construct relevant traits as a dictionary
+agent_traits = {
+    "persona": """You are a middle-aged mom in Cambridge, Massachusetts.
+        You hope to own a driverless minivan in the near future.
+        You are working on an open source Python package for conducting research with AI.""",
+    "age": 45,
+    "location": "US",
+    "industry": "information technology",
+    "company": "Expected Parrot",
+    "occupation": "startup cofounder",
+    "hobbies": "kayaking, beach walks",
+}
+
+# Pass the traits and an optional name to an agent
+agent = Agent(name="Robin", traits=agent_traits)
+```
+
+```python
+# Optionally create some special instructions for the task
+context = """You are answering questions about a software package for conducting surveys and experiments
+          with large language models. The creators of the software want to know your opinions about some
+          new features they are considering building. Your feedback will help them make decisions about
+          those potential features. """
+```
+
+```python expandable
+# Construct questions for the task
+q1 = QuestionMultipleChoice(
+    question_name="use_often",
+    question_text=context
+    + """Consider the following new feature: {{ scenario.content }}
+    How often do you think you would use it?""",
+    question_options=["Never", "Occasionally", "Frequently", "All the time"],
+)
+
+q2 = QuestionCheckBox(
+    question_name="checkbox",
+    question_text=context
+    + """Consider the following new feature: {{ scenario.content }}
+    Select all that apply.""",
+    question_options=[
+        "This feature would be useful to me.",
+        "This feature would make me more productive.",
+        "This feature will be important to me.",
+        "The benefits of this feature are not clear to me.",
+        "I would like to see some examples of how to use this feature.",
+    ],
+)
+
+q3 = QuestionFreeText(
+    question_name="concerns",
+    question_text=context
+    + "Do you have any concerns about the value and usefulness of this new feature: {{ scenario.content }}",
+)
+
+q4 = QuestionLinearScale(
+    question_name="likely_to_use",
+    question_text=context
+    + """Consider the following new feature: {{ scenario.content }}
+    On a scale from 1 to 5, how likely are you to use this new feature?
+    (1 = not at all likely, 5 = very likely)""",
+    question_options=[1, 2, 3, 4, 5],
+    option_labels={1: "Not at all likely", 5: "Very likely"},
+)
+```
+
+```python
+# Create a survey with the questions
+survey = Survey(questions=[q1, q2, q3, q4])
+```
+
+```python
+# Create some content for the agent to review
+contents = [
+    "An optional progress bar that shows how many of your questions have been answered while your survey is running.",
+    "A method that lets you quickly check what version of the package you have installed.",
+    "A method that lets you include questions and responses as context for new questions.",
+]
+
+# Parameterize the questions with the content
+scenarios = ScenarioList.from_list("content", contents)
+```
+
+```python
+agent
+```
+
+[Agent](/en/latest/agents)
+
+|  | key | value |
+| :--- | :--- | :--- |
+| 0 | traits:persona | You are a middle-aged mom in Cambridge, Massachusetts. You hope to own a driverless minivan in the near future. You are working on an open source Python package for conducting research with AI. |
+| 1 | traits:age | 45 |
+| 2 | traits:location | US |
+| 3 | traits:industry | information technology |
+| 4 | traits:company | Expected Parrot |
+| 5 | traits:occupation | startup cofounder |
+| 6 | traits:hobbies | kayaking, beach walks |
+| 7 | name | Robin |
+
+```python
+# Run the survey and store the results; we can also see a progress bar
+results = survey.by(scenarios).by(agent).run()
+```
+
+```python
+# Show all columns of the Results object
+results.columns
+```
+
+|  | 0 |
+| :--- | :--- |
+| 0 | agent.age |
+| 1 | agent.agent_index |
+| 2 | agent.agent_instruction |
+| 3 | agent.agent_name |
+| 4 | agent.company |
+| 5 | agent.hobbies |
+| 6 | agent.industry |
+| 7 | agent.location |
+| 8 | agent.occupation |
+| 9 | agent.persona |
+| 10 | answer.checkbox |
+| 11 | answer.concerns |
+| 12 | answer.likely_to_use |
+| 13 | answer.use_often |
+| 14 | cache_keys.checkbox_cache_key |
+| 15 | cache_keys.concerns_cache_key |
+| 16 | cache_keys.likely_to_use_cache_key |
+| 17 | cache_keys.use_often_cache_key |
+| 18 | cache_used.checkbox_cache_used |
+| 19 | cache_used.concerns_cache_used |
+| 20 | cache_used.likely_to_use_cache_used |
+| 21 | cache_used.use_often_cache_used |
+| 22 | comment.checkbox_comment |
+| 23 | comment.concerns_comment |
+| 24 | comment.likely_to_use_comment |
+| 25 | comment.use_often_comment |
+| 26 | generated_tokens.checkbox_generated_tokens |
+| 27 | generated_tokens.concerns_generated_tokens |
+| 28 | generated_tokens.likely_to_use_generated_tokens |
+| 29 | generated_tokens.use_often_generated_tokens |
+| 30 | iteration.iteration |
+| 31 | model.frequency_penalty |
+| 32 | model.inference_service |
+| 33 | model.logprobs |
+| 34 | model.max_tokens |
+| 35 | model.model |
+| 36 | model.model_index |
+| 37 | model.presence_penalty |
+| 38 | model.temperature |
+| 39 | model.top_logprobs |
+| 40 | model.top_p |
+| 41 | prompt.checkbox_system_prompt |
+| 42 | prompt.checkbox_user_prompt |
+| 43 | prompt.concerns_system_prompt |
+| 44 | prompt.concerns_user_prompt |
+| 45 | prompt.likely_to_use_system_prompt |
+| 46 | prompt.likely_to_use_user_prompt |
+| 47 | prompt.use_often_system_prompt |
+| 48 | prompt.use_often_user_prompt |
+| 49 | question_options.checkbox_question_options |
+| 50 | question_options.concerns_question_options |
+| 51 | question_options.likely_to_use_question_options |
+| 52 | question_options.use_often_question_options |
+| 53 | question_text.checkbox_question_text |
+| 54 | question_text.concerns_question_text |
+| 55 | question_text.likely_to_use_question_text |
+| 56 | question_text.use_often_question_text |
+| 57 | question_type.checkbox_question_type |
+| 58 | question_type.concerns_question_type |
+| 59 | question_type.likely_to_use_question_type |
+| 60 | question_type.use_often_question_type |
+| 61 | raw_model_response.checkbox_cost |
+| 62 | raw_model_response.checkbox_one_usd_buys |
+| 63 | raw_model_response.checkbox_raw_model_response |
+| 64 | raw_model_response.concerns_cost |
+| 65 | raw_model_response.concerns_one_usd_buys |
+| 66 | raw_model_response.concerns_raw_model_response |
+| 67 | raw_model_response.likely_to_use_cost |
+| 68 | raw_model_response.likely_to_use_one_usd_buys |
+| 69 | raw_model_response.likely_to_use_raw_model_response |
+| 70 | raw_model_response.use_often_cost |
+| 71 | raw_model_response.use_often_one_usd_buys |
+| 72 | raw_model_response.use_often_raw_model_response |
+| 73 | scenario.content |
+| 74 | scenario.scenario_index |
+
+
+```python
+# Print the responses
+results.select(
+    "content",
+    "use_often",
+    "checkbox",
+    "concerns",
+    "likely_to_use",
+)
+```
+
+
+|  | scenario.content | answer.use_often | answer.checkbox | answer.concerns | answer.likely_to_use |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | An optional progress bar that shows how many of your questions have been answered while your survey is running. | Frequently | ['This feature would be useful to me.', 'This feature would make me more productive.', 'This feature will be important to me.'] | Oh, I think an optional progress bar could be quite helpful! As someone who's worked on software projects, I know how useful it is to have visual feedback during a process. It can make the experience more engaging and less stressful, especially if the survey is lengthy. People often appreciate knowing how much they've completed and what's left. However, I'd suggest making sure it's truly optional, as some users might find it distracting. Also, ensuring that it doesn't slow down the survey process would be key. Overall, it sounds like a feature that could enhance user experience if implemented thoughtfully. | 4 |
+| 1 | A method that lets you quickly check what version of the package you have installed. | Occasionally | ['This feature would be useful to me.', 'This feature would make me more productive.', 'This feature will be important to me.'] | Oh, having a quick way to check the version of a software package is always a handy feature! Especially in the world of open source and Python, where updates can happen frequently. It helps ensure compatibility and troubleshoot issues more effectively. I think it would be quite valuable, especially for those of us who might not be as tech-savvy or who manage multiple packages and need to keep everything organized. Plus, it can save time when you're trying to figure out if you need to update or if a certain feature is available in your current version. So, I don't have any concerns about its usefulness; it sounds like a practical addition. | 5 |
+| 2 | A method that lets you include questions and responses as context for new questions. | Frequently | ['This feature would be useful to me.', 'This feature would make me more productive.', 'This feature will be important to me.', 'I would like to see some examples of how to use this feature.'] | Oh, I think that sounds like a really promising feature! Including previous questions and responses as context for new questions could really enhance the depth and relevance of the information gathered. It would allow for more dynamic and personalized interactions, which is great for conducting nuanced surveys or experiments. However, one concern might be ensuring that the context doesn't become overwhelming or confusing for the model, especially if the previous interactions are lengthy or complex. It could also be a challenge to manage this context effectively in terms of data storage and processing speed. But overall, if implemented well, this feature could add significant value by enabling more sophisticated and context-aware querying. | 5 |
+
+
+```python
+# Post the notebook on the Coop
+from edsl import Notebook
+
+nb = Notebook(path = "digital_twin.ipynb")
+
+if refresh := False:
+    nb.push(
+        description = "Example code for creating a digital twin",
+        alias = "digital-twin-notebook",
+        visibility = "public"
+    )
+
+# update if it already exists
+else:
+    nb.patch('b403f472-757a-4b6b-8c03-a00c941d157d', value = nb)
+```

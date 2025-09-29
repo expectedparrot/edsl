@@ -1,0 +1,176 @@
+---
+title: "Using Wikipedia tables in a survey"
+---
+
+```python
+from edsl import ScenarioList
+```
+
+Call the `from_source()` method on a `ScenarioList` and pass (i) source type “wikipedia”, (ii) the URL for the Wikipedia page containing the table and (iii) the number of the table on the page (an integer starting at 0 that can be omitted if there is only 1 table on the page). For example, here we create scenarios for the 4th table at the page about movies of the 1990s:
+
+```python
+scenarios = ScenarioList.from_source(
+    source_type = "wikipedia",
+    url = "https://en.wikipedia.org/wiki/1990s_in_film",
+    table_index = 3
+)
+```
+```python
+scenarios
+```
+```python
+ScenarioList scenarios: 50; keys: ['Worldwide gross', 'Studios', 'Title', 'Year', 'Rank', 'Ref.'];
+```
+
+|  | Rank | Title | Studios | Worldwide gross | Year | Ref. |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | 1 | Titanic | Paramount Pictures/20th Century Fox | $1,843,201,268 | 1997 | [# 1] |
+| 1 | 2 | Star Wars: Episode I – The Phantom Menace | 20th Century Fox | $924,317,558 | 1999 | [# 2] |
+| 2 | 3 | Jurassic Park | Universal Pictures | $914,691,118 | 1993 | [# 3] |
+| 3 | 4 | Independence Day | 20th Century Fox | $817,400,891 | 1996 | [# 4] |
+| 4 | 5 | The Lion King | Walt Disney Studios | $763,455,561 | 1994 | [# 5] |
+| 5 | 6 | Forrest Gump | Paramount Pictures | $677,387,716 | 1994 | [# 6] |
+| 6 | 7 | The Sixth Sense | Walt Disney Studios | $672,806,292 | 1999 | [# 7] |
+| 7 | 8 | The Lost World: Jurassic Park | Universal Pictures | $618,638,999 | 1997 | [# 8] |
+| 8 | 9 | Men in Black | Sony Pictures/Columbia Pictures | $589,390,539 | 1997 | [# 9] |
+| 9 | 10 | Armageddon | Walt Disney Studios | $553,709,788 | 1998 | [# 10] |
+| 10 | 11 | Terminator 2: Judgment Day | TriStar Pictures | $519,843,345 | 1991 | [# 11] |
+| 11 | 12 | Ghost | Paramount Pictures | $505,702,588 | 1990 | [# 12] |
+| 12 | 13 | Aladdin | Walt Disney Studios | $504,050,219 | 1992 | [# 13] |
+| 13 | 14 | Twister | Warner Bros./Universal Pictures | $494,471,524 | 1996 | [# 14] |
+| 14 | 15 | Toy Story 2 | Walt Disney Studios | $485,015,179 | 1999 | [# 15] |
+| 15 | 16 | Saving Private Ryan | DreamWorks Pictures/Paramount Pictures | $481,840,909 | 1998 | [# 16] |
+| 16 | 17 | Home Alone | 20th Century Fox | $476,684,675 | 1990 | [# 17] |
+| 17 | 18 | The Matrix | Warner Bros. | $463,517,383 | 1999 | [# 18] |
+| 18 | 19 | Pretty Woman | Walt Disney Studios | $463,406,268 | 1990 | [# 19] |
+| 19 | 20 | Mission: Impossible | Paramount Pictures | $457,696,359 | 1996 | [# 20] |
+| 20 | 21 | Tarzan | Walt Disney Studios | $448,191,819 | 1999 | [# 21] |
+| 21 | 22 | Mrs. Doubtfire | 20th Century Fox | $441,286,195 | 1993 | [# 22] |
+| 22 | 23 | Dances with Wolves | Orion Pictures | $424,208,848 | 1990 | [# 23] |
+| 23 | 24 | The Mummy | Universal Pictures | $415,933,406 | 1999 | [# 24] |
+| 24 | 25 | The Bodyguard | Warner Bros. | $411,006,740 | 1992 | [# 25] |
+| 25 | 26 | Robin Hood: Prince of Thieves | Warner Bros. | $390,493,908 | 1991 | [# 26] |
+| 26 | 27 | Godzilla | TriStar Pictures | $379,014,294 | 1998 | [# 27] |
+| 27 | 28 | True Lies | 20th Century Fox | $378,882,411 | 1994 | [# 28] |
+| 28 | 29 | Toy Story | Walt Disney Studios | $373,554,033 | 1995 | [# 29] |
+| 29 | 30 | There's Something About Mary | 20th Century Fox | $369,884,651 | 1998 | [# 30] |
+| 30 | 31 | The Fugitive | Warner Bros. | $368,875,760 | 1993 | [# 31] |
+| 31 | 32 | Die Hard with a Vengeance | 20th Century Fox/Cinergi Pictures | $366,101,666 | 1995 | [# 32] |
+| 32 | 33 | Notting Hill | PolyGram Filmed Entertainment | $363,889,678 | 1999 | [# 33] |
+| 33 | 34 | A Bug's Life | Walt Disney Studios | $363,398,565 | 1998 | [# 34] |
+| 34 | 35 | The World Is Not Enough | Metro-Goldwyn-Mayer Pictures | $361,832,400 | 1999 | [# 35] |
+| 35 | 36 | Home Alone 2: Lost in New York | 20th Century Fox | $358,994,850 | 1992 | [# 36] |
+| 36 | 37 | American Beauty | DreamWorks Pictures | $356,296,601 | 1999 | [# 37] |
+| 37 | 38 | Apollo 13 | Universal Pictures/Imagine Entertainment | $355,237,933 | 1995 | [# 38] |
+| 38 | 39 | Basic Instinct | TriStar Pictures | $352,927,224 | 1992 | [# 39] |
+| 39 | 40 | GoldenEye | MGM/United Artists | $352,194,034 | 1995 | [# 40] |
+| 40 | 41 | The Mask | New Line Cinema | $351,583,407 | 1994 | [# 41] |
+| 41 | 42 | Speed | 20th Century Fox | $350,448,145 | 1994 | [# 42] |
+| 42 | 43 | Deep Impact | Paramount Pictures/DreamWorks Pictures | $349,464,664 | 1998 | [# 43] |
+| 43 | 44 | Beauty and the Beast | Walt Disney Studios | $346,317,207 | 1991 | [# 44] |
+| 44 | 45 | Pocahontas | Walt Disney Studios | $346,079,773 | 1995 | [# 45] |
+| 45 | 46 | The Flintstones | Universal Pictures | $341,631,208 | 1994 | [# 46] |
+| 46 | 47 | Batman Forever | Warner Bros. | $336,529,144 | 1995 | [# 47] |
+| 47 | 48 | The Rock | Walt Disney Studios | $335,062,621 | 1996 | [# 48] |
+| 48 | 49 | Tomorrow Never Dies | MGM/United Artists | $333,011,068 | 1997 | [# 49] |
+| 49 | 50 | Seven | New Line Cinema | $327,311,859 | 1995 | [# 50] |
+
+```python
+scenarios.parameters
+```
+```json
+{'Rank', 'Ref.', 'Studios', 'Title', 'Worldwide gross', 'Year'}
+```
+```python
+from edsl import QuestionList
+
+q_leads = QuestionList(
+    question_name = "leads",
+    question_text = "Who are the lead actors or actresses in {{ scenario.Title }}?"
+)
+
+results = q_leads.by(scenarios).run()
+```
+```python
+(
+    results
+    .sort_by("Title")
+    .select("Title", "leads")
+)
+```
+
+|  | scenario.Title | answer.leads |
+| :--- | :--- | :--- |
+| 0 | A Bug's Life | ['Dave Foley', 'Kevin Spacey', 'Julia Louis-Dreyfus'] |
+| 1 | Aladdin | ['Mena Massoud', 'Naomi Scott', 'Will Smith'] |
+| 2 | American Beauty | ['Kevin Spacey', 'Annette Bening', 'Thora Birch'] |
+| 3 | Apollo 13 | ['Tom Hanks', 'Bill Paxton', 'Kevin Bacon', 'Gary Sinise', 'Ed Harris'] |
+| 4 | Armageddon | ['Bruce Willis', 'Ben Affleck', 'Liv Tyler'] |
+| 5 | Basic Instinct | ['Michael Douglas', 'Sharon Stone'] |
+| 6 | Batman Forever | ['Val Kilmer', 'Tommy Lee Jones', 'Jim Carrey', 'Nicole Kidman', "Chris O'Donnell"] |
+| 7 | Beauty and the Beast | ['Emma Watson', 'Dan Stevens'] |
+| 8 | Dances with Wolves | ['Kevin Costner', 'Mary McDonnell', 'Graham Greene'] |
+| 9 | Deep Impact | ['Elijah Wood', 'Morgan Freeman', 'Robert Duvall', 'Téa Leoni', 'Vanessa Redgrave', 'Maximilian Schell', 'Leelee Sobieski'] |
+| 10 | Die Hard with a Vengeance | ['Bruce Willis', 'Samuel L. Jackson', 'Jeremy Irons'] |
+| 11 | Forrest Gump | ['Tom Hanks', 'Robin Wright', 'Gary Sinise', 'Mykelti Williamson', 'Sally Field'] |
+| 12 | Ghost | ['Patrick Swayze', 'Demi Moore', 'Whoopi Goldberg'] |
+| 13 | Godzilla | ['Aaron Taylor-Johnson', 'Elizabeth Olsen', 'Bryan Cranston'] |
+| 14 | GoldenEye | ['Pierce Brosnan', 'Sean Bean', 'Izabella Scorupco', 'Famke Janssen'] |
+| 15 | Home Alone | ['Macaulay Culkin', 'Joe Pesci', 'Daniel Stern', "Catherine O'Hara", 'John Heard'] |
+| 16 | Home Alone 2: Lost in New York | ['Macaulay Culkin', 'Joe Pesci', 'Daniel Stern', "Catherine O'Hara", 'John Heard'] |
+| 17 | Independence Day | ['Will Smith', 'Jeff Goldblum', 'Bill Pullman'] |
+| 18 | Jurassic Park | ['Sam Neill', 'Laura Dern', 'Jeff Goldblum', 'Richard Attenborough'] |
+| 19 | Men in Black | ['Will Smith', 'Tommy Lee Jones'] |
+| 20 | Mission: Impossible | ['Tom Cruise', 'Jon Voight', 'Emmanuelle Béart', 'Henry Czerny', 'Ving Rhames'] |
+| 21 | Mrs. Doubtfire | ['Robin Williams', 'Sally Field', 'Pierce Brosnan'] |
+| 22 | Notting Hill | ['Hugh Grant', 'Julia Roberts'] |
+| 23 | Pocahontas | ['Irene Bedard', 'Mel Gibson'] |
+| 24 | Pretty Woman | ['Richard Gere', 'Julia Roberts'] |
+| 25 | Robin Hood: Prince of Thieves | ['Kevin Costner', 'Morgan Freeman', 'Mary Elizabeth Mastrantonio', 'Alan Rickman', 'Christian Slater'] |
+| 26 | Saving Private Ryan | ['Tom Hanks', 'Matt Damon', 'Tom Sizemore', 'Edward Burns', 'Barry Pepper', 'Adam Goldberg', 'Vin Diesel', 'Giovanni Ribisi'] |
+| 27 | Seven | ['Brad Pitt', 'Morgan Freeman', 'Gwyneth Paltrow'] |
+| 28 | Speed | ['Keanu Reeves', 'Sandra Bullock', 'Dennis Hopper'] |
+| 29 | Star Wars: Episode I – The Phantom Menace | ['Liam Neeson', 'Ewan McGregor', 'Natalie Portman', 'Jake Lloyd'] |
+| 30 | Tarzan | ['Johnny Weissmuller', 'Christopher Lambert', 'Tony Goldwyn', 'Alexander Skarsgård'] |
+| 31 | Terminator 2: Judgment Day | ['Arnold Schwarzenegger', 'Linda Hamilton', 'Edward Furlong', 'Robert Patrick'] |
+| 32 | The Bodyguard | ['Kevin Costner', 'Whitney Houston'] |
+| 33 | The Flintstones | ['John Goodman', 'Elizabeth Perkins', 'Rick Moranis', "Rosie O'Donnell"] |
+| 34 | The Fugitive | ['Harrison Ford', 'Tommy Lee Jones'] |
+| 35 | The Lion King | ['Matthew Broderick', 'James Earl Jones', 'Jeremy Irons', 'Moira Kelly', 'Nathan Lane'] |
+| 36 | The Lost World: Jurassic Park | ['Jeff Goldblum', 'Julianne Moore', 'Vince Vaughn'] |
+| 37 | The Mask | ['Jim Carrey', 'Cameron Diaz'] |
+| 38 | The Matrix | ['Keanu Reeves', 'Laurence Fishburne', 'Carrie-Anne Moss'] |
+| 39 | The Mummy | ['Brendan Fraser', 'Rachel Weisz', 'John Hannah', 'Arnold Vosloo'] |
+| 40 | The Rock | ['Sean Connery', 'Nicolas Cage', 'Ed Harris'] |
+| 41 | The Sixth Sense | ['Bruce Willis', 'Haley Joel Osment', 'Toni Collette'] |
+| 42 | The World Is Not Enough | ['Pierce Brosnan', 'Sophie Marceau', 'Robert Carlyle', 'Denise Richards'] |
+| 43 | There's Something About Mary | ['Cameron Diaz', 'Ben Stiller', 'Matt Dillon'] |
+| 44 | Titanic | ['Leonardo DiCaprio', 'Kate Winslet'] |
+| 45 | Tomorrow Never Dies | ['Pierce Brosnan', 'Jonathan Pryce', 'Michelle Yeoh', 'Teri Hatcher'] |
+| 46 | Toy Story | ['Tom Hanks', 'Tim Allen'] |
+| 47 | Toy Story 2 | ['Tom Hanks', 'Tim Allen', 'Joan Cusack'] |
+| 48 | True Lies | ['Arnold Schwarzenegger', 'Jamie Lee Curtis'] |
+| 49 | Twister | ['Helen Hunt', 'Bill Paxton'] |
+
+## Posting to Coop
+
+```python
+from edsl import Notebook
+
+nb = Notebook(path = "scenario_list_wikipedia.ipynb")
+
+nb.push(
+    description = "Example code for generating scenarios from Wikipedia tables",
+    alias = "example-wikipedia-table-scenarios-notebook",
+    visibility = "public"
+)
+```
+```json
+{'description': 'Example code for generating scenarios from Wikipedia tables',
+ 'object_type': 'notebook',
+ 'url': 'https://www.expectedparrot.com/content/678ac016-b6ab-4314-ac83-dd0981c1ddbe',
+ 'alias_url': 'https://www.expectedparrot.com/content/RobinHorton/example-wikipedia-table-scenarios-notebook',
+ 'uuid': '678ac016-b6ab-4314-ac83-dd0981c1ddbe',
+ 'version': '0.1.62.dev1',
+ 'visibility': 'public'}
+```

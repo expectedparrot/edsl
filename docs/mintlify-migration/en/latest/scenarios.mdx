@@ -1,0 +1,3624 @@
+---
+title: "Scenarios"
+description: "A Scenario is a dictionary containing one or more key/value pairs that is used to add data or content to questions in a survey, replacing a parameter in a question with a specific value (e.g., numerical or textual) or content (e.g., an image or PDF). A ScenarioList is a list of Scenario objects."
+---
+
+## Purpose
+
+Scenarios allow you create variations and versions of questions efficiently. For example, we could create a question “How much do you enjoy \{\{ scenario.activity \}\}?” and use scenarios to replace the parameter activity with running or reading or other activities. Similarly, we could create a question “What do you see in this image? \{\{ scenario.image \}\}” and use scenarios to replace the parameter image with different images.
+
+### How it works
+
+Adding scenarios to a question–or to multiple questions at once in a survey–causes it to be administered multiple times, once for each scenario, with the parameter(s) replaced by the value(s) in the scenario. This allows us to administer different versions of a question together, either asynchronously (by default) or according to [survey rules](/en/latest/surveys) that we can specify (e.g., skip/stop logic), without having to create each version of a question manually.
+
+### Metadata
+
+Scenarios are also a convenient way to keep track of metadata or other information relating to a survey that is important to an analysis of the results. For example, say we are using scenarios to parameterize question texts with pieces of \{\{ scenario.content \}\} from a dataset. In the scenarios that we create for the content parameter we could also include key/value pairs for metadata about the content, such as the \{\{ scenario.author }}, \{\{ scenario.publication_date }}, or \{\{ scenario.source }}. This will automatically include the data in the survey results but without requiring us to also parameterize the question texts those fields. This allows us to analyze the responses in the context of the metadata and avoid having to match up the data with the metadata post-survey. Please see more details on this feature in [examples below](/en/latest/scenarios).
+
+## Constructing a Scenario
+
+To use a scenario, we start by creating a question that takes a parameter in double braces:
+
+```python
+from edsl import QuestionMultipleChoice
+
+q = QuestionMultipleChoice(
+  question_name = "enjoy",
+  question_text = "How much do you enjoy {{ scenario.activity }}?",
+  question_options = ["Not at all", "Somewhat", "Very much"]
+)
+```
+
+Next we create a dictionary for a value that will replace the parameter and store it in a Scenario object:
+
+```python
+from edsl import Scenario
+
+scenario = Scenario({"activity": "running"})
+```
+
+We can inspect the scenario and see that it consists of the key/value pair that we created:
+
+```python
+scenario
+```
+
+This will return:
+
+| key | value |
+| :--- | :--- |
+| activity | running |
+
+### ScenarioList
+
+If multiple values will be used with a question or survey, we can create a list of Scenario objects that will be passed to the question or survey together. For example, here we create a list of scenarios and inspect them:
+
+```python
+from edsl import Scenario
+
+scenarios = [Scenario({"activity": a}) for a in ["running", "reading"]]
+scenarios
+```
+
+Output:
+
+```python
+[Scenario({'activity': 'running'}), Scenario({'activity': 'reading'})]
+```
+
+Alternatively, we can create a ScenarioList object. A list of scenarios is used in the same way as a ScenarioList; the difference is that a ScenarioList is a class that can be used to create a list of scenarios from a variety of data sources, such as a CSV, dataframe, list, dictionary, a Wikipedia table or a PDF pages. These special methods are discussed below.
+
+For example, here we create a ScenarioList for the same list as above:
+
+```python
+from edsl import Scenario, ScenarioList
+
+scenariolist = ScenarioList(Scenario({"activity": a}) for a in ["running", "reading"])
+scenariolist
+```
+
+Output:
+
+| activity |
+| :--- |
+| running |
+| reading |
+
+### Special method for creating scenarios
+
+We can use the general purpose from_source() method to create a ScenarioList from a variety of data source types. For example, the following code will create the same scenario list as above:
+
+Each source type has its own set of parameters that can be passed to it:
+
+ - “csv”
+ - “dataframe”
+ - “delimited_file”
+ - “dict”
+ - “directory”
+ - “dta”
+ - “excel”
+ - “google_doc”
+ - “google_sheet”
+ - “json”
+ - “latex”
+ - “list”
+ - “list_of_tuples”
+ - “pandas”
+ - “parquet”
+ - “pdf”
+ - “png”
+ - “pdf_to_image”
+ - “text”
+ - “tsv”
+ - “sqlite”
+ - “urls”
+ - “wikipedia”
+
+Here we create a scenario list from files in a directory:
+
+```python
+from edsl import ScenarioList, QuestionFreeText
+
+# Create a ScenarioList from all image files in a directory
+# Each file will be wrapped in a Scenario with key "content"
+scenarios = ScenarioList.from_source("directory", "images_folder/*.png")
+
+# Or specify a custom key name (e.g., "image")
+scenarios = ScenarioList.from_source("directory", "images_folder/*.png", "image")
+
+# Create a question that uses the scenario key
+q = QuestionFreeText(
+  question_name="image_description",
+  question_text="Please describe this image: {{ scenario.image }}"
+)
+
+# Run the question with the scenarios
+results = q.by(scenarios).run()
+```
+
+Examples of these methods are provided below and in [this notebook](https://www.expectedparrot.com/content/RobinHorton/example-scenario-methods).
+
+## Using a scenario
+
+We use a Scenario or ScenarioList by adding it to a question or survey of questions, either when we are constructing questions or when running them. If we add scenarios to a question when running a survey (using the by() method), the scenario contents replace the parameters in the question text at runtime, and are stored in a separate column of the results. If we add scenarios to a question when constructing a survey (using the loop() method), the scenario contents become part of the question text and there is no separate column of the results for the scenarios.
+
+The most common situation is to add a scenario to a question when running it. This is done by passing the Scenario or ScenarioList object to the by() method of a question or survey and then chaining the run() method.
+
+For example, here we call the by() method on the example question created above and pass a scenario list when we run it:
+
+```python
+from edsl import QuestionMultipleChoice, Scenario, ScenarioList, Agent, Model
+
+q = QuestionMultipleChoice(
+  question_name = "enjoy",
+  question_text = "How much do you enjoy {{ scenario.activity }}?",
+  question_options = ["Not at all", "Somewhat", "Very much"]
+)
+
+s = ScenarioList(Scenario({"activity":a}) for a in ["running", "sleeping"])
+
+a = Agent(traits = {"persona":"You are a human."})
+
+m = Model("gemini-1.5-flash")
+
+results = q.by(s).by(a).by(m).run()
+```
+
+We can check the results to verify that the scenario has been used correctly:
+
+```python
+results.select("activity", "enjoy")
+```
+
+This will print a table of the selected components of the results:
+
+| scenario.activity | answer.enjoy |
+| :--- | :--- |
+| running | Somewhat |
+| sleeping | Very much |
+
+### Looping
+
+We use the loop() method to add scenarios to a question when constructing a survey. This method takes a ScenarioList and returns a list of new questions for each scenario that was passed. We can optionally include the scenario key in the question name as well as the question text. This allows us to control the question names when the new questions are created; otherwise a number is automatically added to the original question name in order to ensure uniqueness.
+
+For example:
+
+```python
+from edsl import QuestionMultipleChoice, ScenarioList
+
+q = QuestionMultipleChoice(
+  question_name = "enjoy_{{ scenario.activity }}",
+  question_text = "How much do you enjoy {{ scenario.activity }}?",
+  question_options = ["Not at all", "Somewhat", "Very much"]
+)
+
+activities = ["running", "reading"]
+
+sl = ScenarioList.from_list("activity", activities)
+
+questions = q.loop(sl)
+```
+
+We can inspect the questions to see that they have been created correctly:
+
+```python
+questions
+```
+
+This will return:
+```python
+[Question('multiple_choice', question_name = """enjoy_running""", question_text = """How much do you enjoy running?""", question_options = ['Not at all', 'Somewhat', 'Very much']),
+Question('multiple_choice', question_name = """enjoy_reading""", question_text = """How much do you enjoy reading?""", question_options = ['Not at all', 'Somewhat', 'Very much'])]
+```
+
+We can pass the questions to a survey and run it:
+
+```python
+from edsl import Survey, Agent
+
+survey = Survey(questions = questions)
+
+a = Agent(traits = {"persona": "You are a human."})
+
+results = survey.by(a).run()
+
+results.select("answer.*")
+```
+
+This will print a table of the response for each question. Note that “activity” is no longer in a separate scenario field; instead, there is a single column for each question that was constructed with the scenarios:
+
+| answer.enjoy_reading | answer.enjoy_running |
+| :--- | :--- |
+| Very much | Somewhat |
+
+<Note>
+**Note:**
+
+The loop() method *cannot* be used with image or PDF scenarios, as these are not evaluated when the question is constructed. Instead, use the by() method to add these types of scenarios when running a survey (see image scenario examples below).
+</Note>
+
+## Multiple parameters
+
+We can also create a Scenario for multiple parameters at once:
+
+```python
+from edsl import QuestionFreeText, Scenario
+
+q = QuestionFreeText(
+  question_name = "counting",
+  question_text = "How many {{ scenario.unit }} are in a {{ scenario.distance }}?",
+)
+
+scenario = Scenario({"unit": "inches", "distance": "mile"})
+
+results = q.by(scenario).run()
+
+results.select("unit", "distance", "counting")
+```
+
+This will print a table of the selected components of the results:
+
+| scenario.unit | scenario.distance | answer.counting |
+| :--- | :--- | :--- |
+| inches | mile | There are 63,360 inches in a mile. |
+
+To learn more about constructing surveys, please see the [Surveys](/en/latest/surveys) module.
+
+## Scenarios for question options
+
+In the above examples we created scenarios in the question_text. We can also create a Scenario for question_options, e.g., in a multiple choice, checkbox, linear scale or other question type that requires them. Note that we do not include the scenario. prefix when using sceanrios for question options.
+
+```python
+from edsl import QuestionMultipleChoice, Scenario
+
+q = QuestionMultipleChoice(
+  question_name = "capital_of_france",
+  question_text = "What is the capital of France?",
+  question_options = "{{ scenario.question_options }}"
+)
+
+s = Scenario({'question_options': ['Paris', 'London', 'Berlin', 'Madrid']})
+
+results = q.by(s).run()
+
+results.select("answer.*")
+```
+
+Output:
+
+| answer.capital_of_france |
+| :--- |
+| Paris |
+
+## Scenario methods
+
+There are a variety of methods for working with scenarios and scenario lists, including: concatenate, concatenate_to_list, concatenate_to_set, condense, drop, duplicate expand, filter, keep, mutate, order_by, rename, sample, shuffle, times, tranform, unpack_dict
+
+These methods can be used to manipulate scenarios and scenario lists in various ways, such as sampling a subset of scenarios, shuffling the order of scenarios, concatenating scenarios together, filtering scenarios based on certain criteria, and more. Examples of some of these methods are provided below.
+
+## Combining Scenarios
+
+We can combine multiple scenarios into a single Scenario object:
+
+```python
+from edsl import Scenario
+
+scenario1 = Scenario({"food": "apple"})
+scenario2 = Scenario({"drink": "water"})
+
+combined_scenario = scenario1 + scenario2
+
+combined_scenario
+```
+
+This will return:
+
+| key | value |
+| :--- | :--- |
+| food | drink |
+| apple | water |
+
+We can also combine ScenarioList objects:
+
+```python
+from edsl import Scenario, ScenarioList
+
+scenariolist1 = ScenarioList([Scenario({"food": "apple"}), Scenario({"drink": "water"})])
+scenariolist2 = ScenarioList([Scenario({"color": "red"}), Scenario({"shape": "circle"})])
+
+combined_scenariolist = scenariolist1 + scenariolist2
+
+combined_scenariolist
+```
+
+This will return:
+
+| food | drink | color | shape |
+| :--- | :--- | :--- | :--- |
+| apple | nan | nan | nan |
+| nan | water | nan | nan |
+| nan | nan | nan | red |
+| nan | nan | circle | nan |
+
+We can create a cross product of ScenarioList objects (combine the scenarios in each list with each other):
+
+```python
+from edsl import Scenario, ScenarioList
+
+scenariolist1 = ScenarioList([Scenario({"food": "apple"}), Scenario({"drink": "water"})])
+scenariolist2 = ScenarioList([Scenario({"color": "red"}), Scenario({"shape": "circle"})])
+
+cross_product_scenariolist = scenariolist1 * scenariolist2
+
+cross_product_scenariolist
+```
+
+This will return:
+
+| food | drink | color | shape |
+| :--- | :--- | :--- | :--- |
+| apple | nan | nan | red |
+| apple | nan | circle | nan |
+| nan | water | nan | red |
+| nan | water | circle | nan |
+
+## Concatenating scenarios
+
+There are several ScenarioList methods for concatenating scenarios.
+
+The method concatenate() can be used to concatenate specified fields into a single string field; the default separator is a semicolon:
+
+```python
+from edsl import Scenario, ScenarioList
+
+sl = ScenarioList([
+  Scenario({"a":1, "b":2, "c":3}),
+  Scenario({"a":4, "b":5, "c":6})
+])
+
+slc = sl.concatenate(["a", "b"])
+
+slc
+```
+
+This will return:
+
+| c | concat_a_b |
+| :--- | :--- |
+| 3 | 1;2 |
+| 6 | 4;5 |
+
+We can specify a different separator:
+
+```python
+slc = sl.concatenate(["a", "b"], separator = " ")
+
+slc
+```
+
+This will return:
+
+| c | concat_a_b |
+| :--- | :--- |
+| 3 | 1,2 |
+| 6 | 4,5 |
+
+The method concatenate_to_list() can be used to concatenate specified fields into a single list field:
+
+```python
+from edsl import Scenario, ScenarioList
+
+sl = ScenarioList([
+  Scenario({"a":1, "b":2, "c":3}),
+  Scenario({"a":4, "b":5, "c":6})
+])
+
+slc = sl.concatenate_to_list(["a", "b"])
+
+slc
+```
+
+This will return:
+
+| c | concat_a_b |
+| :--- | :--- |
+| 3 | [1,2] |
+| 6 | [4,5] |
+
+The method concatenate_to_set() can be used to concatenate specified fields into a single set field:
+
+```python
+from edsl import Scenario, ScenarioList
+
+sl = ScenarioList([
+  Scenario({"a":1, "b":2, "c":3}),
+  Scenario({"a":4, "b":5, "c":6})
+])
+
+slc = sl.concatenate_to_list(["a", "b"])
+
+slc
+```
+
+This will return:
+
+| c | concat_a_b |
+| :--- | :--- |
+| 3 | \{1,2\} |
+| 6 | \{4,5\} |
+
+The method collapse() can be used to collapse a scenario list by grouping on all fields except a specified field:
+
+```python
+from edsl import ScenarioList
+
+s = ScenarioList([
+  Scenario({'category': 'fruit', 'color': 'red', 'item': 'apple'}),
+  Scenario({'category': 'fruit', 'color': 'yellow', 'item': 'banana'}),
+  Scenario({'category': 'fruit', 'color': 'red', 'item': 'cherry'}),
+  Scenario({'category': 'vegetable', 'color': 'green', 'item': 'spinach'})
+])
+
+s.collapse('item')
+```
+
+This will return:
+
+| category | color | item |
+| :--- | :--- | :--- |
+| fruit | red | [‘apple’, ‘cherry’] |
+| fruit | yellow | [‘banana’] |
+| vegetable | green | [‘spinach’] |
+
+The method condense() can be used to combine all scenarios in a ScenarioList into a single Scenario object:
+
+```python
+from edsl import Scenario, ScenarioList
+
+scenarios = ScenarioList([
+  Scenario({"id": 1, "text": "First"}),
+  Scenario({"id": 2, "text": "Second"}),
+  Scenario({"id": 3, "text": "Third"})
+])
+
+# Condense with default prefix and index
+combined = scenarios.condense()
+
+combined
+```
+
+This will return:
+
+| scenario_0 | scenario_1 | scenario_2 |
+| :--- | :--- | :--- |
+| \{‘id’: 1, ‘text’: ‘First’} | \{‘id’: 2, ‘text’: ‘Second’} | \{‘id’: 3, ‘text’: ‘Third’} |
+
+The condensed scenario can then be used in EDSL questions with dot notation:
+
+```python
+from edsl import QuestionFreeText
+
+q = QuestionFreeText(
+  question_name="first_text",
+  question_text="What is the text from the first scenario: {{ scenario.scenario_0.text }}?"
+)
+
+# Run with the condensed scenario
+results = q.by(combined).run()
+```
+
+You can also use custom prefixes and control whether to include indices:
+
+```python
+# Custom prefix
+combined_custom = scenarios.condense(prefix="item")
+
+# Without index (first item uses just prefix, others get index to avoid conflicts)
+combined_no_index = scenarios.condense(prefix="data", include_index=False)
+
+combined_custom
+```
+
+This will return:
+
+| item_0 | item_1 | item_2 |
+| :--- | :--- | :--- |
+| \{‘id’: 1, ‘text’: ‘First’} | \{‘id’: 2, ‘text’: ‘Second’} | \{‘id’: 3, ‘text’: ‘Third’} |
+
+```python
+The method from_source(“sqlite”) can be used to create a scenario list from a SQLite database. It takes a filepath to the database file and optional parameters table and sql_query.
+```
+
+## Creating scenarios from a dataset
+
+There are a variety of methods for creating and working with scenarios generated from datasets and different data types.
+
+### Turning results into scenarios
+
+The method to_scenario_list() can be used to turn the results of a survey into a list of scenarios.
+
+Example usage:
+
+Say we have some results from a survey where we asked agents to choose a random number between 1 and 1000:
+
+```python
+from edsl import QuestionNumerical, Agent, AgentList
+
+q_random = QuestionNumerical(
+  question_name = "random",
+  question_text = "Choose a random number between 1 and 1000."
+)
+
+agents = AgentList(Agent({"persona":p}) for p in ["Child", "Magician", "Olympic breakdancer"])
+
+results = q_random.by(agents).run()
+
+results.select("persona", "random")
+```
+
+Our results are:
+
+| agent.persona | answer.random |
+| :--- | :--- |
+| Child | 7 |
+| Magician | 472 |
+| Olympic breakdancer | 529 |
+
+We can use the to_scenario_list() method turn components of the results into a list of scenarios to use in a new survey:
+
+```python
+scenarios = results.select("persona", "random").to_scenario_list() # excluding other columns of the results
+scenarios
+```
+
+We can inspect the scenarios to see that they have been created correctly:
+
+| persona | random |
+| :--- | :--- |
+| Child | 7 |
+| Magician | 472 |
+| Olympic breakdancer | 529 |
+
+### PDFs as textual scenarios
+
+The ScenarioList method from_source(“pdf”, “path/to/pdf”) is a convenient way to extract information from large files. It allows you to read in a PDF and automatically create a list of textual scenarios for the individual pages of the file. Each scenario has the following keys which can be used as parameters in a question or stored as metadata, and renamed as desired: filename, page, text:
+
+```python
+from edsl import ScenarioList
+
+scenarios = ScenarioList.from_source("pdf", "path/to/pdf_file.pdf") # modify the filepath
+```
+
+If you prefer to create a single Scenario for the entire PDF file, you can use the FileStore module to pass the file to a Scenario in the usual way (e.g., this method is identical for PNG image files):
+
+```python
+from edsl import Scenario, FileStore
+
+fs = FileStore("path/to/pdf") # create a FileStore object for the PDF file (or image file)
+
+scenario = Scenario({"my_pdf": fs}) # pass the FileStore object to a Scenario
+```
+
+To use this method with either object, we start by adding a placeholder \{\{ scenario.text }} to a question text where the text of a PDF or PDF page will be inserted. When the question or survey is run with the PDF scenario or scenario list, the text of the PDF or individual pages will be inserted into the question text at the placeholder.
+
+For example, this code can be used to insert the text of each page of a PDF in a survey of question:
+
+```python expandable
+from edsl import QuestionFreeText, ScenarioList, Survey
+
+# Create a survey of questions parameterized by the {{ text }} of the PDF pages:
+q1 = QuestionFreeText(
+  question_name = "themes",
+  question_text = "Identify the key themes mentioned on this page: {{ scenario.text }}",
+)
+
+q2 = QuestionFreeText(
+  question_name = "idea",
+  question_text = "Identify the most important idea on this page: {{ scenario.text }}",
+)
+
+survey = Survey([q1, q2])
+
+scenarios = ScenarioList.from_source("pdf", "path/to/pdf_file.pdf") # modify the filepath
+
+# Run the survey with the pages of the PDF as scenarios:
+results = survey.by(scenarios).run()
+
+# To print the page and text of each PDF page scenario together with the answers to the question:
+results.select("page", "text", "answer.*")
+```
+
+Examples of this method can be viewed in a [demo notebook](/en/latest/notebooks/scenario_from_pdf).
+
+### Image scenarios
+
+A Scenario can be generated from an image by passing the filepath as the value (the same as a PDF, as shown above). This is done by using the FileStore module to store the image and then passing the FileStore object to a Scenario.
+
+Example usage:
+
+```python
+from edsl import Scenario, FileStore
+
+fs = FileStore("parrot_logo.png") # modify filepath
+
+s = Scenario({"image":fs})
+```
+
+We can add the key to questions as we do scenarios from other data sources:
+
+
+```python expandable
+from edsl import Model, QuestionFreeText, QuestionList, Survey
+
+m = Model("gemini-1.5-flash") # we need to use a vision model
+
+q1 = QuestionFreeText(
+  question_name = "identify",
+  question_text = "What animal is in this picture: {{ scenario.image }}"
+)
+
+q2 = QuestionList(
+  question_name = "colors",
+  question_text = "What colors do you see in this picture: {{ scenario.image }}"
+)
+
+survey = Survey([q1, q2])
+
+results = survey.by(s).run()
+
+results.select("identify", "colors")
+```
+
+Output using the Expected Parrot logo:
+
+| answer.identify | answer.colors |
+| :--- | :--- |
+| The animal in the picture is a parrot. | [‘gray’, ‘green’, ‘yellow’, ‘pink’, ‘blue’, ‘black’] |
+
+See a [demo notebook](/en/latest/notebooks/image_scenario_example) using of this method in the documentation page.
+
+<Note>
+**Note:**
+
+You must use a vision model in order to run questions with images. We recommend testing whether a model can reliably identify your images before running a survey with them. You can also use the [models page](https://www.expectedparrot.com/models) to check available models’ performance with test questions, including images.
+</Note>
+
+### Creating a scenario list from a list
+
+Example usage:
+
+```python
+from edsl import ScenarioList
+
+scenariolist = ScenarioList.from_source("list" "item", ["color", "food", "animal"])
+
+scenariolist
+```
+
+This will return:
+
+| item |
+| :--- |
+| color |
+| food |
+| animal |
+
+### Creating a scenario list from a dictionary
+
+Example usage:
+
+```python
+from edsl import ScenarioList
+
+d = {"item": ["color", "food", "animal"]}
+
+scenariolist = ScenarioList.from_source("nested_dict", d)
+scenariolist
+```
+
+This will return:
+
+| item |
+| :--- |
+| color |
+| food |
+| animal |
+
+### Creating a scenario list from a Wikipedia table
+
+Example usage:
+
+```python
+from edsl import ScenarioList
+
+scenarios = ScenarioList.from_source("wikipedia", "https://en.wikipedia.org/wiki/1990s_in_film", 3)
+scenarios
+```
+
+This will return a list of scenarios for the first table on the Wikipedia page:
+
+| Rank | Title | Studios | Worldwide gross | Year |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | Titanic | Paramount Pictures/20th Century Fox | \$1,843,201,268 | 1997 |
+| 2 | Star Wars: Episode I - The Phantom Menace | 20th Century Fox | \$924,317,558 | 1999 |
+| 3 | Jurassic Park | Universal Pictures | \$914,691,118 | 1993 |
+| 4 | Independence Day | 20th Century Fox | \$817,400,891 | 1996 |
+| 5 | The Lion King | Walt Disney Studios | \$763,455,561 | 1994 |
+| 6 | Forrest Gump | Paramount Pictures | \$677,387,716 | 1994 |
+| 7 | The Sixth Sense | Walt Disney Studios | \$672,806,292 | 1999 |
+| 8 | The Lost World: Jurassic Park | Universal Pictures | \$618,638,999 | 1997 |
+| 9 | Men in Black | Sony Pictures/Columbia Pictures | \$589,390,539 | 1997 |
+| 10 | Armageddon | Walt Disney Studios | \$553,709,788 | 1998 |
+| 11 | Terminator 2: Judgment Day | TriStar Pictures | \$519,843,345 | 1991 |
+| 12 | Ghost | Paramount Pictures | \$505,702,588 | 1990 |
+| 13 | Aladdin | Walt Disney Studios | \$504,050,219 | 1992 |
+| 14 | Twister | Warner Bros./Universal Pictures | \$494,471,524 | 1996 |
+| 15 | Toy Story 2 | Walt Disney Studios | \$485,015,179 | 1999 |
+| 16 | Saving Private Ryan | DreamWorks Pictures/Paramount Pictures | \$481,840,909 | 1998 |
+| 17 | Home Alone | 20th Century Fox | \$476,684,675 | 1990 |
+| 18 | The Matrix | Warner Bros. | \$463,517,383 | 1999 |
+| 19 | Pretty Woman | Walt Disney Studios | \$463,406,268 | 1990 |
+| 20 | Mission: Impossible | Paramount Pictures | \$457,696,359 | 1996 |
+| 21 | Tarzan | Walt Disney Studios | \$448,191,819 | 1999 |
+| 22 | Mrs. Doubtfire | 20th Century Fox | $441,286,195 | 1993 |
+| 23 | Dances with Wolves | Orion Pictures | \$424,208,848 | 1990 |
+| 24 | The Mummy | Universal Pictures | \$415,933,406 | 1999 |
+| 25 | The Bodyguard | Warner Bros. | \$411,006,740 | 1992 |
+| 26 | Robin Hood: Prince of Thieves | Warner Bros. | \$390,493,908 | 1991 |
+| 27 | Godzilla | TriStar Pictures | \$379,014,294 | 1998 |
+| 28 | True Lies | 20th Century Fox | \$378,882,411 | 1994 |
+| 29 | Toy Story | Walt Disney Studios | \$373,554,033 | 1995 |
+| 30 | There’s Something About Mary | 20th Century Fox | \$369,884,651 | 1998 |
+| 31 | The Fugitive | Warner Bros. | \$368,875,760 | 1993 |
+| 32 | Die Hard with a Vengeance | 20th Century Fox/Cinergi Pictures | \$366,101,666 | 1995 |
+| 33 | Notting Hill | PolyGram Filmed Entertainment | \$363,889,678 | 1999 |
+| 34 | A Bug’s Life | Walt Disney Studios | \$363,398,565 | 1998 |
+| 35 | The World Is Not Enough | Metro-Goldwyn-Mayer Pictures | \$361,832,400 | 1999 |
+| 36 | Home Alone 2: Lost in New York | 20th Century Fox | \$358,994,850 | 1992 |
+| 37 | American Beauty | DreamWorks Pictures | \$356,296,601 | 1999 |
+| 38 | Apollo 13 | Universal Pictures/Imagine Entertainment | \$355,237,933 | 1995 |
+| 39 | Basic Instinct | TriStar Pictures | \$352,927,224 | 1992 |
+| 40 | GoldenEye | MGM/United Artists | \$352,194,034 | 1995 |
+| 41 | The Mask | New Line Cinema | \$351,583,407 | 1994 |
+| 42 | Speed | 20th Century Fox | \$350,448,145 | 1994 |
+| 43 | Deep Impact | Paramount Pictures/DreamWorks Pictures | \$349,464,664 | 1998 |
+| 44 | Beauty and the Beast | Walt Disney Studios | \$346,317,207 | 1991 |
+| 45 | Pocahontas | Walt Disney Studios | \$346,079,773 | 1995 |
+| 46 | The Flintstones | Universal Pictures | \$341,631,208 | 1994 |
+| 47 | Batman Forever | Warner Bros. | \$336,529,144 | 1995 |
+| 48 | The Rock | Walt Disney Studios | \$335,062,621 | 1996 |
+| 49 | Tomorrow Never Dies | MGM/United Artists | \$333,011,068 | 1997 |
+| 50 | Seven | New Line Cinema | \$327,311,859 | 1995 |
+
+The parameters let us know the keys that can be used in the question text or stored as metadata. (They can be edited as needed - e.g., using the rename method discussed above.)
+
+```python
+scenarios.parameters
+```
+
+This will return:
+
+```python
+{'Rank', 'Ref.', 'Studios', 'Title', 'Worldwide gross', 'Year'}
+```
+
+The scenarios can be used to ask questions about the data in the table:
+
+```python
+from edsl import QuestionList
+
+q_leads = QuestionList(
+  question_name = "leads",
+  question_text = "Who are the lead actors or actresses in {{ scenario.Title }}?"
+)
+
+results = q_leads.by(scenarios).run()
+
+(
+  results
+  .sort_by("Title")
+  .select("Title", "leads")
+)
+```
+
+Output:
+
+| Title | Leads |
+| :--- | :--- |
+| A Bug’s Life | Dave Foley, Kevin Spacey, Julia Louis-Dreyfus, Hayden Panettiere, Phyllis Diller, Richard Kind, David Hyde Pierce |
+| Aladdin | Mena Massoud, Naomi Scott, Will Smith |
+| American Beauty | Kevin Spacey, Annette Bening, Thora Birch, Mena Suvari, Wes Bentley, Chris Cooper |
+| Apollo 13 | Tom Hanks, Kevin Bacon, Bill Paxton |
+| Armageddon | Bruce Willis, Billy Bob Thornton, Liv Tyler, Ben Affleck |
+| Basic Instinct | Michael Douglas, Sharon Stone |
+| Batman Forever | Val Kilmer, Tommy Lee Jones, Jim Carrey, Nicole Kidman, Chris O’Donnell |
+| Beauty and the Beast | Emma Watson, Dan Stevens, Luke Evans, Kevin Kline, Josh Gad |
+| Dances with Wolves | Kevin Costner, Mary McDonnell, Graham Greene, Rodney A. Grant |
+| Deep Impact | Téa Leoni, Morgan Freeman, Elijah Wood, Robert Duvall |
+| Die Hard with a Vengeance | Bruce Willis, Samuel L. Jackson, Jeremy Irons |
+| Forrest Gump | Tom Hanks, Robin Wright, Gary Sinise, Mykelti Williamson, Sally Field |
+| Ghost | Patrick Swayze, Demi Moore, Whoopi Goldberg |
+| Godzilla | Matthew Broderick, Jean Reno, Bryan Cranston, Aaron Taylor-Johnson, Elizabeth Olsen, Kyle Chandler, Vera Farmiga, Millie Bobby Brown |
+| GoldenEye | Pierce Brosnan, Sean Bean, Izabella Scorupco, Famke Janssen |
+| Home Alone | Macaulay Culkin, Joe Pesci, Daniel Stern, Catherine O’Hara, John Heard |
+| Home Alone 2: Lost in New York | Macaulay Culkin, Joe Pesci, Daniel Stern, Catherine O’Hara, John Heard |
+| Independence Day | Will Smith, Bill Pullman, Jeff Goldblum |
+| Jurassic Park | Sam Neill, Laura Dern, Jeff Goldblum, Richard Attenborough |
+| Men in Black | Tommy Lee Jones, Will Smith |
+| Mission: Impossible | Tom Cruise, Ving Rhames, Simon Pegg, Rebecca Ferguson, Jeremy Renner |
+| Mrs. Doubtfire | Robin Williams, Sally Field, Pierce Brosnan, Lisa Jakub, Matthew Lawrence, Mara Wilson |
+| Notting Hill | Julia Roberts, Hugh Grant |
+| Pocahontas | Irene Bedard, Mel Gibson, Judy Kuhn, David Ogden Stiers, Russell Means, Christian Bale |
+| Pretty Woman | Richard Gere, Julia Roberts |
+| Robin Hood: Prince of Thieves | Kevin Costner, Morgan Freeman, Mary Elizabeth Mastrantonio, Christian Slater, Alan Rickman |
+| Saving Private Ryan | Tom Hanks, Matt Damon, Tom Sizemore, Edward Burns, Barry Pepper, Adam Goldberg, Vin Diesel, Giovanni Ribisi, Jeremy Davies |
+| Seven | Brad Pitt, Morgan Freeman, Gwyneth Paltrow |
+| Speed | Keanu Reeves, Sandra Bullock, Dennis Hopper |
+| Star Wars: Episode I - The Phantom Menace | Liam Neeson, Ewan McGregor, Natalie Portman, Jake Lloyd |
+| Tarzan | Johnny Weissmuller, Maureen O’Sullivan |
+| Terminator 2: Judgment Day | Arnold Schwarzenegger, Linda Hamilton, Edward Furlong, Robert Patrick |
+| The Bodyguard | Kevin Costner, Whitney Houston |
+| The Flintstones | John Goodman, Elizabeth Perkins, Rick Moranis, Rosie O’Donnell |
+| The Fugitive | Harrison Ford, Tommy Lee Jones |
+| The Lion King | Matthew Broderick, James Earl Jones, Jeremy Irons, Moira Kelly, Nathan Lane, Ernie Sabella, Rowan Atkinson, Whoopi Goldberg |
+| The Lost World: Jurassic Park | Jeff Goldblum, Julianne Moore, Pete Postlethwaite |
+| The Mask | Jim Carrey, Cameron Diaz |
+| The Matrix | Keanu Reeves, Laurence Fishburne, Carrie-Anne Moss |
+| The Mummy | Brendan Fraser, Rachel Weisz, John Hannah, Arnold Vosloo |
+| The Rock | Sean Connery, Nicolas Cage, Ed Harris |
+| The Sixth Sense | Bruce Willis, Haley Joel Osment, Toni Collette, Olivia Williams |
+| The World Is Not Enough | Pierce Brosnan, Sophie Marceau, Denise Richards, Robert Carlyle |
+| There’s Something About Mary | Cameron Diaz, Ben Stiller, Matt Dillon |
+| Titanic | Leonardo DiCaprio, Kate Winslet |
+| Tomorrow Never Dies | Pierce Brosnan, Michelle Yeoh, Jonathan Pryce, Teri Hatcher |
+| Toy Story | Tom Hanks, Tim Allen |
+| Toy Story 2 | Tom Hanks, Tim Allen, Joan Cusack |
+| True Lies | Arnold Schwarzenegger, Jamie Lee Curtis |
+| Twister | Helen Hunt, Bill Paxton |
+
+### Creating a scenario list from a CSV
+
+The ScenarioList method from_source(“csv”, “\<filepath>.csv”) creates a list of scenarios from a CSV file. The method reads the CSV file and creates a scenario for each row in the file, with the keys as the column names and the values as the row values.
+
+For example, say we have a CSV file containing the following data:
+
+```csv
+message,user,source,date
+I can't log in...,Alice,Customer support,2022-01-01
+I need help with my bill...,Bob,Phone,2022-01-02
+I have a safety concern...,Charlie,Email,2022-01-03
+I need help with a product...,David,Chat,2022-01-04
+```
+
+We can create a list of scenarios from the CSV file:
+
+```python
+from edsl import ScenarioList
+
+scenariolist = ScenarioList.from_source("csv", "path/to/file.csv") # update filepath
+scenariolist
+```
+
+This will return a scenario for each row:
+
+| Message | User | Source | Date |
+| :--- | :--- | :--- | :--- |
+| I can’t log in… | Alice | Customer support | 2022-01-01 |
+| I need help with my bill… | Bob | Phone | 2022-01-02 |
+| I have a safety concern… | Charlie | Email | 2022-01-03 |
+| I need help with a product… | David | Chat | 2022-01-04 |
+
+If the scenario keys are not valid Python identifiers, we can use the give_valid_names() method to convert them to valid identifiers.
+
+For example, our CSV file might contain a header row that is question texts:
+
+```csv
+"What is the message?","Who is the user?","What is the source?","What is the date?"
+"I can't log in...","Alice","Customer support","2022-01-01"
+"I need help with my bill...","Bob","Phone","2022-01-02"
+"I have a safety concern...","Charlie","Email","2022-01-03"
+"I need help with a product...","David","Chat","2022-01-04"
+```
+
+We can create a list of scenarios from the CSV file:
+
+```python
+from edsl import ScenarioList
+
+scenariolist = ScenarioList.from_source("csv", "path/to/file.csv") # update filepath
+
+scenariolist = scenariolist.give_valid_names()
+scenariolist
+```
+
+This will return scenarios with non-Pythonic identifiers:
+
+| What is the message? | Who is the user? | What is the source? | What is the date? |
+| :--- | :--- | :--- | :--- |
+| I can’t log in… | Alice | Customer support | 2022-01-01 |
+| I need help with my bill… | Bob | Phone | 2022-01-02 |
+| I have a safety concern… | Charlie | Email | 2022-01-03 |
+| I need help with a product… | David | Chat | 2022-01-04 |
+
+We can then use the give_valid_names() method to convert the keys to valid identifiers:
+
+```python
+scenariolist.give_valid_names()
+scenariolist
+```
+
+This will return scenarios with valid identifiers (removing stop words and using underscores):
+
+| message | user | source | date |
+| :--- | :--- | :--- | :--- |
+| I can’t log in… | Alice | Customer support | 2022-01-01 |
+| I need help with my bill… | Bob | Phone | 2022-01-02 |
+| I have a safety concern… | Charlie | Email | 2022-01-03 |
+| I need help with a product… | David | Chat | 2022-01-04 |
+
+## Methods for un/pivoting and grouping scenarios
+
+There are a variety of methods for modifying scenarios and scenario lists.
+
+### Unpivoting a scenario list
+
+The ScenarioList method unpivot() can be used to unpivot a scenario list based on one or more specified identifiers. It takes a list of id_vars which are the names of the key/value pairs to keep in each new scenario, and a list of value_vars which are the names of the key/value pairs to unpivot.
+
+For example, say we have a scenario list for the above CSV file:
+
+```python
+from edsl import ScenarioList
+
+scenariolist = ScenarioList.from_source("csv", "<filepath>.csv")
+scenariolist
+```
+
+We can call the unpivot the scenario list:
+
+```python
+scenariolist.unpivot(id_vars = ["user"], value_vars = ["source", "date", "message"])
+scenariolist
+```
+
+This will return a list of scenarios with the source, date, and message key/value pairs unpivoted:
+
+| user | variable | value |
+| :--- | :--- | :--- |
+| Alice | source | Customer support |
+| Alice | date | 2022-01-01 |
+| Alice | message | I can’t log in… |
+| Bob | source | Phone |
+| Bob | date | 2022-01-02 |
+| Bob | message | I need help with my bill… |
+| Charlie | source | Email |
+| Charlie | date | 2022-01-03 |
+| Charlie | message | I have a safety concern… |
+| David | source | Chat |
+| David | date | 2022-01-04 |
+| David | message | I need help with a product… |
+
+### Pivoting a scenario list
+
+We can call the pivot() method to reverse the unpivot operation:
+
+```python
+scenariolist.pivot(id_vars = ["user"], var_name="variable", value_name="value")
+scenariolist
+```
+
+This will return a list of scenarios with the source, date, and message key/value pairs pivoted back to their original form:
+
+| user | source | date | message |
+| :--- | :--- | :--- | :--- |
+| Alice | Customer support | 2022-01-01 | I can’t log in… |
+| Bob | Phone | 2022-01-02 | I need help with my bill… |
+| Charlie | Email | 2022-01-03 | I have a safety concern… |
+| David | Chat | 2022-01-04 | I need help with a product… |
+
+### Grouping scenarios
+
+The group_by() method can be used to group scenarios by one or more specified keys and apply a function to the values of the specified variables.
+
+Example usage:
+
+```python
+from edsl import Scenario, ScenarioList
+
+def avg_sum(a, b):
+  return {'avg_a': sum(a) / len(a), 'sum_b': sum(b)}
+
+scenariolist = ScenarioList([
+  Scenario({'group': 'A', 'year': 2020, 'a': 10, 'b': 20}),
+  Scenario({'group': 'A', 'year': 2021, 'a': 15, 'b': 25}),
+  Scenario({'group': 'B', 'year': 2020, 'a': 12, 'b': 22}),
+  Scenario({'group': 'B', 'year': 2021, 'a': 17, 'b': 27})
+])
+
+scenariolist.group_by(id_vars=['group'], variables=['a', 'b'], func=avg_sum)
+```
+
+This will return a list of scenarios with the a and b key/value pairs grouped by the group key and the avg_a and sum_b key/value pairs calculated by the avg_sum function:
+
+| group | avg_a | sum_b |
+| :--- | :--- | :--- |
+| A | 12.5 | 45 |
+| B | 14.5 | 49 |
+
+## Data labeling tasks
+
+Scenarios are particularly useful for conducting data labeling or data coding tasks, where the task can be designed as a survey of questions about each piece of data in a dataset.
+
+For example, say we have a dataset of text messages that we want to sort by topic. We can perform this task by using a language model to answer questions such as “What is the primary topic of this message: \{\{ scenario.message }}?” or “Does this message mention a safety issue? \{\{ scenario.message \}\}”, where each text message is inserted in the message placeholder of the question text.
+
+Here we use scenarios to conduct the task:
+
+```python expandable
+from edsl import QuestionMultipleChoice, Survey, Scenario, ScenarioList
+
+# Create a question with that takes a parameter
+q1 = QuestionMultipleChoice(
+  question_name = "topic",
+  question_text = "What is the topic of this message: {{ scenario.message }}?",
+  question_options = ["Safety", "Product support", "Billing", "Login issue", "Other"]
+)
+
+q2 = QuestionMultipleChoice(
+  question_name = "safety",
+  question_text = "Does this message mention a safety issue? {{ scenario.message }}?",
+  question_options = ["Yes", "No", "Unclear"]
+)
+
+# Create a list of scenarios for the parameter
+messages = [
+  "I can't log in...",
+  "I need help with my bill...",
+  "I have a safety concern...",
+  "I need help with a product..."
+]
+
+scenarios = ScenarioList.from_source("list", "message", messages)
+
+# Create a survey with the question
+survey = Survey(questions = [q1, q2])
+
+# Run the survey with the scenarios
+results = survey.by(scenarios).run()
+```
+
+We can then analyze the results to see how the agent answered the questions for each scenario:
+
+```python
+results.select("message", "safety", "topic")
+```
+
+This will print a table of the scenarios and the answers to the questions for each scenario:
+
+| message | safety | topic |
+| :--- | :--- | :--- |
+| I can’t log in… | No | Login issue |
+| I need help with a product… | No | Product support |
+| I need help with my bill… | No | Billing |
+| I have a safety concern… | Yes | Safety |
+
+### Adding metadata
+
+If we have metadata about the messages that we want to keep track of, we can add it to the scenarios as well. This will create additional columns for the metadata in the results dataset, but without the need to include it in our question texts. Here we modify the above example to use a dataset of messages with metadata. Note that the question texts are unchanged:
+
+```python expandable
+from edsl import QuestionMultipleChoice, Survey, Scenario, ScenarioList
+
+# Create a question with a parameter
+q1 = QuestionMultipleChoice(
+  question_name = "topic",
+  question_text = "What is the topic of this message: {{ scenario.message }}?",
+  question_options = ["Safety", "Product support", "Billing", "Login issue", "Other"]
+)
+
+q2 = QuestionMultipleChoice(
+  question_name = "safety",
+  question_text = "Does this message mention a safety issue? {{ scenario.message }}?",
+  question_options = ["Yes", "No", "Unclear"]
+)
+
+# Create scenarios for the sets of parameters
+user_messages = [
+  {"message": "I can't log in...", "user": "Alice", "source": "Customer support", "date": "2022-01-01"},
+  {"message": "I need help with my bill...", "user": "Bob", "source": "Phone", "date": "2022-01-02"},
+  {"message": "I have a safety concern...", "user": "Charlie", "source": "Email", "date": "2022-01-03"},
+  {"message": "I need help with a product...", "user": "David", "source": "Chat", "date": "2022-01-04"}
+]
+
+scenarios = ScenarioList.from_source("dict", user_messages)
+
+# Create a survey with the question
+survey = Survey(questions = [q1, q2])
+
+# Run the survey with the scenarios
+results = survey.by(scenarios).run()
+
+# Inspect the results
+results.select("scenario.*", "answer.*")
+```
+
+We can see how the agent answered the questions for each scenario, together with the metadata that was not included in the question text:
+
+| user | source | message | date | topic | safety |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Alice | Customer support | I can’t log in… | 2022-01-01 | Login issue | No |
+| Bob | Phone | I need help with my bill… | 2022-01-02 | Billing | No |
+| Charlie | Email | I have a safety concern… | 2022-01-03 | Safety | Yes |
+| David | Chat | I need help with a product… | 2022-01-04 | Product support | No |
+
+To learn more about accessing, analyzing and visualizing survey results, please see the [Results](/en/latest/results) section.
+
+## Slicing/chunking content into scenarios
+
+We can use the Scenario method chunk() to slice a text scenario into a ScenarioList based on num_words or num_lines.
+
+Example usage:
+
+```python
+my_haiku = """
+This is a long text.
+Pages and pages, oh my!
+I need to chunk it.
+"""
+
+text_scenario = Scenario({"my_text": my_haiku})
+
+word_chunks_scenariolist = text_scenario.chunk(
+  "my_text",
+  num_words = 5, # use num_words or num_lines but not both
+  include_original = True, # optional
+  hash_original = True # optional
+)
+word_chunks_scenariolist
+```
+
+This will return:
+
+| my_text | my_text_chunk | my_text_original |
+| :--- | :--- | :--- |
+| This is a long text. | 0 | 4aec42eda32b7f32bde8be6a6bc11125 |
+| Pages and pages, oh my! | 1 | 4aec42eda32b7f32bde8be6a6bc11125 |
+| I need to chunk it. | 2 | 4aec42eda32b7f32bde8be6a6bc11125 |
+
+## Using f-strings with scenarios
+
+It is possible to use scenarios and f-strings together in a question. An f-string must be evaluated when a question is constructed, whereas a scenario is either evaluated when a question is run (using the by method) or when a question is constructed (using the loop method).
+
+For example, here we use an f-string to create different versions of a question that also takes a parameter \{\{ scenario.activity \}\}, together with a list of scenarios to replace the parameter when the question is run. We optionally include the f-string in the question name in addition to the question text in order to control the unique identifiers for the questions, which are needed in order to pass the questions that are created to a Survey. (If you do not include the f-string in the question name, a number is automatically appended to each question name to ensure uniqueness.) Then we use the show_prompts() method to examine the user prompts that are created when the scenarios are added to the questions:
+
+```python expandable
+from edsl import QuestionFreeText, Scenario, ScenarioList, Survey
+
+questions = []
+sentiments = ["enjoy", "hate", "love"]
+activities = ["running", "reading"]
+
+for sentiment in sentiments:
+  q = QuestionFreeText(
+    question_name = f"{ sentiment }_activity",
+    question_text = f"How much do you { sentiment } " + "{{ scenario.activity }}?"
+  )
+  questions.append(q)
+
+scenarios = ScenarioList.from_source("list", "activity", activities)
+
+survey = Survey(questions = questions)
+survey.by(scenarios).show_prompts()
+```
+
+The show_prompts method will return the questions created with the f-string with the scenarios added. (Note that the system prompts are blank because we have not created any agents.)
+
+| user_prompt | system_prompt |
+| :--- | :--- |
+| How much do you enjoy running? |  |
+| How much do you hate running? |  |
+| How much do you love running? |  |
+| How much do you enjoy reading? |  |
+| How much do you hate reading? |  |
+| How much do you love reading? |  |
+
+To learn more about user and system prompts, please see the [Prompts](/en/latest/prompts) section.
+
+## Special methods
+
+Special methods are available for generating or modifying scenarios using web searches:
+
+The from_prompt method allows you to create scenarios from a prompt, which can be useful for generating scenarios based on user input or other dynamic sources:
+
+```python
+from edsl import ScenarioList
+
+scenarios = ScenarioList.from_prompt(
+  description = "What are some popular programming languages?",
+  name = "programming_languages", # optional name for the scenarios; default is "item"
+  target_number = 5, # optional number of scenarios to generate; default is 10
+  verbose = True # optional flag to return verbose output; default is False
+)
+```
+
+The from_search_terms method allows you to create scenarios from a list of search terms, which can be useful for generating scenarios based on search queries or other dynamic sources:
+
+```python
+from edsl import ScenarioList
+
+search_terms = ["Python", "Java", "JavaScript"]
+scenarios = ScenarioList.from_search_terms(search_terms)
+```
+
+The method augment_with_wikipedia allows you to augment scenarios with information from Wikipedia, which can be useful for enriching scenarios with additional context or data:
+
+```python
+from edsl import ScenarioList
+
+# method is used to augment existing scenarios
+scenarios = ScenarioList.from_prompt(
+  description = "What are some popular programming languages?",
+  name = "programming_languages"
+)
+
+scenarios.augment_with_wikipedia(
+  search_key = "programming languages",
+  content_only = True # default optional flag to return only the content
+  key_name = "wikipedia_content" # default optional key name for the content
+)
+```
+
+## Scenario class
+
+> ### *class* edsl.scenarios.Scenario(*data: Dict[str, Any] | Mapping[str, Any] | None = None*, *name: str | None = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Bases: [`Base`](/en/latest/base#base-class "edsl.base.base_class.Base"), `UserDict`
+
+A dictionary-like object that stores key-value pairs for parameterizing questions.
+
+A Scenario inherits from both the EDSL Base class and Python’s UserDict, allowing it to function as a dictionary while providing additional functionality. Scenarios are used to parameterize questions by providing variable data that can be referenced within question templates using Jinja syntax.
+
+Scenarios can be created directly with dictionary data or constructed from various sources using class methods (from_file, from_url, from_pdf, etc.). They support operations like addition (combining scenarios) and multiplication (creating cross products with other scenarios or scenario lists).
+
+> ### **Attributes:**
+
+data (dict): The underlying dictionary data. name (str, optional): A name for the scenario.
+
+> ### **Examples:**
+
+
+Create a simple scenario: >>> s = Scenario(\{“product”: “coffee”, “price”: 4.99\})
+
+Combine scenarios: >>> s1 = Scenario(\{“product”: “coffee”}) >>> s2 = Scenario(\{“price”: 4.99}) >>> s3 = s1 + s2 >>> s3 Scenario(\{‘product’: ‘coffee’, ‘price’: 4.99})
+
+Create a scenario from a file: >>> import tempfile >>> with tempfile.NamedTemporaryFile(mode=’w’, suffix=’.txt’, delete=False) as f: … _ = f.write(“Hello World”) … data_path = f.name >>> s = Scenario.from_file(data_path, “document”) >>> import os >>> os.unlink(data_path) # Clean up temp file
+
+
+> ### **__init__(*data: Dict[str, Any] | Mapping[str, Any] | None = None*, *name: str | None = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Initialize a new Scenario.
+
+> **Args:**
+
+**data: A dictionary of key-value pairs for parameterizing questions.**
+
+Any dictionary-like object that can be converted to a dict is accepted.
+
+name: An optional name for the scenario to aid in identification.
+
+> **Raises:**
+
+ScenarioError: If the data cannot be converted to a dictionary.
+
+> **Examples:**
+
+```python
+>>> s = Scenario({"product": "coffee", "price": 4.99})
+>>> s = Scenario({"question": "What is your favorite color?"}, name="color_question")
+```
+
+> ### **chunk(*field: str*, *num_words: int | None = None*, *num_lines: int | None = None*, *include_original: bool = False*, *hash_original: bool = False*) → [ScenarioList](/en/latest/#edsl.scenarios.ScenarioList "edsl.scenarios.ScenarioList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Splits a text field into chunks of a specified size, creating a ScenarioList.
+
+This method takes a field containing text and divides it into smaller chunks based on either word count or line count. It’s particularly useful for processing large text documents in manageable pieces, such as for summarization, analysis, or when working with models that have token limits.
+
+> **Args:**
+
+field: The key name of the field in the Scenario to split. num_words: The number of words to include in each chunk. Mutually exclusive
+
+```python
+with num_lines.
+```
+
+**num_lines: The number of lines to include in each chunk. Mutually exclusive**
+
+
+```python
+with num_words.
+```
+
+**include_original: If True, includes the original complete text in each chunk**
+
+```python
+with a “_original” suffix.
+```
+
+```python
+hash_original: If True and include_original is True, stores a hash of the
+```
+
+original text instead of the full text.
+
+> **Returns:**
+
+A ScenarioList containing multiple Scenarios, each with a chunk of the original text. Each Scenario includes the chunk text, chunk index, character count, and word count.
+
+> **Raises:**
+
+ValueError: If neither num_words nor num_lines is specified, or if both are. KeyError: If the specified field doesn’t exist in the Scenario.
+
+> **Examples:**
+
+```python
+Split by lines (1 line per chunk): >>> s = Scenario({“text”: “This is a test.nThis is a test.nnThis is a test.”}) >>> s.chunk(“text”, num_lines=1) ScenarioList([Scenario({‘text’: ‘This is a test.’, ‘text_chunk’: 0, ‘text_char_count’: 15, ‘text_word_count’: 4}), Scenario({‘text’: ‘This is a test.’, ‘text_chunk’: 1, ‘text_char_count’: 15, ‘text_word_count’: 4}), Scenario({‘text’: ‘’, ‘text_chunk’: 2, ‘text_char_count’: 0, ‘text_word_count’: 0}), Scenario({‘text’: ‘This is a test.’, ‘text_chunk’: 3, ‘text_char_count’: 15, ‘text_word_count’: 4})])
+
+Split by words (2 words per chunk): >>> s.chunk(“text”, num_words=2) ScenarioList([Scenario({‘text’: ‘This is’, ‘text_chunk’: 0, ‘text_char_count’: 7, ‘text_word_count’: 2}), Scenario({‘text’: ‘a test.’, ‘text_chunk’: 1, ‘text_char_count’: 7, ‘text_word_count’: 2}), Scenario({‘text’: ‘This is’, ‘text_chunk’: 2, ‘text_char_count’: 7, ‘text_word_count’: 2}), Scenario({‘text’: ‘a test.’, ‘text_chunk’: 3, ‘text_char_count’: 7, ‘text_word_count’: 2}), Scenario({‘text’: ‘This is’, ‘text_chunk’: 4, ‘text_char_count’: 7, ‘text_word_count’: 2}), Scenario({‘text’: ‘a test.’, ‘text_chunk’: 5, ‘text_char_count’: 7, ‘text_word_count’: 2})])
+
+Include original text in each chunk: >>> s = Scenario({“text”: “Hello World”}) >>> s.chunk(“text”, num_words=1, include_original=True) ScenarioList([Scenario({‘text’: ‘Hello’, ‘text_chunk’: 0, ‘text_char_count’: 5, ‘text_word_count’: 1, ‘text_original’: ‘Hello World’}), Scenario({‘text’: ‘World’, ‘text_chunk’: 1, ‘text_char_count’: 5, ‘text_word_count’: 1, ‘text_original’: ‘Hello World’})])
+
+Use a hash of the original text: >>> s.chunk(“text”, num_words=1, include_original=True, hash_original=True) ScenarioList([Scenario({‘text’: ‘Hello’, ‘text_chunk’: 0, ‘text_char_count’: 5, ‘text_word_count’: 1, ‘text_original’: ‘b10a8db164e0754105b7a99be72e3fe5’}), Scenario({‘text’: ‘World’, ‘text_chunk’: 1, ‘text_char_count’: 5, ‘text_word_count’: 1, ‘text_original’: ‘b10a8db164e0754105b7a99be72e3fe5’})])
+
+```
+> **Notes:**
+
+- Either num_words or num_lines must be specified, but not both
+- Each chunk is assigned a sequential index in the ‘text_chunk’ field
+- Character and word counts for each chunk are included
+- When include_original is True, the original text is preserved in each chunk
+- The hash_original option is useful to save space while maintaining traceability
+
+> #### chunk\_text(*field: str*, *chunk\_size\_field: str*, *unit: str \= 'word'*, *include\_original: bool \= False*, *hash\_original: bool \= False*) → [ScenarioList](/en/latest/scenarios#scenario-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Chunks a text field into smaller chunks of a specified size, creating a ScenarioList.
+
+This method takes a field containing text and divides it into smaller chunks based on either word count or line count. It’s particularly useful for processing large text documents in manageable pieces, such as for summarization, analysis, or when working with models that have token limits.
+
+> #### code() → List[str] [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Generate Python code to recreate this scenario.
+
+> **Returns:**
+
+A list of strings representing Python code lines that can be executed to recreate this scenario.
+
+> **Examples:**
+
+```python
+>>> s = Scenario({"name": "Alice", "age": 30})
+>>> code_lines = s.code()
+>>> print("n".join(code_lines))
+from edsl.scenarios import Scenario
+s = Scenario({'name': 'Alice', 'age': 30})
+```
+
+> #### drop(**args: str | Iterable[str]*) → [Scenario](/en/latest/scenarios#scenario-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Drop a subset of keys from a scenario.
+
+This method delegates to ScenarioSelector for the actual dropping logic. It supports both individual string arguments and collection arguments for backward compatibility.
+
+> **Args:**
+
+[*](/en/latest/#id3)args: Either a single collection of keys (for backward compatibility)
+
+or individual string arguments for keys to drop.
+
+> **Returns:**
+
+A new Scenario containing all keys except the dropped ones.
+
+> **Raises:**
+
+ValueError: If no arguments are provided.
+
+> **Examples:**
+
+```python
+Using a list (backward compatible): >>> s = Scenario({“food”: “wood chips”, “drink”: “water”}) >>> s.drop([“food”]) Scenario({‘drink’: ‘water’})
+
+Using individual string arguments: >>> s = Scenario({“food”: “wood chips”, “drink”: “water”, “dessert”: “cookies”}) >>> s.drop(“drink”, “dessert”) Scenario({‘food’: ‘wood chips’})
+
+Single string argument: >>> s.drop(“drink”) Scenario({‘food’: ‘wood chips’, ‘dessert’: ‘cookies’})
+```
+
+
+> #### *classmethod* example(*randomize: bool = False*) → [Scenario](/en/latest/scenarios#scenario-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Returns an example Scenario instance.
+
+> **Args:**
+
+randomize: If True, adds a random string to the value of the example key
+
+to ensure uniqueness.
+
+> **Returns:**
+
+A Scenario instance with example data suitable for testing or demonstration.
+
+> **Examples:**
+
+```python
+
+>>> s = Scenario.example()
+>>> 'persona' in s
+True
+>>> s1 = Scenario.example(randomize=True)
+>>> s2 = Scenario.example(randomize=True)
+>>> s1.data != s2.data  # Should be different due to randomization
+True
+```
+
+> #### firecrawl *= \<edsl.scenarios.firecrawl_scenario.FirecrawlRequest object>* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### *classmethod* from_dict(*d: Dict[str, Any]*) → [Scenario](/en/latest/scenarios#scenario-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Creates a Scenario from a dictionary, with special handling for FileStore objects.
+
+This method creates a Scenario using the provided dictionary. It has special handling for dictionary values that represent serialized FileStore objects, which it will deserialize back into proper FileStore instances.
+
+> **Args:**
+
+d: A dictionary to convert to a Scenario.
+
+> **Returns:**
+
+A new Scenario containing the provided dictionary data.
+
+> **Examples:**
+
+```python
+>>> Scenario.from_dict({"food": "wood chips"})
+Scenario({'food': 'wood chips'})
+```
+
+```python
+>>> # Example with a serialized FileStore
+>>> from edsl import FileStore
+>>> file_dict = {"path": "example.txt", "base64_string": "SGVsbG8gV29ybGQ="}
+>>> s = Scenario.from_dict({"document": file_dict})
+>>> isinstance(s["document"], FileStore)
+True
+```
+
+> **Notes:**
+
+- Any dictionary values that match the FileStore format will be converted to FileStore objects
+- The method detects FileStore objects by looking for “base64_string” and “path” keys
+- EDSL version information is automatically removed by the @remove_edsl_version decorator
+- This method is commonly used when deserializing scenarios from JSON or other formats
+
+> #### *classmethod* from_docx(*docx_path: str*) → [Scenario](/en/latest/scenarios#scenario-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Creates a Scenario containing text extracted from a Microsoft Word document.
+
+This method extracts text and structure from a DOCX file and creates a Scenario containing this information. It uses the DocxScenario class to handle the extraction process and maintain document structure where possible.
+
+> **Args:**
+
+docx_path: Path to the DOCX file to extract content from.
+
+> **Returns:**
+
+A Scenario containing the file path and extracted text from the DOCX file.
+
+> **Raises:**
+
+FileNotFoundError: If the specified DOCX file does not exist. ImportError: If the python-docx library is not installed.
+
+> **Examples:**
+
+```python
+>>> from docx import Document
+>>> doc = Document()
+>>> _ = doc.add_heading("EDSL Survey")
+>>> _ = doc.add_paragraph("This is a test.")
+>>> doc.save("test.docx")
+>>> s = Scenario.from_docx("test.docx")
+>>> s
+Scenario({'file_path': 'test.docx', 'text': 'EDSL SurveynThis is a test.'})
+>>> import os; os.remove("test.docx")
+```
+
+> **Notes:**
+
+- The returned Scenario typically contains the file path and extracted text
+- The extraction process attempts to maintain document structure
+- Requires the python-docx library to be installed
+
+> #### *classmethod* from_file(*file_path: str*, *field_name: str*) → [Scenario](/en/latest/scenarios#scenario-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Creates a Scenario containing a FileStore object from a file.
+
+This method creates a Scenario with a single key-value pair where the value is a FileStore object that encapsulates the specified file. The FileStore handles appropriate file loading, encoding, and extraction based on the file type.
+
+> **Args:**
+
+file_path: Path to the file to be incorporated into the Scenario. field_name: Key name to use for storing the FileStore in the Scenario.
+
+> **Returns:**
+
+A Scenario containing a FileStore object linked to the specified file.
+
+> **Raises:**
+
+FileNotFoundError: If the specified file does not exist.
+
+> **Examples:**
+
+```python
+>>> import tempfile
+>>> with tempfile.NamedTemporaryFile(suffix=".txt", mode="w") as f:
+...     _ = f.write("This is a test.")
+...     _ = f.flush()
+...     s = Scenario.from_file(f.name, "file")
+>>> s
+Scenario({'file': FileStore(path='...', ...)})
+```
+
+> **Notes:**
+
+- The FileStore object handles various file formats differently
+- FileStore provides methods to access file content, extract text, and manage file operations appropriate to the file type
+
+> #### *classmethod* from_html(*url: str*, *field_name: str | None = None*) → [Scenario](/en/latest/scenarios#scenario-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Creates a Scenario containing both HTML content and extracted text from a URL.
+
+This method fetches HTML content from a URL, extracts readable text from it, and creates a Scenario containing the original URL, the raw HTML, and the extracted text. Unlike from_url, this method preserves the raw HTML content.
+
+> **Args:**
+
+url: URL to fetch HTML content from. field_name: Key name to use for the extracted text in the Scenario.
+
+If not provided, defaults to “text”.
+
+> **Returns:**
+
+A Scenario containing the URL, raw HTML, and extracted text.
+
+> **Raises:**
+
+requests.exceptions.RequestException: If the URL cannot be accessed.
+
+> **Examples:**
+
+Create a scenario from HTML content (requires network access):
+
+s = Scenario.from_html(”[https://example.com](https://example.com/)”) # Returns a Scenario with “url”, “html”, and “text” fields
+
+s = Scenario.from_html(”[https://example.com](https://example.com/)”, field_name=”content”) # Returns a Scenario with “url”, “html”, and “content” fields
+
+> **Notes:**
+
+- Uses BeautifulSoup for HTML parsing when available
+- Stores both the raw HTML and the extracted text
+- Provides a more comprehensive representation than from_url
+- Useful when the HTML structure or specific elements are needed
+
+> #### *classmethod* from_image(*image_path: str*, *image_name: str | None = None*) → [Scenario](/en/latest/scenarios#scenario-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Creates a Scenario containing an image file as a FileStore object.
+
+This method creates a Scenario with a single key-value pair where the value is a FileStore object that encapsulates the specified image file. The image is stored as a base64-encoded string, allowing it to be easily serialized and transmitted.
+
+> **Args:**
+
+image_path: Path to the image file to be incorporated into the Scenario. image_name: Key name to use for storing the FileStore in the Scenario.
+
+If not provided, uses the filename without extension.
+
+> **Returns:**
+
+A Scenario containing a FileStore object with the image data.
+
+> **Raises:**
+
+FileNotFoundError: If the specified image file does not exist.
+
+> **Examples:**
+
+>>> import os
+>>> # Assuming an image file exists
+>>> if os.path.exists("image.jpg"):
+...     s = Scenario.from_image("image.jpg")
+...     s_named = Scenario.from_image("image.jpg", "picture")
+
+> **Notes:**
+
+- The resulting FileStore can be displayed in notebooks or used in questions
+- Supported image formats include JPG, PNG, GIF, etc.
+- The image is stored as a base64-encoded string for portability
+
+> #### *classmethod* from_pdf(*pdf_path: str*) → [Scenario](/en/latest/scenarios#scenario-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Creates a Scenario containing text extracted from a PDF file.
+
+This method extracts text and metadata from a PDF file and creates a Scenario containing this information. It uses the PdfExtractor class which provides access to text content, metadata, and structure from PDF files.
+
+> **Args:**
+
+pdf_path: Path to the PDF file to extract content from.
+
+> **Returns:**
+
+A Scenario containing extracted text and metadata from the PDF.
+
+> **Raises:**
+
+FileNotFoundError: If the specified PDF file does not exist. ImportError: If the required PDF extraction libraries are not installed.
+
+> **Examples:**
+
+```python
+>>> import os
+>>> # Assuming a PDF file exists
+>>> if os.path.exists("document.pdf"):
+...     s = Scenario.from_pdf("document.pdf")
+```
+
+> **Notes:**
+
+- The returned Scenario contains various keys with PDF content and metadata
+- PDF extraction requires the PyMuPDF library
+- The extraction process parses the PDF to maintain structure where possible
+
+> #### *classmethod* from_pdf_to_image(*pdf_path: str*, *image_format: str = 'jpeg'*) → [Scenario](/en/latest/scenarios#scenario-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Converts each page of a PDF into an image and creates a Scenario containing them.
+
+This method takes a PDF file, converts each page to an image in the specified format, and creates a Scenario containing the original file path and FileStore objects for each page image. This is particularly useful for visualizing PDF content or for image-based processing of PDF documents.
+
+> **Args:**
+
+pdf_path: Path to the PDF file to convert to images. image_format: Format of the output images (default is ‘jpeg’).
+
+Other formats include ‘png’, ‘tiff’, etc.
+
+> **Returns:**
+
+A Scenario containing the original PDF file path and FileStore objects for each page image, with keys like “page_0”, “page_1”, etc.
+
+> **Raises:**
+
+FileNotFoundError: If the specified PDF file does not exist. ImportError: If pdf2image is not installed.
+
+> **Examples:**
+
+```python
+>>> import os
+>>> # Assuming a PDF file exists
+>>> if os.path.exists("document.pdf"):
+...     s = Scenario.from_pdf_to_image("document.pdf")
+...     s_png = Scenario.from_pdf_to_image("document.pdf", "png")
+```
+
+> **Notes:**
+
+- Requires the pdf2image library which depends on poppler
+- Creates a separate image for each page of the PDF
+- Images are stored in FileStore objects for easy display and handling
+- Images are created in a temporary directory which is automatically cleaned up
+
+> #### *classmethod* from_url(*url: str*, *field_name: str | None = 'text'*, *testing: bool = False*) → [Scenario](/en/latest/scenarios#scenario-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Creates a Scenario from the content of a URL.
+
+This method fetches content from a web URL and creates a Scenario containing the URL and the extracted text. When available, BeautifulSoup is used for better HTML parsing and text extraction, otherwise a basic requests approach is used.
+
+> **Args:**
+
+url: The URL to fetch content from. field_name: The key name to use for storing the extracted text in the Scenario.
+
+Defaults to “text”.
+
+testing: If True, uses a simplified requests method instead of BeautifulSoup.
+
+This is primarily for testing purposes.
+
+> **Returns:**
+
+A Scenario containing the URL and extracted text.
+
+> **Raises:**
+
+requests.exceptions.RequestException: If the URL cannot be accessed.
+
+> **Examples:**
+
+Create a scenario from a URL (requires network access):
+
+s = Scenario.from_url(”[https://example.com](https://example.com/)”, testing=True) # Returns a Scenario with “url” and “text” fields
+
+s = Scenario.from_url(”[https://example.com](https://example.com/)”, field_name=”content”, testing=True) # Returns a Scenario with “url”, “html”, and “content” fields
+
+> **Notes:**
+
+- The method attempts to use BeautifulSoup and fake_useragent for better HTML parsing and to mimic a real browser.
+- If these packages are not available, it falls back to basic requests.
+- When using BeautifulSoup, it extracts text from paragraph and heading tags.
+
+> #### get_filestore_info() → Dict[str, Any] [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Returns information about FileStore objects present in this Scenario.
+
+This method is useful for determining how many signed URLs need to be generated and what file extensions/types are present before calling save_to_gcs_bucket().
+
+> **Returns:**
+
+**dict: Information about FileStore objects containing:**
+
+- total_count: Total number of FileStore objects
+- filestore_keys: List of scenario keys that contain FileStore objects
+- file_extensions: Dictionary mapping keys to file extensions
+- file_types: Dictionary mapping keys to MIME types
+- is_filestore_scenario: Boolean indicating if this Scenario was created from a FileStore
+- summary: Human-readable summary of files
+
+> #### *property* has_jinja_braces*: bool* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Return whether the scenario has jinja braces. This matters for rendering.
+
+```python
+>>> s = Scenario({"food": "I love {{wood chips}}"})
+>>> s.has_jinja_braces
+True
+```
+
+> #### keep(**args: str | Iterable[str]*) → [Scenario](/en/latest/scenarios#scenario-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Keep a subset of keys from a scenario (alias for select).
+
+This method delegates to ScenarioSelector for the actual selection logic. It is functionally identical to select() but provides more intuitive naming.
+
+> **Args:**
+
+[*](/en/latest/#id5)args: Either a single collection of keys (for backward compatibility)
+
+or individual string arguments for keys to keep.
+
+> **Returns:**
+
+A new Scenario containing only the kept keys and their values.
+
+> **Raises:**
+
+KeyError: If any of the specified keys don’t exist in the scenario. ValueError: If no arguments are provided.
+
+> **Examples:**
+
+Using a list (backward compatible): >>> s = Scenario(\{“food”: “wood chips”, “drink”: “water”}) >>> s.keep([“food”]) Scenario(\{'food': 'wood chips'})
+
+Using individual string arguments: >>> s = Scenario(\{“food”: “wood chips”, “drink”: “water”, “dessert”: “cookies”}) >>> s.keep(“food”, “drink”) Scenario(\{‘food’: ‘wood chips’, ‘drink’: ‘water’})
+
+> #### new_column_names(*new_names: List[str]*) → [Scenario](/en/latest/scenarios#scenario-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Rename all keys of a scenario using a list of new names.
+
+> **Args:**
+
+new_names: A list of new key names. Must have the same length as the
+
+number of keys in the scenario.
+
+> **Returns:**
+
+A new Scenario with keys renamed according to the provided list.
+
+> **Raises:**
+
+ValueError: If the length of new_names doesn’t match the number of keys.
+
+> **Examples:**
+
+```python
+>>> s = Scenario({"food": "wood chips"})
+>>> s.new_column_names(["food_preference"])
+Scenario({'food_preference': 'wood chips'})
+```
+
+> #### offload(*inplace: bool = False*) → [Scenario](/en/latest/scenarios#scenario-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Offload base64-encoded content from the scenario by replacing ‘base64_string’ fields with ‘offloaded’. This reduces memory usage.
+
+This method delegates to ScenarioOffloader for the actual offloading logic. It handles three types of base64 content: 1. Direct base64_string in the scenario (from FileStore.to_dict()) 2. FileStore objects containing base64 content 3. Dictionary values containing base64_string fields
+
+> **Args:**
+
+inplace: If True, modify the current scenario. If False, return a new one.
+
+> **Returns:**
+
+The modified scenario (either self or a new instance).
+
+> **Examples:**
+
+Basic offloading: >>> s = Scenario(\{“base64_string”: “SGVsbG8gV29ybGQ=”, “name”: “test”}) >>> offloaded = s.offload() >>> offloaded[“base64_string”] ‘offloaded’ >>> offloaded[“name”] ‘test’
+
+In-place offloading: >>> s = Scenario(\{“base64_string”: “SGVsbG8gV29ybGQ=”, “name”: “test”}) >>> result = s.offload(inplace=True) >>> result is s True >>> s[“base64_string”] ‘offloaded’
+
+> #### open_url(*position: int = 0*) → None [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Open a URL field from the scenario in the default web browser.
+
+> **Args:**
+
+position: The index of the URL to open (0-based). Defaults to 0 for the first URL.
+
+> **Raises:**
+
+ValueError: If no URL fields are found in the scenario, or if the position
+
+is out of range.
+
+> **Examples:**
+
+```python
+>>> s = Scenario({"website": "https://example.com", "name": "test"})
+>>> s.open_url()  # Opens the first URL found
+```
+
+> #### rename(*old_name_or_replacement_dict: str | Dict[str, str]*, *new_name: str | None = None*) → [Scenario](/en/latest/scenarios#scenario-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Rename the keys of a scenario.
+
+> **Args:**
+
+old_name_or_replacement_dict: Either a dictionary mapping old keys to new keys,
+
+or a string representing the old key name.
+
+new_name: The new name for the key. Required if old_name_or_replacement_dict
+
+is a string, ignored if it’s a dictionary.
+
+> **Returns:**
+
+A new Scenario with renamed keys.
+
+> **Raises:**
+
+TypeError: If old_name_or_replacement_dict is a string but new_name is None.
+
+> **Examples:**
+
+Using a dictionary: >>> s = Scenario(\{“food”: “wood chips”}) >>> s.rename(\{“food”: “food_preference”}) Scenario(\{‘food_preference’: ‘wood chips’})
+
+Using individual arguments: >>> s = Scenario(\{“food”: “wood chips”}) >>> s.rename(“food”, “snack”) Scenario(\{‘snack’: ‘wood chips’})
+
+> #### replicate(*n: int*) → [ScenarioList](/en/latest/scenarios#scenario-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Replicate a scenario n times to return a ScenarioList.
+
+> **Args:**
+
+n: The number of times to replicate the scenario. Must be non-negative.
+
+> **Returns:**
+
+A ScenarioList containing n copies of this scenario.
+
+> **Raises:**
+
+ValueError: If n is negative.
+
+> **Examples:**
+
+```python
+>>> s = Scenario({"food": "wood chips"})
+>>> s.replicate(2)
+ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood chips'})])
+```
+
+> #### save_to_gcs_bucket(*signed_url_or_dict: str | Dict[str, str]*) → Dict[str, Any] [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Saves FileStore objects contained within this Scenario to a Google Cloud Storage bucket.
+
+This method finds all FileStore objects in the Scenario and uploads them to GCS using the provided signed URL(s). If the Scenario itself was created from a FileStore (has base64_string as a top-level key), it uploads that content directly.
+
+> **Args:**
+
+signed_url_or_dict: Either:
+
+- str: Single signed URL (for single FileStore or Scenario from FileStore)
+- **dict: Mapping of scenario keys to signed URLs for multiple FileStore objects**
+	e.g., \{“video”: “signed_url_1”, “image”: “signed_url_2”}
+
+> **Returns:**
+
+dict: Summary of upload operations performed
+
+> **Raises:**
+
+ValueError: If no uploadable content found or content is offloaded requests.RequestException: If any upload fails
+
+> #### select(**args: str | Iterable[str]*) → [Scenario](/en/latest/scenarios#scenario-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Select a subset of keys from a scenario.
+
+This method delegates to ScenarioSelector for the actual selection logic. It supports both individual string arguments and collection arguments for backward compatibility.
+
+> **Args:**
+
+[*](/en/latest/#id7)args: Either a single collection of keys (for backward compatibility)
+
+or individual string arguments for keys to select.
+
+> **Returns:**
+
+A new Scenario containing only the selected keys and their values.
+
+> **Raises:**
+
+KeyError: If any of the specified keys don’t exist in the scenario. ValueError: If no arguments are provided.
+
+> **Examples:**
+
+Using a list (backward compatible): >>> s = Scenario(\{“food”: “wood chips”, “drink”: “water”}) >>> s.select([“food”]) Scenario\(\{‘food’: ‘wood chips’\}\)
+
+Using individual string arguments: >>> s = Scenario(\{“food”: “wood chips”, “drink”: “water”, “dessert”: “cookies”}) >>> s.select(“food”, “drink”) Scenario(\{‘food’: ‘wood chips’, ‘drink’: ‘water’})
+
+Single string argument: >>> s.select(“food”) Scenario(\{‘food’: ‘wood chips’})
+
+> #### table(*tablefmt: str = 'grid'*) → str [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Display a scenario as a formatted table.
+
+> **Args:**
+
+tablefmt: The table format to use. Common options include “grid”,
+
+“simple”, “pipe”, “orgtbl”, “rst”, “mediawiki”, “html”, “latex”.
+
+> **Returns:**
+
+A string representation of the scenario formatted as a table.
+
+> **Examples:**
+
+```python
+>>> s = Scenario({"food": "chips", "drink": "water"})
+>>> print(s.table("simple"))
+key    value
+-----  -------
+food   chips
+drink  water
+```
+
+> #### to(*question_or_survey: 'Question' | 'Survey'*) → [Jobs](/en/latest/jobs#jobs-class") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Send the scenario to a question or survey for execution.
+
+> **Args:**
+
+question_or_survey: A Question or Survey object to parameterize with this scenario.
+
+> **Returns:**
+
+A Jobs object that can be run to execute the question or survey with this scenario.
+
+> **Examples:**
+
+```python
+>>> from edsl.questions import QuestionFreeText
+>>> s = Scenario({"name": "Alice"})
+>>> q = QuestionFreeText(question_name="greeting", question_text="Hello {{name}}")
+>>> jobs = s.to(q)
+```
+
+> #### to_dataset() → [Dataset](/en/latest/dataset#dataset-class") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Convert a scenario to a dataset.
+
+```python
+>>> s = Scenario({"food": "wood chips"})
+>>> s.to_dataset()
+Dataset([{'key': ['food']}, {'value': ['wood chips']}])
+```
+> #### to_dict(*add_edsl_version: bool = True*, *offload_base64: bool = False*) → Dict[str, Any] [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Convert a scenario to a dictionary.
+
+> **Args:**
+
+add_edsl_version: If True, adds the EDSL version to the returned dictionary. offload_base64: If True, replaces any base64_string fields with ‘offloaded’
+
+to reduce memory usage.
+
+Example:
+
+```python
+>>> s = Scenario({"food": "wood chips"})
+>>> s.to_dict()
+{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
+```
+
+```python
+>>> s.to_dict(add_edsl_version = False)
+
+{'food': 'wood chips'}
+```
+
+## ScenarioList class
+
+> #### *class* edsl.scenarios.ScenarioList(*data: list | None = None*, *codebook: dict[str*, *str] | None = None*, *data_class: type | None = \<class 'list'>*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Bases: `MutableSequence`, [`Base`](/en/latest/base#base-class") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py), `ScenarioListOperationsMixin`
+
+A collection of Scenario objects with advanced operations for manipulation and analysis.
+
+ScenarioList provides specialized functionality for working with collections of Scenario objects. It inherits from MutableSequence to provide standard list operations, from Base to integrate with EDSL’s object model, and from ScenarioListOperationsMixin to provide powerful data manipulation capabilities.
+
+**Attributes:**
+
+data (list): The underlying list containing Scenario objects. codebook (dict): Optional metadata describing the fields in the scenarios.
+
+> #### __init__(*data: list | None = None*, *codebook: dict[str*, *str] | None = None*, *data_class: type | None = \<class 'list'>*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Initialize a new ScenarioList with optional data and codebook.
+
+> #### add_list(*name: str*, *values: List[Any]*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Add a list of values to a ScenarioList.
+
+Example:
+
+```python
+>>> s = ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
+>>> s.add_list('age', [30, 25])
+ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+```
+
+> #### add_value(*name: str*, *value: Any*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Add a value to all scenarios in a ScenarioList.
+
+Example:
+
+```python
+>>> s = ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
+>>> s.add_value('age', 30)
+ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 30})])
+```
+
+> #### apply(*func: Callable*, *field: str*, *new_name: str | None*, *replace: bool = False*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Apply a function to a field and return a new ScenarioList.
+
+> #### at(*index: int*) → [Scenario](/en/latest/scenarios#scenario-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Get the scenario at the specified index position. >>> sl = ScenarioList.from_list(“a”, [1, 2, 3]) >>> sl.at(0) Scenario(\{‘a’: 1}) >>> sl.at(-1) Scenario(\{‘a’: 3})
+
+> #### augment_with_wikipedia(*search_key: str*, *content_only: bool = True*, *key_name: str = 'wikipedia_content'*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Augment the ScenarioList with Wikipedia content.
+
+> #### chart() [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create a chart from the results.
+
+> #### chunk(*field*, *num_words: int | None = None*, *num_lines: int | None = None*, *include_original=False*, *hash_original=False*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Chunk the scenarios based on a field.
+
+> **Examples:**
+
+```python
+>>> s = ScenarioList([Scenario({'text': 'The quick brown fox jumps over the lazy dog.'})])
+>>> s.chunk('text', num_words=3)
+ScenarioList([Scenario({'text': 'The quick brown', 'text_chunk': 0, 'text_char_count': 15, 'text_word_count': 3}), Scenario({'text': 'fox jumps over', 'text_chunk': 1, 'text_char_count': 14, 'text_word_count': 3}), Scenario({'text': 'the lazy dog.', 'text_chunk': 2, 'text_char_count': 13, 'text_word_count': 3})])
+```
+
+> #### clipboard_data() → str [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Return TSV representation of this object for clipboard operations.
+
+This method is called by the clipboard() method in the base class to provide a custom format for copying objects to the system clipboard.
+
+**Returns:**
+
+str: Tab-separated values representation of the object
+
+> #### code() → str [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create the Python code representation of a survey.
+
+> #### collapse(*field: str*, *separator: str | None = None*, *prefix: str = ''*, *postfix: str = ''*, *add_count: bool = False*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Collapse by grouping on all fields except the specified one.
+
+Delegates to *ScenarioListTransformer.collapse*.
+
+> #### concatenate(*fields: List[str]*, *separator: str = ';'*, *prefix: str = ''*, *postfix: str = ''*, *new_field_name: str | None = None*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Concatenate specified fields into a single string field.
+
+Delegates to _ScenarioListTransformer.concatenate_ for implementation.
+
+> #### concatenate_to_list(*fields: List[str]*, *prefix: str = ''*, *postfix: str = ''*, *new_field_name: str | None = None*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Concatenate specified fields into a single list field.
+
+Delegates to _ScenarioListTransformer.concatenate\_to\_list_ for implementation.
+
+> #### concatenate_to_set(*fields: List[str]*, *prefix: str = ''*, *postfix: str = ''*, *new_field_name: str | None = None*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Concatenate specified fields into a single set field.
+
+Delegates to _ScenarioListTransformer.concatenate\_to\_set_ for implementation.
+
+> #### copy() [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create a copy of this ScenarioList.
+
+**Returns:**
+
+A new ScenarioList with copies of the same scenarios
+
+> #### create_comparisons(*bidirectional: bool = False*, *num_options: int = 2*, *option_prefix: str = 'option_'*, *use_alphabet: bool = False*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create a new ScenarioList with comparisons between scenarios.
+
+Delegates to _ScenarioListTransformer.create_comparisons_.
+
+> #### create\_conjoint\_comparisons(*attribute\_field: str \= 'attribute'*, *levels\_field: str \= 'levels'*, *count: int \= 1*, *random\_seed: int | None \= None*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py))
+
+Generate random product profiles for conjoint analysis from attribute definitions.
+
+This method uses the current ScenarioList (which should contain attribute definitions) to create random product profiles by sampling from the attribute levels. Each scenario in the current list should represent one attribute with its possible levels.
+
+> **Args:**
+
+attribute\_field: Field name containing the attribute names (default: ‘attribute’) levels\_field: Field name containing the list of levels (default: ‘levels’) count: Number of product profiles to generate (default: 1) random\_seed: Optional seed for reproducible random sampling
+
+> **Returns:**
+
+ScenarioList containing randomly generated product profiles
+
+> **Examples:**
+
+```python
+>>> from edsl.scenarios import ScenarioList, Scenario
+>>> # Create attribute definitions
+>>> attributes = ScenarioList([
+...     Scenario({'attribute': 'price', 'levels': ['$100', '$200', '$300']}),
+...     Scenario({'attribute': 'color', 'levels': ['Red', 'Blue', 'Green']}),
+...     Scenario({'attribute': 'size', 'levels': ['Small', 'Medium', 'Large']})
+... ])
+>>> # Generate conjoint profiles
+>>> profiles = attributes.create_conjoint_comparisons(count=3, random_seed=42)
+>>> len(profiles)
+3
+>>> # Each profile will have price, color, and size with random values
+```
+> **Raises:**
+
+ScenarioError: If the current ScenarioList doesn’t have the required fields ValueError: If count is not positive
+
+
+> #### create_empty_scenario_list(*n: int*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create an empty ScenarioList with n scenarios.
+
+> **Args:**
+
+n: The number of empty scenarios to create
+
+> **Examples:**
+
+```python
+>>> ScenarioList.create_empty_scenario_list(3)
+ScenarioList([Scenario({}), Scenario({}), Scenario({})])
+```
+
+> #### drop(**fields: str*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Drop fields from the scenarios.
+
+Example:
+
+```python
+>>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+>>> s.drop('a')
+ScenarioList([Scenario({'b': 1}), Scenario({'b': 2})])
+```
+
+> #### duplicate() → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Return a copy of the ScenarioList using streaming to avoid loading everything into memory.
+
+```python
+>>> sl = ScenarioList.example()
+>>> sl_copy = sl.duplicate()
+>>> sl == sl_copy
+True
+>>> sl is sl_copy
+False
+```
+> #### equals(*other: Any*) → bool [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Memory-efficient comparison of two ScenarioLists.
+
+> #### *classmethod* example(*randomize: bool = False*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Return an example ScenarioList instance.
+
+**Params randomize:**
+
+If True, use Scenario’s randomize method to randomize the values.
+
+> #### expand(*expand_field: str*, *number_field: bool = False*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Expand the ScenarioList by a field.
+
+**Parameters:**
+
+- **expand_field** – The field to expand.
+- **number_field** – Whether to add a field with the index of the value
+
+Example:
+
+```python
+>>> s = ScenarioList( [ Scenario({'a':1, 'b':[1,2]}) ] )
+>>> s.expand('b')
+ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+>>> s.expand('b', number_field=True)
+ScenarioList([Scenario({'a': 1, 'b': 1, 'b_number': 1}), Scenario({'a': 1, 'b': 2, 'b_number': 2})])
+```
+> #### fillna(*value: Any = ''*, *inplace: bool = False*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Fill None/NaN values in all scenarios with a specified value.
+
+This method is equivalent to pandas’ df.fillna() functionality, allowing you to replace None, NaN, or other null-like values across all scenarios in the list.
+
+> **Args:**
+
+value: The value to use for filling None/NaN values. Defaults to empty string “”. inplace: If True, modify the original ScenarioList. If False (default),
+
+return a new ScenarioList with filled values.
+
+> **Returns:**
+
+ScenarioList: A new ScenarioList with filled values, or self if inplace=True
+
+> **Examples:**
+
+```python
+>>> scenarios = ScenarioList([
+...     Scenario({'a': None, 'b': 1, 'c': 'hello'}),
+...     Scenario({'a': 2, 'b': None, 'c': None}),
+...     Scenario({'a': None, 'b': 3, 'c': 'world'})
+... ])
+>>> # Fill None values with empty string (default)
+>>> filled = scenarios.fillna()
+>>> print(filled)
+ScenarioList([Scenario({'a': '', 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': '', 'c': ''}), Scenario({'a': '', 'b': 3, 'c': 'world'})])
+>>> # Fill with custom value
+>>> filled_custom = scenarios.fillna(value="N/A")
+>>> print(filled_custom)
+ScenarioList([Scenario({'a': 'N/A', 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': 'N/A', 'c': 'N/A'}), Scenario({'a': 'N/A', 'b': 3, 'c': 'world'})])
+>>> # Original scenarios remain unchanged
+>>> print(scenarios)
+ScenarioList([Scenario({'a': None, 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': None, 'c': None}), Scenario({'a': None, 'b': 3, 'c': 'world'})])
+>>> # Modify in place
+>>> _ = scenarios.fillna(value="MISSING", inplace=True)
+>>> print(scenarios)
+ScenarioList([Scenario({'a': 'MISSING', 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': 'MISSING', 'c': 'MISSING'}), Scenario({'a': 'MISSING', 'b': 3, 'c': 'world'})])
+```
+
+> #### filter(*expression: str*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Filter a list of scenarios based on an expression.
+
+Delegates to _ScenarioListTransformer.filter_.
+
+> #### firecrawl *= \<edsl.scenarios.firecrawl_scenario.FirecrawlRequest object>* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### flatten(*field: str*, *keep_original: bool = False*) → [Dataset](/en/latest/dataset#edsl.dataset.Dataset "edsl.dataset.Dataset") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Expand a field containing dictionaries into separate fields.
+
+This method takes a field that contains a list of dictionaries and expands it into multiple fields, one for each key in the dictionaries. This is useful when working with nested data structures or results from extraction operations.
+
+> **Parameters:**
+
+field: The field containing dictionaries to flatten keep_original: Whether to retain the original field in the result
+
+> **Returns:**
+
+A new Dataset with the dictionary keys expanded into separate fields
+
+> **Notes:**
+
+- Each key in the dictionaries becomes a new field with name pattern “{field}.{key}”
+- All dictionaries in the field must have compatible structures
+- If a dictionary is missing a key, the corresponding value will be None
+- Non-dictionary values in the field will cause a warning
+
+> **Examples:**
+
+```python
+>>> from edsl.dataset import Dataset
+```
+
+```sql
+# Basic flattening of nested dictionaries >>> Dataset([{‘a’: [{‘a’: 1, ‘b’: 2}]}, {‘c’: [5]}]).flatten(‘a’) Dataset([{‘c’: [5]}, {‘a.a’: [1]}, {‘a.b’: [2]}])
+
+
+# Works with prefixed fields too >>> Dataset([{‘answer.example’: [{‘a’: 1, ‘b’: 2}]}, {‘c’: [5]}]).flatten(‘answer.example’) Dataset([{‘c’: [5]}, {‘answer.example.a’: [1]}, {‘answer.example.b’: [2]}])
+
+# Keep the original field if needed >>> d = Dataset([{‘a’: [{‘a’: 1, ‘b’: 2}]}, {‘c’: [5]}]) >>> d.flatten(‘a’, keep_original=True) Dataset([{‘a’: [{‘a’: 1, ‘b’: 2}]}, {‘c’: [5]}, {‘a.a’: [1]}, {‘a.b’: [2]}])
+
+# Can also use unambiguous unprefixed field name >>> result = Dataset([{‘answer.pros_cons’: [{‘pros’: [‘Safety’], ‘cons’: [‘Cost’]}]}]).flatten(‘pros_cons’) >>> sorted(result.keys()) == [‘answer.pros_cons.cons’, ‘answer.pros_cons.pros’] True >>> sorted(result.to_dicts()[0].items()) == sorted({‘cons’: [‘Cost’], ‘pros’: [‘Safety’]}.items()) True
+```
+
+> #### for_n(*target: 'Question' | 'Survey' | 'Job'*, *iterations: int*) → [Jobs](/en/latest/jobs#jobs-class "edsl.jobs.Jobs") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Execute a target multiple times, feeding each iteration’s output into the next.
+
+### Parameters
+
+**targetQuestion | Survey | Job**
+
+The object to be executed on each round. A fresh `duplicate()` of *target* is taken for every iteration so that state is **not** shared between runs.
+
+**iterationsint**
+
+How many times to run *target*.
+
+### Returns
+
+**Jobs**
+
+A [`Jobs`](/en/latest/jobs#jobs-class") instance containing the results of the final iteration.
+
+```python expandable
+Example (non-doctest):
+
+from edsl import ScenarioList, QuestionFreeText
+
+base_personas = ScenarioList.from_list(
+    "persona",
+    [
+        "- Likes basketball",
+        "- From Germany",
+        "- Once owned a sawmill",
+    ],
+)
+
+persona_detail_jobs = (
+    QuestionFreeText(
+        question_text=(
+            "Take this persona: {{ scenario.persona }} and add one additional detail, "
+            "preserving the original details."
+        ),
+        question_name="enhance",
+    )
+    .to_jobs()
+    .select("enhance")
+    .to_scenario_list()
+    .rename({"enhance": "persona"})
+)
+
+# Run the enrichment five times
+enriched_personas = base_personas.for_n(persona_detail_jobs, 5)
+
+print(enriched_personas.select("persona"))
+```
+
+> #### *classmethod* from_csv(*source: str | 'ParseResult'*, *has_header: bool = True*, *encoding: str = 'utf-8'*, ***kwargs*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create a ScenarioList from a CSV file or URL.
+
+> **Args:**
+
+source: Path to a local file or URL to a remote file. has_header: Whether the file has a header row (default is True). encoding: The file encoding to use (default is ‘utf-8’). [**](/en/latest/#id9)kwargs: Additional parameters for csv reader.
+
+> **Returns:**
+
+ScenarioList: An instance of the ScenarioList class.
+
+> #### *classmethod* from_delimited_file(*source: str | 'ParseResult'*, *delimiter: str = ','*, *encoding: str = 'utf-8'*, ***kwargs*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create a ScenarioList from a delimited file (CSV/TSV) or URL.
+
+> **Args:**
+
+source: Path to a local file or URL to a remote file. delimiter: The delimiter character used in the file (default is ‘,’). encoding: The file encoding to use (default is ‘utf-8’). [**](/en/latest/#id11)kwargs: Additional parameters for csv reader.
+
+> **Returns:**
+
+ScenarioList: An instance of the ScenarioList class.
+
+> #### *classmethod* from_dict(*data: dict*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create a ScenarioList from a dictionary.
+
+```python
+>>> d = {'scenarios': [{'food': 'wood chips'}], 'codebook': {'food': 'description'}}
+>>> s = ScenarioList.from_dict(d)
+>>> s.codebook == {'food': 'description'}
+True
+>>> s[0]['food']
+'wood chips'
+```
+
+> #### *classmethod* from_directory(*path: str | None = None*, *recursive: bool = False*, *key_name: str = 'content'*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create a ScenarioList of Scenario objects from files in a directory.
+
+This method scans a directory and creates a Scenario object for each file found, where each Scenario contains a FileStore object under the specified key. Optionally filters files based on a wildcard pattern. If no path is provided, the current working directory is used.
+
+> **Args:**
+
+**path: The directory path to scan, optionally including a wildcard pattern.**
+
+If None, uses the current working directory. Examples: - “/path/to/directory” - scans all files in the directory - “/path/to/directory/*.py” - scans only Python files in the directory - “*.txt” - scans only text files in the current working directory
+
+recursive: Whether to scan subdirectories recursively. Defaults to False. key_name: The key to use for the FileStore object in each Scenario. Defaults to “content”.
+
+> **Returns:**
+
+A ScenarioList containing Scenario objects for all matching files, where each Scenario has a FileStore object under the specified key.
+
+> **Raises:**
+
+FileNotFoundError: If the specified directory does not exist.
+
+> **Examples:**
+
+```python
+# Get all files in the current directory with default key “content” sl = ScenarioList.from_directory()
+
+# Get all Python files in a specific directory with custom key “python_file” sl = ScenarioList.from_directory(’[*](/en/latest/#id13).py’, key_name=”python_file”)
+
+# Get all image files in the current directory sl = ScenarioList.from_directory(’[*](/en/latest/#id15).png’, key_name=”image”)
+
+# Get all files recursively including subdirectories sl = ScenarioList.from_directory(recursive=True, key_name=”document”)
+```
+
+
+> #### *classmethod* from\_list(*field\_name: str*, *values: list*, *use\_indexes: bool \= False*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create a ScenarioList from a list of values with a specified field name.
+
+```python
+>>> ScenarioList.from_list('text', ['a', 'b', 'c'])
+ScenarioList([Scenario({'text': 'a'}), Scenario({'text': 'b'}), Scenario({'text': 'c'})])
+```
+
+> #### *classmethod* from\_nested\_dict(*data: dict*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create a ScenarioList from a nested dictionary.
+
+```python
+>>> data = {"headline": ["Armistice Signed, War Over: Celebrations Erupt Across City"], "date": ["1918-11-11"], "author": ["Jane Smith"]}
+>>> ScenarioList.from_nested_dict(data)
+ScenarioList([Scenario({'headline': 'Armistice Signed, War Over: Celebrations Erupt Across City', 'date': '1918-11-11', 'author': 'Jane Smith'})])
+```
+
+> #### *classmethod* from\_prompt(*description: str*, *name: str | None \= 'item'*, *target\_number: int \= 10*, *verbose\=False*)[\[source\]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### *classmethod* from\_search\_terms(*search\_terms: List\[str\]*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create a ScenarioList from a list of search terms, using Wikipedia.
+
+**Args:**
+
+search\_terms: A list of search terms.
+
+> #### *classmethod* from\_source(*source\_type: str*, *\*args*, *\*\*kwargs*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create a ScenarioList from a specified source type.
+
+This method serves as the main entry point for creating ScenarioList objects, providing a unified interface for various data sources.
+
+**Args:**
+
+**source_type: The type of source to create a ScenarioList from.**
+
+Valid values include: ‘urls’, ‘directory’, ‘csv’, ‘tsv’, ‘excel’, ‘pdf’, ‘pdf\_to\_image’, and others.
+
+[\*](/en/latest/#id13)args: Positional arguments to pass to the source-specific method. [\*\*](/en/latest/#id15)kwargs: Keyword arguments to pass to the source-specific method.
+
+**Returns:**
+
+A ScenarioList object created from the specified source.
+
+**Examples:**
+
+```python
+>>> # This is a simplified example for doctest
+>>> # In real usage, you would provide a path to your CSV file:
+>>> # sl_csv = ScenarioList.from_source('csv', 'your_data.csv')
+>>> # Or use other source types like 'directory', 'excel', etc.
+>>> # Examples of other source types:
+>>> # sl_dir = ScenarioList.from_source('directory', '/path/to/files')
+```
+
+> #### *classmethod* from\_urls(*urls: list\[str\]*, *field\_name: str | None \= 'text'*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### *classmethod* gen(*scenario\_dicts\_list: List\[dict\]*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create a ScenarioList from a list of dictionaries.
+
+**Example:**
+
+```python
+>>> ScenarioList.gen([{'name': 'Alice'}, {'name': 'Bob'}])
+ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
+```
+
+> #### get\_tabular\_data(*remove\_prefix: bool \= False*, *pretty\_labels: dict | None \= None*) → Tuple\[List\[str\], List\[List\]\][\[source\]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Internal method to get tabular data in a standard format.
+
+**Args:**
+
+remove\_prefix: Whether to remove the prefix from column names pretty\_labels: Dictionary mapping original column names to pretty labels
+
+**Returns:**
+
+Tuple containing (header\_row, data\_rows)
+
+> #### ggplot2(*ggplot\_code: str*, *shape: str \= 'wide'*, *sql: str | None \= None*, *remove\_prefix: bool \= True*, *debug: bool \= False*, *height: float \= 4*, *width: float \= 6*, *factor\_orders: dict | None \= None*)[\[source\]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create visualizations using R’s ggplot2 library.
+
+This method provides a bridge to R’s powerful ggplot2 visualization library, allowing you to create sophisticated plots directly from EDSL data structures.
+
+> **Parameters:**
+
+ggplot\_code: R code string containing ggplot2 commands shape: Data shape to use (“wide” or “long”) sql: Optional SQL query to transform data before visualization remove\_prefix: Whether to remove prefixes (like “answer.”) from column names debug: Whether to display debugging information height: Plot height in inches width: Plot width in inches factor\_orders: Dictionary mapping factor variables to their desired order
+
+> **Returns:**
+
+A plot object that renders in Jupyter notebooks
+
+> **Notes:**
+
+- Requires R and the ggplot2 package to be installed
+- Data is automatically converted to a format suitable for ggplot2
+- The ggplot2 code should reference column names as they appear after any transformations from the shape and remove\_prefix parameters
+
+Examples:
+
+```python
+>>> from edsl.results import Results
+>>> r = Results.example()
+>>> # The following would create a plot if R is installed (not shown in doctest):
+>>> # r.ggplot2('''
+>>> #     ggplot(df, aes(x=how_feeling)) +
+>>> #     geom_bar() +
+>>> #     labs(title="Distribution of Feelings")
+>>> # ''')
+```
+
+> #### give\_valid\_names(*existing\_codebook: dict \= None*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Give valid names to the scenario keys, using an existing codebook if provided.
+
+**Args:**
+
+**existing\_codebook (dict, optional): Existing mapping of original keys to valid names.**
+
+Defaults to None.
+
+**Returns:**
+
+ScenarioList: A new ScenarioList with valid variable names and updated codebook.
+
+```python
+>>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+>>> s.give_valid_names()
+ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+>>> s = ScenarioList([Scenario({'are you there John?': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+>>> s.give_valid_names()
+ScenarioList([Scenario({'john': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+>>> s.give_valid_names({'are you there John?': 'custom_name'})
+ScenarioList([Scenario({'custom_name': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+```
+
+> #### group\_by(*id\_vars: List\[str\]*, *variables: List\[str\]*, *func: Callable*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Group the ScenarioList by id\_vars and apply a function.
+
+Delegates to _ScenarioListTransformer.group_by_.
+
+> #### *property* has\_jinja\_braces*: bool*[\[source\]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Check if any Scenario in the list contains values with Jinja template braces.
+
+This property checks all Scenarios in the list to determine if any contain string values with Jinja template syntax ({{ and }}). This is important for rendering templates and avoiding conflicts with other templating systems.
+
+> **Returns:**
+
+True if any Scenario contains values with Jinja braces, False otherwise.
+
+> Examples:
+
+```python
+>>> from edsl.scenarios import Scenario, ScenarioList
+>>> s1 = Scenario({"text": "Plain text"})
+>>> s2 = Scenario({"text": "Template with {{variable}}"})
+>>> sl1 = ScenarioList([s1])
+>>> sl1.has_jinja_braces
+False
+>>> sl2 = ScenarioList([s1, s2])
+>>> sl2.has_jinja_braces
+True
+```
+
+> #### html(*filename: str | None \= None*, *cta: str \= 'Open in browser'*, *return\_link: bool \= False*)[\[source\]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### inner_join(other: [ScenarioList](/en/latest/scenarios#scenariolist-class), by: str | list[str]) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Perform an inner join with another ScenarioList, following SQL join semantics.
+
+**Args:**
+
+other: The ScenarioList to join with by: String or list of strings representing the key(s) to join on. Cannot be empty.
+
+**Returns:**
+
+A new ScenarioList containing only scenarios that have matches in both ScenarioLists
+
+```python
+>>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+>>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Los Angeles'})])
+>>> s4 = s1.inner_join(s2, 'name')
+>>> s4 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'})])
+True
+```
+
+> #### insert(*index*, *value*)[\[source\]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Insert value at index.
+
+> ####  is\_serializable()[\[source\]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### items()[\[source\]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+Make this class compatible with dict.items() by accessing first scenario items.
+
+This ensures the class works as a drop-in replacement for UserList in code that expects a dictionary-like interface.
+
+**Returns:**
+
+items view from the first scenario object if available, empty list otherwise
+
+> ### keep(*\*fields: str*) → [ScenarioList](/en/latest/scenarios#scenariolist-class)[\[source\]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Keep only the specified fields in the scenarios.
+
+**Parameters:**
+
+**fields** – The fields to keep.
+
+Example:
+
+```python
+>>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+>>> s.keep('a')
+ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
+```
+
+> #### left\_join(*other: [ScenarioList](/en/latest/scenarios#scenariolist-class)*, *by: str | list\[str\]*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [source](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Perform a left join with another ScenarioList, following SQL join semantics.
+
+**Args:**
+
+other: The ScenarioList to join with by: String or list of strings representing the key(s) to join on. Cannot be empty.
+
+```python
+>>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+>>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Los Angeles'})])
+>>> s3 = s1.left_join(s2, 'name')
+>>> s3 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'}), Scenario({'age': 25, 'location': None, 'name': 'Bob'})])
+True
+```
+
+> #### make\_tabular(*remove\_prefix: bool*, *pretty\_labels: dict | None \= None*) → tuple\[list, List\[list\]\] [source](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Turn the results into a tabular format.
+
+**Parameters:** **remove\_prefix** – Whether to remove the prefix from the column names.
+
+```python
+>>> from edsl.results import Results
+>>> r = Results.example()
+>>> r.select('how_feeling').make_tabular(remove_prefix = True)
+(['how_feeling'], [['OK'], ['Great'], ['Terrible'], ['OK']])
+```
+
+```python
+>>> r.select('how_feeling').make_tabular(remove_prefix = True, pretty_labels = {'how_feeling': "How are you feeling"})
+(['How are you feeling'], [['OK'], ['Great'], ['Terrible'], ['OK']])
+```
+
+> #### mutate(*new\_var\_string: str*, *functions\_dict: dict\[str, Callable\] | None \= None*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [source](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Return a new ScenarioList with a new variable added.
+
+Delegates to _ScenarioListTransformer.mutate_.
+
+> #### num\_observations()[\[source\]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Return the number of observations in the dataset.
+
+```python
+>>> from edsl.results import Results
+>>> Results.example().num_observations()
+4
+```
+
+> #### offload(*inplace: bool \= False*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [source](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Offloads base64-encoded content from all scenarios in the list by replacing ‘base64\_string’ fields with ‘offloaded’. This reduces memory usage.
+
+> **Args:**
+
+inplace (bool): If True, modify the current scenario list. If False, return a new one.
+
+> **Returns:**
+
+ScenarioList: The modified scenario list (either self or a new instance).
+
+> #### order\_by(*\*fields: str*, *reverse: bool \= False*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [source](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Order the scenarios by one or more fields.
+
+Delegates to ScenarioListTransformer.order\_by.
+
+> #### *property* parameters*: set*[\[source\]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Return the set of parameters in the ScenarioList
+
+Example:
+
+```python
+>>> s = ScenarioList([Scenario({'a': 1}), Scenario({'b': 2})])
+>>> s.parameters == {'a', 'b'}
+True
+```
+
+> #### pivot(*id\_vars: List\[str\] \= None*, *var\_name\='variable'*, *value\_name\='value'*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [source](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Pivot the ScenarioList from long to wide format.
+
+Delegates to ScenarioListTransformer.pivot.
+
+> #### print\_long()[\[source\]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Print the results in a long format. >>> from edsl.results import Results >>> r = Results.example() >>> r.select(‘how\_feeling’).print\_long() answer.how\_feeling: OK answer.how\_feeling: Great answer.how\_feeling: Terrible answer.how\_feeling: OK
+
+> #### relevant\_columns(*data\_type: str | None \= None*, *remove\_prefix: bool \= False*) → list[\[source\]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Return the set of keys that are present in the dataset.
+
+**Parameters:**
+
+- **data\_type** – The data type to filter by.
+- **remove\_prefix** – Whether to remove the prefix from the column names.
+
+```python
+>>> from ..dataset import Dataset
+>>> d = Dataset([{'a.b':[1,2,3,4]}])
+>>> d.relevant_columns()
+['a.b']
+```
+
+```python
+>>> d.relevant_columns(remove_prefix=True)
+['b']
+```
+
+```python
+>>> d = Dataset([{'a':[1,2,3,4]}, {'b':[5,6,7,8]}])
+>>> d.relevant_columns()
+['a', 'b']
+```
+
+```python
+>>> from edsl.results import Results; Results.example().select('how_feeling', 'how_feeling_yesterday').relevant_columns()
+['answer.how_feeling', 'answer.how_feeling_yesterday']
+```
+
+```python
+>>> from edsl.results import Results
+>>> sorted(Results.example().select().relevant_columns(data_type = "model"))
+['model.canned_response', 'model.inference_service', 'model.model', 'model.model_index', 'model.temperature']
+```
+
+```python
+>>> # Testing relevant_columns with invalid data_type raises DatasetValueError - tested in unit tests
+```
+
+> #### remove_prefix()[\[source\]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Returns a new Dataset with the prefix removed from all column names.
+
+The prefix is defined as everything before the first dot (.) in the column name. If removing prefixes would result in duplicate column names, an exception is raised.
+
+> **Returns:**
+
+Dataset: A new Dataset with prefixes removed from column names
+
+> **Raises:**
+
+ValueError: If removing prefixes would result in duplicate column names
+
+> **Examples:**
+
+```python
+>>> from edsl.results import Results
+>>> r = Results.example()
+>>> r.select('how_feeling', 'how_feeling_yesterday').relevant_columns()
+['answer.how_feeling', 'answer.how_feeling_yesterday']
+>>> r.select('how_feeling', 'how_feeling_yesterday').remove_prefix().relevant_columns()
+['how_feeling', 'how_feeling_yesterday']
+```
+
+```python
+>>> from edsl.dataset import Dataset
+>>> d = Dataset([{'a.x': [1, 2, 3]}, {'b.x': [4, 5, 6]}])
+>>> # d.remove_prefix()
+```
+
+\# Testing remove\_prefix with duplicate column names raises DatasetValueError - tested in unit tests
+
+> #### rename(*replacement\_dict: dict*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Rename the fields in the scenarios.
+
+**Parameters:** **replacement\_dict** – A dictionary with the old names as keys and the new names as values.
+
+Example:
+
+```python
+>>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+>>> s.rename({'name': 'first_name', 'age': 'years'})
+ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
+```
+
+> #### reorder\_keys(*new\_order: List\[str\]*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Reorder the keys in the scenarios.
+
+Delegates to _ScenarioListTransformer.reorder_keys_.
+
+> #### replace\_names(*new\_names: list*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Replace the field names in the scenarios with a new list of names.
+
+> **Parameters:**
+
+**new\_names** – A list of new field names to use.
+
+> **Examples:**
+
+```python
+>>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+>>> s.replace_names(['first_name', 'years'])
+ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
+```
+> #### replace\_values(*replacements: dict*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create new scenarios with values replaced according to the provided replacement dictionary.
+
+> **Args:**
+
+replacements (dict): Dictionary of values to replace \{old\_value: new\_value}
+
+> **Returns:**
+
+ScenarioList: A new ScenarioList with replaced values
+
+> **Examples:**
+
+```python
+>>> scenarios = ScenarioList([
+...     Scenario({'a': 'nan', 'b': 1}),
+...     Scenario({'a': 2, 'b': 'nan'})
+... ])
+>>> replaced = scenarios.replace_values({'nan': None})
+>>> print(replaced)
+ScenarioList([Scenario({'a': None, 'b': 1}), Scenario({'a': 2, 'b': None})])
+>>> # Original scenarios remain unchanged
+>>> print(scenarios)
+ScenarioList([Scenario({'a': 'nan', 'b': 1}), Scenario({'a': 2, 'b': 'nan'})])
+```
+
+> #### report(*\*fields: str | None*, *top\_n: int | None \= None*, *header\_fields: List\[str\] | None \= None*, *divider: bool \= True*, *return\_string: bool \= False*, *format: str \= 'markdown'*, *filename: str | None \= None*) → str | Document | None [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Generates a report of the results by iterating through rows.
+
+> **Args:**
+
+[\*](/en/latest/#id17)fields: The fields to include in the report. If none provided, all fields are used. top\_n: Optional limit on the number of observations to include. header\_fields: Optional list of fields to include in the main header instead of as sections. divider: If True, adds a horizontal rule between observations (markdown only). return\_string: If True, returns the markdown string. If False (default in notebooks),
+
+only displays the markdown without returning.
+
+format: Output format - either “markdown” or “docx”. filename: If provided and format is “docx”, saves the document to this file.
+
+> **Returns:**
+
+Depending on format and return\_string: - For markdown: A string if return\_string is True, otherwise None (displays in notebook) - For docx: A docx.Document object, or None if filename is provided (saves to file)
+
+> **Examples:**
+
+```python
+>>> from edsl.results import Results
+>>> r = Results.example()
+>>> report = r.select('how_feeling').report(return_string=True)
+>>> "# Observation: 1" in report
+True
+>>> doc = r.select('how_feeling').report(format="docx")
+>>> isinstance(doc, object)
+True
+```
+
+> #### report\_from\_template(*template: str*, *\*fields: str | None*, *top\_n: int | None \= None*, *remove\_prefix: bool \= True*, *return\_string: bool \= False*, *format: str \= 'text'*, *filename: str | None \= None*, *separator: str \= '\\n\\n'*, *observation\_title\_template: str | None \= None*, *explode: bool \= False*, *filestore: bool \= False*) → str | Document | List | [FileStore](/en/latest/filestore#edsl.scenarios.FileStore) | None [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Generates a report using a Jinja2 template for each row in the dataset.
+
+This method renders a user-provided Jinja2 template for each observation in the dataset, with template variables populated from the row data. This allows for completely customized report formatting using pandoc for advanced output formats.
+
+> **Args:**
+
+template: Jinja2 template string to render for each row [\*](/en/latest/#id19)fields: The fields to include in template context. If none provided, all fields are used. top\_n: Optional limit on the number of observations to include. remove\_prefix: Whether to remove type prefixes (e.g., “answer.”) from field names in template context. return\_string: If True, returns the rendered content. If False (default in notebooks),
+
+only displays the content without returning.
+
+format: Output format - one of “text”, “html”, “pdf”, or “docx”. Formats other than “text” require pandoc. filename: If provided, saves the rendered content to this file. For exploded output,
+
+this becomes a template (e.g., “report\_\{index}.html”).
+
+separator: String to use between rendered templates for each row (ignored when explode=True). observation\_title\_template: Optional Jinja2 template for observation titles.
+
+Defaults to “Observation {index}” where index is 1-based. Template has access to all row data plus ‘index’ and ‘index0’ variables.
+
+explode: If True, creates separate files for each observation instead of one combined file. filestore: If True, wraps the generated file(s) in FileStore object(s). If no filename is provided,
+
+creates temporary files. For exploded output, returns a list of FileStore objects.
+
+> **Returns:**
+
+Depending on explode, format, return\_string, and filestore: - For text format: String content or None (if displayed in notebook) - For html format: HTML string content or None (if displayed in notebook) - For docx format: Document object or None (if saved to file) - For pdf format: PDF bytes or None (if saved to file) - If explode=True: List of created filenames (when filename provided) or list of documents/content - If filestore=True: FileStore object(s) containing the generated file(s)
+
+> **Notes:**
+
+- Pandoc is required for HTML, PDF, and DOCX output formats
+- Templates are treated as Markdown for all non-text formats
+- PDF output uses XeLaTeX engine through pandoc
+- HTML output includes standalone document structure
+
+> **Examples:**
+
+```python
+>>> from edsl.results import Results
+>>> r = Results.example()
+>>> template = "Person feels: {{ how_feeling }}"
+>>> report = r.select('how_feeling').report_from_template(template, return_string=True)
+>>> "Person feels: OK" in report
+True
+>>> "Person feels: Great" in report
+True
+```
+
+
+```python
+# Custom observation titles >>> custom_title = “Response {{ index }}: {{ how_feeling }}” >>> report = r.select(‘how_feeling’).report_from_template( … template, observation_title_template=custom_title, return_string=True) >>> “Response 1: OK” in report True
+
+# HTML output (requires pandoc) >>> html_report = r.select(‘how_feeling’).report_from_template( … template, format=”html”, return_string=True) # doctest: +SKIP >>> # Creates HTML with proper document structure
+
+# PDF output (requires pandoc with XeLaTeX) >>> pdf_report = r.select(‘how_feeling’).report_from_template( … template, format=”pdf”) # doctest: +SKIP >>> # Returns PDF bytes
+
+# Basic template functionality >>> template2 = “Feeling: {{ how_feeling }}, Index: {{ index }}” >>> report2 = r.select(‘how_feeling’).report_from_template( … template2, return_string=True, top_n=2) >>> “Feeling: OK, Index: 1” in report2 True
+```
+
+> #### right\_join(*other: [ScenarioList](/en/latest/scenarios#scenariolist-class)*, *by: str | list\[str\]*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Perform a right join with another ScenarioList, following SQL join semantics.
+
+> **Args:**
+
+other: The ScenarioList to join with by: String or list of strings representing the key(s) to join on. Cannot be empty.
+
+> **Returns:**
+
+A new ScenarioList containing all right scenarios with matching left data added
+
+```python
+>>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+>>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Los Angeles'})])
+>>> s5 = s1.right_join(s2, 'name')
+>>> s5 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'}), Scenario({'age': None, 'location': 'Los Angeles', 'name': 'Charlie'})])
+True
+```
+
+> #### sample(*n: int*, *seed: str | None \= None*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Return a random sample from the ScenarioList
+
+```python
+>>> s = ScenarioList.from_list("a", [1,2,3,4,5,6])
+>>> s.sample(3, seed = "edsl")
+ScenarioList([Scenario({'a': 2}), Scenario({'a': 1}), Scenario({'a': 3})])
+```
+
+> #### select(*\*fields: str*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Select only specified fields from all scenarios in the list.
+
+This method applies the select operation to each scenario in the list, returning a new ScenarioList where each scenario contains only the specified fields.
+
+> **Args:**
+
+[\*](/en/latest/#id21)fields: Field names to select from each scenario.
+
+> **Returns:**
+
+A new ScenarioList with each scenario containing only the selected fields.
+
+> **Raises:**
+
+KeyError: If any specified field doesn’t exist in any scenario.
+
+> **Examples:**
+
+```python
+>>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+>>> s.select('a')
+ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
+```
+
+> #### shuffle(*seed: str | None \= None*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Shuffle the ScenarioList.
+
+```python
+>>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+>>> s.select('a')
+ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
+```
+
+> #### sql(*query: str*, *transpose: bool \= None*, *transpose\_by: str \= None*, *remove\_prefix: bool \= True*, *shape: str \= 'wide'*) → [Dataset](/en/latest/dataset#dataset-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Execute SQL queries on the dataset.
+
+This powerful method allows you to use SQL to query and transform your data, combining the expressiveness of SQL with EDSL’s data structures. It works by creating an in-memory SQLite database from your data and executing the query against it.
+
+> **Parameters:**
+
+query: SQL query string to execute transpose: Whether to transpose the resulting table (rows become columns) transpose\_by: Column to use as the new index when transposing remove\_prefix: Whether to remove type prefixes (e.g., “answer.”) from column names shape: Data shape to use (“wide” or “long”)
+
+- “wide”: Default tabular format with columns for each field
+- “long”: Melted format with key-value pairs, useful for certain queries
+
+> **Returns:**
+
+A Dataset object containing the query results
+
+> **Notes:**
+
+- The data is stored in a table named “self” in the SQLite database
+- In wide format, column names include their type prefix unless remove\_prefix=True
+- In long format, the data is melted into columns: row\_number, key, value, data\_type
+- Complex objects like lists and dictionaries are converted to strings
+
+> **Examples:**
+
+```python
+>>> from edsl import Results
+>>> r = Results.example()
+```
+
+```python
+# Basic selection >>> len(r.sql(“SELECT * FROM self”, shape=”wide”)) 4
+
+# Filtering with WHERE clause >>> r.sql(“SELECT * FROM self WHERE how_feeling = ‘Great’”).num_observations() 1
+
+# Aggregation >>> r.sql(“SELECT how_feeling, COUNT(*) as count FROM self GROUP BY how_feeling”).keys() [‘how_feeling’, ‘count’]
+
+# Using long format >>> len(r.sql(“SELECT * FROM self”, shape=”long”)) 200
+```
+
+> #### string\_cat(*key: str*, *addend: str*, *position: str \= 'suffix'*, *inplace: bool \= False*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Concatenate a string to a field across all Scenarios.
+
+Applies the same behavior as `Scenario.string_cat` to each Scenario in the list. By default, returns a new `ScenarioList`; set `inplace=True` to modify this list.
+
+**Args:**
+
+key: The key whose value will be concatenated in each Scenario. addend: The string to concatenate to the existing value. position: Either “suffix” (default) or “prefix”. inplace: If True, modify scenarios in place and return self.
+
+**Returns:**
+
+A `ScenarioList` with updated Scenarios.
+
+**Raises:**
+
+KeyError: If `key` is missing in any Scenario. TypeError: If any value under `key` is not a string. ValueError: If `position` is not “suffix” or “prefix”.
+
+> #### sum(*field: str*) → int[ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Sum the values of a field across all scenarios.
+
+> #### table(*\*fields: str*, *tablefmt: Literal\['plain', 'simple', 'github', 'grid', 'fancy\_grid', 'pipe', 'orgtbl', 'rst', 'mediawiki', 'html', 'latex', 'latex\_raw', 'latex\_booktabs', 'tsv'\] | None \= 'rich'*, *pretty\_labels: dict\[str, str\] | None \= None*) → str[ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Return the ScenarioList as a table.
+
+> #### tack\_on(*replacements: dict\[str, Any\]*, *index: int \= \-1*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Add a duplicate of an existing scenario with optional value replacements.
+
+This method duplicates the scenario at *index* (default `-1` which refers to the last scenario), applies the key/value pairs provided in *replacements*, and returns a new ScenarioList with the modified scenario appended.
+
+Args:
+
+**replacements: Mapping of field names to new values to overwrite in the cloned**
+
+scenario.
+
+**index: Index of the scenario to duplicate. Supports negative indexing just**
+
+like normal Python lists (`-1` is the last item).
+
+**Returns:**
+
+ScenarioList: A new ScenarioList containing all original scenarios plus the newly created one.
+
+**Raises:**
+
+**ScenarioError: If the ScenarioList is empty, *index* is out of range, or if**
+
+any key in *replacements* does not exist in the reference scenario.
+
+> #### tally(*\*fields: str | None*, *top\_n: int | None \= None*, *output\='Dataset'*) → dict | [Dataset](/en/latest/dataset#dataset-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Count frequency distributions of values in specified fields.
+
+This method tallies the occurrence of unique values within one or more fields, similar to a GROUP BY and COUNT in SQL. When multiple fields are provided, it performs cross-tabulation across those fields.
+
+> **Parameters:**
+
+[\*](/en/latest/#id23)fields: Field names to tally. If none provided, uses all available fields. top\_n: Optional limit to return only the top N most frequent values. output: Format for results, either “Dataset” (recommended) or “dict”.
+
+> **Returns:**
+
+By default, returns a Dataset with columns for the field(s) and a ‘count’ column. If output=”dict”, returns a dictionary mapping values to counts.
+
+> **Notes:**
+
+- For single fields, returns counts of each unique value
+- For multiple fields, returns counts of each unique combination of values
+- Results are sorted in descending order by count
+- Fields can be specified with or without their type prefix
+
+> **Examples:**
+
+```python
+>>> from edsl import Results
+>>> r = Results.example()
+```
+\# Single field frequency count >>> r.select(‘how\_feeling’).tally(‘answer.how\_feeling’, output=”dict”) \{‘OK’: 2, ‘Great’: 1, ‘Terrible’: 1\}
+
+\# Return as Dataset (default) >>> from edsl.dataset import Dataset >>> expected = Dataset(\[\{‘answer.how\_feeling’: \[‘OK’, ‘Great’, ‘Terrible’\]}, \{‘count’: \[2, 1, 1\]}\]) >>> r.select(‘how\_feeling’).tally(‘answer.how\_feeling’, output=”Dataset”) == expected True
+
+\# Multi-field cross-tabulation - exact output varies based on data >>> result = r.tally(‘how\_feeling’, ‘how\_feeling\_yesterday’) >>> ‘how\_feeling’ in result.keys() and ‘how\_feeling\_yesterday’ in result.keys() and ‘count’ in result.keys() True
+
+> #### times(*other: [ScenarioList](/en/latest/scenarios#scenariolist-class)*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Takes the cross product of two ScenarioLists.
+
+Example:
+
+```py
+>>> s1 = ScenarioList([Scenario({'a': 1}), Scenario({'a': 2})])
+>>> s2 = ScenarioList([Scenario({'b': 1}), Scenario({'b': 2})])
+>>> s1 * s2
+ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2}), Scenario({'a': 2, 'b': 1}), Scenario({'a': 2, 'b': 2})])
+```
+
+> #### to(*survey: 'Survey' | 'QuestionBase'*) → [Jobs](/en/latest/jobs#jobs-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create a Jobs object from a ScenarioList and a Survey object.
+
+**Parameters:** **survey** – The Survey object to use for the Jobs object.
+
+Example: >>> from edsl import Survey, Jobs, ScenarioList # doctest: +SKIP >>> isinstance(ScenarioList.example().to(Survey.example()), Jobs) # doctest: +SKIP True
+
+> #### to\_agent\_blueprint(*\**, *seed: int | None \= None*, *cycle: bool \= True*, *dimension\_name\_field: str \= 'dimension'*, *dimension\_values\_field: str \= 'dimension\_values'*, *dimension\_description\_field: str | None \= None*) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Create an AgentBlueprint from this ScenarioList.
+
+**Args:**
+
+seed: Optional seed for deterministic permutation order. cycle: Whether to continue cycling through permutations indefinitely. dimension\_name\_field: Field name to read the dimension name from. dimension\_values\_field: Field name to read the dimension values from. dimension\_description\_field: Optional field name for the dimension description.
+
+> #### to\_agent\_list(*remove\_prefix: bool \= True*) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Convert the results to a list of dictionaries, one per agent.
+
+**Parameters:**
+
+**remove\_prefix** – Whether to remove the prefix from the column names.
+
+```python
+>>> from edsl.results import Results
+>>> r = Results.example()
+>>> r.select('how_feeling').to_agent_list()
+AgentList([Agent(traits = {'how_feeling': 'OK'}), Agent(traits = {'how_feeling': 'Great'}), Agent(traits = {'how_feeling': 'Terrible'}), Agent(traits = {'how_feeling': 'OK'})])
+```
+
+> #### to\_agent\_traits(*agent\_name: str | None \= None*) → [Agent](/en/latest/agents#agent-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Convert all Scenario objects to traits of a single Agent.
+
+Delegates to _ScenarioListTransformer.to\_agent\_traits_.
+
+> #### to\_csv(*filename: str | None \= None*, *remove\_prefix: bool \= False*, *pretty\_labels: dict | None \= None*) → [FileStore](/en/latest/filestore#edsl.scenarios.FileStore) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Export the results to a FileStore instance containing CSV data.
+
+> #### to\_dataset() → [Dataset](/en/latest/dataset#dataset-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Convert the ScenarioList to a Dataset.
+
+```python
+>>> s = ScenarioList.from_list("a", [1,2,3])
+>>> s.to_dataset()
+Dataset([{'a': [1, 2, 3]}])
+>>> s = ScenarioList.from_list("a", [1,2,3]).add_list("b", [4,5,6])
+>>> s.to_dataset()
+Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
+```
+
+> #### to\_dict(*sort: bool \= False*, *add\_edsl\_version: bool \= False*) → dict [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+```python
+>>> s = ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood-fired pizza'})])
+>>> s.to_dict()
+{'scenarios': [{'food': 'wood chips'}, {'food': 'wood-fired pizza'}]}
+```
+```python
+>>> s = ScenarioList([Scenario({'food': 'wood chips'})], codebook={'food': 'description'})
+>>> d = s.to_dict()
+>>> 'codebook' in d
+True
+>>> d['codebook'] == {'food': 'description'}
+True
+```
+
+```python
+>>> # To include edsl_version and edsl_class_name, explicitly set add_edsl_version=True
+>>> s.to_dict(add_edsl_version=True)
+{'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'codebook': {'food': 'description'}, 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
+```
+
+> #### to\_dicts(*remove\_prefix: bool \= True*) → list\[dict\] [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Convert the results to a list of dictionaries.
+
+**Parameters:**
+
+**remove\_prefix** – Whether to remove the prefix from the column names.
+
+```python
+>>> from edsl.results import Results
+>>> r = Results.example()
+>>> r.select('how_feeling').to_dicts()
+[{'how_feeling': 'OK'}, {'how_feeling': 'Great'}, {'how_feeling': 'Terrible'}, {'how_feeling': 'OK'}]
+```
+
+
+> #### to\_docx(*filename: str | None \= None*, *remove\_prefix: bool \= False*, *pretty\_labels: dict | None \= None*) → [FileStore](/en/latest/filestore#edsl.scenarios.FileStore) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Export the results to a FileStore instance containing DOCX data.
+
+Each row of the dataset will be rendered on its own page, with a 2-column table that lists the keys and associated values for that observation.
+
+> #### to\_excel(*filename: str | None \= None*, *remove\_prefix: bool \= False*, *pretty\_labels: dict | None \= None*, *sheet\_name: str | None \= None*) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Export the results to a FileStore instance containing Excel data.
+
+> #### to\_jsonl(*filename: str | None \= None*) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Export the results to a FileStore instance containing JSONL data.
+
+> #### to\_key\_value(*field: str*, *value\=None*) → dict | set [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Return the set of values in the field.
+
+**Parameters:**
+
+- **field** – The field to extract values from.
+- **value** – An optional field to use as the value in the key-value pair.
+
+**Example:**
+
+```python
+>>> s = ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
+>>> s.to_key_value('name') == {'Alice', 'Bob'}
+True
+```
+
+> #### to\_list(*flatten\=False*, *remove\_none\=False*, *unzipped\=False*) → list\[list\] [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Convert the results to a list of lists.
+
+**Parameters:**
+
+- **flatten** – Whether to flatten the list of lists.
+- **remove\_none** – Whether to remove None values from the list.
+
+```python
+>>> from edsl.results import Results
+>>> Results.example().select('how_feeling', 'how_feeling_yesterday')
+Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling_yesterday': ['Great', 'Good', 'OK', 'Terrible']}])
+```
+
+```python
+>>> Results.example().select('how_feeling', 'how_feeling_yesterday').to_list()
+[('OK', 'Great'), ('Great', 'Good'), ('Terrible', 'OK'), ('OK', 'Terrible')]
+```
+
+```python
+>>> r = Results.example()
+>>> r.select('how_feeling').to_list()
+['OK', 'Great', 'Terrible', 'OK']
+```
+```python
+>>> from edsl.dataset import Dataset
+>>> Dataset([{'a.b': [[1, 9], 2, 3, 4]}]).select('a.b').to_list(flatten = True)
+[1, 9, 2, 3, 4]
+```
+```python
+>>> from edsl.dataset import Dataset
+>>> # Testing to_list flatten with multiple columns raises DatasetValueError - tested in unit tests
+```
+
+> #### to\_pandas(*remove\_prefix: bool \= False*, *lists\_as\_strings\=False*) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Convert the results to a pandas DataFrame, ensuring that lists remain as lists.
+
+**Args:**
+
+remove\_prefix: Whether to remove the prefix from the column names. lists\_as\_strings: Whether to convert lists to strings.
+
+**Returns:**
+
+A pandas DataFrame.
+
+> #### to\_polars(*remove\_prefix: bool \= False*, *lists\_as\_strings\=False*) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Convert the results to a Polars DataFrame.
+
+**Args:**
+
+remove\_prefix: Whether to remove the prefix from the column names. lists\_as\_strings: Whether to convert lists to strings.
+
+**Returns:**
+
+A Polars DataFrame.
+
+> #### to\_ranked\_scenario\_list(*option\_fields: Sequence\[str\]*, *answer\_field: str*, *include\_rank: bool \= True*, *rank\_field: str \= 'rank'*, *item\_field: str \= 'item'*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Convert the ScenarioList to a ranked ScenarioList based on pairwise comparisons.
+
+**Args:**
+
+option\_fields: List of scenario column names containing options to compare. answer\_field: Name of the answer column containing the chosen option’s value. include\_rank: If True, include a rank field on each returned Scenario. rank\_field: Name of the rank field to include when include\_rank is True. item\_field: Field name used to store the ranked item value on each Scenario.
+
+**Returns:**
+
+ScenarioList ordered best-to-worst according to pairwise ranking.
+
+> #### to\_scenario\_list(*remove\_prefix: bool \= True*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Convert the results to a list of dictionaries, one per scenario.
+
+**Parameters:**
+
+**remove\_prefix** – Whether to remove the prefix from the column names.
+
+```python
+>>> from edsl.results import Results
+>>> r = Results.example()
+>>> r.select('how_feeling').to_scenario_list()
+ScenarioList([Scenario({'how_feeling': 'OK'}), Scenario({'how_feeling': 'Great'}), Scenario({'how_feeling': 'Terrible'}), Scenario({'how_feeling': 'OK'})])
+```
+
+> #### to\_scenario\_of\_lists() → [Scenario](/en/latest/scenarios#scenario-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Return a single Scenario whose values are lists across the list.
+
+The resulting Scenario contains every key that appears in any member of the list. For each key, the value is a list of that key’s values taken row-wise from the ScenarioList, padding with None when a row is missing the key.
+
+```python
+>>> s = ScenarioList.from_list("a", [1, 2, 3])
+>>> s.to_scenario_of_lists()
+Scenario({'a': [1, 2, 3]})
+>>> s2 = ScenarioList([Scenario({'a': 1}), Scenario({'b': 2})])
+>>> s2.to_scenario_of_lists()
+Scenario({'a': [1, None], 'b': [None, 2]})
+```
+
+> #### to\_sqlite(*filename: str | None \= None*, *remove\_prefix: bool \= False*, *pretty\_labels: dict | None \= None*, *table\_name: str \= 'results'*, *if\_exists: str \= 'replace'*) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Export the results to a SQLite database file.
+
+> #### to\_survey() → [Survey](/en/latest/surveys#survey-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### to\_true\_skill\_ranked\_list(*option\_fields: Sequence\[str\]*, *answer\_field: str*, *include\_rank: bool \= True*, *rank\_field: str \= 'rank'*, *item\_field: str \= 'item'*, *mu\_field: str \= 'mu'*, *sigma\_field: str \= 'sigma'*, *conservative\_rating\_field: str \= 'conservative\_rating'*, *initial\_mu: float \= 25.0*, *initial\_sigma: float \= 8.333*, *beta: float \= None*, *tau: float \= None*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Convert the ScenarioList to a ranked ScenarioList using TrueSkill algorithm. Args:
+
+option\_fields: List of scenario column names containing options to compare. answer\_field: Name of the answer column containing the ranking order. include\_rank: If True, include a rank field on each returned Scenario. rank\_field: Name of the rank field to include when include\_rank is True. item\_field: Field name used to store the ranked item value on each Scenario. mu\_field: Field name for TrueSkill mu (skill estimate) value. sigma\_field: Field name for TrueSkill sigma (uncertainty) value. conservative\_rating\_field: Field name for conservative rating (mu - 3\*sigma). initial\_mu: Initial skill rating (default 25.0). initial\_sigma: Initial uncertainty (default 8.333). beta: Skill class width (defaults to initial\_sigma/2). tau: Dynamics factor (defaults to initial\_sigma/300).
+
+> #### Returns:
+
+ScenarioList ordered best-to-worst according to TrueSkill ranking.
+
+> #### transform(*field: str*, *func: Callable*, *new\_name: str | None \= None*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Transform a field using a function.
+
+Delegates to _ScenarioListTransformer.transform_.
+
+> #### transform\_by\_key(*key\_field: str*) → [Scenario](/en/latest/scenarios#scenario-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Transform the ScenarioList into a single Scenario with key/value pairs.
+
+This method transforms the ScenarioList by: 1. Using the value of the specified key\_field from each Scenario as a new key 2. Automatically formatting the remaining values as “key: value, key: value” 3. Creating a single Scenario containing all the transformed key/value pairs
+
+> Args:
+
+key\_field: The field name whose value will become the new key
+
+> Returns:
+
+A single Scenario with all the transformed key/value pairs
+
+> Examples:
+
+```python
+>>> # Original scenarios: [{'topic': 'party', 'location': 'offsite', 'time': 'evening'}]
+>>> scenarios = ScenarioList([
+...     Scenario({'topic': 'party', 'location': 'offsite', 'time': 'evening'})
+... ])
+>>> transformed = scenarios.transform_by_key('topic')
+>>> # Result: Scenario({'party': 'location: offsite, time: evening'})
+```
+
+> tree(*node\_order: List\[str\] | None \= None*) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Convert the results to a Tree.
+
+**Args:**
+
+node\_order: The order of the nodes.
+
+**Returns:**
+
+A Tree object.
+
+> unique() → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Return a new ScenarioList containing only unique Scenario objects.
+
+This method removes duplicate Scenario objects based on their hash values, which are determined by their content. Two Scenarios with identical key-value pairs will have the same hash and be considered duplicates.
+
+> **Returns:**
+
+A new ScenarioList containing only unique Scenario objects.
+
+> **Examples:**
+
+```python
+>>> from edsl.scenarios import Scenario, ScenarioList
+>>> s1 = Scenario({"a": 1})
+>>> s2 = Scenario({"a": 1})  # Same content as s1
+>>> s3 = Scenario({"a": 2})
+>>> sl = ScenarioList([s1, s2, s3])
+>>> unique_sl = sl.unique()
+>>> len(unique_sl)
+2
+>>> unique_sl
+ScenarioList([Scenario({'a': 1}), Scenario({'a': 2})])
+```
+
+> **Notes:**
+
+- The order of scenarios in the result is not guaranteed due to the use of sets
+- Uniqueness is determined by the Scenario’s \_\_hash\_\_ method
+- The original ScenarioList is not modified
+- This implementation is memory efficient as it processes scenarios one at a time
+
+> #### unpack(*field: str*, *new\_names: List\[str\] | None \= None*, *keep\_original\=True*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Unpack a field into multiple fields.
+
+Delegates to _ScenarioListTransformer.unpack_.
+
+> unpack\_dict(*field: str*, *prefix: str | None \= None*, *drop\_field: bool \= False*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Unpack a dictionary field into separate fields.
+
+Delegates to _ScenarioListTransformer.unpack\_dict_.
+
+> #### unpack\_list(*field: str*, *new\_names: List\[str\] | None \= None*, *keep\_original: bool \= True*) → [Dataset](/en/latest/dataset#dataset-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Unpack list columns into separate columns with provided names or numeric suffixes.
+
+For example, if a dataset contains: \[\{ 'data': \[\[1, 2, 3\], \[4, 5, 6\]\], 'other': \[‘x’, ‘y’\]}\]
+
+After d.unpack\_list(‘data’), it should become: \[\{ 'other': \[‘x’, ‘y’\], 'data\_1': \[1, 4\], 'data\_2': \[2, 5\], 'data\_3': \[3, 6\]}\]
+
+> **Args:**
+
+field: The field containing lists to unpack new\_names: Optional list of names for the unpacked fields. If None, uses numeric suffixes. keep\_original: If True, keeps the original field in the dataset
+
+> **Returns:**
+
+A new Dataset with unpacked columns
+
+> **Examples:**
+
+```python>>> from edsl.dataset import Dataset
+>>> d = Dataset([{'data': [[1, 2, 3], [4, 5, 6]]}])
+>>> d.unpack_list('data')
+Dataset([{'data': [[1, 2, 3], [4, 5, 6]]}, {'data_1': [1, 4]}, {'data_2': [2, 5]}, {'data_3': [3, 6]}])
+```
+
+```python
+>>> d.unpack_list('data', new_names=['first', 'second', 'third'])
+Dataset([{'data': [[1, 2, 3], [4, 5, 6]]}, {'first': [1, 4]}, {'second': [2, 5]}, {'third': [3, 6]}])
+```
+
+> #### unpivot(*id\_vars: List\[str\] | None \= None*, *value\_vars: List\[str\] | None \= None*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Unpivot the ScenarioList, allowing for id variables.
+
+Delegates to _ScenarioListTransformer.unpivot_.
+
+> #### zip(*field\_a: str*, *field\_b: str*, *new\_name: str*) → [ScenarioList](/en/latest/scenarios#scenariolist-class) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Zip two iterable fields in each Scenario into a dict under a new key.
+
+For every Scenario in the list, this method computes `dict(zip(scenario[field_a], scenario[field_b]))` and stores the result in a new key named `new_name`. It returns a new ScenarioList containing the updated Scenarios.
+
+> **Args:**
+
+field\_a: Name of the first iterable field whose values become dict keys. field\_b: Name of the second iterable field whose values become dict values. new\_name: Name of the new field to store the resulting dictionary under.
+
+> **Returns:**
+
+A new ScenarioList with the zipped dictionary added to each Scenario.
+
+> **Raises:**
+
+KeyError: If either field name does not exist in any Scenario. ScenarioError: If referenced fields are not iterable in any Scenario.
+
+> **Examples:**
+
+```python
+>>> sl = ScenarioList([
+...     Scenario({"keys": ["a", "b"], "vals": [1, 2]}),
+...     Scenario({"keys": ["x", "y"], "vals": [9, 8]}),
+... ])
+>>> sl2 = sl.zip("keys", "vals", "mapping")
+>>> sl2[0]["mapping"], sl2[1]["mapping"]
+({'a': 1, 'b': 2}, {'x': 9, 'y': 8})
+```
