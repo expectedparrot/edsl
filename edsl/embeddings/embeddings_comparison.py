@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List, Tuple, Optional, Any, Dict
-import math
+from typing import List, Tuple, Optional, Any
 
 from .embeddings_visualization import EmbeddingsEngineVisualization as Viz
 

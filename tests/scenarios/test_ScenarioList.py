@@ -31,7 +31,7 @@ def test_from_csv():
         _ = f.write("name,age,location\nAlice,30,New York\nBob,25,Los Angeles\n")
         temp_filename = f.name
 
-    scenario_list = ScenarioList.from_csv(temp_filename)
+    scenario_list = ScenarioList.from_source("csv", temp_filename)
     os.remove(temp_filename)  # Clean up the temp file
 
     assert len(scenario_list) == 2

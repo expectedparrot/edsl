@@ -21,7 +21,7 @@ class TestScenarioListEncoding(unittest.TestCase):
         """Test loading a CSV file with non-UTF8 encoding."""
         try:
             # This would fail before the fix
-            scenarios = ScenarioList.from_csv(self.test_file_path)
+            scenarios = ScenarioList.from_source("csv", self.test_file_path)
             
             # If we get here, make sure data is properly loaded
             self.assertEqual(len(scenarios), 5, "Expected 5 scenarios in the list")

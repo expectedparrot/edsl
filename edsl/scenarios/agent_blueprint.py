@@ -8,12 +8,28 @@ import math
 class AgentBlueprint:
 
     def __init__(
-        self, scenario_list: ScenarioList, seed: int | None = None, cycle: bool = True
+        self,
+        scenario_list: ScenarioList,
+        seed: int | None = None,
+        cycle: bool = True,
+        *,
+        dimension_name_field: str = "dimension",
+        dimension_values_field: str = "dimension_values",
+        dimension_description_field: str | None = None,
     ):
+        # Allow custom field names for the scenario schema. Defaults align with legacy behavior.
+        # If no description field is provided, we will accept either
+        # "dimension_description" (legacy) or "dimension_desc" (new) when present.
+        self._dimension_name_field = dimension_name_field
+        self._dimension_values_field = dimension_values_field
+        self._dimension_description_field = dimension_description_field
+
         for scenario in scenario_list:
-            assert "dimension" in scenario, "Scenario must have a dimension field"
             assert (
-                "dimension_values" in scenario
+                self._dimension_name_field in scenario
+            ), "Scenario must have a dimension name field"
+            assert (
+                self._dimension_values_field in scenario
             ), "Scenario must have a dimension_values field"
 
         # Optional seed allows deterministic iteration order over the Cartesian product
@@ -25,16 +41,20 @@ class AgentBlueprint:
         self._dimension_map: dict[str, Dimension] = {}
 
         for sc in scenario_list:
-            dim_name = sc["dimension"]
+            dim_name = sc[self._dimension_name_field]
 
             # Try to grab an optional description field; default to empty string if absent.
-            dim_desc = sc.get("dimension_description", "")
+            if self._dimension_description_field is not None:
+                dim_desc = sc.get(self._dimension_description_field, "")
+            else:
+                # Fallback order: legacy "dimension_description" then new "dimension_desc"
+                dim_desc = sc.get("dimension_description", sc.get("dimension_desc", ""))
 
             # The "dimension_values" field may arrive in several shapes:
             #   1. Already a Dimension instance (users may construct Scenarios that way)
             #   2. A plain list of values (e.g., ["left", "right"])  [legacy]
             #   3. A nested list due to previous `collapse` operations (e.g., [["left", "right"]])  [legacy]
-            dim_values_field = sc["dimension_values"]
+            dim_values_field = sc[self._dimension_values_field]
 
             if isinstance(dim_values_field, Dimension):
                 dim_obj = dim_values_field
@@ -68,6 +88,36 @@ class AgentBlueprint:
         self.cycle = cycle
 
         self.scenario_list = scenario_list
+
+    def __repr__(self) -> str:  # pragma: no cover
+        """Return a concise, human-friendly summary of dimensions and values.
+
+        Example output (weights shown only when relevant):
+
+            AgentBlueprint: 3 dimensions, 18 combinations (seed=42, cycle=True)
+              - politics [3]: 'left', 'right', 'center'
+              - age [3]: '18-25':2, '26-35':3, '36-45':1
+              - gender [2]: 'male', 'female'
+        """
+        header = (
+            f"AgentBlueprint: {len(self.dimensions)} dimensions, {self._total_combinations} combinations "
+            f"(seed={self.seed}, cycle={self.cycle})"
+        )
+
+        lines: list[str] = [header]
+        for dim_name in self.dimensions:
+            dim = self._dimension_map[dim_name]
+            # Show weights only if any weight differs from the default 1.0
+            show_weights = any(dv.weight != 1.0 for dv in dim.values)
+            if show_weights:
+                values_repr = ", ".join(
+                    f"{dv.value!r}:{dv.weight:g}" for dv in dim.values
+                )
+            else:
+                values_repr = ", ".join(repr(v) for v in dim.to_plain_list())
+            lines.append(f"  - {dim_name} [{len(dim)}]: {values_repr}")
+
+        return "\n".join(lines)
 
     # ---------------------------------------------------------------------
     # Internal helpers
@@ -143,6 +193,8 @@ class AgentBlueprint:
 
     def create_agent_list(self, n: int = 10):
         """Create a list of agents by randomly sampling a value from each dimension_values field"""
+        if isinstance(n, str):
+            n = int(n)
         if n > self._total_combinations:
             raise ValueError(
                 f"Requested {n} agents but only {self._total_combinations} unique permutations exist."
@@ -163,6 +215,9 @@ class AgentBlueprint:
         *dimensions: Dimension,
         seed: int | None = None,
         cycle: bool = True,
+        dimension_name_field: str = "dimension",
+        dimension_values_field: str = "dimension_values",
+        dimension_description_field: str | None = None,
     ) -> "AgentBlueprint":
         """Create an *AgentBlueprint* directly from one or more :class:`Dimension` objects.
 
@@ -172,6 +227,11 @@ class AgentBlueprint:
             One or more Dimension instances describing the categorical axes.
         seed, cycle
             Passed through to the main constructor for determinism and cycling behaviour.
+        dimension_name_field, dimension_values_field, dimension_description_field
+            Custom field names for scenarios produced by this convenience constructor.
+            If no description field name is provided, the legacy key "dimension_description"
+            will be used when constructing scenarios, while the main constructor will accept
+            either "dimension_description" or "dimension_desc" on ingestion.
         """
         if not dimensions:
             raise ValueError("At least one Dimension must be provided")
@@ -179,19 +239,29 @@ class AgentBlueprint:
         from .scenario import Scenario  # local import to avoid circular deps
         from .scenario_list import ScenarioList
 
-        scenarios = [
-            Scenario(
-                {
-                    "dimension": dim.name,
-                    "dimension_description": dim.description,
-                    # Keeping legacy nested list structure for backward compat
-                    "dimension_values": [dim.to_plain_list()],
-                }
-            )
-            for dim in dimensions
-        ]
+        scenarios = []
+        for dim in dimensions:
+            data = {
+                dimension_name_field: dim.name,
+                # Keeping legacy nested list structure for backward compat
+                dimension_values_field: [dim.to_plain_list()],
+            }
+            # Only include description field if the caller specifies a custom key; otherwise
+            # use the legacy key to maintain stable behaviour of emitted scenarios.
+            if dimension_description_field is not None:
+                data[dimension_description_field] = dim.description
+            else:
+                data["dimension_description"] = dim.description
+            scenarios.append(Scenario(data))
 
-        return cls(ScenarioList(scenarios), seed=seed, cycle=cycle)
+        return cls(
+            ScenarioList(scenarios),
+            seed=seed,
+            cycle=cycle,
+            dimension_name_field=dimension_name_field,
+            dimension_values_field=dimension_values_field,
+            dimension_description_field=dimension_description_field,
+        )
 
     # Fluent API --------------------------------------------------------
 

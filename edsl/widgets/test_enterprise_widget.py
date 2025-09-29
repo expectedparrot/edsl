@@ -7,7 +7,7 @@ This script demonstrates the full AG-Grid Enterprise + AG-Charts Enterprise func
 
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 import sys
 import os
 
@@ -100,7 +100,7 @@ def test_enterprise_basic_functionality():
     print(f"📊 Created enterprise dataset with {len(df)} rows and {len(df.columns)} columns")
     
     # Show data overview
-    print(f"\nDataset overview:")
+    print("\nDataset overview:")
     print(f"   • Date range: {df['Date'].min()} to {df['Date'].max()}")
     print(f"   • Categories: {', '.join(df['Category'].unique())}")
     print(f"   • Regions: {', '.join(df['Region'].unique())}")
@@ -115,7 +115,7 @@ def test_enterprise_basic_functionality():
     assert widget.enable_pivot == True, "Pivot should be enabled by default"
     assert widget.show_tool_panel == True, "Tool panel should be enabled by default"
     
-    print(f"\n✅ Enterprise widget created successfully:")
+    print("\n✅ Enterprise widget created successfully:")
     print(f"   • Status: {widget.status}")
     print(f"   • Data rows: {len(widget.data)}")
     print(f"   • Grid columns: {len(widget.columns)}")
@@ -133,7 +133,7 @@ def test_column_analysis():
     df = create_enterprise_demo_data()
     widget = DataFrameGridChartsEnterpriseWidget(dataframe=df)
     
-    print(f"🔍 Column analysis results:")
+    print("🔍 Column analysis results:")
     print(f"   • Numeric columns ({len(widget.numeric_columns)}): {widget.numeric_columns[:5]}...")
     print(f"   • Categorical columns ({len(widget.categorical_columns)}): {widget.categorical_columns}")
     print(f"   • Datetime columns ({len(widget.datetime_columns)}): {widget.datetime_columns}")
@@ -146,7 +146,7 @@ def test_column_analysis():
     pivotable_cols = [col for col in widget.columns 
                      if col.get('enablePivot') == True]
     
-    print(f"\n⚙️ Enterprise column features:")
+    print("\n⚙️ Enterprise column features:")
     print(f"   • Aggregatable columns: {len(numeric_cols_with_aggregation)}")
     print(f"   • Groupable columns: {len(groupable_cols)}")
     print(f"   • Pivotable columns: {len(pivotable_cols)}")
@@ -176,7 +176,7 @@ def test_enterprise_features():
         chart_themes=['ag-default', 'ag-material', 'ag-solar', 'ag-sandstone']
     )
     
-    print(f"🎯 Enterprise features configured:")
+    print("🎯 Enterprise features configured:")
     print(f"   • Integrated charts: {widget.enable_charts}")
     print(f"   • Pivot functionality: {widget.enable_pivot}")
     print(f"   • Range selection: {widget.enable_range_selection}")
@@ -199,7 +199,7 @@ def test_enterprise_features():
     for key in expected_keys:
         assert key in summary, f"Summary should contain {key}"
     
-    print(f"✅ All Enterprise features tested successfully")
+    print("✅ All Enterprise features tested successfully")
 
 def test_data_manipulation():
     """Test data selection and manipulation features."""
@@ -221,7 +221,7 @@ def test_data_manipulation():
     assert selected_df is not None, "Should return selected DataFrame"
     assert len(selected_df) == len(selected_indices), "Selected DataFrame should have correct length"
     
-    print(f"📊 Selection functionality:")
+    print("📊 Selection functionality:")
     print(f"   • Selected {len(selected_indices)} rows")
     print(f"   • Selected DataFrame shape: {selected_df.shape}")
     print(f"   • Selection data types preserved: {selected_df.dtypes.nunique()} types")
@@ -232,7 +232,7 @@ def test_data_manipulation():
     assert len(widget.selected_indices) == 0, "Selection indices should be cleared"
     assert len(widget.selected_ranges) == 0, "Range selection should be cleared"
     
-    print(f"✅ Data manipulation features working correctly")
+    print("✅ Data manipulation features working correctly")
 
 def test_enterprise_export():
     """Test Enterprise export functionality."""
@@ -346,16 +346,16 @@ def main():
         # Show usage examples
         demo_usage_examples()
         
-        print(f"\n🚀 Ready for Enterprise usage:")
-        print(f"   from dataframe_grid_charts_enterprise_widget import DataFrameGridChartsEnterpriseWidget")
-        print(f"   widget = DataFrameGridChartsEnterpriseWidget(dataframe=your_df)")
-        print(f"   display(widget)  # Full Enterprise experience!")
+        print("\n🚀 Ready for Enterprise usage:")
+        print("   from dataframe_grid_charts_enterprise_widget import DataFrameGridChartsEnterpriseWidget")
+        print("   widget = DataFrameGridChartsEnterpriseWidget(dataframe=your_df)")
+        print("   display(widget)  # Full Enterprise experience!")
         
-        print(f"\n🎯 Enterprise-exclusive features:")
-        print(f"   • Right-click data selections → 'Chart Data' for instant visualization")
-        print(f"   • Drag columns in tool panel to Row Groups, Values, or Pivot areas")
-        print(f"   • Select cell ranges and create charts from context menu")
-        print(f"   • Export filtered/grouped data to Excel format")
+        print("\n🎯 Enterprise-exclusive features:")
+        print("   • Right-click data selections → 'Chart Data' for instant visualization")
+        print("   • Drag columns in tool panel to Row Groups, Values, or Pivot areas")
+        print("   • Select cell ranges and create charts from context menu")
+        print("   • Export filtered/grouped data to Excel format")
         
         return widget
         
