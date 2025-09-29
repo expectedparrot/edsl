@@ -48,6 +48,38 @@ class JobsRemoteInferenceHandler:
         self.poll_interval = poll_interval
         self.api_key = api_key
 
+        # Calculate dynamic polling interval based on job complexity
+        # Total prompts = questions × interviews (agents × scenarios × models)
+        num_questions = len(jobs.survey.questions)
+        num_interviews = len(jobs.interviews())
+        total_prompts = num_questions * num_interviews
+
+        # Progressive decrease polling strategy:
+        # Start with long waits, then decrease as job approaches completion
+        # Minimizes API calls while ensuring fast completion detection
+
+        # Estimate job duration based on prompt count (~0.07s per prompt based on 200 prompts = 14s)
+        estimated_duration = max(2.0, total_prompts * 0.07)
+
+        # Create decreasing polling intervals
+        if total_prompts <= 10:
+            # Small jobs: start with 2s, then 1s, then 0.5s
+            self.polling_schedule = [2.0, 1.0, 0.5]
+        elif total_prompts <= 50:
+            # Medium jobs: start with 5s, then 2s, then 1s
+            self.polling_schedule = [5.0, 2.0, 1.0]
+        elif total_prompts <= 200:
+            # Large jobs: start with 10s, then 4s, then 1s
+            self.polling_schedule = [10.0, 4.0, 1.0]
+        else:
+            # Very large jobs: start with 15s, then 6s, then 2s, then 1s
+            self.polling_schedule = [15.0, 6.0, 2.0, 1.0]
+
+        self.estimated_duration = estimated_duration
+
+        self.poll_count = 0  # Track number of polls
+        self.job_start_time = None  # Will be set when polling starts
+
         from ..config import CONFIG
 
         self.expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
@@ -338,7 +370,47 @@ class JobsRemoteInferenceHandler:
             f"Job status: {status} - last update: {time_checked}",
             status=JobsStatus.RUNNING,
         )
-        time.sleep(self.poll_interval)
+
+        # Use time-based progressive polling: efficient for both short and very long jobs
+        self.poll_count += 1
+        current_time = time.time()
+
+        # Set start time on first poll
+        if self.job_start_time is None:
+            self.job_start_time = current_time
+
+        elapsed_time = current_time - self.job_start_time
+        remaining_estimated = max(0, self.estimated_duration - elapsed_time)
+
+        # Get total prompts for small job detection
+        total_prompts = len(self.jobs.survey.questions) * len(self.jobs.interviews())
+
+        # For small jobs, use fast polling
+        if total_prompts <= 10:
+            current_interval = 1
+        else:
+            # Time-based intervals for larger jobs: longer waits early, shorter as we approach completion
+            if remaining_estimated > 60:  # More than 1 minute left
+                current_interval = min(
+                    30.0, remaining_estimated * 0.3
+                )  # Wait up to 30s
+            elif remaining_estimated > 30:  # 30-60s left
+                current_interval = 10.0
+            elif remaining_estimated > 10:  # 10-30s left
+                current_interval = 5.0
+            elif remaining_estimated > 0:  # 0-10s left (near completion)
+                current_interval = 2.0
+            else:  # Past estimated time
+                # Job is running longer than expected, use moderate polling with backoff
+                overtime = elapsed_time - self.estimated_duration
+                if overtime < 30:
+                    current_interval = 2.0  # First 30s overtime: frequent polling
+                elif overtime < 120:
+                    current_interval = 5.0  # 30-120s overtime: moderate polling
+                else:
+                    current_interval = 10.0  # 120s+ overtime: slower polling
+
+        time.sleep(current_interval)
 
     def _get_expenses_from_results(self, results: "Results") -> dict:
         """
