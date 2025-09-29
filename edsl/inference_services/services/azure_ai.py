@@ -82,19 +82,10 @@ class AzureAIService(InferenceServiceABC):
     ]
 
     @classmethod
-    def get_model_info(cls):
-        """Retrieve Azure model information from environment variable."""
-
-        # Initialize model map if empty
-        if not cls._model_id_to_endpoint_and_key:
-            cls._model_id_to_endpoint_and_key = {}
-
+    def parse_data_from_key(cls, api_key: str):
+        """Parse data from an Azure key."""
         models_info = []
-        azure_endpoints = os.getenv(cls._env_key_name_)
-        if not azure_endpoints:
-            raise ValueError(f"{cls._env_key_name_} is not defined")
-
-        azure_endpoints = azure_endpoints.split(",")
+        azure_endpoints = api_key.split(",")
 
         for data in azure_endpoints:
             try:
@@ -177,16 +168,28 @@ class AzureAIService(InferenceServiceABC):
         return models_info
 
     @classmethod
+    def get_model_info(cls, api_key: Optional[str] = None):
+        """Retrieve Azure model information from environment variable."""
+
+        # Initialize model map if empty
+        if not cls._model_id_to_endpoint_and_key:
+            cls._model_id_to_endpoint_and_key = {}
+
+        if api_key is None:
+            api_key = os.getenv(cls._env_key_name_)
+        if api_key is None:
+            raise ValueError(f"API key for {cls._inference_service_} is not set")
+
+        models_info = cls.parse_data_from_key(api_key)
+        return models_info
+
+    @classmethod
     def create_model(
         cls, model_name: str = "azureai", model_class_name=None
     ) -> "LanguageModel":
         """Dynamically create a LanguageModel subclass for Azure AI."""
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
-
-        # Ensure the model map is initialized
-        if not cls._model_id_to_endpoint_and_key:
-            cls.get_model_info()
 
         from ...language_models import LanguageModel
 
@@ -214,6 +217,15 @@ class AzureAIService(InferenceServiceABC):
             def remote_proxy(self, value: bool):
                 """Set the remote proxy flag."""
                 self._remote_proxy = value
+
+            def get_model_info_dict(self):
+                """Initialize the model info dict from the key lookup."""
+                # Get model info from the user's Azure key in the key lookup
+                if self.api_token is None:
+                    raise ValueError("API key is not set for Azure AI service")
+                model_info = cls.parse_data_from_key(self.api_token)
+                model_info_dict = {f"{model['id']}": model for model in model_info}
+                return model_info_dict
 
             @report_errors_async
             async def async_execute_model_call(
@@ -248,10 +260,9 @@ class AzureAIService(InferenceServiceABC):
 
                 # Note: files_list is not yet implemented for Azure AI service
                 try:
-                    api_key = cls._model_id_to_endpoint_and_key[model_name][
-                        "azure_endpoint_key"
-                    ]
-                    endpoint = cls._model_id_to_endpoint_and_key[model_name]["endpoint"]
+                    model_info_dict = self.get_model_info_dict()
+                    api_key = model_info_dict[model_name]["azure_endpoint_key"]
+                    endpoint = model_info_dict[model_name]["endpoint"]
                 except (KeyError, TypeError):
                     from ..exceptions import InferenceServiceEnvironmentError
 
@@ -288,9 +299,7 @@ class AzureAIService(InferenceServiceABC):
                         )
 
                 # Use Azure AI Inference SDK for all models (unified approach)
-                api_version = cls._model_id_to_endpoint_and_key[model_name].get(
-                    "api_version"
-                )
+                api_version = model_info_dict[model_name].get("api_version")
 
                 # Create client with optional api_version
                 client_kwargs = {
