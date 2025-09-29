@@ -1041,6 +1041,110 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         # Save the document
         doc.save(output_file)
 
+    def to_markdown(
+        self,
+        filename: Optional[str] = None,
+        col_spacer_lines: int = 2,
+        row_spacer_lines: int = 2,
+        include_row_headers: bool = True,
+        include_column_headers: bool = True,
+        row_header_text: str = "Row",
+        row_header_level: int = 2,
+        column_header_level: int = 3,
+    ) -> "FileStore":
+        """
+        Concatenate markdown cells into a single markdown file and return a FileStore.
+
+        The concatenation proceeds left-to-right within each row, then top-to-bottom
+        across rows. If a cell's content is wrapped in a ```markdown fenced block,
+        the fence is removed before concatenation.
+
+        Args:
+            filename: Optional explicit path to write the markdown file. If not
+                      provided, a temporary ``.md`` file is created.
+            col_spacer_lines: Number of newline characters to insert between cells
+                              within the same row (left-to-right). Defaults to 0.
+            row_spacer_lines: Number of newline characters to insert between rows
+                              (top-to-bottom). Defaults to 2.
+            include_row_headers: If True, prepend each row with a header like
+                                 "## Row 1". Defaults to True.
+            include_column_headers: If True, prepend each cell with a header like
+                                   "### column.name". Defaults to True.
+            row_header_text: Base text used for the row header (e.g., "Row").
+            row_header_level: Markdown header level for row headers (e.g., 2 for H2).
+            column_header_level: Markdown header level for column headers (e.g., 3 for H3).
+
+        Returns:
+            FileStore: A FileStore pointing to the written markdown file.
+
+        Examples:
+            >>> from edsl.dataset import Dataset
+            >>> content = "```markdown\\n# Title\\n\\nSome text.\\n```"
+            >>> d = Dataset([{ 'md': [content] }])
+            >>> fs = d.to_markdown()  # doctest: +ELLIPSIS
+            >>> fs.suffix
+            'md'
+        """
+        from ..scenarios import FileStore
+        import tempfile
+
+        def strip_markdown_fence(text: Any) -> str:
+            if text is None:
+                return ""
+            s = str(text).strip()
+            # Only remove fences when explicitly marked as ```markdown
+            if s.startswith("```markdown"):
+                # Remove opening line
+                s = s[len("```markdown"):].lstrip("\n")
+                # Remove the last closing fence if present
+                if s.endswith("```"):
+                    s = s[: -3]
+                else:
+                    fence_idx = s.rfind("```")
+                    if fence_idx != -1:
+                        s = s[:fence_idx]
+                return s.strip("\n")
+            return s
+
+        # Build concatenated markdown content
+        headers, rows = self._tabular()
+        row_blocks: list[str] = []
+        col_sep = "\n" * (col_spacer_lines if col_spacer_lines is not None else 0)
+        row_sep = "\n" * (row_spacer_lines if row_spacer_lines is not None else 0)
+
+        # Build row blocks with optional row/column headers
+        for row_index, row in enumerate(rows, start=1):
+            parts: list[str] = []
+            if include_row_headers:
+                parts.append(f"{'#' * row_header_level} {row_header_text} {row_index}")
+            for col_index, cell in enumerate(row):
+                cleaned = strip_markdown_fence(cell)
+                if cleaned == "":
+                    continue
+                if include_column_headers:
+                    parts.append(f"{'#' * column_header_level} {headers[col_index]}")
+                parts.append(cleaned)
+
+            row_block = col_sep.join(parts).strip()
+            if row_block:
+                row_blocks.append(row_block)
+
+        content = row_sep.join(row_blocks)
+
+        # Write to file
+        if filename is None:
+            with tempfile.NamedTemporaryFile(
+                delete=False, suffix=".md", mode="w", encoding="utf-8"
+            ) as f:
+                f.write(content)
+                path = f.name
+        else:
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write(content)
+            path = filename
+
+        return FileStore(path)
+
     def unique(self) -> "Dataset":
         """
         Remove duplicate rows from the dataset.

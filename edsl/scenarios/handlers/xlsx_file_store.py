@@ -6,6 +6,11 @@ import os
 class XlsxMethods(FileMethods):
     suffix = "xlsx"
 
+    def to_scenario_list(self):
+        from ..scenario_list import ScenarioList
+        pandas_df = self.to_pandas()
+        return ScenarioList.from_source('pandas', pandas_df)
+
     def extract_text(self):
         """Extract text content from Excel file."""
         import pandas as pd
@@ -90,3 +95,10 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod()
+
+    from ..file_store import FileStore
+    example_fs = FileStore(path = XlsxMethods().example())
+    pd = example_fs.to_pandas()
+
+    sl = example_fs.to_scenario_list()
+    print(sl)

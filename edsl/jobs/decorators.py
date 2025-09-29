@@ -52,6 +52,11 @@ def with_config(f: Callable[P, T]) -> Callable[P, T]:
 
     @wraps(f)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        # If a fully-formed RunConfig is provided, use it directly.
+        existing_config = kwargs.get("config")
+        if isinstance(existing_config, RunConfig):
+            return f(*args, config=existing_config)
+
         environment = RunEnvironment(
             **{k: v for k, v in kwargs.items() if k in environment_fields}
         )

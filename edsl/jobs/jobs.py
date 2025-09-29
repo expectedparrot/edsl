@@ -350,6 +350,50 @@ class Jobs(Base):
         return self
 
     @property
+    def head_job(self) -> Jobs:
+        """Get the head job of the job."""
+        current_job = self
+        while current_job._depends_on is not None:
+            current_job = current_job._depends_on
+        return current_job
+
+    @property
+    def head_parameters(self) -> set:
+        params = set()
+        for question in self.head_job.survey.questions:
+            params = params.union(question.detailed_parameters)
+        return params
+
+    def add_survey_to_head(self, survey: "Survey") -> Jobs:
+        """Add a survey to the head job of the job."""
+        self.head_job.survey = survey
+        return self
+
+    def add_agent_list_to_head(self, agent_list: "AgentList") -> Jobs:
+        """Add an agent list to the head job of the job."""
+        self.head_job.agents = agent_list
+        return self
+
+    def add_scenario_head(self, scenario_or_scenario_list: Union["Scenario", "ScenarioList"]) -> Jobs:
+        """Add a scenario to the job.
+        
+        Args:
+        ----
+            scenario: The scenario to add to the job.
+        """
+        # Find the head of the job
+        current_job = self
+        while current_job._depends_on is not None:
+            current_job = current_job._depends_on
+        
+        from ..scenarios import ScenarioList, Scenario
+        if isinstance(scenario_or_scenario_list, Scenario):  
+            current_job.scenarios = ScenarioList([scenario_or_scenario_list])
+        else:       
+            current_job.scenarios = scenario_or_scenario_list
+        return self 
+
+    @property
     def scenarios(self) -> ScenarioList:
         """Get the scenarios associated with this job.
 
@@ -538,10 +582,14 @@ class Jobs(Base):
         """
         from .jobs_interview_constructor import InterviewsConstructor
 
-        self.replace_missing_objects()
-        yield from InterviewsConstructor(
-            self, cache=self.run_config.environment.cache
-        ).create_interviews()
+        # If we have pre-stored interviews (from from_interviews method), use those
+        if hasattr(self, '_interviews') and self._interviews:
+            yield from self._interviews
+        else:
+            self.replace_missing_objects()
+            yield from InterviewsConstructor(
+                self, cache=self.run_config.environment.cache
+            ).create_interviews()
 
     def show_flow(self, filename: Optional[str] = None) -> None:
         """Visualize either the *Job* dependency/post-processing flow **or** the underlying survey flow.
@@ -581,13 +629,49 @@ class Jobs(Base):
             ).show_flow(filename=filename)
 
     def push(self, *args, **kwargs) -> None:
-        """Push the job to the remote server."""
+        """Push the job to the remote server, in pieces."""
         from ..agents import AgentList
         from ..scenarios import ScenarioList
-
+        from ..language_models import ModelList
         survey_info = self.survey.push()
         agent_info = AgentList(self.agents).push()
         scenario_info = ScenarioList(self.scenarios).push()
+        models_info = ModelList(self.models).push()
+
+        from ..scenarios import Scenario
+        jobs_scenario = Scenario({
+            'survey': survey_info.to_dict(),
+            'agents': agent_info.to_dict(),
+            'scenarios': scenario_info.to_dict(),
+            'models_info': models_info.to_dict(),
+            '_depends_on': self._depends_on.to_dict(add_edsl_version=False) if self._depends_on is not None else None,
+            '_post_run_methods': self._post_run_methods if self._post_run_methods is not None else None
+        })
+        info = jobs_scenario.push()
+        return info
+
+    @classmethod
+    def pull(cls, edsl_uuid: str) -> 'Jobs':
+        """Pull the job from the remote server."""
+        from ..scenarios import Scenario
+        from ..surveys import Survey
+        from ..agents import AgentList
+        from ..language_models import ModelList
+        from ..scenarios import ScenarioList
+
+        jobs_scenario = Scenario.pull(edsl_uuid)
+        # extract the components 
+        survey_info = jobs_scenario.to_dict()['survey']
+        agent_info = jobs_scenario.to_dict()['agents']
+        scenario_info = jobs_scenario.to_dict()['scenarios']
+        models_info = jobs_scenario.to_dict()['models_info']
+        depends_on = jobs_scenario.to_dict()['_depends_on']
+        post_run_methods = jobs_scenario.to_dict()['_post_run_methods']
+
+        jobs = cls(survey = Survey.pull(survey_info['uuid']), agents = AgentList.pull(agent_info['uuid']), scenarios = ScenarioList.pull(scenario_info['uuid']), models = ModelList.pull(models_info['uuid']))
+        jobs._depends_on = depends_on
+        jobs._post_run_methods = post_run_methods
+        return jobs
 
         # This are methods for chaining jobs together
 
@@ -601,8 +685,7 @@ class Jobs(Base):
         #         add_edsl_version=add_edsl_version
         #     )
 
-        return {"survey": survey_info, "agents": agent_info, "scenarios": scenario_info}
-
+        return {"survey": survey_info, "agents": agent_info, "scenarios": scenario_info, "models_info": models_info}
         # [agent.push() for agent in self.agents]
 
         #  d = {
@@ -1144,6 +1227,7 @@ class Jobs(Base):
             "rename",
             "to_scenario_list",
             "to_agent_list",
+            "to_survey",
             "concatenate",
             "collapse",
             "expand",
@@ -1165,6 +1249,11 @@ class Jobs(Base):
             f"'{self.__class__.__name__}' object has no attribute '{name}'. "
             f"Use .then('{name}', ...) for post-run method chaining."
         )
+
+    @property
+    def has_post_run_methods(self) -> bool:
+        """Check if the jobs object has post-run methods."""
+        return len(self._post_run_methods) > 0
 
     def _apply_post_run_methods(self, results) -> Any:
         """Apply all post-run methods to the results object.
@@ -1334,6 +1423,283 @@ class Jobs(Base):
         )
         return final_results
 
+    def run_batch(self, num_batches: int, **kwargs) -> Optional["Results"]:
+        """Run the job by splitting interviews into batches and running them separately.
+
+        This method splits all interviews into the specified number of batches, shuffles
+        them to ensure even distribution of models/agents/scenarios across batches,
+        runs each batch as a separate job, and then merges the results while preserving
+        the original ordering.
+
+        Parameters
+        ----------
+        config : RunConfig
+            Configuration object containing runtime parameters and environment settings
+        num_batches : int
+            Number of batches to split the interviews into
+        n : int, optional
+            Number of iterations to run each interview (default: 1)
+        progress_bar : bool, optional
+            Whether to show a progress bar (default: False)
+        stop_on_exception : bool, optional
+            Whether to stop the job if an exception is raised (default: False)
+        check_api_keys : bool, optional
+            Whether to verify API keys before running (default: False)
+        verbose : bool, optional
+            Whether to print extra messages during execution (default: True)
+        print_exceptions : bool, optional
+            Whether to print exceptions as they occur (default: True)
+        remote_cache_description : str, optional
+            Description for entries in the remote cache
+        remote_inference_description : str, optional
+            Description for the remote inference job
+        remote_inference_results_visibility : VisibilityType, optional
+            Visibility of results on Coop ("private", "public", "unlisted")
+        disable_remote_cache : bool, optional
+            Whether to disable the remote cache (default: False)
+        disable_remote_inference : bool, optional
+            Whether to disable remote inference (default: False)
+        fresh : bool, optional
+            Whether to ignore cache and force new results (default: False)
+        skip_retry : bool, optional
+            Whether to skip retrying failed interviews (default: False)
+        raise_validation_errors : bool, optional
+            Whether to raise validation errors (default: False)
+        background : bool, optional
+            Whether to run in background mode (default: False)
+        job_uuid : str, optional
+            UUID for the job, used for tracking
+        cache : Cache, optional
+            Cache object to store results
+        bucket_collection : BucketCollection, optional
+            Object to track API keys
+        key_lookup : KeyLookup, optional
+            Object to manage API keys
+        memory_threshold : int, optional
+            Memory threshold in bytes for the Results object's SQLList,
+            controlling when data is offloaded to SQLite storage
+        new_format : bool, optional
+            If True, uses remote_inference_create method, if False uses old_remote_inference_create method (default: True)
+        expected_parrot_api_key : str, optional
+            Custom EXPECTED_PARROT_API_KEY to use for this job run
+
+        Returns
+        -------
+            Results: A Results object containing all responses and metadata
+
+        Notes
+        -----
+            - This method is useful for large jobs that need to be split for resource management
+            - Interviews are shuffled before splitting to ensure even distribution across batches
+            - The final results maintain the original interview ordering regardless of batch execution order
+            - Each batch runs as a completely separate job, allowing for different execution environments
+
+        Example:
+            >>> from edsl.jobs import Jobs
+            >>> from edsl import Model
+            >>> job = Jobs.example().by(Model('test'))
+            >>> results = job.run_batch(num_batches=2, disable_remote_inference=True, progress_bar=False) # doctest: +ELLIPSIS
+            >>> len(results) > 0
+            True
+
+        """
+        import random
+        from ..results import Results
+        from ..tasks import TaskHistory
+        from .data_structures import RunEnvironment, RunParameters, RunConfig
+
+        if num_batches <= 0:
+            raise ValueError("num_batches must be greater than 0")
+
+        # Manually create config from kwargs like @with_config would do
+        parameter_fields = {
+            name: field.default
+            for name, field in RunParameters.__dataclass_fields__.items()
+        }
+        environment_fields = {
+            name: field.default
+            for name, field in RunEnvironment.__dataclass_fields__.items()
+        }
+
+        environment = RunEnvironment(
+            **{k: v for k, v in kwargs.items() if k in environment_fields}
+        )
+        parameters = RunParameters(
+            **{k: v for k, v in kwargs.items() if k in parameter_fields}
+        )
+        config = RunConfig(environment=environment, parameters=parameters)
+
+        import time
+        start_time = time.time()
+        print(f"[DEBUG] Starting batch execution with {num_batches} batches at {time.time():.3f}")
+        self._logger.info(f"Starting batch execution with {num_batches} batches")
+        self._logger.info(
+            f"Job configuration: {self.num_interviews} total interviews, "
+            f"remote_inference={'disabled' if config.parameters.disable_remote_inference else 'enabled'}, "
+            f"progress_bar={config.parameters.progress_bar}"
+        )
+        print(f"[DEBUG] Config setup completed in {time.time() - start_time:.3f}s")
+
+        # Handle job dependencies first
+        if self._depends_on is not None:
+            dep_start = time.time()
+            print(f"[DEBUG] Starting dependency resolution at {time.time():.3f}")
+            self._logger.info("Checking job dependencies")
+            prior_results = self._depends_on.run(config=config)
+            self = self.by(prior_results)
+            self._logger.info("Job dependencies resolved successfully")
+            print(f"[DEBUG] Dependencies resolved in {time.time() - dep_start:.3f}s")
+        else:
+            print(f"[DEBUG] No dependencies to resolve")
+
+        # Get all interviews and create a list with original indices
+        interview_gen_start = time.time()
+        print(f"[DEBUG] Starting interview generation at {time.time():.3f}")
+        self._logger.info("Generating interviews and preserving original ordering")
+        all_interviews = list(self.generate_interviews())
+        total_interviews = len(all_interviews)
+        print(f"[DEBUG] Generated {total_interviews} interviews in {time.time() - interview_gen_start:.3f}s")
+
+        if num_batches > total_interviews:
+            self._logger.warning(f"num_batches ({num_batches}) is greater than total interviews ({total_interviews}), adjusting to {total_interviews}")
+            num_batches = total_interviews
+
+        # Create (interview, original_index) pairs
+        indexed_interviews = list(enumerate(all_interviews))
+
+        # Shuffle to ensure even distribution of models/agents/scenarios across batches
+        shuffle_start = time.time()
+        print(f"[DEBUG] Starting shuffle at {time.time():.3f}")
+        random.shuffle(indexed_interviews)
+        self._logger.info("Shuffled interviews for even distribution across batches")
+        print(f"[DEBUG] Shuffle completed in {time.time() - shuffle_start:.3f}s")
+
+        # Split into batches
+        batch_size = len(indexed_interviews) // num_batches
+        remainder = len(indexed_interviews) % num_batches
+
+        batches = []
+        start_idx = 0
+        for i in range(num_batches):
+            # Add one extra interview to the first 'remainder' batches
+            current_batch_size = batch_size + (1 if i < remainder else 0)
+            end_idx = start_idx + current_batch_size
+            batches.append(indexed_interviews[start_idx:end_idx])
+            start_idx = end_idx
+
+        batch_split_time = time.time()
+        self._logger.info(f"Split interviews into {num_batches} batches: {[len(batch) for batch in batches]}")
+        print(f"[DEBUG] Batch splitting completed in {batch_split_time - start_time:.3f}s total")
+
+        # Run each batch separately
+        batch_results = []
+        print(f"[DEBUG] Starting batch execution loop at {time.time():.3f}")
+        for i, batch in enumerate(batches):
+            if not batch:  # Skip empty batches
+                continue
+
+            batch_start = time.time()
+            print(f"[DEBUG] Starting batch {i+1}/{num_batches} at {time.time():.3f}")
+            self._logger.info(f"Running batch {i+1}/{num_batches} with {len(batch)} interviews")
+
+            # Extract just the interviews (without original indices) for this batch
+            extract_start = time.time()
+            batch_interviews = [interview for _, interview in batch]
+            print(f"[DEBUG] Batch {i+1}: extracted interviews in {time.time() - extract_start:.3f}s")
+
+            # Create a job for this batch
+            job_create_start = time.time()
+            batch_job = Jobs.from_interviews(batch_interviews)
+            print(f"[DEBUG] Batch {i+1}: created job in {time.time() - job_create_start:.3f}s")
+
+            # Run the batch job with the same config
+            run_start = time.time()
+            print(f"[DEBUG] Batch {i+1}: starting run() at {time.time():.3f}")
+            batch_result = batch_job.run(config=config)
+            print(f"[DEBUG] Batch {i+1}: run() completed in {time.time() - run_start:.3f}s")
+
+            if batch_result is not None:
+                # Add original indices back to results for proper ordering
+                ordering_start = time.time()
+                for j, result in enumerate(batch_result.data):
+                    if j < len(batch):  # Safety check
+                        original_index = batch[j][0]  # Get original index from batch
+                        result.order = original_index
+                    else:
+                        self._logger.warning(f"Batch {i+1}: more results ({len(batch_result.data)}) than expected ({len(batch)})")
+                print(f"[DEBUG] Batch {i+1}: ordering completed in {time.time() - ordering_start:.3f}s")
+
+                batch_results.append(batch_result)
+                self._logger.info(f"Batch {i+1} completed with {len(batch_result)} results")
+                print(f"[DEBUG] Batch {i+1}: total time {time.time() - batch_start:.3f}s")
+            else:
+                self._logger.warning(f"Batch {i+1} returned None results")
+                print(f"[DEBUG] Batch {i+1}: returned None in {time.time() - batch_start:.3f}s")
+
+        if not batch_results:
+            self._logger.warning("No batch results to merge")
+            print(f"[DEBUG] No batch results to merge, returning None")
+            return None
+
+        # Merge all batch results while preserving original order
+        merge_start = time.time()
+        print(f"[DEBUG] Starting result merging at {time.time():.3f}")
+        self._logger.info("Merging batch results and restoring original order")
+        final_results = Results(
+            survey=self.survey,
+            data=[],
+            task_history=TaskHistory()
+        )
+
+        # Collect all individual results from all batches
+        collect_start = time.time()
+        all_results = []
+        all_task_histories = []
+        for batch_result in batch_results:
+            all_results.extend(batch_result.data)
+            # Collect task histories for merging
+            if batch_result.task_history:
+                all_task_histories.append(batch_result.task_history)
+        print(f"[DEBUG] Result collection completed in {time.time() - collect_start:.3f}s")
+
+        # Sort results by their original order
+        sort_start = time.time()
+        all_results.sort(key=lambda x: x.order)
+        final_results.data = all_results
+        print(f"[DEBUG] Result sorting completed in {time.time() - sort_start:.3f}s")
+
+        # Merge task histories - create a new TaskHistory with all interviews
+        if all_task_histories:
+            history_start = time.time()
+            merged_task_history = TaskHistory()
+            for task_history in all_task_histories:
+                # Add each interview from the task history to the merged one
+                for interview in task_history.total_interviews:
+                    merged_task_history.add_interview(interview)
+            final_results.task_history = merged_task_history
+            print(f"[DEBUG] Task history merging completed in {time.time() - history_start:.3f}s")
+
+        # Merge other attributes from the first batch result
+        if batch_results:
+            first_batch = batch_results[0]
+            final_results.cache = first_batch.cache
+            # Only set bucket_collection if it exists on the first batch
+            if hasattr(first_batch, 'bucket_collection'):
+                final_results.bucket_collection = first_batch.bucket_collection
+
+        post_run_start = time.time()
+        print(f"[DEBUG] Starting post-run methods at {time.time():.3f}")
+        self._logger.info("Applying post-run methods to merged results")
+        final_results = self._apply_post_run_methods(final_results)
+        print(f"[DEBUG] Post-run methods completed in {time.time() - post_run_start:.3f}s")
+
+        total_time = time.time() - start_time
+        print(f"[DEBUG] Total batch execution time: {total_time:.3f}s")
+        self._logger.info(
+            f"Batch execution completed successfully with {len(final_results) if final_results else 0} results"
+        )
+        return final_results
+
     @with_config
     async def run_async(self, *, config: RunConfig) -> "Results":
         """Asynchronously runs the job by conducting interviews and returns their results.
@@ -1438,6 +1804,10 @@ class Jobs(Base):
         >>> len(Jobs.example())
         4
         """
+        # If we have pre-stored interviews (from from_interviews method), count those
+        if hasattr(self, '_interviews') and self._interviews:
+            return len(self._interviews)
+
         number_of_interviews = (
             len(self.agents or [1])
             * len(self.scenarios or [1])

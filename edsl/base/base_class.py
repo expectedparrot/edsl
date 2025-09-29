@@ -24,7 +24,6 @@ import inspect
 
 from .. import logger
 
-import inspect
 
 
 if TYPE_CHECKING:

@@ -4,7 +4,6 @@ Test script to verify the hybrid CSS approach works correctly.
 Tests that traditional CSS classes are in the compiled CSS and React component uses compatible classes.
 """
 
-import os
 from pathlib import Path
 
 def test_traditional_css_classes():
@@ -68,7 +67,7 @@ def test_traditional_css_classes():
 def test_react_component_compatibility():
     """Test that React component uses compatible CSS classes."""
     
-    print(f"\n⚛️ Testing React Component Compatibility")
+    print("\n⚛️ Testing React Component Compatibility")
     print("=" * 50)
     
     react_file = Path(__file__).parent / "src" / "source" / "react_files" / "agent_list_builder.tsx"
@@ -119,7 +118,7 @@ def test_react_component_compatibility():
 def test_compiled_js_compatibility():
     """Test that compiled JavaScript is compatible."""
     
-    print(f"\n🔧 Testing Compiled JavaScript")
+    print("\n🔧 Testing Compiled JavaScript")
     print("=" * 50)
     
     js_file = Path(__file__).parent / "src" / "compiled" / "esm_files" / "agent_list_builder.js"
@@ -178,7 +177,7 @@ def main():
     all_passed = css_test and react_test and js_test
     
     if all_passed:
-        print(f"\n🎉 SUCCESS! Hybrid CSS implementation is working:")
+        print("\n🎉 SUCCESS! Hybrid CSS implementation is working:")
         print("   🎨 Professional container styling from agent_list_manager")
         print("   🔧 React component uses traditional CSS classes")
         print("   🌙 Dark mode support via media queries")
@@ -186,13 +185,13 @@ def main():
         print("   ✨ All buttons, tables, and controls properly styled")
         print("   🚀 No more unstyled Tailwind classes")
         
-        print(f"\n💡 Implementation approach:")
+        print("\n💡 Implementation approach:")
         print("   • CSS: Copied agent_list_manager.css with appropriate class names")
         print("   • React: Updated to use traditional CSS classes instead of Tailwind")
         print("   • Result: Professional styling with clean, maintainable code")
         
     else:
-        print(f"\n❌ Some tests failed. The hybrid approach needs refinement.")
+        print("\n❌ Some tests failed. The hybrid approach needs refinement.")
 
 if __name__ == "__main__":
     main()

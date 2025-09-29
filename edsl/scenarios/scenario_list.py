@@ -39,7 +39,6 @@ import pickle
 
 
 # Import for refactoring to Source classes
-from edsl.scenarios.scenario_source import deprecated_classmethod
 
 from simpleeval import EvalWithCompoundTypes, NameNotDefined  # type: ignore
 from tabulate import tabulate_formats
@@ -52,7 +51,6 @@ except ImportError:
 from ..config import CONFIG
 
 if TYPE_CHECKING:
-    from urllib.parse import ParseResult
     from ..dataset import Dataset
     from ..jobs import Jobs, Job
     from ..surveys import Survey
@@ -244,84 +242,13 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return result
 
     def to_agent_traits(self, agent_name: Optional[str] = None) -> "Agent":
-        """Convert all Scenario objects in this ScenarioList into traits of a single Agent.
-        
-        This method combines all key-value pairs from all Scenario objects into a single
-        Agent's traits. If multiple scenarios have identical keys, the keys are automatically
-        incremented to ensure they remain unique (e.g., 'age' becomes 'age_1', 'age_2', etc.).
-        
-        Args:
-            agent_name: Optional name for the created Agent. If None, a default name is used.
-            
-        Returns:
-            Agent: A new Agent instance with traits from all scenarios in this ScenarioList.
-            
-        Examples:
-            >>> from edsl.scenarios import Scenario, ScenarioList
-            >>> from edsl.agents import Agent
-            >>> 
-            >>> # Create scenarios with some overlapping keys
-            >>> s1 = Scenario({"name": "Alice", "age": 25, "city": "New York"})
-            >>> s2 = Scenario({"name": "Bob", "age": 30, "occupation": "Engineer"})
-            >>> s3 = Scenario({"name": "Charlie", "age": 35, "hobby": "Reading"})
-            >>> 
-            >>> # Convert to agent traits
-            >>> sl = ScenarioList([s1, s2, s3])
-            >>> agent = sl.to_agent_traits("MultiPersona")
-            >>> 
-            >>> # Check the traits
-            >>> agent.traits
-            {'scenario_name': 'Alice', 'age': 25, 'city': 'New York', 'scenario_name_1': 'Bob', 'age_1': 30, 
-             'occupation': 'Engineer', 'scenario_name_2': 'Charlie', 'age_2': 35, 'hobby': 'Reading'}
-            >>> agent.name
-            'MultiPersona'
-            
-        Notes:
-            - Keys are incremented in the order they appear in the ScenarioList
-            - The first occurrence of a key keeps the original name
-            - Subsequent occurrences get incremented names (key_1, key_2, etc.)
-            - All values are preserved, including complex objects
+        """Convert all Scenario objects to traits of a single Agent.
+
+        Delegates to `ScenarioListTransformer.to_agent_traits`.
         """
-        from ..agents import Agent
-        
-        # Collect all traits from all scenarios
-        all_traits = {}
-        key_counts = {}  # Track how many times each key appears
-        
-        for scenario in self.data:
-            # Convert scenario to dict (without EDSL metadata)
-            scenario_dict = scenario.to_dict(add_edsl_version=False)
-            
-            for key, value in scenario_dict.items():
-                # Skip EDSL internal keys
-                if key in ['edsl_version', 'edsl_class_name']:
-                    continue
-                
-                # Handle special case: 'name' conflicts with Agent.name attribute
-                if key == 'name':
-                    key = 'scenario_name'  # Rename to avoid conflict
-                
-                # Handle key conflicts by incrementing
-                if key in all_traits:
-                    # Key already exists, increment it
-                    key_counts[key] = key_counts.get(key, 0) + 1
-                    new_key = f"{key}_{key_counts[key]}"
-                else:
-                    # First occurrence, use original key
-                    key_counts[key] = 0
-                    new_key = key
-                
-                all_traits[new_key] = value
-        
-        # Create agent name if not provided
-        if agent_name is None:
-            agent_name = f"Agent_from_{len(self)}_scenarios"
-        
-        # Create and return the Agent
-        return Agent(
-            traits=all_traits,
-            name=agent_name
-        )
+        from .scenario_list_transformer import ScenarioListTransformer
+
+        return ScenarioListTransformer.to_agent_traits(self, agent_name)
 
     @property
     def has_jinja_braces(self) -> bool:
@@ -430,47 +357,102 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         id_vars: Optional[List[str]] = None,
         value_vars: Optional[List[str]] = None,
     ) -> ScenarioList:
+        """Unpivot the ScenarioList, allowing for id variables.
+
+        Delegates to `ScenarioListTransformer.unpivot`.
         """
-        Unpivot the ScenarioList, allowing for id variables to be specified.
+        from .scenario_list_transformer import ScenarioListTransformer
 
-        Parameters:
-        id_vars (list): Fields to use as identifier variables (kept in each entry)
-        value_vars (list): Fields to unpivot. If None, all fields not in id_vars will be used.
-
-        Example:
-        >>> s = ScenarioList([
-        ...     Scenario({'id': 1, 'year': 2020, 'a': 10, 'b': 20}),
-        ...     Scenario({'id': 2, 'year': 2021, 'a': 15, 'b': 25})
-        ... ])
-        >>> s.unpivot(id_vars=['id', 'year'], value_vars=['a', 'b'])
-        ScenarioList([Scenario({'id': 1, 'year': 2020, 'variable': 'a', 'value': 10}), Scenario({'id': 1, 'year': 2020, 'variable': 'b', 'value': 20}), Scenario({'id': 2, 'year': 2021, 'variable': 'a', 'value': 15}), Scenario({'id': 2, 'year': 2021, 'variable': 'b', 'value': 25})])
-        """
-        if id_vars is None:
-            id_vars = []
-        if value_vars is None:
-            value_vars = [field for field in self[0].keys() if field not in id_vars]
-
-        new_scenarios = ScenarioList(data=[], codebook={})
-        for scenario in self:
-            for var in value_vars:
-                new_scenario = {id_var: scenario[id_var] for id_var in id_vars}
-                new_scenario["variable"] = var
-                new_scenario["value"] = scenario[var]
-                new_scenarios.append(Scenario(new_scenario))
-
-        return new_scenarios
+        return ScenarioListTransformer.unpivot(self, id_vars, value_vars)
     
     def apply(self, func: Callable, field: str, new_name: Optional[str], replace:bool = False) -> ScenarioList:
-        """Apply a function to a field and return a new ScenarioList."""
-        new_scenarios = ScenarioList(data=[], codebook=self.codebook)
-        if new_name is None:
-            new_name = field
+        """Apply a function to a field and return a new ScenarioList.
+
+        Delegates to `ScenarioListTransformer.apply`.
+        """
+        from .scenario_list_transformer import ScenarioListTransformer
+
+        return ScenarioListTransformer.apply(self, func, field, new_name, replace)
+
+    def zip(self, field_a: str, field_b: str, new_name: str) -> ScenarioList:
+        """Zip two iterable fields in each Scenario into a dict under a new key.
+
+        For every Scenario in the list, this method computes
+        ``dict(zip(scenario[field_a], scenario[field_b]))`` and stores the result
+        in a new key named ``new_name``. It returns a new ScenarioList containing
+        the updated Scenarios.
+
+        Args:
+            field_a: Name of the first iterable field whose values become dict keys.
+            field_b: Name of the second iterable field whose values become dict values.
+            new_name: Name of the new field to store the resulting dictionary under.
+
+        Returns:
+            A new ScenarioList with the zipped dictionary added to each Scenario.
+
+        Raises:
+            KeyError: If either field name does not exist in any Scenario.
+            ScenarioError: If referenced fields are not iterable in any Scenario.
+
+        Examples:
+            >>> sl = ScenarioList([
+            ...     Scenario({"keys": ["a", "b"], "vals": [1, 2]}),
+            ...     Scenario({"keys": ["x", "y"], "vals": [9, 8]}),
+            ... ])
+            >>> sl2 = sl.zip("keys", "vals", "mapping")
+            >>> sl2[0]["mapping"], sl2[1]["mapping"]
+            ({'a': 1, 'b': 2}, {'x': 9, 'y': 8})
+        """
+        new_list = ScenarioList(data=[], codebook=self.codebook)
         for scenario in self:
-            scenario[new_name] = func(scenario[field])
-            if replace:
-                del scenario[field]
-            new_scenarios.append(scenario)
-        return new_scenarios
+            new_list.append(scenario.zip(field_a, field_b, new_name))
+        return new_list
+
+    def add_scenario_reference(self, key, scenario_field_name: str) -> ScenarioList:
+        """Add a reference to the scenario to a field across all Scenarios."""
+        new_list = ScenarioList(data=[], codebook=self.codebook)
+        for scenario in self:
+            scenario[key] = scenario[key] + "{{ scenario." + scenario_field_name + " }}"
+            new_list.append(scenario)
+        return new_list
+
+    def string_cat(
+        self,
+        key: str,
+        addend: str,
+        position: str = "suffix",
+        inplace: bool = False,
+    ) -> ScenarioList:
+        """Concatenate a string to a field across all Scenarios.
+
+        Applies the same behavior as ``Scenario.string_cat`` to each Scenario in the list.
+        By default, returns a new ``ScenarioList``; set ``inplace=True`` to modify this list.
+
+        Args:
+            key: The key whose value will be concatenated in each Scenario.
+            addend: The string to concatenate to the existing value.
+            position: Either "suffix" (default) or "prefix".
+            inplace: If True, modify scenarios in place and return self.
+
+        Returns:
+            A ``ScenarioList`` with updated Scenarios.
+
+        Raises:
+            KeyError: If ``key`` is missing in any Scenario.
+            TypeError: If any value under ``key`` is not a string.
+            ValueError: If ``position`` is not "suffix" or "prefix".
+        """
+        if inplace:
+            for scenario in self:
+                scenario.string_cat(key, addend, position=position, inplace=True)
+            return self
+
+        new_list = ScenarioList(data=[], codebook=self.codebook)
+        for scenario in self:
+            new_list.append(
+                scenario.string_cat(key, addend, position=position, inplace=False)
+            )
+        return new_list
 
     def transform_by_key(self, key_field: str) -> Scenario:
         """Transform the ScenarioList into a single Scenario with key/value pairs.
@@ -581,101 +563,24 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         var_name="variable",
         value_name="value",
     ) -> ScenarioList:
+        """Pivot the ScenarioList from long to wide format.
+
+        Delegates to `ScenarioListTransformer.pivot`.
         """
-        Pivot the ScenarioList from long to wide format.
+        from .scenario_list_transformer import ScenarioListTransformer
 
-        Parameters:
-        id_vars (list): Fields to use as identifier variables
-        var_name (str): Name of the variable column (default: 'variable')
-        value_name (str): Name of the value column (default: 'value')
-
-        Example:
-        >>> s = ScenarioList([
-        ...     Scenario({'id': 1, 'year': 2020, 'variable': 'a', 'value': 10}),
-        ...     Scenario({'id': 1, 'year': 2020, 'variable': 'b', 'value': 20}),
-        ...     Scenario({'id': 2, 'year': 2021, 'variable': 'a', 'value': 15}),
-        ...     Scenario({'id': 2, 'year': 2021, 'variable': 'b', 'value': 25})
-        ... ])
-        >>> s.pivot(id_vars=['id', 'year'])
-        ScenarioList([Scenario({'id': 1, 'year': 2020, 'a': 10, 'b': 20}), Scenario({'id': 2, 'year': 2021, 'a': 15, 'b': 25})])
-        """
-        pivoted_dict = {}
-
-        for scenario in self:
-            # Create a tuple of id values to use as a key
-            id_key = tuple(scenario[id_var] for id_var in id_vars)
-
-            # If this combination of id values hasn't been seen before, initialize it
-            if id_key not in pivoted_dict:
-                pivoted_dict[id_key] = {id_var: scenario[id_var] for id_var in id_vars}
-
-            # Add the variable-value pair to the dict
-            variable = scenario[var_name]
-            value = scenario[value_name]
-            pivoted_dict[id_key][variable] = value
-
-        new_sl = ScenarioList(data=[], codebook=self.codebook)
-        for id_key, values in pivoted_dict.items():
-            new_sl.append(Scenario(dict(zip(id_vars, id_key), **values)))
-        return new_sl
+        return ScenarioListTransformer.pivot(self, id_vars, var_name, value_name)
 
     def group_by(
         self, id_vars: List[str], variables: List[str], func: Callable
     ) -> ScenarioList:
+        """Group the ScenarioList by id_vars and apply a function.
+
+        Delegates to `ScenarioListTransformer.group_by`.
         """
-        Group the ScenarioList by id_vars and apply a function to the specified variables.
+        from .scenario_list_transformer import ScenarioListTransformer
 
-        :param id_vars: Fields to use as identifier variables
-        :param variables: Fields to group and aggregate
-        :param func: Function to apply to the grouped variables
-
-        Returns:
-        ScenarioList: A new ScenarioList with the grouped and aggregated results
-
-        Example:
-        >>> def avg_sum(a, b):
-        ...     return {'avg_a': sum(a) / len(a), 'sum_b': sum(b)}
-        >>> s = ScenarioList([
-        ...     Scenario({'group': 'A', 'year': 2020, 'a': 10, 'b': 20}),
-        ...     Scenario({'group': 'A', 'year': 2021, 'a': 15, 'b': 25}),
-        ...     Scenario({'group': 'B', 'year': 2020, 'a': 12, 'b': 22}),
-        ...     Scenario({'group': 'B', 'year': 2021, 'a': 17, 'b': 27})
-        ... ])
-        >>> s.group_by(id_vars=['group'], variables=['a', 'b'], func=avg_sum)
-        ScenarioList([Scenario({'group': 'A', 'avg_a': 12.5, 'sum_b': 45}), Scenario({'group': 'B', 'avg_a': 14.5, 'sum_b': 49})])
-        """
-        # Check if the function is compatible with the specified variables
-        func_params = inspect.signature(func).parameters
-        if len(func_params) != len(variables):
-            raise ScenarioError(
-                f"Function {func.__name__} expects {len(func_params)} arguments, but {len(variables)} variables were provided"
-            )
-
-        # Group the scenarios
-        grouped: dict[str, list] = defaultdict(lambda: defaultdict(list))
-        for scenario in self:
-            key = tuple(scenario[id_var] for id_var in id_vars)
-            for var in variables:
-                grouped[key][var].append(scenario[var])
-
-        # Apply the function to each group
-        new_sl = ScenarioList(data=[], codebook=self.codebook)
-        for key, group in grouped.items():
-            try:
-                aggregated = func(*[group[var] for var in variables])
-            except Exception as e:
-                raise ScenarioError(f"Error applying function to group {key}: {str(e)}")
-
-            if not isinstance(aggregated, dict):
-                raise ScenarioError(
-                    f"Function {func.__name__} must return a dictionary"
-                )
-
-            new_scenario = dict(zip(id_vars, key))
-            new_scenario.update(aggregated)
-            new_sl.append(Scenario(new_scenario))
-
-        return new_sl
+        return ScenarioListTransformer.group_by(self, id_vars, variables, func)
 
     @property
     def parameters(self) -> set:
@@ -840,68 +745,19 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     ) -> ScenarioList:
         """Private method to handle concatenation logic for different output types.
 
-        :param fields: The fields to concatenate.
-        :param output_type: The type of output ("string", "list", or "set").
-        :param separator: The separator to use for string concatenation.
-        :param prefix: String to prepend to each value before concatenation.
-        :param postfix: String to append to each value before concatenation.
-        :param new_field_name: Optional custom name for the concatenated field.
-                             If None, defaults to "concat_field1_field2_..."
-
-        Returns:
-            ScenarioList: A new ScenarioList with concatenated fields.
+        Delegates to `ScenarioListTransformer._concatenate` for implementation.
         """
-        # Check if fields is a string and raise an exception
-        if isinstance(fields, str):
-            raise ScenarioError(
-                f"The 'fields' parameter must be a list of field names, not a string. Got '{fields}'."
-            )
+        from .scenario_list_transformer import ScenarioListTransformer
 
-        new_scenarios = []
-        for scenario in self:
-            new_scenario = scenario.copy()
-            values = []
-            for field in fields:
-                if field in new_scenario:
-                    values.append(new_scenario[field])
-                    del new_scenario[field]
-
-            field_name = (
-                new_field_name
-                if new_field_name is not None
-                else f"concat_{'_'.join(fields)}"
-            )
-
-            if output_type == "string":
-                # Apply prefix and postfix to each value, then join with separator
-                formatted_values = [f"{prefix}{str(v)}{postfix}" for v in values]
-                new_scenario[field_name] = separator.join(formatted_values)
-            elif output_type == "list":
-                # Apply prefix and postfix to each value if they are strings
-                if prefix or postfix:
-                    formatted_values = [f"{prefix}{str(v)}{postfix}" for v in values]
-                    new_scenario[field_name] = formatted_values
-                else:
-                    # Keep as original list if no prefix/postfix
-                    new_scenario[field_name] = values
-            elif output_type == "set":
-                # Apply prefix and postfix to each value if they are strings, then convert to set
-                if prefix or postfix:
-                    formatted_values = [f"{prefix}{str(v)}{postfix}" for v in values]
-                    new_scenario[field_name] = set(formatted_values)
-                else:
-                    # Convert to a set (removes duplicates)
-                    new_scenario[field_name] = set(values)
-            else:
-                from .exceptions import ValueScenarioError
-
-                raise ValueScenarioError(
-                    f"Invalid output_type: {output_type}. Must be 'string', 'list', or 'set'."
-                )
-
-            new_scenarios.append(new_scenario)
-
-        return ScenarioList(new_scenarios)
+        return ScenarioListTransformer._concatenate(
+            self,
+            fields,
+            output_type=output_type,
+            separator=separator,
+            prefix=prefix,
+            postfix=postfix,
+            new_field_name=new_field_name,
+        )
 
     def concatenate(
         self,
@@ -913,27 +769,13 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     ) -> ScenarioList:
         """Concatenate specified fields into a single string field.
 
-        :param fields: The fields to concatenate.
-        :param separator: The separator to use.
-        :param prefix: String to prepend to each value before concatenation.
-        :param postfix: String to append to each value before concatenation.
-        :param new_field_name: Optional custom name for the concatenated field.
-
-        Returns:
-            ScenarioList: A new ScenarioList with concatenated fields.
-
-        Example:
-            >>> s = ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 4, 'b': 5, 'c': 6})])
-            >>> s.concatenate(['a', 'b', 'c'])
-            ScenarioList([Scenario({'concat_a_b_c': '1;2;3'}), Scenario({'concat_a_b_c': '4;5;6'})])
-            >>> s.concatenate(['a', 'b', 'c'], new_field_name='combined')
-            ScenarioList([Scenario({'combined': '1;2;3'}), Scenario({'combined': '4;5;6'})])
-            >>> s.concatenate(['a', 'b', 'c'], prefix='[', postfix=']')
-            ScenarioList([Scenario({'concat_a_b_c': '[1];[2];[3]'}), Scenario({'concat_a_b_c': '[4];[5];[6]'})])
+        Delegates to `ScenarioListTransformer.concatenate` for implementation.
         """
-        return self._concatenate(
+        from .scenario_list_transformer import ScenarioListTransformer
+
+        return ScenarioListTransformer.concatenate(
+            self,
             fields,
-            output_type="string",
             separator=separator,
             prefix=prefix,
             postfix=postfix,
@@ -949,26 +791,13 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     ) -> ScenarioList:
         """Concatenate specified fields into a single list field.
 
-        :param fields: The fields to concatenate.
-        :param prefix: String to prepend to each value before concatenation.
-        :param postfix: String to append to each value before concatenation.
-        :param new_field_name: Optional custom name for the concatenated field.
-
-        Returns:
-            ScenarioList: A new ScenarioList with fields concatenated into a list.
-
-        Example:
-            >>> s = ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 4, 'b': 5, 'c': 6})])
-            >>> s.concatenate_to_list(['a', 'b', 'c'])
-            ScenarioList([Scenario({'concat_a_b_c': [1, 2, 3]}), Scenario({'concat_a_b_c': [4, 5, 6]})])
-            >>> s.concatenate_to_list(['a', 'b', 'c'], new_field_name='values')
-            ScenarioList([Scenario({'values': [1, 2, 3]}), Scenario({'values': [4, 5, 6]})])
-            >>> s.concatenate_to_list(['a', 'b', 'c'], prefix='[', postfix=']')
-            ScenarioList([Scenario({'concat_a_b_c': ['[1]', '[2]', '[3]']}), Scenario({'concat_a_b_c': ['[4]', '[5]', '[6]']})])
+        Delegates to `ScenarioListTransformer.concatenate_to_list` for implementation.
         """
-        return self._concatenate(
+        from .scenario_list_transformer import ScenarioListTransformer
+
+        return ScenarioListTransformer.concatenate_to_list(
+            self,
             fields,
-            output_type="list",
             prefix=prefix,
             postfix=postfix,
             new_field_name=new_field_name,
@@ -983,33 +812,13 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     ) -> ScenarioList:
         """Concatenate specified fields into a single set field.
 
-        :param fields: The fields to concatenate.
-        :param prefix: String to prepend to each value before concatenation.
-        :param postfix: String to append to each value before concatenation.
-        :param new_field_name: Optional custom name for the concatenated field.
-
-        Returns:
-            ScenarioList: A new ScenarioList with fields concatenated into a set.
-
-        Example:
-            >>> s = ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 4, 'b': 5, 'c': 6})])
-            >>> result = s.concatenate_to_set(['a', 'b', 'c'])
-            >>> result[0]['concat_a_b_c'] == {1, 2, 3}
-            True
-            >>> result[1]['concat_a_b_c'] == {4, 5, 6}
-            True
-            >>> result = s.concatenate_to_set(['a', 'b', 'c'], new_field_name='unique_values')
-            >>> result[0]['unique_values'] == {1, 2, 3}
-            True
-            >>> result = s.concatenate_to_set(['a', 'b', 'c'], prefix='[', postfix=']')
-            >>> result[0]['concat_a_b_c'] == {'[1]', '[2]', '[3]'}
-            True
-            >>> result[1]['concat_a_b_c'] == {'[4]', '[5]', '[6]'}
-            True
+        Delegates to `ScenarioListTransformer.concatenate_to_set` for implementation.
         """
-        return self._concatenate(
+        from .scenario_list_transformer import ScenarioListTransformer
+
+        return ScenarioListTransformer.concatenate_to_set(
+            self,
             fields,
-            output_type="set",
             prefix=prefix,
             postfix=postfix,
             new_field_name=new_field_name,
@@ -1020,114 +829,42 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     ) -> ScenarioList:
         """Unpack a dictionary field into separate fields.
 
-        :param field: The field to unpack.
-        :param prefix: An optional prefix to add to the new fields.
-        :param drop_field: Whether to drop the original field.
-
-        Example:
-
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': {'c': 2, 'd': 3}})])
-        >>> s.unpack_dict('b')
-        ScenarioList([Scenario({'a': 1, 'b': {'c': 2, 'd': 3}, 'c': 2, 'd': 3})])
-        >>> s.unpack_dict('b', prefix='new_')
-        ScenarioList([Scenario({'a': 1, 'b': {'c': 2, 'd': 3}, 'new_c': 2, 'new_d': 3})])
+        Delegates to `ScenarioListTransformer.unpack_dict`.
         """
-        new_scenarios = []
-        for scenario in self:
-            new_scenario = scenario.copy()
-            for key, value in scenario[field].items():
-                if prefix:
-                    new_scenario[prefix + key] = value
-                else:
-                    new_scenario[key] = value
-            if drop_field:
-                new_scenario.pop(field)
-            new_scenarios.append(new_scenario)
-        return ScenarioList(new_scenarios)
+        from .scenario_list_transformer import ScenarioListTransformer
+
+        return ScenarioListTransformer.unpack_dict(self, field, prefix, drop_field)
 
     def transform(
         self, field: str, func: Callable, new_name: Optional[str] = None
     ) -> ScenarioList:
         """Transform a field using a function.
 
-        :param field: The field to transform.
-        :param func: The function to apply to the field.
-        :param new_name: An optional new name for the transformed field.
-
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
-        >>> s.transform('b', lambda x: x + 1)
-        ScenarioList([Scenario({'a': 1, 'b': 3}), Scenario({'a': 1, 'b': 2})])
-
+        Delegates to `ScenarioListTransformer.transform`.
         """
-        new_scenarios = []
-        for scenario in self:
-            new_scenario = scenario.copy()
-            new_scenario[new_name or field] = func(scenario[field])
-            new_scenarios.append(new_scenario)
-        return ScenarioList(new_scenarios)
+        from .scenario_list_transformer import ScenarioListTransformer
+
+        return ScenarioListTransformer.transform(self, field, func, new_name)
 
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict[str, Callable]] = None
     ) -> ScenarioList:
+        """Return a new ScenarioList with a new variable added.
+
+        Delegates to `ScenarioListTransformer.mutate`.
         """
-        Return a new ScenarioList with a new variable added.
+        from .scenario_list_transformer import ScenarioListTransformer
 
-        :param new_var_string: A string with the new variable assignment.
-        :param functions_dict: A dictionary of functions to use in the assignment.
-
-        Example:
-
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
-        >>> s.mutate("c = a + b")
-        ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 1, 'b': 1, 'c': 2})])
-
-        """
-        if "=" not in new_var_string:
-            raise ScenarioError(
-                f"Mutate requires an '=' in the string, but '{new_var_string}' doesn't have one."
-            )
-        raw_var_name, expression = new_var_string.split("=", 1)
-        var_name = raw_var_name.strip()
-
-        if not is_valid_variable_name(var_name):
-            raise ScenarioError(f"{var_name} is not a valid variable name.")
-
-        # create the evaluator
-        functions_dict = functions_dict or {}
-
-        def create_evaluator(scenario) -> EvalWithCompoundTypes:
-            return EvalWithCompoundTypes(names=scenario, functions=functions_dict)
-
-        def new_scenario(old_scenario: Scenario, var_name: str) -> Scenario:
-            evaluator = create_evaluator(old_scenario)
-            value = evaluator.eval(expression)
-            new_s = old_scenario.copy()
-            new_s[var_name] = value
-            return new_s
-
-        try:
-            new_data = [new_scenario(s, var_name) for s in self]
-        except Exception as e:
-            raise ScenarioError(f"Error in mutate. Exception:{e}")
-
-        return ScenarioList(new_data)
+        return ScenarioListTransformer.mutate(self, new_var_string, functions_dict)
 
     def order_by(self, *fields: str, reverse: bool = False) -> ScenarioList:
         """Order the scenarios by one or more fields.
 
-        :param fields: The fields to order by.
-        :param reverse: Whether to reverse the order.
-        Example:
-
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
-        >>> s.order_by('b', 'a')
-        ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+        Delegates to `ScenarioListTransformer.order_by`.
         """
+        from .scenario_list_transformer import ScenarioListTransformer
 
-        def get_sort_key(scenario: Any) -> tuple:
-            return tuple(scenario[field] for field in fields)
-
-        return ScenarioList(sorted(self.data, key=get_sort_key, reverse=reverse))
+        return ScenarioListTransformer.order_by(self, list(fields), reverse)
 
     def duplicate(self) -> ScenarioList:
         """Return a copy of the ScenarioList using streaming to avoid loading everything into memory.
@@ -1181,82 +918,13 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
     @memory_profile
     def filter(self, expression: str) -> ScenarioList:
+        """Filter a list of scenarios based on an expression.
+
+        Delegates to `ScenarioListTransformer.filter`.
         """
-        Filter a list of scenarios based on an expression.
+        from .scenario_list_transformer import ScenarioListTransformer
 
-        :param expression: The expression to filter by.
-
-        Example:
-
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
-        >>> s.filter("b == 2")
-        ScenarioList([Scenario({'a': 1, 'b': 2})])
-        """
-        # Get first item to check keys if available
-        try:
-            first_item = self[0] if len(self) > 0 else None
-            if first_item:
-                # Check for ragged keys by examining a sample of scenarios
-                # rather than iterating through all of them
-                sample_size = min(len(self), 100)  # Check at most 100 scenarios
-                base_keys = set(first_item.keys())
-                keys = set()
-
-                # Use a counter to check only the sample_size
-                count = 0
-                for scenario in self:
-                    keys.update(scenario.keys())
-                    count += 1
-                    if count >= sample_size:
-                        break
-
-                if keys != base_keys:
-                    import warnings
-
-                    warnings.warn(
-                        "Ragged ScenarioList detected (different keys for different scenario entries). This may cause unexpected behavior."
-                    )
-        except IndexError:
-            pass
-
-        # Create new ScenarioList with filtered data
-        new_sl = ScenarioList(data=[], codebook=self.codebook)
-
-        def create_evaluator(scenario: Scenario):
-            """Create an evaluator for the given scenario."""
-            return EvalWithCompoundTypes(names=scenario)
-
-        try:
-            # Process one scenario at a time to minimize memory usage
-            for scenario in self:
-                # Check if scenario matches the filter expression
-                if create_evaluator(scenario).eval(expression):
-                    # Create a copy and immediately append to the new list
-                    scenario_copy = scenario.copy()
-                    new_sl.append(scenario_copy)
-
-                    # Remove reference to allow for garbage collection
-                    del scenario_copy
-
-        except NameNotDefined as e:
-            # Get available fields for error message
-            try:
-                first_item = self[0] if len(self) > 0 else None
-                available_fields = ", ".join(first_item.keys() if first_item else [])
-            except Exception:
-                available_fields = "unknown"
-
-            raise ScenarioError(
-                f"Error in filter: '{e}'\n"
-                f"The expression '{expression}' refers to a field that does not exist.\n"
-                f"Available fields: {available_fields}\n"
-                "Check your filter expression or consult the documentation: "
-                "https://docs.expectedparrot.com/en/latest/scenarios.html#module-edsl.scenarios.Scenario"
-            ) from None
-        except Exception as e:
-            raise ScenarioError(f"Error in filter. Exception:{e}")
-
-        return new_sl
+        return ScenarioListTransformer.filter(self, expression)
 
     @classmethod
     def from_urls(
@@ -1476,35 +1144,33 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def reorder_keys(self, new_order: List[str]) -> ScenarioList:
         """Reorder the keys in the scenarios.
 
-        :param new_order: The new order of the keys.
-
-        Example:
-
-        # Example:
-        # s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 3, 'b': 4})])
-        # s.reorder_keys(['b', 'a'])  # Returns a new ScenarioList with reordered keys
-        # Attempting s.reorder_keys(['a', 'b', 'c']) would fail as 'c' is not a valid key
+        Delegates to `ScenarioListTransformer.reorder_keys`.
         """
-        assert set(new_order) == set(self.parameters)
+        from .scenario_list_transformer import ScenarioListTransformer
 
-        new_sl = ScenarioList(data=[], codebook=self.codebook)
-        for scenario in self:
-            new_scenario = Scenario({key: scenario[key] for key in new_order})
-            new_sl.append(new_scenario)
-        return new_sl
+        return ScenarioListTransformer.reorder_keys(self, new_order)
 
     def to_survey(self) -> "Survey":
         from ..questions import QuestionBase
         from ..surveys import Survey
 
+
         s = Survey()
-        for scenario in self:
+        for index, scenario in enumerate(self):
             d = scenario.to_dict(add_edsl_version=False)
             if d["question_type"] == "free_text":
                 if "question_options" in d:
                     _ = d.pop("question_options")
-            question = QuestionBase.from_dict(d)
+            if 'question_name' not in d or d['question_name'] == None:
+                d['question_name'] = f"question_{index}"
+
+            if d['question_type'] == None:
+                d['question_type'] = "free_text"
+                d['question_options'] = None
+            new_d = d
+            question = QuestionBase.from_dict(new_d)
             s.add_question(question)
+
         return s
 
     def to_dataset(self) -> "Dataset":
@@ -1534,54 +1200,35 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ]
         return Dataset(data)
 
+    def to_scenario_of_lists(self) -> "Scenario":
+        """Return a single Scenario whose values are lists across the list.
+
+        The resulting Scenario contains every key that appears in any member
+        of the list. For each key, the value is a list of that key's values
+        taken row-wise from the ScenarioList, padding with None when a row is
+        missing the key.
+
+        >>> s = ScenarioList.from_list("a", [1, 2, 3])
+        >>> s.to_scenario_of_lists()
+        Scenario({'a': [1, 2, 3]})
+        >>> s2 = ScenarioList([Scenario({'a': 1}), Scenario({'b': 2})])
+        >>> s2.to_scenario_of_lists()
+        Scenario({'a': [1, None], 'b': [None, 2]})
+        """
+        from .scenario_list_transformer import ScenarioListTransformer
+
+        return ScenarioListTransformer.to_scenario_of_lists(self)
+
     def unpack(
         self, field: str, new_names: Optional[List[str]] = None, keep_original=True
     ) -> ScenarioList:
         """Unpack a field into multiple fields.
 
-        Example:
-
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': [2, True]}), Scenario({'a': 3, 'b': [3, False]})])
-        >>> s.unpack('b')
-        ScenarioList([Scenario({'a': 1, 'b': [2, True], 'b_0': 2, 'b_1': True}), Scenario({'a': 3, 'b': [3, False], 'b_0': 3, 'b_1': False})])
-        >>> s.unpack('b', new_names=['c', 'd'], keep_original=False)
-        ScenarioList([Scenario({'a': 1, 'c': 2, 'd': True}), Scenario({'a': 3, 'c': 3, 'd': False})])
-
+        Delegates to `ScenarioListTransformer.unpack`.
         """
-        new_names = new_names or [f"{field}_{i}" for i in range(len(self[0][field]))]
-        new_sl = ScenarioList(data=[], codebook=self.codebook)
-        for scenario in self:
-            new_scenario = scenario.copy()
-            if len(new_names) == 1:
-                new_scenario[new_names[0]] = scenario[field]
-            else:
-                for i, new_name in enumerate(new_names):
-                    new_scenario[new_name] = scenario[field][i]
+        from .scenario_list_transformer import ScenarioListTransformer
 
-            if not keep_original:
-                del new_scenario[field]
-            new_sl.append(new_scenario)
-        return new_sl
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('list_of_tuples', ...)")
-    def from_list_of_tuples(
-        cls, field_names: list[str], values: list[tuple], use_indexes: bool = False
-    ) -> ScenarioList:
-        """Create a ScenarioList from a list of tuples with specified field names.
-
-        Args:
-            field_names: A list of field names for the tuples
-            values: A list of tuples with values matching the field_names
-            use_indexes: Whether to add an index field to each scenario
-
-        Returns:
-            A ScenarioList containing the data from the tuples
-        """
-        from .scenario_source import TuplesSource
-
-        source = TuplesSource(field_names, values, use_indexes)
-        return source.to_scenario_list()
+        return ScenarioListTransformer.unpack(self, field, new_names, keep_original)
 
     def add_list(self, name: str, values: List[Any]) -> ScenarioList:
         """Add a list of values to a ScenarioList.
@@ -1727,169 +1374,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         replacement_dict = dict(zip(old_names, new_names))
         return self.rename(replacement_dict)
 
-    ## NEEDS TO BE FIXED
-    # def new_column_names(self, new_names: List[str]) -> ScenarioList:
-    #     """Rename the fields in the scenarios.
-
-    #     Example:
-
-    #     >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
-    #     >>> s.new_column_names(['first_name', 'years'])
-    #     ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
-
-    #     """
-    #     new_list = ScenarioList([])
-    #     for obj in self:
-    #         new_obj = obj.new_column_names(new_names)
-    #         new_list.append(new_obj)
-    #     return new_list
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('sqlite', ...)")
-    def from_sqlite(
-        cls, filepath: str, table: Optional[str] = None, sql_query: Optional[str] = None
-    ):
-        """Create a ScenarioList from a SQLite database.
-
-        Args:
-            filepath (str): Path to the SQLite database file
-            table (Optional[str]): Name of table to query. If None, sql_query must be provided.
-            sql_query (Optional[str]): SQL query to execute. Used if table is None.
-
-        Returns:
-            ScenarioList: List of scenarios created from database rows
-
-        Raises:
-            ValueError: If both table and sql_query are None
-            sqlite3.Error: If there is an error executing the database query
-        """
-        from .scenario_source import SQLiteSource
-
-        # Handle the case where sql_query is provided instead of table
-        if table is None and sql_query is None:
-            from .exceptions import ValueScenarioError
-
-            raise ValueScenarioError("Either table or sql_query must be provided")
-
-        if table is None:
-            # We need to use the old implementation for SQL queries
-            import sqlite3
-
-            try:
-                with sqlite3.connect(filepath) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute(sql_query)
-                    columns = [description[0] for description in cursor.description]
-                    data = cursor.fetchall()
-
-                return cls([Scenario(dict(zip(columns, row))) for row in data])
-
-            except sqlite3.Error as e:
-                raise sqlite3.Error(f"Database error occurred: {str(e)}")
-        else:
-            # If a table is specified, use SQLiteSource
-            source = SQLiteSource(filepath, table)
-            return source.to_scenario_list()
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('latex', ...)")
-    def from_latex(
-        cls, tex_file_path: str, table_index: int = 0, has_header: bool = True
-    ):
-        """Create a ScenarioList from a LaTeX file.
-
-        Args:
-            tex_file_path: The path to the LaTeX file.
-            table_index: The index of the table to extract (if multiple tables exist).
-                Default is 0 (first table).
-            has_header: Whether the table has a header row. Default is True.
-
-        Returns:
-            ScenarioList: A new ScenarioList containing the data from the LaTeX table.
-        """
-        from .scenario_source import LaTeXSource
-
-        source = LaTeXSource(tex_file_path, table_index, has_header)
-        return source.to_scenario_list()
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('google_doc', ...)")
-    def from_google_doc(cls, url: str) -> ScenarioList:
-        """Create a ScenarioList from a Google Doc.
-
-        This method downloads the Google Doc as a Word file (.docx), saves it to a temporary file,
-        and then reads it using the from_docx class method.
-
-        Args:
-            url (str): The URL to the Google Doc.
-
-        Returns:
-            ScenarioList: An instance of the ScenarioList class.
-
-        """
-        from .scenario_source import GoogleDocSource
-
-        source = GoogleDocSource(url)
-        return source.to_scenario_list()
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('pandas', ...)")
-    def from_pandas(cls, df) -> ScenarioList:
-        """Create a ScenarioList from a pandas DataFrame.
-
-        Example:
-
-        >>> import pandas as pd
-        >>> from edsl.scenarios.scenario_source import ScenarioSource
-        >>> df = pd.DataFrame({'name': ['Alice', 'Bob'], 'age': [30, 25], 'location': ['New York', 'Los Angeles']})
-        >>> ScenarioSource.from_source('pandas', df)
-        ScenarioList([Scenario({'name': 'Alice', 'age': 30, 'location': 'New York'}), Scenario({'name': 'Bob', 'age': 25, 'location': 'Los Angeles'})])
-        """
-        from .scenario_source import PandasSource
-
-        source = PandasSource(df)
-        return source.to_scenario_list()
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('dta', ...)")
-    def from_dta(cls, filepath: str, include_metadata: bool = True) -> ScenarioList:
-        """Create a ScenarioList from a Stata file.
-
-        Args:
-            filepath (str): Path to the Stata (.dta) file
-            include_metadata (bool): If True, extract and preserve variable labels and value labels
-                                    as additional metadata in the ScenarioList
-
-        Returns:
-            ScenarioList: A ScenarioList containing the data from the Stata file
-        """
-        from .scenario_source import StataSource
-
-        source = StataSource(filepath, include_metadata)
-        return source.to_scenario_list()
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('wikipedia', ...)")
-    def from_wikipedia(cls, url: str, table_index: int = 0, header: bool = True):
-        """
-        Extracts a table from a Wikipedia page.
-
-        Parameters:
-            url (str): The URL of the Wikipedia page.
-            table_index (int): The index of the table to extract (default is 0).
-            header (bool): Whether the table has a header row (default is True).
-
-        Returns:
-            ScenarioList: A ScenarioList containing data from the Wikipedia table.
-
-        Example usage:
-            url = "https://en.wikipedia.org/wiki/List_of_countries_by_GDP_(nominal)"
-            scenarios = ScenarioList.from_wikipedia(url, 0)
-        """
-        from .scenario_source import WikipediaSource
-
-        source = WikipediaSource(url, table_index, header)
-        return source.to_scenario_list()
 
     def to_key_value(self, field: str, value=None) -> Union[dict, set]:
         """Return the set of values in the field.
@@ -1907,210 +1391,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             return {scenario[field] for scenario in self}
         else:
             return {scenario[field]: scenario[value] for scenario in self}
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('excel', ...)")
-    def from_excel(
-        cls,
-        filename: str,
-        sheet_name: Optional[str] = None,
-        skip_rows: Optional[List[int]] = None,
-        use_codebook: bool = False,
-        **kwargs,
-    ) -> ScenarioList:
-        """Create a ScenarioList from an Excel file.
-
-        If the Excel file contains multiple sheets and no sheet_name is provided,
-        the method will print the available sheets and require the user to specify one.
-
-        Args:
-            filename (str): Path to the Excel file
-            sheet_name (Optional[str]): Name of the sheet to load. If None and multiple sheets exist,
-                                      will raise an error listing available sheets.
-            skip_rows (Optional[List[int]]): List of row indices to skip (0-based). If None, all rows are included.
-            use_codebook (bool): If True, rename columns to standard format and store original names in codebook.
-            **kwargs: Additional parameters to pass to pandas.read_excel.
-
-        Example:
-
-        >>> import tempfile
-        >>> import os
-        >>> import pandas as pd
-        >>> with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as f:
-        ...     df1 = pd.DataFrame({
-        ...         'name': ['Alice', 'Bob', 'Charlie'],
-        ...         'age': [30, 25, 35],
-        ...         'location': ['New York', 'Los Angeles', 'Chicago']
-        ...     })
-        ...     df2 = pd.DataFrame({
-        ...         'name': ['David', 'Eve'],
-        ...         'age': [40, 45],
-        ...         'location': ['Boston', 'Seattle']
-        ...     })
-        ...     with pd.ExcelWriter(f.name) as writer:
-        ...         df1.to_excel(writer, sheet_name='Sheet1', index=False)
-        ...         df2.to_excel(writer, sheet_name='Sheet2', index=False)
-        ...     temp_filename = f.name
-        >>> # Load all rows
-        >>> from edsl.scenarios.scenario_source import ScenarioSource
-        >>> scenario_list = ScenarioSource.from_source('excel', temp_filename, sheet_name='Sheet1')
-        >>> len(scenario_list)
-        3
-        >>> # Skip the second row (index 1)
-        >>> scenario_list = ScenarioSource.from_source('excel', temp_filename, sheet_name='Sheet1', skip_rows=[1])
-        >>> len(scenario_list)
-        2
-        >>> scenario_list[0]['name']
-        'Alice'
-        >>> scenario_list[1]['name']
-        'Charlie'
-        """
-        from .scenario_source import ExcelSource
-
-        source = ExcelSource(
-            file_path=filename,
-            sheet_name=sheet_name,
-            skip_rows=skip_rows,
-            use_codebook=use_codebook,
-            **kwargs,
-        )
-        return source.to_scenario_list()
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('google_sheet', ...)")
-    def from_google_sheet(
-        cls,
-        url: str,
-        sheet_name: str = None,
-        column_names: Optional[List[str]] = None,
-        **kwargs,
-    ) -> ScenarioList:
-        """Create a ScenarioList from a Google Sheet.
-
-        This method downloads the Google Sheet as an Excel file, saves it to a temporary file,
-        and then reads it using the from_excel class method.
-
-        Args:
-            url (str): The URL to the Google Sheet.
-            sheet_name (str, optional): The name of the sheet to load. If None, the method will behave
-                                        the same as from_excel regarding multiple sheets.
-            column_names (List[str], optional): If provided, use these names for the columns instead
-                                              of the default column names from the sheet.
-            **kwargs: Additional parameters to pass to pandas.read_excel.
-
-        Returns:
-            ScenarioList: An instance of the ScenarioList class.
-
-        """
-        from .scenario_source import GoogleSheetSource
-
-        source = GoogleSheetSource(
-            url, sheet_name=sheet_name, column_names=column_names, **kwargs
-        )
-        return source.to_scenario_list()
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('delimited_file', ...)")
-    def from_delimited_file(
-        cls,
-        source: Union[str, "ParseResult"],
-        delimiter: str = ",",
-        encoding: str = "utf-8",
-        **kwargs,
-    ) -> ScenarioList:
-        """Create a ScenarioList from a delimited file (CSV/TSV) or URL.
-
-        Args:
-            source: Path to a local file or URL to a remote file.
-            delimiter: The delimiter character used in the file (default is ',').
-            encoding: The file encoding to use (default is 'utf-8').
-            **kwargs: Additional parameters for csv reader.
-
-        Returns:
-            ScenarioList: An instance of the ScenarioList class.
-        """
-        from .scenario_source import DelimitedFileSource
-        from urllib.parse import ParseResult
-
-        if isinstance(source, ParseResult):
-            # Convert ParseResult to string URL
-            file_or_url = source.geturl()
-        else:
-            file_or_url = source
-
-        source = DelimitedFileSource(
-            file_or_url=file_or_url, delimiter=delimiter, encoding=encoding, **kwargs
-        )
-        return source.to_scenario_list()
-
-    # Convenience methods for specific file types
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('csv', ...)")
-    def from_csv(
-        cls,
-        source: Union[str, "ParseResult"],
-        has_header: bool = True,
-        encoding: str = "utf-8",
-        **kwargs,
-    ) -> ScenarioList:
-        """Create a ScenarioList from a CSV file or URL.
-
-        Args:
-            source: Path to a local file or URL to a remote file.
-            has_header: Whether the file has a header row (default is True).
-            encoding: The file encoding to use (default is 'utf-8').
-            **kwargs: Additional parameters for csv reader.
-
-        Returns:
-            ScenarioList: An instance of the ScenarioList class.
-        """
-        from .scenario_source import CSVSource
-        from urllib.parse import ParseResult
-
-        if isinstance(source, ParseResult):
-            # Convert ParseResult to string URL
-            file_or_url = source.geturl()
-        else:
-            file_or_url = source
-
-        source = CSVSource(
-            file_or_url=file_or_url, has_header=has_header, encoding=encoding, **kwargs
-        )
-        return source.to_scenario_list()
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('tsv', ...)")
-    def from_tsv(
-        cls,
-        source: Union[str, "ParseResult"],
-        has_header: bool = True,
-        encoding: str = "utf-8",
-        **kwargs,
-    ) -> ScenarioList:
-        """Create a ScenarioList from a TSV file or URL.
-
-        Args:
-            source: Path to a local file or URL to a remote file.
-            has_header: Whether the file has a header row (default is True).
-            encoding: The file encoding to use (default is 'utf-8').
-            **kwargs: Additional parameters for csv reader.
-
-        Returns:
-            ScenarioList: An instance of the ScenarioList class.
-        """
-        from .scenario_source import TSVSource
-        from urllib.parse import ParseResult
-
-        if isinstance(source, ParseResult):
-            # Convert ParseResult to string URL
-            file_or_url = source.geturl()
-        else:
-            file_or_url = source
-
-        source = TSVSource(
-            file_or_url=file_or_url, has_header=has_header, encoding=encoding, **kwargs
-        )
-        return source.to_scenario_list()
 
     def left_join(self, other: ScenarioList, by: Union[str, list[str]]) -> ScenarioList:
         """Perform a left join with another ScenarioList, following SQL join semantics.
@@ -2469,6 +1749,85 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return AgentList.from_scenario_list(self)
 
+    def to_ranked_scenario_list(
+        self,
+        option_fields: Sequence[str],
+        answer_field: str,
+        include_rank: bool = True,
+        rank_field: str = "rank",
+        item_field: str = "item"
+    ) -> "ScenarioList":
+        """Convert the ScenarioList to a ranked ScenarioList based on pairwise comparisons.
+
+        Args:
+            option_fields: List of scenario column names containing options to compare.
+            answer_field: Name of the answer column containing the chosen option's value.
+            include_rank: If True, include a rank field on each returned Scenario.
+            rank_field: Name of the rank field to include when include_rank is True.
+            item_field: Field name used to store the ranked item value on each Scenario.
+
+        Returns:
+            ScenarioList ordered best-to-worst according to pairwise ranking.
+        """
+        from .ranking_algorithm import results_to_ranked_scenario_list
+        return results_to_ranked_scenario_list(
+            self,
+            option_fields=option_fields,
+            answer_field=answer_field,
+            include_rank=include_rank,
+            rank_field=rank_field,
+            item_field=item_field
+        )
+
+    def to_true_skill_ranked_list(
+        self,
+        option_fields: Sequence[str],
+        answer_field: str,
+        include_rank: bool = True,
+        rank_field: str = "rank",
+        item_field: str = "item",
+        mu_field: str = "mu",
+        sigma_field: str = "sigma",
+        conservative_rating_field: str = "conservative_rating",
+        initial_mu: float = 25.0,
+        initial_sigma: float = 8.333,
+        beta: float = None,
+        tau: float = None
+    ) -> "ScenarioList":
+        """Convert the ScenarioList to a ranked ScenarioList using TrueSkill algorithm.
+        Args:
+            option_fields: List of scenario column names containing options to compare.
+            answer_field: Name of the answer column containing the ranking order.
+            include_rank: If True, include a rank field on each returned Scenario.
+            rank_field: Name of the rank field to include when include_rank is True.
+            item_field: Field name used to store the ranked item value on each Scenario.
+            mu_field: Field name for TrueSkill mu (skill estimate) value.
+            sigma_field: Field name for TrueSkill sigma (uncertainty) value.
+            conservative_rating_field: Field name for conservative rating (mu - 3*sigma).
+            initial_mu: Initial skill rating (default 25.0).
+            initial_sigma: Initial uncertainty (default 8.333).
+            beta: Skill class width (defaults to initial_sigma/2).
+            tau: Dynamics factor (defaults to initial_sigma/300).
+        Returns:
+            ScenarioList ordered best-to-worst according to TrueSkill ranking.
+        """
+        from .true_skill_algorithm import results_to_true_skill_ranked_list
+        return results_to_true_skill_ranked_list(
+            self,
+            option_fields=option_fields,
+            answer_field=answer_field,
+            include_rank=include_rank,
+            rank_field=rank_field,
+            item_field=item_field,
+            mu_field=mu_field,
+            sigma_field=sigma_field,
+            conservative_rating_field=conservative_rating_field,
+            initial_mu=initial_mu,
+            initial_sigma=initial_sigma,
+            beta=beta,
+            tau=tau
+        )
+
     def chunk(
         self,
         field,
@@ -2497,11 +1856,68 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_scenarios.extend(replacement_scenarios)
         return ScenarioList(new_scenarios)
 
-    def to_agent_blueprint(self):
-        """Create an AgentBlueprint from a ScenarioList"""
+    def choose_k(self, k: int, order_matters: bool = False) -> "ScenarioList":
+        """Create a ScenarioList of all choose-k selections with suffixed keys.
+
+        The input must be a ScenarioList where each scenario has exactly one key, e.g.:
+        ``ScenarioList.from_list('item', ['a', 'b', 'c'])``.
+
+        Example:
+            >>> s = ScenarioList.from_list('x', ['a', 'b', 'c'])
+            >>> s.choose_k(2)
+            ScenarioList([Scenario({'x_1': 'a', 'x_2': 'b'}), Scenario({'x_1': 'a', 'x_2': 'c'}), Scenario({'x_1': 'b', 'x_2': 'c'})])
+            >>> s.choose_k(2, order_matters=True)  # doctest: +ELLIPSIS
+            ScenarioList([...])
+
+        Args:
+            k: Number of items to choose for each scenario.
+            order_matters: If True, use ordered selections (permutations). If False, use
+                unordered selections (combinations).
+
+        Returns:
+            ScenarioList: A new list containing all generated scenarios.
+        """
+        return ScenarioList(list(self._iter_choose_k(k=k, order_matters=order_matters)))
+
+    def _iter_choose_k(self, k: int, order_matters: bool = False):
+        """Delegate generator for choose-k to the ScenarioCombinator module.
+
+        Returns a generator yielding `Scenario` instances.
+        """
+        from importlib import import_module
+        ScenarioCombinator = import_module(
+            "edsl.scenarios.scenario_combinator"
+        ).ScenarioCombinator
+        return ScenarioCombinator.iter_choose_k(self, k=k, order_matters=order_matters)
+
+    def to_agent_blueprint(
+        self,
+        *,
+        seed: Optional[int] = None,
+        cycle: bool = True,
+        dimension_name_field: str = "dimension",
+        dimension_values_field: str = "dimension_values",
+        dimension_description_field: Optional[str] = None,
+    ):
+        """Create an AgentBlueprint from this ScenarioList.
+
+        Args:
+            seed: Optional seed for deterministic permutation order.
+            cycle: Whether to continue cycling through permutations indefinitely.
+            dimension_name_field: Field name to read the dimension name from.
+            dimension_values_field: Field name to read the dimension values from.
+            dimension_description_field: Optional field name for the dimension description.
+        """
         from .agent_blueprint import AgentBlueprint
 
-        return AgentBlueprint(self)
+        return AgentBlueprint(
+            self,
+            seed=seed,
+            cycle=cycle,
+            dimension_name_field=dimension_name_field,
+            dimension_values_field=dimension_values_field,
+            dimension_description_field=dimension_description_field,
+        )
 
     def collapse(
         self,
@@ -2511,59 +1927,20 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         postfix: str = "",
         add_count: bool = False,
     ) -> ScenarioList:
-        """Collapse a ScenarioList by grouping on all fields except the specified one,
-        collecting the values of the specified field into a list.
+        """Collapse by grouping on all fields except the specified one.
 
-        Args:
-            field: The field to collapse (whose values will be collected into lists)
-            separator: Optional string to join the values with instead of keeping as a list
-            prefix: String to prepend to each value before joining (only used with separator)
-            postfix: String to append to each value before joining (only used with separator)
-            add_count: If True, adds a field showing the number of collapsed rows
-
-        Returns:
-            ScenarioList: A new ScenarioList with the specified field collapsed into lists
-
-        Example:
-        >>> s = ScenarioList([
-        ...     Scenario({'category': 'fruit', 'color': 'red', 'item': 'apple'}),
-        ...     Scenario({'category': 'fruit', 'color': 'red', 'item': 'cherry'}),
-        ...     Scenario({'category': 'vegetable', 'color': 'green', 'item': 'spinach'})
-        ... ])
-        >>> s.collapse('item', add_count=True)
-        ScenarioList([Scenario({'category': 'fruit', 'color': 'red', 'item': ['apple', 'cherry'], 'num_collapsed_rows': 2}), Scenario({'category': 'vegetable', 'color': 'green', 'item': ['spinach'], 'num_collapsed_rows': 1})])
-        >>> s.collapse('item', separator='; ', prefix='<example>', postfix='</example>')
-        ScenarioList([Scenario({'category': 'fruit', 'color': 'red', 'item': '<example>apple</example>; <example>cherry</example>'}), Scenario({'category': 'vegetable', 'color': 'green', 'item': '<example>spinach</example>'})])
+        Delegates to `ScenarioListTransformer.collapse`.
         """
-        if not self:
-            return ScenarioList([])
+        from .scenario_list_transformer import ScenarioListTransformer
 
-        # Determine all fields except the one to collapse
-        id_vars = [key for key in self[0].keys() if key != field]
-
-        # Group the scenarios
-        grouped = defaultdict(list)
-        for scenario in self:
-            # Create a tuple of the values of all fields except the one to collapse
-            key = tuple(scenario[id_var] for id_var in id_vars)
-            # Add the value of the field to collapse to the list for this key
-            grouped[key].append(scenario[field])
-
-        # Create a new ScenarioList with the collapsed field
-        new_sl = ScenarioList(data=[], codebook=self.codebook)
-        for key, values in grouped.items():
-            new_scenario = dict(zip(id_vars, key))
-            if separator:
-                # Apply prefix and postfix to each value, then join with separator
-                formatted_values = [f"{prefix}{str(v)}{postfix}" for v in values]
-                new_scenario[field] = separator.join(formatted_values)
-            else:
-                new_scenario[field] = values
-            if add_count:
-                new_scenario["num_collapsed_rows"] = len(values)
-            new_sl.append(Scenario(new_scenario))
-
-        return new_sl
+        return ScenarioListTransformer.collapse(
+            self,
+            field,
+            separator=separator,
+            prefix=prefix,
+            postfix=postfix,
+            add_count=add_count,
+        )
 
     def create_comparisons(
         self,
@@ -2574,105 +1951,17 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     ) -> ScenarioList:
         """Create a new ScenarioList with comparisons between scenarios.
 
-        Each scenario in the result contains multiple original scenarios as dictionaries,
-        allowing for side-by-side comparison.
-
-        Args:
-            bidirectional (bool): If True, include both (A,B) and (B,A) comparisons.
-                If False, only include (A,B) where A comes before B in the original list.
-            num_options (int): Number of scenarios to include in each comparison.
-                Default is 2 for pairwise comparisons.
-            option_prefix (str): Prefix for the keys in the resulting scenarios.
-                Default is "option_", resulting in keys like "option_1", "option_2", etc.
-                Ignored if use_alphabet is True.
-            use_alphabet (bool): If True, use letters as keys (A, B, C, etc.) instead of
-                the option_prefix with numbers.
-
-        Returns:
-            ScenarioList: A new ScenarioList where each scenario contains multiple original
-                scenarios as dictionaries.
-
-        Example:
-            >>> s = ScenarioList([
-            ...     Scenario({'id': 1, 'text': 'Option A'}),
-            ...     Scenario({'id': 2, 'text': 'Option B'}),
-            ...     Scenario({'id': 3, 'text': 'Option C'})
-            ... ])
-            >>> s.create_comparisons(use_alphabet=True)
-            ScenarioList([Scenario({'A': {'id': 1, 'text': 'Option A'}, 'B': {'id': 2, 'text': 'Option B'}}), Scenario({'A': {'id': 1, 'text': 'Option A'}, 'B': {'id': 3, 'text': 'Option C'}}), Scenario({'A': {'id': 2, 'text': 'Option B'}, 'B': {'id': 3, 'text': 'Option C'}})])
-            >>> s.create_comparisons(num_options=3, use_alphabet=True)
-            ScenarioList([Scenario({'A': {'id': 1, 'text': 'Option A'}, 'B': {'id': 2, 'text': 'Option B'}, 'C': {'id': 3, 'text': 'Option C'}})])
+        Delegates to `ScenarioListTransformer.create_comparisons`.
         """
-        from itertools import combinations, permutations
-        import string
+        from .scenario_list_transformer import ScenarioListTransformer
 
-        if num_options < 2:
-            from .exceptions import ValueScenarioError
-
-            raise ValueScenarioError("num_options must be at least 2")
-
-        if num_options > len(self):
-            from .exceptions import ValueScenarioError
-
-            raise ValueScenarioError(
-                f"num_options ({num_options}) cannot exceed the number of scenarios ({len(self)})"
-            )
-
-        if use_alphabet and num_options > 26:
-            from .exceptions import ValueScenarioError
-
-            raise ValueScenarioError(
-                "When using alphabet labels, num_options cannot exceed 26 (the number of letters in the English alphabet)"
-            )
-
-        # Convert each scenario to a dictionary
-        scenario_dicts = [scenario.to_dict(add_edsl_version=False) for scenario in self]
-
-        # Generate combinations or permutations based on bidirectional flag
-        if bidirectional:
-            # For bidirectional, use permutations to get all ordered arrangements
-            if num_options == 2:
-                # For pairwise, we can use permutations with r=2
-                scenario_groups = permutations(scenario_dicts, 2)
-            else:
-                # For more than 2 options with bidirectional=True,
-                # we need all permutations of the specified size
-                scenario_groups = permutations(scenario_dicts, num_options)
-        else:
-            # For unidirectional, use combinations to get unordered groups
-            scenario_groups = combinations(scenario_dicts, num_options)
-
-        # Create new scenarios with the combinations
-        result = []
-        for group in scenario_groups:
-            new_scenario = {}
-            for i, scenario_dict in enumerate(group):
-                if use_alphabet:
-                    # Use uppercase letters (A, B, C, etc.)
-                    key = string.ascii_uppercase[i]
-                else:
-                    # Use the option prefix with numbers (option_1, option_2, etc.)
-                    key = f"{option_prefix}{i+1}"
-                new_scenario[key] = scenario_dict
-            result.append(Scenario(new_scenario))
-
-        return ScenarioList(result)
-
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('parquet', ...)")
-    def from_parquet(cls, filepath: str) -> ScenarioList:
-        """Create a ScenarioList from a Parquet file.
-
-        Args:
-            filepath (str): The path to the Parquet file.
-
-        Returns:
-            ScenarioList: A new ScenarioList containing the scenarios from the Parquet file.
-        """
-        from .scenario_source import ParquetSource
-
-        source = ParquetSource(filepath)
-        return source.to_scenario_list()
+        return ScenarioListTransformer.create_comparisons(
+            self,
+            bidirectional=bidirectional,
+            num_options=num_options,
+            option_prefix=option_prefix,
+            use_alphabet=use_alphabet,
+        )
 
     def replace_values(self, replacements: dict) -> "ScenarioList":
         """
@@ -2768,27 +2057,63 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 new_sl.append(Scenario(new_scenario))
             return new_sl
 
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('pdf', ...)")
-    def from_pdf(cls, filename_or_url, collapse_pages=False):
-        """Create a ScenarioList from a PDF file or URL."""
-        from .scenario_source import PDFSource
 
-        source = PDFSource(
-            file_path=filename_or_url,
-            chunk_type="page" if not collapse_pages else "text",
-            chunk_size=1,
+    def create_conjoint_comparisons(
+        self,
+        attribute_field: str = 'attribute',
+        levels_field: str = 'levels',
+        count: int = 1,
+        random_seed: Optional[int] = None
+    ) -> "ScenarioList":
+        """
+        Generate random product profiles for conjoint analysis from attribute definitions.
+
+        This method uses the current ScenarioList (which should contain attribute definitions)
+        to create random product profiles by sampling from the attribute levels. Each scenario
+        in the current list should represent one attribute with its possible levels.
+
+        Args:
+            attribute_field: Field name containing the attribute names (default: 'attribute')
+            levels_field: Field name containing the list of levels (default: 'levels')
+            count: Number of product profiles to generate (default: 1)
+            random_seed: Optional seed for reproducible random sampling
+
+        Returns:
+            ScenarioList containing randomly generated product profiles
+
+        Example:
+            >>> from edsl.scenarios import ScenarioList, Scenario
+            >>> # Create attribute definitions
+            >>> attributes = ScenarioList([
+            ...     Scenario({'attribute': 'price', 'levels': ['$100', '$200', '$300']}),
+            ...     Scenario({'attribute': 'color', 'levels': ['Red', 'Blue', 'Green']}),
+            ...     Scenario({'attribute': 'size', 'levels': ['Small', 'Medium', 'Large']})
+            ... ])
+            >>> # Generate conjoint profiles
+            >>> profiles = attributes.create_conjoint_comparisons(count=3, random_seed=42)
+            >>> len(profiles)
+            3
+            >>> # Each profile will have price, color, and size with random values
+
+        Raises:
+            ScenarioError: If the current ScenarioList doesn't have the required fields
+            ValueError: If count is not positive
+        """
+        from .conjoint_profile_generator import ConjointProfileGenerator
+
+        if count <= 0:
+            raise ValueError("Count must be positive")
+
+        # Create the generator with the current ScenarioList
+        generator = ConjointProfileGenerator(
+            self,
+            attribute_field=attribute_field,
+            levels_field=levels_field,
+            random_seed=random_seed
         )
-        return source.to_scenario_list()
 
-    @classmethod
-    @deprecated_classmethod("ScenarioSource.from_source('pdf_to_image', ...)")
-    def from_pdf_to_image(cls, pdf_path, image_format="jpeg"):
-        """Create a ScenarioList with images extracted from a PDF file."""
-        from .scenario_source import PDFImageSource
-
-        source = PDFImageSource(file_path=pdf_path, base_width=2000, include_text=True)
-        return source.to_scenario_list()
+        # Generate the requested number of profiles
+        return generator.generate_batch(count)
 
     @classmethod
     def from_source(cls, source_type: str, *args, **kwargs) -> "ScenarioList":
@@ -2819,7 +2144,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         from .scenario_source import ScenarioSource
 
         return ScenarioSource.from_source(source_type, *args, **kwargs)
-
 
 if __name__ == "__main__":
     import doctest
