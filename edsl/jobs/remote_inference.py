@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class RemoteJobConstants:
     """Constants for remote job handling."""
 
-    REMOTE_JOB_POLL_INTERVAL = 4
+    REMOTE_JOB_POLL_INTERVAL = 1
     REMOTE_JOB_VERBOSE = False
     DISCORD_URL = "https://discord.com/invite/mxAYkjfy9m"
 
