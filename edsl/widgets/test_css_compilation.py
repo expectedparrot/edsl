@@ -4,7 +4,6 @@ Test script to verify CSS compilation for agent_list_builder widget.
 Tests that all Tailwind utility classes are properly compiled.
 """
 
-import os
 from pathlib import Path
 
 def test_css_compilation():
@@ -72,7 +71,7 @@ def main():
     print(f"CSS Classes: {'✅ PASSED' if css_test else '❌ FAILED'}")
     
     if css_test:
-        print(f"\n🎉 SUCCESS! CSS compilation is working:")
+        print("\n🎉 SUCCESS! CSS compilation is working:")
         print("   🎨 Professional container styling from agent_list_manager")
         print("   🔧 All Tailwind utility classes included")
         print("   🌙 Dark mode support via media queries")
@@ -80,7 +79,7 @@ def main():
         print("   ✨ Hover states and transitions")
         
     else:
-        print(f"\n❌ CSS compilation has issues. Check the output above.")
+        print("\n❌ CSS compilation has issues. Check the output above.")
 
 if __name__ == "__main__":
     main()

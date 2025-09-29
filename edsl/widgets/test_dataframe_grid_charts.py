@@ -7,7 +7,6 @@ This script demonstrates the combined AG-Grid and AG-Charts functionality.
 
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
 import sys
 import os
 
@@ -55,15 +54,15 @@ def test_basic_functionality():
     
     # Verify basic setup
     assert widget.status == "ready", f"Widget status should be 'ready', got '{widget.status}'"
-    assert len(widget.data) == len(df), f"Data length mismatch"
-    assert len(widget.columns) == len(df.columns) + 1, f"Column count mismatch (should include _row_index)"
+    assert len(widget.data) == len(df), "Data length mismatch"
+    assert len(widget.columns) == len(df.columns) + 1, "Column count mismatch (should include _row_index)"
     
     # Verify column analysis
     assert len(widget.numeric_columns) > 0, "Should detect numeric columns"
     assert len(widget.categorical_columns) > 0, "Should detect categorical columns"
     assert len(widget.datetime_columns) > 0, "Should detect datetime columns"
     
-    print(f"✅ Widget created successfully:")
+    print("✅ Widget created successfully:")
     print(f"   • Status: {widget.status}")
     print(f"   • Data rows: {len(widget.data)}")
     print(f"   • Grid columns: {len(widget.columns)}")
@@ -95,7 +94,7 @@ def test_chart_configuration():
             title=f'{chart_type.title()} Chart - Sales by Region'
         )
         
-        assert widget.chart_type == chart_type, f"Chart type not set correctly"
+        assert widget.chart_type == chart_type, "Chart type not set correctly"
         assert widget.chart_options != {}, f"Chart options should be generated for {chart_type}"
         
         # Verify chart options structure
@@ -122,7 +121,7 @@ def test_layout_modes():
         print(f"🔄 Testing {mode} layout...")
         
         widget.set_layout_mode(mode)
-        assert widget.layout_mode == mode, f"Layout mode not set correctly"
+        assert widget.layout_mode == mode, "Layout mode not set correctly"
         
         print(f"   ✅ {mode} layout set successfully")
     
@@ -181,7 +180,7 @@ def test_data_selection_integration():
     assert selected_df is not None, "Should return selected DataFrame"
     assert len(selected_df) == len(selected_indices), "Selected DataFrame should have correct length"
     
-    print(f"✅ Selection integration works correctly:")
+    print("✅ Selection integration works correctly:")
     print(f"   • Selected {len(selected_indices)} rows")
     print(f"   • Selected DataFrame shape: {selected_df.shape}")
     
@@ -241,7 +240,7 @@ def test_column_analysis():
     widget = DataFrameGridChartsWidget(dataframe=df)
     
     # Verify column analysis
-    print(f"📊 Column analysis results:")
+    print("📊 Column analysis results:")
     print(f"   • Numeric: {widget.numeric_columns}")
     print(f"   • Categorical: {widget.categorical_columns}")
     print(f"   • Datetime: {widget.datetime_columns}")
@@ -341,10 +340,10 @@ def main():
         # Show usage examples
         demo_usage_examples()
         
-        print(f"\n🔧 Ready for Jupyter usage:")
-        print(f"   from dataframe_grid_charts_widget import DataFrameGridChartsWidget")
-        print(f"   widget = DataFrameGridChartsWidget(dataframe=your_df)")
-        print(f"   display(widget)")
+        print("\n🔧 Ready for Jupyter usage:")
+        print("   from dataframe_grid_charts_widget import DataFrameGridChartsWidget")
+        print("   widget = DataFrameGridChartsWidget(dataframe=your_df)")
+        print("   display(widget)")
         
         return widget
         

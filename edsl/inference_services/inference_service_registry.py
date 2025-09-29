@@ -14,11 +14,9 @@ import pkgutil
 from . import services
 
 
-def load_all_service_classes():
-    """Dynamically load all service classes from the services module."""
-    from .inference_service_abc import InferenceServiceABC
-
-    service_classes = []
+def discover_service_modules():
+    """Discover service modules without importing them (fast)."""
+    service_module_map = {}
 
     # Iterate through all modules in the services package
     for importer, modname, ispkg in pkgutil.iter_modules(
@@ -28,6 +26,48 @@ def load_all_service_classes():
         if modname.endswith(".__init__") or modname.endswith(".message_builder"):
             continue
 
+        # Extract service name from module name
+        # e.g., "edsl.inference_services.services.open_ai_service" -> "openai"
+        module_basename = modname.split(".")[-1]
+        if module_basename.endswith("_service"):
+            service_name = module_basename[:-8]  # Remove "_service" suffix
+            # Handle special naming cases for modules ending with _service
+            if service_name == "open_ai":
+                service_name = "openai"
+            elif service_name == "open_ai_v2":
+                service_name = "openai_v2"
+            elif service_name == "deep_infra":
+                service_name = "deep_infra"
+            elif service_name == "mistral_ai":
+                service_name = "mistral"
+            elif service_name == "together_ai":
+                service_name = "together"
+            elif service_name == "open_router":
+                service_name = "open_router"
+            elif service_name == "deep_seek":
+                service_name = "deepseek"
+        else:
+            # Handle modules that don't end with _service
+            if module_basename == "aws_bedrock":
+                service_name = "bedrock"
+            elif module_basename == "azure_ai":
+                service_name = "azure"
+            else:
+                service_name = module_basename
+
+        service_module_map[service_name] = modname
+
+    return service_module_map
+
+
+def load_all_service_classes():
+    """Dynamically load all service classes from the services module (for backward compatibility)."""
+    from .inference_service_abc import InferenceServiceABC
+
+    service_classes = []
+    service_module_map = discover_service_modules()
+
+    for service_name, modname in service_module_map.items():
         try:
             # Import the module
             module = importlib.import_module(modname)
@@ -78,7 +118,8 @@ class InferenceServiceRegistry:
         "azure",
         "ollama",
     )
-    _default_classes_to_register = load_all_service_classes()
+    # Use lazy loading - discover service modules without importing them
+    _default_service_module_map = discover_service_modules()
     _default_source_preferences = (
         "coop_working",
         "coop",
@@ -92,20 +133,25 @@ class InferenceServiceRegistry:
         verbose: bool = False,
         service_preferences: Optional[Tuple[str, ...]] = None,
         source_preferences: Optional[Tuple[str, ...]] = None,
+        service_module_map: Optional[Dict[str, str]] = None,
         classes_to_register: Optional[List[type["InferenceServiceABC"]]] = None,
     ):
-        self._services = {}
+        # Lazy loading: store service modules without importing them
+        # If classes_to_register=[] is explicitly passed, don't use discovery
+        if classes_to_register is not None and len(classes_to_register) == 0:
+            self._service_module_map = service_module_map if service_module_map is not None else {}
+        else:
+            self._service_module_map = (
+                service_module_map if service_module_map is not None
+                else self._default_service_module_map.copy()
+            )
+        self._loaded_service_classes = {}  # Cache for imported service classes
+        self._services = {}  # For backward compatibility
         self._registration_times = {}  # Track when services were registered
 
         self._model_info_data: Optional[Dict[str, List["ModelInfo"]]] = None
-
-        self._model_to_services: Optional[Dict[str, List[str]]] = (
-            None  # Map model names to service names
-        )
+        self._model_to_services: Optional[Dict[str, List[str]]] = None
         self._service_to_models: Optional[Dict[str, List["ModelInfo"]]] = None
-
-        if classes_to_register is None:
-            classes_to_register = self._default_classes_to_register
 
         self.verbose = verbose  # Enable verbose logging
         self._service_preferences = (
@@ -122,11 +168,61 @@ class InferenceServiceRegistry:
             registry=self, source_preferences=source_preferences, verbose=verbose
         )
 
-        if classes_to_register is None:
-            classes_to_register = self._default_classes_to_register
+        # Support backward compatibility: if classes_to_register is provided, register them immediately
+        if classes_to_register is not None:
+            for cls in classes_to_register:
+                self.register(cls._inference_service_, cls)
 
-        for cls in classes_to_register:
-            self.register(cls._inference_service_, cls)
+    def _find_service_class_in_module(self, module) -> type["InferenceServiceABC"]:
+        """Find the service class in a module."""
+        from .inference_service_abc import InferenceServiceABC
+
+        for attr_name in dir(module):
+            attr = getattr(module, attr_name)
+            if (
+                isinstance(attr, type)
+                and issubclass(attr, InferenceServiceABC)
+                and attr is not InferenceServiceABC
+                and attr.__module__ == module.__name__
+            ):
+                return attr
+        raise ValueError(f"No service class found in module {module.__name__}")
+
+    def get_service_class(self, service_name: str) -> type["InferenceServiceABC"]:
+        """Get service class (supports both lazy loading and manual registration)."""
+        # First check if service was manually registered
+        if service_name in self._services:
+            return self._services[service_name]
+
+        # Then check if service can be lazy-loaded
+        if service_name in self._loaded_service_classes:
+            return self._loaded_service_classes[service_name]
+
+        # Try to lazy-load the service
+        if service_name in self._service_module_map:
+            # Import module only when needed
+            module_name = self._service_module_map[service_name]
+            if self.verbose:
+                print(f"[LAZY_LOADING] Loading service '{service_name}' from {module_name}")
+
+            try:
+                module = importlib.import_module(module_name)
+                service_class = self._find_service_class_in_module(module)
+                self._loaded_service_classes[service_name] = service_class
+
+                # Also register in the services dict for backward compatibility
+                self._services[service_name] = service_class
+                self._registration_times[service_name] = datetime.now()
+
+                return service_class
+            except ImportError as e:
+                raise ImportError(f"Failed to import service '{service_name}' from {module_name}: {e}")
+
+        # Service not found anywhere
+        available_services = list(set(self._service_module_map.keys()) | set(self._services.keys()))
+        raise KeyError(
+            f"Service '{service_name}' not found in registry. Available services: {available_services}"
+        )
 
     @property
     def model_to_services(self) -> Dict[str, List[str]]:
@@ -154,18 +250,13 @@ class InferenceServiceRegistry:
         self._services[service_name] = service_class
         self._registration_times[service_name] = datetime.now()
 
-    def get_service_class(self, service_name: str) -> type["InferenceServiceABC"]:
-        """Returns the class for a given service name."""
-        if service_name not in self._services:
-            raise KeyError(
-                f"Service '{service_name}' not found in registry. Available services: {list(self._services.keys())}"
-            )
-
-        return self._services[service_name]
 
     def list_registered_services(self) -> list[str]:
-        """Returns a list of all registered service names."""
-        return list(self._services.keys())
+        """Returns a list of all discoverable service names."""
+        # Return all discoverable services (both loaded and not-yet-loaded)
+        all_services = set(self._service_module_map.keys())
+        all_services.update(self._services.keys())  # Include explicitly registered services
+        return list(all_services)
 
     def fetch_model_info_data(
         self, source_preferences: Optional[List[str]] = None
@@ -249,7 +340,7 @@ class InferenceServiceRegistry:
         """Find services matching a wildcard pattern."""
         return [
             service_name
-            for service_name in self._services.keys()
+            for service_name in self.list_registered_services()
             if fnmatch.fnmatch(service_name, pattern)
         ]
 
@@ -297,7 +388,7 @@ class InferenceServiceRegistry:
             if not service_name:
                 raise ValueError(
                     f"No service found for model '{model_name}'",
-                    f"Available services: {list(self._services.keys())}",
+                    f"Available services: {self.list_registered_services()}",
                 )
 
         if model_name == "test":

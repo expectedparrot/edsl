@@ -867,6 +867,44 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         transformer = ResultsTransformer(self)
         return transformer.mutate(new_var_string, functions_dict)
 
+    def long_view(self) -> Results:
+        """Return a long view of the results. 
+
+        The columns are: agent_index, scenario_index, question_name, question_text, answer.
+        It is returned as a ScenarioList.
+        """
+        from ..scenarios import Scenario, ScenarioList
+
+        rows = []
+        for result in self:
+            # Pull indices if available (fallbacks to None if not present)
+            agent_index = None
+            scenario_index = None
+            if hasattr(result, "indices") and result.indices:
+                agent_index = result.indices.get("agent")
+                scenario_index = result.indices.get("scenario")
+
+            # Iterate questions present in answers
+            answers_dict = result["answer"]
+            question_attrs = result["question_to_attributes"]
+            for q_name, q_answer in answers_dict.items():
+                q_text = None
+                if q_name in question_attrs:
+                    q_text = question_attrs[q_name].get("question_text")
+                rows.append(
+                    Scenario(
+                        {
+                            "agent_index": agent_index,
+                            "scenario_index": scenario_index,
+                            "question_name": q_name,
+                            "question_text": q_text,
+                            "answer": q_answer,
+                        }
+                    )
+                )
+
+        return ScenarioList(rows)
+
     @ensure_ready
     def rename(self, old_name: str, new_name: str) -> Results:
         """Rename an answer column in a Results object.

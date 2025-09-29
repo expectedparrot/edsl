@@ -14,8 +14,7 @@ Provides the full enterprise experience for pandas DataFrame exploration includi
 
 import traitlets
 import pandas as pd
-import numpy as np
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional
 import logging
 
 try:

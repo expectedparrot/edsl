@@ -682,7 +682,7 @@ class Survey(Base):
     def parameters_by_question(self) -> dict[str, set]:
         """Return a dictionary of parameters by question in the survey.
         >>> from edsl import QuestionFreeText
-        >>> q = QuestionFreeText(question_name = "example", question_text = "What is the capital of {{ country}}?")
+        >>> q = QuestionFreeText(question_name = "example", question_text = "What is the capital of {{ country }}?")
         >>> s = Survey([q])
         >>> s.parameters_by_question
         {'example': {'country'}}
@@ -761,6 +761,85 @@ class Survey(Base):
         # Adding a question with a duplicate name would raise SurveyCreationError
         """
         return EditSurvey(self).add_question(question, index)
+
+    def add_summation_question(
+        self,
+        question_name: str = "total_score",
+        include: Optional[List[Union[str, "QuestionBase"]]] = None,
+    ) -> "Survey":
+        """Add a compute question that sums answers from prior numeric questions.
+
+        This convenience method appends a `compute` question that renders the sum of
+        answers from all previous questions of type `numerical` or `linear_scale`.
+        Optionally, pass a subset to include. Prior answers are available automatically
+        to the compute template; no extra memory wiring is required.
+
+        Args:
+            question_name: Name for the new compute question.
+            include: Optional list of question names or question objects to include;
+                if omitted, all prior `numerical` and `linear_scale` questions are used.
+
+        Returns:
+            Survey: The updated survey (supports chaining).
+
+        Raises:
+            SurveyCreationError: If any included question is not of an
+                allowed type, or if none are available.
+
+        Example:
+            Adds a `total_score` question that sums prior numeric answers.
+        """
+        # Resolve included questions
+        if include is None:
+            included_questions: List["QuestionBase"] = [
+                q
+                for q in self.questions
+                if getattr(q, "question_type", None) in ("numerical", "linear_scale")
+            ]
+        else:
+            name_to_q = self.question_names_to_questions()
+            included_questions = []
+            for item in include:
+                if isinstance(item, str):
+                    if item not in name_to_q:
+                        raise SurveyCreationError(
+                            f"Question '{item}' not found in survey."
+                        )
+                    q_obj = name_to_q[item]
+                else:
+                    q_obj = item
+
+                if getattr(q_obj, "question_type", None) not in (
+                    "numerical",
+                    "linear_scale",
+                ):
+                    raise SurveyCreationError(
+                        f"Question '{q_obj.question_name}' must be of type 'numerical' or 'linear_scale'."
+                    )
+                included_questions.append(q_obj)
+
+        # Must have at least one valid prior question
+        if not included_questions:
+            raise SurveyCreationError(
+                "No prior 'numerical' or 'linear_scale' questions available to sum."
+            )
+
+        # Build the Jinja template to sum answers
+        answers_expr = ", ".join(
+            f"{q.question_name}.answer" for q in included_questions
+        )
+        question_text = (
+            f"{{% set numbers = [{answers_expr}] %}}\n"  # list of answers
+            "{{ numbers | sum }}"
+        )
+
+        # Create and add the compute question
+        from ..questions import QuestionCompute
+
+        compute_q = QuestionCompute(
+            question_name=question_name, question_text=question_text
+        )
+        return self.add_question(compute_q)
 
     def _recombined_questions_and_instructions(
         self,
@@ -1982,7 +2061,10 @@ class Survey(Base):
         """Return a string representation of the survey."""
 
         # questions_string = ", ".join([repr(q) for q in self._questions])
-        questions_string = ", ".join([repr(q) for q in self.raw_passed_questions or []])
+        if self.raw_passed_questions is None:
+            questions_string = ", ".join([repr(q) for q in self.questions])
+        else:
+            questions_string = ", ".join([repr(q) for q in self.raw_passed_questions or []])
         # question_names_string = ", ".join([repr(name) for name in self.question_names])
         return f"Survey(questions=[{questions_string}], memory_plan={self.memory_plan}, rule_collection={self.rule_collection}, question_groups={self.question_groups}, questions_to_randomize={self.questions_to_randomize})"
 
@@ -2540,10 +2622,9 @@ class Survey(Base):
             Survey: A new Survey instance with generated questions
 
         Examples:
-            >>> survey = Survey.generate_survey_from_topic("workplace satisfaction", n_questions=3)
-            >>> survey = Survey.generate_survey_from_topic("AI ethics", n_questions=7, model=my_model)
-            >>> survey = Survey.generate_survey_from_topic("product feedback", scenario_keys=["product_name", "version"])
-            >>> survey = Survey.generate_survey_from_topic("feedback", verbose=False)
+            >>> survey = Survey.generate_from_topic("workplace satisfaction", n_questions=3)  # doctest: +SKIP
+            >>> survey = Survey.generate_from_topic("product feedback", scenario_keys=["product_name", "version"])  # doctest: +SKIP
+            >>> survey = Survey.generate_from_topic("feedback", verbose=False)  # doctest: +SKIP
         """
         from ..language_models import Model
         from ..questions import (
@@ -2759,14 +2840,12 @@ Design tips:
 
         Examples:
             >>> texts = ["How satisfied are you?", "What is your age?"]
-            >>> survey = Survey.generate_survey_from_questions(texts)
-            >>>
+            >>> survey = Survey.generate_from_questions(texts)  # doctest: +SKIP
             >>> types = ["LinearScale", "Numerical"]
             >>> names = ["satisfaction", "age"]
-            >>> survey = Survey.generate_survey_from_questions(texts, types, names)
-            >>>
-            >>> survey = Survey.generate_survey_from_questions(texts, scenario_keys=["product_name"])
-            >>> survey = Survey.generate_survey_from_questions(texts, verbose=False)
+            >>> survey = Survey.generate_from_questions(texts, types, names)  # doctest: +SKIP
+            >>> survey = Survey.generate_from_questions(texts, scenario_keys=["product_name"])  # doctest: +SKIP
+            >>> survey = Survey.generate_from_questions(texts, verbose=False)  # doctest: +SKIP
         """
         from ..language_models import Model
 

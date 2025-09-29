@@ -7,18 +7,18 @@ class MarkdownMethods(FileMethods):
 
     def view_system(self):
         import os
-        import subprocess
+        from rich.console import Console
+        from rich.markdown import Markdown
 
         if os.path.exists(self.path):
             try:
-                if (os_name := os.name) == "posix":
-                    subprocess.run(["open", self.path], check=True)  # macOS
-                elif os_name == "nt":
-                    os.startfile(self.path)  # Windows
-                else:
-                    subprocess.run(["xdg-open", self.path], check=True)  # Linux
+                console = Console()
+                with open(self.path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    md = Markdown(content)
+                    console.print(md)
             except Exception as e:
-                print(f"Error opening Markdown: {e}")
+                print(f"Error rendering Markdown: {e}")
         else:
             print("Markdown file was not found.")
 

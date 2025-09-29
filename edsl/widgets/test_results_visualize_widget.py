@@ -98,4 +98,4 @@ except Exception as e:
     traceback.print_exc()
     
 finally:
-    print(f"\nTest completed. Check output above for results.")
+    print("\nTest completed. Check output above for results.")
