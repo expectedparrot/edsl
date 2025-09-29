@@ -33,5 +33,6 @@ from .scenario_selector import ScenarioSelector
 from .file_store import FileStore
 from .file_store_list import FileStoreList
 from .dimension import Dimension, DimensionValue
+from .conjoint_profile_generator import ConjointProfileGenerator
 
-__all__ = ["Scenario", "ScenarioList", "ScenarioSerializer", "ScenarioFactory", "ScenarioGCS", "ScenarioOffloader", "ScenarioSelector", "FileStore", "FileStoreList", "Dimension", "DimensionValue"]
+__all__ = ["Scenario", "ScenarioList", "ScenarioSerializer", "ScenarioFactory", "ScenarioGCS", "ScenarioOffloader", "ScenarioSelector", "FileStore", "FileStoreList", "Dimension", "DimensionValue", "ConjointProfileGenerator"]

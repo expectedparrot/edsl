@@ -60,7 +60,7 @@ class UnifiedResultsInspectorWidget(InspectorWidget):
     def _process_object_data(self):
         """Process the Results object data for all tabs."""
 
-        print(f"🔄 Processing object data...")
+        print("🔄 Processing object data...")
         print(f"   - Object available: {self.object is not None}")
         print(f"   - Data available: {self.data is not None and len(self.data) > 0}")
 
@@ -97,7 +97,7 @@ class UnifiedResultsInspectorWidget(InspectorWidget):
             self.results_data = formatted_results
             self.analysis_data = analysis_data
 
-            print(f"✅ Data processing complete!")
+            print("✅ Data processing complete!")
             print(f"   - Results data: {len(formatted_results.get('data', [])) if formatted_results else 0} items")
             print(f"   - Analysis data: {analysis_data.get('status', 'unknown')} status")
 

@@ -7,7 +7,6 @@ This script demonstrates the AG-Grid functionality with various DataFrame types.
 
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
 import sys
 import os
 
@@ -48,7 +47,7 @@ def test_basic_functionality():
     
     # Check that data was processed correctly
     assert len(widget.data) == len(df), f"Data length mismatch: expected {len(df)}, got {len(widget.data)}"
-    assert len(widget.columns) == len(df.columns) + 1, f"Column count mismatch (should include _row_index)"
+    assert len(widget.columns) == len(df.columns) + 1, "Column count mismatch (should include _row_index)"
     assert widget.status == "ready", f"Widget status should be 'ready', got '{widget.status}'"
     
     print(f"✓ Widget created successfully with {len(widget.data)} rows and {len(widget.columns)} columns")
@@ -71,11 +70,11 @@ def test_configuration():
         selection_mode='single'
     )
     
-    assert widget.page_size == 25, f"Page size not set correctly"
-    assert widget.enable_sorting == False, f"Sorting not disabled"
-    assert widget.enable_filtering == False, f"Filtering not disabled"
-    assert widget.enable_selection == True, f"Selection not enabled"
-    assert widget.selection_mode == 'single', f"Selection mode not set to single"
+    assert widget.page_size == 25, "Page size not set correctly"
+    assert widget.enable_sorting == False, "Sorting not disabled"
+    assert widget.enable_filtering == False, "Filtering not disabled"
+    assert widget.enable_selection == True, "Selection not enabled"
+    assert widget.selection_mode == 'single', "Selection mode not set to single"
     
     print("✓ Configuration options work correctly")
 
@@ -96,7 +95,7 @@ def test_data_types():
     df = pd.DataFrame(data)
     widget = DataFrameGridWidget(dataframe=df)
     
-    assert widget.status == "ready", f"Widget should handle mixed data types"
+    assert widget.status == "ready", "Widget should handle mixed data types"
     
     # Check column definitions were created with appropriate types
     columns = [col for col in widget.columns if col['field'] != '_row_index']
@@ -115,8 +114,8 @@ def test_empty_data():
     df = pd.DataFrame()
     widget = DataFrameGridWidget(dataframe=df)
     
-    assert widget.status == "error", f"Empty DataFrame should result in error status"
-    assert "empty" in widget.error_message.lower(), f"Error message should mention empty DataFrame"
+    assert widget.status == "error", "Empty DataFrame should result in error status"
+    assert "empty" in widget.error_message.lower(), "Error message should mention empty DataFrame"
     
     print("✓ Empty data handled correctly")
 
@@ -136,8 +135,8 @@ def test_large_dataset():
     df = pd.DataFrame(large_data)
     widget = DataFrameGridWidget(dataframe=df)
     
-    assert widget.status == "ready", f"Large dataset should be processed successfully"
-    assert len(widget.data) == 1000, f"All rows should be processed"
+    assert widget.status == "ready", "Large dataset should be processed successfully"
+    assert len(widget.data) == 1000, "All rows should be processed"
     
     print("✓ Large dataset (1000 rows) handled correctly")
 

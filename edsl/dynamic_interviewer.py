@@ -287,7 +287,7 @@ Generate a single, well-crafted follow-up question that would be most valuable f
         max_follow_ups = 10  # Reasonable limit to prevent infinite loops
         
         while follow_up_count < max_follow_ups:
-            print(f"\n🔄 Generating follow-up question based on your responses...")
+            print("\n🔄 Generating follow-up question based on your responses...")
             
             # Update this instance's answer_dict with all current answers
             self.answer_dict = current_answers
@@ -315,7 +315,7 @@ Generate a single, well-crafted follow-up question that would be most valuable f
                 follow_up_count += 1
                 
                 # Ask if user wants to continue
-                print(f"\n🤔 Continue with more follow-up questions? (y/n/quit)")
+                print("\n🤔 Continue with more follow-up questions? (y/n/quit)")
                 continue_response = input("Continue? ").strip().lower()
                 
                 if continue_response in ['n', 'no', 'quit']:
@@ -345,7 +345,7 @@ Generate a single, well-crafted follow-up question that would be most valuable f
         if follow_up_count >= max_follow_ups:
             print(f"\n⏰ Reached maximum number of follow-up questions ({max_follow_ups}).")
         
-        print(f"\n📊 Interview Summary:")
+        print("\n📊 Interview Summary:")
         print(f"Total questions answered: {len(current_answers)}")
         print("=" * 60)
         

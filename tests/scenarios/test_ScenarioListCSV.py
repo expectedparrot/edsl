@@ -31,7 +31,7 @@ def http_server():
 
 def test_from_csv_url(http_server):
     url = urljoin(http_server, "/test.csv")
-    scenario_list = ScenarioList.from_csv(url)
+    scenario_list = ScenarioList.from_source("csv", url)
 
     assert len(scenario_list) == 2
     assert scenario_list[0]["name"] == "Alice"
@@ -46,7 +46,7 @@ def test_from_csv_file(tmp_path):
     csv_file = tmp_path / "test.csv"
     csv_content = "name,age,location\nCharlie,35,Chicago\nDiana,28,Boston\n"
     csv_file.write_text(csv_content)
-    scenario_list = ScenarioList.from_csv(str(csv_file))
+    scenario_list = ScenarioList.from_source("csv", str(csv_file))
 
     assert len(scenario_list) == 2
     assert scenario_list[0]["name"] == "Charlie"
