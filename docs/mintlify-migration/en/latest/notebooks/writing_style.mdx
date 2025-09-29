@@ -1,0 +1,63 @@
+---
+title: "Stylized content"
+description: "This notebook provides a quick example of how to use [EDSL](/en/latest/index) to prompt an AI agent to immitate a writing style in drafting some content."
+---
+
+EDSL is an open-source library for simulating surveys and experiements with language models. Please see our [documentation page](/en/latest/index) for tips and tutorials on getting started. *Thanks*[Lori Berenberg for inspiring this demo](https://x.com/loriberenberg/status/1794012658271654103)*!*
+
+## Constructing a question
+
+EDSL comes with a variety of question types that we can choose from based on the form of the response that we want to get back from the model (multiple choice, free text, linear scale, etc.). Here we use `QuestionFreeText` to create a question prompt to return a textual response. We compose the question with a writing sample, and then use `Scenario` objects to run the question for any different topics that we want the agent to write about. This allows us to run all the versions of the question at once:
+
+```python expandable
+from edsl import QuestionFreeText, ScenarioList, Scenario
+
+my_example = """Arrr, matey, let me tell ye about bein' 45! 'Tis a grand age, like a fine rum
+that's been aged to perfection in the hold of an ol' ship. Ye've sailed through the squalls
+and storms of life, and now ye're ridin' the calm seas with the wind at yer back. Yer beard
+may be a bit grayer, and yer joints creak like an old wooden deck, but ye've got the wisdom
+of the seven seas and the tales to prove it! Ye've charted yer course, found yer treasure,
+and now ye're ready for new horizons and uncharted waters. So hoist the sails and set a course
+for adventure, because at 45, the horizon is as bright as a golden sunset over the open ocean.
+There's a whole world out there still to explore, filled with new treasures and mysteries
+awaitin' a bold soul like yerself. Aye, it's a fine time to be alive, with the world at yer
+feet, a hearty 'yo ho ho' in yer heart, and a spirit ready for new explorations!
+"""
+
+q = QuestionFreeText(
+    question_name="my_style",
+    question_text="Here's an example of my writing style: "
+    + my_example
+    + "Draft a paragraph about {{ scenario.topic }} in my style.",
+)
+
+topics = ScenarioList(
+    Scenario({"topic": t}) for t in ["parrots", "holiday weekends", "fun with language models"]
+)
+```
+
+## Generating content
+
+We simulate responses by adding the scenarios to the question and running it. This generates a `Results` object that we can readily analyze (learn more about [built-in methods for analyzing results](/en/latest/results)):
+
+
+```python
+results = q.by(topics).run()
+```
+
+
+Here we select the topics and responses and print them in a table:
+
+
+```python
+results.select("topic", "my_style")
+```
+
+
+|  | scenario.topic | answer.my_style |
+| :--- | :--- | :--- |
+| 0 | parrots | Arrr, matey, let me spin ye a yarn about the feathered buccaneers of the skies – the parrots! These vibrant creatures be like the jeweled treasures of the jungle, with plumage as colorful as a pirate's finest silks. Smart as a whip they are, with voices that echo the hearty laughter of a ship's crew on a moonlit night. Aye, a parrot be more than just a companion; it's a trusty lookout perched on yer shoulder, sharer of secrets and tales of old. With eyes as keen as a sailor's spotting land after months at sea, they see the world in ways we can only dream of. So raise a toast to these winged mates, who bring a dash of the exotic to our everyday voyages, and remind us that even in the heart of the fiercest storm, there's always a bit of color and song to lift our spirits. Yo ho ho, and a cracker for Polly! |
+| 1 | holiday weekends | Arrr, gather 'round, ye scallywags, for let me spin ye a yarn about holiday weekends! 'Tis like findin' a hidden cove, where the sands are golden and the tides gentle, offerin' a respite from the daily grind of sailin' the high seas. These be the days when time slows, like a ship driftin' lazily in a sun-dappled bay, givin' ye a chance to drop anchor and revel in the simple joys of life. Whether ye be gatherin' with yer crew for a grand feast or settin' off on a small adventure to explore new shores, a holiday weekend be a treasure chest of moments, ripe for the takin'. The air is filled with the laughter of shipmates and the clinkin' of tankards, as stories of old voyages are spun and new plans are hatched. So raise yer flag, mates, and make the most of these precious days, for they be the pearls strung upon the necklace of life's grand journey. Aye, a holiday weekend is a fine treasure, indeed, and one worth cherishin' with all the gusto of a pirate king! |
+| 2 | fun with language models | Arrr, matey, let me spin ye a yarn about the jolly adventure of dabblin' with language models! 'Tis like havin' a trusty parrot on yer shoulder, whisperin' secrets of the written word into yer ear. These clever contraptions be like a treasure chest full of words, ready to spill forth tales as grand as the seven seas. Just a few taps of the keys, and ye've got a crew of words ready to set sail on the vast ocean of imagination. They be like the wind in yer sails, guidin' ye through uncharted waters of creativity, where every sentence is a new horizon and every paragraph a golden doubloon. Aye, with a language model at yer side, ye're never short of a tale to tell or a riddle to unravel. So hoist yer quill and set a course for literary adventure, for the world of words is as boundless as the sea itself, and there's no end to the wonders ye'll discover! |
+
+Check out our [documentation page](/en/latest/index) for many other demo notebooks and tutorials!

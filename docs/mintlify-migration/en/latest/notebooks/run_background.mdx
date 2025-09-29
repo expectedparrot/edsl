@@ -1,0 +1,75 @@
+---
+title: "Run a job in the background"
+description: "You can run a remote survey in the background by passing a parameter `background=True` to the `run()` method. This allows you to continue working (or stop working) while your survey job completes."
+---
+
+You can check the progress of the job by opening the **Progress Bar** page view, and use the **Job UUID** to identify the job at your Coop account. If you also passed a `remote_inference_description` and/or `remote_inference_visibility` setting to the `run()` method (as we do below) you can also use those to identify the job at Coop. See the Job UUID and URL that are returned in the job status table (this table is returned when any job is run remotely). Note that the Results UUID and Results URL are *not* automatically updated when the job completes:
+
+```python
+from edsl import QuestionFreeText, Model
+
+m = Model("gemini-1.5-flash")
+
+q = QuestionFreeText(
+    question_name = "poem",
+    question_text = "Please write me a heartfelt poem for Valentine's Day."
+)
+
+r = q.by(m).run(
+    background = True, # optional
+    remote_inference_description = "A poem for Valentine's Day", # optional
+    remote_inference_results_visibility = "public" # optional
+)
+```
+
+## Status updates
+
+You can also check for updates by calling the `fetch()` method on the results object that you are generating. By default, this will check for results once every second. You can specify a different polling interval by passing the number of seconds for the interval.
+
+For example, while the job above is running we check for results every 2.0 seconds until they are returned:
+
+```python
+
+r.fetch(polling_interval = 2.0)
+```
+
+Waiting for remote job to complete...
+Waiting for remote job to complete...
+
+```python
+Results observations: 1; agents: 1; models: 1; scenarios: 1; questions: 1; Survey question names: ['poem'];
+```
+
+|  | poem | scenario_index | agent_index | agent_name | agent_instruction | temperature | topK | topP | maxOutputTokens | model_index | stopSequences | inference_service | model | poem_user_prompt | poem_system_prompt | poem_cost | poem_raw_model_response | poem_one_usd_buys | iteration | poem_question_text | poem_question_options | poem_question_type | poem_comment | poem_generated_tokens | poem_cache_used | poem_cache_key |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | The world is hushed, a winter's grace, But in my heart, a sunlit space. Where thoughts of you, a warming fire, Ignite a love, a pure desire. No diamond's gleam, no rose's hue, Can match the joy I find in you. Your laughter's song, a sweet refrain, Erases sorrow, heals all pain. Your gentle touch, a whispered plea, Awakens depths I long to see. Within your eyes, a universe, Where love's own story finds its verse. So let this day, with hearts entwined, A testament to love we find. A bond so strong, a sacred vow, My love for you, I pledge it now. And as the stars begin to gleam, I whisper softly, "My sweet dream, My Valentine, my heart's delight, You fill my world with purest light." | 0 | 0 | Agent_0 | You are answering questions as if you were a human. Do not break character. | 0.500000 | 1 | 1 | 2048 | 0 | [] | google | gemini-1.5-flash | Please write me a heartfelt poem for Valentine's Day. | nan | 0.000061 | `{'candidates': [{'content': {'parts': [{'text': 'The world is hushed, a winter's grace,nBut in my heart, a sunlit space.nWhere thoughts of you, a warming fire,nIgnite a love, a pure desire.nnNo diamond's gleam, no rose's hue,nCan match the joy I find in you.nYour laughter's song, a sweet refrain,nErases sorrow, heals all pain.nnYour gentle touch, a whispered plea,nAwakens depths I long to see.nWithin your eyes, a universe,nWhere love's own story finds its verse.nnSo let this day, with hearts entwined,nA testament to love we find.nA bond so strong, a sacred vow,nMy love for you, I pledge it now.nnAnd as the stars begin to gleam,nI whisper softly, "My sweet dream,nMy Valentine, my heart's delight,nYou fill my world with purest light."n'}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.1592810521671428, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 12, 'candidates_token_count': 201, 'total_token_count': 213, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}` | 16339.872513 | 0 | Please write me a heartfelt poem for Valentine's Day. | nan | free_text | nan | The world is hushed, a winter's grace, But in my heart, a sunlit space. Where thoughts of you, a warming fire, Ignite a love, a pure desire. No diamond's gleam, no rose's hue, Can match the joy I find in you. Your laughter's song, a sweet refrain, Erases sorrow, heals all pain. Your gentle touch, a whispered plea, Awakens depths I long to see. Within your eyes, a universe, Where love's own story finds its verse. So let this day, with hearts entwined, A testament to love we find. A bond so strong, a sacred vow, My love for you, I pledge it now. And as the stars begin to gleam, I whisper softly, "My sweet dream, My Valentine, my heart's delight, You fill my world with purest light." | True | 29877e4e1cd8969e4bd3507f301033f1 |
+
+Now we can select and analyze the results as usual:
+
+```python
+r.select("model", "answer.*")
+```
+
+
+|  | model.model | answer.poem |
+| :--- | :--- | :--- |
+| 0 | gemini-1.5-flash | The world is hushed, a winter's grace, But in my heart, a sunlit space. Where thoughts of you, a warming fire, Ignite a love, a pure desire. No diamond's gleam, no rose's hue, Can match the joy I find in you. Your laughter's song, a sweet refrain, Erases sorrow, heals all pain. Your gentle touch, a whispered plea, Awakens depths I long to see. Within your eyes, a universe, Where love's own story finds its verse. So let this day, with hearts entwined, A testament to love we find. A bond so strong, a sacred vow, My love for you, I pledge it now. And as the stars begin to gleam, I whisper softly, "My sweet dream, My Valentine, my heart's delight, You fill my world with purest light." |
+
+Here we post/update this notebook at Coop:
+
+```python
+
+from edsl import Notebook
+
+nb = Notebook(path = "run_background.ipynb")
+
+if refresh := False:
+    nb.push(
+        description = "Run a remote survey in the background",
+        alias = "run-background-notebook",
+        visibility = "public"
+    )
+else:
+    nb.patch("https://www.expectedparrot.com/content/RobinHorton/run-background-notebook", value = nb)
+```
+

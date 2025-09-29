@@ -1,0 +1,475 @@
+---
+title: "NPS survey in EDSL"
+description: "This notebook provides sample [EDSL](https://github.com/expectedparrot/edsl) code for simulating a Net Promoter Score (NPS) survey with AI agents and large language models. In the steps below we show how to construct an EDSL survey, create personas for AI agents to answer the questions, and then administer the survey to them. We also demonstrate some built-in [methods for inspecting and analyzing the dataset of results](/en/latest/results) that is generated when an EDSL survey is run."
+---
+
+The following questions are used in the sample survey:
+
+**On a scale from 0-10, how likely are you to recommend our company to a friend or colleague?** *(0=Not at all likely, 10=Very likely)* *Please tell us why you gave a rating.*
+
+**How satisfied are you with the following experience with our company?** *Product quality* *Customer support* *Purchasing experience*
+
+**Is there anything specific that our company can do to improve your experience?**
+
+## Technical setup
+
+Before running the code below, ensure that you have (1) [installed the EDSL library](/en/latest/installation) and (2) created a [Coop account](/en/latest/coop) to activate [remote inference](/en/latest/remote_inference) or stored your own [API keys for language models](/en/latest/api_keys) that you want to use with EDSL. Please also see our [tutorials and documentation page](/en/latest/index) on getting started using the EDSL library.
+
+## Constructing questions
+
+We start by selecting appropriate question types for the above questions. [EDSL comes with a variety of common question types](/en/latest/questions) that we can choose from based on the form of the response that we want to get back from the model. The first quesiton is linear scale; we import the class type and then construct a question in the relevant template:
+
+```python
+from edsl import QuestionLinearScale
+```
+
+```python
+q_recommend = QuestionLinearScale(
+    question_name = "recommend",
+    question_text = "On a scale from 0-10, how likely are you to recommend our company to a friend or colleague?",
+    question_options = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    option_labels = {0:"Not at all likely", 10:"Very likely"}
+)
+```
+
+Each question type other than free text automatically includes a “comment” field for the model to provide commentary on its response to the main question. When we run the survey, we can check that it has effectively captured the follow-on question from above–*Please tell us why you gave a rating*–and modify or add questions as needed.
+
+For the next question, we use a `{{ placeholder }}` for an “experience” that we will insert when repeating the base question:
+
+```python
+from edsl import QuestionMultipleChoice
+```
+
+```python
+q_satisfied = QuestionMultipleChoice(
+    question_name = "satisfied",
+    question_text = "How satisfied are you with the following experience with our company: {{ experience }}",
+    question_options = [
+        "Extremely satisfied",
+        "Moderately satisfied",
+        "Neither satisfied nor dissatisfied",
+        "Moderately dissatisfied",
+        "Extremely dissatisfied"
+    ]
+)
+```
+
+The third question is a simple free text question that we can choose whether to administer once or individually for each “experience” question. In the steps that follow we show how to apply survey logic to achieve this effect:
+
+```python
+from edsl import QuestionFreeText
+```
+
+```python
+q_improve = QuestionFreeText(
+    question_name = "improve",
+    question_text = "Is there anything specific that our company can do to improve your experience?"
+)
+```
+
+## Creating variants of questions with scenarios
+
+Next we want to create a version of the “satisfied” question for each “experience”. This can be done with `Scenario` objects–dictionaries of key/value pairs representing the content to be added to questions. Scenarios can be automatically generated from a variety of data sources (PDFs, CSVs, images, tables, etc.). Here we have import a simple list:
+
+```python
+from edsl import ScenarioList, Scenario
+```
+
+```python
+experiences = ["Product quality", "Customer support", "Purchasing experience"]
+
+s = ScenarioList(
+    Scenario({"experience":e}) for e in experiences
+)
+```
+
+We could also use a specific method for creating scenarios from a list:
+
+```python
+s = ScenarioList.from_list("experience", experiences)
+```
+
+We can check the scenarios that have been created:
+
+```python
+s
+```
+
+[ScenarioList](/en/latest/scenarios) scenarios: 3; keys: ['experience'];
+
+|  | experience |
+| :--- | :--- |
+| 0 | Product quality |
+| 1 | Customer support |
+| 2 | Purchasing experience |
+
+To create the question variants, we pass the scenario list to the question `loop()` method, which returns a list of new questions. We can see that each question has a new unique name and a question text with the placeholder replaced with an experience:
+
+```python
+satisfied_questions = q_satisfied.loop(s)
+satisfied_questions
+```
+
+```python
+[Question('multiple_choice', question_name = """satisfied_0""", question_text = """How satisfied are you with the following experience with our company: Product quality""", question_options = ['Extremely satisfied', 'Moderately satisfied', 'Neither satisfied nor dissatisfied', 'Moderately dissatisfied', 'Extremely dissatisfied']),
+ Question('multiple_choice', question_name = """satisfied_1""", question_text = """How satisfied are you with the following experience with our company: Customer support""", question_options = ['Extremely satisfied', 'Moderately satisfied', 'Neither satisfied nor dissatisfied', 'Moderately dissatisfied', 'Extremely dissatisfied']),
+ Question('multiple_choice', question_name = """satisfied_2""", question_text = """How satisfied are you with the following experience with our company: Purchasing experience""", question_options = ['Extremely satisfied', 'Moderately satisfied', 'Neither satisfied nor dissatisfied', 'Moderately dissatisfied', 'Extremely dissatisfied'])]
+```
+
+We can also use the `loop()` method to create copies of the “improve” question in order to present it as a follow-up question to each of the “satisfied” questions that have been parameterized with experiences. Here, we’re simply duplicating the base question without a scenario `{{ placeholder }}` because we will instead add a “memory” of the relevant “satisfied” question when administering each copy of it:
+
+```python
+improve_questions = q_improve.loop(s)
+improve_questions
+```
+
+```python
+[Question('free_text', question_name = """improve_0""", question_text = """Is there anything specific that our company can do to improve your experience?"""),
+ Question('free_text', question_name = """improve_1""", question_text = """Is there anything specific that our company can do to improve your experience?"""),
+ Question('free_text', question_name = """improve_2""", question_text = """Is there anything specific that our company can do to improve your experience?""")]
+```
+
+## Creating a survey
+
+Next we pass a list of all the questions to a `Survey` in order to administer them together:
+
+```python
+questions = [q_recommend] + satisfied_questions + improve_questions
+```
+
+```python
+from edsl import Survey
+```
+
+```python
+survey = Survey(questions)
+```
+
+## Adding survey logic
+
+In the next step we add logic to the survey specifying that each “improve” question should include a “memory” of a “satisfied” question (the question and answer that was provided):
+
+```python
+for i in range(len(s)):
+    survey = survey.add_targeted_memory(f"improve_{i}", f"satisfied_{i}")
+```
+
+We can inspect the survey details:
+
+```python
+survey
+```
+```python
+Survey # questions: 7; question_name list: ['recommend', 'satisfied_0', 'satisfied_1', 'satisfied_2', 'improve_0', 'improve_1', 'improve_2'];
+```
+
+|  | option_labels | question_name | question_text | question_options | question_type |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | `{0: 'Not at all likely', 10: 'Very likely'}` | recommend | On a scale from 0-10, how likely are you to recommend our company to a friend or colleague? | [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] | linear_scale |
+| 1 | nan | satisfied_0 | How satisfied are you with the following experience with our company: Product quality | ['Extremely satisfied', 'Moderately satisfied', 'Neither satisfied nor dissatisfied', 'Moderately dissatisfied', 'Extremely dissatisfied'] | multiple_choice |
+| 2 | nan | satisfied_1 | How satisfied are you with the following experience with our company: Customer support | ['Extremely satisfied', 'Moderately satisfied', 'Neither satisfied nor dissatisfied', 'Moderately dissatisfied', 'Extremely dissatisfied'] | multiple_choice |
+| 3 | nan | satisfied_2 | How satisfied are you with the following experience with our company: Purchasing experience | ['Extremely satisfied', 'Moderately satisfied', 'Neither satisfied nor dissatisfied', 'Moderately dissatisfied', 'Extremely dissatisfied'] | multiple_choice |
+| 4 | nan | improve_0 | Is there anything specific that our company can do to improve your experience? | nan | free_text |
+| 5 | nan | improve_1 | Is there anything specific that our company can do to improve your experience? | nan | free_text |
+| 6 | nan | improve_2 | Is there anything specific that our company can do to improve your experience? | nan | free_text |
+
+## AI agent personas
+
+EDSL comes with a variety of methods for [designing AI agents to answer surveys](/en/latest/agents). An `Agent` is constructed by passing a dictionary of relevant `traits` with optional additional `instructions` for the language model to reference in generating responses for the agent. Agents can be constructed from a variety of data sources, including existing survey data (e.g., a dataset of responses that were provided to some other questions). We can also use an EDSL question to draft some personas for agents. Here, we ask for a list of them:
+
+```python
+from edsl import QuestionList
+```
+
+```python
+q_personas = QuestionList(
+    question_name = "personas",
+    question_text = "Draft 5 personas for diverse customers of landscaping business with varying satisfaction levels."
+)
+```
+
+We can run this question alone and extract the response list (more on working with results below):
+
+```python
+personas = q_personas.run().select("personas").to_list()[0]
+personas
+```
+
+['John, a retired teacher who is thrilled with the eco-friendly garden design',
+ 'Maria, a busy professional who is satisfied with the maintenance services but desires quicker responses',
+ 'Liam, a young homeowner who is disappointed with the delayed project completion',
+ 'Sophia, a new parent who appreciates the child-safe landscaping features but finds them costly',
+ 'Raj, a tech-savvy entrepreneur who loves the innovative designs but is frustrated with the lack of digital communication options']
+
+Next we pass the personas to create a set of agents:
+
+```python
+from edsl import AgentList, Agent
+```
+
+```python
+a = AgentList(
+    Agent(traits = {"persona":p}) for p in personas
+)
+```
+
+## Selecting language models
+
+EDSL works with many popular large language models that we can select to use with a survey. To see a list of available models:
+
+```python
+from edsl import Model
+```
+
+```python
+# Model.available()
+```
+
+To select a model to use with a survey we pass a model name to a `Model`:
+
+```python
+m = Model("gemini-1.5-flash")
+```
+
+If we want to compare responses for several models, we can use a `ModelList` instead:
+
+```python
+from edsl import ModelList
+```
+
+```python
+m = ModelList(
+    Model(model) for model in ["gemini-1.5-flash", "gpt-4o"]
+)
+```
+
+<Note>
+**Note:** 
+
+If no model is specified when running a survey, the default model GPT-4o is used (as above when we generated personas).
+</Note>
+
+## Running a survey
+
+We administer the survey by adding the agents and models with the `by()` method and then calling the `run()` method:
+
+```python
+results = survey.by(a).by(m).run()
+```
+
+This generates a dataset of `Results` that includes a response for each agent/model that was used. We can access the results with [built-in methods for analysis](/en/latest/results). To see a list of all the components of the results:
+
+```python
+results.columns
+```
+
+|  | 0 |
+| :--- | :--- |
+| 0 | agent.agent_index |
+| 1 | agent.agent_instruction |
+| 2 | agent.agent_name |
+| 3 | agent.persona |
+| 4 | answer.improve_0 |
+| 5 | answer.improve_1 |
+| 6 | answer.improve_2 |
+| 7 | answer.recommend |
+| 8 | answer.satisfied_0 |
+| 9 | answer.satisfied_1 |
+| 10 | answer.satisfied_2 |
+| 11 | cache_keys.improve_0_cache_key |
+| 12 | cache_keys.improve_1_cache_key |
+| 13 | cache_keys.improve_2_cache_key |
+| 14 | cache_keys.recommend_cache_key |
+| 15 | cache_keys.satisfied_0_cache_key |
+| 16 | cache_keys.satisfied_1_cache_key |
+| 17 | cache_keys.satisfied_2_cache_key |
+| 18 | cache_used.improve_0_cache_used |
+| 19 | cache_used.improve_1_cache_used |
+| 20 | cache_used.improve_2_cache_used |
+| 21 | cache_used.recommend_cache_used |
+| 22 | cache_used.satisfied_0_cache_used |
+| 23 | cache_used.satisfied_1_cache_used |
+| 24 | cache_used.satisfied_2_cache_used |
+| 25 | comment.improve_0_comment |
+| 26 | comment.improve_1_comment |
+| 27 | comment.improve_2_comment |
+| 28 | comment.recommend_comment |
+| 29 | comment.satisfied_0_comment |
+| 30 | comment.satisfied_1_comment |
+| 31 | comment.satisfied_2_comment |
+| 32 | generated_tokens.improve_0_generated_tokens |
+| 33 | generated_tokens.improve_1_generated_tokens |
+| 34 | generated_tokens.improve_2_generated_tokens |
+| 35 | generated_tokens.recommend_generated_tokens |
+| 36 | generated_tokens.satisfied_0_generated_tokens |
+| 37 | generated_tokens.satisfied_1_generated_tokens |
+| 38 | generated_tokens.satisfied_2_generated_tokens |
+| 39 | iteration.iteration |
+| 40 | model.frequency_penalty |
+| 41 | model.inference_service |
+| 42 | model.logprobs |
+| 43 | model.maxOutputTokens |
+| 44 | model.max_tokens |
+| 45 | model.model |
+| 46 | model.model_index |
+| 47 | model.presence_penalty |
+| 48 | model.stopSequences |
+| 49 | model.temperature |
+| 50 | model.topK |
+| 51 | model.topP |
+| 52 | model.top_logprobs |
+| 53 | model.top_p |
+| 54 | prompt.improve_0_system_prompt |
+| 55 | prompt.improve_0_user_prompt |
+| 56 | prompt.improve_1_system_prompt |
+| 57 | prompt.improve_1_user_prompt |
+| 58 | prompt.improve_2_system_prompt |
+| 59 | prompt.improve_2_user_prompt |
+| 60 | prompt.recommend_system_prompt |
+| 61 | prompt.recommend_user_prompt |
+| 62 | prompt.satisfied_0_system_prompt |
+| 63 | prompt.satisfied_0_user_prompt |
+| 64 | prompt.satisfied_1_system_prompt |
+| 65 | prompt.satisfied_1_user_prompt |
+| 66 | prompt.satisfied_2_system_prompt |
+| 67 | prompt.satisfied_2_user_prompt |
+| 68 | question_options.improve_0_question_options |
+| 69 | question_options.improve_1_question_options |
+| 70 | question_options.improve_2_question_options |
+| 71 | question_options.recommend_question_options |
+| 72 | question_options.satisfied_0_question_options |
+| 73 | question_options.satisfied_1_question_options |
+| 74 | question_options.satisfied_2_question_options |
+| 75 | question_text.improve_0_question_text |
+| 76 | question_text.improve_1_question_text |
+| 77 | question_text.improve_2_question_text |
+| 78 | question_text.recommend_question_text |
+| 79 | question_text.satisfied_0_question_text |
+| 80 | question_text.satisfied_1_question_text |
+| 81 | question_text.satisfied_2_question_text |
+| 82 | question_type.improve_0_question_type |
+| 83 | question_type.improve_1_question_type |
+| 84 | question_type.improve_2_question_type |
+| 85 | question_type.recommend_question_type |
+| 86 | question_type.satisfied_0_question_type |
+| 87 | question_type.satisfied_1_question_type |
+| 88 | question_type.satisfied_2_question_type |
+| 89 | raw_model_response.improve_0_cost |
+| 90 | raw_model_response.improve_0_one_usd_buys |
+| 91 | raw_model_response.improve_0_raw_model_response |
+| 92 | raw_model_response.improve_1_cost |
+| 93 | raw_model_response.improve_1_one_usd_buys |
+| 94 | raw_model_response.improve_1_raw_model_response |
+| 95 | raw_model_response.improve_2_cost |
+| 96 | raw_model_response.improve_2_one_usd_buys |
+| 97 | raw_model_response.improve_2_raw_model_response |
+| 98 | raw_model_response.recommend_cost |
+| 99 | raw_model_response.recommend_one_usd_buys |
+| 100 | raw_model_response.recommend_raw_model_response |
+| 101 | raw_model_response.satisfied_0_cost |
+| 102 | raw_model_response.satisfied_0_one_usd_buys |
+| 103 | raw_model_response.satisfied_0_raw_model_response |
+| 104 | raw_model_response.satisfied_1_cost |
+| 105 | raw_model_response.satisfied_1_one_usd_buys |
+| 106 | raw_model_response.satisfied_1_raw_model_response |
+| 107 | raw_model_response.satisfied_2_cost |
+| 108 | raw_model_response.satisfied_2_one_usd_buys |
+| 109 | raw_model_response.satisfied_2_raw_model_response |
+| 110 | scenario.scenario_index |
+
+For example, we can filter, sort and display columns of results in a table:
+
+```python
+(
+    results
+    .filter("model.model == 'gemini-1.5-flash'")
+    .sort_by("recommend", reverse=True)
+    .select("model","persona","recommend", "recommend_comment")
+)
+```
+
+|  | model.model | agent.persona | answer.recommend | comment.recommend_comment |
+| :--- | :--- | :--- | :--- | :--- |
+| 0 | gemini-1.5-flash | John, a retired teacher who is thrilled with the eco-friendly garden design | 10 | Honestly, I'm absolutely delighted with the garden design. It's exceeded all my expectations – the way you've incorporated sustainable practices is just brilliant, and it's already attracting so much wildlife! I'd recommend your company to anyone in a heartbeat. |
+| 1 | gemini-1.5-flash | Maria, a busy professional who is satisfied with the maintenance services but desires quicker responses | 8 | Honestly, the service is great! My building is always clean and well-maintained. It's just that sometimes getting a quick response to a request can be a bit of a challenge, especially when I'm juggling a million things at work. If that improved, it would be a solid 10. |
+| 2 | gemini-1.5-flash | Sophia, a new parent who appreciates the child-safe landscaping features but finds them costly | 7 | Honestly, I love that you guys prioritize child safety in your landscaping designs. The rubber mulch and the rounded edges on everything are fantastic, and I feel so much better letting my little one explore the yard now. But... wow, it was expensive! I'd definitely recommend you to other parents who have the budget for it, though. |
+| 3 | gemini-1.5-flash | Raj, a tech-savvy entrepreneur who loves the innovative designs but is frustrated with the lack of digital communication options | 4 | Look, the designs are *amazing*. Seriously, I'm blown away by the innovation. But the whole communication process? It's stuck in the dark ages. Email chains, phone calls... it's a nightmare for someone like me who lives and breathes digital efficiency. So, I'd recommend you, but with a big caveat about needing to seriously upgrade your communication game. |
+| 4 | gemini-1.5-flash | Liam, a young homeowner who is disappointed with the delayed project completion | 2 | Honestly, I'm pretty frustrated. The delays on my project have been a real headache, and it's put a massive crimp in my plans. I wouldn't actively discourage anyone, but I definitely wouldn't be enthusiastically recommending you guys either. |
+
+```python
+(
+    results
+    .filter("model.model == 'gemini-1.5-flash'")
+    .sort_by("satisfied_0")
+    .select("satisfied_0", "satisfied_0_comment", "improve_0")
+)
+```
+
+|  | answer.satisfied_0 | comment.satisfied_0_comment | answer.improve_0 |
+| :--- | :--- | :--- | :--- |
+| 0 | Extremely satisfied | Oh my, that eco-friendly garden design was simply marvelous! The quality of the materials was top-notch, everything was so well-made and durable. I'm absolutely thrilled with how it turned out. | Oh, well, that's awfully kind of you to ask! The product quality was truly exceptional, I must say. I'm absolutely delighted with how well everything is working in my eco-friendly garden. Honestly, I can't think of a single thing you could do to improve *that* aspect. It's perfect! Perhaps, if I were to stretch for a suggestion, maybe some more detailed, illustrated instructions for particularly tricky aspects of assembly? Some of the diagrams were a *tad* cryptic, though I eventually figured them out. But that's a minor quibble, really. I'm just so thrilled with the end result. It's beyond my wildest dreams! |
+| 1 | Moderately dissatisfied | The quality itself wasn't *terrible*, but considering the delays, I expected a bit more for the price. There were some minor flaws I wouldn't have accepted if the project had been finished on time. | Look, I'm not gonna lie, the whole thing's been a bit of a mess. The product itself, once it finally arrived, was...okay. Not great, not terrible. But the *delay* is what really soured the experience. Honestly, better communication throughout the process would have made a world of difference. I understand things happen, but keeping me in the loop with realistic updates, not just vague promises, would have made me feel a lot less frustrated. Maybe even a small gesture of goodwill for the inconvenience? I don't know, a discount on a future purchase or something? Just something to show you acknowledge the problem and are trying to make things right. |
+| 2 | Moderately satisfied | The product quality is good, it does the job. I just wish the response times were a bit faster when I have questions or need something addressed. | Honestly, everything's been pretty good! The maintenance has been reliable and the quality of the work is fine. My only real suggestion would be to speed up response times a bit. I understand you're busy, and I am too, so getting things addressed a little quicker would be a huge help. Other than that, no complaints! |
+| 3 | Moderately satisfied | The products themselves are lovely, really well-made and durable, which is important with a toddler around. But let's be honest, the price tag is a bit steep. I'd be extremely satisfied if they were a little more affordable. | Oh, you know, the product quality itself is fine. It's really sturdy, which is great with a toddler running around, always testing its limits! But honestly, the biggest thing for me is the price. I *love* that you've got the child-safe features – the rounded edges on the playset, the soft surfacing, the whole nine yards. It's peace of mind I wouldn't trade, but let's be real, those safety features add up. Maybe exploring some more budget-friendly options for those features, or even offering financing plans, would make a huge difference for parents like me who want the best for their kids but are also watching every penny. Just a thought! |
+| 4 | Moderately satisfied | The product itself is pretty slick, I gotta hand it to the designers. But the lack of a decent app or even a good online support system is a major drag. It's like they built a beautiful car but forgot to put in an engine for the digital age. | Hey, thanks for asking! Look, the product itself? It's pretty good, moderately satisfied is a fair assessment. But honestly, where you guys *really* fall down is the communication. It's like we're stuck in the 1990s! I'm constantly emailing back and forth, waiting for phone calls, and it's just… inefficient. So, to improve *my* experience, and I bet a whole lot of other customers' experiences too, you need to seriously upgrade your digital communication. Think streamlined online portals for tracking orders, instant messaging for support, maybe even a dedicated app. Something, *anything*, that's faster and more convenient than this archaic system. That's where you'll see a huge jump in customer satisfaction. I'm all about innovation in the product, but the back-end needs a serious digital makeover. |
+
+```python
+(
+    results
+    .filter("model.model == 'gemini-1.5-flash'")
+    .select("satisfied_1", "satisfied_1_comment", "improve_1")
+    .print(pretty_labels = {
+        "answer.satisfied_1": "Customer service: satisfaction",
+        "comment.satisfied_1_comment": "Customer service: comment",
+        "answer.improve_1": "Customer service: improvements"
+    })
+)
+```
+
+|  | Customer service: satisfaction | Customer service: comment | Customer service: improvements |
+| :--- | :--- | :--- | :--- |
+| 0 | Extremely satisfied | Honestly, I was just blown away by the help I received. They were so patient and understanding, and really went the extra mile to make sure my eco-friendly garden design questions were answered thoroughly. A truly delightful experience! | Oh, well, that's awfully kind of you to ask! Honestly, the customer support was just fantastic. I couldn't fault it at all. If I had to suggest *anything* at all – and this is really just a minor thing, mind you – it would be to perhaps include even more detailed diagrams in your garden design guides. I'm a visual learner, you see, and while everything was perfectly clear, a few extra illustrations, especially showing different stages of plant growth, would have been the icing on the cake. But again, that's just a suggestion from a retired teacher who loves to get his hands dirty! Everything else was absolutely top-notch. |
+| 1 | Moderately satisfied | Honestly, the maintenance itself has been great. No complaints there. It's just that sometimes getting ahold of someone to schedule things or answer a quick question takes a little too long. If they could speed up response times, I'd be extremely satisfied. | Honestly, everything's been pretty good! I'm happy with the actual maintenance services – they've always been thorough and professional. My only real suggestion would be to speed up the response time for inquiries. Sometimes I need a quick answer, and the current turnaround isn't always ideal given my busy schedule. Other than that, no complaints! |
+| 2 | Extremely dissatisfied | Honestly, the customer support has been a nightmare. I've been trying to get updates on my delayed project for weeks, and I'm constantly getting the runaround. It's incredibly frustrating. | Look, I'm not going to sugarcoat it. The constant runaround I've gotten from your customer support has been absolutely dreadful. This whole project delay is stressing me out – I'm paying a mortgage on a house that's still half-finished! So, to be honest, a simple "sorry" isn't going to cut it. What I need is *action*. Specifically, I need a realistic, revised completion date, and a clear, detailed plan of how you're going to get this project finished on time *this* time. And I need regular, transparent updates – not just when *you* feel like it. Weekly updates, minimum. And if there are *any* further delays, I expect to be notified *immediately*, not weeks later after I've already started making calls myself. Is that something you can commit to? |
+| 3 | Moderately satisfied | Honestly, the customer support was helpful when I had questions about the safety features for the playground equipment, but the whole process felt a little… expensive. I'm glad they were there to answer my questions, but the cost of everything is really making me think twice about adding more features. | Oh, hi there! Well, the customer support was alright – I got my questions answered, but it felt a little… impersonal, you know? Like, I was dealing with a script. To be honest, what really stands out about your company is the child-safe landscaping. It’s fantastic, truly. But, wow, is it expensive! Maybe if you could offer some kind of tiered system, or financing options, that would be huge. I'd love to recommend your work to other new parents, but the price point is a real barrier for many of us. Even just some more affordable options within the child-safe range would make a difference. That's my biggest feedback, really. |
+| 4 | Moderately dissatisfied | Honestly, the whole process felt a bit stuck in the past. I'm used to seamless digital communication – instant messaging, email updates, maybe even a chatbot – but it felt like I was stuck navigating a maze of phone calls and hold music. It worked, eventually, but it could have been so much smoother. | Ugh, customer support. Look, I appreciate the effort, but honestly? It's 2024. We're dealing with *software*. Why are we still stuck with phone calls and email? It's incredibly inefficient. To improve my experience – and I'm betting the experience of a lot of other tech-savvy customers – you need to seriously upgrade your digital communication options. Think robust, integrated live chat on your website, a comprehensive FAQ section with video tutorials (because sometimes reading isn't enough), and maybe even a dedicated support app with in-app messaging. Something that lets me get help *quickly* without having to wait on hold or write a novel in an email. I'm not asking for rocket science, just a modern approach to customer support that reflects how people actually communicate these days. That's the single biggest thing you could do to improve my satisfaction. |
+
+## Posting to Coop
+
+The Coop is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL, allowing you to access objects from your workspace or Coop account interface. [Learn more about creating an account and using the Coop](/en/latest/coop).
+
+The surveys and results above were already posted automatically using remote inference. Here we demonstrate local methods for posting the same content from your workspace (if you are working locally):
+
+```python
+survey.push(
+    description = "Example NPS survey",
+    alias = "example-nps-survey",
+    visibility = "public"
+)
+```
+
+```json
+{'description': 'Example NPS survey',
+ 'object_type': 'survey',
+ 'url': 'https://www.expectedparrot.com/content/0e43b0ff-3f6b-405b-8ce6-d2d8cf933f9f',
+ 'uuid': '0e43b0ff-3f6b-405b-8ce6-d2d8cf933f9f',
+ 'version': '0.1.47.dev1',
+ 'visibility': 'public'}
+```
+
+We can also post a notebook, such as this one:
+
+```python
+from edsl import Notebook
+
+nb = Notebook(path = "nps_survey.ipynb")
+
+if refresh := False:
+    nb.push(
+        description = "Notebook for simulating an NPS survey",
+        alias = "nps-survey-notebook",
+        visibility = "public"
+    )
+else:
+    nb.patch('9bef6849-f6b4-4aea-a769-9313650edf58', value = nb)
+```
