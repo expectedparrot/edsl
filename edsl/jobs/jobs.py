@@ -1142,6 +1142,19 @@ class Jobs(Base):
 
         # Replace parameters with the ones from the config
         self.run_config.parameters = config.parameters
+
+        # Handle backward compatibility for deprecated parameters
+        # If old parameters are set, use them to set new parameters
+        if not config.parameters.disable_remote_inference:
+            # Old param was False (enabled), set new param to True
+            self.run_config.parameters.use_api_proxy = True
+        else:
+            # Old param was True (disabled), set new param to False
+            self.run_config.parameters.use_api_proxy = False
+
+        if config.parameters.use_remote_inference_endpoint:
+            # Old param was True, set new param to True
+            self.run_config.parameters.offload_execution = True
         self._logger.info(
             f"Configuration transfer completed in {time.time() - start_time:.3f}s"
         )
@@ -1155,7 +1168,8 @@ class Jobs(Base):
             f"Object validation completed in {time.time() - setup_start:.3f}s"
         )
 
-        if not self.run_config.parameters.disable_remote_inference:
+        # Use new parameter (use_api_proxy) to determine if we should enable proxy mode
+        if self.run_config.parameters.use_api_proxy:
             key_check_start = time.time()
             self._logger.info("Checking remote inference keys")
             self._check_if_remote_keys_ok()
@@ -1202,10 +1216,10 @@ class Jobs(Base):
                 f"Remote proxy configuration completed in {time.time() - proxy_config_start:.3f}s"
             )
         else:
-            # When remote inference is disabled, ensure remote proxy is also disabled
+            # When API proxy is disabled, ensure remote proxy is also disabled
             proxy_config_start = time.time()
             self._logger.info(
-                "Disabling remote proxy for models (remote inference disabled)"
+                "Disabling remote proxy for models (API proxy disabled)"
             )
             for model in self.models:
                 model.remote_proxy = False
@@ -1232,12 +1246,14 @@ class Jobs(Base):
             self.run_config.environment.cache = Cache(immediate_write=False)
         self._logger.info(f"Cache setup completed in {time.time() - cache_start:.3f}s")
 
-        # Try to run the job remotely first
+        # Try to offload entire job execution to Expected Parrot servers
         remote_start = time.time()
-        self._logger.info("Attempting remote execution")
-        # Disable old remote inference code
-        # results, reason = self._remote_results(config)
-        results, reason = None, ""
+        if self.run_config.parameters.offload_execution:
+            self._logger.info("Offloading job execution to Expected Parrot servers")
+            results, reason = self._remote_results(config)
+        else:
+            self._logger.info("Execution offloading disabled, running locally")
+            results, reason = None, ""
 
         if results is not None:
             self._logger.info(
@@ -1542,7 +1558,13 @@ class Jobs(Base):
         disable_remote_cache : bool, optional
             Whether to disable the remote cache (default: False)
         disable_remote_inference : bool, optional
-            Whether to disable remote inference (default: False)
+            [DEPRECATED] Whether to disable remote inference proxy mode (default: False). Use 'use_api_proxy' instead.
+        use_remote_inference_endpoint : bool, optional
+            [DEPRECATED] Whether to use the old remote inference endpoint (default: False). Use 'offload_execution' instead.
+        use_api_proxy : bool, optional
+            Whether to proxy API calls through Expected Parrot (default: True)
+        offload_execution : bool, optional
+            Whether to offload entire job execution to Expected Parrot servers (default: False)
         fresh : bool, optional
             Whether to ignore cache and force new results (default: False)
         skip_retry : bool, optional
@@ -1592,7 +1614,8 @@ class Jobs(Base):
         self._logger.info("Starting job execution")
         self._logger.info(
             f"Job configuration: {self.num_interviews} total interviews, "
-            f"remote_inference={'disabled' if config.parameters.disable_remote_inference else 'enabled'}, "
+            f"api_proxy={'enabled' if config.parameters.use_api_proxy else 'disabled'}, "
+            f"offload_execution={'enabled' if config.parameters.offload_execution else 'disabled'}, "
             f"progress_bar={config.parameters.progress_bar}"
         )
 
@@ -1688,7 +1711,13 @@ class Jobs(Base):
         disable_remote_cache : bool, optional
             Whether to disable the remote cache (default: False)
         disable_remote_inference : bool, optional
-            Whether to disable remote inference (default: False)
+            [DEPRECATED] Whether to disable remote inference proxy mode (default: False). Use 'use_api_proxy' instead.
+        use_remote_inference_endpoint : bool, optional
+            [DEPRECATED] Whether to use the old remote inference endpoint (default: False). Use 'offload_execution' instead.
+        use_api_proxy : bool, optional
+            Whether to proxy API calls through Expected Parrot (default: True)
+        offload_execution : bool, optional
+            Whether to offload entire job execution to Expected Parrot servers (default: False)
         fresh : bool, optional
             Whether to ignore cache and force new results (default: False)
         skip_retry : bool, optional
@@ -1963,7 +1992,13 @@ class Jobs(Base):
         disable_remote_cache : bool, optional
             Whether to disable the remote cache (default: False)
         disable_remote_inference : bool, optional
-            Whether to disable remote inference (default: False)
+            [DEPRECATED] Whether to disable remote inference proxy mode (default: False). Use 'use_api_proxy' instead.
+        use_remote_inference_endpoint : bool, optional
+            [DEPRECATED] Whether to use the old remote inference endpoint (default: False). Use 'offload_execution' instead.
+        use_api_proxy : bool, optional
+            Whether to proxy API calls through Expected Parrot (default: True)
+        offload_execution : bool, optional
+            Whether to offload entire job execution to Expected Parrot servers (default: False)
         fresh : bool, optional
             Whether to ignore cache and force new results (default: False)
         skip_retry : bool, optional

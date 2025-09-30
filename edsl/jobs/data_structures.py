@@ -65,7 +65,10 @@ class RunParameters(Base):
         raise_validation_errors (bool): Whether to raise validation errors, default is False
         background (bool): Whether to run in background mode, default is False
         disable_remote_cache (bool): Whether to disable remote cache usage, default is False
-        disable_remote_inference (bool): Whether to disable remote inference, default is False
+        disable_remote_inference (bool): [DEPRECATED] Whether to disable remote inference proxy mode, default is False. Use 'use_api_proxy' instead.
+        use_remote_inference_endpoint (bool): [DEPRECATED] Whether to use the old remote inference endpoint, default is False. Use 'offload_execution' instead.
+        use_api_proxy (bool): Whether to proxy API calls through Expected Parrot, default is True
+        offload_execution (bool): Whether to offload entire job execution to Expected Parrot servers, default is False
         job_uuid (str, optional): UUID for the job, used for tracking
         fresh (bool): If True, ignore cache and generate new results, default is False
         new_format (bool): If True, uses remote_inference_create method, if False uses old_remote_inference_create method, default is True
@@ -84,7 +87,10 @@ class RunParameters(Base):
     raise_validation_errors: bool = False
     background: bool = False
     disable_remote_cache: bool = False
-    disable_remote_inference: bool = False
+    disable_remote_inference: bool = False  # DEPRECATED: Use use_api_proxy instead
+    use_remote_inference_endpoint: bool = False  # DEPRECATED: Use offload_execution instead
+    use_api_proxy: bool = True
+    offload_execution: bool = False
     job_uuid: Optional[str] = None
     fresh: bool = (
         False  # if True, will not use cache and will save new results to cache
