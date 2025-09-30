@@ -25,7 +25,7 @@ initial_survey = Survey([
     )
 ])
 
-a = App(
+app = App(
     initial_survey = initial_survey, 
     jobs_object = jobs_object, 
     application_name = "Typo Checker",
@@ -38,7 +38,7 @@ a = App(
 )
 
 if __name__ == "__main__":
-    output = a.output(params = {
+    output = app.output(params = {
         'input_survey': Survey.example()
     })
     print(output)

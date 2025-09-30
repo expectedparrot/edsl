@@ -23,16 +23,16 @@ jobs_object = Survey([]).to_jobs().by(al)
 
 output_formatter = OutputFormatter(name = "Panel Reaction").select('agent_name', 'answer.*').table()
 
-a = App(
-    initial_survey = initial_survey, 
-    jobs_object = jobs_object, 
+app = App(
+    initial_survey = initial_survey,
+    jobs_object = jobs_object,
     description = "A panel reaction to a question about cheese.",
     application_name = "panel_reaction",
     output_formatters = [output_formatter]
     )
 
 if __name__ == "__main__":
-    output = a.output(params={
+    output = app.output(params={
         'input_survey': QuestionFreeText(
             question_name = "cheese_reaction",
             question_text = "How do you feel about cheese?"
