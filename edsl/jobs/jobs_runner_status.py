@@ -391,7 +391,6 @@ class JobsRunnerStatus(JobsRunnerStatusBase):
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.api_key or 'None'}",
             }
-            print(status_dict)
             response = requests.patch(
                 self.update_url,
                 json=status_dict,

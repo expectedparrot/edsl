@@ -265,6 +265,7 @@ class OpenAIService(InferenceServiceABC):
                     # Use remote proxy mode
                     from .remote_proxy_handler import RemoteProxyHandler
 
+                    print("remote proxy enabled")
                     handler = RemoteProxyHandler(
                         model=self.model,
                         inference_service=self._inference_service_,

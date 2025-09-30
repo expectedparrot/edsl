@@ -1189,8 +1189,28 @@ class Jobs(Base):
             f"Object validation completed in {time.time() - setup_start:.3f}s"
         )
 
+        # Handle mutual exclusivity between use_api_proxy and offload_execution
+        # Since offload_execution=True is the default, if user explicitly sets use_api_proxy=True,
+        # we should prioritize their explicit choice and use proxy mode (local execution with API proxy)
+        if self.run_config.parameters.use_api_proxy:
+            # User explicitly wants API proxy mode - disable offload_execution
+            if self.run_config.parameters.offload_execution:
+                self.run_config.parameters.offload_execution = False
+                self._logger.info(
+                    "use_api_proxy=True (explicit) - disabling offload_execution for local execution with API proxy"
+                )
+        elif self.run_config.parameters.offload_execution:
+            # offload_execution is True (could be default or explicit) - ensure use_api_proxy is False
+            self.run_config.parameters.use_api_proxy = False
+            self._logger.info("offload_execution=True - using full remote execution")
+
         # Use new parameter (use_api_proxy) to determine if we should enable proxy mode
         if self.run_config.parameters.use_api_proxy:
+            # Enable progress bar by default when using API proxy
+            if self.run_config.parameters.progress_bar is False:
+                self.run_config.parameters.progress_bar = True
+                self._logger.info("Enabled progress bar for API proxy mode")
+
             key_check_start = time.time()
             self._logger.info("Checking remote inference keys")
             self._check_if_remote_keys_ok()
@@ -1199,7 +1219,6 @@ class Jobs(Base):
             )
 
             # Pre-flight balance check with cost estimation
-            print("💰 Performing pre-flight balance and cost check...")
             balance_check_start = time.time()
             self._logger.info("Performing pre-flight balance check")
             insufficient_balance_reason = self._check_balance_before_execution()
@@ -1211,8 +1230,6 @@ class Jobs(Base):
             self._logger.info(
                 f"Pre-flight balance check completed in {time.time() - balance_check_start:.3f}s"
             )
-            print("✅ Balance and cost check passed")
-            print()
 
             # Configure remote proxy and fresh parameter for all models when remote inference is enabled
             proxy_config_start = time.time()
@@ -1374,38 +1391,27 @@ class Jobs(Base):
                 # Convert minicredits to dollars for display (1000 minicredits = 1 credit = 1 cent, so 100,000 minicredits = $1 USD)
                 balance_dollars = current_balance / 100000
 
-                print(
-                    f"   💰 Current balance: {balance_string} (${balance_dollars:.3f} USD) - fetched in {balance_check_time:.3f}s"
-                )
                 self._logger.info(
                     f"Current user balance: {balance_string} (${balance_dollars:.3f} USD) - fetched in {balance_check_time:.3f}s"
                 )
 
                 # Compare estimated cost with balance
                 if current_balance <= 0:
-                    print(f"   ❌ Insufficient balance!")
                     return f"insufficient funds: Current balance is {balance_string} (${balance_dollars:.3f} USD). Please add credits to your account."
 
                 if estimated_cost_minicredits > current_balance:
                     estimated_cost_dollars = estimated_cost_minicredits / 100000
-                    print(
-                        f"   ❌ Insufficient balance! Need {estimated_cost_minicredits:.0f} minicredits (${estimated_cost_dollars:.3f} USD), have {current_balance} minicredits (${balance_dollars:.3f} USD)"
-                    )
                     return (
                         f"insufficient funds: Estimated job cost ({estimated_cost_minicredits:.0f} minicredits / ${estimated_cost_dollars:.3f} USD) "
                         f"exceeds current balance ({balance_string} / ${balance_dollars:.3f} USD). Please add credits to your account."
                     )
 
-                print(
-                    f"   ✅ Balance sufficient: {current_balance} minicredits (${balance_dollars:.3f} USD) >= {estimated_cost_minicredits:.0f} minicredits needed"
-                )
                 self._logger.info(
                     f"Balance check passed: {balance_string} >= {estimated_cost_minicredits:.2f} minicredits needed"
                 )
                 return None
 
             except Exception as e:
-                print(f"   ⚠️  Could not check balance: {e}")
                 self._logger.warning(
                     f"Could not check user balance: {e}. Proceeding without balance check."
                 )
