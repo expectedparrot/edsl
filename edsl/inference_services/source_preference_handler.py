@@ -36,7 +36,7 @@ class SourcePreferenceHandler:
         return self._used_source
 
     def fetch_model_info_data(
-        self, source_preferences: Optional[List[str]] = None
+        self, source_preferences: Optional[List[str]] = None, service_name: Optional[str] = None
     ) -> Dict[str, List["ModelInfo"]]:
         """
         Iterate through source preferences to find and fetch model info data.
@@ -46,6 +46,7 @@ class SourcePreferenceHandler:
 
         Args:
             source_preferences: Optional list of source preferences to override the default
+            service_name: Optional service name to fetch models only for that service
 
         Returns:
             Dictionary mapping service names to lists of ModelInfo objects
@@ -75,7 +76,8 @@ class SourcePreferenceHandler:
                 model_info_fetcher: ModelInfoFetcherABC = fetchers[source](
                     self.registry
                 )
-                model_info_fetcher.fetch()
+                # Pass service_name to fetch method
+                model_info_fetcher.fetch(service_name=service_name)
 
                 if len(model_info_fetcher) > 0:
                     if self.verbose:
