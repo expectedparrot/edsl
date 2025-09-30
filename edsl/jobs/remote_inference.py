@@ -640,21 +640,17 @@ class JobsRemoteInferenceHandler:
                 reason = failure_reason
 
         if status == "cancelled":
-            print(f"[DEBUG_POLL] Job cancelled, returning (None, {reason})")
             self._handle_cancelled_job(job_info)
             return None, reason
 
         elif status == "failed" or status == "completed" or status == "partial_failed":
-            print(f"[DEBUG_POLL] Job status={status}, reason={reason}")
             if status == "failed":
                 self._handle_failed_job(job_info, remote_job_data)
             elif status == "partial_failed":
                 self._handle_partially_failed_job(job_info, remote_job_data)
 
             results_uuid = remote_job_data.get("results_uuid")
-            print(f"[DEBUG_POLL] results_uuid={results_uuid}")
             if results_uuid:
-                print(f"[DEBUG_POLL] Fetching results with uuid={results_uuid}")
                 results = self._fetch_results_and_log(
                     job_info=job_info,
                     job_status=status,
@@ -662,16 +658,11 @@ class JobsRemoteInferenceHandler:
                     remote_job_data=remote_job_data,
                     object_fetcher=object_fetcher,
                 )
-                print(
-                    f"[DEBUG_POLL] Results fetched: type={type(results).__name__ if results else 'None'}"
-                )
                 return results, reason
             else:
-                print(f"[DEBUG_POLL] No results_uuid, returning (None, {reason})")
                 return None, reason
 
         else:
-            print(f"[DEBUG_POLL] Job still running, status={status}, sleeping...")
             self._sleep_for_a_bit(job_info, status)
             return "continue", reason
 

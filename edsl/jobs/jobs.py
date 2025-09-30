@@ -907,40 +907,20 @@ class Jobs(Base):
     ) -> Tuple[Optional["Results"], Optional[str]]:
         from .remote_inference import RemoteJobInfo
 
-        print(f"[DEBUG_REMOTE] _remote_results() called")
         background = config.parameters.background
-        print(f"[DEBUG_REMOTE] background={background}")
 
         jh = self._create_remote_inference_handler()
-        use_ri = jh.use_remote_inference(
-            self.run_config.parameters.disable_remote_inference
-        )
-        print(
-            f"[DEBUG_REMOTE] use_remote_inference={use_ri}, disable_remote_inference={self.run_config.parameters.disable_remote_inference}"
-        )
-
-        if use_ri:
-            print(f"[DEBUG_REMOTE] Starting remote inference job")
+        if jh.use_remote_inference(self.run_config.parameters.disable_remote_inference):
             job_info: RemoteJobInfo = self._start_remote_inference_job(jh)
-            print(f"[DEBUG_REMOTE] Remote job created, job_uuid={job_info.job_uuid}")
-
             if background:
                 from ..results import Results
 
-                print(
-                    f"[DEBUG_REMOTE] Background mode, returning Results.from_job_info()"
-                )
                 results = Results.from_job_info(job_info)
                 return results, None
             else:
-                print(f"[DEBUG_REMOTE] Foreground mode, polling remote inference job")
                 results, reason = jh.poll_remote_inference_job(job_info)
-                print(
-                    f"[DEBUG_REMOTE] Polling completed: results={type(results).__name__ if results else 'None'}, reason={reason}"
-                )
                 return results, reason
         else:
-            print(f"[DEBUG_REMOTE] use_remote_inference=False, returning (None, None)")
             return None, None
 
     def _prepare_to_run(self) -> None:
@@ -1289,25 +1269,14 @@ class Jobs(Base):
         remote_start = time.time()
         if self.run_config.parameters.offload_execution:
             self._logger.info("Offloading job execution to Expected Parrot servers")
-            print(f"[DEBUG_RUN] offload_execution=True, calling _remote_results()")
             results, reason = self._remote_results(config)
-            print(
-                f"[DEBUG_RUN] _remote_results() returned: results={type(results).__name__ if results else 'None'}, reason={reason}"
-            )
         else:
             self._logger.info("Execution offloading disabled, running locally")
-            print(f"[DEBUG_RUN] offload_execution=False, skipping remote execution")
             results, reason = None, ""
 
         if results is not None:
             self._logger.info(
                 f"Remote execution successful in {time.time() - remote_start:.3f}s"
-            )
-            print(
-                f"[DEBUG_RUN] Remote execution succeeded, returning tuple (results, reason)"
-            )
-            print(
-                f"[DEBUG_RUN] Return value type: ({type(results).__name__}, {type(reason).__name__})"
             )
             return results, reason
         self._logger.info(
@@ -1724,11 +1693,6 @@ class Jobs(Base):
         self._logger.info(
             f"Job execution completed successfully with {len(final_results) if final_results else 0} results"
         )
-        print(
-            f"[DEBUG_RUN] Returning final_results: type={type(final_results).__name__ if final_results else 'None'}"
-        )
-        if final_results:
-            print(f"[DEBUG_RUN] final_results has {len(final_results)} items")
         return final_results
 
     def run_batch(self, num_batches: int, **kwargs) -> Optional["Results"]:
