@@ -516,10 +516,10 @@ class RemoteProxyHandler:
             raise
         except aiohttp.ClientError as e:
             # Handle other HTTP errors normally
-            print(f"[ERROR] HTTP error during proxy request: {str(e)}")
+            # print(f"[ERROR] HTTP error during proxy request: {str(e)}")
             raise
         except Exception as e:
-            print(f"[ERROR] Unexpected error during proxy request: {str(e)}")
+            # print(f"[ERROR] Unexpected error during proxy request: {str(e)}")
             raise
 
     def _extract_balance_from_error(self, error_text: str) -> Optional[str]:
