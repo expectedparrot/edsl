@@ -89,7 +89,7 @@ class RunParameters(Base):
     disable_remote_cache: bool = False
     disable_remote_inference: bool = False  # DEPRECATED: Use use_api_proxy instead
     use_remote_inference_endpoint: bool = False  # DEPRECATED: Use offload_execution instead
-    use_api_proxy: bool = True
+    use_api_proxy: bool = False
     offload_execution: bool = False
     job_uuid: Optional[str] = None
     fresh: bool = (
