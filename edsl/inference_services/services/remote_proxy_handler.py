@@ -472,7 +472,7 @@ class RemoteProxyHandler:
                     f"{self.proxy_url}/execute",
                     json=request_payload,
                     headers=self.auth_headers,
-                    timeout=5,
+                    timeout=10,
                 ) as response:
                     # Check for insufficient credits error (HTTP 402 or 500 with balance keywords)
                     if response.status == 402:
