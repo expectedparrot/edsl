@@ -72,7 +72,18 @@ rubric_formatter = (OutputFormatter("Rubric Survey")
 
 app = App(
      initial_survey=initial_survey,
-     description = "A rubric generator.",
+     description = """A rubric generator.
+     A rubric generator is a tool that generates a rubric for a given `artifact`.
+     For example, if the artifact is a technical blog post, the rubric generator for the blog post.
+     The rubric is formatted as an EDSL survey that can then be used to score the artifact.
+     For example, the survey questions if the artifact is a technical blog post might be: 
+     - How clear is the post?
+     - How original is the post?
+     - How useful is the post?
+     - How impactful is the post?
+
+     Each question is a linear scale question with 5 options, with 5 being the highest score.
+     """,
      application_name = "rubric_generator",
      jobs_object=jobs_object,
      output_formatters=[rubric_formatter],

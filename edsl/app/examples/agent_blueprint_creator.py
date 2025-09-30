@@ -105,7 +105,7 @@ output_formatter = (
     )
 )
 
-a = App(
+app = App(
     description="Creates an agent blueprint for generating personas from a population description",
     application_name="agent_blueprint_creator",
     initial_survey=initial_survey,
@@ -114,7 +114,7 @@ a = App(
 )
 
 if __name__ == "__main__":
-    output = a.output(params={
+    output = app.output(params={
         'population_description': 'Experienced Upwork freelancers',
         'num_dimensions': 8,
         'additional_details': """Focus on work preferences, skill specialization, and experience with different client types
