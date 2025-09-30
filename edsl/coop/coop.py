@@ -184,6 +184,9 @@ class Coop(CoopFunctionsMixin):
             self.url = self.url[:-1]
         if "chickapi.expectedparrot" in self.url:
             self.api_url = "https://chickapi.expectedparrot.com"
+        elif "chick.expectedparrot" in self.url:
+            # Frontend URL for staging environment - convert to API URL
+            self.api_url = "https://chickapi.expectedparrot.com"
         elif "expectedparrot" in self.url:
             self.api_url = "https://api.expectedparrot.com"
         elif "localhost:1234" in self.url:
@@ -877,10 +880,11 @@ class Coop(CoopFunctionsMixin):
             widgets.append(scenario)
         return ScenarioList(widgets)
 
-    ## - App-related methods 
+    ## - App-related methods
     def list_apps(self) -> list[str]:
         """List all apps."""
         from ..app.client import EDSLAppClient
+
         return EDSLAppClient().list_apps()
 
     def get_widget_metadata(self, short_name: str) -> Dict:
@@ -3324,7 +3328,6 @@ class Coop(CoopFunctionsMixin):
             >>> # Use the signed_url to download the object directly
         """
         obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
-
 
         # Handle alias-based retrieval with new/old format detection
         if not obj_uuid and owner_username and alias:
