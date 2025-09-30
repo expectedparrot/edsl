@@ -1663,32 +1663,11 @@ class Jobs(Base):
             print(f"🔗 Add credits at: https://www.expectedparrot.com/home/credits")
             return None
 
-        print("🎬 Starting job execution...")
-        print(
-            f"📈 Executing {self.num_interviews} interviews with {len(self.survey.questions)} questions each"
-        )
-        if config.parameters.n > 1:
-            print(f"🔄 Running {config.parameters.n} iterations per interview")
-        print()
-
         self._logger.info("Starting local execution with remote cache")
         results = asyncio.run(self._execute_with_remote_cache(run_job_async=False))
 
         self._logger.info("Applying post-run methods to results")
         final_results = self._apply_post_run_methods(results)
-
-        print()
-        print("🎉 Job execution completed!")
-        if final_results:
-            print(f"📊 Results: {len(final_results)} completed interviews")
-            if hasattr(final_results, "compute_job_cost"):
-                try:
-                    actual_cost = final_results.compute_job_cost()
-                    print(f"💵 Actual cost: ${actual_cost:.6f} USD")
-                except:
-                    pass
-        else:
-            print("📊 Results: No completed interviews")
 
         self._logger.info(
             f"Job execution completed successfully with {len(final_results) if final_results else 0} results"
