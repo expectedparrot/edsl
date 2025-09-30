@@ -170,7 +170,6 @@ class AzureAIService(InferenceServiceABC):
     @classmethod
     def get_model_info(cls, api_key: Optional[str] = None):
         """Retrieve Azure model information from environment variable."""
-
         # Initialize model map if empty
         if not cls._model_id_to_endpoint_and_key:
             cls._model_id_to_endpoint_and_key = {}
@@ -178,7 +177,9 @@ class AzureAIService(InferenceServiceABC):
         if api_key is None:
             api_key = os.getenv(cls._env_key_name_)
         if api_key is None:
-            raise ValueError(f"API key for {cls._inference_service_} is not set")
+            # Return empty list instead of raising error when no API key is available
+            # This allows Model.available() to work without requiring all service keys
+            return []
 
         models_info = cls.parse_data_from_key(api_key)
         return models_info
