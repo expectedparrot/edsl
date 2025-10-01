@@ -1,0 +1,200 @@
+---
+title: "Simulate a qualitative interview"
+description: "This notebook provides sample [EDSL](/en/latest/index) code for simulating an interview between a researcher and a subject, with instructions for modifying the interviewer, interview subject or topic."
+---
+
+The `Conversation` [module](https://github.com/expectedparrot/edsl/tree/main/edsl/conversation) can also be used to automate methods used below to simulate a conversation with multiple agents. See examples:
+
+- [Buying a car](https://github.com/expectedparrot/edsl/blob/main/edsl/conversation/car_buying.py)
+- [Negotiating a mug](https://github.com/expectedparrot/edsl/blob/main/edsl/conversation/mug_negotiation.py)
+
+[EDSL is an open-source library](https://github.com/expectedparrot/edsl) for simulating surveys, experiments and other research with AI agents and large language models. Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Coop account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL.
+
+## Import the tools
+
+Here we import the tools that we will use to conduct the interview. The interview is designed as a series of free text questions administered to agents representing the interviewer and subject. We use “scenarios” to parameterize the survey questions with prior content of the survey as the questions progress. Learn more about [EDSL question types](/en/latest/questions) and other survey components.
+
+```python
+from edsl import QuestionFreeText, Scenario, Survey, Model, Agent
+
+import textwrap
+from rich import print
+```
+
+EDSL works with many popular language models. Learn more about [selecting models](/en/latest/language_models) to use with your surveys. To see a complete current list of available models, uncomment and run the following code:
+
+```python
+# Model.available()
+```
+
+Here we select a model to use for the interview:
+
+```python
+model = Model("gemini-1.5-flash")
+```
+
+## Create interview components
+
+Edit the inputs in the following code block to change the instructions for the agent interviewer, the interview topic and/or the interview subject:
+
+```python expandable
+# A name for the interview subject
+interview_subject_name = "Chicken"
+
+# Traits of the interview subject
+interview_subject_traits = {
+    "persona": "You are a brave, independent-minded chicken.",
+    "status": "wild",
+    "home": "A free range farm some miles away.",
+    "number_of_chicks": 12,
+}
+
+# Description of the interview topic
+interview_topic = "Reasons to cross the road"
+
+# Total number of questions to ask in the interview
+total_questions = 5
+
+# Description of the interviewer agent
+interviewer_background = textwrap.dedent(
+    f"""
+    You are an expert qualitative researcher.
+    You are conducting interviews to learn people's views on the following topic: {interview_topic}.
+    """
+)
+
+# Instructions for the interviewer agent
+interviewer_instructions = textwrap.dedent(
+    """
+    You know to ask questions that are appropriate to the age and experience of an interview subject.
+    You know to not ask questions that an interview subject would not be able to answer,
+    e.g., if they are a young child, they probably will not be able to answer many questions about prices.
+    You ask excellent follow-up questions.
+    """
+)
+```
+
+## Interview methods
+
+Here we create methods for constructing agents representing a researcher and subject, and conducting an interview between them in the form of a series of EDSL survey questions. Learn more about [designing agents](/en/latest/agents) and [running surveys](/en/latest/surveys).
+
+```python expandable
+def construct_subject(name, traits={}):
+    return Agent(name=name, traits=traits)
+
+def construct_researcher(interview_topic):
+    return Agent(
+        traits={"background": interviewer_background},
+        instruction=interviewer_instructions,
+    )
+
+def get_next_question(subject, researcher, dialog_so_far):
+    scenario = Scenario(
+        {"subject": str(subject.traits), "dialog_so_far": dialog_so_far}
+    )
+    meta_q = QuestionFreeText(
+        question_name="next_question",
+        question_text="""
+        These are the biographic details of the interview subject: {{ scenario.subject }}
+        This is your current dialog with the interview subject: {{ scenario.dialog_so_far }}
+        What question you would ask the interview subject next?
+        """,
+    )
+    question_text = (
+        meta_q.by(model)
+        .by(researcher)
+        .by(scenario)
+        .run()
+        .select("next_question")
+        .first()
+    )
+    return question_text
+
+def get_response_to_question(question_text, subject, dialog_so_far):
+    q_to_subject = QuestionFreeText(
+        question_name="question",
+        question_text=f"""
+        This is your current dialog with the interview subject: {dialog_so_far}.
+        You are now being asked:"""
+        + question_text,
+    )
+    response = q_to_subject.by(model).by(subject).run().select("question").first()
+    return response
+
+def ask_question(subject, researcher, dialog_so_far):
+    question_text = get_next_question(subject, researcher, dialog_so_far)
+    response = get_response_to_question(question_text, subject, dialog_so_far)
+
+    print(" nQuestion: nn" + question_text + "nnResponse: nn" + response)
+
+    return {"question": question_text, "response": response}
+
+def dialog_to_string(d):
+    return "n".join(
+        [f"Question: {d['question']}nResponse: {d['response']}" for d in d]
+    )
+
+def clean_dict(d):
+    """Convert dictionary to string and remove braces."""
+    return str(d).replace("{", "").replace("}", "")
+
+def summarize_interview(
+    interview_subject_name,
+    interview_subject_traits,
+    interview_topic,
+    dialog_so_far,
+    researcher,
+):
+    summary_q = QuestionFreeText(
+        question_name="summary",
+        question_text=(
+            f"You have just conducted the following interview of {interview_subject_name} "
+            f"who has these traits: {clean_dict(interview_subject_traits)} "
+            f"The topic of the interview was {interview_topic}. "
+            f"Please draft a summary of the interview: {clean_dict(dialog_so_far)}"
+        ),
+    )
+    themes_q = QuestionFreeText(
+        question_name="themes", question_text="List the major themes of the interview."
+    )
+    survey = Survey([summary_q, themes_q]).set_full_memory_mode()
+    results = survey.by(model).by(researcher).run()
+    summary = results.select("summary").first()
+    themes = results.select("themes").first()
+    print("nnSummary:nn" + summary + "nnThemes:nn" + themes)
+
+def conduct_interview(
+    interview_subject_name, interview_subject_traits, interview_topic
+):
+    subject = construct_subject(
+        name=interview_subject_name, traits=interview_subject_traits
+    )
+    researcher = construct_researcher(interview_topic=interview_topic)
+
+    print(
+        "nnInterview subject: "
+        + interview_subject_name
+        + "nnInterview topic: "
+        + interview_topic
+    )
+
+    dialog_so_far = []
+
+    for i in range(total_questions):
+        result = ask_question(subject, researcher, dialog_to_string(dialog_so_far))
+        dialog_so_far.append(result)
+
+    summarize_interview(
+        interview_subject_name,
+        interview_subject_traits,
+        interview_topic,
+        dialog_so_far,
+        researcher,
+    )
+```
+
+## Conduct the interview
+
+```python
+conduct_interview(interview_subject_name, interview_subject_traits, interview_topic)
+```

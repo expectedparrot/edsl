@@ -1,0 +1,277 @@
+---
+title: "Cognitive testing & LLM biases"
+description: "This notebook provides example code for using [EDSL](/en/latest/index) to investigate biases of large language models."
+---
+
+[EDSL is an open-source library](https://github.com/expectedparrot/edsl) for simulating surveys, experiments and other research with AI agents and large language models. Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Coop account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL.
+
+## Selecting language models
+
+A list of current available models can be viewed [here](https://www.expectedparrot.com/getting-started/coop-pricing).
+
+To see a list of service providers:
+
+
+```python
+from edsl import Model
+
+Model.services()
+```
+
+
+|  | Service Name |
+| :--- | :--- |
+| 0 | anthropic |
+| 1 | azure |
+| 2 | bedrock |
+| 3 | deep_infra |
+| 4 | deepseek |
+| 5 | google |
+| 6 | groq |
+| 7 | mistral |
+| 8 | ollama |
+| 9 | openai |
+| 10 | perplexity |
+| 11 | together |
+| 12 | xai |
+
+To inspect the default model:
+
+
+```python
+Model()
+```
+
+
+LanguageModel
+
+|  | key | value |
+| :--- | :--- | :--- |
+| 0 | model | gpt-4o |
+| 1 | parameters:temperature | 0.500000 |
+| 2 | parameters:max_tokens | 1000 |
+| 3 | parameters:top_p | 1 |
+| 4 | parameters:frequency_penalty | 0 |
+| 5 | parameters:presence_penalty | 0 |
+| 6 | parameters:logprobs | False |
+| 7 | parameters:top_logprobs | 3 |
+| 8 | inference_service | openai |
+
+Here we select several models to compare their responses for the survey that we create in the steps below:
+
+
+```python
+from edsl import ModelList
+
+models = ModelList(
+    Model(m) for m in ["gemini-1.5-flash", "gpt-4o", "claude-3-5-sonnet-20240620"]
+)
+```
+
+## Generating content
+
+EDSL comes with a variety of standard survey question types, such as multiple choice, free text, etc. These can be selected based on the desired format of the response. See details about all types [here](/en/latest/questions#question-type-classes). We can use `QuestionFreeText` to prompt the models to generate some content for our experiment:
+
+
+```python
+from edsl import QuestionFreeText
+
+q = QuestionFreeText(
+    question_name = "poem",
+    question_text = "Please draft a short poem about any topic. Return only the poem."
+)
+```
+
+We generate a response to the question by adding the models to use with the `by` method and then calling the `run` method. This generates a `Results` object with a `Result` for each response to the question:
+
+
+```python
+results = q.by(models).run()
+```
+
+To see a list of all components of results:
+
+
+```python
+results.columns
+```
+
+
+|  | 0 |
+| :--- | :--- |
+| 0 | agent.agent_index |
+| 1 | agent.agent_instruction |
+| 2 | agent.agent_name |
+| 3 | answer.poem |
+| 4 | cache_keys.poem_cache_key |
+| 5 | cache_used.poem_cache_used |
+| 6 | comment.poem_comment |
+| 7 | generated_tokens.poem_generated_tokens |
+| 8 | iteration.iteration |
+| 9 | model.frequency_penalty |
+| 10 | model.inference_service |
+| 11 | model.logprobs |
+| 12 | model.maxOutputTokens |
+| 13 | model.max_tokens |
+| 14 | model.model |
+| 15 | model.model_index |
+| 16 | model.presence_penalty |
+| 17 | model.stopSequences |
+| 18 | model.temperature |
+| 19 | model.topK |
+| 20 | model.topP |
+| 21 | model.top_logprobs |
+| 22 | model.top_p |
+| 23 | prompt.poem_system_prompt |
+| 24 | prompt.poem_user_prompt |
+| 25 | question_options.poem_question_options |
+| 26 | question_text.poem_question_text |
+| 27 | question_type.poem_question_type |
+| 28 | raw_model_response.poem_cost |
+| 29 | raw_model_response.poem_one_usd_buys |
+| 30 | raw_model_response.poem_raw_model_response |
+| 31 | scenario.scenario_index |
+
+We can inspect components of the results individually:
+
+
+```python
+results.select("model", "poem")
+```
+
+
+|  | model.model | answer.poem |
+| :--- | :--- | :--- |
+| 0 | gemini-1.5-flash | The old oak sighs, a whispered plea, Of sun-drenched days and memory. Its leaves, like coins, fall to the ground, A rustling song, without a sound. |
+| 1 | gpt-4o | In the hush of dawn's embrace, Where whispers dance on morning's face, A gentle breeze begins to weave, Stories that the night must leave. Petals wake with dewdrop dreams, Reflecting light in golden streams. The world, anew, in softest hues, Paints a canvas, fresh and true. Birds compose their morning song, A symphony where hearts belong. Nature's chorus, pure and clear, Fills the air with hope and cheer. In this moment, time stands still, A promise held in every thrill. The day unfolds, a tender grace, In the hush of dawn's embrace. |
+| 2 | claude-3-5-sonnet-20240620 | Whispers of Autumn Golden leaves dance on the breeze, A crisp chill nips at my knees. Pumpkins grin with candlelit faces, As nature dons her russet laces. Harvest moon hangs low and bright, Guiding spirits through the night. Autumn's spell, so bittersweet, Makes time both linger and fleet. |
+
+## Conducting a review
+
+Next we create a question to have a model evaluating a response that we use as an input to the new question:
+
+
+```python
+from edsl import QuestionLinearScale
+
+q_score = QuestionLinearScale(
+    question_name = "score",
+    question_text = "Please give the following poem a score. No easy grading! Poem: {{ scenario.poem }}",
+    question_options = [0, 1, 2, 3, 4, 5],
+    option_labels = {0: "Very poor", 5: "Excellent"},
+)
+```
+
+## Parameterizing questions
+
+We use `Scenario` objects to add each response to the new question. EDSL comes with many methods for creating scenarios from different data sources (PDFs, CSVs, docs, images, lists, etc.), as well as `Results` objects:
+
+
+```python
+scenarios = (
+    results.to_scenario_list()
+    .select("model", "poem")
+    .rename({"model": "drafting_model"}) # renaming the 'model' field to distinguish the evaluating model
+)
+scenarios
+```
+
+
+[ScenarioList](/en/latest/scenarios) scenarios: 3; keys: ['drafting_model', 'poem'];
+
+|  | drafting_model | poem |
+| :--- | :--- | :--- |
+| 0 | gemini-1.5-flash | The old oak sighs, a whispered plea, Of sun-drenched days and memory. Its leaves, like coins, fall to the ground, A rustling song, without a sound. |
+| 1 | gpt-4o | In the hush of dawn's embrace, Where whispers dance on morning's face, A gentle breeze begins to weave, Stories that the night must leave. Petals wake with dewdrop dreams, Reflecting light in golden streams. The world, anew, in softest hues, Paints a canvas, fresh and true. Birds compose their morning song, A symphony where hearts belong. Nature's chorus, pure and clear, Fills the air with hope and cheer. In this moment, time stands still, A promise held in every thrill. The day unfolds, a tender grace, In the hush of dawn's embrace. |
+| 2 | claude-3-5-sonnet-20240620 | Whispers of Autumn Golden leaves dance on the breeze, A crisp chill nips at my knees. Pumpkins grin with candlelit faces, As nature dons her russet laces. Harvest moon hangs low and bright, Guiding spirits through the night. Autumn's spell, so bittersweet, Makes time both linger and fleet. |
+
+Finally, we conduct the evaluation by having each model score each haiku that was generated (without information about whether the model itself was the source):
+
+
+```python
+results = q_score.by(scenarios).by(models).run()
+```
+
+
+
+```python
+results.columns
+```
+
+
+|  | 0 |
+| :--- | :--- |
+| 0 | agent.agent_index |
+| 1 | agent.agent_instruction |
+| 2 | agent.agent_name |
+| 3 | answer.score |
+| 4 | cache_keys.score_cache_key |
+| 5 | cache_used.score_cache_used |
+| 6 | comment.score_comment |
+| 7 | generated_tokens.score_generated_tokens |
+| 8 | iteration.iteration |
+| 9 | model.frequency_penalty |
+| 10 | model.inference_service |
+| 11 | model.logprobs |
+| 12 | model.maxOutputTokens |
+| 13 | model.max_tokens |
+| 14 | model.model |
+| 15 | model.model_index |
+| 16 | model.presence_penalty |
+| 17 | model.stopSequences |
+| 18 | model.temperature |
+| 19 | model.topK |
+| 20 | model.topP |
+| 21 | model.top_logprobs |
+| 22 | model.top_p |
+| 23 | prompt.score_system_prompt |
+| 24 | prompt.score_user_prompt |
+| 25 | question_options.score_question_options |
+| 26 | question_text.score_question_text |
+| 27 | question_type.score_question_type |
+| 28 | raw_model_response.score_cost |
+| 29 | raw_model_response.score_one_usd_buys |
+| 30 | raw_model_response.score_raw_model_response |
+| 31 | scenario.drafting_model |
+| 32 | scenario.poem |
+| 33 | scenario.scenario_index |
+
+
+```python
+results.sort_by("drafting_model", "model").select("drafting_model", "model", "poem", "score", "score_comment")
+```
+
+
+|  | scenario.drafting_model | model.model | scenario.poem | answer.score | comment.score_comment |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | claude-3-5-sonnet-20240620 | claude-3-5-sonnet-20240620 | Whispers of Autumn Golden leaves dance on the breeze, A crisp chill nips at my knees. Pumpkins grin with candlelit faces, As nature dons her russet laces. Harvest moon hangs low and bright, Guiding spirits through the night. Autumn's spell, so bittersweet, Makes time both linger and fleet. | 4 | This poem demonstrates strong imagery and evocative language, capturing the essence of autumn effectively. The rhyme scheme and meter are consistent, and there are some nice poetic devices like alliteration and personification. While it's a well-crafted poem, it doesn't quite reach the level of excellence due to its somewhat conventional approach to the subject matter. |
+| 1 | claude-3-5-sonnet-20240620 | gemini-1.5-flash | Whispers of Autumn Golden leaves dance on the breeze, A crisp chill nips at my knees. Pumpkins grin with candlelit faces, As nature dons her russet laces. Harvest moon hangs low and bright, Guiding spirits through the night. Autumn's spell, so bittersweet, Makes time both linger and fleet. | 3 | The poem is competently written, employing imagery and rhythm effectively to evoke the feeling of autumn. However, it lacks originality or depth; the imagery is fairly standard for autumnal poems, and the "bittersweet" sentiment is somewhat cliché. It's well-crafted but not particularly memorable or innovative. |
+| 2 | claude-3-5-sonnet-20240620 | gpt-4o | Whispers of Autumn Golden leaves dance on the breeze, A crisp chill nips at my knees. Pumpkins grin with candlelit faces, As nature dons her russet laces. Harvest moon hangs low and bright, Guiding spirits through the night. Autumn's spell, so bittersweet, Makes time both linger and fleet. | 4 | The poem captures the essence of autumn beautifully with vivid imagery and a rhythmic flow. It effectively conveys the season's atmosphere and emotions, though it could benefit from more depth or unique perspective to achieve an "excellent" score. |
+| 3 | gemini-1.5-flash | claude-3-5-sonnet-20240620 | The old oak sighs, a whispered plea, Of sun-drenched days and memory. Its leaves, like coins, fall to the ground, A rustling song, without a sound. | 4 | This poem demonstrates strong imagery, effective use of metaphor, and a pleasing rhythm. The personification of the oak tree and the comparison of leaves to coins are evocative. The final line creates a nice paradox. While not perfect, it's a well-crafted short poem. |
+| 4 | gemini-1.5-flash | gemini-1.5-flash | The old oak sighs, a whispered plea, Of sun-drenched days and memory. Its leaves, like coins, fall to the ground, A rustling song, without a sound. | 4 | The poem uses strong imagery ("sun-drenched days," "leaves, like coins," "rustling song, without a sound") and personification ("old oak sighs, a whispered plea") to create a evocative mood. While not groundbreaking, it's well-crafted and emotionally resonant. |
+| 5 | gemini-1.5-flash | gpt-4o | The old oak sighs, a whispered plea, Of sun-drenched days and memory. Its leaves, like coins, fall to the ground, A rustling song, without a sound. | 4 | The poem effectively uses imagery and personification to evoke a sense of nostalgia and the passage of time. The comparison of leaves to coins is particularly vivid, and the phrase "rustling song, without a sound" adds an intriguing paradox. However, the poem is relatively short and could benefit from further development to achieve a higher score. |
+| 6 | gpt-4o | claude-3-5-sonnet-20240620 | In the hush of dawn's embrace, Where whispers dance on morning's face, A gentle breeze begins to weave, Stories that the night must leave. Petals wake with dewdrop dreams, Reflecting light in golden streams. The world, anew, in softest hues, Paints a canvas, fresh and true. Birds compose their morning song, A symphony where hearts belong. Nature's chorus, pure and clear, Fills the air with hope and cheer. In this moment, time stands still, A promise held in every thrill. The day unfolds, a tender grace, In the hush of dawn's embrace. | 4 | This poem demonstrates strong imagery, consistent rhythm, and effective use of literary devices like alliteration and metaphor. The language is evocative and creates a vivid sensory experience. While it's a well-crafted piece, it doesn't quite reach the level of excellence due to its somewhat conventional theme and imagery. |
+| 7 | gpt-4o | gemini-1.5-flash | In the hush of dawn's embrace, Where whispers dance on morning's face, A gentle breeze begins to weave, Stories that the night must leave. Petals wake with dewdrop dreams, Reflecting light in golden streams. The world, anew, in softest hues, Paints a canvas, fresh and true. Birds compose their morning song, A symphony where hearts belong. Nature's chorus, pure and clear, Fills the air with hope and cheer. In this moment, time stands still, A promise held in every thrill. The day unfolds, a tender grace, In the hush of dawn's embrace. | 4 | The poem is well-written and evokes a strong sense of imagery and emotion. The language is beautiful and the structure is consistent. However, it lacks a certain level of originality or complexity to reach a "5". There's a predictability to the imagery and metaphors that prevents it from being truly exceptional. |
+| 8 | gpt-4o | gpt-4o | In the hush of dawn's embrace, Where whispers dance on morning's face, A gentle breeze begins to weave, Stories that the night must leave. Petals wake with dewdrop dreams, Reflecting light in golden streams. The world, anew, in softest hues, Paints a canvas, fresh and true. Birds compose their morning song, A symphony where hearts belong. Nature's chorus, pure and clear, Fills the air with hope and cheer. In this moment, time stands still, A promise held in every thrill. The day unfolds, a tender grace, In the hush of dawn's embrace. | 5 | The poem beautifully captures the serene and hopeful atmosphere of dawn with vivid imagery and a rhythmic flow. Each stanza contributes to a cohesive narrative that evokes a sense of peace and renewal, making it an excellent piece. |
+
+## Posting to the Coop
+
+The [Coop](https://www.expectedparrot.com/content/explore) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Coop account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [using the Coop](/en/latest/coop).
+
+Here we post this notebook:
+
+
+```python
+from edsl import Notebook
+
+nb = Notebook(path = "explore_llm_biases.ipynb")
+
+if refresh := False:
+    nb.push(
+        description = "Example code for comparing model responses and biases",
+        alias = "explore-llm-biases-notebook",
+        visibility = "public"
+    )
+else:
+    nb.patch("https://www.expectedparrot.com/content/RobinHorton/explore-llm-biases-notebook", value = nb)
+```

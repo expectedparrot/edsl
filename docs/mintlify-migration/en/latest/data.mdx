@@ -1,0 +1,679 @@
+---
+title: "Caching LLM Calls"
+description: "The *Cache* class is used to store responses from a language model so that they can easily be retrieved, reused and shared."
+---
+
+*What is a cache?* ([Wikipedia](https://en.wikipedia.org/wiki/Cache_(computing)))
+
+## Why caching?
+
+Language model outputs are expensive to create, both in terms of time and money. As such, it is useful to store them in a cache so that they can be shared or reused later.
+
+Use cases:
+
+- Avoid rerunning questions when a job fails only partially, by only resending unanswered questions to a language model.
+- Share your cache with others so they can rerun your questions at no cost.
+- Use a common remote cache to avoid rerunning questions that others have already run.
+- Build up training data to train or fine-tune a smaller model.
+- Build up a public repository of questions and responses so others can learn from them.
+
+## How it works
+
+A Cache is a dictionary-like object that stores the inputs and outputs of a language model. Specifically, a cache has an attribute, data, that is dictionary-like.
+
+The keys of a cache are hashes of the unique inputs to a language model, i.e., the unique combinations of prompts and any parameters used to generate the outputs. The values are CacheEntry objects, which contains the inputs and outputs.
+
+A cache can be stored as either a Python in-memory dictionary or a dictionary connected to a SQLite3 database. The default constructor is an in-memory dictionary. If a SQLite3 database is used, a cache will persist automatically between sessions. You can also specify that a cache be used for a specific session, in which case it will not persist between sessions.
+
+After a session, the cache will have new entries from any new jobs that have been run during the session. These can be written to a local SQLite3 database, a JSONL file, or a remote server.
+
+## Multiple caches
+
+Multiple caches are impacted when a survey is run:
+
+- **New cache for results:** A new cache is automatically created for the results of a survey. This cache is specific to the results object, and is attached to it.
+- **Default cache updated:** A default cache is automatically updated with any new entries from the results. If a new or existing cache object was passed to the run() method, it is the default cache that is updated. Otherwise, either your local cache or your remote cache is updated, depending on whether the job was run locally or remotely.
+
+See examples below for more details on how to create and manage caches.
+
+## Generating a new cache for results
+
+A new cache is automatically generated whenever results are generated for a question or survey. This cache is specific to the Results object, and is attached to it. It can be accessed using the cache attribute of the results object.
+
+For example:
+
+```python
+from edsl import QuestionNumerical, Model
+
+m = Model("gemini-1.5-flash")
+
+q = QuestionNumerical(
+  question_name = "random",
+  question_text = "Please give me a random number between 1 and 100."
+)
+
+results = q.by(m).run()
+
+results.cache
+```
+
+Example output:
+
+| model | parameters | system_prompt | user_prompt | output | iteration | timestamp | cache_key |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| gemini-1.5-flash | `{‘temperature’: 0.5, ‘topP’: 1, ‘topK’: 1, ‘maxOutputTokens’: 2048, ‘stopSequences’: []}` | nan | Please give me a random number between 1 and 100. This question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, …). Respond with just your number on a single line. If your response is equivalent to zero, report ‘0’ After the answer, put a comment explaining your choice on the next line. | `{“candidates”: [{“content”: {“parts”: [{“text”: “87n# This is a randomly generated number between 1 and 100.n”}], “role”: “model”}, “finish_reason”: 1, “safety_ratings”: [{“category”: 8, “probability”: 1, “blocked”: false}, {“category”: 10, “probability”: 1, “blocked”: false}, {“category”: 7, “probability”: 1, “blocked”: false}, {“category”: 9, “probability”: 1, “blocked”: false}], “avg_logprobs”: -0.03539780080318451, “token_count”: 0, “grounding_attributions”: []}], “usage_metadata”: {“prompt_token_count”: 97, “candidates_token_count”: 20, “total_token_count”: 117, “cached_content_token_count”: 0}}` | 0 | 1737491116 | 7f057154c60a1b9ae343b0634fe7a370 |
+
+The results object also includes columns of information about the cache for the results:
+
+```python
+results.columns
+```
+
+Output:
+
+| |
+| :--- |
+|agent.agent_index |
+| agent.agent_instruction |
+| agent.agent_name |
+| answer.random |
+| cache_keys.random_cache_key |
+| cache_used.random_cache_used |
+| comment.random_comment |
+| generated_tokens.random_generated_tokens |
+| iteration.iteration |
+| model.maxOutputTokens |
+| model.model |
+| model.model_index |
+| model.stopSequences |
+| model.temperature |
+| model.topK |
+| model.topP |
+| prompt.random_system_prompt |
+| prompt.random_user_prompt |
+| question_options.random_question_options |
+| question_text.random_question_text |
+| question_type.random_question_type |
+| raw_model_response.random_cost |
+| raw_model_response.random_one_usd_buys |
+| raw_model_response.random_raw_model_response |
+| scenario.scenario_index |
+
+The cache_keys column contains the cache key for each question. It is a unique identifier for the cache entry, and is a hash of the unique inputs to the language model; if you rerun the same question with the same parameters, it will return the same cache key. It can be used to retrieve the cache entry later, or to add the entry to a different cache.
+
+The cache_used column indicates whether or not each result was retrieved from the default cache (your local cache, your remote cache, or a cache that was passed to the run() method when the results were generated). Whenever a question is run for the first time, the cache_used column will be False; if the same question is run again with the same cache available, the cache_used column will be True.
+
+For example, here we run a new question and confirm that the default cache was not used (i.e., the cache key for the question is not already in the available cache):
+
+```python
+from edsl import QuestionNumerical, Model
+
+m = Model("gemini-1.5-flash")
+
+q = QuestionNumerical(
+  question_name = "random",
+  question_text = "Please give me a random number between 1 and 100."
+)
+
+r1 = q.by(m).run()
+r1.select("cache_keys.*", "cache_used.*")
+```
+
+Output:
+
+| cache_keys.random_cache_key | cache_used.random_cache_used |
+| :--- | :--- |
+| 7f057154c60a1b9ae343b0634fe7a370 | False |
+
+If we run the question again, the cache key will be the same, but the cache_used indicator will now be True:
+
+```python
+r2 = q.by(m).run()
+r2.select("cache_keys.*", "cache_used.*")
+```
+
+Output:
+
+| cache_keys.random_cache_key | cache_used.random_cache_used |
+| :--- | :--- |
+| 7f057154c60a1b9ae343b0634fe7a370 | True |
+
+## Working with a cache
+
+A cache can be passed to the run() method of a survey in order to make the entries available in generating the survey results. This can be useful if you want to add new entries to a specific cache other than your default cache (local or remote).
+
+For example:
+
+```python expandable
+from edsl import QuestionFreeText, QuestionNumerical, Survey, Model
+
+m = Model("gemini-1.5-flash")
+
+# This question is already run, so we can use its cache from above (r1.cache)
+q1 = QuestionNumerical(
+  question_name = "random",
+  question_text = "Please give me a random number between 1 and 100."
+)
+
+# This question is new, so the entry will be added to the cache that we use
+q2 = QuestionFreeText(
+  question_name = "explain",
+  question_text = "How does an AI choose a random number?"
+)
+
+survey = Survey(questions = [q1,q2])
+
+# The results will include the retrieved entry for q1 and the new entry for q2
+r3 = survey.by(m).run(cache = r1.cache)
+
+r3.select("cache_keys.*", "cache_used.*")
+```
+
+Output:
+
+| cache_keys.random_cache_key | cache_keys.explain_cache_key | cache_used.random_cache_used | cache_used.explain_cache_used |
+| :--- | :--- | :--- | :--- |
+| 7f057154c60a1b9ae343b0634fe7a370 | 6442cf8e6b9812a89bd50bf059f77885 | True | False |
+
+<Note>
+**Note**:
+
+Note that this is independent of the new cache generated for the results as above, which are accessed by calling r3.cache.
+</Note>
+
+## Instantiating a new cache
+
+This code will instantiate a new cache object using a dictionary as the data attribute
+
+### In-memory usage
+
+```python
+from edsl import Cache
+
+my_in_memory_cache = Cache()
+```
+
+It can then be passed as an object to a run method:
+
+```python
+from edsl import Survey
+
+s = Survey.example()
+
+results = s.run(cache = my_in_memory_cache)
+```
+
+If an in-memory cache is not stored explicitly, the data will be lost when the session is over, unless it is written to a file or remote caching is instantiated. More on this below.
+
+### Local persistence for an in-memory cache
+
+```python
+c = Cache()
+# a bunch of operations
+c.write_sqlite_db("example.db")
+# or
+c.write_jsonl("example.jsonl")
+```
+
+You can then load the cache from the SQLite3 database or JSONL file using Cache methods.
+
+```python
+c = Cache.from_sqlite_db("example.db")
+# or
+c = Cache.from_jsonl("example.jsonl")
+```
+
+### SQLite3Dict for transactions
+
+Instead of using a dictionary as the data attribute, you can use a special dictionary-like object based on SQLite3. This will persist the cache between sessions. This is the “normal” way that a cache is used for runs where no specic cache is passed.
+
+```python
+from edsl import Cache
+from edsl.data.SQLiteDict import SQLiteDict
+
+my_sqlite_cache = Cache(data = SQLiteDict("example.db"))
+```
+
+This will leave a SQLite3 database on the user’s machine at the file, in this case example.db in the current directory. It will persist between sessions and can be loaded using the from_sqlite_db method shown above.
+
+### Default SQLite Cache: .edsl_cache/data.db
+
+By default, the cache will be stored in a SQLite3 database at the path .edsl_cache/data.db. You can interact with this cache directly, e.g.,
+
+```python
+sqlite3 .edsl_cache/data.db
+```
+
+### Setting a session cache
+
+The set_session_cache function is used to set the cache for a session:
+
+```python
+from edsl import Cache, set_session_cache
+
+set_session_cache(Cache())
+```
+
+The cache can be set to a specific cache object, or it can be set to a dictionary or SQLite3Dict object.
+
+```python
+from edsl import Cache, set_session_cache
+from edsl.data import SQLiteDict
+
+set_session_cache(Cache(data = SQLiteDict("example.db")))
+# or
+set_session_cache(Cache(data = {}))
+```
+
+This will set the cache for the current session, and you do not need to pass the cache object to the run method during the session.
+
+The unset_session_cache function is used to unset the cache for a session:
+
+```python
+from edsl import unset_session_cache
+
+unset_session_cache()
+```
+
+This will unset the cache for the current session, and you will need to pass the cache object to the run method during the session.
+
+### Avoiding cache persistence
+
+We can avoid cache persistence by passing cache=False to the run method:
+
+```python
+from edsl import QuestionFreeText
+
+q = QuestionFreeText.example()
+
+results = q.run(cache = False)
+```
+
+## For developers
+
+### Delayed cache-writing: Useful for remote caching
+
+Separate from this remote cache syncing, delays can be made in writing to the cache itself. By default, the cache will write to the cache immediately after storing a new entry. However, this can be changed by setting the immediate_write parameter to False.
+
+```python
+c = Cache(immediate_write = False)
+```
+
+This is useful when you want to store entries to the cache only after a block of code has been executed. This is also controlled by using the cache object as a context.
+
+```python
+with c as cache:
+  # readings / writing
+  ...
+
+# The cache will be written to the cache persistence layer after the block of code has been executed
+```
+
+## Cache class
+
+> ### *class* edsl.caching.Cache(*, *filename: str | None = None*, *data: SQLiteDict | dict | None = None*, *immediate_write: bool = True*, *method=None*, *verbose=False*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Bases: [`Base`](/en/latest/base "edsl.base.base_class.Base")
+
+Cache for storing and retrieving language model responses.
+
+The Cache class manages a collection of CacheEntry objects, providing methods for storing, retrieving, and persisting language model responses. It serves as the core component of EDSL’s caching infrastructure, helping to reduce redundant API calls, save costs, and ensure reproducibility.
+
+Cache can use different storage backends: - In-memory dictionary (default) - SQLite database via SQLiteDict - JSON lines file (.jsonl)
+
+The cache operates by generating deterministic keys based on the model, parameters, prompts, and iteration number. This allows for efficient lookup of cached responses when identical requests are made.
+
+**Attributes:**
+
+data (dict or SQLiteDict): The primary storage for cache entries new_entries (dict): Entries added in the current session fetched_data (dict): Entries retrieved in the current session filename (str, optional): Path for persistence if provided immediate_write (bool): Whether to update data immediately (True) or defer (False)
+
+**Technical Notes:**
+
+- Can be used as a context manager to automatically persist changes on exit
+- Supports serialization/deserialization via to_dict/from_dict methods
+- Implements set operations (addition, subtraction) for combining caches
+- Integrates with the broader EDSL caching infrastructure via CacheHandler
+
+> #### __init__(*, *filename: str | None = None*, *data: SQLiteDict | dict | None = None*, *immediate_write: bool = True*, *method=None*, *verbose=False*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Initialize a new Cache instance.
+
+Creates a new cache for storing language model responses. The cache can be initialized with existing data or connected to a persistent storage file.
+
+> **Args:**
+
+**filename: Path to a persistent storage file (.jsonl or .db). If provided, the cache**
+
+will be initialized from this file and changes will be written back to it. Cannot be used together with data parameter.
+
+**data: Initial cache data as a dictionary or SQLiteDict. Cannot be used together**
+
+with filename parameter.
+
+**immediate_write: If True, new entries are immediately added to the main data store.**
+
+If False, they’re kept separate until explicitly written.
+
+method: Deprecated. Legacy parameter for backward compatibility. verbose: If True, prints diagnostic information about cache hits and misses.
+
+> **Raises:**
+
+**CacheError: If both filename and data are provided, or if the filename has an**
+
+invalid extension.
+
+> **Implementation Notes:**
+
+- The cache maintains separate dictionaries for tracking: * data: The main persistent storage * new_entries: Entries added in this session * fetched_data: Entries fetched in this session * new_entries_to_write_later: Entries to be written if immediate_write=False
+- If loading from a file, the appropriate loader method is called based on extension
+
+> ### add_from_dict(*new_data: dict[str, 'CacheEntry']*, *write_now: bool | None = True*) → None[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Add entries to the cache from a dictionary.
+
+**Parameters:**
+
+**write_now** – Whether to write to the cache immediately (similar to immediate_write).
+
+> ### add_from_jsonl(*filename: str*, *write_now: bool | None = True*) → None[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Add entries to the cache from a JSONL.
+
+**Parameters:**
+
+**write_now** – Whether to write to the cache immediately (similar to immediate_write).
+
+> ### add_from_sqlite(*db_path: str*, *write_now: bool | None = True*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Add entries to the cache from an SQLite database.
+
+**Parameters:**
+
+**write_now** – Whether to write to the cache immediately (similar to immediate_write).
+
+> ### close()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Explicitly close and clean up resources.
+
+This method properly disposes of any SQLAlchemy engines and connections to prevent memory leaks.
+
+> ### code()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Generate Python code that recreates this object.
+
+This method must be implemented by all subclasses to provide a way to generate executable Python code that can recreate the object.
+
+**Returns:**
+
+str: Python code that, when executed, creates an equivalent object
+
+> ### data *= {}*[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+> ### *classmethod* example(*randomize: bool = False*) → [Cache](/en/latest/data#cache-class)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Create an example Cache instance for testing and demonstration.
+
+Creates a Cache object pre-populated with example CacheEntry objects. This method is useful for documentation, testing, and demonstration purposes.
+
+> **Args:**
+
+**randomize: If True, creates CacheEntry objects with randomized content**
+
+for uniqueness. If False, uses consistent example entries.
+
+> **Returns:**
+
+Cache: A new Cache object containing example CacheEntry objects
+
+> **Technical Notes:**
+
+- Uses CacheEntry.example() to create sample entries
+- When randomize=True, generates unique keys for each call
+- When randomize=False, produces consistent examples for doctests
+- Creates an in-memory cache (no persistent file)
+
+> **Examples:**
+
+```python
+>>> cache = Cache.example()
+>>> len(cache) > 0
+True
+>>> from edsl.caching.cache_entry import CacheEntry
+>>> all(isinstance(entry, CacheEntry) for entry in cache.values())
+True
+```
+
+```python
+>>> # Create examples with randomized content
+>>> cache1 = Cache.example(randomize=True)
+>>> cache2 = Cache.example(randomize=True)
+>>> # With randomization, keys should be different
+>>> len(cache1) > 0 and len(cache2) > 0
+True
+```
+
+> ### fetch(***, *model: str*, *parameters: dict*, *system_prompt: str*, *user_prompt: str*, *iteration: int*, *validated: bool = False*, *remote_fetch: bool = False*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Retrieve a cached language model response if available.
+
+This method attempts to find a cached response matching the exact input parameters. The combination of model, parameters, prompts, and iteration creates a unique key that identifies a specific language model request.
+
+> **Args:**
+
+model: Language model identifier (e.g., “gpt-3.5-turbo”) parameters: Model configuration parameters (e.g., temperature, max_tokens) system_prompt: The system instructions given to the model user_prompt: The user query/prompt given to the model iteration: The iteration number for this specific request
+
+> **Returns:**
+
+tuple: (response, key) where:
+
+- response: The cached model output as a string, or None if not found
+- key: The cache key string generated for this request
+
+> **Technical Notes:**
+
+- Uses CacheEntry.gen_key() to generate a consistent hash-based key
+- Updates self.fetched_data when a hit occurs to track cache usage
+- Optionally logs cache hit/miss when verbose=True
+- The response is returned as a JSON string for consistency
+- On local cache miss, attempts to fetch from remote universal cache
+
+> **Examples:**
+
+```python
+>>> c = Cache()
+>>> c.fetch(model="gpt-3", parameters="default", system_prompt="Hello",
+...         user_prompt="Hi", iteration=1)[0] is None
+True
+```
+
+> ### fetch_input_example() → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Create an example input for a ‘fetch’ operation.
+
+> ### *classmethod* from_dict(*data*) → [Cache](/en/latest/data#cache-class)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Construct a Cache from a dictionary.
+
+> ### *classmethod* from_jsonl(*jsonlfile: str*, *db_path: str | None = None*) → [Cache](/en/latest/data#cache-class)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Construct a Cache from a JSONL file.
+
+**Parameters:**
+
+- **jsonlfile** – The path to the JSONL file of cache entries.
+- **db_path** – The path to the SQLite database used to store the cache.
+
+- If db_path is None, the cache will be stored in memory, as a dictionary.
+- If db_path is provided, the cache will be stored in an SQLite database.
+
+> ### *classmethod* from_local_cache() → [Cache](/en/latest/data#cache-class)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Construct a Cache from a local cache file.
+
+> ### *classmethod* from_sqlite_db(*db_path: str*) → [Cache](/en/latest/data#cache-class)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Construct a Cache from a SQLite database.
+
+> ### *classmethod* from_url(*db_path=None*) → [Cache](/en/latest/data#cache-class)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Construct a Cache object from a remote.
+
+> ### items()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Return an iterator of (key, value) pairs in the cache.
+
+Similar to dict.items(), provides an iterator over all key-value pairs in the cache for easy iteration.
+
+**Returns:**
+
+zip: An iterator of (key, CacheEntry) tuples
+
+> ### keys()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Return a list of all cache keys.
+
+Retrieves all cache keys, which are the unique identifiers for each cache entry.
+
+> **Returns:**
+
+list: A list of string keys in the cache
+
+> **Examples:**
+
+```python
+>>> from edsl import Cache
+>>> Cache.example().keys()
+['5513286eb6967abc0511211f0402587d']
+```
+
+> ### new_entries_cache() → [Cache](/en/latest/data#cache-class)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Return a new Cache object with the new entries.
+
+> ### select(**fields*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+> ### store(*model: str*, *parameters: str*, *system_prompt: str*, *user_prompt: str*, *response: dict*, *iteration: int*, *service: str*, *validated: bool = False*) → str[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Store a new language model response in the cache.
+
+Creates a new CacheEntry from the provided parameters and response, then adds it to the cache using a deterministic key derived from the input parameters.
+
+> **Args:**
+
+model: Language model identifier (e.g., “gpt-3.5-turbo”) parameters: Model configuration parameters (e.g., temperature, max_tokens) system_prompt: The system instructions given to the model user_prompt: The user query/prompt given to the model response: The model’s response as a dictionary iteration: The iteration number for this specific request service: The service provider (e.g., “openai”, “anthropic”) validated: Whether the response has been validated (default: False)
+
+> **Returns:**
+
+str: The cache key generated for this entry
+
+> **Technical Notes:**
+
+- Creates a new CacheEntry object to encapsulate the response and metadata
+- Adds the entry to self.new_entries to track entries added in this session
+- Adds the entry to the main data store if immediate_write=True
+- Otherwise, stores in new_entries_to_write_later for deferred writing
+- The response is stored as a JSON string for consistency and compatibility
+
+> **Storage Behavior:**
+
+The method’s behavior depends on the immediate_write setting: - If True: Immediately writes to the main data store (self.data) - If False: Stores in a separate dict for writing later (e.g., at context exit)
+
+> **Examples:**
+
+```python
+>>> from edsl import Cache, Model, Question
+>>> m = Model("test")
+>>> c = Cache()
+>>> len(c)
+0
+>>> results = Question.example("free_text").by(m).run(cache=c,
+...         disable_remote_cache=True, disable_remote_inference=True)
+>>> len(c)
+1
+```
+
+> ### subset(*keys: list[str]*) → [Cache](/en/latest/data#cache-class)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Return a subset of the Cache with the specified keys.
+
+> ### table(**fields*, *tablefmt: str | None = None*, *pretty_labels: dict | None = None*) → str[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+> ### to_dataset()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Convert this object to a Dataset for advanced data operations.
+
+**Returns:**
+
+Dataset: A Dataset object containing this object’s data
+
+> ### to_dict(*add_edsl_version=True*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Serialize the cache to a dictionary for storage or transmission.
+
+Converts the Cache object into a plain dictionary format that can be easily serialized to JSON or other formats. Each CacheEntry is also converted to a dictionary using its to_dict method.
+
+> **Args:**
+
+**add_edsl_version: If True, includes the EDSL version and class name**
+
+in the serialized output for compatibility tracking
+
+> **Returns:**
+
+> **dict: A dictionary representation of the cache with the structure:**
+
+```python
+{
+“key1”: {cache_entry1_dict}, “key2”: {cache_entry2_dict}, … “edsl_version”: “x.x.x”, # if add_edsl_version=True “edsl_class_name”: “Cache” # if add_edsl_version=True
+}
+```
+
+> **Technical Notes:**
+
+- Used by from_dict for deserialization
+- Used by __hash__ for cache comparison
+- The version info allows for proper handling of format changes
+
+> ### to_html()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+> ### to_scenario_list()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+> ### tree(*node_list: list[str] | None = None*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+> ### values()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Return a list of all cache entry values.
+
+Retrieves all CacheEntry objects stored in the cache.
+
+> **Returns:**
+
+list: A list of CacheEntry objects
+
+> **Examples:**
+
+```python
+>>> from edsl import Cache
+>>> entries = Cache.example().values()
+>>> len(entries)
+1
+>>> entries[0]
+CacheEntry(model='gpt-3.5-turbo', parameters={'temperature': 0.5}, ...)
+```
+
+> ### view() → None[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+View the Cache in a new browser tab.
+
+> ### write(*filename: str | None = None*) → None[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Write the cache to a file at the specified location.
+
+> ### write_jsonl(*filename: str*) → None[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Write the cache to a JSONL file.
+
+> ### write_sqlite_db(*db_path: str*) → None[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
+
+Write the cache to an SQLite database.
+

@@ -1,0 +1,406 @@
+---
+title: "Evaluating job posts"
+description: "This notebook provides sample code for conducting a text analysis using [EDSL](/en/latest/index), an open-source library for simulating surveys, experiments and other research with AI agents and large language models."
+---
+
+Using a dataset of job posts as an example, we demonstrate how to:
+
+<Steps>
+<Step>
+    Import data into EDSL
+</Step>
+<Step>
+    Create questions about the data
+</Step>
+<Step>
+    Design an AI agent to answer the questions
+</Step>
+<Step>
+    Select a language model to generate responses
+</Step>
+<Step>
+    Analyze results as a formatted dataset
+</Step>
+</Steps>
+
+## Technical setup
+
+Before running the code below please ensure that you have completed setup:
+
+- [Install EDSL](/en/latest/installation).
+- Create a [Coop account](https://www.expectedparrot.com/login) and activate [remote inference](/en/latest/remote_inference) to run surveys at the Expected Parrot server. You can use an Expected Parrot API key or your own [API Keys](/en/latest/api_keys) for language models that you want to use.
+
+Our [Starter Tutorial](/en/latest/starter_tutorial) also provides examples of EDSL basic components.
+
+## Selecting data for review
+
+First we identify some data for review. Data can be created using the EDSL tools or [imported from other sources](/en/latest/scenarios). For purposes of this demo we import a set of job posts:
+
+
+```python expandable
+job_posts = [
+    "Oversee daily operations, manage staff, and ensure customer satisfaction in a fast-paced retail environment.",
+    "Craft engaging and informative blog posts on health and wellness topics to boost website traffic and engage readers.",
+    "Analyze sales data using statistical tools to identify trends and provide actionable insights to the marketing team.",
+    "Prepare gourmet dishes that comply with restaurant standards and delight customers with unique flavor combinations.",
+    "Design creative visual content for marketing materials, including brochures, banners, and digital ads, using Adobe Creative Suite.",
+    "Develop, test, and maintain robust software solutions to improve business processes using Python and Java.",
+    "Craft coffee drinks and manage the coffee station while providing excellent customer service in a busy café.",
+    "Manage recruitment processes, conduct interviews, and oversee employee benefit programs to ensure a motivated workforce.",
+    "Assist veterinarians by preparing animals for surgery, administering injections, and providing post-operative care.",
+    "Design aesthetic and practical outdoor spaces for clients, from residential gardens to public parks.",
+    "Install and repair residential plumbing systems, including water heaters, pipes, and fixtures to ensure proper functionality.",
+    "Develop comprehensive marketing strategies that align with company goals, including digital campaigns and branding efforts.",
+    "Install, maintain, and repair electrical wiring, equipment, and fixtures to ensure safe and effective operation.",
+    "Provide personalized fitness programs and conduct group fitness classes to help clients achieve their health goals.",
+    "Diagnose and repair automotive issues, perform routine maintenance, and ensure vehicles meet safety standards.",
+    "Lead creative campaigns, from concept through execution, coordinating with graphic designers and content creators.",
+    "Educate students in mathematics using innovative teaching strategies to enhance understanding and interest in the subject.",
+    "Drive sales through engaging customer interactions, understanding client needs, and providing product solutions.",
+    "Fold dough into pretzel shapes ensuring each is uniformly twisted and perfectly salted before baking.",
+    "Address customer inquiries and issues via phone and email, ensuring high levels of satisfaction and timely resolution.",
+]
+```
+
+## Constructing questions about the data
+
+Next we create some questions about the data. EDSL provides a variety of question types that we can choose from based on the form of the response that we want to get back from the model (multiple choice, free text, checkbox, linear scale, etc.). [Learn more about question types](/en/latest/questions).
+
+Note that we use a `{{ placeholder }}` in each question text in order to parameterize the questions with the individual job posts in the next step:
+
+
+```python expandable
+from edsl import (
+    QuestionList,
+    QuestionLinearScale,
+    QuestionMultipleChoice,
+    QuestionYesNo,
+    QuestionFreeText,
+)
+
+q1 = QuestionList(
+    question_name="category_list",
+    question_text="Draft a list of increasingly specific categories for the following job post: {{ scenario.job_post }}",
+    max_list_items=3,  # optional
+)
+
+q2 = QuestionLinearScale(
+    question_name="specific_scale",
+    question_text="How specific is this job post: {{ scenario.job_post }}",
+    question_options=[0, 1, 2, 3, 4, 5],
+    option_labels={0: "Unclear", 1: "Not at all specific", 5: "Highly specific"},
+)
+
+q3 = QuestionMultipleChoice(
+    question_name="skill_choice",
+    question_text="What is the skill level required for this job: {{ scenario.job_post }}",
+    question_options=["Entry level", "Intermediate", "Advanced", "Expert"],
+)
+
+q4 = QuestionYesNo(
+    question_name="technical_yn",
+    question_text="Is this a technical job? Job post: {{ scenario.job_post }}",
+)
+
+q5 = QuestionFreeText(
+    question_name="rewrite_text",
+    question_text="""Draft an improved version of the following job post: {{ scenario.job_post }}""",
+)
+```
+
+## Building a survey
+
+We combine the questions into a survey in order to administer them together:
+
+
+```python
+from edsl import Survey
+
+questions = [q1, q2, q3, q4, q5]
+
+survey = Survey(questions)
+```
+
+If we want the agent/model to have information about prior questions in the survey we can add targeted or full memories ([learn more about adding survey rules/logic](/en/latest/surveys)):
+
+
+```python
+# Memory of a specific question is presented with another question:
+# survey = survey.add_targeted_memory(q2, q1)
+
+# Full memory of all prior questions is presented with each question (token-intensive):
+# survey = survey.set_full_memory_mode()
+```
+
+## Adding data to the questions
+
+We add the contents of each ticket into each question as an independent “scenario” for review. This allows us to create versions of the questions for each job post and deliver them to the model all at once. [EDSL provides many methods for generating scenarios](/en/latest/scenarios) from different data sources (PDFs, CSVs, docs, images, tables, dicts, etc.). Here we import the list from above:
+
+
+```python
+from edsl import ScenarioList
+
+scenarios = ScenarioList.from_source("list", "job_post", job_posts)
+```
+
+## Designing AI agents
+
+A key feature of EDSL is the ability to create personas for AI agents that the language models are prompted to use in generating responses to the questions. This is done by passing a dictionary of traits to Agent objects:
+
+
+```python
+from edsl import Agent
+
+agent = Agent(traits={"persona":"You are a labor economist."})
+```
+
+## Selecting language models
+
+EDSL allows us to select the language models to use in generating results. To see all available services:
+
+
+```python
+from edsl import Model
+
+Model.services()
+```
+
+
+|  | Service Name |
+| :--- | --- |
+| 0 | anthropic |
+| 1 | azure |
+| 2 | bedrock |
+| 3 | deep_infra |
+| 4 | deepseek |
+| 5 | google |
+| 6 | groq |
+| 7 | mistral |
+| 8 | ollama |
+| 9 | openai |
+| 10 | openai_v2 |
+| 11 | perplexity |
+| 12 | together |
+| 13 | xai |
+
+A current list of available models can be viewed [here](https://www.expectedparrot.com/getting-started/coop-pricing).
+
+Here we select GPT 4o (if no model is specified, this model is also used by default):
+
+
+```python
+model = Model("gpt-4o", service_name = "openai")
+```
+
+## Running the survey
+
+We run the survey by adding the scenarios, agent and model with the `by()` method and then calling the `run()` method:
+
+
+```python
+results = survey.by(scenarios).by(agent).by(model).run()
+```
+
+This generates a dataset of `Results` that we can analyze with built-in methods for data tables, dataframes, SQL, etc. We can see a list of all the components that can be analyzed:
+
+
+```python
+results.columns
+```
+
+
+|  | 0 |
+| :--- | --- |
+| 0 | agent.agent_index |
+| 1 | agent.agent_instruction |
+| 2 | agent.agent_name |
+| 3 | agent.persona |
+| 4 | answer.category_list |
+| 5 | answer.rewrite_text |
+| 6 | answer.skill_choice |
+| 7 | answer.specific_scale |
+| 8 | answer.technical_yn |
+| 9 | cache_keys.category_list_cache_key |
+| 10 | cache_keys.rewrite_text_cache_key |
+| 11 | cache_keys.skill_choice_cache_key |
+| 12 | cache_keys.specific_scale_cache_key |
+| 13 | cache_keys.technical_yn_cache_key |
+| 14 | cache_used.category_list_cache_used |
+| 15 | cache_used.rewrite_text_cache_used |
+| 16 | cache_used.skill_choice_cache_used |
+| 17 | cache_used.specific_scale_cache_used |
+| 18 | cache_used.technical_yn_cache_used |
+| 19 | comment.category_list_comment |
+| 20 | comment.rewrite_text_comment |
+| 21 | comment.skill_choice_comment |
+| 22 | comment.specific_scale_comment |
+| 23 | comment.technical_yn_comment |
+| 24 | generated_tokens.category_list_generated_tokens |
+| 25 | generated_tokens.rewrite_text_generated_tokens |
+| 26 | generated_tokens.skill_choice_generated_tokens |
+| 27 | generated_tokens.specific_scale_generated_tokens |
+| 28 | generated_tokens.technical_yn_generated_tokens |
+| 29 | iteration.iteration |
+| 30 | model.frequency_penalty |
+| 31 | model.inference_service |
+| 32 | model.logprobs |
+| 33 | model.max_tokens |
+| 34 | model.model |
+| 35 | model.model_index |
+| 36 | model.presence_penalty |
+| 37 | model.temperature |
+| 38 | model.top_logprobs |
+| 39 | model.top_p |
+| 40 | prompt.category_list_system_prompt |
+| 41 | prompt.category_list_user_prompt |
+| 42 | prompt.rewrite_text_system_prompt |
+| 43 | prompt.rewrite_text_user_prompt |
+| 44 | prompt.skill_choice_system_prompt |
+| 45 | prompt.skill_choice_user_prompt |
+| 46 | prompt.specific_scale_system_prompt |
+| 47 | prompt.specific_scale_user_prompt |
+| 48 | prompt.technical_yn_system_prompt |
+| 49 | prompt.technical_yn_user_prompt |
+| 50 | question_options.category_list_question_options |
+| 51 | question_options.rewrite_text_question_options |
+| 52 | question_options.skill_choice_question_options |
+| 53 | question_options.specific_scale_question_options |
+| 54 | question_options.technical_yn_question_options |
+| 55 | question_text.category_list_question_text |
+| 56 | question_text.rewrite_text_question_text |
+| 57 | question_text.skill_choice_question_text |
+| 58 | question_text.specific_scale_question_text |
+| 59 | question_text.technical_yn_question_text |
+| 60 | question_type.category_list_question_type |
+| 61 | question_type.rewrite_text_question_type |
+| 62 | question_type.skill_choice_question_type |
+| 63 | question_type.specific_scale_question_type |
+| 64 | question_type.technical_yn_question_type |
+| 65 | raw_model_response.category_list_cost |
+| 66 | raw_model_response.category_list_input_price_per_million_tokens |
+| 67 | raw_model_response.category_list_input_tokens |
+| 68 | raw_model_response.category_list_one_usd_buys |
+| 69 | raw_model_response.category_list_output_price_per_million_tokens |
+| 70 | raw_model_response.category_list_output_tokens |
+| 71 | raw_model_response.category_list_raw_model_response |
+| 72 | raw_model_response.rewrite_text_cost |
+| 73 | raw_model_response.rewrite_text_input_price_per_million_tokens |
+| 74 | raw_model_response.rewrite_text_input_tokens |
+| 75 | raw_model_response.rewrite_text_one_usd_buys |
+| 76 | raw_model_response.rewrite_text_output_price_per_million_tokens |
+| 77 | raw_model_response.rewrite_text_output_tokens |
+| 78 | raw_model_response.rewrite_text_raw_model_response |
+| 79 | raw_model_response.skill_choice_cost |
+| 80 | raw_model_response.skill_choice_input_price_per_million_tokens |
+| 81 | raw_model_response.skill_choice_input_tokens |
+| 82 | raw_model_response.skill_choice_one_usd_buys |
+| 83 | raw_model_response.skill_choice_output_price_per_million_tokens |
+| 84 | raw_model_response.skill_choice_output_tokens |
+| 85 | raw_model_response.skill_choice_raw_model_response |
+| 86 | raw_model_response.specific_scale_cost |
+| 87 | raw_model_response.specific_scale_input_price_per_million_tokens |
+| 88 | raw_model_response.specific_scale_input_tokens |
+| 89 | raw_model_response.specific_scale_one_usd_buys |
+| 90 | raw_model_response.specific_scale_output_price_per_million_tokens |
+| 91 | raw_model_response.specific_scale_output_tokens |
+| 92 | raw_model_response.specific_scale_raw_model_response |
+| 93 | raw_model_response.technical_yn_cost |
+| 94 | raw_model_response.technical_yn_input_price_per_million_tokens |
+| 95 | raw_model_response.technical_yn_input_tokens |
+| 96 | raw_model_response.technical_yn_one_usd_buys |
+| 97 | raw_model_response.technical_yn_output_price_per_million_tokens |
+| 98 | raw_model_response.technical_yn_output_tokens |
+| 99 | raw_model_response.technical_yn_raw_model_response |
+| 100 | reasoning_summary.category_list_reasoning_summary |
+| 101 | reasoning_summary.rewrite_text_reasoning_summary |
+| 102 | reasoning_summary.skill_choice_reasoning_summary |
+| 103 | reasoning_summary.specific_scale_reasoning_summary |
+| 104 | reasoning_summary.technical_yn_reasoning_summary |
+| 105 | scenario.job_post |
+| 106 | scenario.scenario_index |
+
+For example, we can filter, sort, select, limit, shuffle, sample and print some components of results in a table:
+
+
+```python
+(
+    results
+    .filter("{{ answer.specific_scale }} in [3,4,5]")
+    .sort_by("skill_choice")
+    .select(
+        "model",
+        "persona",
+        "job_post",
+        "category_list",
+        "specific_scale",
+        "skill_choice",
+        "technical_yn",
+    )
+)
+```
+
+
+|  | model.model | agent.persona | scenario.job_post | answer.category_list | answer.specific_scale | answer.skill_choice | answer.technical_yn |
+| :--- | --- | :--- | --- | :--- | --- | :--- | --- |
+| 0 | gpt-4o | You are a labor economist. | Design aesthetic and practical outdoor spaces for clients, from residential gardens to public parks. | ['Landscape Design', 'Residential Landscape Design', 'Public Park Design'] | 3 | Advanced | Yes |
+| 1 | gpt-4o | You are a labor economist. | Design creative visual content for marketing materials, including brochures, banners, and digital ads, using Adobe Creative Suite. | ['Creative Design', 'Graphic Design for Marketing', 'Adobe Creative Suite Specialist for Marketing Materials'] | 5 | Intermediate | Yes |
+| 2 | gpt-4o | You are a labor economist. | Assist veterinarians by preparing animals for surgery, administering injections, and providing post-operative care. | ['Animal Care', 'Veterinary Support', 'Surgical Veterinary Technician'] | 5 | Intermediate | Yes |
+| 3 | gpt-4o | You are a labor economist. | Install and repair residential plumbing systems, including water heaters, pipes, and fixtures to ensure proper functionality. | ['Plumbing', 'Residential Plumbing', 'Residential Plumbing Installation and Repair'] | 4 | Intermediate | Yes |
+| 4 | gpt-4o | You are a labor economist. | Install, maintain, and repair electrical wiring, equipment, and fixtures to ensure safe and effective operation. | ['Electrical Work', 'Electrical Maintenance', 'Residential Electrical Maintenance'] | 3 | Intermediate | Yes |
+| 5 | gpt-4o | You are a labor economist. | Diagnose and repair automotive issues, perform routine maintenance, and ensure vehicles meet safety standards. | ['Automotive Technician', 'Automotive Repair Specialist', 'Certified Automotive Mechanic'] | 3 | Intermediate | Yes |
+| 6 | gpt-4o | You are a labor economist. | Fold dough into pretzel shapes ensuring each is uniformly twisted and perfectly salted before baking. | ['Food Preparation', 'Baking', 'Pretzel Maker'] | 5 | Intermediate | No |
+
+
+```python
+results.select("rewrite_text")
+```
+
+
+|  | answer.rewrite_text |
+| :--- | --- |
+| 0 | Position: Retail Operations Manager Are you a dynamic leader with a passion for delivering exceptional customer experiences? We are seeking a Retail Operations Manager to join our team and drive excellence in our fast-paced retail environment. Key Responsibilities: - Lead and oversee daily operations to ensure seamless store functionality. - Manage and mentor a team of dedicated staff, fostering a positive and productive work environment. - Develop and implement strategies to enhance customer satisfaction and exceed service expectations. - Monitor sales performance and optimize processes to achieve business objectives. - Ensure compliance with company policies and maintain high standards of store presentation. Qualifications: - Proven experience in retail management or a similar role. - Strong leadership and team-building skills. - Excellent communication and problem-solving abilities. - Ability to thrive in a fast-paced, dynamic setting. Join us and play a pivotal role in shaping the customer experience and driving our store's success. Apply today to become a part of our passionate and innovative team! |
+| 1 | We are seeking a talented writer to create captivating and insightful blog posts on health and wellness topics. Your work will play a crucial role in increasing website traffic and engaging our audience. If you have a passion for health and wellness and a knack for crafting compelling content, we’d love to hear from you! |
+| 2 | Position Title: Sales Data Analyst Job Description: We are seeking a skilled Sales Data Analyst to join our dynamic team. In this role, you will leverage your expertise in statistical analysis to examine sales data, uncover trends, and deliver impactful insights that will drive strategic decision-making within our marketing department. Key Responsibilities: - Utilize advanced statistical tools and methodologies to analyze sales data. - Identify and interpret trends, patterns, and correlations in complex datasets. - Translate analytical findings into clear, actionable insights for the marketing team. - Collaborate with cross-functional teams to support data-driven marketing strategies. - Prepare comprehensive reports and visualizations to communicate findings effectively. Qualifications: - Proven experience in data analysis, preferably in a sales or marketing environment. - Proficiency in statistical software and data visualization tools. - Strong analytical and problem-solving skills. - Excellent communication skills, with the ability to convey complex information in an understandable manner. Join us and play a pivotal role in shaping our marketing strategies through insightful data analysis. Apply today! |
+| 3 | Join our culinary team as a Gourmet Chef, where you will craft exquisite dishes that not only meet our high restaurant standards but also captivate our guests with innovative and delightful flavor combinations. If you have a passion for creativity in the kitchen and a commitment to culinary excellence, we invite you to bring your unique flair to our dining experience. |
+| 4 | Join our team as a Creative Designer! We are seeking a talented individual to craft visually stunning marketing materials that captivate and engage. Your role will involve designing brochures, banners, and digital ads using the Adobe Creative Suite. If you have a keen eye for design and a passion for creativity, we'd love to hear from you. |
+| 5 | **Job Title: Software Developer - Python & Java** **Job Description:** We are seeking a skilled and motivated Software Developer to join our dynamic team. In this role, you will be instrumental in designing, developing, testing, and maintaining robust software solutions that enhance and streamline our business processes. Your expertise in Python and Java will be pivotal in driving innovation and efficiency within our organization. **Key Responsibilities:** - Design and develop high-quality software solutions using Python and Java to optimize business operations. - Conduct thorough testing and debugging to ensure software reliability and performance. - Collaborate with cross-functional teams to understand business requirements and translate them into effective software solutions. - Maintain and improve existing software systems to enhance functionality and user experience. - Stay updated with the latest industry trends and technologies to continuously innovate and improve our software solutions. **Qualifications:** - Proven experience in software development with strong proficiency in Python and Java. - Solid understanding of software engineering principles and best practices. - Ability to work collaboratively in a team environment and communicate effectively with stakeholders. - Strong problem-solving skills and attention to detail. - Bachelor’s degree in Computer Science, Software Engineering, or a related field is preferred. Join us and be part of a forward-thinking company where your contributions will make a significant impact. Apply today to embark on a rewarding career with opportunities for growth and advancement. |
+| 6 | Join our team as a Barista at our bustling café, where you'll have the opportunity to craft exceptional coffee beverages and manage our coffee station with precision and care. We are looking for a dedicated individual who is passionate about delivering outstanding customer service and creating a welcoming atmosphere for our guests. If you thrive in a fast-paced environment and have a love for coffee culture, we would love to hear from you! |
+| 7 | Job Title: HR Manager Job Description: We are seeking a dynamic and experienced HR Manager to join our team. In this role, you will be responsible for leading and optimizing our recruitment processes, conducting interviews, and managing employee benefit programs. Your efforts will play a crucial role in fostering a motivated and engaged workforce. Key Responsibilities: - Lead and manage the recruitment process to attract top talent. - Conduct interviews and collaborate with department heads to ensure the best candidate selection. - Oversee and enhance employee benefit programs to support employee satisfaction and retention. - Develop strategies to maintain a motivated and high-performing workforce. - Collaborate with management to align HR practices with organizational goals. Qualifications: - Proven experience in HR management or a similar role. - Strong understanding of recruitment processes and employee benefit programs. - Excellent interpersonal and communication skills. - Ability to work collaboratively and build strong relationships at all levels of the organization. Join us and contribute to creating a positive and productive workplace environment. Apply today! |
+| 8 | Job Title: Veterinary Assistant Job Description: Join our dedicated team of veterinary professionals as a Veterinary Assistant, where you'll play a vital role in supporting our veterinarians and ensuring the highest quality care for our animal patients. Your responsibilities will include preparing animals for surgery, administering injections, and providing compassionate post-operative care. Key Responsibilities: - Assist veterinarians in preparing animals for surgical procedures, ensuring a calm and safe environment. - Administer injections and medications as directed by the veterinarian. - Monitor and provide post-operative care to ensure a smooth recovery process for our patients. - Maintain a clean and organized work area, including sterilizing surgical instruments and equipment. - Communicate effectively with pet owners, providing them with clear instructions and updates on their pet's care. Qualifications: - Previous experience in a veterinary or animal care setting is preferred. - Strong attention to detail and the ability to work in a fast-paced environment. - Excellent communication skills and a compassionate approach to animal care. - Ability to work collaboratively as part of a team. If you are passionate about animal welfare and eager to contribute to a supportive and dynamic veterinary practice, we would love to hear from you! |
+| 9 | Join our team as a Landscape Designer and transform outdoor spaces into stunning, functional environments! We are seeking a creative and skilled professional to design aesthetically pleasing and practical outdoor areas, ranging from intimate residential gardens to expansive public parks. If you have a passion for blending beauty with functionality and a keen eye for detail, we want to hear from you! |
+| 10 | Job Title: Residential Plumbing Technician Job Description: Join our team as a Residential Plumbing Technician, where you'll play a crucial role in maintaining and enhancing the comfort and functionality of our clients' homes. Your primary responsibilities will include: - Installing and repairing residential plumbing systems, ensuring all components operate efficiently and effectively. - Expertly handling the installation and maintenance of water heaters, pipes, and fixtures to guarantee optimal performance and reliability. - Diagnosing plumbing issues and providing solutions that meet the highest standards of quality and safety. Qualifications: - Proven experience in residential plumbing installation and repair. - Strong knowledge of plumbing systems, water heaters, pipes, and fixtures. - Excellent problem-solving skills and attention to detail. - Ability to work independently and as part of a team. Benefits: - Competitive salary and benefits package. - Opportunities for professional growth and development. - A supportive work environment with a focus on quality and customer satisfaction. If you're a skilled plumbing professional with a commitment to excellence, we invite you to apply and become a valued member of our team! |
+| 11 | Join our dynamic team as a Marketing Strategist! We are seeking a creative and results-driven individual to develop and implement innovative marketing strategies that align with our company’s objectives. In this role, you will be responsible for crafting and executing comprehensive digital campaigns and branding initiatives that enhance our market presence and drive business growth. If you have a passion for strategic planning and a knack for digital marketing, we want to hear from you! |
+| 12 | **Job Title: Skilled Electrician** **Job Description:** Are you an experienced electrician looking to join a dynamic team? We are seeking a dedicated professional to install, maintain, and repair electrical wiring, equipment, and fixtures. Your expertise will ensure the safe and efficient operation of our electrical systems. **Key Responsibilities:** - Install electrical wiring, equipment, and fixtures in accordance with relevant codes and standards. - Perform regular maintenance to ensure optimal performance and safety of electrical systems. - Diagnose and repair electrical issues to minimize downtime and ensure operational efficiency. - Collaborate with team members to troubleshoot complex electrical problems. - Adhere to safety protocols and regulations to maintain a safe working environment. **Qualifications:** - Proven experience as an electrician with a strong understanding of electrical systems and codes. - Ability to read and interpret technical diagrams and blueprints. - Excellent problem-solving skills and attention to detail. - Strong commitment to safety and quality workmanship. - Relevant certification or licensing as required. **What We Offer:** - Competitive salary and benefits package. - Opportunities for professional development and career advancement. - A supportive and collaborative work environment. If you are passionate about delivering high-quality electrical solutions and thrive in a team-oriented setting, we would love to hear from you. Apply today to join our team and contribute to our mission of maintaining safe and effective electrical operations. |
+| 13 | Join Our Team as a Fitness Instructor! Are you passionate about empowering individuals to reach their health and fitness goals? We are seeking a dynamic and dedicated Fitness Instructor to join our team. In this role, you will design and implement personalized fitness programs tailored to individual needs and lead engaging group fitness classes that inspire and motivate participants. If you are enthusiastic about promoting a healthy lifestyle and have a knack for creating a supportive and energetic environment, we would love to hear from you! Key Responsibilities: - Develop customized fitness plans for clients, focusing on their unique goals and abilities. - Lead diverse group fitness classes that cater to varying skill levels and interests. - Provide expert guidance and support, ensuring clients exercise safely and effectively. - Foster a positive and inclusive atmosphere that encourages community and personal growth. Qualifications: - Certification in personal training or group fitness instruction. - Strong communication and motivational skills. - A commitment to continuous learning and professional development in the fitness field. Join us and make a meaningful impact on our clients' wellness journeys! Apply today to become a vital part of our fitness community. |
+| 14 | **Job Title: Automotive Technician** **Job Description:** Are you passionate about cars and skilled in automotive repair and maintenance? We are seeking a dedicated Automotive Technician to join our team. In this role, you will be responsible for diagnosing and repairing automotive issues, performing routine maintenance, and ensuring that all vehicles meet the highest safety standards. **Key Responsibilities:** - Accurately diagnose and troubleshoot a wide range of automotive issues. - Perform routine maintenance tasks such as oil changes, tire rotations, and brake inspections. - Ensure all repairs and maintenance tasks meet industry safety standards and regulations. - Use advanced diagnostic tools and equipment to enhance efficiency and precision. - Communicate effectively with customers to explain vehicle issues and recommended solutions. - Maintain a clean and organized workspace, adhering to all safety protocols. **Qualifications:** - Proven experience as an Automotive Technician or similar role. - Strong knowledge of automotive systems and repair techniques. - Ability to use diagnostic tools and software. - Excellent problem-solving skills and attention to detail. - Strong communication and customer service skills. - ASE certification or equivalent is preferred. **What We Offer:** - Competitive salary and benefits package. - Opportunities for professional development and training. - A supportive and dynamic work environment. If you are a motivated individual with a passion for automotive excellence, we encourage you to apply. Join our team and help us deliver top-quality service to our valued customers. |
+| 15 | Position Title: Creative Campaign Lead Job Description: We are seeking a dynamic and innovative Creative Campaign Lead to spearhead our marketing initiatives from initial concept to final execution. In this role, you will collaborate closely with our talented team of graphic designers and content creators to bring imaginative campaigns to life. Key Responsibilities: - Develop and lead creative campaign strategies that align with our brand vision. - Coordinate and manage all aspects of campaign execution, ensuring seamless collaboration between graphic designers and content creators. - Oversee the creative process, providing guidance and feedback to ensure high-quality deliverables. - Foster a collaborative environment that encourages creativity and innovation within the team. - Monitor campaign performance and implement improvements to optimize results. Qualifications: - Proven experience in leading creative campaigns from concept through execution. - Strong leadership skills with the ability to inspire and guide a creative team. - Excellent communication and organizational skills. - A keen eye for design and a passion for storytelling. If you are a visionary leader with a passion for creativity and a track record of successful campaign management, we would love to hear from you. Apply today to join our team and make an impact with your creative expertise! |
+| 16 | Join our team as a Mathematics Educator! We are seeking a passionate and innovative teacher who is dedicated to inspiring students through creative and effective teaching strategies. Your role will be to foster a deep understanding and enthusiasm for mathematics, guiding students to reach their full potential. If you have a knack for making complex concepts accessible and engaging, we’d love to hear from you! |
+| 17 | Join our team and play a pivotal role in driving sales by fostering meaningful customer relationships. As a key member of our sales force, you will engage with clients to understand their unique needs and offer tailored product solutions that exceed expectations. If you have a passion for customer service and a knack for identifying opportunities, we want to hear from you! |
+| 18 | Join our team as a Pretzel Artisan! We are seeking a detail-oriented individual to expertly craft our signature pretzels. Your primary responsibility will be to skillfully fold dough into uniform pretzel shapes, ensuring each one is consistently twisted and perfectly salted prior to baking. If you have a keen eye for precision and a passion for creating delicious baked goods, we would love to hear from you! |
+| 19 | Job Title: Customer Support Specialist Job Description: We are seeking a dedicated and personable Customer Support Specialist to join our team. In this role, you will be responsible for addressing customer inquiries and resolving issues through phone and email communication. Your primary goal will be to ensure a high level of customer satisfaction by providing timely and effective solutions. Key Responsibilities: - Respond to customer inquiries promptly via phone and email. - Resolve customer issues efficiently, ensuring a positive experience. - Maintain a high standard of professionalism and courtesy in all interactions. - Collaborate with team members to improve customer service processes. - Document and track customer interactions to ensure thorough follow-up. Qualifications: - Excellent communication skills, both verbal and written. - Strong problem-solving abilities and attention to detail. - Ability to work independently and as part of a team. - Previous customer service experience is preferred. If you are passionate about helping others and thrive in a fast-paced environment, we would love to hear from you! |
+
+## Posting content to the Coop
+
+We can post any objects to the Coop, including this notebook. Objects can be updated or modified at your Coop account, and shared with others or stored privately (default visibility is *unlisted*):
+
+
+```python
+# survey.push(
+#     description = "Example survey: Job posts analysis",
+#     alias = "job-posts-example-survey",
+#     visibility = "public"
+# )
+```
+
+
+```python
+from edsl import Notebook
+
+nb = Notebook(path = "evaluating_job_posts.ipynb")
+
+nb.push(
+    description = "Example code for evaluating job posts",
+    alias = "job-posts-notebook",
+    visibility = "public"
+)
+```

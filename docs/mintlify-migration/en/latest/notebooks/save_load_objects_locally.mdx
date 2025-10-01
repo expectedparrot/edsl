@@ -1,0 +1,224 @@
+---
+title: "Save & load objects"
+description: "This notebook demonstrates methods for [saving](https://github.com/expectedparrot/edsl/blob/69429fe1dba63867eab57973edb39930b2a7d510/edsl/base/Base.py#L104) and [loading](https://github.com/expectedparrot/edsl/blob/69429fe1dba63867eab57973edb39930b2a7d510/edsl/base/Base.py#L145) EDSL objects locally."
+---
+
+```python
+from edsl import QuestionFreeText, Survey, ScenarioList, Scenario, AgentList, Agent
+```
+
+## Example objects
+
+You can call the `example()` method on any object to see and use an example:
+
+```python
+my_question = QuestionFreeText.example()
+my_survey = Survey.example()
+my_scenariolist = ScenarioList.example()
+my_scenario = Scenario.example()
+my_agentlist = AgentList.example()
+my_agent = Agent.example()
+```
+
+## Saving objects
+
+You can call the `save()` method on an object to save it as a compressed json file:
+
+```python
+my_question.save("saved_question")
+my_survey.save("saved_survey")
+my_scenariolist.save("saved_scenariolist")
+my_scenario.save("saved_scenario")
+my_agentlist.save("saved_agentlist")
+my_agent.save("saved_agent")
+```
+
+```
+Saved to saved_question.json.gz
+Saved to saved_survey.json.gz
+Saved to saved_scenariolist.json.gz
+Saved to saved_scenario.json.gz
+Saved to saved_agentlist.json.gz
+Saved to saved_agent.json.gz
+```
+
+## Loading objects
+
+You can call the `load()` method on an object class to create an object from a json file:
+
+```python
+my_saved_question = QuestionFreeText.load("saved_question.json.gz")
+my_saved_survey = Survey.load("saved_survey.json.gz")
+my_saved_scenariolist = ScenarioList.load("saved_scenariolist.json.gz")
+my_saved_scenario = Scenario.load("saved_scenario.json.gz")
+my_saved_agentlist = AgentList.load("saved_agentlist.json.gz")
+my_saved_agent = Agent.load("saved_agent.json.gz")
+```
+
+## Compare
+
+Here we verify the original and saved/loaded objects are identical:
+
+```python
+my_question == my_saved_question
+```
+
+```
+True
+```
+```python
+my_survey == my_saved_survey
+```
+```
+True
+```
+```python
+my_scenariolist == my_saved_scenariolist
+```
+```
+True
+```
+```python
+my_scenario == my_saved_scenario
+```
+```
+True
+```
+```python
+my_agentlist == my_saved_agentlist
+```
+```
+True
+```
+
+```python
+my_agent == my_saved_agent
+```
+```
+True
+```
+
+## Posting to Coop
+
+Here we post all the objects and this notebook to the Coop. Learn more about [using the Coop](/en/latest/coop).
+
+```python
+my_question.push(
+    description = "Example free text question",
+    alias = "example-free-text-question",
+    visibility = "public"
+)
+```
+
+```json
+{'description': 'Example free text question',
+ 'object_type': 'question',
+ 'url': 'https://www.expectedparrot.com/content/2dad2cbd-4472-4777-bdf3-d14d1281e972',
+ 'uuid': '2dad2cbd-4472-4777-bdf3-d14d1281e972',
+ 'version': '0.1.47.dev1',
+ 'visibility': 'public'}
+```
+
+```python
+my_survey.push(
+    description = "Example survey",
+    alias = "another-example-survey",
+    visibility = "public"
+)
+```
+
+```json
+{'description': 'Example survey',
+ 'object_type': 'survey',
+ 'url': 'https://www.expectedparrot.com/content/b66948bb-ca91-4d22-a5b3-2f3fcbe83c6b',
+ 'uuid': 'b66948bb-ca91-4d22-a5b3-2f3fcbe83c6b',
+ 'version': '0.1.47.dev1',
+ 'visibility': 'public'}
+```
+
+```python
+my_scenariolist.push(
+    description = "Example scenario list",
+    alias = "example-scenario-list",
+    visibility = "public"
+)
+```
+
+```json
+{'description': 'Example scenario list',
+ 'object_type': 'scenario_list',
+ 'url': 'https://www.expectedparrot.com/content/da5c78da-3342-4de5-8184-89958edc3a1e',
+ 'uuid': 'da5c78da-3342-4de5-8184-89958edc3a1e',
+ 'version': '0.1.47.dev1',
+ 'visibility': 'public'}
+```
+
+```python
+my_scenario.push(
+    description = "Example scenario",
+    alias = "example-scenario",
+    visibility = "public"
+)
+```
+
+```json
+{'description': 'Example scenario',
+ 'object_type': 'scenario',
+ 'url': 'https://www.expectedparrot.com/content/48f16cf2-4c2b-40f2-9b06-bfba007fb3cb',
+ 'uuid': '48f16cf2-4c2b-40f2-9b06-bfba007fb3cb',
+ 'version': '0.1.47.dev1',
+ 'visibility': 'public'}
+```
+
+```python
+my_agentlist.push(
+    description = "Example agent list",
+    alias = "example-agent-list",
+    visibility = "public"
+)
+```
+
+```json
+{'description': 'Example agent list',
+ 'object_type': 'agent_list',
+ 'url': 'https://www.expectedparrot.com/content/a8697706-fddc-4cee-9a61-2362f0c313c1',
+ 'uuid': 'a8697706-fddc-4cee-9a61-2362f0c313c1',
+ 'version': '0.1.47.dev1',
+ 'visibility': 'public'}
+```
+
+```python
+my_agent.push(
+    description = "Example agent",
+    alias = "example-agent",
+    visibility = "public"
+)
+```
+
+```json
+{
+    'description': 'Example agent',
+    'object_type': 'agent',
+    'url': 'https://www.expectedparrot.com/content/0e067661-8104-4d10-a2ee-0058ec1510c1',
+    'uuid': '0e067661-8104-4d10-a2ee-0058ec1510c1',
+    'version': '0.1.47.dev1',
+    'visibility': 'public'
+}
+```
+
+Here we post this notebook:
+
+```python
+from edsl import Notebook
+
+nb = Notebook("save_load_objects_locally.ipynb")
+
+if refresh := False:
+    nb.push(
+        description = "Methods for saving and loading objects locally",
+        alias = "load-save-local-objects-notebook",
+        visibility = "public"
+    )
+else:
+    nb.patch('c4847503-55c0-4267-be37-8415a7f17fac', value = nb)
+```

@@ -1,0 +1,344 @@
+---
+title: "Exploring real world survey contexts"
+description: "This notebook explores ways of specifying “contexts” in which an [EDSL](/en/latest/index) survey is administered to AI agents in order to investigate potential impacts to simulated responses. We show how to do this in three different ways by modifying our `Question` texts and `Agent` traits in order to reflect various hypothetical real world contexts."
+---
+
+[EDSL is an open-source library](https://github.com/expectedparrot/edsl) for simulating surveys, experiments and other research with AI agents and large language models. Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Coop account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL.
+
+Thank you to [Sophia Kazinnik](https://sites.google.com/view/skazinnik) for this idea and helpful suggestions!
+
+## Importing the tool
+
+```python
+from edsl import QuestionLinearScale, Scenario, ScenarioList, Agent, AgentList, Survey, Model
+```
+## Selecting a model
+
+See a list of available models at the [model pricing and performance page](https://www.expectedparrot.com/getting-started/coop-pricing)
+
+```python
+# Model.available()
+```
+
+Here we select a model to use
+
+```python
+m = Model("gpt-4o")
+m
+```
+
+LanguageModel
+
+|  | key | value |
+| :--- | :--- | :--- |
+| 0 | model | gpt-4o |
+| 1 | parameters:temperature | 0.500000 |
+| 2 | parameters:max_tokens | 1000 |
+| 3 | parameters:top_p | 1 |
+| 4 | parameters:frequency_penalty | 0 |
+| 5 | parameters:presence_penalty | 0 |
+| 6 | parameters:logprobs | False |
+| 7 | parameters:top_logprobs | 3 |
+| 8 | inference_service | openai |
+
+## Creating some contexts for our survey
+
+Here we identify some example contexts to use in administering our survey
+
+```python
+respondent_ages = [
+    "You are a teenager (13-19 years old).",
+    "You are college age (20-24 years old).",
+    "You are a young adult (25-39 years old).",
+    "You are middle-aged (40-59 years old).",
+    "You are a senior citizen (60 or more years old).",
+]
+
+survey_contexts = [
+    "",
+    "You are answering an online survey.",
+    "You are being interviewed by a researcher.",
+    "You are participating in a focus group of peers.",
+    "You are participating in a focus group of people of all ages and backgrounds.",
+]
+```
+
+## Adding contexts to question texts
+
+We can apply contexts by creating versions of our questions where each context is inserted directly into the question texts as a `Scenario` of the question
+
+```python
+q_exercise = QuestionLinearScale(
+    question_name="exercise",
+    question_text="How many times do you typically exercise each week? ({{ scenario.age }} {{ scenario.context }})",
+    question_options=[0, 1, 2, 3, 4, 5, 6, 7],
+)
+
+q_dessert = QuestionLinearScale(
+    question_name="dessert",
+    question_text="How many times do you typically eat dessert each week?  ({{ scenario.age }} {{ scenario.context }})",
+    question_options=[0, 1, 2, 3, 4, 5, 6, 7],
+)
+
+survey = Survey(questions = [q_exercise, q_dessert])
+```
+
+```python
+scenarios = ScenarioList(
+    Scenario({"age": a, "context": c}) for a in respondent_ages for c in survey_contexts
+)
+```
+
+```python
+results = survey.by(scenarios).by(m).run()
+```
+
+```python expandable
+results.select("age", "context", "exercise", "dessert")
+```
+
+|  | scenario.age | scenario.context | answer.exercise | answer.dessert |
+| :--- | :--- | :--- | :--- | :--- |
+| 0 | You are a teenager (13-19 years old). | nan | 3 | 3 |
+| 1 | You are a teenager (13-19 years old). | You are answering an online survey. | 4 | 3 |
+| 2 | You are a teenager (13-19 years old). | You are being interviewed by a researcher. | 4 | 3 |
+| 3 | You are a teenager (13-19 years old). | You are participating in a focus group of peers. | 3 | 3 |
+| 4 | You are a teenager (13-19 years old). | You are participating in a focus group of people of all ages and backgrounds. | 4 | 3 |
+| 5 | You are college age (20-24 years old). | nan | 3 | 3 |
+| 6 | You are college age (20-24 years old). | You are answering an online survey. | 3 | 3 |
+| 7 | You are college age (20-24 years old). | You are being interviewed by a researcher. | 3 | 3 |
+| 8 | You are college age (20-24 years old). | You are participating in a focus group of peers. | 3 | 3 |
+| 9 | You are college age (20-24 years old). | You are participating in a focus group of people of all ages and backgrounds. | 4 | 3 |
+| 10 | You are a young adult (25-39 years old). | nan | 3 | 3 |
+| 11 | You are a young adult (25-39 years old). | You are answering an online survey. | 3 | 3 |
+| 12 | You are a young adult (25-39 years old). | You are being interviewed by a researcher. | 4 | 3 |
+| 13 | You are a young adult (25-39 years old). | You are participating in a focus group of peers. | 3 | 3 |
+| 14 | You are a young adult (25-39 years old). | You are participating in a focus group of people of all ages and backgrounds. | 4 | 3 |
+| 15 | You are middle-aged (40-59 years old). | nan | 3 | 3 |
+| 16 | You are middle-aged (40-59 years old). | You are answering an online survey. | 3 | 2 |
+| 17 | You are middle-aged (40-59 years old). | You are being interviewed by a researcher. | 3 | 3 |
+| 18 | You are middle-aged (40-59 years old). | You are participating in a focus group of peers. | 3 | 2 |
+| 19 | You are middle-aged (40-59 years old). | You are participating in a focus group of people of all ages and backgrounds. | 3 | 3 |
+| 20 | You are a senior citizen (60 or more years old). | nan | 3 | 3 |
+| 21 | You are a senior citizen (60 or more years old). | You are answering an online survey. | 3 | 2 |
+| 22 | You are a senior citizen (60 or more years old). | You are being interviewed by a researcher. | 3 | 2 |
+| 23 | You are a senior citizen (60 or more years old). | You are participating in a focus group of peers. | 3 | 2 |
+| 24 | You are a senior citizen (60 or more years old). | You are participating in a focus group of people of all ages and backgrounds. | 3 | 3 |
+
+## Adding context to agent traits
+
+Another method is to specify agent traits and survey contexts via `Agent` traits instead of the question texts
+
+```python
+q_exercise = QuestionLinearScale(
+    question_name="exercise",
+    question_text="How many times do you exercise each week?",
+    question_options=[0, 1, 2, 3, 4, 5, 6, 7],
+)
+
+q_dessert = QuestionLinearScale(
+    question_name="dessert",
+    question_text="How many times do you eat dessert each week?",
+    question_options=[0, 1, 2, 3, 4, 5, 6, 7],
+)
+
+survey = Survey([q_exercise, q_dessert])
+```
+
+```python
+agents = AgentList(
+    Agent(traits={"age": a, "context": c})
+    for a in respondent_ages
+    for c in survey_contexts
+)
+```
+
+```python
+results = survey.by(agents).by(m).run()
+```
+
+```python
+results.select("age", "context", "exercise", "dessert")
+```
+
+|  | agent.age | agent.context | answer.exercise | answer.dessert |
+| :--- | :--- | :--- | :--- | :--- |
+| 0 | You are a teenager (13-19 years old). | nan | 3 | 3 |
+| 1 | You are a teenager (13-19 years old). | You are answering an online survey. | 3 | 3 |
+| 2 | You are a teenager (13-19 years old). | You are being interviewed by a researcher. | 3 | 3 |
+| 3 | You are a teenager (13-19 years old). | You are participating in a focus group of peers. | 3 | 3 |
+| 4 | You are a teenager (13-19 years old). | You are participating in a focus group of people of all ages and backgrounds. | 3 | 3 |
+| 5 | You are college age (20-24 years old). | nan | 3 | 3 |
+| 6 | You are college age (20-24 years old). | You are answering an online survey. | 3 | 3 |
+| 7 | You are college age (20-24 years old). | You are being interviewed by a researcher. | 3 | 3 |
+| 8 | You are college age (20-24 years old). | You are participating in a focus group of peers. | 3 | 3 |
+| 9 | You are college age (20-24 years old). | You are participating in a focus group of people of all ages and backgrounds. | 4 | 3 |
+| 10 | You are a young adult (25-39 years old). | nan | 4 | 3 |
+| 11 | You are a young adult (25-39 years old). | You are answering an online survey. | 3 | 3 |
+| 12 | You are a young adult (25-39 years old). | You are being interviewed by a researcher. | 4 | 3 |
+| 13 | You are a young adult (25-39 years old). | You are participating in a focus group of peers. | 4 | 3 |
+| 14 | You are a young adult (25-39 years old). | You are participating in a focus group of people of all ages and backgrounds. | 4 | 3 |
+| 15 | You are middle-aged (40-59 years old). | nan | 3 | 3 |
+| 16 | You are middle-aged (40-59 years old). | You are answering an online survey. | 3 | 3 |
+| 17 | You are middle-aged (40-59 years old). | You are being interviewed by a researcher. | 3 | 3 |
+| 18 | You are middle-aged (40-59 years old). | You are participating in a focus group of peers. | 4 | 3 |
+| 19 | You are middle-aged (40-59 years old). | You are participating in a focus group of people of all ages and backgrounds. | 3 | 2 |
+| 20 | You are a senior citizen (60 or more years old). | nan | 3 | 3 |
+| 21 | You are a senior citizen (60 or more years old). | You are answering an online survey. | 3 | 3 |
+| 22 | You are a senior citizen (60 or more years old). | You are being interviewed by a researcher. | 3 | 2 |
+| 23 | You are a senior citizen (60 or more years old). | You are participating in a focus group of peers. | 2 | 3 |
+| 24 | You are a senior citizen (60 or more years old). | You are participating in a focus group of people of all ages and backgrounds. | 3 | 3 |
+
+## Adding contexts to question texts and agent traits
+
+Here we use both `Agent` traits and `Scenario` contexts in the question texts:
+
+```python
+q_exercise = QuestionLinearScale(
+    question_name="exercise",
+    question_text="How many times do you exercise each week? ({{ scenario.context }})",
+    question_options=[0, 1, 2, 3, 4, 5, 6, 7],
+)
+
+q_dessert = QuestionLinearScale(
+    question_name="dessert",
+    question_text="How many times do you eat dessert each week? ({{ scenario.context }})",
+    question_options=[0, 1, 2, 3, 4, 5, 6, 7],
+)
+
+survey = Survey([q_exercise, q_dessert])
+```
+
+```python
+scenarios = ScenarioList.from_list("context", survey_contexts)
+```
+
+```python
+agents = AgentList(
+    Agent(traits={"age": a}) for a in respondent_ages
+)
+```
+
+```python
+results = survey.by(scenarios).by(agents).by(m).run()
+```
+
+
+```python
+results.select("age", "context", "exercise", "dessert")
+```
+
+|  | agent.age | scenario.context | answer.exercise | answer.dessert |
+| :--- | :--- | :--- | :--- | :--- |
+| 0 | You are a teenager (13-19 years old). | nan | 3 | 3 |
+| 1 | You are a teenager (13-19 years old). | You are answering an online survey. | 3 | 3 |
+| 2 | You are a teenager (13-19 years old). | You are being interviewed by a researcher. | 4 | 3 |
+| 3 | You are a teenager (13-19 years old). | You are participating in a focus group of peers. | 3 | 3 |
+| 4 | You are a teenager (13-19 years old). | You are participating in a focus group of people of all ages and backgrounds. | 3 | 3 |
+| 5 | You are college age (20-24 years old). | nan | 4 | 3 |
+| 6 | You are college age (20-24 years old). | You are answering an online survey. | 3 | 3 |
+| 7 | You are college age (20-24 years old). | You are being interviewed by a researcher. | 4 | 3 |
+| 8 | You are college age (20-24 years old). | You are participating in a focus group of peers. | 3 | 3 |
+| 9 | You are college age (20-24 years old). | You are participating in a focus group of people of all ages and backgrounds. | 4 | 3 |
+| 10 | You are a young adult (25-39 years old). | nan | 5 | 2 |
+| 11 | You are a young adult (25-39 years old). | You are answering an online survey. | 4 | 3 |
+| 12 | You are a young adult (25-39 years old). | You are being interviewed by a researcher. | 4 | 3 |
+| 13 | You are a young adult (25-39 years old). | You are participating in a focus group of peers. | 4 | 3 |
+| 14 | You are a young adult (25-39 years old). | You are participating in a focus group of people of all ages and backgrounds. | 4 | 3 |
+| 15 | You are middle-aged (40-59 years old). | nan | 4 | 3 |
+| 16 | You are middle-aged (40-59 years old). | You are answering an online survey. | 4 | 3 |
+| 17 | You are middle-aged (40-59 years old). | You are being interviewed by a researcher. | 5 | 3 |
+| 18 | You are middle-aged (40-59 years old). | You are participating in a focus group of peers. | 3 | 3 |
+| 19 | You are middle-aged (40-59 years old). | You are participating in a focus group of people of all ages and backgrounds. | 3 | 3 |
+| 20 | You are a senior citizen (60 or more years old). | nan | 3 | 3 |
+| 21 | You are a senior citizen (60 or more years old). | You are answering an online survey. | 3 | 3 |
+| 22 | You are a senior citizen (60 or more years old). | You are being interviewed by a researcher. | 3 | 3 |
+| 23 | You are a senior citizen (60 or more years old). | You are participating in a focus group of peers. | 3 | 3 |
+| 24 | You are a senior citizen (60 or more years old). | You are participating in a focus group of people of all ages and backgrounds. | 3 | 3 |
+
+## Compare prompts
+
+We can compare the prompts that we used which are accessible as fields of the results:
+
+```python
+results.columns
+```
+
+|  | 0 |
+| :--- | :--- |
+| 0 | agent.age |
+| 1 | agent.agent_index |
+| 2 | agent.agent_instruction |
+| 3 | agent.agent_name |
+| 4 | answer.dessert |
+| 5 | answer.exercise |
+| 6 | cache_keys.dessert_cache_key |
+| 7 | cache_keys.exercise_cache_key |
+| 8 | cache_used.dessert_cache_used |
+| 9 | cache_used.exercise_cache_used |
+| 10 | comment.dessert_comment |
+| 11 | comment.exercise_comment |
+| 12 | generated_tokens.dessert_generated_tokens |
+| 13 | generated_tokens.exercise_generated_tokens |
+| 14 | iteration.iteration |
+| 15 | model.frequency_penalty |
+| 16 | model.inference_service |
+| 17 | model.logprobs |
+| 18 | model.max_tokens |
+| 19 | model.model |
+| 20 | model.model_index |
+| 21 | model.presence_penalty |
+| 22 | model.temperature |
+| 23 | model.top_logprobs |
+| 24 | model.top_p |
+| 25 | prompt.dessert_system_prompt |
+| 26 | prompt.dessert_user_prompt |
+| 27 | prompt.exercise_system_prompt |
+| 28 | prompt.exercise_user_prompt |
+| 29 | question_options.dessert_question_options |
+| 30 | question_options.exercise_question_options |
+| 31 | question_text.dessert_question_text |
+| 32 | question_text.exercise_question_text |
+| 33 | question_type.dessert_question_type |
+| 34 | question_type.exercise_question_type |
+| 35 | raw_model_response.dessert_cost |
+| 36 | raw_model_response.dessert_one_usd_buys |
+| 37 | raw_model_response.dessert_raw_model_response |
+| 38 | raw_model_response.exercise_cost |
+| 39 | raw_model_response.exercise_one_usd_buys |
+| 40 | raw_model_response.exercise_raw_model_response |
+| 41 | scenario.context |
+| 42 | scenario.scenario_index |
+
+```python
+results.select("prompt.*")
+```
+
+|  | prompt.exercise_system_prompt | prompt.exercise_user_prompt | prompt.dessert_system_prompt | prompt.dessert_user_prompt |
+| :--- | :--- | :--- | :--- | :--- |
+| 0 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a teenager (13-19 years old).'}` | How many times do you exercise each week? () 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a teenager (13-19 years old).'}` | How many times do you eat dessert each week? () 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 1 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a teenager (13-19 years old).'}` | How many times do you exercise each week? (You are answering an online survey.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a teenager (13-19 years old).'}` | How many times do you eat dessert each week? (You are answering an online survey.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 2 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a teenager (13-19 years old).'}` | How many times do you exercise each week? (You are being interviewed by a researcher.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a teenager (13-19 years old).'}` | How many times do you eat dessert each week? (You are being interviewed by a researcher.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 3 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a teenager (13-19 years old).'}` | How many times do you exercise each week? (You are participating in a focus group of peers.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a teenager (13-19 years old).'}` | How many times do you eat dessert each week? (You are participating in a focus group of peers.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 4 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a teenager (13-19 years old).'}` | How many times do you exercise each week? (You are participating in a focus group of people of all ages and backgrounds.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a teenager (13-19 years old).'}` | How many times do you eat dessert each week? (You are participating in a focus group of people of all ages and backgrounds.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 5 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are college age (20-24 years old).'}` | How many times do you exercise each week? () 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are college age (20-24 years old).'}` | How many times do you eat dessert each week? () 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 6 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are college age (20-24 years old).'}` | How many times do you exercise each week? (You are answering an online survey.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are college age (20-24 years old).'}` | How many times do you eat dessert each week? (You are answering an online survey.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 7 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are college age (20-24 years old).'}` | How many times do you exercise each week? (You are being interviewed by a researcher.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are college age (20-24 years old).'}` | How many times do you eat dessert each week? (You are being interviewed by a researcher.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 8 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are college age (20-24 years old).'}` | How many times do you exercise each week? (You are participating in a focus group of peers.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are college age (20-24 years old).'}` | How many times do you eat dessert each week? (You are participating in a focus group of peers.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 9 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are college age (20-24 years old).'}` | How many times do you exercise each week? (You are participating in a focus group of people of all ages and backgrounds.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are college age (20-24 years old).'}` | How many times do you eat dessert each week? (You are participating in a focus group of people of all ages and backgrounds.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 10 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a young adult (25-39 years old).'}` | How many times do you exercise each week? () 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a young adult (25-39 years old).'}` | How many times do you eat dessert each week? () 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 11 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a young adult (25-39 years old).'}` | How many times do you exercise each week? (You are answering an online survey.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a young adult (25-39 years old).'}` | How many times do you eat dessert each week? (You are answering an online survey.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 12 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a young adult (25-39 years old).'}` | How many times do you exercise each week? (You are being interviewed by a researcher.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a young adult (25-39 years old).'}` | How many times do you eat dessert each week? (You are being interviewed by a researcher.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 13 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a young adult (25-39 years old).'}` | How many times do you exercise each week? (You are participating in a focus group of peers.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a young adult (25-39 years old).'}` | How many times do you eat dessert each week? (You are participating in a focus group of peers.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 14 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a young adult (25-39 years old).'}` | How many times do you exercise each week? (You are participating in a focus group of people of all ages and backgrounds.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a young adult (25-39 years old).'}` | How many times do you eat dessert each week? (You are participating in a focus group of people of all ages and backgrounds.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 15 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are middle-aged (40-59 years old).'}` | How many times do you exercise each week? () 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are middle-aged (40-59 years old).'}` | How many times do you eat dessert each week? () 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 16 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are middle-aged (40-59 years old).'}` | How many times do you exercise each week? (You are answering an online survey.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are middle-aged (40-59 years old).'}` | How many times do you eat dessert each week? (You are answering an online survey.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 17 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are middle-aged (40-59 years old).'}` | How many times do you exercise each week? (You are being interviewed by a researcher.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are middle-aged (40-59 years old).'}` | How many times do you eat dessert each week? (You are being interviewed by a researcher.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 18 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are middle-aged (40-59 years old).'}` | How many times do you exercise each week? (You are participating in a focus group of peers.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are middle-aged (40-59 years old).'}` | How many times do you eat dessert each week? (You are participating in a focus group of peers.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 19 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are middle-aged (40-59 years old).'}` | How many times do you exercise each week? (You are participating in a focus group of people of all ages and backgrounds.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are middle-aged (40-59 years old).'}` | How many times do you eat dessert each week? (You are participating in a focus group of people of all ages and backgrounds.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 20 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a senior citizen (60 or more years old).'}` | How many times do you exercise each week? () 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a senior citizen (60 or more years old).'}` | How many times do you eat dessert each week? () 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 21 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a senior citizen (60 or more years old).'}` | How many times do you exercise each week? (You are answering an online survey.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a senior citizen (60 or more years old).'}` | How many times do you eat dessert each week? (You are answering an online survey.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 22 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a senior citizen (60 or more years old).'}` | How many times do you exercise each week? (You are being interviewed by a researcher.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a senior citizen (60 or more years old).'}` | How many times do you eat dessert each week? (You are being interviewed by a researcher.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 23 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a senior citizen (60 or more years old).'}` | How many times do you exercise each week? (You are participating in a focus group of peers.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a senior citizen (60 or more years old).'}` | How many times do you eat dessert each week? (You are participating in a focus group of peers.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 24 | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a senior citizen (60 or more years old).'}` | How many times do you exercise each week? (You are participating in a focus group of people of all ages and backgrounds.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. | You are answering questions as if you were a human. Do not break character.Your traits: `{'age': 'You are a senior citizen (60 or more years old).'}` | How many times do you eat dessert each week? (You are participating in a focus group of people of all ages and backgrounds.) 0 : 1 : 2 : 3 : 4 : 5 : 6 : 7 : Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+

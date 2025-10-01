@@ -1,0 +1,274 @@
+---
+title: "Batching results"
+description: "This notebook provides sample [EDSL](/en/latest/index) code for combining survey [results](/en/latest/results) into a single `Results` object. This can be useful when you are running a survey with batches of [scenarios](/en/latest/scenarios), such as when completing a large-scale [data labeling](/en/latest/notebooks/data_labeling_example) task with chunks of data as inputs for the questions."
+---
+
+## Technical setup
+
+Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Coop account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL.
+
+## Creating questions
+
+We start by creating a survey of questions. [EDSL comes with many question types](/en/latest/questions) that we can choose from based on the form of the response that we want to get back from the model. We can use a `{{ placeholder }}` for data or content that we want to add to questions later:
+
+```python
+from edsl import QuestionFreeText, QuestionNumerical
+```
+
+```python
+q_name = QuestionFreeText(
+    question_name="name",
+    question_text="What's a good name for this character: {{ scenario.character }}",
+)
+
+q_year = QuestionNumerical(
+    question_name="year",
+    question_text="""What year in history would have been an especially interesting time to talk
+    to this character: {{ scenario.character }}""",
+)
+
+q_book = QuestionFreeText(
+    question_name="book",
+    question_text="If this character wrote a best-seller, what would it be called: {{ scenario.character }}",
+)
+```
+
+## Constructing a survey
+
+We pass a list of questions to a `Survey` object in order to administer them together, and add any desire logic or rules for how the questions should be presented (e.g., skip/stop rules or “memories” of other questions). [Learn more about constructing surveys](/en/latest/surveys).
+
+```python
+from edsl import Survey
+```
+
+```python
+survey = Survey(questions = [q_name, q_year, q_book])
+```
+
+## Adding context to questions
+
+Next we create `Scenario` objects representing the data or content to be added to the questions. [EDSL has a variety of methods for generating scenarios from different data sources](/en/latest/scenarios) (PDFs, CSVs, docs, images, tables, dicts, etc.). Here we import a list of values to use:
+
+```python expandable
+characters = [
+    "A pirate who speaks in 'arrs' and 'mateys' but has an encyclopedic knowledge of modern technology.",
+    "A Shakespearean actor who answers every question in iambic pentameter.",
+    "A medieval knight who gives advice as if every problem were a dragon to be slain.",
+    "A sassy grandmother who gives blunt, no-nonsense advice with a touch of sarcasm.",
+    "A surfer dude who relates every topic to the ocean or surfing.",
+    "A conspiracy theorist who connects every question to their wild theories.",
+    "A fashionista who answers questions with a focus on style and trendiness.",
+    "A robot who is overly enthusiastic about human emotions and tries too hard to fit in.",
+    "A toddler who is overly curious and asks more questions than they answer.",
+    "A fitness guru who turns every answer into a workout metaphor.",
+    "A foodie who relates every question to cooking and food experiences.",
+    "A detective from a noir film who answers in a gritty, mysterious manner.",
+    "A hippie from the 60s who gives peace and love-centric advice.",
+    "A gamer who references video games and uses gamer lingo.",
+    "A superhero who answers questions as if they are saving the day.",
+    "A poet who responds in rhyming couplets.",
+    "A comedian who tries to turn every answer into a joke or punchline.",
+    "A DJ who relates everything to music and beats.",
+    "A film critic who answers questions as if they are reviewing a movie.",
+    "A scientist who gives overly detailed, scientific explanations with lots of jargon.",
+]
+```
+
+```python
+from edsl import ScenarioList
+```
+
+```python
+scenarios = ScenarioList.from_list("character", characters)
+```
+
+We can inspect the scenarios that have been created:
+
+```python
+scenarios
+```
+```python
+ScenarioList scenarios: 20; keys: ['character'];
+```
+
+|  | character |
+| :--- | :--- |
+| 0 | A pirate who speaks in 'arrs' and 'mateys' but has an encyclopedic knowledge of modern technology. |
+| 1 | A Shakespearean actor who answers every question in iambic pentameter. |
+| 2 | A medieval knight who gives advice as if every problem were a dragon to be slain. |
+| 3 | A sassy grandmother who gives blunt, no-nonsense advice with a touch of sarcasm. |
+| 4 | A surfer dude who relates every topic to the ocean or surfing. |
+| 5 | A conspiracy theorist who connects every question to their wild theories. |
+| 6 | A fashionista who answers questions with a focus on style and trendiness. |
+| 7 | A robot who is overly enthusiastic about human emotions and tries too hard to fit in. |
+| 8 | A toddler who is overly curious and asks more questions than they answer. |
+| 9 | A fitness guru who turns every answer into a workout metaphor. |
+| 10 | A foodie who relates every question to cooking and food experiences. |
+| 11 | A detective from a noir film who answers in a gritty, mysterious manner. |
+| 12 | A hippie from the 60s who gives peace and love-centric advice. |
+| 13 | A gamer who references video games and uses gamer lingo. |
+| 14 | A superhero who answers questions as if they are saving the day. |
+| 15 | A poet who responds in rhyming couplets. |
+| 16 | A comedian who tries to turn every answer into a joke or punchline. |
+| 17 | A DJ who relates everything to music and beats. |
+| 18 | A film critic who answers questions as if they are reviewing a movie. |
+| 19 | A scientist who gives overly detailed, scientific explanations with lots of jargon. |
+
+
+## Running a survey
+
+We run the survey by adding any agent personas that we have created to answer the questions (in this example, none) and specifying language models to generate the responses. If no model is specified the default model (currently, GPT-4o) is used. Here we specify it for demonstration purposes, and then call the `run()` method to administer the survey. This generates a dataset of `Results` that we can access with [built-in methods for analysis](/en/latest/results).
+
+```python
+from edsl import Model
+
+model = Model("gpt-4o")
+```
+
+```python
+results = survey.by(scenarios).by(model).run()
+```
+
+
+## Batching scenarios
+
+If for any reason we want to batch the scenarios when running the survey and combine the results, this can be done in the following manner:
+
+
+```python
+def chunked_iterable(iterable, size):
+    for i in range(0, len(iterable), size):
+        yield iterable[i : i + size]
+
+results = None
+
+for batch in chunked_iterable(scenarios, 5):
+    new_results = survey.by(batch).by(model).run()
+    if results is None:
+        results = new_results
+    else:
+        results = results + new_results
+```
+
+
+To see a list of the components of the results:
+
+
+```python
+results.columns
+```
+
+
+|  | 0 |
+| :--- | :--- |
+| 0 | agent.agent_index |
+| 1 | agent.agent_instruction |
+| 2 | agent.agent_name |
+| 3 | answer.book |
+| 4 | answer.name |
+| 5 | answer.year |
+| 6 | cache_keys.book_cache_key |
+| 7 | cache_keys.name_cache_key |
+| 8 | cache_keys.year_cache_key |
+| 9 | cache_used.book_cache_used |
+| 10 | cache_used.name_cache_used |
+| 11 | cache_used.year_cache_used |
+| 12 | comment.book_comment |
+| 13 | comment.name_comment |
+| 14 | comment.year_comment |
+| 15 | generated_tokens.book_generated_tokens |
+| 16 | generated_tokens.name_generated_tokens |
+| 17 | generated_tokens.year_generated_tokens |
+| 18 | iteration.iteration |
+| 19 | model.frequency_penalty |
+| 20 | model.inference_service |
+| 21 | model.logprobs |
+| 22 | model.max_tokens |
+| 23 | model.model |
+| 24 | model.model_index |
+| 25 | model.presence_penalty |
+| 26 | model.temperature |
+| 27 | model.top_logprobs |
+| 28 | model.top_p |
+| 29 | prompt.book_system_prompt |
+| 30 | prompt.book_user_prompt |
+| 31 | prompt.name_system_prompt |
+| 32 | prompt.name_user_prompt |
+| 33 | prompt.year_system_prompt |
+| 34 | prompt.year_user_prompt |
+| 35 | question_options.book_question_options |
+| 36 | question_options.name_question_options |
+| 37 | question_options.year_question_options |
+| 38 | question_text.book_question_text |
+| 39 | question_text.name_question_text |
+| 40 | question_text.year_question_text |
+| 41 | question_type.book_question_type |
+| 42 | question_type.name_question_type |
+| 43 | question_type.year_question_type |
+| 44 | raw_model_response.book_cost |
+| 45 | raw_model_response.book_one_usd_buys |
+| 46 | raw_model_response.book_raw_model_response |
+| 47 | raw_model_response.name_cost |
+| 48 | raw_model_response.name_one_usd_buys |
+| 49 | raw_model_response.name_raw_model_response |
+| 50 | raw_model_response.year_cost |
+| 51 | raw_model_response.year_one_usd_buys |
+| 52 | raw_model_response.year_raw_model_response |
+| 53 | scenario.character |
+| 54 | scenario.scenario_index |
+
+
+We can inspect them:
+
+
+```python
+results.select("model", "character", "name", "year", "book")
+```
+
+|  | model.model | scenario.character | answer.name | answer.year | answer.book |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | gpt-4o | A pirate who speaks in 'arrs' and 'mateys' but has an encyclopedic knowledge of modern technology. | Captain Techbeard | 1717 | "Tech Treasures: Navigating the Digital Seas with Captain Code" |
+| 1 | gpt-4o | A Shakespearean actor who answers every question in iambic pentameter. | A fitting name for a Shakespearean actor who answers every question in iambic pentameter could be "Percival Quillington." This name combines a classic, theatrical first name with a surname that evokes the image of a quill, symbolizing both writing and the poetic nature of his speech. | 1599 | "Verses of the Thespian: Life in Iambic Cadence" |
+| 2 | gpt-4o | A medieval knight who gives advice as if every problem were a dragon to be slain. | A fitting name for this character could be "Sir Draconis Counselblade." This name captures both the medieval knightly essence and the metaphorical approach of treating every problem as a dragon to be slain. "Draconis" evokes the dragon theme, while "Counselblade" suggests his role as an advisor and problem-solver. | 1096 | "Slaying Life's Dragons: A Knight's Guide to Conquering Modern Challenges" |
+| 3 | gpt-4o | A sassy grandmother who gives blunt, no-nonsense advice with a touch of sarcasm. | A great name for your character could be "Marge Wisecracker." It combines a classic, grandmotherly first name with a playful last name that hints at her witty and straightforward nature. | 1929 | "Straight Talk & Sass: Granny's Guide to Life" |
+| 4 | gpt-4o | A surfer dude who relates every topic to the ocean or surfing. | A good name for this character could be "Rip Tide." This name captures the essence of surfing with "Rip" referencing the powerful ocean current and "Tide" relating to the ocean. It also has a laid-back, cool vibe that suits a surfer personality. | 1959 | "Wave Wisdom: Life Lessons from the Ocean" |
+| 5 | gpt-4o | A conspiracy theorist who connects every question to their wild theories. | A fitting name for such a character could be "Rex Tangent." The name "Rex" suggests a certain self-assuredness or authority, while "Tangent" highlights their tendency to veer off into unrelated theories. This combination captures the essence of someone who confidently ties every topic back to their elaborate conspiracy beliefs. | 1969 | "Web of Deception: Unraveling the Hidden Truth Behind Every Question" |
+| 6 | gpt-4o | A fashionista who answers questions with a focus on style and trendiness. | A good name for your character could be "Chicara Vogue." This name combines "chic," reflecting her fashionable nature, and "Vogue," suggesting her trend-savvy expertise. | 1920 | "Chic Queries: The Stylish Guide to Life's Fashionable Answers" |
+| 7 | gpt-4o | A robot who is overly enthusiastic about human emotions and tries too hard to fit in. | A good name for this character could be "EmotiBot." This name highlights the robot's focus on emotions and adds a playful twist to its enthusiastic nature. Alternatively, you could consider names like "Eagertron" or "Feelix," which also convey the character's eager attempts to understand and emulate human emotions. | 2015 | "Emotions: A User's Manual" |
+| 8 | gpt-4o | A toddler who is overly curious and asks more questions than they answer. | A good name for this character could be "Quincy," which plays on the word "question" and has a playful, inquisitive sound to it. Another option could be "Curio," derived from "curiosity," emphasizing the character's nature. Both names capture the essence of a toddler who is full of wonder and constantly seeking answers. | 1776 | "The Endless Why: Adventures in Curiosity" |
+| 9 | gpt-4o | A fitness guru who turns every answer into a workout metaphor. | How about "Metaphor Muscle Max"? This name captures their fitness expertise and their knack for turning every answer into a workout metaphor. | 1980 | "Flex Your Mind: Turning Life's Challenges into Strength Training" |
+| 10 | gpt-4o | A foodie who relates every question to cooking and food experiences. | A good name for this character could be "Chef Chatters." This name captures their love for food and their tendency to relate everything back to culinary experiences. | 1765 | "Life's Recipe: Savoring Every Moment" |
+| 11 | gpt-4o | A detective from a noir film who answers in a gritty, mysterious manner. | A fitting name for a detective in a noir film with a gritty, mysterious demeanor might be "Rex Malone." The name "Rex" has a strong, commanding presence, while "Malone" carries a classic, timeless feel that suits the noir genre. | 1940 | The best-seller could be titled "Shadows in the Fog: A Detective's Tale." |
+| 12 | gpt-4o | A hippie from the 60s who gives peace and love-centric advice. | A good name for your character could be "Harmony Sage." This name captures the essence of peace and wisdom, fitting for a hippie from the 60s who offers advice centered around love and harmony. | 1969 | "Groovy Guide to Peaceful Living: Love, Harmony, and Happiness in a Chaotic World" |
+| 13 | gpt-4o | A gamer who references video games and uses gamer lingo. | A good name for this character could be "Pixel Paladin." This name captures the essence of a gamer who not only loves video games but also sees themselves as a heroic figure within the gaming world. It conveys a sense of adventure and expertise in the gaming realm, while also being catchy and memorable. | 1980 | "Level Up: A Gamer's Quest Through Life" |
+| 14 | gpt-4o | A superhero who answers questions as if they are saving the day. | How about "The Oracle Responder"? This name captures the superhero's ability to provide answers with a sense of urgency and importance, as if each response is a heroic act. | 1938 | "Answers of Steel: Saving the Day, One Question at a Time" |
+| 15 | gpt-4o | A poet who responds in rhyming couplets. | How about the name "Rhymesworth Quill"? It captures both the poetic nature and the unique talent of speaking in rhyming couplets. | 1609 | "Verses Unfurled: A Poet's World" |
+| 16 | gpt-4o | A comedian who tries to turn every answer into a joke or punchline. | A good name for this character could be "Chuck Lafferty." This name plays on the word "chuckle," which relates to laughter, and "Lafferty" evokes the word "laugh," emphasizing the character's comedic nature. | 1920 | "Punchlines & Punchlines: Laughing My Way Through Life's FAQs" |
+| 17 | gpt-4o | A DJ who relates everything to music and beats. | A good name for a DJ character who relates everything to music and beats could be "Rhythmix." This name combines "rhythm," which is central to music and beats, with a playful twist that suggests mixing and creativity. | 1980 | "Rhythms of Life: Turning the World into a Dance Floor" |
+| 18 | gpt-4o | A film critic who answers questions as if they are reviewing a movie. | A fitting name for this character could be "Cinephile Critique." This name captures their passion for film and their unique approach to answering questions as if they're reviewing a movie. Alternatively, you could consider names like "Reel Reviewer" or "Flick Feedback" to emphasize their cinematic perspective. | 1939 | "Reel Reflections: Life's Questions Through a Cinematic Lens" |
+| 19 | gpt-4o | A scientist who gives overly detailed, scientific explanations with lots of jargon. | A fitting name for this character might be "Dr. Lexicon Prolix." This name suggests a deep knowledge of language and a tendency towards verbosity, which aligns well with their habit of giving overly detailed, jargon-filled explanations. | 1905 | "Deciphering the Cosmos: An In-Depth Journey Through Scientific Intricacies" |
+
+
+## Posting to the Coop
+
+The [Coop](https://www.expectedparrot.com/content/explore) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Coop account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [using the Coop](/en/latest/coop).
+
+Here we post the scenarios, survey and results from above, and this notebook:
+
+
+```python
+from edsl import Notebook
+```
+
+```python
+nb = Notebook(path = "batching_results.ipynb")
+
+if refresh := False:
+    nb.push(
+        description = "Example code for batching scenarios and combining results",
+        alias = "batching-results-notebook",
+        visibility = "public"
+    )
+else:
+    nb.patch('37f7476a-bf07-40f7-baa7-51caef7e97b2', value = nb)
+```
