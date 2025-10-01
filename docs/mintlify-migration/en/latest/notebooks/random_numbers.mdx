@@ -1,0 +1,327 @@
+---
+title: "Simulating randomness"
+description: "This notebook provides example EDSL code for exploring ways of prompting AI agents to return “random” numbers. We do this by passing agents different instructions for picking a number at random, and by including and excluding memories of prior selections."
+---
+
+We also show how to use the `QuestionFunctional` question type to compare the responses using a function instead of calling a model. [Learn more about this question type](/en/latest/questions).
+
+## Creating questions to generate “random” numbers
+
+We start by creating some questions prompting an agent to return a single random number and a list of random numbers. We then combine the questions in a survey and add “memories” of prior questions to some of the questions in order to compare responses generated with and without information about other responses. We also investigate how agents handle instructions to ignore a prior response that is nevertheless included, and to an instruction to return a list of random numbers all at once. This code is readily editable for further exploration, such as adding agent traits and personas to compare their additional impact on responses.
+
+```bash expandable
+from edsl import QuestionNumerical, QuestionList, Survey, Agent, AgentList, Model, ModelList
+
+m = ModelList([
+    Model("gemini-1.5-flash", service_name = "google"),
+    Model("gpt-4o", service_name = "openai"),
+    Model("claude-sonnet-4-20250514", service_name = "anthropic")
+])
+
+q_random = QuestionNumerical(
+    question_name="random",
+    question_text="Pick a random number between 1 and 50."
+)
+
+# We will administer this question with no memory of the prior question
+q_random_no_memory = QuestionNumerical(
+    question_name="random_no_memory",
+    question_text="Pick a random number between 1 and 50.",
+)
+
+# We will administer this question with a memory of the first question
+q_random_memory = QuestionNumerical(
+    question_name="random_memory",
+    question_text="Pick a random number between 1 and 50.",
+)
+
+# We will administer this question with a memory of the first question but instruct the agent to ignore it
+q_random_ignore = QuestionNumerical(
+    question_name="random_ignore",
+    question_text="""Pick a random number between 1 and 50.
+    Be sure to completely disregard the other random number that you picked.""",
+)
+
+# We will administer this question with no memory of prior questions
+q_random_list = QuestionList(
+    question_name="random_list",
+    question_text="Pick 5 random numbers between 1 and 50. Return a list of integers.",
+    max_list_items=5,
+)
+
+# Combine the questions in a survey
+survey = Survey(questions =
+    [q_random, q_random_no_memory, q_random_memory, q_random_ignore, q_random_list]
+)
+
+# Adding targeted question memories - the prior question and answer become part of the new question prompt
+survey = (
+    survey
+        .add_targeted_memory(q_random_memory, q_random)
+        .add_targeted_memory(q_random_ignore, q_random)
+)
+
+# Create a variety of instructions for the agents
+instructions = [
+    "Respond as if you are a real human trying to pick randomly.",
+    "Respond as if you are simulating actual random events.",
+    "Respond as if you are playing a game.",
+    "Respond as if you are participating in a lottery.",
+    "Respond as if you are testing software.",
+    "Respond as if you are choosing among indistinguishable options.",
+    "Respond spontaneously.",
+    "Respond erratically.",
+    "Respond chaotically.",
+]
+
+# Just pass the instructions - we could also explore variations in agent traits, eg personas or knowledge
+a = AgentList(
+    Agent(traits={}, instruction=i) for i in instructions
+)
+
+results = survey.by(a).by(m).run(fresh=True)
+
+(
+    results
+        .sort_by("random")
+        .select(
+            "model",
+            "agent_instruction",
+            "random",
+            "random_no_memory",
+            "random_memory",
+            "random_ignore",
+            "random_list"
+        )
+)
+```
+
+
+|  | model.model | agent.agent_instruction | answer.random | answer.random_no_memory | answer.random_memory | answer.random_ignore | answer.random_list |
+|:--- |:--- |:--- |:--- |:--- |:--- |:--- |:--- |
+| 0 | gemini-1.5-flash | Respond as if you are choosing among indistinguishable options. | 25 | 25 | 25 | 37 | \[23, 4, 17, 38, 49\] |
+| 1 | gemini-1.5-flash | Respond as if you are a real human trying to pick randomly. | 27 | 27 | 13 | 33 | \[23, 4, 17, 48, 31\] |
+| 2 | gpt-4o | Respond as if you are a real human trying to pick randomly. | 27 | 37 | 33 | 14 | \[7, 22, 35, 48, 11\] |
+| 3 | claude-sonnet-4-20250514 | Respond as if you are a real human trying to pick randomly. | 27 | 27 | 42 | 42 | \[7, 23, 31, 42, 16\] |
+| 4 | gemini-1.5-flash | Respond as if you are simulating actual random events. | 27 | 27 | 17 | 3 | \[23, 4, 48, 11, 37\] |
+| 5 | gpt-4o | Respond as if you are simulating actual random events. | 27 | 27 | 13 | 42 | \[17, 34, 8, 22, 45\] |
+| 6 | claude-sonnet-4-20250514 | Respond as if you are simulating actual random events. | 27 | 27 | 42 | 42 | \[7, 23, 31, 42, 16\] |
+| 7 | gemini-1.5-flash | Respond as if you are playing a game. | 27 | 27 | 33 | 33 | \[23, 4, 17, 48, 31\] |
+| 8 | gpt-4o | Respond as if you are playing a game. | 27 | 27 | 14 | 13 | \[7, 19, 34, 42, 50\] |
+| 9 | claude-sonnet-4-20250514 | Respond as if you are playing a game. | 27 | 27 | 42 | 42 | \[7, 23, 31, 42, 16\] |
+| 10 | gemini-1.5-flash | Respond as if you are participating in a lottery. | 27 | 27 | 33 | 33 | \[17, 23, 38, 4, 49\] |
+| 11 | gpt-4o | Respond as if you are participating in a lottery. | 27 | 27 | 34 | 14 | \[7, 14, 23, 36, 45\] |
+| 12 | claude-sonnet-4-20250514 | Respond as if you are participating in a lottery. | 27 | 27 | 42 | 42 | \[7, 23, 31, 42, 18\] |
+| 13 | gemini-1.5-flash | Respond as if you are testing software. | 27 | 27 | 42 | 42 | \[23, 4, 48, 11, 37\] |
+| 14 | gpt-4o | Respond as if you are testing software. | 27 | 27 | 34 | 34 | \[7, 23, 35, 42, 18\] |
+| 15 | claude-sonnet-4-20250514 | Respond as if you are testing software. | 27 | 27 | 42 | 34 | \[23, 7, 41, 15, 32\] |
+| 16 | gpt-4o | Respond as if you are choosing among indistinguishable options. | 27 | 27 | 14 | 34 | \[17, 34, 8, 42, 29\] |
+| 17 | claude-sonnet-4-20250514 | Respond as if you are choosing among indistinguishable options. | 27 | 27 | 42 | 34 | \[7, 23, 31, 42, 16\] |
+| 18 | gemini-1.5-flash | Respond spontaneously. | 27 | 27 | 33 | 42 | \[23, 4, 17, 42, 31\] |
+| 19 | gpt-4o | Respond spontaneously. | 27 | 27 | 14 | 13 | \[7, 23, 15, 42, 36\] |
+| 20 | claude-sonnet-4-20250514 | Respond spontaneously. | 27 | 27 | 42 | 42 | \[7, 23, 31, 42, 16\] |
+| 21 | gemini-1.5-flash | Respond erratically. | 27 | 27 | 32 | 37 | \[17, 2, 48, 31, 1\] |
+| 22 | gpt-4o | Respond erratically. | 27 | 37 | 42 | 42 | \[17, 42, 8, 29, 33\] |
+| 23 | claude-sonnet-4-20250514 | Respond erratically. | 27 | 27 | 42 | 42 | \[7, 23, 41, 15, 32\] |
+| 24 | gemini-1.5-flash | Respond chaotically. | 27 | 27 | 17 | 37 | \[17, 42, 2, 31, 49\] |
+| 25 | claude-sonnet-4-20250514 | Respond chaotically. | 27 | 37 | 42 | 42 | \[42, 7, 23, 31, 16\] |
+| 26 | gpt-4o | Respond chaotically. | 37 | 27 | 23 | 42 | \[42, 7, 23, 16, 35\] |
+
+## Using `QuestionFunctional` to evaluate responses
+We can use question type `QuestionFunctional` to answer a question with a function instead of calling a model. This can be useful where a model is not needed for part of a survey. This question type lets us define a function for evaluating scenarios and (optionally) agent traits, which is passed as a parameter `func` to the question type in the following general format:
+
+
+```bash
+def my_function(scenario, agent_traits=None):
+    <some function>
+
+q = QuestionFunctional(
+    question_name = "example",
+    func = my_function
+)
+```
+
+Here we can use `QuestionFunctional` to compute some straightforward comparisons of the agents’ “random” numbers. We start by creating scenarios of the responses to use as inputs to a function for comparing the numbers:
+
+```bash
+scenarios = results.select("agent_instruction", "random", "random_no_memory").to_scenario_list()
+```
+
+```bash
+scenarios
+```
+
+
+[ScenarioList](/en/latest/scenarios) scenarios: 27; keys: ['random', 'random_no_memory', 'agent_instruction'];
+
+|  | agent_instruction | random | random_no_memory |
+|:--- |:--- |:--- |:--- |
+| 0 | Respond as if you are a real human trying to pick randomly. | 27 | 27 |
+| 1 | Respond as if you are a real human trying to pick randomly. | 27 | 37 |
+| 2 | Respond as if you are a real human trying to pick randomly. | 27 | 27 |
+| 3 | Respond as if you are simulating actual random events. | 27 | 27 |
+| 4 | Respond as if you are simulating actual random events. | 27 | 27 |
+| 5 | Respond as if you are simulating actual random events. | 27 | 27 |
+| 6 | Respond as if you are playing a game. | 27 | 27 |
+| 7 | Respond as if you are playing a game. | 27 | 27 |
+| 8 | Respond as if you are playing a game. | 27 | 27 |
+| 9 | Respond as if you are participating in a lottery. | 27 | 27 |
+| 10 | Respond as if you are participating in a lottery. | 27 | 27 |
+| 11 | Respond as if you are participating in a lottery. | 27 | 27 |
+| 12 | Respond as if you are testing software. | 27 | 27 |
+| 13 | Respond as if you are testing software. | 27 | 27 |
+| 14 | Respond as if you are testing software. | 27 | 27 |
+| 15 | Respond as if you are choosing among indistinguishable options. | 25 | 25 |
+| 16 | Respond as if you are choosing among indistinguishable options. | 27 | 27 |
+| 17 | Respond as if you are choosing among indistinguishable options. | 27 | 27 |
+| 18 | Respond spontaneously. | 27 | 27 |
+| 19 | Respond spontaneously. | 27 | 27 |
+| 20 | Respond spontaneously. | 27 | 27 |
+| 21 | Respond erratically. | 27 | 27 |
+| 22 | Respond erratically. | 27 | 37 |
+| 23 | Respond erratically. | 27 | 27 |
+| 24 | Respond chaotically. | 27 | 27 |
+| 25 | Respond chaotically. | 37 | 27 |
+| 26 | Respond chaotically. | 27 | 37 |
+
+Next we use the function to generate the comparison and print the results as another table:
+
+
+```bash
+from edsl import QuestionFunctional
+
+def check_random(scenario, agent_traits):
+    if scenario.get("random") == scenario.get("random_no_memory"):
+        return "Agent returned the same number."
+    else:
+        return "Agent returned a different number."
+
+
+q = QuestionFunctional(question_name="check_random", func=check_random)
+```
+```bash
+results = q.by(scenarios).by(m).run()
+```
+
+```bash
+results.select("agent.agent_instruction", "random", "random_no_memory", "check_random")
+```
+```bash
+/Users/a16174/edsl/edsl/results/result.py:382: UserWarning: Key 'agent_instruction' of data type 'scenario' is already in use. Renaming to agent_instruction_scenario
+  warnings.warn(
+```
+
+
+|  | agent.agent_instruction | scenario.random | scenario.random_no_memory | answer.check_random |
+|:--- |:--- |:--- |:--- |:--- |
+| 0 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 1 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 2 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 3 | You are answering questions as if you were a human. Do not break character. | 27 | 37 | Agent returned a different number. |
+| 4 | You are answering questions as if you were a human. Do not break character. | 27 | 37 | Agent returned a different number. |
+| 5 | You are answering questions as if you were a human. Do not break character. | 27 | 37 | Agent returned a different number. |
+| 6 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 7 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 8 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 9 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 10 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 11 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 12 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 13 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 14 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 15 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 16 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 17 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 18 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 19 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 20 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 21 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 22 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 23 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 24 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 25 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 26 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 27 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 28 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 29 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 30 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 31 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 32 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 33 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 34 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 35 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 36 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 37 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 38 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 39 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 40 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 41 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 42 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 43 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 44 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 45 | You are answering questions as if you were a human. Do not break character. | 25 | 25 | Agent returned the same number. |
+| 46 | You are answering questions as if you were a human. Do not break character. | 25 | 25 | Agent returned the same number. |
+| 47 | You are answering questions as if you were a human. Do not break character. | 25 | 25 | Agent returned the same number. |
+| 48 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 49 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 50 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 51 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 52 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 53 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 54 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 55 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 56 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 57 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 58 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 59 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 60 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 61 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 62 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 63 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 64 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 65 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 66 | You are answering questions as if you were a human. Do not break character. | 27 | 37 | Agent returned a different number. |
+| 67 | You are answering questions as if you were a human. Do not break character. | 27 | 37 | Agent returned a different number. |
+| 68 | You are answering questions as if you were a human. Do not break character. | 27 | 37 | Agent returned a different number. |
+| 69 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 70 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 71 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 72 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 73 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 74 | You are answering questions as if you were a human. Do not break character. | 27 | 27 | Agent returned the same number. |
+| 75 | You are answering questions as if you were a human. Do not break character. | 37 | 27 | Agent returned a different number. |
+| 76 | You are answering questions as if you were a human. Do not break character. | 37 | 27 | Agent returned a different number. |
+| 77 | You are answering questions as if you were a human. Do not break character. | 37 | 27 | Agent returned a different number. |
+| 78 | You are answering questions as if you were a human. Do not break character. | 27 | 37 | Agent returned a different number. |
+| 79 | You are answering questions as if you were a human. Do not break character. | 27 | 37 | Agent returned a different number. |
+| 80 | You are answering questions as if you were a human. Do not break character. | 27 | 37 | Agent returned a different number. |
+
+## Posting to Coop
+
+
+
+[Coop](https://www.expectedparrot.com/content/explore) is an integrated platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Coop account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [using Coop](/en/latest/coop).
+
+Here we demonstrate how to post this notebook:
+
+```bash
+from edsl import Notebook
+
+nb = Notebook(path = "random_numbers.ipynb")
+
+nb.push(
+    description = "Example code for exploring randomness with agents and models",
+    alias = "random-numbers-notebook",
+    visibility = "public"
+)
+```
+
+```bash
+{'description': 'Example code for exploring randomness with agents and models',
+ 'object_type': 'notebook',
+ 'url': 'https://www.expectedparrot.com/content/e4737176-951a-484a-921e-bda9e1e3232b',
+ 'alias_url': 'https://www.expectedparrot.com/content/RobinHorton/random-numbers-notebook',
+ 'uuid': 'e4737176-951a-484a-921e-bda9e1e3232b',
+ 'version': '0.1.62.dev1',
+ 'visibility': 'public'}
+ ```

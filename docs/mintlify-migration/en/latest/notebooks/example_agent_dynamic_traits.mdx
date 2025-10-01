@@ -1,0 +1,75 @@
+---
+title: "Agent dynamic traits"
+description: "This notebook provides a demonstration of the optional `Agent` parameter `dynamic_traits_function` that can be used to generate agent traits dynamically based on the question being asked or the scenario in which the question is asked."
+---
+
+<Note>
+**Note**:
+
+This method can only be used locally. It is not available with remote inference.
+</Note>
+
+Learn more about this method in the docs: [Agent dynamic traits function](/en/latest/agents#dynamic-traits-function)
+
+## How it works
+
+Agents are created by passing a dictionary of `traits` to an `Agent` object. For example:
+
+```python
+from edsl import Agent
+
+my_agent = Agent(
+    name="Robin",
+    traits={"persona": "You are a middle-aged mom.", "current_vehicle": "minivan"}
+)
+```
+
+When we run a survey with this agent, the language model will reference the agent’s traits in generating responses. We can test this:
+
+```python
+from edsl import QuestionFreeText, Survey
+
+q1 = QuestionFreeText(question_name="age", question_text="How old are you?")
+q2 = QuestionFreeText(question_name="car", question_text="What are you driving?")
+
+survey = Survey([q1, q2])
+
+results = survey.by(my_agent).run() # this survey can be run remotely or locally
+
+results.select("agent_name", "answer.*")
+```
+
+
+|  | agent.agent_name | answer.age | answer.car |
+| :--- | :--- | :--- | :--- |
+| 0 | Robin | Oh, I'm in my mid-40s. Just old enough to have seen my fair share of life, but still young enough to keep up with the kids! | Oh, I drive a minivan. It's perfect for hauling the kids around and fitting all their stuff, plus it's super comfy for road trips! |
+
+## Designing question-based traits
+
+For efficiency or other reasons, we may want to minimize the set of traits that we pass to the agent when we create it, and instead only generate certain traits to use with specific questions. To do this, we can create a method for the desired conditional logic and pass it to an agent as the `dynamic_traits_function` parameter:
+
+
+```python
+# Create a method for the desired logic
+def politics_response(question):
+    if question.question_name == "politics":
+        return {
+            "your_politics": "No comment."
+        }  # trait to be passed to the agent
+
+# Pass it to the agent
+a = Agent(dynamic_traits_function=politics_response)
+
+# Test it
+q = QuestionFreeText(question_name="politics", question_text="What do you think of politics?")
+
+results = q.by(a).run(disable_remote_inference = True) # this question must be run locally
+
+# Inspect the response
+results.select("answer.*")
+```
+
+
+|  | answer.politics |
+| :--- | :--- |
+| 0 | No comment. |
