@@ -5635,5 +5635,45 @@
 "edsl_version":"1.0.5.dev1",
 "edsl_class_name":"QuestionBase"
 }
+},
+{
+"class_name":"QuestionPydantic",
+"dict":{
+"question_name":"extract_person",
+"question_text":"Extract information about the person: Alice Johnson is a 28-year-old software engineer.",
+"question_type":"pydantic",
+"edsl_version":"1.0.5.dev1",
+"edsl_class_name":"QuestionBase",
+"pydantic_model_schema":{
+"description":"Example Pydantic model for a person.",
+"properties":{
+"name":{
+"description":"Full name of the person",
+"title":"Name",
+"type":"string"
+},
+"age":{
+"description":"Age in years",
+"maximum":150,
+"minimum":0,
+"title":"Age",
+"type":"integer"
+},
+"occupation":{
+"description":"Job title or profession",
+"title":"Occupation",
+"type":"string"
+}
+},
+"required":[
+"name",
+"age",
+"occupation"
+],
+"title":"Person",
+"type":"object",
+"additionalProperties":false
+}
+}
 }
 ]

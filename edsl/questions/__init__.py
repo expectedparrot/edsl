@@ -131,6 +131,7 @@ from .question_top_k import QuestionTopK
 from .question_multiple_choice_with_other import QuestionMultipleChoiceWithOther
 from .question_file_upload import QuestionFileUpload
 from .question_edsl_object import QuestionEDSLObject
+from .question_pydantic import QuestionPydantic
 
 from .exceptions import QuestionScenarioRenderError
 
@@ -178,6 +179,7 @@ __all__ = [
     "QuestionMultipleChoiceWithOther",
     "QuestionFileUpload",
     "QuestionEDSLObject",
+    "QuestionPydantic",
     # Validation utilities
     "log_validation_failure",
     "get_validation_failure_logs",
