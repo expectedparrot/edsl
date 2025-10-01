@@ -1,4 +1,6 @@
 from .app import App
+# Registry export
+from .app_registry import AppRegistry
 # Backwards-compat shim: export removed classes as aliases to App
 SingleScenarioApp = App
 SurveyInputApp = App

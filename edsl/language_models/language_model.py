@@ -776,6 +776,8 @@ class LanguageModel(
         iteration: int = 0,
         files_list: Optional[List["FileStore"]] = None,
         invigilator: Optional["InvigilatorBase"] = None,
+        response_schema: Optional[dict] = None,
+        response_schema_name: Optional[str] = None,
     ) -> ModelResponse:
         """Handle model calls with caching for efficiency.
 
@@ -884,10 +886,15 @@ class LanguageModel(
             # Add question_name parameter for test models
             if self.model == "test" and invigilator:
                 params["question_name"] = invigilator.question.question_name
-            
+
             # Add invigilator parameter for scripted models
             if hasattr(self, 'agent_question_responses') and invigilator:
                 params["invigilator"] = invigilator
+
+            # Add response schema if provided (for structured output)
+            if response_schema is not None:
+                params["response_schema"] = response_schema
+                params["response_schema_name"] = response_schema_name
             # Get timeout from configuration
             TIMEOUT = self._compute_timeout(files_list)
 
@@ -969,7 +976,7 @@ class LanguageModel(
             cache: The cache object to use for storing/retrieving responses
             iteration: The iteration number (default: 1)
             files_list: Optional list of files to include in the prompt
-            **kwargs: Additional parameters (invigilator can be provided here)
+            **kwargs: Additional parameters (invigilator, response_schema can be provided here)
 
         Returns:
             AgentResponseDict: Complete response object with inputs, raw outputs, and parsed data
@@ -986,6 +993,12 @@ class LanguageModel(
         # Add invigilator if provided
         if "invigilator" in kwargs:
             params.update({"invigilator": kwargs["invigilator"]})
+
+        # Add response schema if provided (for QuestionPydantic)
+        if "response_schema" in kwargs:
+            params.update({"response_schema": kwargs["response_schema"]})
+        if "response_schema_name" in kwargs:
+            params.update({"response_schema_name": kwargs["response_schema_name"]})
 
         # Create structured input record
         model_inputs = ModelInputs(user_prompt=user_prompt, system_prompt=system_prompt)
