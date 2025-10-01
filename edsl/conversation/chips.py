@@ -7,7 +7,7 @@ from .. import Model
 
 from .Conversation import Conversation, ConversationList
 
-m = Model("gemini-1.5-flash")
+m = Model("gemini-2.0-flash")
 
 
 class ChipLover(Agent):
@@ -45,7 +45,7 @@ class ChipLover(Agent):
 a1 = ChipLover(
     name="Alice",
     chip_values={"Green": 7, "Blue": 1, "Red": 0},
-    model=Model("gemini-1.5-flash"),
+    model=Model("gemini-2.0-flash"),
     initial_chips={"Green": 1, "Blue": 2, "Red": 3},
 )
 a2 = ChipLover(
