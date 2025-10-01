@@ -242,9 +242,23 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return result
 
     def to_agent_traits(self, agent_name: Optional[str] = None) -> "Agent":
-        """Convert all Scenario objects to traits of a single Agent.
+        """Convert all Scenario objects into traits of a single Agent.
 
-        Delegates to `ScenarioListTransformer.to_agent_traits`.
+        Aggregates each Scenario's key/value pairs into a single Agent's
+        traits. If duplicate keys appear across scenarios, later occurrences
+        are suffixed with an incrementing index (e.g., "key_1", "key_2").
+        If a field named "name" is present, it is treated as "scenario_name"
+        to avoid clobbering an Agent's own name.
+
+        Args:
+            agent_name: Optional custom agent name. Defaults to
+                "Agent_from_{N}_scenarios" when not provided.
+
+        Returns:
+            Agent: An Agent instance whose traits include all fields from all scenarios.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.to_agent_traits`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
@@ -357,18 +371,44 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         id_vars: Optional[List[str]] = None,
         value_vars: Optional[List[str]] = None,
     ) -> ScenarioList:
-        """Unpivot the ScenarioList, allowing for id variables.
+        """Convert wide-format fields into long format rows.
 
-        Delegates to `ScenarioListTransformer.unpivot`.
+        For each Scenario, produces rows of (id_vars..., variable, value) where
+        each original field listed in ``value_vars`` becomes a row with its
+        field name under ``variable`` and its value under ``value``.
+
+        Args:
+            id_vars: Field names to preserve as identifiers on each output row.
+            value_vars: Field names to unpivot. Defaults to all non-id_vars.
+
+        Returns:
+            ScenarioList: Long-format rows with columns: id_vars..., "variable", "value".
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.unpivot`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
         return ScenarioListTransformer.unpivot(self, id_vars, value_vars)
     
     def apply(self, func: Callable, field: str, new_name: Optional[str], replace:bool = False) -> ScenarioList:
-        """Apply a function to a field and return a new ScenarioList.
+        """Apply a function to a field across all scenarios.
 
-        Delegates to `ScenarioListTransformer.apply`.
+        Evaluates ``func(scenario[field])`` for each Scenario and stores the result
+        in ``new_name`` (or the original field name if ``new_name`` is None). If
+        ``replace`` is True, the original field is removed.
+
+        Args:
+            func: Function to apply to each value in ``field``.
+            field: Existing field name to read from.
+            new_name: Optional output field name. Defaults to ``field``.
+            replace: If True, delete the original ``field`` after writing.
+
+        Returns:
+            ScenarioList with updated scenarios.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.apply`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
@@ -563,9 +603,21 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         var_name="variable",
         value_name="value",
     ) -> ScenarioList:
-        """Pivot the ScenarioList from long to wide format.
+        """Pivot from long format back to wide columns.
 
-        Delegates to `ScenarioListTransformer.pivot`.
+        Groups rows by ``id_vars`` and spreads the values under ``var_name``
+        into separate columns whose values come from ``value_name``.
+
+        Args:
+            id_vars: Identifier fields to group by.
+            var_name: Field holding the output column names (default: "variable").
+            value_name: Field holding the output values (default: "value").
+
+        Returns:
+            ScenarioList in wide format with one Scenario per unique id_vars combination.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.pivot`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
@@ -574,9 +626,25 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def group_by(
         self, id_vars: List[str], variables: List[str], func: Callable
     ) -> ScenarioList:
-        """Group the ScenarioList by id_vars and apply a function.
+        """Group scenarios and aggregate variables with a custom function.
 
-        Delegates to `ScenarioListTransformer.group_by`.
+        Groups by the values of ``id_vars`` and passes lists of values for each
+        field in ``variables`` to ``func``. The function must return a dict whose
+        keys are added as fields on the aggregated Scenario.
+
+        Args:
+            id_vars: Field names to group by.
+            variables: Field names to aggregate and pass to ``func`` as lists.
+            func: Callable that accepts len(variables) lists and returns a dict.
+
+        Returns:
+            ScenarioList with one Scenario per group containing id_vars and aggregated fields.
+
+        Raises:
+            ScenarioError: If the function arity does not match variables or returns non-dict.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.group_by`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
@@ -608,6 +676,14 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         1262252885757976162
         """
         return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
+
+
+    def to_scenario_list(self) -> "ScenarioList":
+        """Convert the ScenarioList to a ScenarioList.
+
+        This is useful when the user calls to_scenario_list on an object that is already a ScenarioList but they don't know it.
+        """
+        return self
 
     def __hash__(self) -> int:
         """Return the hash of the ScenarioList using a memory-efficient streaming approach.
@@ -692,6 +768,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         random.shuffle(sl.data)
         return sl
 
+    def full_replace(self, other: ScenarioList, inplace: bool = False) -> ScenarioList:
+        """Replace the ScenarioList with another ScenarioList.
+        """
+        if inplace:
+            self.data = other.data
+            self.codebook = other.codebook
+            return self
+        else:
+            return ScenarioList(data=other.data, codebook=other.codebook)
+
     def sample(self, n: int, seed: Optional[str] = None) -> ScenarioList:
         """Return a random sample from the ScenarioList
 
@@ -743,9 +829,26 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         postfix: str = "",
         new_field_name: Optional[str] = None,
     ) -> ScenarioList:
-        """Private method to handle concatenation logic for different output types.
+        """Concatenate fields into a new field as string/list/set.
 
-        Delegates to `ScenarioListTransformer._concatenate` for implementation.
+        Removes the listed ``fields`` from each Scenario, combines their values in
+        order, and writes them into ``new_field_name`` (or an auto-generated name).
+        Formatting is controlled by ``output_type``, ``separator``, ``prefix``, and
+        ``postfix``.
+
+        Args:
+            fields: Field names to concatenate, in order.
+            output_type: "string" (default), "list", or "set".
+            separator: String used when output_type="string".
+            prefix: Optional prefix per value before concatenation.
+            postfix: Optional postfix per value before concatenation.
+            new_field_name: Name of the resulting field. Defaults to "concat_...".
+
+        Returns:
+            ScenarioList with concatenated output field.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer._concatenate`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
@@ -767,9 +870,22 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         postfix: str = "",
         new_field_name: Optional[str] = None,
     ) -> ScenarioList:
-        """Concatenate specified fields into a single string field.
+        """Concatenate fields into a single string field.
 
-        Delegates to `ScenarioListTransformer.concatenate` for implementation.
+        Equivalent to calling ``_concatenate`` with output_type="string".
+
+        Args:
+            fields: Field names to concatenate, in order.
+            separator: String used to join values.
+            prefix: Optional prefix per value.
+            postfix: Optional postfix per value.
+            new_field_name: Name of the resulting field; defaults to auto-generated.
+
+        Returns:
+            ScenarioList with the new concatenated string field.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.concatenate`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
@@ -789,9 +905,21 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         postfix: str = "",
         new_field_name: Optional[str] = None,
     ) -> ScenarioList:
-        """Concatenate specified fields into a single list field.
+        """Concatenate fields into a single list field.
 
-        Delegates to `ScenarioListTransformer.concatenate_to_list` for implementation.
+        Equivalent to calling ``_concatenate`` with output_type="list".
+
+        Args:
+            fields: Field names to collect.
+            prefix: Optional prefix per value.
+            postfix: Optional postfix per value.
+            new_field_name: Name of the resulting field; defaults to auto-generated.
+
+        Returns:
+            ScenarioList with the new list field.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.concatenate_to_list`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
@@ -810,9 +938,21 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         postfix: str = "",
         new_field_name: Optional[str] = None,
     ) -> ScenarioList:
-        """Concatenate specified fields into a single set field.
+        """Concatenate fields into a single set field.
 
-        Delegates to `ScenarioListTransformer.concatenate_to_set` for implementation.
+        Equivalent to calling ``_concatenate`` with output_type="set".
+
+        Args:
+            fields: Field names to collect.
+            prefix: Optional prefix per value.
+            postfix: Optional postfix per value.
+            new_field_name: Name of the resulting field; defaults to auto-generated.
+
+        Returns:
+            ScenarioList with the new set field.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.concatenate_to_set`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
@@ -829,7 +969,20 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     ) -> ScenarioList:
         """Unpack a dictionary field into separate fields.
 
-        Delegates to `ScenarioListTransformer.unpack_dict`.
+        For each key/value in the dictionary at ``field``, creates a new field on
+        each Scenario. If ``prefix`` is provided it is prepended to each new field
+        name. When ``drop_field`` is True, removes the original dictionary field.
+
+        Args:
+            field: Name of the dict field to unpack.
+            prefix: Optional prefix for new field names.
+            drop_field: If True, remove the original field after unpacking.
+
+        Returns:
+            ScenarioList with unpacked fields.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.unpack_dict`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
@@ -838,9 +991,21 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def transform(
         self, field: str, func: Callable, new_name: Optional[str] = None
     ) -> ScenarioList:
-        """Transform a field using a function.
+        """Transform a field's value using a function.
 
-        Delegates to `ScenarioListTransformer.transform`.
+        Computes ``func(scenario[field])`` for each Scenario and writes the result
+        to ``new_name`` if provided, otherwise overwrites ``field``.
+
+        Args:
+            field: Existing field name to transform.
+            func: Transformation function applied to each value.
+            new_name: Optional new field name; if None, overwrite ``field``.
+
+        Returns:
+            ScenarioList with transformed values.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.transform`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
@@ -849,18 +1014,41 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict[str, Callable]] = None
     ) -> ScenarioList:
-        """Return a new ScenarioList with a new variable added.
+        """Add a new field computed from an expression.
 
-        Delegates to `ScenarioListTransformer.mutate`.
+        Evaluates an expression of the form "new_var = expression" against each
+        Scenario using a safe evaluator. Optional ``functions_dict`` provides
+        callable helpers usable inside the expression.
+
+        Args:
+            new_var_string: String of the form "var_name = expression".
+            functions_dict: Optional mapping of function name to callable.
+
+        Returns:
+            ScenarioList with the new variable added to each Scenario.
+
+        Raises:
+            ScenarioError: If the var name is invalid or evaluation fails.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.mutate`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
         return ScenarioListTransformer.mutate(self, new_var_string, functions_dict)
 
     def order_by(self, *fields: str, reverse: bool = False) -> ScenarioList:
-        """Order the scenarios by one or more fields.
+        """Order scenarios by one or more fields.
 
-        Delegates to `ScenarioListTransformer.order_by`.
+        Args:
+            *fields: Field names to sort by, in priority order.
+            reverse: If True, sort in descending order.
+
+        Returns:
+            ScenarioList sorted by the specified fields.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.order_by`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
@@ -918,9 +1106,35 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
     @memory_profile
     def filter(self, expression: str) -> ScenarioList:
-        """Filter a list of scenarios based on an expression.
+        """Filter scenarios by evaluating an expression per row.
 
-        Delegates to `ScenarioListTransformer.filter`.
+        The expression is evaluated with each Scenario's fields available as
+        variables using a safe evaluator. Returns a new ScenarioList containing
+        only the scenarios for which the expression evaluates to True.
+
+        Args:
+            expression: Boolean expression referencing scenario fields,
+                e.g. "age >= 18 and country == 'US'".
+
+        Behavior:
+        - Supports Python-like operators and collections via simpleeval.
+        - Warns if the list is ragged (different keys across scenarios); filtering still proceeds.
+        - Preserves the codebook and returns copies of matching scenarios.
+
+        Raises:
+            ScenarioError: If the expression references missing fields or evaluation fails.
+
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList([
+            ...     Scenario({'age': 20, 'country': 'US'}),
+            ...     Scenario({'age': 16, 'country': 'CA'})
+            ... ])
+            >>> sl.filter("age >= 18 and country == 'US'")
+            ScenarioList([Scenario({'age': 20, 'country': 'US'})])
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.filter`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
@@ -1142,9 +1356,19 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return d
 
     def reorder_keys(self, new_order: List[str]) -> ScenarioList:
-        """Reorder the keys in the scenarios.
+        """Reorder keys in each Scenario according to the provided list.
 
-        Delegates to `ScenarioListTransformer.reorder_keys`.
+        Ensures the new order contains exactly the same keys as present in
+        the scenarios, then rewrites each Scenario with that ordering.
+
+        Args:
+            new_order: Desired key order; must be a permutation of existing keys.
+
+        Returns:
+            ScenarioList with keys in the specified order.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.reorder_keys`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
@@ -1201,19 +1425,22 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return Dataset(data)
 
     def to_scenario_of_lists(self) -> "Scenario":
-        """Return a single Scenario whose values are lists across the list.
+        """Collapse to a single Scenario with list-valued fields.
 
-        The resulting Scenario contains every key that appears in any member
-        of the list. For each key, the value is a list of that key's values
-        taken row-wise from the ScenarioList, padding with None when a row is
-        missing the key.
+        For every key that appears anywhere in the list, creates a field whose
+        value is the row-wise list of that key's values across the ScenarioList,
+        padding with None where a row is missing the key.
 
-        >>> s = ScenarioList.from_list("a", [1, 2, 3])
-        >>> s.to_scenario_of_lists()
-        Scenario({'a': [1, 2, 3]})
-        >>> s2 = ScenarioList([Scenario({'a': 1}), Scenario({'b': 2})])
-        >>> s2.to_scenario_of_lists()
-        Scenario({'a': [1, None], 'b': [None, 2]})
+        Examples:
+            >>> s = ScenarioList.from_list('a', [1, 2, 3])
+            >>> s.to_scenario_of_lists()
+            Scenario({'a': [1, 2, 3]})
+            >>> s2 = ScenarioList([Scenario({'a': 1}), Scenario({'b': 2})])
+            >>> s2.to_scenario_of_lists()
+            Scenario({'a': [1, None], 'b': [None, 2]})
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.to_scenario_of_lists`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
@@ -1222,9 +1449,22 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def unpack(
         self, field: str, new_names: Optional[List[str]] = None, keep_original=True
     ) -> ScenarioList:
-        """Unpack a field into multiple fields.
+        """Unpack a list-like field into multiple fields.
 
-        Delegates to `ScenarioListTransformer.unpack`.
+        Splits the value under ``field`` into multiple fields named by
+        ``new_names`` (or auto-generated names). If ``keep_original`` is False,
+        the original field is removed.
+
+        Args:
+            field: Field to unpack (list-like).
+            new_names: Optional list of output field names; defaults to indexes.
+            keep_original: Whether to retain the original field.
+
+        Returns:
+            ScenarioList with unpacked fields added.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.unpack`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
@@ -1927,9 +2167,24 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         postfix: str = "",
         add_count: bool = False,
     ) -> ScenarioList:
-        """Collapse by grouping on all fields except the specified one.
+        """Collapse rows by collecting values of one field.
 
-        Delegates to `ScenarioListTransformer.collapse`.
+        Groups by all fields other than ``field`` and aggregates the values of
+        ``field`` either as a list or as a string joined with ``separator``.
+        Optionally appends a count of collapsed rows.
+
+        Args:
+            field: Field to collect.
+            separator: If provided, join with this string; otherwise keep as list.
+            prefix: Optional prefix applied to each value before join.
+            postfix: Optional postfix applied to each value before join.
+            add_count: If True, add "num_collapsed_rows" to each Scenario.
+
+        Returns:
+            ScenarioList with collapsed values.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.collapse`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 
@@ -1949,9 +2204,27 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         option_prefix: str = "option_",
         use_alphabet: bool = False,
     ) -> ScenarioList:
-        """Create a new ScenarioList with comparisons between scenarios.
+        """Generate pairwise or N-way comparison scenarios.
 
-        Delegates to `ScenarioListTransformer.create_comparisons`.
+        Produces new scenarios that bundle multiple original scenarios under
+        option keys (e.g., "option_1", "option_2", ... or letters when
+        ``use_alphabet`` is True). Can generate ordered pairs when
+        ``bidirectional`` is True.
+
+        Args:
+            bidirectional: If True, generate ordered comparisons (permutations).
+            num_options: Number of options per comparison (>= 2).
+            option_prefix: Prefix for option field names when not using alphabet.
+            use_alphabet: If True, label options with A, B, C, ...
+
+        Returns:
+            ScenarioList of comparison scenarios.
+
+        Raises:
+            ValueScenarioError: For invalid num_options or alphabet size overflow.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.create_comparisons`.
         """
         from .scenario_list_transformer import ScenarioListTransformer
 

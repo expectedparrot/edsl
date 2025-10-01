@@ -88,7 +88,7 @@ output_formatter = (
     ).create_agent_list(n="{{n}}")
 )
 
-a = App(
+app = App(
     description = "A persona generator.",
     application_name = "create_personas",
     initial_survey=initial_survey,
@@ -101,7 +101,7 @@ a = App(
 )
 
 if __name__ == "__main__":
-    output = a.output(params={
+    output = app.output(params={
         'input_survey': Survey.example(),
         'n': 3,
     })
