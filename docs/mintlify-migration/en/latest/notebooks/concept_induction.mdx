@@ -1,0 +1,456 @@
+---
+title: "Concept induction"
+description: "This notebook provides example [EDSL](/en/latest/index) code for using language models to perform “concept induction”: identify concepts in unstructured texts; generate criteria for the concepts; and then apply the criteria to evaluate the texts. This idea is inspired by the recent paper: [Concept Induction: Analyzing Unstructured Text with High-Level Concepts Using LLooM](https://hci.stanford.edu/publications/2024/Lam_LLooM_CHI24.pdf)"
+---
+
+Before running the code below, please see instructions on [getting started](https://www.expectedparrot.com/getting-started) using EDSL.
+
+## Identify concepts
+
+We start by creating a general question prompting the respondent (a language model) to identify concepts in a given text.
+
+EDSL comes with a variety of [question types](/en/latest/questions) that we can choose from based on the form of the response that we want to get back from the model. `QuestionList` may be appropriate where we want the response to be formatted as a list of strings:
+
+```python
+from edsl import QuestionList
+
+q_concepts = QuestionList(
+    question_name="concepts",
+    question_text="Identify the key concepts in the following text: {{ scenario.text }}",
+    # max_list_items = # Optional,
+    # min_list_items = # Optional
+)
+```
+
+We might also want to ask some other questions about our data at the same time (a data labeling task). For example:
+
+```python
+from edsl import QuestionMultipleChoice
+
+q_sentiment = QuestionMultipleChoice(
+    question_name="sentiment",
+    question_text="Identify the sentiment of this text: {{ scenario.text }}",
+    question_options=["Negative", "Neutral", "Positive"],
+)
+```
+
+We parameterize the questions in order to run them for each of our texts. This is done with `Scenario` objects that we can create using EDSL or import from other sources (CSV, PDF, PNG, MP4, DOC, tables, lists, dicts, etc.). Here we import a setof recent tweets by President Biden:
+
+```python
+# Replace with your data
+texts = [  # POTUS recent tweets
+    "Tune in as I deliver the keynote address at the U.S. Holocaust Memorial Museum’s Annual Days of Remembrance ceremony in Washington, D.C.",
+    "We’re a nation of immigrants. A nation of dreamers. And as Cinco de Mayo represents, a nation of freedom.",
+    "Medicare is stronger and Social Security remains strong. My economic plan has helped extend Medicare solvency by a decade. And I am committed to extending Social Security solvency by making the rich pay their fair share.",
+    "Today, the Army Black Knights are taking home West Point’s 10th Commander-in-Chief Trophy. They should be proud. I’m proud of them too – not for the wins, but because after every game they hang up their uniforms and put on another: one representing the United States.",
+    "This Holocaust Remembrance Day, we mourn the six million Jews who were killed by the Nazis during one of the darkest chapters in human history. And we recommit to heeding the lessons of the Shoah and realizing the responsibility of 'Never Again.'",
+    "The recipients of the Presidential Medal of Freedom haven't just kept faith in freedom. They kept all of America's faith in a better tomorrow.",
+    "Like Jill says, 'Teaching isn’t just a job. It’s a calling.' She knows that in her bones, and I know every educator who joined us at the White House for the first-ever Teacher State Dinner lives out that truth every day.",
+    "Jill and I send warm wishes to Orthodox Christian communities around the world as they celebrate Easter. May the Lord bless and keep you this Easter Sunday and in the year ahead.",
+    "Dreamers are our loved ones, nurses, teachers, and small business owners – they deserve the promise of health care just like all of us. Today, my Administration is making that real by expanding affordable health coverage through the Affordable Care Act to DACA recipients.",
+    "With today’s report of 175,000 new jobs, the American comeback continues. Congressional Republicans are fighting to cut taxes for billionaires and let special interests rip folks off, I'm focused on job creation and building an economy that works for the families I grew up with.",
+]
+len(texts)
+```
+
+10
+
+```python
+from edsl import ScenarioList
+
+scenarios = ScenarioList.from_source("list", "text", texts)
+scenarios
+```
+
+[ScenarioList](/en/latest/scenarios) scenarios: 10; keys: ['text'];
+
+|  | text |
+| :--- | :--- |
+| 0 | Tune in as I deliver the keynote address at the U.S. Holocaust Memorial Museum’s Annual Days of Remembrance ceremony in Washington, D.C. |
+| 1 | We’re a nation of immigrants. A nation of dreamers. And as Cinco de Mayo represents, a nation of freedom. |
+| 2 | Medicare is stronger and Social Security remains strong. My economic plan has helped extend Medicare solvency by a decade. And I am committed to extending Social Security solvency by making the rich pay their fair share. |
+| 3 | Today, the Army Black Knights are taking home West Point’s 10th Commander-in-Chief Trophy. They should be proud. I’m proud of them too – not for the wins, but because after every game they hang up their uniforms and put on another: one representing the United States. |
+| 4 | This Holocaust Remembrance Day, we mourn the six million Jews who were killed by the Nazis during one of the darkest chapters in human history. And we recommit to heeding the lessons of the Shoah and realizing the responsibility of 'Never Again.' |
+| 5 | The recipients of the Presidential Medal of Freedom haven't just kept faith in freedom. They kept all of America's faith in a better tomorrow. |
+| 6 | Like Jill says, 'Teaching isn’t just a job. It’s a calling.' She knows that in her bones, and I know every educator who joined us at the White House for the first-ever Teacher State Dinner lives out that truth every day. |
+| 7 | Jill and I send warm wishes to Orthodox Christian communities around the world as they celebrate Easter. May the Lord bless and keep you this Easter Sunday and in the year ahead. |
+| 8 | Dreamers are our loved ones, nurses, teachers, and small business owners – they deserve the promise of health care just like all of us. Today, my Administration is making that real by expanding affordable health coverage through the Affordable Care Act to DACA recipients. |
+| 9 | With today’s report of 175,000 new jobs, the American comeback continues. Congressional Republicans are fighting to cut taxes for billionaires and let special interests rip folks off, I'm focused on job creation and building an economy that works for the families I grew up with. |
+
+Next we combine the questions into a survey in order to administer them together (asynchronously by default, or according to any skip/stop rules or other logic that we want to add–learn more about `Survey` methods in our [documentation](/en/latest/surveys)):
+
+```python
+from edsl import Survey
+
+survey = Survey(questions=[q_concepts, q_sentiment])
+```
+
+We add the scenarios to the survey and then run it with the default model (currently gpt-4o) to generate a dataset of results:
+
+```python
+results = survey.by(scenarios).run()
+```
+
+EDSL comes with [built-in methods](/en/latest/results) for working with results in a variety of forms (data tables, SQL queries, dataframes, JSON, CSV). We can call the `columns` method to see a list of all the components that we can analyze:
+
+```python
+results.columns
+```
+
+|  | 0 |
+| :--- | :--- |
+| 0 | agent.agent_index |
+| 1 | agent.agent_instruction |
+| 2 | agent.agent_name |
+| 3 | answer.concepts |
+| 4 | answer.sentiment |
+| 5 | cache_keys.concepts_cache_key |
+| 6 | cache_keys.sentiment_cache_key |
+| 7 | cache_used.concepts_cache_used |
+| 8 | cache_used.sentiment_cache_used |
+| 9 | comment.concepts_comment |
+| 10 | comment.sentiment_comment |
+| 11 | generated_tokens.concepts_generated_tokens |
+| 12 | generated_tokens.sentiment_generated_tokens |
+| 13 | iteration.iteration |
+| 14 | model.frequency_penalty |
+| 15 | model.inference_service |
+| 16 | model.logprobs |
+| 17 | model.max_tokens |
+| 18 | model.model |
+| 19 | model.model_index |
+| 20 | model.presence_penalty |
+| 21 | model.temperature |
+| 22 | model.top_logprobs |
+| 23 | model.top_p |
+| 24 | prompt.concepts_system_prompt |
+| 25 | prompt.concepts_user_prompt |
+| 26 | prompt.sentiment_system_prompt |
+| 27 | prompt.sentiment_user_prompt |
+| 28 | question_options.concepts_question_options |
+| 29 | question_options.sentiment_question_options |
+| 30 | question_text.concepts_question_text |
+| 31 | question_text.sentiment_question_text |
+| 32 | question_type.concepts_question_type |
+| 33 | question_type.sentiment_question_type |
+| 34 | raw_model_response.concepts_cost |
+| 35 | raw_model_response.concepts_input_price_per_million_tokens |
+| 36 | raw_model_response.concepts_input_tokens |
+| 37 | raw_model_response.concepts_one_usd_buys |
+| 38 | raw_model_response.concepts_output_price_per_million_tokens |
+| 39 | raw_model_response.concepts_output_tokens |
+| 40 | raw_model_response.concepts_raw_model_response |
+| 41 | raw_model_response.sentiment_cost |
+| 42 | raw_model_response.sentiment_input_price_per_million_tokens |
+| 43 | raw_model_response.sentiment_input_tokens |
+| 44 | raw_model_response.sentiment_one_usd_buys |
+| 45 | raw_model_response.sentiment_output_price_per_million_tokens |
+| 46 | raw_model_response.sentiment_output_tokens |
+| 47 | raw_model_response.sentiment_raw_model_response |
+| 48 | reasoning_summary.concepts_reasoning_summary |
+| 49 | reasoning_summary.sentiment_reasoning_summary |
+| 50 | scenario.scenario_index |
+| 51 | scenario.text |
+
+We can select and print specific components to inspect in a table:
+
+```python
+results.select("text", "concepts", "sentiment")
+```
+
+|  | scenario.text | answer.concepts | answer.sentiment |
+| :--- | :--- | :--- | :--- |
+| 0 | Tune in as I deliver the keynote address at the U.S. Holocaust Memorial Museum’s Annual Days of Remembrance ceremony in Washington, D.C. | ['keynote address', 'U.S. Holocaust Memorial Museum', 'Annual Days of Remembrance', 'Washington, D.C.'] | Neutral |
+| 1 | We’re a nation of immigrants. A nation of dreamers. And as Cinco de Mayo represents, a nation of freedom. | ['nation of immigrants', 'nation of dreamers', 'Cinco de Mayo', 'freedom'] | Positive |
+| 2 | Medicare is stronger and Social Security remains strong. My economic plan has helped extend Medicare solvency by a decade. And I am committed to extending Social Security solvency by making the rich pay their fair share. | ['Medicare', 'Social Security', 'economic plan', 'Medicare solvency', 'Social Security solvency', 'fair share'] | Positive |
+| 3 | Today, the Army Black Knights are taking home West Point’s 10th Commander-in-Chief Trophy. They should be proud. I’m proud of them too – not for the wins, but because after every game they hang up their uniforms and put on another: one representing the United States. | ['Army Black Knights', 'West Point', 'Commander-in-Chief Trophy', 'United States'] | Positive |
+| 4 | This Holocaust Remembrance Day, we mourn the six million Jews who were killed by the Nazis during one of the darkest chapters in human history. And we recommit to heeding the lessons of the Shoah and realizing the responsibility of 'Never Again.' | ['Holocaust Remembrance Day', 'six million Jews', 'Nazis', 'darkest chapters', 'lessons of the Shoah', 'responsibility', 'Never Again'] | Neutral |
+| 5 | The recipients of the Presidential Medal of Freedom haven't just kept faith in freedom. They kept all of America's faith in a better tomorrow. | ['Presidential Medal of Freedom', 'faith in freedom', "America's faith", 'better tomorrow'] | Positive |
+| 6 | Like Jill says, 'Teaching isn’t just a job. It’s a calling.' She knows that in her bones, and I know every educator who joined us at the White House for the first-ever Teacher State Dinner lives out that truth every day. | ['Teaching', 'Calling', 'Educator', 'White House', 'Teacher State Dinner'] | Positive |
+| 7 | Jill and I send warm wishes to Orthodox Christian communities around the world as they celebrate Easter. May the Lord bless and keep you this Easter Sunday and in the year ahead. | ['Jill and I', 'warm wishes', 'Orthodox Christian communities', 'Easter', 'Lord bless and keep you', 'Easter Sunday', 'year ahead'] | Positive |
+| 8 | Dreamers are our loved ones, nurses, teachers, and small business owners – they deserve the promise of health care just like all of us. Today, my Administration is making that real by expanding affordable health coverage through the Affordable Care Act to DACA recipients. | ['Dreamers', 'health care', 'Affordable Care Act', 'DACA recipients', 'affordable health coverage', 'Administration'] | Positive |
+| 9 | With today’s report of 175,000 new jobs, the American comeback continues. Congressional Republicans are fighting to cut taxes for billionaires and let special interests rip folks off, I'm focused on job creation and building an economy that works for the families I grew up with. | ['American comeback', '175,000 new jobs', 'Congressional Republicans', 'cut taxes', 'billionaires', 'special interests', 'job creation', 'economy', 'families'] | Positive |
+
+If our concepts lists are too long, we can run another question prompting a model to condense it. We can specify the number of concepts that we want to get:
+
+```python
+# Flattening our list of lists for all the texts to use in a follow-on question:
+concepts_list = results.select("concepts").to_list(flatten=True)
+concepts_list
+```
+
+['keynote address',
+ 'U.S. Holocaust Memorial Museum',
+ 'Annual Days of Remembrance',
+ 'Washington, D.C.',
+ 'nation of immigrants',
+ 'nation of dreamers',
+ 'Cinco de Mayo',
+ 'freedom',
+ 'Medicare',
+ 'Social Security',
+ 'economic plan',
+ 'Medicare solvency',
+ 'Social Security solvency',
+ 'fair share',
+ 'Army Black Knights',
+ 'West Point',
+ 'Commander-in-Chief Trophy',
+ 'United States',
+ 'Holocaust Remembrance Day',
+ 'six million Jews',
+ 'Nazis',
+ 'darkest chapters',
+ 'lessons of the Shoah',
+ 'responsibility',
+ 'Never Again',
+ 'Presidential Medal of Freedom',
+ 'faith in freedom',
+ "America's faith",
+ 'better tomorrow',
+ 'Teaching',
+ 'Calling',
+ 'Educator',
+ 'White House',
+ 'Teacher State Dinner',
+ 'Jill and I',
+ 'warm wishes',
+ 'Orthodox Christian communities',
+ 'Easter',
+ 'Lord bless and keep you',
+ 'Easter Sunday',
+ 'year ahead',
+ 'Dreamers',
+ 'health care',
+ 'Affordable Care Act',
+ 'DACA recipients',
+ 'affordable health coverage',
+ 'Administration',
+ 'American comeback',
+ '175,000 new jobs',
+ 'Congressional Republicans',
+ 'cut taxes',
+ 'billionaires',
+ 'special interests',
+ 'job creation',
+ 'economy',
+ 'families']
+
+```python
+from edsl import Scenario
+
+scenario = Scenario({"concepts":concepts_list})
+```
+
+```python
+q_condense = QuestionList(
+    question_name="condense",
+    question_text="Return a condensed list of the following set of concepts: {{ scenario.concepts }}",
+    max_list_items=10,
+)
+```
+
+<Note>
+**Note**:
+
+Note that we can call the `run()` method on either a survey of questions or an individual question:
+</Note>
+
+```python
+results = q_condense.by(scenario).run()
+```
+
+```python
+results.select("condense")
+```
+
+|  | answer.condense |
+| :--- | :--- |
+| 0 | ['Holocaust Remembrance', 'Immigration and Dreamers', 'Economic Plan and Solvency', 'Freedom and Faith', 'Education and Teaching', 'Orthodox Easter', 'Health Care and ACA', 'American Comeback', 'Job Creation and Economy', 'White House and Administration'] |
+
+## Identify criteria for each concept
+
+Similar to our first step, next we can run a question prompting the model to generate criteria for each concept. We could use `QuestionFreeText` to generate criteria in an unstructured narrative:
+
+```python
+from edsl import QuestionFreeText
+
+q_criteria = QuestionFreeText(
+    question_name="criteria",
+    question_text="""Describe key criteria for determining whether a text is primarily about the
+    following concept: {{ scenario.concept }}""",
+)
+```
+
+For this question, the scenarios are the concepts that we generated:
+
+```python
+condensed_concepts_list = results.select("condense").to_list(flatten=True)
+
+scenarios = ScenarioList.from_source("list", "concept", condensed_concepts_list)
+scenarios
+```
+
+[ScenarioList](/en/latest/scenarios) scenarios: 10; keys: ['concept'];
+
+|  | concept |
+| :--- | :--- |
+| 0 | Holocaust Remembrance |
+| 1 | Immigration and Dreamers |
+| 2 | Economic Plan and Solvency |
+| 3 | Freedom and Faith |
+| 4 | Education and Teaching |
+| 5 | Orthodox Easter |
+| 6 | Health Care and ACA |
+| 7 | American Comeback |
+| 8 | Job Creation and Economy |
+| 9 | White House and Administration |
+
+```python
+results = q_criteria.by(scenarios).run()
+```
+
+```python
+results.select("concept", "criteria")
+```
+
+|  | scenario.concept | answer.criteria |
+| :--- | :--- | :--- |
+| 0 | Holocaust Remembrance | Determining whether a text is primarily about Holocaust Remembrance involves evaluating several key criteria: <br /> 1. **Subject Focus**: The text should center on the Holocaust, specifically emphasizing the importance of remembering the events, victims, and survivors. It should discuss commemorative practices, memorials, or anniversaries related to the Holocaust. <br /> 2. **Purpose and Intent**: The text's purpose should be to educate, memorialize, or promote awareness of the Holocaust. It may aim to prevent future atrocities through remembrance and reflection on past events. <br /> 3. **Language and Tone**: The language used should convey a sense of solemnity, respect, and reflection. The tone might be educational, commemorative, or advocacy-oriented, urging readers to remember and learn from the past. <br /> 4. **Content and Themes**: Key themes should include memory, history, education, and the moral and ethical lessons of the Holocaust. The text might discuss survivor testimonies, historical accounts, or the impact of Holocaust education on contemporary society. <br /> 5. **Contextual References**: The text may reference specific Holocaust Remembrance events, such as Yom HaShoah (Holocaust Remembrance Day), International Holocaust Remembrance Day, or other national and international commemorations. <br /> 6. **Audience Engagement**: The text might encourage reader participation in remembrance activities, such as attending memorial services, visiting Holocaust museums, or engaging in educational programs. <br /> 7. **Historical Accuracy**: The text should be grounded in historical facts about the Holocaust, providing accurate information about the events, figures, and outcomes associated with it. <br /> 8. **Cultural and Social Impact**: The text should reflect on the broader cultural and social significance of remembering the Holocaust, including its impact on Jewish communities and global human rights discourse. By considering these criteria, one can assess whether a text is primarily focused on Holocaust Remembrance and its associated themes. |
+| 1 | Immigration and Dreamers | To determine whether a text is primarily about the concept of "Immigration and Dreamers," you should look for several key criteria: <br /> 1. **Central Theme**: The text should focus on issues related to immigration, specifically highlighting aspects of the Dreamers—individuals who were brought to the United States as children without legal immigration status. <br /> 2. **Mention of DACA**: The Deferred Action for Childhood Arrivals (DACA) program is often central to discussions about Dreamers. The text should reference DACA policies, debates, or impacts. <br /> 3. **Personal Narratives**: Stories or testimonies of individuals who identify as Dreamers can indicate the text's focus. These narratives often highlight personal experiences, challenges, and aspirations. <br /> 4. **Legislative and Policy Discussions**: The text may discuss legislative efforts, policy changes, or political debates surrounding immigration reform and protections for Dreamers. <br /> 5. **Socioeconomic Impact**: Analysis of how Dreamers contribute to or are affected by socioeconomic factors in the U.S., such as education, employment, or community integration. <br /> 6. **Challenges and Barriers**: Exploration of the legal, social, and economic challenges faced by Dreamers, including barriers to education, work, and legal residency. <br /> 7. **Advocacy and Activism**: Coverage of advocacy efforts, protests, or movements supporting Dreamers and broader immigration reform. <br /> 8. **Cultural Integration**: Discussion of how Dreamers navigate cultural identity, assimilation, and belonging within the U.S. society. <br /> 9. **Statistical Data**: Inclusion of statistics or data that provide insights into the number of Dreamers, their demographics, or their contributions to society. <br /> 10.**Emotional Tone**: The text might convey an emotional tone that reflects the struggles, hopes, and resilience of Dreamers. By analyzing these criteria, you can assess whether a text is primarily concerned with the topic of Immigration and Dreamers. |
+| 2 | Economic Plan and Solvency | To determine whether a text is primarily about the concept of "Economic Plan and Solvency," you can evaluate it based on several key criteria: <br /> 1. **Purpose and Objectives**: The text should outline specific economic goals or objectives. This might include plans for growth, stability, or sustainability, and how these goals will ensure or enhance solvency. <br /> 2. **Strategic Framework**: Look for a detailed framework or strategy that outlines how the economic plan will be implemented. This includes timelines, phases, and specific actions or policies that will be undertaken. <br /> 3. **Financial Analysis**: The text should include an analysis of financial resources, budgeting, and allocation of funds. It should discuss how these resources will support the economic plan and maintain or improve solvency. <br /> 4. **Risk Assessment**: A thorough examination of potential risks to the economic plan and solvency should be present. This includes identifying economic, financial, and external risks, along with proposed mitigation strategies. <br /> 5. **Revenue and Expenditure Projections**: The text should provide projections of revenues and expenditures, demonstrating how the plan will generate sufficient income to cover costs and ensure solvency. <br /> 6. **Debt Management**: Discussion of current debt levels and strategies for debt management is crucial. The text should explain how the plan will address existing debt and prevent insolvency. <br /> 7. **Policy Measures**: Specific economic policies or reforms that are part of the plan should be detailed. This includes fiscal policies, monetary policies, tax reforms, and regulatory changes aimed at achieving solvency. <br /> 8. **Stakeholder Involvement**: The text should mention key stakeholders involved in the economic plan, such as government agencies, financial institutions, businesses, and the public, and how their roles contribute to the plan's success and solvency. <br /> 9. **Performance Metrics**: Identification of key performance indicators (KPIs) or metrics used to measure the success of the economic plan and its impact on solvency. <br /> 10.**Historical Context and Comparisons**: The text might provide a historical context or comparisons with previous economic plans to highlight improvements or changes that enhance solvency. 1<br /> 1. **Sustainability and Long-term Impact**: Consideration of the long-term sustainability of the economic plan and its implications for future solvency. By evaluating a text against these criteria, you can determine whether it is primarily focused on the concept of an economic plan and solvency. |
+| 3 | Freedom and Faith | Determining whether a text is primarily about the concept of "Freedom and Faith" involves evaluating several key criteria: <br /> 1. **Central Themes**: The text should prominently feature the themes of freedom and faith, either individually or in combination. It should explore the nature, implications, and dynamics of these concepts, including how they interact or conflict with each other. <br /> 2. **Character Development**: If the text is narrative, the characters' journeys, decisions, and growth should revolve around issues of freedom and faith. This could include characters seeking freedom from oppression, societal norms, or personal limitations, and how their faith influences these pursuits. <br /> 3. **Conflict and Resolution**: The primary conflicts in the text should involve struggles related to freedom and faith. This might include internal conflicts of belief, external pressures to conform, or societal constraints that challenge personal freedoms. The resolution should offer insights into how these conflicts are navigated or resolved. <br /> 4. **Philosophical or Theological Exploration**: The text should engage in a philosophical or theological exploration of freedom and faith. This could include discussions on the nature of free will, the role of faith in human life, or the moral and ethical dimensions of freedom. <br /> 5. **Cultural and Historical Context**: The text might explore how freedom and faith are perceived and practiced within specific cultural or historical contexts. This can include discussions on religious freedom, the impact of faith on political movements, or historical struggles for freedom influenced by faith. <br /> 6. **Symbolism and Imagery**: The use of symbolism and imagery related to freedom and faith can be a strong indicator. This might include metaphors of liberation, captivity, spiritual enlightenment, or religious iconography. <br /> 7. **Author’s Intent and Perspective**: The author’s perspective or intent, often revealed in prefaces, introductions, or interviews, can provide insight into whether the text is meant to address freedom and faith as central concerns. <br /> 8. **Audience and Purpose**: Consider who the intended audience is and the purpose of the text. Texts aimed at religious or philosophical audiences may have a primary focus on faith, while those addressing political or social issues may emphasize freedom. By examining these criteria, you can assess whether a text is primarily concerned with the interplay, tension, or harmony between freedom and faith. |
+| 4 | Education and Teaching | Determining whether a text is primarily about Education and Teaching involves analyzing several key criteria: <br /> 1. **Subject Matter**: The text should focus on topics related to education systems, teaching methods, learning theories, curriculum development, educational policies, classroom management, or teacher-student interactions. <br /> 2. **Terminology**: The presence of specific educational terminology and jargon, such as "pedagogy," "curriculum," "lesson plans," "assessment," "learning outcomes," and "educational psychology," is indicative of a focus on education and teaching. <br /> 3. **Purpose and Objectives**: The text should aim to inform, analyze, or discuss aspects of education, such as improving teaching practices, enhancing learning experiences, or evaluating educational outcomes. <br /> 4. **Audience**: The intended audience might include educators, students, policymakers, educational researchers, or parents, which can indicate the text's focus on education and teaching. <br /> 5. **Content and Themes**: The text should explore themes such as educational equity, teacher training, student engagement, educational technology, or instructional strategies. <br /> 6. **Examples and Case Studies**: The use of examples, case studies, or anecdotes from educational settings, such as schools, universities, or training programs, can help identify the text's focus. <br /> 7. **Authors and Contributors**: Authors with backgrounds in education, such as teachers, professors, educational researchers, or policymakers, can lend credibility to the text's focus on education and teaching. <br /> 8. **Structure and Format**: The structure may include sections typical of educational discourse, such as literature reviews, methodology, discussion of results, or recommendations for practice. <br /> 9. **References and Citations**: The text may reference educational theories, landmark studies, or influential educators, indicating a basis in educational discourse. <br /> 10.**Impact and Implications**: The text should address the implications of educational practices or policies on learners, educators, and educational institutions. By examining these criteria, one can determine whether a text primarily centers on the concept of Education and Teaching. |
+| 5 | Orthodox Easter | To determine whether a text is primarily about Orthodox Easter, consider the following key criteria: <br /> 1. **Date and Timing**: The text should reference the specific timing of Orthodox Easter, which is based on the Julian calendar and often falls on a different date than Western Easter. Look for mentions of the date calculation, such as the first Sunday after the first full moon following the vernal equinox, as observed by the Eastern Orthodox Church. <br /> 2. **Religious Significance**: The text should discuss the religious and spiritual significance of Orthodox Easter within the context of Eastern Orthodox Christianity. This includes references to the resurrection of Jesus Christ, which is the central event celebrated during this holiday. <br /> 3. **Cultural Practices and Traditions**: Look for descriptions of cultural and liturgical practices associated with Orthodox Easter, such as the Holy Week services, Paschal Vigil, the lighting of candles, and the proclamation of "Christ is Risen!" ("Χριστός ἀνέστη!" in Greek). <br /> 4. **Regional Observances**: The text may detail how Orthodox Easter is celebrated in various countries with significant Eastern Orthodox populations, such as Greece, Russia, Serbia, Bulgaria, and Romania. This includes traditional foods, such as kulich and paskha, and customs like egg dyeing and cracking. <br /> 5. **Comparative Aspects**: The text might compare Orthodox Easter with Western Easter, highlighting differences in dates, rituals, and theological emphases between the Eastern Orthodox Church and Western Christian denominations. <br /> 6. **Historical Context**: The text could provide historical background on the development of the Orthodox Easter celebration, including the role of the First Council of Nicaea in 325 AD in establishing the date of Easter. <br /> 7. **Language and Terminology**: Pay attention to specific terminology and language associated with Orthodox Easter, such as "Pascha," "Great Lent," "Holy Week," and other liturgical terms used in the Eastern Orthodox tradition. If a text prominently features these elements, it is likely primarily about Orthodox Easter. |
+| 6 | Health Care and ACA | Determining whether a text is primarily about Health Care and the Affordable Care Act (ACA) involves assessing several key criteria: <br /> 1. **Mention of Health Care Systems**: The text should include discussions about health care systems, structures, or policies. This might involve topics like health care delivery, insurance, medical services, hospitals, or clinics. <br /> 2. **Focus on the Affordable Care Act (ACA)**: The text should specifically reference the ACA, also known as Obamacare. This could include discussions on its provisions, such as the individual mandate, Medicaid expansion, health insurance marketplaces, or subsidies. <br /> 3. **Policy and Legislation**: Look for detailed discussions on health care policies, reforms, or legislation related to the ACA. This includes legislative history, changes, or impacts of the ACA on health care access and affordability. <br /> 4. **Impact on Individuals and Communities**: The text might explore how the ACA affects individuals and communities, including changes in insurance coverage rates, access to health care services, or financial implications for patients and providers. <br /> 5. **Stakeholder Perspectives**: Consideration of perspectives from various stakeholders, such as patients, health care providers, insurers, policymakers, and advocacy groups, especially in relation to the ACA. <br /> 6. **Statistical Data and Analysis**: The presence of statistical data or analysis regarding health care coverage, costs, or outcomes that are tied to the ACA can indicate a focus on this topic. <br /> 7. **Current Events and Developments**: If the text discusses recent developments, debates, or challenges related to the ACA, such as court rulings, policy changes, or political debates, it likely focuses on this area. <br /> 8. **Comparative Analysis**: The text might compare the ACA with other health care policies or systems, highlighting its unique features or shortcomings. By evaluating these criteria, you can determine if a text primarily addresses Health Care and the ACA. The presence of multiple criteria, especially those directly referencing the ACA, strongly suggests that the text is focused on this concept. |
+| 7 | American Comeback | Determining whether a text is primarily about the concept of an "American Comeback" involves looking for several key criteria and themes that are commonly associated with this idea. Here are some of the main criteria to consider: <br /> 1. **Economic Recovery**: The text should discuss aspects of economic revival in the United States. This might include topics like job growth, GDP increases, or the resurgence of key industries. <br /> 2. **Political Rhetoric**: The phrase "American Comeback" is often used in political contexts, so the text might include speeches, policy proposals, or campaign messages that emphasize restoring America's strength or prominence. <br /> 3. **Cultural Renewal**: Look for discussions on cultural revitalization, including shifts in societal values, renewed national pride, or a resurgence in cultural or artistic contributions. <br /> 4. **Historical Context**: The text might reference past periods of decline or challenge in American history, followed by recovery or improvement. This could include comparisons to previous eras of economic depression, war, or social upheaval. <br /> 5. **Innovation and Technology**: A focus on advancements in technology or innovation that are driving a resurgence in American competitiveness or leadership on the global stage. <br /> 6. **Social Progress**: The text may address improvements in social issues, such as education, healthcare, or civil rights, which contribute to a broader narrative of national improvement. <br /> 7. **Global Positioning**: Discussions on how the United States is regaining its influence or leadership role internationally, potentially after a period of decline or isolation. <br /> 8. **Challenges and Solutions**: A narrative that outlines the challenges faced by the country and the solutions or strategies being implemented to overcome them, leading to a "comeback." By examining these criteria, you can determine whether the text is primarily focused on the concept of an "American Comeback" or if it merely touches on related themes without making it the central focus. |
+| 8 | Job Creation and Economy | Determining whether a text is primarily about "Job Creation and Economy" involves analyzing several key criteria. Here's a breakdown of what to look for: <br /> 1. **Keywords and Phrases**: The text should contain frequent mentions of terms related to employment and economic growth, such as "job creation," "unemployment rates," "economic development," "labor market," "workforce," "employment opportunities," "economic policies," and "business growth." <br /> 2. **Focus on Employment Trends**: The text should discuss trends in employment, such as changes in job numbers, types of jobs being created, sectors experiencing growth, or shifts in employment patterns. <br /> 3. **Economic Indicators**: It should reference economic indicators that relate to job creation, such as GDP growth, unemployment rates, labor force participation rates, or productivity metrics. <br /> 4. **Policy Discussions**: The text should cover government or institutional policies aimed at stimulating job creation and economic growth, such as tax incentives for businesses, investment in infrastructure, education and training programs, or regulatory changes. <br /> 5. **Business and Industry Analysis**: There should be an analysis of how different industries contribute to job creation and economic performance, including discussions on innovation, entrepreneurship, and business expansion. <br /> 6. **Impact on Society**: The text should examine the societal impacts of job creation and economic changes, such as income levels, quality of life, regional economic disparities, or social mobility. <br /> 7. **Case Studies or Examples**: It may include specific examples or case studies of successful job creation initiatives or economic development projects. <br /> 8. **Challenges and Solutions**: The text should address challenges facing job creation and economic growth, such as automation, globalization, or economic downturns, and propose potential solutions or strategies. By evaluating a text against these criteria, you can determine whether its primary focus is on job creation and the economy. |
+| 9 | White House and Administration | Determining whether a text is primarily about the White House and Administration involves evaluating several key criteria: <br /> 1. **Subject Matter**: The text should focus on topics directly related to the White House and the executive branch of the U.S. government. This includes discussions about presidential actions, policies, and decisions, as well as the roles and activities of White House staff and administration officials. <br /> 2. **Mentions of Key Figures**: Frequent references to the President, Vice President, and high-ranking administration officials (such as the Chief of Staff, Press Secretary, or Cabinet members) suggest a focus on the White House and Administration. <br /> 3. **Policy Discussions**: The text may delve into specific policies or initiatives proposed or implemented by the administration. This can include domestic policies, foreign policy decisions, and legislative priorities. <br /> 4. **Institutional Focus**: A significant portion of the text should be devoted to the workings, structure, or changes within the White House or the executive branch, such as organizational changes, staff appointments, or internal dynamics. <br /> 5. **Events and Activities**: Coverage of events hosted by the White House, such as state dinners, press briefings, or official announcements, can indicate the text’s focus on the administration. <br /> 6. **Historical Context**: The text might provide historical context or comparisons involving past administrations, emphasizing continuity or change within the White House. <br /> 7. **Media and Public Interaction**: Discussions about how the administration interacts with the media, public opinion, or other branches of government can also signify a focus on the White House. <br /> 8. **Symbolic References**: The use of the White House as a symbol or metonym for the executive branch or the U.S. presidency can indicate that the text is centered on the administration. By assessing these criteria, one can determine if the text’s primary focus is on the White House and Administration. |
+
+## Identify the concepts in each text and evaluate based on the criteria
+
+Finally, we can use the concepts and the criteria to run another question where we prompt the model to evaulate each text. Question types `QuestionLinearScale`, `QuestionRank` or `QuestionNumerical` may be appropriate where we want to return a score:
+
+```python
+from edsl import QuestionLinearScale
+
+q_score = QuestionLinearScale(
+    question_name="score",
+    question_text="""Consider the following concept and criteria for determining whether
+    a given text addresses this concept. Then score how well the following text satisfies
+    the criteria for the concept.
+    Concept: {{ scenario.concept }}
+    Criteria: {{ scenario.criteria }}
+    Text: {{ scenario.text }}""",
+    question_options=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    option_labels={0: "Not at all", 10: "Very well"},  # Optional
+)
+```
+
+Here we want to use both the texts and the concepts and corresponding criteria together as scenarios of the question:
+
+```python
+concepts_criteria = [
+    list(pair)
+    for pair in zip(
+        results.select("concept").to_list(), results.select("criteria").to_list()
+    )
+]
+len(concepts_criteria)
+```
+
+```python
+10
+```
+
+```python
+from edsl import ScenarioList, Scenario
+
+scenarios = ScenarioList(
+    Scenario({"text": text, "concept": concept, "criteria": criteria})
+    for text in texts
+    for [concept, criteria] in concepts_criteria
+)
+
+```python
+results = q_score.by(scenarios).run()
+```
+
+We can filter the results based on the responses–e.g., here we just show the non-zero scores:
+
+```python
+(
+    results
+        .filter("score > 0")
+        .select("text", "concept", "score")
+)
+```
+
+|  | scenario.text | scenario.concept | answer.score |
+| :--- | :--- | :--- | :--- |
+| 0 | Tune in as I deliver the keynote address at the U.S. Holocaust Memorial Museum’s Annual Days of Remembrance ceremony in Washington, D.C. | Holocaust Remembrance | 5 |
+| 1 | Tune in as I deliver the keynote address at the U.S. Holocaust Memorial Museum’s Annual Days of Remembrance ceremony in Washington, D.C. | Freedom and Faith | 1 |
+| 2 | We’re a nation of immigrants. A nation of dreamers. And as Cinco de Mayo represents, a nation of freedom. | Freedom and Faith | 1 |
+| 3 | Medicare is stronger and Social Security remains strong. My economic plan has helped extend Medicare solvency by a decade. And I am committed to extending Social Security solvency by making the rich pay their fair share. | Economic Plan and Solvency | 3 |
+| 4 | Medicare is stronger and Social Security remains strong. My economic plan has helped extend Medicare solvency by a decade. And I am committed to extending Social Security solvency by making the rich pay their fair share. | American Comeback | 3 |
+| 5 | Medicare is stronger and Social Security remains strong. My economic plan has helped extend Medicare solvency by a decade. And I am committed to extending Social Security solvency by making the rich pay their fair share. | Job Creation and Economy | 1 |
+| 6 | Medicare is stronger and Social Security remains strong. My economic plan has helped extend Medicare solvency by a decade. And I am committed to extending Social Security solvency by making the rich pay their fair share. | White House and Administration | 1 |
+| 7 | This Holocaust Remembrance Day, we mourn the six million Jews who were killed by the Nazis during one of the darkest chapters in human history. And we recommit to heeding the lessons of the Shoah and realizing the responsibility of 'Never Again.' | Holocaust Remembrance | 9 |
+| 8 | This Holocaust Remembrance Day, we mourn the six million Jews who were killed by the Nazis during one of the darkest chapters in human history. And we recommit to heeding the lessons of the Shoah and realizing the responsibility of 'Never Again.' | Freedom and Faith | 2 |
+| 9 | The recipients of the Presidential Medal of Freedom haven't just kept faith in freedom. They kept all of America's faith in a better tomorrow. | Freedom and Faith | 2 |
+| 10 | The recipients of the Presidential Medal of Freedom haven't just kept faith in freedom. They kept all of America's faith in a better tomorrow. | American Comeback | 1 |
+| 11 | The recipients of the Presidential Medal of Freedom haven't just kept faith in freedom. They kept all of America's faith in a better tomorrow. | White House and Administration | 1 |
+| 12 | Like Jill says, 'Teaching isn’t just a job. It’s a calling.' She knows that in her bones, and I know every educator who joined us at the White House for the first-ever Teacher State Dinner lives out that truth every day. | Education and Teaching | 3 |
+| 13 | Like Jill says, 'Teaching isn’t just a job. It’s a calling.' She knows that in her bones, and I know every educator who joined us at the White House for the first-ever Teacher State Dinner lives out that truth every day. | White House and Administration | 5 |
+| 14 | Dreamers are our loved ones, nurses, teachers, and small business owners – they deserve the promise of health care just like all of us. Today, my Administration is making that real by expanding affordable health coverage through the Affordable Care Act to DACA recipients. | Immigration and Dreamers | 7 |
+| 15 | Dreamers are our loved ones, nurses, teachers, and small business owners – they deserve the promise of health care just like all of us. Today, my Administration is making that real by expanding affordable health coverage through the Affordable Care Act to DACA recipients. | Freedom and Faith | 1 |
+| 16 | Dreamers are our loved ones, nurses, teachers, and small business owners – they deserve the promise of health care just like all of us. Today, my Administration is making that real by expanding affordable health coverage through the Affordable Care Act to DACA recipients. | Health Care and ACA | 5 |
+| 17 | Dreamers are our loved ones, nurses, teachers, and small business owners – they deserve the promise of health care just like all of us. Today, my Administration is making that real by expanding affordable health coverage through the Affordable Care Act to DACA recipients. | American Comeback | 1 |
+| 18 | Dreamers are our loved ones, nurses, teachers, and small business owners – they deserve the promise of health care just like all of us. Today, my Administration is making that real by expanding affordable health coverage through the Affordable Care Act to DACA recipients. | Job Creation and Economy | 1 |
+| 19 | Dreamers are our loved ones, nurses, teachers, and small business owners – they deserve the promise of health care just like all of us. Today, my Administration is making that real by expanding affordable health coverage through the Affordable Care Act to DACA recipients. | White House and Administration | 5 |
+| 20 | With today’s report of 175,000 new jobs, the American comeback continues. Congressional Republicans are fighting to cut taxes for billionaires and let special interests rip folks off, I'm focused on job creation and building an economy that works for the families I grew up with. | Economic Plan and Solvency | 1 |
+| 21 | With today’s report of 175,000 new jobs, the American comeback continues. Congressional Republicans are fighting to cut taxes for billionaires and let special interests rip folks off, I'm focused on job creation and building an economy that works for the families I grew up with. | American Comeback | 3 |
+| 22 | With today’s report of 175,000 new jobs, the American comeback continues. Congressional Republicans are fighting to cut taxes for billionaires and let special interests rip folks off, I'm focused on job creation and building an economy that works for the families I grew up with. | Job Creation and Economy | 5 |
+| 23 | With today’s report of 175,000 new jobs, the American comeback continues. Congressional Republicans are fighting to cut taxes for billionaires and let special interests rip folks off, I'm focused on job creation and building an economy that works for the families I grew up with. | White House and Administration | 1 |
+
+## Posting to the Coop
+
+The [Coop](https://www.expectedparrot.com/content/explore) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Coop account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [using the Coop](/en/latest/coop).
+
+Here we post the scenarios, survey and results from above, and this notebook:
+
+```python
+# scenarios.push(description = "Example scenarios", alias = "example-scenarios", visibility = "public")
+```
+
+```python
+# survey.push(description = "Example survey", alias = "example-survey", visibility = "public")
+```
+
+```python
+# results.push(description = "Example results", alias = "example-results", visibility = "public")
+```
+
+We can also post this notebook:
+
+```python
+# from edsl import Notebook
+
+# nb = Notebook(path = "concept_induction.ipynb")
+
+# nb.push(
+#     description = "Example code for concept induction",
+#     alias = "concept-induction-notebook",
+#     visibility = "public"
+# )
+```
+
+To update an object at Coop:
+
+```python
+from edsl import Notebook
+
+nb = Notebook(path = "concept_induction.ipynb")
+
+nb.patch("https://www.expectedparrot.com/content/RobinHorton/concept-induction-notebook", value = nb)
+```

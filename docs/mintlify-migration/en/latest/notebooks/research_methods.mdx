@@ -1,0 +1,283 @@
+---
+title: "Cognitive testing & creating new methods"
+description: "This notebook shows some ways of using EDSL to conduct research, including data labeling, cognitive testing and creating new methods."
+---
+
+## Cognitive testing
+
+In this example we use the tools to evaluate some draft survey questions and suggest improvements.
+
+```python
+from edsl import QuestionFreeText, Agent, ScenarioList, Scenario, Model
+```
+
+Create a relevant persona and assign it to an agent:
+
+```python
+a = Agent(traits = {"background": "You are an expert in survey methodology and evaluating questionnaires."})
+```
+
+Identify a set of texts for review (these can also be imported):
+
+```python
+draft_texts = [
+    "Do you feel the product is almost always of good quality?",
+    "On a scale of 1 to 5, where 1 means strongly agree and 5 means strongly disagree, how satisfied are you with our service?",
+    "Do you believe our IT team's collaborative synergy effectively optimizes our digital infrastructure?",
+    "What do you think of our recent implementation of Project X57?",
+]
+```
+
+Construct a question about the texts, which will be added as a parameter of the question individually:
+
+```python
+q = QuestionFreeText(
+    question_name = "cognitive_review",
+    question_text = """Identify any cognitive issues in the following survey question
+    and then draft an improved version of it: {{ scenario.draft_text }}""",
+)
+```
+
+Create “scenarios” of the question with the texts as paraemeters:
+
+```python
+s = ScenarioList.from_list("draft_text", draft_texts)
+```
+
+Check available language models:
+
+```python
+# Model.available()
+```
+
+Select a language model (if no model is specified, the default model is used):
+
+```python
+m = Model("gemini-1.5-flash")
+```
+
+Administer the survey:
+
+```python
+results = q.by(s).by(a).by(m).run()
+```
+
+List the components of the results that are generated:
+
+```python
+results.columns
+```
+
+
+|  | 0 |
+| :--- | :--- |
+| 0 | agent.agent_index |
+| 1 | agent.agent_instruction |
+| 2 | agent.agent_name |
+| 3 | agent.background |
+| 4 | answer.cognitive_review |
+| 5 | cache_keys.cognitive_review_cache_key |
+| 6 | cache_used.cognitive_review_cache_used |
+| 7 | comment.cognitive_review_comment |
+| 8 | generated_tokens.cognitive_review_generated_tokens |
+| 9 | iteration.iteration |
+| 10 | model.inference_service |
+| 11 | model.maxOutputTokens |
+| 12 | model.model |
+| 13 | model.model_index |
+| 14 | model.stopSequences |
+| 15 | model.temperature |
+| 16 | model.topK |
+| 17 | model.topP |
+| 18 | prompt.cognitive_review_system_prompt |
+| 19 | prompt.cognitive_review_user_prompt |
+| 20 | question_options.cognitive_review_question_options |
+| 21 | question_text.cognitive_review_question_text |
+| 22 | question_type.cognitive_review_question_type |
+| 23 | raw_model_response.cognitive_review_cost |
+| 24 | raw_model_response.cognitive_review_one_usd_buys |
+| 25 | raw_model_response.cognitive_review_raw_model_response |
+| 26 | scenario.draft_text |
+| 27 | scenario.scenario_index |
+
+Print select components of the results:
+
+```python
+(
+    results.select("scenario.*", "answer.*").print(
+        pretty_labels={
+            "scenario.draft_text": "Draft text",
+            "answer.cognitive_review": "Evaluation",
+        }
+    )
+)
+```
+
+
+|  | Draft text | scenario.scenario_index | Evaluation |
+| :--- | :--- | :--- | :--- |
+| 0 | Do you feel the product is almost always of good quality? | 0 | Okay, let's take a look at that question. "Do you feel the product is almost always of good quality?" Hmm, there are a couple of cognitive issues here. First, the term "almost always" is pretty vague. It's not clearly defined, and different people will interpret it differently. One person might consider 9 out of 10 times "almost always," while another might need 99 out of 100. This lack of precision introduces ambiguity and makes it hard to compare responses reliably. It also puts an unnecessary cognitive burden on the respondent; they have to interpret the question before they can answer it. Second, the question uses the word "feel." While it might seem innocuous, "feel" implies a subjective emotional response rather than a factual assessment of quality. This can lead to inconsistent responses and make it difficult to analyze the data objectively. Someone might *feel* the product is good quality even if they've experienced some objective defects. To improve the question, we need to make it more concrete and objective. Here's a revised version: "Over the past [specify time period, e.g., month, year], how often have you found the product to be of good quality?" And then, instead of a free-response answer, I'd offer a clear, scaled response option like: * Never * Rarely (less than 25% of the time) * Sometimes (25-50% of the time) * Often (50-75% of the time) * Almost Always (75-99% of the time) * Always (100% of the time) This revised version addresses the vagueness of "almost always" by providing specific ranges, and replaces the subjective "feel" with a direct question about frequency of positive experiences. It also makes the time frame explicit, which improves the reliability of the data. This way, we're asking for a factual assessment rather than a subjective feeling. Much better for analysis, don't you think? |
+| 1 | On a scale of 1 to 5, where 1 means strongly agree and 5 means strongly disagree, how satisfied are you with our service? | 1 | Okay, let's take a look at that question. There are a couple of cognitive issues lurking there. First, the scale is *reversed*. Going from 1 (strongly agree) to 5 (strongly disagree) is counterintuitive. Most people are used to scales where higher numbers represent *more* of something positive, like satisfaction. This reversal increases the cognitive load on the respondent, making them more likely to make a mistake or to simply give up and answer randomly. It's a subtle but significant problem. Second, the question itself is a bit vague. "Satisfied with our service" is broad. What *aspects* of the service are they being asked to consider? Were they satisfied with the speed of service, the helpfulness of the staff, the quality of the product, the price? The ambiguity opens the door to inconsistent interpretations and less reliable data. Someone might be satisfied with the staff but unhappy with the price, leading to a difficult-to-interpret response. Here's an improved version addressing these issues: **Improved Version:** "Thinking about your recent experience with our service, please rate your satisfaction with the following aspects on a scale of 1 to 5, where 1 means very dissatisfied and 5 means very satisfied: * **Speed of service:** 1 2 3 4 5 * **Helpfulness of staff:** 1 2 3 4 5 * **Quality of product/service:** 1 2 3 4 5 * **Overall value for money:** 1 2 3 4 5" This version uses a forward-scaled response, makes the scale clearer ("very dissatisfied" and "very satisfied" are more descriptive than "strongly agree/disagree"), and breaks down the broad concept of "service" into more specific, measurable components. This allows for a more nuanced understanding of satisfaction and produces more reliable and actionable data. It also makes it easier for the respondent to answer honestly and accurately. |
+| 2 | Do you believe our IT team's collaborative synergy effectively optimizes our digital infrastructure? | 2 | Oh boy, that question is a mess! It's got several cognitive issues stacked on top of each other. Let's break them down: 1. **Jargon Overload:** "Collaborative synergy" and "optimizes our digital infrastructure" are incredibly dense and technical. Most respondents won't understand what these phrases mean, leading to guesswork and unreliable answers. They're likely to just pick an answer at random, rather than trying to decipher the question. 2. **Double-Barreled Question:** The question asks about two distinct things: the IT team's collaboration *and* the effectiveness of their work on the digital infrastructure. A respondent might believe the team collaborates well, but that their efforts don't actually improve the infrastructure. Or vice versa. The question forces them to give a single answer to a multifaceted situation. 3. **Leading Question (Potentially):** The phrasing implies a positive assessment is expected. Depending on the context and the respondent's relationship with the IT team, this could influence their answer. 4. **Abstract Concepts:** "Synergy" and "optimizes" are abstract concepts that are difficult to quantify. How would someone even measure whether the team's synergy is "effective"? It's too subjective. Here's how I'd rewrite the question, aiming for clarity and simplicity: **Option 1 (Focus on Collaboration):** "How well do you think the IT team works together?" (And then offer a scale: Excellent, Good, Fair, Poor, Very Poor) **Option 2 (Focus on Infrastructure Effectiveness):** "How effective do you think the IT team is at maintaining and improving our digital infrastructure?" (And then offer a scale: Excellent, Good, Fair, Poor, Very Poor) **Option 3 (If you *must* combine them, but I strongly advise against it):** "Thinking about the IT team's work on our digital infrastructure, please rate the following:" * **Teamwork:** (Scale: Excellent, Good, Fair, Poor, Very Poor) * **Effectiveness:** (Scale: Excellent, Good, Fair, Poor, Very Poor) By separating the concepts and using simpler language, we get much more reliable and interpretable data. Remember, the goal of a survey is to understand the respondent's perspective, not to impress them with your vocabulary! |
+| 3 | What do you think of our recent implementation of Project X57? | 3 | Okay, let's take a look at that question. "What do you think of our recent implementation of Project X57?" Hmm, there are a few cognitive issues lurking here. First, it's **too broad**. It's essentially an open-ended invitation to respond in *any* way the respondent wants. That's great for qualitative research, but for quantitative analysis (which is often the goal of surveys), it's a nightmare. You'll get a huge variety of responses, making it incredibly difficult to summarize and analyze the data. Some people will focus on the technical aspects, others on the impact on their workflow, others still on the communication surrounding the project. It's just too much to handle effectively. Second, it assumes a shared understanding of "Project X57." What if the respondent wasn't involved in it, or only heard about it in passing? They might answer based on limited or inaccurate information, leading to biased or unreliable data. Third, the word "think" is vague. Does it mean their opinion, their feelings, their observations, their assessment of its success? The question doesn't specify, leading to potential ambiguity in the responses. Here are a few improved versions, depending on what you're actually trying to measure: **Option 1 (Focus on overall satisfaction):** "On a scale of 1 to 5, with 1 being very dissatisfied and 5 being very satisfied, how satisfied are you with the implementation of Project X57?" This is a simple, clear, and easily quantifiable measure of overall satisfaction. **Option 2 (More nuanced, focusing on specific aspects):** "Please rate your level of agreement with the following statements regarding the implementation of Project X57 (1=Strongly Disagree, 5=Strongly Agree):" * "The implementation was well-planned and organized." * "The communication surrounding the implementation was clear and effective." * "The implementation has improved my workflow." * "The implementation met its intended goals." This approach allows for a more detailed and nuanced understanding of respondent opinions, focusing on specific aspects of the implementation. Remember to tailor these statements to the specific goals and aspects of Project X57. **Option 3 (Open-ended, but with a focus):** "What is one specific aspect of the implementation of Project X57 that you found most impactful (positive or negative) and why?" This version retains the open-ended nature, but guides respondents towards a more focused and concrete response. It's still qualitative, but now it’s more manageable. The best option will depend on your research objectives. But the key is to be specific, clear, and avoid ambiguity. Remember to always pretest your survey questions to ensure they are understood and interpreted as intended. |
+
+## Qualitative reviews
+
+In this example we use a set of hypothetical customer service tickets and prompt a model to extract a set of themes that we could use in follow-on questions (e.g., as a set of options to multiple choice questions).
+
+```python
+from edsl import QuestionList
+```
+
+```python
+tickets = [
+    "I waited for 20 minutes past the estimated arrival time, and the driver still hasn't arrived. This made me late for my appointment.",
+    "The driver was very rude and had an unpleasant attitude during the entire ride. It was an uncomfortable experience.",
+    "The driver was speeding and frequently changing lanes without signaling. I felt unsafe throughout the ride.",
+    "The car I rode in was dirty and messy. There were crumbs on the seats, and it didn't look like it had been cleaned in a while.",
+    "The driver took a longer route, which resulted in a significantly higher fare than expected. I believe they intentionally extended the trip.",
+    "I was charged for a ride that I did not take. The ride appears on my account, but I was not in the vehicle at that time.",
+    "I left my wallet in the car during my last ride. I've tried contacting the driver, but I haven't received a response.",
+]
+```
+
+Create an agent with a relevant persona:
+
+```python
+a_customer_service = Agent(
+    traits = {
+        "background": "You are an experienced customer service agent for a ridesharing company."
+    }
+)
+```
+
+Create a question about the texts:
+
+```python
+q_topics = QuestionList(
+    question_name = "ticket_topics",
+    question_text = "Create a list of the topics raised in these customer service tickets: {{ scenario.tickets_texts }}.",
+)
+```
+
+Add the texts to the question:
+
+```python
+s = Scenario({"tickets_texts": tickets})
+```
+
+Generate results:
+
+```python
+topics = q_topics.by(s).by(a_customer_service).by(m).run()
+```  
+
+Inspect the results:
+
+```python
+topics.select("ticket_topics").to_list()[0]
+```
+
+```python
+['Excessive wait time',
+ 'Driver rudeness',
+ 'Unsafe driving',
+ 'Vehicle cleanliness',
+ 'Incorrect route/fare',
+ 'Unauthorized charge',
+ 'Lost item in vehicle']
+```
+
+## Data labeling
+
+In this example we prompt an LLM to rating the seriousness of tickets about safety issues.
+
+See this notebook as well for a more complex data labeling exercise: Data Labeling Agents.
+
+```python
+from edsl import QuestionLinearScale
+```
+
+
+```python
+safety_tickets = [
+    "During my ride, I noticed that the driver was frequently checking their phone for directions, which made me a bit uncomfortable. It didn't feel like they were fully focused on the road.",
+    "The driver had to brake abruptly to avoid a collision with another vehicle. It was a close call, and it left me feeling quite shaken. Please address this issue.",
+    "I had a ride with a driver who was clearly speeding and weaving in and out of traffic. Their reckless driving put my safety at risk, and I'm very concerned about it.",
+    "My ride was involved in a minor accident, and although no one was seriously injured, it was a scary experience. The driver is handling the situation, but I wanted to report it.",
+    "I had a ride with a driver who exhibited aggressive and threatening behavior towards me during the trip. I felt genuinely unsafe and want this matter to be taken seriously.",
+]
+```
+
+
+```python
+q_rating = QuestionLinearScale(
+    question_name = "safety_rating",
+    question_text = """Rate the seriousness of the issue raised in the following customer service ticket
+    on a scale from 1 to 10: {{ scenario.ticket }}""",
+    question_options = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    option_labels = {1:"Not at all serious", 10:"Very serious"}
+)
+```
+
+```python
+s = ScenarioList.from_list("ticket", safety_tickets)
+```
+
+```python
+r_rating = q_rating.by(s).by(a_customer_service).by(m).run()
+```  
+
+```python
+r_rating.select("scenario.*", "answer.*")
+```
+
+
+|  | scenario.scenario_index | scenario.ticket | answer.safety_rating |
+| :--- | :--- | :--- | :--- |
+| 0 | 0 | During my ride, I noticed that the driver was frequently checking their phone for directions, which made me a bit uncomfortable. It didn't feel like they were fully focused on the road. | 7 |
+| 1 | 1 | The driver had to brake abruptly to avoid a collision with another vehicle. It was a close call, and it left me feeling quite shaken. Please address this issue. | 8 |
+| 2 | 2 | I had a ride with a driver who was clearly speeding and weaving in and out of traffic. Their reckless driving put my safety at risk, and I'm very concerned about it. | 10 |
+| 3 | 3 | My ride was involved in a minor accident, and although no one was seriously injured, it was a scary experience. The driver is handling the situation, but I wanted to report it. | 8 |
+| 4 | 4 | I had a ride with a driver who exhibited aggressive and threatening behavior towards me during the trip. I felt genuinely unsafe and want this matter to be taken seriously. | 10 |
+
+## Creating new methods
+
+We can use the question prompts to create new methods, such as a translator:
+
+
+```python
+def translate_to_german(text):
+    q = QuestionFreeText(
+        question_name="deutsch",
+        question_text="Please translate '{{ scenario.text }}' into German",
+    )
+    result = q.by(Scenario({"text": text})).run()
+    return result.select("deutsch").print()
+```
+
+```python
+translate_to_german("Hello, friend, have you been traveling?")
+```
+
+
+|  | answer.deutsch |
+| :--- | :--- |
+| 0 | Hallo, Freund, bist du gereist? |
+
+## Posting to Coop
+
+```python
+from edsl import Notebook
+
+nb = Notebook(path = "research_methods.ipynb")
+
+if refresh := False:
+    nb.push(
+        description = "Using EDSL to create research methods",
+        alias = "research-methods-notebook",
+        visibility = "public"
+    )
+else:
+    nb.patch('50ae2f14-f40f-46c9-8be3-c09f621a677b', value = nb)
+```

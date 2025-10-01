@@ -1,0 +1,135 @@
+---
+title: "Using videos in a survey"
+---
+
+<Note>
+**Note**:
+
+Before using video scenarios with your questions you must install the `ffmpeg` package
+</Note>
+
+```bash
+# brew install ffmpeg
+```
+```python
+from edsl import FileStore, QuestionFreeText, Scenario, Model
+
+fs = FileStore("Nightmare_Before_Christmas_(1993).mp4")
+
+s = Scenario({"video":fs})
+
+q = QuestionFreeText(
+    question_name = "test",
+    question_text = "Breifly describe what is happening in this video: {{ scenario.video }}"
+)
+
+m = Model("gemini-2.5-flash", service_name="google")
+
+r = q.by(s).by(m).run()
+```
+
+```python
+r.select("model", "test")
+```
+
+|  | model.model | answer.test |
+| :--- | :--- | :--- |
+| 0 | gemini-2.5-flash | This video is a trailer for **Tim Burton's The Nightmare Before Christmas**. It features a rapid montage of stop-motion animated scenes, showcasing the film's gothic and fantastical world. Viewers see various spooky characters, including skeletons, monsters, and the iconic Jack Skellington, in eerie and imaginative settings. The video is accompanied by dramatic music and a voiceover that hints at a dark, magical realm, concluding with the movie title and release information. |
+
+Here we post a video to Coop using the `FileStore` module. This allows us to retrieve it later and share it with others:
+
+```python
+fs = FileStore("Nightmare_Before_Christmas_(1993).mp4")
+
+fs.push(
+    description = "Trailer for the Nightmare Before Christmas",
+    alias = "nightmare-before-christmas-trailer-video",
+    visibility = "public"
+)
+```
+
+```json
+{'description': 'Trailer for the Nightmare Before Christmas',
+ 'object_type': 'scenario',
+ 'url': 'https://www.expectedparrot.com/content/32122ab1-83ef-4c8b-93f5-81bb21676cd7',
+ 'alias_url': 'https://www.expectedparrot.com/content/RobinHorton/nightmare-before-christmas-trailer-video',
+ 'uuid': '32122ab1-83ef-4c8b-93f5-81bb21676cd7',
+ 'version': '0.1.62.dev1',
+ 'visibility': 'public'}
+```
+
+Here we retrieve the video from Coop, inspect it, and create a `Scenario` for it:
+
+```python
+fs = FileStore.pull("https://www.expectedparrot.com/content/RobinHorton/nightmare-before-christmas-trailer-video")
+```
+
+```python
+fs.view()
+```
+
+If we want to add fields (metadata) for reference in the results, we simply add key/values as desired to the scenario (only the video key needs to be added to the question text (earn more about [using scenarios for metadata](/en/latest/scenarios)):
+
+```python
+s = Scenario({
+    "video":fs,
+    "title":"Trailer for the Nightmare Before Christmas",
+    "year":1993
+})
+```
+
+Next we create a `Question` that uses the scenario:
+
+```python
+q = QuestionFreeText(
+    question_name = "viewers",
+    question_text = "Who would enjoy this movie? {{ scenario.video }}"
+)
+```
+
+Here we select an appropriate `Model` (same as above):
+
+```python
+m = Model("gemini-2.5-flash", service_name="google")
+```
+
+We run the question by adding the scenario and model:
+
+```python
+r = q.by(s).by(m).run()
+```
+
+Here we inspect the response:
+
+```python
+r.select("model", "title", "year", "viewers")
+```
+
+|  | model.model | scenario.title | scenario.year | answer.viewers |
+| :--- | :--- | :--- | :--- | :--- |
+| 0 | gemini-2.5-flash | Trailer for the Nightmare Before Christmas | 1993 | This movie, **Tim Burton's The Nightmare Before Christmas**, would be enjoyed by: * **Fans of Tim Burton's unique aesthetic:** If you appreciate his signature dark, gothic, and whimsical style (seen in films like *Beetlejuice*, *Edward Scissorhands*, or *Corpse Bride*), you'll likely love this. * **Enthusiasts of stop-motion animation:** The intricate and artistic stop-motion style is a major draw. * **People who enjoy dark fantasy and whimsical horror:** It blends spooky elements with a charming, imaginative story and characters. * **Fans of musicals with a unique twist:** The film is a musical, featuring memorable songs by Danny Elfman. * **Those who appreciate holiday films with an unconventional edge:** It's a Christmas movie and a Halloween movie rolled into one, offering a fresh take on holiday themes. * **Older children, teenagers, and adults:** While animated, its slightly macabre themes and visuals might be a bit intense for very young children, but it's generally enjoyed by a wide age range who appreciate its distinct style. |
+
+Here we post this notebook to Coop:
+
+```python
+from edsl import Notebook
+
+nb = Notebook("video_scenario_example.ipynb")
+
+nb.push(
+    description = "How to create video scenarios",
+    alias = "video-scenarios-notebook",
+    visibility = "public"
+)
+```
+
+```json
+
+{'description': 'How to create video scenarios',
+ 'object_type': 'notebook',
+ 'url': 'https://www.expectedparrot.com/content/5f5f3d20-a3c4-4f6f-95aa-a9fa9c4d7e77',
+ 'alias_url': 'https://www.expectedparrot.com/content/RobinHorton/video-scenarios-notebook',
+ 'uuid': '5f5f3d20-a3c4-4f6f-95aa-a9fa9c4d7e77',
+ 'version': '0.1.62.dev1',
+ 'visibility': 'public'}
+```

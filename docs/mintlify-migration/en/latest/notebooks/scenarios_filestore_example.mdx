@@ -1,0 +1,327 @@
+---
+title: "Using data with surveys: FileStore"
+description: "This notebook provides example [EDSL](https://github.com/expectedparrot/edsl) code for methods for using data with an EDSL survey. In the steps below we show how to use the [FileStore](/en/latest/filestore) module to upload, share and retrieve data files at the [Coop](/en/latest/coop), and then create [Scenario](/en/latest/scenarios) objects for the data to use it with a survey."
+---
+
+[EDSL is an open-source library](https://github.com/expectedparrot/edsl) for simulating surveys, experiments and other research with AI agents and large language models. Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Coop account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL.
+
+## What is a *Scenario*?
+
+A `Scenario` is a dictionary of one or more key/value pairs representing data or content to be added to questions; a `ScenarioList` is a list of *Scenario* objects. Scenario keys are used as question parameters that get replaced with the values when the scenarios are added to the questions, allowing you to create variants of questions efficiently. Learn more about creating and working with scenarios [here](/en/latest/scenarios) and [here](/en/latest/notebooks/question_loop_scenarios).
+
+## What is the *Coop*?
+
+[Coop](/en/latest/coop) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL, allowing you to post, download and update objects directly from your workspace and at the [Coop web app](https://www.expectedparrot.com/login). The Coop also provides access to features for working with EDSL remotely at the Expected Parrot server. Learn more about these features in the [remote inference](/en/latest/remote_inference) and [remote caching](/en/latest/remote_caching) sections of the [documentation page](/en/latest/index).
+
+## What is FileStore?
+
+`FileStore` is a [module for storing and sharing data files at the Coop](/en/latest/filestore) to use in EDSL projects, such as survey data, PDFs, CSVs or images. In particular, it is designed for storing files to be used as as scenarios, and allows you to include code for easily retrieving and processing the files in your EDSL project, as we do in the examples below!
+
+## Example
+
+In the example below we create scenarios for some data (a table at a Wikipedia page) and inspect them. Then we store the scenarios as a CSV and post it to Coop using FileStore. Then we retrieve the file and recreate the scenarios, and use them in a survey. We also post the survey, results and this notebook to Coop for reference.
+
+We start by creating importing the tools that we will use:
+
+```python
+from edsl import ScenarioList, FileStore
+```
+
+### Creating a scenario list for a Wikipedia table
+
+EDSL comes with many methods for automatically [generating scenarios for various data sources](/en/latest/scenarios), such as PDFs, CSVs, docs, images, lists, dicts, etc. Here we use a method to automatically [create a scenario list for a Wikipedia table](/en/latest/notebooks/scenario_list_wikipedia), passing the URL and the number of the table on the page:
+
+```python
+s = ScenarioList.from_wikipedia("https://en.wikipedia.org/wiki/List_of_Billboard_Hot_100_number-one_singles_of_the_1980s",5)
+```
+
+We can inspect the scenario list that has been created:
+
+```python
+s
+```
+```python
+ScenarioList scenarios: 14; keys: ['Artist(s)', 'Weeks at number one', 'Song'];
+```
+
+|  | Weeks at number one | Song | Artist(s) |
+| :--- | :--- | :--- | :--- |
+| 0 | 10 | "Physical" | Olivia Newton-John |
+| 1 | 9 | "Bette Davis Eyes" | Kim Carnes |
+| 2 | 9 | "Endless Love" | Diana Ross and Lionel Richie |
+| 3 | 8 | "Every Breath You Take" | The Police |
+| 4 | 7 | "I Love Rock 'n' Roll" | Joan Jett and the Blackhearts |
+| 5 | 7 | "Ebony and Ivory" | Paul McCartney and Stevie Wonder |
+| 6 | 7 | "Billie Jean" | Michael Jackson |
+| 7 | 6 | "Call Me" | Blondie |
+| 8 | 6 | "Lady" | Kenny Rogers |
+| 9 | 6 | "Centerfold" | The J. Geils Band |
+| 10 | 6 | "Eye of the Tiger" | Survivor |
+| 11 | 6 | "Flashdance... What a Feeling" | Irene Cara |
+| 12 | 6 | "Say, Say, Say" | Paul McCartney and Michael Jackson |
+| 13 | 6 | "Like a Virgin" | Madonna |
+
+We can rename the keys for convenience:
+
+```python
+s.parameters
+```
+```python
+{'Artist(s)', 'Song', 'Weeks at number one'}`
+```
+
+```python
+s = s.rename({'Artist(s)':"artists", 'Song':"song", 'Weeks at number one':"weeks"})
+```
+```python
+s
+```
+```python
+ScenarioList scenarios: 14; keys: ['song', 'artists', 'weeks'];
+```
+
+|  | weeks | song | artists |
+| :--- | :--- | :--- | :--- |
+| 0 | 10 | "Physical" | Olivia Newton-John |
+| 1 | 9 | "Bette Davis Eyes" | Kim Carnes |
+| 2 | 9 | "Endless Love" | Diana Ross and Lionel Richie |
+| 3 | 8 | "Every Breath You Take" | The Police |
+| 4 | 7 | "I Love Rock 'n' Roll" | Joan Jett and the Blackhearts |
+| 5 | 7 | "Ebony and Ivory" | Paul McCartney and Stevie Wonder |
+| 6 | 7 | "Billie Jean" | Michael Jackson |
+| 7 | 6 | "Call Me" | Blondie |
+| 8 | 6 | "Lady" | Kenny Rogers |
+| 9 | 6 | "Centerfold" | The J. Geils Band |
+| 10 | 6 | "Eye of the Tiger" | Survivor |
+| 11 | 6 | "Flashdance... What a Feeling" | Irene Cara |
+| 12 | 6 | "Say, Say, Say" | Paul McCartney and Michael Jackson |
+| 13 | 6 | "Like a Virgin" | Madonna |
+
+We can save the scenarios to a CSV:
+
+```python
+s.to_csv("billboard_100_1980s.csv")
+```
+
+File written to billboard_100_1980s.csv
+
+### Posting data to Coop
+
+Here we post the CSV to Coop using `FileStore` (note that the file type is automatically inferred):
+
+```python
+fs = FileStore("billboard_100_1980s.csv")
+```
+
+We can post a `FileStore` object to the Coop by calling the `push()` method on it. We can optionally pass a `description` and a `visibility` setting - *public*, *unlisted* (by default) or *private*:
+
+```python
+info = fs.push(
+    description = "Wikipedia: List of Billboard Hot 100 number-one singles of the 1980s",
+    alias = "billboard-top-100-1980s",
+    visibility = "public"
+)
+```
+
+We can print the details of the posted object, including the URL and Coop uuid that we will need to retrieve it later:
+
+```python
+info
+
+
+{'description': 'Wikipedia: List of Billboard Hot 100 number-one singles of the 1980s',
+ 'object_type': 'scenario',
+ 'url': 'https://www.expectedparrot.com/content/8a3a30cd-c9c8-437f-a4b4-a4ce417480c5',
+ 'uuid': '8a3a30cd-c9c8-437f-a4b4-a4ce417480c5',
+ 'version': '0.1.47.dev1',
+ 'visibility': 'public'}
+```
+
+### Retrieving a file and recreating scenarios
+
+Here we retrieve the file:
+
+```python
+csv_file = FileStore.pull("https://www.expectedparrot.com/content/RobinHorton/billboard-top-100-1980s")
+```
+
+This is equivalent:
+
+```python
+uuid = info["uuid"]
+uuid
+```
+```
+'8a3a30cd-c9c8-437f-a4b4-a4ce417480c5'
+```
+```python
+csv_file = FileStore.pull(info["uuid"])
+```
+
+Here we recreate scenarios:
+
+```python
+s = ScenarioList.from_csv(csv_file.to_tempfile())
+s
+```
+
+```python
+ScenarioList scenarios: 14; keys: ['song', 'artists', 'weeks'];
+```
+
+|  | weeks | song | artists |
+| :--- | :--- | :--- | :--- |
+| 0 | 10 | "Physical" | Olivia Newton-John |
+| 1 | 9 | "Bette Davis Eyes" | Kim Carnes |
+| 2 | 9 | "Endless Love" | Diana Ross and Lionel Richie |
+| 3 | 8 | "Every Breath You Take" | The Police |
+| 4 | 7 | "I Love Rock 'n' Roll" | Joan Jett and the Blackhearts |
+| 5 | 7 | "Ebony and Ivory" | Paul McCartney and Stevie Wonder |
+| 6 | 7 | "Billie Jean" | Michael Jackson |
+| 7 | 6 | "Call Me" | Blondie |
+| 8 | 6 | "Lady" | Kenny Rogers |
+| 9 | 6 | "Centerfold" | The J. Geils Band |
+| 10 | 6 | "Eye of the Tiger" | Survivor |
+| 11 | 6 | "Flashdance... What a Feeling" | Irene Cara |
+| 12 | 6 | "Say, Say, Say" | Paul McCartney and Michael Jackson |
+| 13 | 6 | "Like a Virgin" | Madonna |
+
+### Using scenarios in a survey
+
+We can use the scenarios with a survey by creating placeholders in the questions for the scenario keys, and adding the scenarios to the survey when we run it:
+
+```python expandable
+from edsl import QuestionFreeText, QuestionMultipleChoice, QuestionCheckBox, QuestionList, Survey
+
+q1 = QuestionFreeText(
+    question_name = "topic",
+    question_text = "What is the topic of the song {{ song }} by {{ artists }}?"
+)
+q2 = QuestionMultipleChoice(
+    question_name = "sentiment",
+    question_text = "What is the sentiment of the song {{ song }} by {{ artists }}?",
+    question_options = [
+        "Happy",
+        "Sad",
+        "Angry",
+        "Romantic",
+        "Nostalgic",
+        "Empowering",
+        "Melancholic",
+        "Hopeful"
+    ]
+)
+
+q3 = QuestionCheckBox(
+    question_name = "themes",
+    question_text = "What themes are present in the song {{ song }} by {{ artists }}?",
+    question_options = [
+        "Love",
+        "Loss",
+        "Struggle",
+        "Celebration",
+        "Social issues",
+        "Other"
+    ]
+)
+
+q4 = QuestionList(
+    question_name = "other_themes",
+    question_text = "What other themes are present?"
+)
+
+survey = (
+    Survey(questions = [q1, q2, q3, q4])
+    .add_targeted_memory(q4, q3)
+    .add_stop_rule(q3, "'Other' not in themes")
+)
+
+results = survey.by(s).run()
+```
+
+
+We can filter, sort, select and print any components of the results that are generated. Note that the results include columns for all scenario keys, whether used in question texts or not:
+
+```python
+results.sort_by("song").select("song", "artists", "topic")
+```
+
+|  | scenario.song | scenario.artists | answer.topic |
+| :--- | :--- | :--- | :--- |
+| 0 | "Bette Davis Eyes" | Kim Carnes | The song "Bette Davis Eyes" by Kim Carnes is about a woman who is alluring and captivating, much like the iconic actress Bette Davis. The lyrics describe her as having a mysterious and enchanting presence, with a sense of charm and charisma that can easily mesmerize those around her. The song highlights her ability to manipulate and captivate others with her striking eyes and overall persona. |
+| 1 | "Billie Jean" | Michael Jackson | The song "Billie Jean" by Michael Jackson is about a man who is confronted by a woman named Billie Jean, who claims that he is the father of her child. The lyrics describe the man's insistence that the woman's allegations are false, emphasizing that "the kid is not my son." The song explores themes of false accusations, fame, and the consequences of rumors and deception. |
+| 2 | "Call Me" | Blondie | The song "Call Me" by Blondie is about the excitement and urgency of romantic attraction and communication. The lyrics express a desire for connection and openness to a romantic relationship, with an emphasis on the immediacy and thrill of being contacted by a potential lover. The song captures the energy and passion of new love, with a focus on being available and ready for a call or message from the person of interest. |
+| 3 | "Centerfold" | The J. Geils Band | The song "Centerfold" by The J. Geils Band is about a man who discovers that a former high school crush, whom he viewed as innocent and pure, has become a centerfold model in an adult magazine. The song explores his feelings of surprise, nostalgia, and the conflict between his idealized memories of her and her new, more provocative image. |
+| 4 | "Ebony and Ivory" | Paul McCartney and Stevie Wonder | The song "Ebony and Ivory" by Paul McCartney and Stevie Wonder addresses themes of racial harmony and unity. It uses the metaphor of piano keys—ebony (black) and ivory (white)—to illustrate how different races can live together in harmony, just as the keys work together to create music. The song promotes the message of living in perfect harmony despite differences. |
+| 5 | "Endless Love" | Diana Ross and Lionel Richie | The song "Endless Love" by Diana Ross and Lionel Richie is about a deep, romantic love between two people. The lyrics express a commitment to each other and the idea that their love is eternal and unbreakable. It is often considered a classic love ballad, highlighting themes of devotion, unity, and an everlasting bond. |
+| 6 | "Every Breath You Take" | The Police | The song "Every Breath You Take" by The Police is often interpreted as a song about obsessive love and surveillance. The lyrics describe a person who is constantly watching and monitoring the actions of someone they are infatuated with. Despite its romantic-sounding melody, the song's theme revolves around possessiveness and control, highlighting the darker aspects of love and relationships. |
+| 7 | "Eye of the Tiger" | Survivor | The song "Eye of the Tiger" by Survivor is about perseverance, determination, and the drive to overcome challenges. It was famously used as the theme song for the movie "Rocky III," and its lyrics focus on staying strong, maintaining focus, and having the willpower to succeed despite obstacles. The song's energetic and motivational tone has made it an anthem for facing adversity and pushing through difficult times. |
+| 8 | "Flashdance... What a Feeling" | Irene Cara | The song "Flashdance... What a Feeling" by Irene Cara is about the exhilaration and empowerment that comes from pursuing one's dreams and passions. It captures the joy and liberation of achieving one's goals and the transformative power of believing in oneself. The song is famously associated with the 1983 film "Flashdance," which tells the story of a young woman striving to become a professional dancer. |
+| 9 | "I Love Rock 'n' Roll" | Joan Jett and the Blackhearts | The song "I Love Rock 'n' Roll" by Joan Jett and the Blackhearts is about a person's passion and enthusiasm for rock and roll music. The lyrics describe the experience of hearing a favorite song on the jukebox and feeling a connection with someone else who shares the same love for the music. It's an anthem celebrating the energy and excitement of rock and roll. |
+| 10 | "Lady" | Kenny Rogers | The song "Lady" by Kenny Rogers is a romantic ballad that expresses deep love and admiration. It is a heartfelt declaration of devotion, where the singer describes the significant role that the woman he loves plays in his life. The lyrics convey a sense of gratitude and emotional connection, highlighting themes of love, appreciation, and commitment. |
+| 11 | "Like a Virgin" | Madonna | The song "Like a Virgin" by Madonna is about the feeling of renewal and fresh beginnings in a romantic relationship. The lyrics describe the experience of falling in love and feeling revitalized, as if experiencing love for the first time. The song uses the metaphor of being "like a virgin" to convey the sense of innocence and excitement that comes with a new and transformative romantic connection. |
+| 12 | "Physical" | Olivia Newton-John | The song "Physical" by Olivia Newton-John is primarily about physical attraction and desire. The lyrics suggest a strong focus on wanting to engage in a physical relationship, using exercise and fitness as metaphors for intimacy and connection. The song was quite provocative for its time due to its suggestive themes. |
+| 13 | "Say, Say, Say" | Paul McCartney and Michael Jackson | The song "Say, Say, Say" by Paul McCartney and Michael Jackson is about a plea for love and attention. The lyrics express a desire for reassurance and communication in a romantic relationship. The singers convey feelings of longing and vulnerability, asking their partner to express their feelings openly and honestly. Overall, the song deals with themes of love, longing, and the need for emotional connection. |
+
+```python
+results.sort_by("weeks", reverse=True).select("weeks", "song", "artists", "sentiment", "themes", "other_themes")
+```
+
+|  | scenario.weeks | scenario.song | scenario.artists | answer.sentiment | answer.themes | answer.other_themes |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | 10 | "Physical" | Olivia Newton-John | Happy | ['Love', 'Celebration'] | nan |
+| 1 | 9 | "Bette Davis Eyes" | Kim Carnes | Nostalgic | ['Love', 'Other'] | ['Nostalgia', 'Admiration', 'Mystery', 'Seduction'] |
+| 2 | 9 | "Endless Love" | Diana Ross and Lionel Richie | Romantic | ['Love', 'Celebration'] | nan |
+| 3 | 8 | "Every Breath You Take" | The Police | Melancholic | ['Love', 'Loss', 'Struggle'] | nan |
+| 4 | 7 | "I Love Rock 'n' Roll" | Joan Jett and the Blackhearts | Empowering | ['Love', 'Celebration', 'Other'] | ['Nostalgia', 'Rebellion', 'Youth'] |
+| 5 | 7 | "Ebony and Ivory" | Paul McCartney and Stevie Wonder | Hopeful | ['Love', 'Social issues'] | nan |
+| 6 | 7 | "Billie Jean" | Michael Jackson | Melancholic | ['Struggle', 'Other'] | ['Deception', 'Fame', 'Paranoia', 'Guilt', 'Denial'] |
+| 7 | 6 | "Call Me" | Blondie | Empowering | ['Love', 'Celebration'] | nan |
+| 8 | 6 | "Lady" | Kenny Rogers | Romantic | ['Love'] | nan |
+| 9 | 6 | "Centerfold" | The J. Geils Band | Nostalgic | ['Love', 'Loss', 'Other'] | ['Nostalgia', 'Disillusionment', 'Innocence', 'Surprise'] |
+| 10 | 6 | "Eye of the Tiger" | Survivor | Empowering | ['Struggle', 'Other'] | ['Perseverance', 'Resilience', 'Determination', 'Motivation', 'Survival'] |
+| 11 | 6 | "Flashdance... What a Feeling" | Irene Cara | Empowering | ['Struggle', 'Celebration'] | nan |
+| 12 | 6 | "Say, Say, Say" | Paul McCartney and Michael Jackson | Romantic | ['Love', 'Struggle'] | nan |
+| 13 | 6 | "Like a Virgin" | Madonna | Romantic | ['Love', 'Celebration'] | nan |
+
+### Posting a notebook to the Coop
+
+Here we post the contents of this notebook to the Coop for anyone to access:
+
+```python
+from edsl import Notebook
+```
+```python
+n = Notebook(path = "scenarios_filestore_example.ipynb")
+```
+
+```python
+n.push(
+    description = "Example code for using data files for scenarios via FileStore and Coop",
+    alias = "my-scenario-image-notebook",
+    visibility = "public"
+)
+```
+
+```json
+{'description': 'Example code for using data files for scenarios via FileStore and Coop',
+ 'object_type': 'notebook',
+ 'url': 'https://www.expectedparrot.com/content/0f21a6ba-45b2-4cf2-9bea-87929855797f',
+ 'uuid': '0f21a6ba-45b2-4cf2-9bea-87929855797f',
+ 'version': '0.1.47.dev1',
+ 'visibility': 'public'}
+```
+
+To update an object:
+
+```python
+n = Notebook(path = "scenarios_filestore_example.ipynb") # resave
+```
+
+```python
+n.patch("https://www.expectedparrot.com/content/RobinHorton/my-scenario-image-notebook", value = n)
+```
+
+```json
+{'status': 'success'}
+```

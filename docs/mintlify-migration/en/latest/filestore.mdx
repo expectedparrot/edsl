@@ -1,0 +1,712 @@
+---
+title: "File Store"
+description: "*FileStore* is a module for storing and sharing data files at Coop. It allows you to post and retrieve files of various types to use in EDSL surveys, such as survey data, PDFs, CSVs, docs or images. It can also be used to create Scenario objects for questions or traits for Agent objects from data files at Coop."
+---
+
+When posting files, the FileStore module will automatically infer the file type from the extension. You can give a file a description and an alias, and set its visibility (public, private or unlisted).
+
+<Note>
+**Note**:
+
+Scenarios created from FileStore objects cannot be used with question memory rules, and can only be added to questions with the by() method, not the loop() method. This is because the memory rules and loop() method insert the filepath in the question, whereas the by() method inserts the file content when the question is run. See details on these methods at the [Scenarios](/en/latest/scenarios) section of the documentation.
+</Note>
+
+The examples below are also available in a [notebook at Coop](https://www.expectedparrot.com/content/RobinHorton/my-example-filestore-notebook).
+
+## File types
+
+The following file types are currently supported by the FileStore module:
+
+- docx (Word document)
+- csv (Comma-separated values)
+- html (HyperText Markup Language)
+- json (JavaScript Object Notation)
+- latex (LaTeX)
+- md (Markdown)
+- pdf (Portable Document Format)
+- png (image)
+- pptx (PowerPoint)
+- py (Python)
+- sql (SQL database)
+- sqlite (SQLite database)
+- txt (text)
+
+## Posting a file
+
+1. Import the FileStore constructor and create an object by passing the path to the file. The constructor will automatically infer the file type from the extension. For example:
+
+```python
+from edsl import FileStore
+
+fs = FileStore("my_data.csv") # replace with your own file
+```
+
+2. Call the push method to post the file at Coop. You can optionally pass the following parameters:
+
+- description: a string description for the file
+- alias: a convenient Pythonic reference name for the URL for the object, e.g., my_example_csv
+- visibility: either *public*, *private* or *unlisted* (the default is *unlisted*)
+
+```python
+fs.push(description = "My example CSV file", alias = "my-example-csv-file", visibility = "public")
+```
+
+The push method returns a dictionary with the following keys and values (this is the same for any object posted to Coop):
+
+- description: the description you provided, if any
+- object_type: the type of object (e.g., scenario, survey, results, agent, notebook; objects posted with FileStore are always scenarios)
+- url: the URL of the file at Coop
+- uuid: the UUID of the file at Coop
+- version: the version of the file
+- visibility: the visibility of the file (*public*, *private* or *unlisted* by default)
+
+Example output:
+
+```json
+{'description': 'My example CSV file',
+'object_type': 'scenario',
+'url': 'https://www.expectedparrot.com/content/17c0e3d3-8d08-4ae0-bc7d-384a56a07e4e',
+'uuid': '17c0e3d3-8d08-4ae0-bc7d-384a56a07e4e',
+'version': '0.1.47.dev1',
+'visibility': 'public'}
+```
+
+## Retrieving a file
+
+To retrieve a file, call the pull method on the FileStore constructor and pass it the alias or UUID of the file that you want to retrieve. For the example above, we can retrieve the file with:
+
+```python
+fs = FileStore.pull("https://www.expectedparrot.com/content/RobinHorton/my-example-csv-file")
+```
+
+This is equivalent:
+
+```python
+fs = FileStore.pull(csv_info["uuid"])
+
+```
+
+Once retrieved, a file can be converted into scenarios. To construct a single scenario from a file, use the Scenario constructor and pass the file as a value for a specified key (see image file example below). To construct a list of scenarios from a file, call the from_csv or from_pdf method of the ScenarioList constructor and pass the file as an argument (see CSV and PDF examples below). To construct a list of scenarios from multiple files in a directory, you can use the ScenarioList.from_directory() method, which will wrap each file in a Scenario with a specified key (default is “content”).
+
+We can also create agents by calling the from_csv() method on an AgentList object.
+
+### CSV example
+
+Here we create an example CSV and then post it to Coop using FileStore and retrieve it. Then we use the retrieved file to construct scenarios for questions (you can skip the step to create a CSV and replace with your own file).
+
+To create an example CSV file:
+
+```python
+# Sample data
+data = [
+    ['Age', 'City', 'Occupation'],
+    [25, 'New York', 'Software Engineer'],
+    [30, 'San Francisco', 'Teacher'],
+    [35, 'Chicago', 'Doctor'],
+    [28, 'Boston', 'Data Scientist'],
+    [45, 'Seattle', 'Architect']
+]
+
+# Writing to CSV file
+with open('data.csv', 'w') as file:
+    for row in data:
+        line = ','.join(str(item) for item in row)
+        file.write(line + 'n')
+```
+
+Here we post the file to Coop and inspect the details:
+
+```python
+from edsl import FileStore
+
+fs = FileStore("data.csv")
+csv_info = fs.push(description = "My example CSV file", alias = "my-example-csv-file", visibility = "public")
+csv_info # display the URL and Coop uuid of the stored file for retrieving it later
+```
+
+Example output:
+
+```json
+{'description': 'My example CSV file',
+'object_type': 'scenario',
+'url': 'https://www.expectedparrot.com/content/17c0e3d3-8d08-4ae0-bc7d-384a56a07e4e',
+'uuid': '17c0e3d3-8d08-4ae0-bc7d-384a56a07e4e',
+'version': '0.1.47.dev1',
+'visibility': 'public'}
+```
+
+Now we can retrieve the file and create scenarios from it:
+
+```python
+fs = FileStore.pull("https://www.expectedparrot.com/content/RobinHorton/my-example-csv-file")
+
+# or equivalently
+fs = FileStore.pull(csv_info["uuid"])
+```
+
+Here we create a ScenarioList object from the CSV file:
+
+```python
+from edsl import ScenarioList
+
+scenarios = ScenarioList.from_csv(fs.to_tempfile())
+```
+
+To inspect the scenarios:
+
+```python
+scenarios # display the scenarios
+```
+
+Output:
+
+| Age | City | Occupation |
+| :--- | :--- | :--- |
+| 25 | New York | Software Engineer |
+| 30 | San Francisco | Teacher |
+| 35 | Chicago | Doctor |
+| 28 | Boston | Data Scientist |
+| 45 | Seattle | Architect |
+
+Alternatively, we can create agents from the CSV file:
+
+```python
+from edsl import AgentList
+
+agents = AgentList.from_csv(fs.to_tempfile())
+```
+
+Learn more about designing agents and using scenarios in the [Agents](/en/latest/agents) and [Scenarios](/en/latest/scenarios) sections.
+
+### PNG example
+
+Here we post and retrieve an image file, and then create a scenario for it. Note that we need to specify the scenario key for the file when we create the scenario. We also need to ensure that we have specified a vision model when using it with a survey (e.g., *gpt-4o*).
+
+To post the file:
+
+```python
+from edsl import FileStore
+
+fs = FileStore("parrot_logo.png") # replace with your own file
+png_info = fs.push(description = "My example PNG file", alias = "my-example-png-file", visibility = "public")
+png_info # display the URL and Coop uuid of the stored file for retrieving it later
+```
+
+Example output:
+
+```json
+{'description': 'My example PNG file',
+'object_type': 'scenario',
+'url': 'https://www.expectedparrot.com/content/b261660e-11a3-4bec-8864-0b6ec76dfbee',
+'uuid': 'b261660e-11a3-4bec-8864-0b6ec76dfbee',
+'version': '0.1.47.dev1',
+'visibility': 'public'}
+```
+
+Here we retrieve the file and then create a Scenario object for it with a key for the placeholder in the questions where we want to use the image:
+
+```python
+from edsl import FileStore
+
+fs = FileStore.pull("https://www.expectedparrot.com/content/RobinHorton/my-example-png-file")
+
+# or equivalently
+fs = FileStore.pull(png_info["uuid"])
+```
+
+Here we create a Scenario object from the image file:
+
+```python
+from edsl import Scenario
+
+image_scenario = Scenario({"parrot_logo": fs}) # specify the key for the image
+
+```
+We can verify the key for the scenario object:
+
+```python
+image_scenario.keys()
+```
+Output:
+
+```python
+['parrot_logo']
+```
+
+To rename a key:
+
+```python
+image_scenario = image_scenario.rename({"parrot_logo": "logo"}) # key = old name, value = new name
+image_scenario.keys()
+```
+
+Output:
+
+```python
+['logo']
+```
+
+To use it in a question, the question should be parameterized with the key:
+
+```python
+from edsl import QuestionFreeText
+
+q = QuestionFreeText(
+    question_name = "test",
+    question_text = "Describe this logo: {{ logo }}"
+)
+```
+
+Here we run the question with the scenario object. Note that we need to use a vision model; here we specify the default model for demonstration purposes and add an agent persona:
+
+```python
+from edsl import Model
+
+model = Model("gpt-4o") # specify a vision model
+
+results = q.by(image_scenario).by(model).run() # run the question with the scenario and model
+```
+Learn more about selecting models in the [Language Models](/en/latest/language_models) section.
+
+Output:
+
+| model | scenario.logo | answer.test |
+| :--- | :--- | :--- |
+| gpt-4 | FileStore: self.path | The logo features a large, stylized letter “E” in a serif font on the left. Next to it, within square brackets, is a colorful parrot. The parrot has a green body, an orange beak, a pink chest, blue lower body, and gray feet. The design combines a classic typographic element with a vibrant, playful illustration. |
+
+### PDF example
+
+Here we download an example PDF from the internet, post and retrieve it from Coop using FileStore and then convert it into a ScenarioList object with the from_pdf() method. The default keys are filename, page, text, which can be modified with the rename method.
+
+To download a PDF file:
+
+```python
+import requests
+
+url = "https://arxiv.org/pdf/2404.11794"
+response = requests.get(url)
+with open("automated_social_scientist.pdf", "wb") as file:
+    file.write(response.content)
+```
+Here we post the file to Coop and inspect the details:
+
+```python
+from edsl import FileStore
+
+fs = FileStore("automated_social_scientist.pdf")
+pdf_info = fs.push(description = "My example PDF file", visibility = "public")
+pdf_info # display the URL and Coop uuid of the stored file for retrieving it later
+```
+Example output:
+
+```json
+{'description': 'My example PDF file',
+'object_type': 'scenario',
+'url': 'https://www.expectedparrot.com/content/e1770915-7e69-436d-b2ca-f0f92c6f56ba',
+'uuid': 'e1770915-7e69-436d-b2ca-f0f92c6f56ba',
+'version': '0.1.47.dev1',
+'visibility': 'public'}
+```
+Now we retrieve the file and create a ScenarioList object from it:
+
+```python
+from edsl import FileStore, ScenarioList
+
+pdf_file = FileStore.pull(pdf_info["uuid"])
+
+scenarios = ScenarioList.from_pdf(pdf_file.to_tempfile())
+```
+To inspect the keys:
+
+```python
+scenarios.parameters
+```
+Output:
+
+```python
+{'filename', 'page', 'text'}
+```
+
+Using the scenarios in a question:
+
+```python
+from edsl import QuestionFreeText
+
+q = QuestionFreeText(
+    question_name = "summary",
+    question_text = "Summarize this page: {{ text }}"
+)
+```
+Each result will contain the text from a page of the PDF file, together with columns for the filename and page number. Run results.columns to see all the components of results.
+
+## FileStore class
+
+> ### *class* edsl.scenarios.FileStore(*path: str | None = None*, *mime_type: str | None = None*, *binary: bool | None = None*, *suffix: str | None = None*, *base64_string: str | None = None*, *external_locations: Dict[str, str] | None = None*, *extracted_text: str | None = None*, ***kwargs*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Bases: [`Scenario`](/en/latest/scenarios "edsl.scenarios.scenario.Scenario")
+
+A specialized Scenario subclass for managing file content and metadata.
+
+FileStore provides functionality for working with files in EDSL, handling various file formats with appropriate encoding, storage, and access methods. It extends Scenario to allow files to be included in surveys, questions, and other EDSL components.
+
+FileStore supports multiple file formats including text, PDF, Word documents, images, and more. It can load files from local paths or URLs, and provides methods for accessing file content, extracting text, and managing file operations.
+
+Key features: - Base64 encoding for portability and serialization - Lazy loading through temporary files when needed - Automatic MIME type detection - Text extraction from various file formats - Format-specific operations through specialized handlers
+
+> **Attributes:**
+
+ _path (str): The original file path. _temp_path (str): Path to any generated temporary file. suffix (str): File extension. binary (bool): Whether the file is binary. mime_type (str): The file’s MIME type. base64_string (str): Base64-encoded file content. external_locations (dict): Dictionary of external locations. extracted_text (str): Text extracted from the file.
+
+> **Examples:**
+
+```python
+>>> import tempfile
+>>> # Create a text file
+>>> with tempfile.NamedTemporaryFile(suffix=".txt", mode="w") as f:
+...     _ = f.write("Hello World")
+...     _ = f.flush()
+...     fs = FileStore(f.name)
+```
+
+\# The following example works locally but is commented out for CI environments # where dependencies like pandoc may not be available: # >>> # FileStore supports various formats # >>> formats = [“txt”, “pdf”, “docx”, “pptx”, “md”, “py”, “json”, “csv”, “html”, “png”, “db”] # >>> _ = [FileStore.example(format) for format in formats]
+
+> #### __init__(*path: str | None = None*, *mime_type: str | None = None*, *binary: bool | None = None*, *suffix: str | None = None*, *base64_string: str | None = None*, *external_locations: Dict[str, str] | None = None*, *extracted_text: str | None = None*, ***kwargs*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Initialize a new FileStore object.
+
+This constructor creates a FileStore object from either a file path or a base64-encoded string representation of file content. It handles automatic detection of file properties like MIME type, extracts text content when possible, and manages file encoding.
+
+> **Args:**
+
+path: Path to the file to load. Can be a local file path or URL. mime_type: MIME type of the file. If not provided, will be auto-detected. binary: Whether the file is binary. Defaults to False. suffix: File extension. If not provided, will be extracted from the path. base64_string: Base64-encoded file content. If provided, the file content
+
+will be loaded from this string instead of the path.
+
+**external_locations: Dictionary mapping location names to URLs or paths where**
+
+the file can also be accessed.
+
+**extracted_text: Pre-extracted text content from the file. If not provided,**
+
+text will be extracted automatically if possible.
+
+[**](/en/latest/#id1)**kwargs: Additional keyword arguments. ‘filename’ can be used as an**
+
+alternative to ‘path’.
+<Note>
+**Note:**
+
+If path is a URL (starts with [http://](http://) or [https://](https://)), the file will be downloaded automatically.
+
+*async* async_upload_google(*refresh: bool = False*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Async version of upload_google that avoids blocking the event loop.
+</Note>
+This method uploads a file to Google’s Generative AI service asynchronously, polls for activation status with exponential backoff, and returns the file info.
+
+**Args:**
+
+refresh: If True, force re-upload even if already uploaded
+
+**Returns:**
+
+Dictionary containing the Google file information
+
+**Raises:**
+
+Exception: If upload fails or file activation fails
+
+> #### *static* base64_to_file(*base64_string*, *is_binary=True*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### *static* base64_to_text_file(*base64_string*) → IO[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### *classmethod* batch_screenshots(*urls: List[str]*, ***kwargs*) → [ScenarioList](/en/latest/scenarios#scenariolist-class "edsl.scenarios.ScenarioList")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Take screenshots of multiple URLs concurrently. Args:
+
+urls: List of URLs to screenshot [**](/en/latest/#id3)kwargs: Additional arguments passed to screenshot function (full_page, wait_until, etc.)
+
+**Returns:**
+
+ScenarioList containing FileStore objects with their corresponding URLs
+
+> #### create_link(*custom_filename=None*, *style=None*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### download_link()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### encode_file_to_base64_string(*file_path: str*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### *classmethod* example(*example_type='txt'*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Returns an example Scenario instance.
+
+> **Args:**
+
+**randomize: If True, adds a random string to the value of the example key**
+
+to ensure uniqueness.
+
+> **Returns:**
+
+A Scenario instance with example data suitable for testing or demonstration.
+
+> **Examples:**
+
+```python
+>>> s = Scenario.example()
+>>> 'persona' in s
+True
+>>> s1 = Scenario.example(randomize=True)
+>>> s2 = Scenario.example(randomize=True)
+>>> s1.data != s2.data  # Should be different due to randomization
+True
+```
+
+> #### extract_text() → str[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### *classmethod* from_dict(*d*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Creates a Scenario from a dictionary, with special handling for FileStore objects.
+
+This method creates a Scenario using the provided dictionary. It has special handling for dictionary values that represent serialized FileStore objects, which it will deserialize back into proper FileStore instances.
+
+> **Args:**
+
+d: A dictionary to convert to a Scenario.
+
+> **Returns:**
+
+A new Scenario containing the provided dictionary data.
+
+> **Examples:**
+
+```python
+>>> Scenario.from_dict({"food": "wood chips"})
+Scenario({'food': 'wood chips'})
+```
+
+```python
+>>> # Example with a serialized FileStore
+>>> from edsl import FileStore
+>>> file_dict = {"path": "example.txt", "base64_string": "SGVsbG8gV29ybGQ="}
+>>> s = Scenario.from_dict({"document": file_dict})
+>>> isinstance(s["document"], FileStore)
+True
+```
+
+> **Notes:**
+
+- Any dictionary values that match the FileStore format will be converted to FileStore objects
+- The method detects FileStore objects by looking for “base64_string” and “path” keys
+- EDSL version information is automatically removed by the @remove_edsl_version decorator
+- This method is commonly used when deserializing scenarios from JSON or other formats
+
+> #### *classmethod* from_url(*url: str*, *download_path: str | None = None*, *mime_type: str | None = None*) → [FileStore](/en/latest/#edsl.scenarios.FileStore "edsl.scenarios.file_store.FileStore")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> **Parameters:**
+
+- **url** – The URL of the file to download.
+- **download_path** – The path to save the downloaded file.
+- **mime_type** – The MIME type of the file. If None, it will be guessed from the file extension.
+
+> #### *classmethod* from_url_screenshot(*url: str*, ***kwargs*) → [FileStore](/en/latest/#edsl.scenarios.FileStore "edsl.scenarios.file_store.FileStore")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Synchronous wrapper for screenshot functionality
+
+> #### get_image_dimensions() → tuple[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Get the dimensions (width, height) of an image file.
+
+> **Returns:**
+
+tuple: A tuple containing the width and height of the image.
+
+> **Raises:**
+
+ValueError: If the file is not an image or PIL is not installed.
+
+> **Examples:**
+```python
+
+>>> fs = FileStore.example("png")
+>>> width, height = fs.get_image_dimensions()
+>>> isinstance(width, int) and isinstance(height, int)
+True
+```
+> #### get_video_metadata() → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Get metadata about a video file such as duration, dimensions, codec, etc. Uses FFmpeg to extract the information if available.
+
+> **Returns:**
+
+dict: A dictionary containing video metadata, or a dictionary with
+
+error information if metadata extraction fails.
+
+> **Raises:**
+
+ValueError: If the file is not a video.
+
+> **Examples:**
+```python
+
+>>> fs = FileStore.example("mp4")
+>>> metadata = fs.get_video_metadata()
+>>> isinstance(metadata, dict)
+True
+```
+> #### is_image() → bool[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Check if the file is an image by examining its MIME type.
+
+> **Returns:**
+
+bool: True if the file is an image, False otherwise.
+
+> **Examples:**
+```python
+
+>>> fs = FileStore.example("png")
+>>> fs.is_image()
+True
+>>> fs = FileStore.example("txt")
+>>> fs.is_image()
+False
+```
+> #### is_video() → bool[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+
+Check if the file is a video by examining its MIME type.
+
+> **Returns:**
+
+bool: True if the file is a video, False otherwise.
+
+> **Examples:**
+```python
+
+>>> fs = FileStore.example("mp4")
+>>> fs.is_video()
+True
+>>> fs = FileStore.example("webm")
+>>> fs.is_video()
+True
+>>> fs = FileStore.example("txt")
+>>> fs.is_video()
+False
+
+offload(*inplace=False*) → [FileStore](/en/latest/#edsl.scenarios.FileStore "edsl.scenarios.file_store.FileStore")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+```
+
+> #### Offloads base64-encoded content from the FileStore by replacing ‘base64_string’ with ‘offloaded’. This reduces memory usage.
+
+> **Args:**
+
+inplace (bool): If True, modify the current FileStore. If False, return a new one.
+
+> **Returns:**
+
+FileStore: The modified FileStore (either self or a new instance).
+
+> #### open() → IO[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### *property* path*: str*[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Returns a valid path to the file content, creating a temporary file if needed.
+
+This property ensures that a valid file path is always available for the file content, even if the original file is no longer accessible or if the FileStore was created from a base64 string without a path. If the original path doesn’t exist, it automatically generates a temporary file from the base64 content.
+
+> **Returns:**
+
+A string containing a valid file path to access the file content.
+
+> **Examples:**
+```python
+
+>>> import tempfile, os
+>>> with tempfile.NamedTemporaryFile(suffix=".txt", mode="w") as f:
+...     _ = f.write("Hello World")
+...     _ = f.flush()
+...     fs = FileStore(f.name)
+...     os.path.isfile(fs.path)
+True
+```
+> **Notes:**
+
+- The path may point to a temporary file that will be cleaned up when the Python process exits
+- Accessing this property may create a new temporary file if needed
+- This property provides a consistent interface regardless of how the FileStore was created (from file or from base64 string)
+
+> #### *classmethod* pull(*url_or_uuid: str | UUID*) → [FileStore](/en/latest/#edsl.scenarios.FileStore "edsl.scenarios.file_store.FileStore")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Pull a FileStore object from Coop.
+
+**Args:**
+
+url_or_uuid: Either a UUID string or a URL pointing to the object expected_parrot_url: Optional URL for the Parrot server
+
+**Returns:**
+
+FileStore: The pulled FileStore object
+
+> #### push(*description: str | None = None*, *alias: str | None = None*, *visibility: str | None = 'unlisted'*, *expected_parrot_url: str | None = None*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Push the object to Coop. :param description: The description of the object to push. :param visibility: The visibility of the object to push.
+
+> #### save_to_gcs_bucket(*signed_url: str*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Saves the FileStore’s file content to a Google Cloud Storage bucket using a signed URL.
+
+**Args:**
+
+signed_url (str): The signed URL for uploading to GCS bucket
+
+**Returns:**
+
+dict: Response from the GCS upload operation
+
+**Raises:**
+
+ValueError: If base64_string is offloaded or missing requests.RequestException: If the upload fails
+
+> #### *property* size*: int*[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### *property* text[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### to_pandas()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Convert the file content to a pandas DataFrame if supported by the file handler.
+
+**Returns:**
+
+pandas.DataFrame: The data from the file as a DataFrame
+
+**Raises:**
+
+AttributeError: If the file type’s handler doesn’t support pandas conversion
+
+> #### to_scenario(*key_name: str | None = None*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### to_tempfile(*suffix=None*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### upload_google(*refresh: bool = False*) → None[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+> #### view() → None[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Display an interactive visualization of this object.
+
+**Returns:**
+
+The result of the dataset’s view method
+
+> #### write(*filename: str | None = None*) → str[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios.py)
+
+Write the file content to disk, either to a specified filename or a temporary file.
+
+**Args:**
+
+filename (Optional[str]): The destination filename. If None, creates a temporary file.
+
+**Returns:**
+
+str: The path to the written file.

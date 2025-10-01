@@ -1,0 +1,162 @@
+---
+title: "Using images in a survey"
+descrition: "This notebook provides sample code for using images with an [EDSL](/en/latest/index) survey."
+---
+
+[EDSL is an open-source library](https://github.com/expectedparrot/edsl) for simulating surveys, experiments and other research with AI agents and large language models. Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Coop account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL and Coop.
+
+## Scenarios
+
+A `Scenario` is a dictionary containing a key/value pair that is used to add data or content to questions in an EDSL survey. Scenarios allow you create variations and versions of questions efficiently, and with data or content from different sources.
+
+EDSL provides a variety of methods for automatically generating scenarios from PDFs, CSVs, docs, tables, lists, dicts – and images. In the steps below we demonstrate how to create a scenario for an image and use it in a survey.
+
+<Note>
+**Note**:
+
+When using images with questions it is necessary to specify a vision model, and to ensure that the model is capable of viewing each image. Always run test questions to ensure that each image is actually readable by the selected models.
+</Note>
+
+[Learn more about working with scenarios](/en/latest/scenarios).
+
+### Creating a scenario
+
+We start by creating a `Scenario` for an image. For purposes of demonstration, we use the `FileStore` module to post a PNG image to the Coop, and then retrieve it and pass it to a `Scenario` (this can be done by [any user with a Coop account](https://www.expectedparrot.com/login)). Note that `FileStore` can be used to post and retrieve all types of files, and will automatically infer the file type.
+
+Here we post a file to Coop:
+
+```python
+from edsl import FileStore
+
+filename = "parrot_logo.png" # file stored locally
+
+fs = FileStore(filename)
+fs.push(
+    description = "My parrot logo image",
+    alias = "my-parrot-logo",
+    visibility = "public"
+)
+```
+
+This returns object info we can now use to retrieve the image:
+
+```json
+{'description': 'My parrot logo image',
+ 'object_type': 'scenario',
+ 'url': 'https://www.expectedparrot.com/content/6bc5aa85-8c58-40b8-ab61-f7b3df9e1409',
+ 'uuid': '6bc5aa85-8c58-40b8-ab61-f7b3df9e1409',
+ 'version': '0.1.47.dev1',
+ 'visibility': 'public'}
+```
+
+Here we retrieve the file (can be replaced with the alias or UUID of any posted object):
+
+```python
+from edsl import FileStore
+
+png_file = FileStore.pull("https://www.expectedparrot.com/content/RobinHorton/my-parrot-logo")
+```
+
+This is equivalent:
+
+```python
+png_file = FileStore.pull("6bc5aa85-8c58-40b8-ab61-f7b3df9e1409")
+```
+
+Here we use the retrieved file in a `Scenario` by creating a key and passing the file as the value. We also (optionally) create a key/value for metadata about the file that we want to keep with the survey results (more on this below):
+
+```python
+from edsl import Scenario
+
+s = Scenario({
+    "parrot_logo": png_file,
+    "filename": "parrot_logo.png" # optional metadata field
+})
+```
+
+## Creating questions using the image
+
+Next we construct questions with the image scenario. Note that we use a `{{ placeholder }}` for the scenario key for the image file. This will cause the image to be automatically be inserted when the survey is run with the scenario. We also pipe the answer to one question into a follow-on question:
+
+```python
+from edsl import QuestionYesNo, QuestionMultipleChoice, QuestionList, Survey
+
+q1 = QuestionYesNo(
+    question_name = "animal",
+    question_text = "Is there an animal in this image? {{ scenario.parrot_logo }}"
+)
+
+q2 = QuestionMultipleChoice(
+    question_name = "identify",
+    question_text = "Identify the animal in this image: {{ scenario.parrot_logo }}",
+    question_options = ["dog", "cat", "bird", "something else"]
+)
+
+q3 = QuestionList(
+    question_name = "colors",
+    question_text = "What color(s) is this {{ identify.answer }}? {{ scenario.parrot_logo }}",
+)
+
+survey = Survey(questions = [q1, q2, q3])
+```
+
+Next we add a rule to stop the survey if the answer to the first question is “No”. This rule and the piping in the questions that follow will cause the questions to be administered in the required order, instead of asynchronously by default (learn more about [piping](/en/latest/surveys#id2) and applygin [survey rules](/en/latest/surveys#key-methods)):
+
+```python
+survey = (
+    survey
+    .add_stop_rule(q1, "{{ animal.answer }} == 'No'")
+)
+```
+
+Next we select a model to generate the responses. Note that we need to use a vision model. You can check available vision models at the Coop [model pricing page](https://www.expectedparrot.com/getting-started/coop-pricing).
+
+```python
+from edsl import Model
+
+m = Model("gemini-1.5-flash", service_name = "google")
+```
+
+We administer the survey in the same way that we do with any other scenarios:
+
+```python
+results = survey.by(s).by(m).run()
+```
+
+We can select any scenario key/value to access in the results that have been generated (e.g., image metadata created):
+
+```python
+results.select("model", "filename", "animal", "identify", "colors", "colors_comment")
+```
+
+|  | model.model | scenario.filename | answer.animal | answer.identify | answer.colors | comment.colors_comment |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | gemini-1.5-flash | parrot_logo.png | Yes | bird | ['green', 'red', 'orange', 'blue'] | The parrot is primarily green, with red, orange (on its beak), and blue on its underside. |
+
+## Posting to Coop
+
+The results of the survey were automatically posted to Coop using remote inference (see link in the job summary above). Here we also post this notebook, as we can any local objects that we want to push to Coop:
+
+
+```python
+from edsl import Notebook
+
+nb = Notebook("image_scenario_example.ipynb")
+
+nb.push(
+    description = "Using an image scenario",
+    alias = "my-parrot-logo-notebook",
+    visibility = "public"
+)
+```
+
+```json
+{'description': 'Using an image scenario',
+ 'object_type': 'notebook',
+ 'url': 'https://www.expectedparrot.com/content/4a0cf8e9-bf88-4f8b-a48a-2d4099634e3a',
+ 'alias_url': 'https://www.expectedparrot.com/content/RobinHorton/my-parrot-logo-notebook',
+ 'uuid': '4a0cf8e9-bf88-4f8b-a48a-2d4099634e3a',
+ 'version': '0.1.61.dev1',
+ 'visibility': 'public'}
+```
+

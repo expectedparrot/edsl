@@ -1,0 +1,1100 @@
+---
+title: "Firecrawl Integration"
+description: "The EDSL Firecrawl integration provides seamless access to the Firecrawl web scraping platform, allowing you to scrape, crawl, search, and extract structured data from web content directly into EDSL Scenarios and ScenarioLists."
+---
+
+## Features
+
+- **Scrape**: Extract clean content from single URLs or batches of URLs
+- **Crawl**: Comprehensively crawl entire websites and extract content from all pages
+- **Search**: Perform web searches and scrape content from search results
+- **Map URLs**: Fast URL discovery without full content extraction
+- **Extract**: AI-powered structured data extraction using schemas or natural language prompts
+
+All methods return EDSL Scenario or ScenarioList objects, making web data immediately ready for survey research, analysis, and other EDSL workflows.
+
+## Installation
+
+Install the required dependencies:
+
+```bash
+pip install firecrawl-py python-dotenv
+```
+
+## Setup
+
+Get your Firecrawl API key from [https://firecrawl.dev](https://firecrawl.dev/) and set it as an environment variable:
+
+```bash
+export FIRECRAWL_API_KEY=your_api_key_here
+```
+
+Or add it to a .env file in your project:
+
+```bash
+FIRECRAWL_API_KEY=your_api_key_here
+```
+
+## Basic Usage
+
+### Quick Start Examples
+
+**Scraping a single URL:**
+
+```python
+from edsl.scenarios.firecrawl_scenario import scrape_url
+
+# Scrape a single URL
+result = scrape_url("https://example.com")
+print(result["content"])  # Scraped markdown content
+print(result["title"])    # Page title
+```
+
+**Scraping multiple URLs:**
+
+```python
+from edsl.scenarios.firecrawl_scenario import scrape_url
+
+# Scrape multiple URLs
+urls = ["https://example.com", "https://example.org"]
+results = scrape_url(urls, max_concurrent=5)
+
+for result in results:
+    print(f"URL: {result['url']}")
+    print(f"Title: {result['title']}")
+    print(f"Content: {result['content'][:100]}...")
+```
+
+**Web search with content extraction:**
+
+```python
+from edsl.scenarios.firecrawl_scenario import search_web
+
+# Search and extract content from results
+results = search_web("python web scraping tutorials")
+
+for result in results:
+    print(f"Title: {result['title']}")
+    print(f"URL: {result['url']}")
+    print(f"Content: {result['content'][:100]}...")
+```
+
+**Crawling an entire website:**
+
+```python
+from edsl.scenarios.firecrawl_scenario import crawl_website
+
+# Crawl a website with limits
+results = crawl_website(
+    "https://docs.example.com",
+    limit=50,                     # Max 50 pages
+    max_depth=3,                  # Max depth of 3
+    include_paths=["/docs/*"]     # Only crawl documentation
+)
+
+print(f"Crawled {len(results)} pages")
+```
+
+**Structured data extraction:**
+
+```python
+from edsl.scenarios.firecrawl_scenario import extract_data
+
+# Define what data to extract
+schema = {
+    "title": "string",
+    "price": "number",
+    "description": "string",
+    "availability": "boolean"
+}
+
+# Extract structured data
+result = extract_data("https://shop.example.com/product", schema=schema)
+extracted = result["extracted_data"]
+print(f"Product: {extracted['title']}")
+print(f"Price: ${extracted['price']}")
+```
+
+## Class-Based API
+
+For more control, use the class-based API:
+
+```python
+### FirecrawlScenario Class
+
+from edsl.scenarios.firecrawl_scenario import FirecrawlScenario
+
+# Initialize with API key (optional if set in environment)
+firecrawl = FirecrawlScenario(api_key="your_key_here")
+
+# Use any method
+result = firecrawl.scrape("https://example.com")
+```
+
+### FirecrawlRequest Class
+
+For distributed processing or when you need to separate request creation from execution:
+
+```python
+from edsl.scenarios.firecrawl_scenario import FirecrawlRequest, FirecrawlScenario
+
+# Create request without executing (useful for distributed systems)
+request = FirecrawlRequest(api_key="your_key")
+request_dict = request.scrape("https://example.com")
+
+# Execute the request later (potentially on a different machine)
+result = FirecrawlScenario.from_request(request_dict)
+```
+
+## Detailed Method Documentation
+
+### Scraping Methods
+
+**scrape_url(url_or_urls, max_concurrent=10, **kwargs)**
+
+Scrape content from one or more URLs.
+
+**Parameters:**
+
+- `url_or_urls`: Single URL string or list of URLs
+- `max_concurrent`: Maximum concurrent requests for batch processing (default: 10)
+- `formats`: List of output formats (default: [“markdown”])
+- `only_main_content`: Extract only main content, skip navigation/ads (default: True)
+- `include_tags`: HTML tags to specifically include
+- `exclude_tags`: HTML tags to exclude
+- `headers`: Custom HTTP headers as dictionary
+- `wait_for`: Time to wait before scraping (milliseconds)
+- `timeout`: Request timeout (milliseconds)
+- `actions`: Browser actions to perform before scraping
+
+**Returns:**
+
+- Single URL: Scenario object with scraped content
+- Multiple URLs: ScenarioList with Scenario objects
+
+**crawl_website(url, **kwargs)**
+
+Crawl an entire website and extract content from all discovered pages.
+
+**Parameters:**
+
+- `url`: Base URL to start crawling from
+- `limit`: Maximum number of pages to crawl
+- `max_depth`: Maximum crawl depth from starting URL
+- `include_paths`: URL path patterns to include (supports wildcards)
+- `exclude_paths`: URL path patterns to exclude
+- `formats`: Output formats for each page (default: [“markdown”])
+- `only_main_content`: Extract only main content (default: True)
+
+**Returns:**
+
+ScenarioList containing Scenario objects for each crawled page
+
+### Search Methods
+
+**search_web(query_or_queries, max_concurrent=5, **kwargs)**
+
+Search the web and extract content from results.
+
+**Parameters:**
+
+- `query_or_queries`: Single search query or list of queries
+- `max_concurrent`: Maximum concurrent requests for batch processing (default: 5)
+- `limit`: Maximum number of search results per query
+- `sources`: Sources to search (e.g., [“web”, “news”, “images”])
+- `location`: Geographic location for localized results
+- `formats`: Output formats for scraped content from results
+
+**Returns:**
+
+ScenarioList containing Scenario objects for each search result
+
+**map_website_urls(url, **kwargs)**
+
+Discover and map all URLs from a website without scraping content (fast URL discovery).
+
+**Parameters:**
+
+- `url`: Base URL to discover links from
+- Additional mapping parameters via kwargs
+
+**Returns:**
+
+ScenarioList containing Scenario objects for each discovered URL
+
+### Extraction Methods
+
+**extract_data(url_or_urls, schema=None, prompt=None, **kwargs)**
+
+Extract structured data from web pages using AI-powered analysis.
+
+**Parameters:**
+
+- `url_or_urls`: Single URL string or list of URLs
+- `schema`: JSON schema defining data structure to extract
+- `prompt`: Natural language description of what to extract
+- `max_concurrent`: Maximum concurrent requests for batch processing (default: 5)
+- `formats`: Output formats for scraped content before extraction
+
+**Returns:**
+
+- Single URL: Scenario object with extracted structured data
+- Multiple URLs: ScenarioList with Scenario objects
+
+Note: Either `schema` or `prompt` should be provided. Schema takes precedence if both are given.
+
+## Working with Results
+
+### Scenario Fields
+
+All methods return Scenario or ScenarioList objects with standardized fields:
+
+**Common fields for all methods:**
+
+- `url`: The scraped/crawled/searched URL
+- `title`: Page title (when available)
+- `description`: Page description (when available)
+- `content`: Primary content (usually markdown format)
+- `status_code`: HTTP status code (when available)
+
+**Scraping-specific fields:**
+
+- `scrape_status`: “success” or “error”
+- `markdown`: Markdown content
+- `html`: HTML content (if requested)
+- `links`: Extracted links (if requested)
+- `screenshot`: Screenshot data (if requested)
+- `metadata`: Full page metadata
+
+**Search-specific fields:**
+
+- `search_query`: The original search query
+- `search_status`: “success” or “error”
+- `result_type`: “web”, “news”, or “image”
+- `position`: Result position in search results
+
+**Extraction-specific fields:**
+
+- `extract_status`: “success” or “error”
+- `extracted_data`: The structured data extracted by AI
+- `extraction_prompt`: The prompt used (if any)
+- `extraction_schema`: The schema used (if any)
+
+**Crawl-specific fields:**
+
+- `crawl_status`: “success” or “error”
+
+**URL mapping fields:**
+
+- `discovered_url`: The discovered URL
+- `source_url`: The URL it was discovered from
+- `map_status`: “success” or “error”
+
+## Advanced Usage
+
+### Concurrent Processing
+
+All batch methods support concurrent processing to speed up large operations:
+
+```python
+# Scrape 100 URLs with 20 concurrent requests
+results = scrape_url(urls, max_concurrent=20)
+
+# Search multiple queries concurrently
+queries = ["AI research", "machine learning", "data science"]
+results = search_web(queries, max_concurrent=3)
+```
+
+### Custom Formats and Options
+
+Specify different output formats and extraction options:
+
+```python
+# Get both markdown and HTML content
+result = scrape_url(
+    "https://example.com",
+    formats=["markdown", "html"],
+    only_main_content=False,
+    include_tags=["article", "main"],
+    exclude_tags=["nav", "footer"]
+)
+
+# Access different formats
+print(result["markdown"])  # Markdown content
+print(result["html"])      # HTML content
+```
+
+### Complex Crawling Scenarios
+
+Advanced crawling with path filtering:
+
+```python
+# Crawl documentation site with specific constraints
+results = crawl_website(
+    "https://docs.example.com",
+    limit=100,
+    max_depth=3,
+    include_paths=["/docs/*", "/api/*", "/tutorials/*"],
+    exclude_paths=["/docs/deprecated/*", "/docs/v1/*"],
+    formats=["markdown", "html"]
+)
+
+# Filter results by content type
+api_docs = [r for r in results if "/api/" in r["url"]]
+tutorials = [r for r in results if "/tutorials/" in r["url"]]
+```
+
+### Schema-Based vs Prompt-Based Extraction
+
+**Using JSON schemas for structured extraction:**
+
+```python
+# Define precise data structure
+product_schema = {
+    "name": "string",
+    "price": "number",
+    "rating": "number",
+    "availability": "boolean",
+    "features": ["string"],
+    "specifications": {
+        "dimensions": "string",
+        "weight": "string",
+        "color": "string"
+    }
+}
+
+result = extract_data("https://shop.example.com/product", schema=product_schema)
+product_data = result["extracted_data"]
+```
+
+**Using natural language prompts:**
+
+```python
+# Extract with natural language
+result = extract_data(
+    "https://news.example.com/article",
+    prompt="Extract the article headline, author name, publication date, and key topics discussed"
+)
+
+article_data = result["extracted_data"]
+print(f"Headline: {article_data['headline']}")
+print(f"Author: {article_data['author']}")
+```
+
+## Error Handling
+
+The integration handles errors gracefully by returning Scenario objects with error information:
+
+```python
+results = scrape_url(["https://valid-url.com", "https://invalid-url.com"])
+
+for result in results:
+    if result.get("scrape_status") == "error":
+        print(f"Error scraping {result['url']}: {result['error']}")
+    else:
+        print(f"Successfully scraped {result['url']}")
+```
+
+## Integration with EDSL Workflows
+
+The firecrawl integration seamlessly integrates with other EDSL components:
+
+### Using with Surveys
+
+```python expandable
+from edsl import QuestionFreeText, Survey
+from edsl.scenarios.firecrawl_scenario import scrape_url
+
+# Scrape content to create scenarios
+scenarios = scrape_url([
+    "https://news1.com/article1",
+    "https://news2.com/article2"
+])
+
+# Create survey questions about the content
+q1 = QuestionFreeText(
+    question_name="summary",
+    question_text="Summarize the main points of this article: {`{ content }`}"
+)
+
+q2 = QuestionFreeText(
+    question_name="sentiment",
+    question_text="What is the overall sentiment of this article?"
+)
+
+survey = Survey(questions=[q1, q2])
+
+# Run survey with scraped content as scenarios
+results = survey.by(scenarios).run()
+```
+
+### Content Analysis Pipeline
+
+```python expandable
+from edsl.scenarios.firecrawl_scenario import search_web, extract_data
+
+# 1. Search for relevant content
+search_results = search_web("climate change research 2024", limit=10)
+
+# 2. Extract structured data from search results
+extraction_schema = {
+    "findings": "string",
+    "methodology": "string",
+    "publication_date": "string",
+    "authors": ["string"]
+}
+
+urls = [result["url"] for result in search_results if result["search_status"] == "success"]
+extracted_data = extract_data(urls, schema=extraction_schema)
+
+# 3. Use in EDSL survey for analysis
+survey = Survey([
+    QuestionFreeText(
+        question_name="significance",
+        question_text="Rate the significance of these findings: {`{ extracted_data }`}"
+    )
+])
+
+analysis_results = survey.by(extracted_data).run()
+```
+
+## Distributed Processing
+
+For large-scale operations, use the request/response pattern for distributed processing:
+
+```python expandable
+from edsl.scenarios.firecrawl_scenario import (
+    create_scrape_request,
+    create_search_request,
+    execute_request
+)
+
+# Create serializable requests (can be sent to workers, APIs, etc.)
+requests = [
+    create_scrape_request("https://example1.com"),
+    create_scrape_request("https://example2.com"),
+    create_search_request("machine learning tutorials")
+]
+
+# Execute requests (potentially on different machines/processes)
+results = []
+for request in requests:
+    result = execute_request(request)
+    results.append(result)
+```
+
+## Best Practices
+
+### Performance Optimization
+
+1. **Use appropriate concurrency limits** - Start with defaults and adjust based on your needs and rate limits
+2. **Filter early** - Use include/exclude paths in crawling to avoid unnecessary requests
+3. **Choose optimal formats** - Only request formats you actually need
+4. **Batch operations** - Process multiple URLs/queries together when possible
+
+### Rate Limiting
+
+1. **Respect rate limits** - Firecrawl has rate limits based on your plan
+2. **Adjust concurrency** - Lower max_concurrent values if you hit rate limits
+3. **Monitor costs** - Each request consumes Firecrawl credits
+
+### Content Quality
+
+1. **Use only_main_content=True** - Filters out navigation, ads, and other noise
+2. **Specify include/exclude tags** - Fine-tune content extraction
+3. **Choose appropriate formats** - Markdown for text analysis, HTML for detailed parsing
+
+### Error Resilience
+
+1. **Check status fields** - Always check scrape_status, search_status, etc.
+2. **Handle partial failures** - Some URLs in a batch may fail while others succeed
+3. **Implement retries** - For critical operations, implement retry logic for failed requests
+
+### Cost Management
+
+1. **Use URL mapping first** - Discover URLs with map_website_urls before full crawling
+2. **Set reasonable limits** - Use limit and max_depth parameters to control crawl scope
+3. **Cache results** - Store results locally to avoid re-scraping the same content
+
+## Troubleshooting
+
+### Common Issues
+
+**“FIRECRAWL_API_KEY not found” error:**
+
+- Ensure your API key is set as an environment variable or in a .env file
+- Verify the key is valid and active at [https://firecrawl.dev](https://firecrawl.dev/)
+
+**Rate limit errors:**
+
+- Reduce max_concurrent parameter
+- Check your Firecrawl plan limits
+- Implement delays between requests if needed
+
+**Empty or poor quality content:**
+
+- Try only_main_content=False for more content
+- Adjust include_tags/exclude_tags parameters
+- Some sites may have anti-scraping measures
+
+**Slow performance:**
+
+- Increase max_concurrent for batch operations
+- Use URL mapping to discover URLs faster than full crawling
+- Consider using search instead of crawling for content discovery
+
+**Memory usage with large crawls:**
+
+- Use limit parameter to control crawl size
+- Process results in batches rather than storing everything in memory
+- Consider using the request/response pattern for distributed processing
+
+### Getting Help
+
+- Check the [Firecrawl documentation](https://docs.firecrawl.dev/) for API-specific issues
+- Review EDSL documentation for Scenario and ScenarioList usage
+- Ensure your firecrawl-py package is up to date: `pip install --upgrade firecrawl-py`
+
+## API Reference
+
+### Convenience Functions
+
+> #### edsl.scenarios.firecrawl_scenario.scrape_url(*url_or_urls: str | List[str]*, ***kwargs*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Convenience function to scrape single URL or multiple URLs.
+
+> #### edsl.scenarios.firecrawl_scenario.crawl_website(*url: str*, ***kwargs*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Convenience function to crawl a website.
+
+> #### edsl.scenarios.firecrawl_scenario.search_web(*query_or_queries: str | List[str]*, ***kwargs*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Convenience function to search the web with single query or multiple queries.
+
+> #### edsl.scenarios.firecrawl_scenario.map_website_urls(*url: str*, ***kwargs*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Convenience function to map website URLs.
+
+> #### edsl.scenarios.firecrawl_scenario.extract_data(*url_or_urls: str | List[str]*, ***kwargs*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Convenience function to extract structured data from single URL or multiple URLs.
+
+### Classes
+
+> #### *class* edsl.scenarios.firecrawl_scenario.FirecrawlScenario(*api_key: str | None = None*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+EDSL integration for Firecrawl web scraping and data extraction.
+
+This class provides methods to use all Firecrawl features and return results as EDSL Scenario and ScenarioList objects.
+
+> ##### crawl(*url: str*, *limit: int | None = 10*, *max_depth: int | None = 3*, *include_paths: List[str] | None = None*, *exclude_paths: List[str] | None = None*, *formats: List[str] | None = None*, *only_main_content: bool = True*, *scrape_options: Dict[str, Any] | None = None*, *return_credits: bool = False*, ***kwargs*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Crawl a website and return a ScenarioList with all pages.
+
+**Args:**
+
+url: Base URL to crawl limit: Maximum number of pages to crawl max_depth: Maximum crawl depth (now max_discovery_depth) include_paths: URL patterns to include exclude_paths: URL patterns to exclude formats: List of formats to return for each page only_main_content: Whether to extract only main content [**](/en/latest/#id1)kwargs: Additional parameters passed to Firecrawl
+
+**Returns:**
+
+ScenarioList containing scenarios for each crawled page
+
+> ##### extract(*url_or_urls: str | List[str]*, *schema: Dict[str, Any] | None = None*, *prompt: str | None = None*, *max_concurrent: int = 5*, *limit: int | None = None*, *scrape_options: Dict[str, Any] | None = None*, *return_credits: bool = False*, ***kwargs*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Smart extract method that handles both single URLs and batches.
+
+**Args:**
+
+url_or_urls: Single URL string or list of URLs schema: JSON schema for structured extraction prompt: Natural language prompt for extraction max_concurrent: Maximum concurrent requests for batch processing [**](/en/latest/#id3)kwargs: Additional parameters passed to extract method
+
+**Returns:**
+
+Scenario object for single URL, ScenarioList for multiple URLs, or (object, credits) if return_credits=True
+
+> #### *classmethod* from_request(*request_dict: Dict[str, Any]*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Execute a serialized Firecrawl request and return results.
+
+This method allows for distributed processing where requests are serialized, sent to an API, reconstituted here, executed, and results returned.
+
+**Args:**
+
+request_dict: Dictionary containing the serialized request
+
+**Returns:**
+
+Scenario or ScenarioList depending on the method and input
+
+> #### map_urls(*url: str*, *limit: int | None = None*, *return_credits: bool = False*, ***kwargs*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Get all URLs from a website (fast URL discovery).
+
+> **Args:**
+
+url: Website URL to map limit: Maximum number of URLs to discover and map. If None, discovers all
+
+> available linked URLs. Defaults to None.
+
+> ** [**](/en/latest/#id5)kwargs: Additional parameters passed to Firecrawl
+
+**Returns:**
+
+ScenarioList containing scenarios for each discovered URL
+
+> ##### search(*query_or_queries: str | List[str]*, *max_concurrent: int = 5*, *limit: int | None = None*, *sources: List[str] | None = None*, *location: str | None = None*, *scrape_options: Dict[str, Any] | None = None*, *return_credits: bool = False*, ***kwargs*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Smart search method that handles both single queries and batches.
+
+**Args:**
+
+query_or_queries: Single query string or list of queries max_concurrent: Maximum concurrent requests for batch processing [**](/en/latest/#id9)kwargs: Additional parameters passed to search method
+
+**Returns:**
+
+ScenarioList for both single and multiple queries, or (ScenarioList, credits) if return_credits=True
+
+> #### *class* edsl.scenarios.firecrawl_scenario.FirecrawlRequest(*api_key: str | None = None*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Firecrawl request class that can operate in two modes:
+
+1. With API key present: Automatically executes requests via FirecrawlScenario and returns results
+2. Without API key: Can be used as a descriptor/placeholder, raises exception when methods are called
+
+This supports both direct execution and distributed processing patterns.
+
+> ##### crawl(*url: str*, *limit: int | None = 10*, *max_depth: int | None = 3*, *include_paths: List[str] | None = None*, *exclude_paths: List[str] | None = None*, *formats: List[str] | None = None*, *only_main_content: bool = True*, ***kwargs*) → Dict[str, Any][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Crawl an entire website and extract content from all discovered pages.
+
+This method performs comprehensive website crawling, discovering and scraping content from multiple pages within a website. When an API key is present, it executes the crawl and returns a ScenarioList with all pages. Without an API key, it raises an exception.
+
+> **Args:**
+
+**url: Base URL to start crawling from. Should be a valid HTTP/HTTPS URL.**
+
+The crawler will discover and follow links from this starting point.
+
+**limit: Maximum number of pages to crawl. If None, crawls all discoverable**
+
+pages (subject to other constraints). Use this to control crawl scope.
+
+**max_depth: Maximum crawl depth from the starting URL. Depth 0 is just the**
+
+starting page, depth 1 includes pages directly linked from the start, etc. If None, no depth limit is imposed.
+
+**include_paths: List of URL path patterns to include in the crawl. Only URLs**
+
+matching these patterns will be crawled. Supports wildcard patterns.
+
+**exclude_paths: List of URL path patterns to exclude from the crawl. URLs**
+
+matching these patterns will be skipped. Applied after include_paths.
+
+**formats: List of output formats for each crawled page (e.g., [“markdown”, “html”]).**
+
+Defaults to [“markdown”] if not specified.
+
+only_main_content: Whether to extract only main content from each page,
+
+skipping navigation, ads, footers, etc. Defaults to True.
+
+[**](/en/latest/#id11)kwargs: Additional crawling parameters passed to the Firecrawl API.
+
+> **Returns:**
+
+**When API key is present:**
+
+ScenarioList containing Scenario objects for each crawled page. Each scenario includes the page content, URL, title, and metadata.
+
+When API key is missing: Raises ValueError
+
+> **Raises:**
+
+ValueError: If FIRECRAWL_API_KEY is not found in environment, parameters,
+
+or .env file.
+
+> **Examples:**
+
+> **Basic website crawl:**
+
+```python
+>>> firecrawl = FirecrawlRequest(api_key="your_key")
+>>> results = firecrawl.crawl("https://example.com")
+>>> print(f"Crawled {len(results)} pages")
+>>> for page in results:
+...     print(f"Page: {page['url']} - {page['title']}")
+```
+
+> **Limited crawl with constraints:**
+
+```python
+>>> results = firecrawl.crawl(
+...     "https://docs.example.com",
+...     limit=50,
+...     max_depth=3,
+...     include_paths=["/docs/*", "/api/*"],
+...     exclude_paths=["/docs/deprecated/*"]
+... )
+```
+
+> **Full content crawl with multiple formats:**
+
+```python
+>>> results = firecrawl.crawl(
+...     "https://blog.example.com",
+...     formats=["markdown", "html"],
+...     only_main_content=False,
+...     limit=100
+... )
+>>> for post in results:
+...     print(f"Title: {post['title']}")
+...     print(f"Content length: {len(post['content'])}")
+```
+
+> #### extract(*url_or_urls: str | List[str]*, *schema: Dict[str, Any] | None = None*, *prompt: str | None = None*, *max_concurrent: int = 5*, *limit: int | None = None*, ***kwargs*) → Dict[str, Any][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Extract structured data from web pages using AI-powered analysis.
+
+This method uses AI to extract specific information from web pages based on either a JSON schema or natural language prompt. When an API key is present, it executes the extraction and returns structured data. Without an API key, it raises an exception.
+
+> **Args:**
+
+**url_or_urls: Single URL string or list of URLs to extract data from.**
+
+Each URL should be a valid HTTP/HTTPS URL.
+
+**schema: JSON schema defining the structure of data to extract. Should be**
+
+a dictionary with field names and their types/descriptions. Takes precedence over prompt if both are provided.
+
+**prompt: Natural language description of what data to extract. Used when**
+
+schema is not provided. Should be clear and specific.
+
+**max_concurrent: Maximum number of concurrent requests when processing multiple**
+
+URLs. Only applies when url_or_urls is a list. Defaults to 5.
+
+**limit: Maximum number of URLs to extract data from when url_or_urls is a list.**
+
+If None, extracts from all provided URLs. Defaults to None.
+
+[**](/en/latest/#id13)**kwargs: Additional extraction parameters:**
+
+**formats: List of output formats for the scraped content before extraction**
+
+(e.g., [“markdown”, “html”]).
+
+> **Returns:**
+
+**When API key is present:**
+
+- For single URL: Scenario object containing extracted structured data
+- For multiple URLs: ScenarioList containing Scenario objects
+
+Each result includes the extracted data in the ‘extracted_data’ field.
+
+When API key is missing: Raises ValueError
+
+> **Raises:**
+
+ValueError: If FIRECRAWL_API_KEY is not found in environment, parameters,
+
+or .env file.
+
+> **Examples:**
+
+> **Schema-based extraction:**
+
+```python
+>>> schema = {
+...     "title": "string",
+...     "price": "number",
+...     "description": "string",
+...     "availability": "boolean"
+... }
+>>> firecrawl = FirecrawlRequest(api_key="your_key")
+>>> result = firecrawl.extract("https://shop.example.com/product", schema=schema)
+>>> print(result["extracted_data"]["title"])
+```
+
+> **Prompt-based extraction:**
+
+```python
+>>> result = firecrawl.extract(
+...     "https://news.example.com/article",
+...     prompt="Extract the article headline, author, and publication date"
+... )
+>>> print(result["extracted_data"])
+```
+
+> **Multiple URLs with schema:**
+
+```python
+>>> urls = ["https://shop1.com/item1", "https://shop2.com/item2"]
+>>> results = firecrawl.extract(
+...     urls,
+...     schema={"name": "string", "price": "number"},
+...     max_concurrent=3,
+...     limit=2
+... )
+>>> for result in results:
+...     data = result["extracted_data"]
+...     print(f"{data['name']}: ${data['price']}")
+```
+
+> #### map_urls(*url: str*, *limit: int | None = None*, ***kwargs*) → Dict[str, Any][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Discover and map all URLs from a website without scraping content.
+
+This method performs fast URL discovery to map the structure of a website without downloading and processing the full content of each page. When an API key is present, it executes the mapping and returns discovered URLs. Without an API key, it raises an exception.
+
+> **Args:**
+
+**url: Base URL to discover links from. Should be a valid HTTP/HTTPS URL.**
+
+The mapper will analyze this page and discover all linked URLs.
+
+**limit: Maximum number of URLs to discover and map. If None, discovers all**
+
+available linked URLs. Defaults to None.
+
+[**](/en/latest/#id15)**kwargs: Additional mapping parameters passed to the Firecrawl API.**
+
+Common options may include depth limits or filtering criteria.
+
+> **Returns:**
+
+**When API key is present:**
+
+ScenarioList containing Scenario objects for each discovered URL. Each scenario includes the discovered URL, source URL, and any available metadata (title, description) without full content.
+
+When API key is missing: Raises ValueError
+
+> **Raises:**
+
+ValueError: If FIRECRAWL_API_KEY is not found in environment, parameters,
+
+or .env file.
+
+> **Examples:**
+
+> **Basic URL mapping:**
+
+```python
+>>> firecrawl = FirecrawlRequest(api_key="your_key")
+>>> urls = firecrawl.map_urls("https://example.com")
+>>> print(f"Discovered {len(urls)} URLs")
+>>> for url_info in urls:
+...     print(f"URL: {url_info['discovered_url']}")
+...     if 'title' in url_info:
+...         print(f"Title: {url_info['title']}")
+```
+
+> **Website structure analysis:**
+
+```python
+>>> urls = firecrawl.map_urls("https://docs.example.com", limit=100)
+>>> # Group URLs by path pattern
+>>> doc_urls = [u for u in urls if '/docs/' in u['discovered_url']]
+>>> api_urls = [u for u in urls if '/api/' in u['discovered_url']]
+>>> print(f"Documentation pages: {len(doc_urls)}")
+>>> print(f"API reference pages: {len(api_urls)}")
+```
+
+> **Link discovery for targeted crawling:**
+
+```python
+>>> # First map URLs to understand site structure
+>>> all_urls = firecrawl.map_urls("https://blog.example.com")
+>>> # Then crawl specific sections
+>>> blog_posts = [u['discovered_url'] for u in all_urls
+...               if '/posts/' in u['discovered_url']]
+>>> # Use discovered URLs for targeted scraping
+>>> content = firecrawl.scrape(blog_posts[:10])
+```
+
+> #### scrape(*url_or_urls: str | List[str]*, *max_concurrent: int = 10*, *limit: int | None = None*, ***kwargs*) → Dict[str, Any][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Scrape content from one or more URLs using Firecrawl.
+
+This method extracts clean, structured content from web pages. When an API key is present, it automatically executes the request and returns Scenario objects. Without an API key, it raises an exception when called.
+
+> **Args:**
+
+**url_or_urls: Single URL string or list of URLs to scrape. Each URL should**
+
+be a valid HTTP/HTTPS URL.
+
+**max_concurrent: Maximum number of concurrent requests when scraping multiple**
+
+URLs. Only applies when url_or_urls is a list. Defaults to 10.
+
+**limit: Maximum number of URLs to scrape when url_or_urls is a list. If None,**
+
+scrapes all provided URLs. Defaults to None.
+
+[**](/en/latest/#id17)**kwargs: Additional scraping parameters:**
+
+**formats: List of output formats (e.g., [“markdown”, “html”, “links”]).**
+
+Defaults to [“markdown”].
+
+**only_main_content: Whether to extract only main content, skipping**
+
+navigation, ads, etc. Defaults to True.
+
+include_tags: List of HTML tags to specifically include in extraction. exclude_tags: List of HTML tags to exclude from extraction. headers: Custom HTTP headers as a dictionary. wait_for: Time to wait before scraping in milliseconds. timeout: Request timeout in milliseconds. actions: List of browser actions to perform before scraping
+
+(e.g., clicking, scrolling).
+
+> **Returns:**
+
+**When API key is present:**
+
+- For single URL: Scenario object containing scraped content
+- For multiple URLs: ScenarioList containing Scenario objects
+
+When API key is missing: Raises ValueError
+
+> **Raises:**
+
+ValueError: If FIRECRAWL_API_KEY is not found in environment, parameters,
+
+or .env file.
+
+> **Examples:**
+
+> **Basic scraping:**
+
+```python
+>>> firecrawl = FirecrawlRequest(api_key="your_key")
+>>> result = firecrawl.scrape("https://example.com")
+>>> print(result["content"])  # Scraped markdown content
+```
+
+> **Multiple URLs with custom options:**
+
+```python
+>>> urls = ["https://example.com", "https://example.org"]
+>>> results = firecrawl.scrape(
+...     urls,
+...     max_concurrent=5,
+...     limit=2,
+...     formats=["markdown", "html"],
+...     only_main_content=False
+... )
+```
+
+> **Descriptor pattern (no API key):**
+
+```python
+>>> class MyClass:
+...     scraper = FirecrawlRequest()  # No exception here
+>>> # my_instance.scraper.scrape("url")  # Would raise ValueError
+```
+
+> #### search(*query_or_queries: str | List[str]*, *max_concurrent: int = 5*, *limit: int | None = None*, ***kwargs*) → Dict[str, Any][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Search the web and extract content from results using Firecrawl.
+
+This method performs web searches and automatically scrapes content from the search results. When an API key is present, it executes the search and returns ScenarioList objects with the results. Without an API key, it raises an exception.
+
+> **Args:**
+
+> **query_or_queries: Single search query string or list of queries to search for.**
+
+Each query should be a natural language search term.
+
+> **max_concurrent: Maximum number of concurrent requests when processing multiple**
+
+queries. Only applies when query_or_queries is a list. Defaults to 5.
+
+> **limit: Maximum number of search results to return per query. If None, returns**
+
+all available results. Defaults to None.
+
+> [**](/en/latest/#id19)**kwargs: Additional search parameters:**
+
+**sources: List of sources to search (e.g., [“web”, “news”, “images”]).**
+
+Defaults to [“web”].
+location: Geographic location for localized search results. formats: List of output formats for scraped content from results
+
+(e.g., [“markdown”, “html”]).
+
+> **Returns:**
+
+**When API key is present:**
+
+ScenarioList containing Scenario objects for each search result. Each scenario includes search metadata (query, position, result type) and scraped content from the result URL.
+
+When API key is missing: Raises ValueError
+
+> **Raises:**
+
+**ValueError: If FIRECRAWL_API_KEY is not found in environment, parameters,**
+
+or .env file.
+
+> **Examples:**
+
+> **Basic web search:**
+
+```python
+>>> firecrawl = FirecrawlRequest(api_key="your_key")
+>>> results = firecrawl.search("python web scraping")
+>>> for result in results:
+...     print(f"Title: {result['title']}")
+...     print(f"Content: {result['content'][:100]}...")
+```
+
+Multiple queries with options:
+
+```python
+>>> queries = ["AI research", "machine learning trends"]
+>>> results = firecrawl.search(
+...     queries,
+...     limit=5,
+...     sources=["web", "news"],
+...     location="US"
+... )
+```
+
+News search with custom formatting:
+
+```python
+>>> results = firecrawl.search(
+...     "climate change news",
+...     sources=["news"],
+...     formats=["markdown", "html"]
+... )
+```
+
+### Request Creation Functions
+
+> #### edsl.scenarios.firecrawl_scenario.create_scrape_request(*url_or_urls: str | List[str]*, *api_key: str | None = None*, ***kwargs*) → Dict[str, Any][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Create a serializable scrape request.
+
+> #### edsl.scenarios.firecrawl_scenario.create_search_request(*query_or_queries: str | List[str]*, *api_key: str | None = None*, ***kwargs*) → Dict[str, Any][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Create a serializable search request.
+
+> #### edsl.scenarios.firecrawl_scenario.create_extract_request(*url_or_urls: str | List[str]*, *api_key: str | None = None*, ***kwargs*) → Dict[str, Any][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Create a serializable extract request.
+
+> #### edsl.scenarios.firecrawl_scenario.create_crawl_request(*url: str*, *api_key: str | None = None*, ***kwargs*) → Dict[str, Any][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Create a serializable crawl request.
+
+> #### edsl.scenarios.firecrawl_scenario.create_map_request(*url: str*, *api_key: str | None = None*, ***kwargs*) → Dict[str, Any][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Create a serializable map_urls request.
+
+> #### edsl.scenarios.firecrawl_scenario.execute_request(*request_dict: Dict[str, Any]*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
+
+Execute a serialized Firecrawl request and return results.
+
