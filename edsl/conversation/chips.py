@@ -1,13 +1,13 @@
 from typing import Optional
 
-from .. import Agent, AgentList, QuestionFreeText
-from .. import Cache
-from .. import QuestionList
-from .. import Model
+from edsl import Agent, AgentList, QuestionFreeText
+from edsl import Cache
+from edsl import QuestionList
+from edsl import Model
 
-from .Conversation import Conversation, ConversationList
+from edsl.conversation.Conversation import Conversation, ConversationList
 
-m = Model("gemini-2.0-flash")
+m = Model("gemini-2.5-flash", service = "google")
 
 
 class ChipLover(Agent):
@@ -51,45 +51,46 @@ a1 = ChipLover(
 a2 = ChipLover(
     name="Bob",
     chip_values={"Green": 7, "Blue": 1, "Red": 0},
+    model=Model("gemini-2.0-flash"),
     initial_chips={"Green": 1, "Blue": 2, "Red": 3},
 )
 
-c1 = Conversation(agent_list=AgentList([a1, a2]), max_turns=10, verbose=True)
-c2 = Conversation(agent_list=AgentList([a1, a2]), max_turns=10, verbose=True)
+c1 = Conversation(agent_list=AgentList([a1, a2]), max_turns=2, verbose=True)
+#c2 = Conversation(agent_list=AgentList([a1, a2]), max_turns=10, verbose=True)
 
-with Cache() as c:
-    combo = ConversationList([c1, c2], cache=c)
-    combo.run()
-    results = combo.to_results()
-    results.select("conversation_index", "index", "agent_name", "dialogue").print(
-        format="rich"
-    )
+combo = ConversationList([c1])
+combo.run()
 
-    q = QuestionFreeText(
-        question_text="""This was a conversation/negotiation: {{ transcript }}. 
-                        What trades occurred in the conversation?
-                        """,
-        question_name="trades",
-    )
+    # results = combo.to_results()
+    # results.select("conversation_index", "index", "agent_name", "dialogue").print(
+    #     format="rich"
+    # )
 
-    q_actors = QuestionList(
-        question_text="""Here is a transcript: {{ transcript }}. 
-                        Who were the actors in the conversation?
-                        """,
-        question_name="actors",
-    )
+    # q = QuestionFreeText(
+    #     question_text="""This was a conversation/negotiation: {{ transcript }}. 
+    #                     What trades occurred in the conversation?
+    #                     """,
+    #     question_name="trades",
+    # )
 
-    from .. import QuestionList
+    # q_actors = QuestionList(
+    #     question_text="""Here is a transcript: {{ transcript }}. 
+    #                     Who were the actors in the conversation?
+    #                     """,
+    #     question_name="actors",
+    # )
 
-    q_transfers = QuestionList(
-        question_text="""This was a conversation/negotiation: {{ transcript }}. 
-                        Extract all offers and their outcomes.
-                        Use this format: {'proposing_agent':"Alice": 'receiving_agent': "Bob", 'gives':{"Green": 1, "Blue": 2}, 'receives':{"Green": 2, "Blue": 1}, 'accepted':True}
-                        """,
-        question_name="transfers",
-    )
+    # from .. import QuestionList
 
-    transcript_analysis = (
-        q.add_question(q_actors).add_question(q_transfers).by(combo.summarize()).run()
-    )
-    transcript_analysis.select("trades", "actors", "transfers").print(format="rich")
+    # q_transfers = QuestionList(
+    #     question_text="""This was a conversation/negotiation: {{ transcript }}. 
+    #                     Extract all offers and their outcomes.
+    #                     Use this format: {'proposing_agent':"Alice": 'receiving_agent': "Bob", 'gives':{"Green": 1, "Blue": 2}, 'receives':{"Green": 2, "Blue": 1}, 'accepted':True}
+    #                     """,
+    #     question_name="transfers",
+    # )
+
+    # transcript_analysis = (
+    #     q.add_question(q_actors).add_question(q_transfers).by(combo.summarize()).run()
+    # )
+    # transcript_analysis.select("trades", "actors", "transfers").print(format="rich")

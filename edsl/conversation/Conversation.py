@@ -204,7 +204,6 @@ What do you say next?"""
     async def get_next_statement(self, *, index, speaker, conversation) -> "Result":
         """Get the next statement from the speaker."""
         q = self.next_statement_question
-        # assert q.parameters == {"agent_name", "conversation"}, q.parameters
         from .. import Scenario
 
         if self.per_round_message_template is None:
@@ -224,9 +223,8 @@ What do you say next?"""
             }
         )
         jobs = q.by(s).by(speaker).by(speaker.model)
-        jobs.show_prompts()
         results = await jobs.run_async(
-            cache=self.cache, disable_remote_inference=self.disable_remote_inference
+            disable_remote_inference=self.disable_remote_inference
         )
         return results[0]
 
@@ -237,18 +235,15 @@ What do you say next?"""
         i = 0
         while await self.continue_conversation():
             speaker = self.next_speaker()
-
-            next_statement = AgentStatement(
-                statement=await self.get_next_statement(
-                    index=i,
-                    speaker=speaker,
-                    conversation=self.agent_statements.transcript,
-                )
+            result_statement = await self.get_next_statement(
+                index=i,
+                speaker=speaker,
+                conversation=self.agent_statements.transcript,
             )
+            next_statement = AgentStatement(statement=result_statement)
             self.agent_statements.append(next_statement)
             if self.verbose:
-                print(f"'{speaker.name}':{next_statement.text}")
-                print("\n")
+                print(f"'{speaker.name}': {next_statement.text}")
             i += 1
 
 
