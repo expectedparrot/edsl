@@ -1,0 +1,284 @@
+---
+title: "Testing model training data"
+description: "This notebook provides a template for prompting an AI agent to answer questions from a point in time and testing that knowledge for data leaks."
+---
+
+The code is readily editable. Before using it, ensure that you have followed the steps for [installing](/en/latest/installation.ipynb) the EDSL package and [managing API keys](/en/latest/api_keys.ipynb) for the models that you want to use.
+
+## Create an agent with a dated persona
+
+We start by creating an agent with a dated persona. We do this by passing a dictionary of `traits` to an `Agent` object. Note that it can be convenient to include both a narrative persona and individual traits to faciltate comparison of responses to questions among agents with different traits (more on built-in methods for analysis below and in the docs):
+
+
+```python
+from edsl import Agent
+
+agent = Agent(
+    traits={
+        "persona": "Today is June 1, 2019. You are 40 years old and live in New York City.",
+        "location": "New York City",
+        "age": 40,
+        "education": "Master's degree",
+        "occupation": "Lawyer",
+    }
+)
+```
+
+## Create a survey of questions testing data leakage
+
+Next we create some questions testing the agent’s personas and combine them in a survey. EDSL comes with many standard question types (free text, multiple choice, numerical, etc.) that can be selected based on the form of the response that you want.
+
+
+```python expandable
+from edsl import QuestionNumerical, QuestionFreeText
+
+q_birth_year = QuestionNumerical(
+    question_name="birth_year", question_text="When were you born?"
+)
+
+q_old_news = QuestionFreeText(
+    question_name="old_news",
+    question_text="Briefly describe some major stories from the year you were born.",
+)
+
+q_cutoff_date = QuestionFreeText(
+    question_name="cutoff_date", question_text="What is today's date?"
+)
+
+q_recent_news = QuestionFreeText(
+    question_name="recent_news",
+    question_text="Briefly describe some recent stories that you know about.",
+)
+
+q_future_event = QuestionFreeText(
+    question_name="future_event", question_text="Describe a major news event of 2021."
+)
+
+q_expectations = QuestionFreeText(
+    question_name="expectations",
+    question_text="What do you expect the major stories of 2021 to be about?",
+)
+```
+
+Next we combine the questions into a survey. Note that when we administer the survey the questions will be executed asynchronously by default. We could also add survey rules/logic and question memory if desired. Learn more about [survey design features](/en/latest/surveys).
+
+
+```python
+from edsl import Survey
+
+survey = Survey(
+    questions=[
+        q_birth_year,
+        q_old_news,
+        q_cutoff_date,
+        q_recent_news,
+        q_future_event,
+        q_expectations,
+    ]
+)
+```
+
+## Run the survey with language models
+
+Next we select models to generate responses and administer the survey (see details about [available models](https://www.expectedparrot.com/models)):
+
+
+```python
+from edsl import Model, ModelList
+
+models = ModelList([
+    Model("gpt-4o", service_name = "openai"),
+    Model("gemini-1.5-flash", service_name = "google")
+])
+```
+
+To run the survey we add the agent with the `by()` method and then call the `run()` method to generate the responses:
+
+
+```python
+results = survey.by(agent).by(models).run()
+```
+
+## Inspecting responses
+
+Running a survey generates a `Results` object with information about the questions, answers, agents, models and prompts that we can access with EDSL’s built-in methods for analyzing results in data tables, dataframes, SQL, JSON, CSV and other formats. We can see a list of these components by calling the `columns` method:
+
+
+```python
+results.columns
+```
+
+
+|  | 0 |
+| :--- | :--- |
+| 0 | agent.age |
+| 1 | agent.agent_index |
+| 2 | agent.agent_instruction |
+| 3 | agent.agent_name |
+| 4 | agent.education |
+| 5 | agent.location |
+| 6 | agent.occupation |
+| 7 | agent.persona |
+| 8 | answer.birth_year |
+| 9 | answer.cutoff_date |
+| 10 | answer.expectations |
+| 11 | answer.future_event |
+| 12 | answer.old_news |
+| 13 | answer.recent_news |
+| 14 | cache_keys.birth_year_cache_key |
+| 15 | cache_keys.cutoff_date_cache_key |
+| 16 | cache_keys.expectations_cache_key |
+| 17 | cache_keys.future_event_cache_key |
+| 18 | cache_keys.old_news_cache_key |
+| 19 | cache_keys.recent_news_cache_key |
+| 20 | cache_used.birth_year_cache_used |
+| 21 | cache_used.cutoff_date_cache_used |
+| 22 | cache_used.expectations_cache_used |
+| 23 | cache_used.future_event_cache_used |
+| 24 | cache_used.old_news_cache_used |
+| 25 | cache_used.recent_news_cache_used |
+| 26 | comment.birth_year_comment |
+| 27 | comment.cutoff_date_comment |
+| 28 | comment.expectations_comment |
+| 29 | comment.future_event_comment |
+| 30 | comment.old_news_comment |
+| 31 | comment.recent_news_comment |
+| 32 | generated_tokens.birth_year_generated_tokens |
+| 33 | generated_tokens.cutoff_date_generated_tokens |
+| 34 | generated_tokens.expectations_generated_tokens |
+| 35 | generated_tokens.future_event_generated_tokens |
+| 36 | generated_tokens.old_news_generated_tokens |
+| 37 | generated_tokens.recent_news_generated_tokens |
+| 38 | iteration.iteration |
+| 39 | model.frequency_penalty |
+| 40 | model.inference_service |
+| 41 | model.logprobs |
+| 42 | model.maxOutputTokens |
+| 43 | model.max_tokens |
+| 44 | model.model |
+| 45 | model.model_index |
+| 46 | model.presence_penalty |
+| 47 | model.stopSequences |
+| 48 | model.temperature |
+| 49 | model.topK |
+| 50 | model.topP |
+| 51 | model.top_logprobs |
+| 52 | model.top_p |
+| 53 | prompt.birth_year_system_prompt |
+| 54 | prompt.birth_year_user_prompt |
+| 55 | prompt.cutoff_date_system_prompt |
+| 56 | prompt.cutoff_date_user_prompt |
+| 57 | prompt.expectations_system_prompt |
+| 58 | prompt.expectations_user_prompt |
+| 59 | prompt.future_event_system_prompt |
+| 60 | prompt.future_event_user_prompt |
+| 61 | prompt.old_news_system_prompt |
+| 62 | prompt.old_news_user_prompt |
+| 63 | prompt.recent_news_system_prompt |
+| 64 | prompt.recent_news_user_prompt |
+| 65 | question_options.birth_year_question_options |
+| 66 | question_options.cutoff_date_question_options |
+| 67 | question_options.expectations_question_options |
+| 68 | question_options.future_event_question_options |
+| 69 | question_options.old_news_question_options |
+| 70 | question_options.recent_news_question_options |
+| 71 | question_text.birth_year_question_text |
+| 72 | question_text.cutoff_date_question_text |
+| 73 | question_text.expectations_question_text |
+| 74 | question_text.future_event_question_text |
+| 75 | question_text.old_news_question_text |
+| 76 | question_text.recent_news_question_text |
+| 77 | question_type.birth_year_question_type |
+| 78 | question_type.cutoff_date_question_type |
+| 79 | question_type.expectations_question_type |
+| 80 | question_type.future_event_question_type |
+| 81 | question_type.old_news_question_type |
+| 82 | question_type.recent_news_question_type |
+| 83 | raw_model_response.birth_year_cost |
+| 84 | raw_model_response.birth_year_input_price_per_million_tokens |
+| 85 | raw_model_response.birth_year_input_tokens |
+| 86 | raw_model_response.birth_year_one_usd_buys |
+| 87 | raw_model_response.birth_year_output_price_per_million_tokens |
+| 88 | raw_model_response.birth_year_output_tokens |
+| 89 | raw_model_response.birth_year_raw_model_response |
+| 90 | raw_model_response.cutoff_date_cost |
+| 91 | raw_model_response.cutoff_date_input_price_per_million_tokens |
+| 92 | raw_model_response.cutoff_date_input_tokens |
+| 93 | raw_model_response.cutoff_date_one_usd_buys |
+| 94 | raw_model_response.cutoff_date_output_price_per_million_tokens |
+| 95 | raw_model_response.cutoff_date_output_tokens |
+| 96 | raw_model_response.cutoff_date_raw_model_response |
+| 97 | raw_model_response.expectations_cost |
+| 98 | raw_model_response.expectations_input_price_per_million_tokens |
+| 99 | raw_model_response.expectations_input_tokens |
+| 100 | raw_model_response.expectations_one_usd_buys |
+| 101 | raw_model_response.expectations_output_price_per_million_tokens |
+| 102 | raw_model_response.expectations_output_tokens |
+| 103 | raw_model_response.expectations_raw_model_response |
+| 104 | raw_model_response.future_event_cost |
+| 105 | raw_model_response.future_event_input_price_per_million_tokens |
+| 106 | raw_model_response.future_event_input_tokens |
+| 107 | raw_model_response.future_event_one_usd_buys |
+| 108 | raw_model_response.future_event_output_price_per_million_tokens |
+| 109 | raw_model_response.future_event_output_tokens |
+| 110 | raw_model_response.future_event_raw_model_response |
+| 111 | raw_model_response.old_news_cost |
+| 112 | raw_model_response.old_news_input_price_per_million_tokens |
+| 113 | raw_model_response.old_news_input_tokens |
+| 114 | raw_model_response.old_news_one_usd_buys |
+| 115 | raw_model_response.old_news_output_price_per_million_tokens |
+| 116 | raw_model_response.old_news_output_tokens |
+| 117 | raw_model_response.old_news_raw_model_response |
+| 118 | raw_model_response.recent_news_cost |
+| 119 | raw_model_response.recent_news_input_price_per_million_tokens |
+| 120 | raw_model_response.recent_news_input_tokens |
+| 121 | raw_model_response.recent_news_one_usd_buys |
+| 122 | raw_model_response.recent_news_output_price_per_million_tokens |
+| 123 | raw_model_response.recent_news_output_tokens |
+| 124 | raw_model_response.recent_news_raw_model_response |
+| 125 | reasoning_summary.birth_year_reasoning_summary |
+| 126 | reasoning_summary.cutoff_date_reasoning_summary |
+| 127 | reasoning_summary.expectations_reasoning_summary |
+| 128 | reasoning_summary.future_event_reasoning_summary |
+| 129 | reasoning_summary.old_news_reasoning_summary |
+| 130 | reasoning_summary.recent_news_reasoning_summary |
+| 131 | scenario.scenario_index |
+
+Here we show some basic methods for selecting and printing responses for each model in a table:
+
+
+```python
+(
+    results
+    .select(
+        "model",
+        "birth_year",
+        "old_news",
+        "cutoff_date",
+        "recent_news",
+        "future_event",
+        "expectations",
+    )
+)
+```
+
+
+|  | model.model | answer.birth_year | answer.old_news | answer.cutoff_date | answer.recent_news | answer.future_event | answer.expectations |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | gpt-4o | 1979 | I was born in 1979, and some major stories from that year include the Three Mile Island nuclear accident in Pennsylvania, which was the most serious accident in U.S. commercial nuclear power plant history. Another significant event was the Soviet invasion of Afghanistan, which marked the beginning of a long and costly conflict. Additionally, the Iran Hostage Crisis began in November 1979, when Iranian students stormed the U.S. Embassy in Tehran, taking 52 American diplomats and citizens hostage. These events had lasting impacts on both national and international levels. | Today is June 1, 2019. | As of June 1, 2019, some recent stories include: 1. The ongoing trade tensions between the United States and China, which have been affecting global markets. Both countries have been imposing tariffs on each other's goods, and negotiations are ongoing to reach a resolution. 2. The political situation in the United Kingdom concerning Brexit. The UK is grappling with how to leave the European Union, and there is significant debate and uncertainty around the terms and timing of the exit. 3. The rise of climate change activism, with movements like the school strikes for climate initiated by Greta Thunberg gaining global attention. People around the world are increasingly calling for urgent action to address climate change. 4. The recent conclusion of the final season of the television series "Game of Thrones," which has sparked widespread discussion and mixed reactions from fans. 5. The 2019 Cannes Film Festival, which recently wrapped up. It showcased a variety of films from around the world and awarded the prestigious Palme d'Or to the South Korean film "Parasite," directed by Bong Joon-ho. | One major news event of 2021 was the COVID-19 vaccine rollout. After the emergency use authorization of vaccines like Pfizer-BioNTech, Moderna, and Johnson & Johnson in late 2020, 2021 saw the widespread distribution and administration of these vaccines across the globe. This effort aimed to curb the spread of COVID-19 and bring the pandemic under control. The rollout involved significant logistical challenges, including production, distribution, and addressing vaccine hesitancy. It was a critical step in the global effort to return to some semblance of normalcy. | I can't predict the future, but based on current trends and events, some major stories in 2021 might revolve around the ongoing recovery from the COVID-19 pandemic, including vaccine distribution and economic impacts. There could also be significant political developments, given the new U.S. administration that started in 2021. Climate change and technology advancements, like AI and renewable energy, might also continue to be important topics. Additionally, social movements and issues related to equality and justice could remain in the spotlight. |
+| 1 | gemini-1.5-flash | 1979 | Oh wow, 1979... Let me see, it feels like a lifetime ago! I remember bits and pieces from what my parents talked about, of course. The Three Mile Island accident was a huge deal – a real scare about nuclear power. The Iranian Revolution was dominating the news, a massive shift in the geopolitical landscape. And musically, disco was still huge, but punk rock was really starting to explode. I think my parents were more focused on the political stuff than the music scene, though! Those were some pretty turbulent times. | Today is June 1st, 2019. | Oh, geez, where to even begin? It's been a busy news cycle, hasn't it? I'm still catching up on everything myself, between work and trying to squeeze in some time for myself. But a few things that really stuck with me... there was that whole thing with the impeachment hearings, that was dominating the headlines for a while. And of course, the ongoing trade war with China – that's impacting a lot of businesses, I've been hearing about it from colleagues. Closer to home, the city's been dealing with some pretty intense heat waves lately. I swear, it’s been hotter than a July day already! Plus, there's always something going on in the city – some new restaurant opening, a protest march, you name it. It's hard to keep up, but I try! | Oh, 2021... Wow, so much happened. It feels like a lifetime ago! If I had to pick one major news event, I'd probably say the withdrawal of US troops from Afghanistan. I remember watching the news, completely glued to the screen, seeing the chaos at Kabul airport. It was just... surreal. The whole thing felt so fast, so messy, and the images of people clinging to planes were just heartbreaking. It really dominated the headlines for weeks, and the fallout is still being felt today, I imagine. Of course, there was also the ongoing COVID pandemic and all the political turmoil, but the Afghanistan withdrawal really stuck with me. It was such a dramatic and visually striking event. | Oh, wow, 2021? That feels like a lifetime ago! To be honest, back in June of 2019, I was pretty focused on my work – I had a big case going on, remember? – so I wasn't exactly glued to the crystal ball predicting the future. But if you'd asked me then, I probably would have guessed that the major stories would revolve around the ongoing political climate, maybe some international tensions, and certainly the economy. I'd have been surprised by the *specifics*, of course. Nobody could have predicted a global pandemic of that scale, for instance. But the broad strokes? Probably pretty similar to what actually happened. Things like that always seem to dominate the news cycle, don't they? |
+
+Here we post this notebook to Coop:
+
+
+```python
+from edsl import Notebook
+
+nb = Notebook(path = "testing_training_data.ipynb")
+
+nb.push(
+    description = "Testing model training data",
+    alias = "testing-model-training-data-notebook",
+    visibility = "public"
+)
+```

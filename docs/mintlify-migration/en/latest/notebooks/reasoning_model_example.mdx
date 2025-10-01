@@ -1,0 +1,130 @@
+---
+title: "Using EDSL with a reasoning model"
+---
+
+Note the different `service_name` parameter:
+
+
+```python
+from edsl import Model, QuestionMultipleChoice, Survey
+```
+
+```python
+model = Model("o3-mini", service_name = "openai_v2") # other models use "openai"
+```
+
+
+```python
+q = QuestionMultipleChoice(
+    question_name = "movie",
+    question_text = """My son is 11 years old. How many times do you think he has watched the movie
+    'The Nightmare Before Christmas'?""",
+    question_options = ["Never", "Once", "A couple times", "Many times", "Dozens of times"]
+)
+```
+
+
+```python
+survey = Survey(questions = [q])
+```
+
+
+```python
+results = survey.by(model).run()
+```
+
+
+
+```python
+results.select("answer.movie", "comment.movie_comment", "reasoning_summary.movie_reasoning_summary")
+```
+
+
+
+|  | answer.movie | comment.movie_comment | reasoning_summary.movie_reasoning_summary |
+| :--- | :--- | :--- | :--- |
+| 0 | Many times | I chose this option assuming that an 11-year-old who enjoys the film would likely have watched it repeatedly, given its popularity and seasonal appeal. | **Choosing viewing frequency** I'm thinking about how to answer the question: "How many times do you think he watched 'The Nightmare Before Christmas'?" Since he's 11 and that movie has Halloween vibes, my first guess is "Many times." Many kids love this movie, but maybe he hasn't seen it dozens of times—unless he's really into it! I could also go with "A couple times," since he might not watch it repeatedly. Ultimately, I'm leaning towards "Many times" due to its popularity among kids. **Finalizing answer choice** I’m considering that since he’s 11, he’s likely watched the movie more than just a couple of times if he enjoys it. The answer options range from "Never" to "Dozens of times." The idea of "A couple times" suggests maybe 2-3 viewings, while "many times" implies regular rewatching. Given its seasonal nature and popularity, I'll choose "Many times." I'll also include a comment about how I based this on the movie's appeal to kids and his love for it. |
+
+## The `answer` and `comment` fields are available for all models
+
+
+```python
+results.select("comment.movie_comment")
+```
+
+
+|  | comment.movie_comment |
+| :--- | :--- |
+| 0 | I chose this option assuming that an 11-year-old who enjoys the film would likely have watched it repeatedly, given its popularity and seasonal appeal. |
+
+## Reasoning model results include summaries
+
+
+```python
+results[0]["reasoning_summaries_dict"]["movie_reasoning_summary"]
+```
+
+
+'**Choosing viewing frequency**. I'm thinking about how to answer the question: "How many times do you think he watched 'The Nightmare Before Christmas'?" Since he's 11 and that movie has Halloween vibes, my first guess is "Many times." nnMany kids love this movie, but maybe he hasn't seen it dozens of times—unless he's really into it! I could also go with "A couple times," since he might not watch it repeatedly. Ultimately, I'm leaning towards "Many times" due to its popularity among kids.nn**Finalizing answer choice**nnI’m considering that since he’s 11, he’s likely watched the movie more than just a couple of times if he enjoys it. The answer options range from "Never" to "Dozens of times." The idea of "A couple times" suggests maybe 2-3 viewings, while "many times" implies regular rewatching. Given its seasonal nature and popularity, I'll choose "Many times." I'll also include a comment about how I based this on the movie's appeal to kids and his love for it.'
+
+
+```python
+results.select("reasoning_summary.movie_reasoning_summary")
+```
+
+
+|  | reasoning_summary.movie_reasoning_summary |
+| :--- | :--- |
+| 0 | **Choosing viewing frequency** I'm thinking about how to answer the question: "How many times do you think he watched 'The Nightmare Before Christmas'?" Since he's 11 and that movie has Halloween vibes, my first guess is "Many times." Many kids love this movie, but maybe he hasn't seen it dozens of times—unless he's really into it! I could also go with "A couple times," since he might not watch it repeatedly. Ultimately, I'm leaning towards "Many times" due to its popularity among kids. **Finalizing answer choice** I’m considering that since he’s 11, he’s likely watched the movie more than just a couple of times if he enjoys it. The answer options range from "Never" to "Dozens of times." The idea of "A couple times" suggests maybe 2-3 viewings, while "many times" implies regular rewatching. Given its seasonal nature and popularity, I'll choose "Many times." I'll also include a comment about how I based this on the movie's appeal to kids and his love for it. |
+
+## Posting this notebook to Coop
+
+
+
+```python
+from edsl import Notebook
+
+notebook = Notebook("reasoning_model_example.ipynb")
+
+notebook.push(
+    description = "Reasoning model example",
+    alias = "reasoning-model-example",
+    visibility = "public"
+)
+```
+
+
+
+```json
+{'description': 'Reasoning model example',
+ 'object_type': 'notebook',
+ 'url': 'https://www.expectedparrot.com/content/29e99f21-72fb-416f-b12b-994206a0f5ae',
+ 'alias_url': 'https://www.expectedparrot.com/content/RobinHorton/reasoning-model-example',
+ 'uuid': '29e99f21-72fb-416f-b12b-994206a0f5ae',
+ 'version': '0.1.61.dev1',
+ 'visibility': 'public'}
+```
+
+
+
+```python
+survey.push()
+```
+
+
+
+```json
+{'description': None,
+ 'object_type': 'survey',
+ 'url': 'https://www.expectedparrot.com/content/0397d71b-2ed9-4164-9085-6da7c1c72b2e',
+ 'alias_url': 'https://www.expectedparrot.com/content/RobinHorton/adagio-worn-rig',
+ 'uuid': '0397d71b-2ed9-4164-9085-6da7c1c72b2e',
+ 'version': '0.1.61.dev1',
+ 'visibility': 'unlisted'}
+```
+
+
+
+```python
+survey.humanize()
+```

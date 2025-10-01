@@ -1,0 +1,293 @@
+---
+title: "Adding metadata to survey results"
+description: "This notebook provides sample [EDSL](/en/latest/index) code for adding metadata to survey [results](/en/latest/results). This can be useful when you are using EDSL to conduct [data labeling](/en/latest/notebooks/data_labeling_example) or similar tasks and want to include information about the data or content that you are using with a survey (e.g., the data source or date), without having to perform post-survey data match up steps."
+---
+
+In EDSL this can be done by including fields for metadata in [scenarios](/en/latest/scenarios) that you create for the data/content you are using with a survey. When the scenarios are added to the survey and it is run, columns for the metadata fields are automatically included in the results that are generated.
+
+## Example
+
+In the steps below we create and run a simple EDSL survey that uses scenarios to add metadata to the results. The steps consist of:
+
+- Constructing a survey of questions about some data (mock news stories)
+- Creating a scenario (dictionary) for each news story
+- Adding the scenarios to the survey and running it
+- Inspecting the results
+
+## Technical setup
+
+Before running the code below, please ensure that you have [installed the EDSL libary](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Coop account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL.
+
+## Constructing questions
+
+We start by constructing some questions with a `{{ placeholder }}` for data that we will add to the question texts. EDSL comes with a variety of [question types](/en/latest/questions) that we can choose from based on the form of the response that we want to get back from the model:
+
+```python
+from edsl import QuestionFreeText, QuestionMultipleChoice
+
+
+q_reference = QuestionFreeText(
+    question_name = "reference",
+    question_text = "What is this headline referring to: {{ scenario.headline }}",
+)
+
+q_section = QuestionMultipleChoice(
+    question_name = "section",
+    question_text = "Which section of the paper is most likely to include this story: {{ scenario.headline }}",
+    question_options = [
+        "Front page",
+        "Health",
+        "Politics",
+        "Entertainment",
+        "Local",
+        "Opinion",
+        "Sports",
+        "Culture",
+        "Housing"
+    ]
+)
+```
+
+## Creating a survey
+
+Next we pass the questions to a survey in order to administer them together:
+
+```python
+from edsl import Survey
+```
+```python
+survey = Survey(questions = [q_reference, q_section])
+```
+
+## Parameterizing questions with scenarios
+
+Next we create a `ScenarioList` with a `Scenario` consisting of a key/value for each piece of data that we want to add to the questions at the `{{ placeholder }}`, with additional key/values for metadata that we want to keep with the results that are generated when the survey is run. EDSL comes with a variety of [methods for generating scenarios from different data sources](/en/latest/scenarios) (PDFs, CSVs, images, tables, lists, etc.); here we generate scenarios from a dictionary:
+
+```python
+from edsl import ScenarioList
+```
+
+```python
+data = [
+    ["headline", "date", "author"],  # Header row
+    ["Armistice Signed, War Over: Celebrations Erupt Across City", "1918-11-11", "John Doe"],
+    ["Spanish Flu Pandemic: Hospitals Overwhelmed as Cases Surge", "1918-10-15", "Jane Smith"],
+    ["Women Gain Right to Vote: Historic Amendment Passed", "1918-06-05", "Robert Johnson"],
+    ["Broadway Theaters Reopen After Flu Shutdown", "1918-12-01", "Mary Lee"],
+    ["City Welcomes Returning Soldiers with Parade", "1918-11-12", "James Brown"],
+    ["Prohibition Debate Heats Up: Public Opinion Divided", "1918-07-20", "Patricia Green"],
+    ["New York Yankees Win First Pennant in Franchise History", "1918-09-30", "William Davis"],
+    ["Subway Expansion Project Approved by City Council", "1918-08-18", "Barbara Wilson"],
+    ["Harlem Renaissance: New Wave of Cultural Expression", "1918-04-25", "Charles Miller"],
+    ["Mayor Announces New Housing Initiative for Veterans", "1918-11-20", "Elizabeth Taylor"]
+]
+
+# Writing to CSV file
+with open('data.csv', 'w') as file:
+    for row in data:
+        line = ','.join(str(item) for item in row)
+        file.write(line + 'n')
+```
+
+```python
+scenarios = ScenarioList.from_csv("data.csv")
+```
+
+We can inspect the scenarios that have been created:
+
+```python
+scenarios
+```
+
+[ScenarioList](/en/latest/scenarios) scenarios: 10; keys: ['author', 'headline', 'date'];
+
+|  | headline | date | author |
+| :--- | :--- | :--- | :--- |
+| 0 | Armistice Signed | War Over: Celebrations Erupt Across City | 1918-11-11 |
+| 1 | Spanish Flu Pandemic: Hospitals Overwhelmed as Cases Surge | 1918-10-15 | Jane Smith |
+| 2 | Women Gain Right to Vote: Historic Amendment Passed | 1918-06-05 | Robert Johnson |
+| 3 | Broadway Theaters Reopen After Flu Shutdown | 1918-12-01 | Mary Lee |
+| 4 | City Welcomes Returning Soldiers with Parade | 1918-11-12 | James Brown |
+| 5 | Prohibition Debate Heats Up: Public Opinion Divided | 1918-07-20 | Patricia Green |
+| 6 | New York Yankees Win First Pennant in Franchise History | 1918-09-30 | William Davis |
+| 7 | Subway Expansion Project Approved by City Council | 1918-08-18 | Barbara Wilson |
+| 8 | Harlem Renaissance: New Wave of Cultural Expression | 1918-04-25 | Charles Miller |
+| 9 | Mayor Announces New Housing Initiative for Veterans | 1918-11-20 | Elizabeth Taylor |
+
+## Running a survey
+
+To run the survey, we add the scenarios with the `by()` method and then call the `run()` method:
+
+```python
+results = survey.by(scenarios).run()
+```
+
+This generates a dataset of `Results` that we can access with [built-in methods for analysis](/en/latest/results). To see a list of all the components of results:
+
+```python
+results.columns
+```
+
+|  | 0 |
+| :--- | :--- |
+| 0 | agent.agent_index |
+| 1 | agent.agent_instruction |
+| 2 | agent.agent_name |
+| 3 | answer.reference |
+| 4 | answer.section |
+| 5 | cache_keys.reference_cache_key |
+| 6 | cache_keys.section_cache_key |
+| 7 | cache_used.reference_cache_used |
+| 8 | cache_used.section_cache_used |
+| 9 | comment.reference_comment |
+| 10 | comment.section_comment |
+| 11 | generated_tokens.reference_generated_tokens |
+| 12 | generated_tokens.section_generated_tokens |
+| 13 | iteration.iteration |
+| 14 | model.frequency_penalty |
+| 15 | model.inference_service |
+| 16 | model.logprobs |
+| 17 | model.max_tokens |
+| 18 | model.model |
+| 19 | model.model_index |
+| 20 | model.presence_penalty |
+| 21 | model.temperature |
+| 22 | model.top_logprobs |
+| 23 | model.top_p |
+| 24 | prompt.reference_system_prompt |
+| 25 | prompt.reference_user_prompt |
+| 26 | prompt.section_system_prompt |
+| 27 | prompt.section_user_prompt |
+| 28 | question_options.reference_question_options |
+| 29 | question_options.section_question_options |
+| 30 | question_text.reference_question_text |
+| 31 | question_text.section_question_text |
+| 32 | question_type.reference_question_type |
+| 33 | question_type.section_question_type |
+| 34 | raw_model_response.reference_cost |
+| 35 | raw_model_response.reference_one_usd_buys |
+| 36 | raw_model_response.reference_raw_model_response |
+| 37 | raw_model_response.section_cost |
+| 38 | raw_model_response.section_one_usd_buys |
+| 39 | raw_model_response.section_raw_model_response |
+| 40 | scenario.author |
+| 41 | scenario.date |
+| 42 | scenario.headline |
+| 43 | scenario.scenario_index |
+
+For example, we can filter, sort, select and print components of results in a table:
+
+```python
+(
+    results
+    .filter("section in ['Sports', 'Health', 'Politics']")
+    .sort_by("section", "date")
+    .select("headline", "date", "author", "section", "reference")
+)
+```
+
+
+
+|  | scenario.headline | scenario.date | scenario.author | answer.section | answer.reference |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | Spanish Flu Pandemic: Hospitals Overwhelmed as Cases Surge | 1918-10-15 | Jane Smith | Health | The headline "Spanish Flu Pandemic: Hospitals Overwhelmed as Cases Surge" is referring to the 1918 influenza pandemic, commonly known as the Spanish Flu. This pandemic was caused by the H1N1 influenza A virus and is considered one of the deadliest pandemics in history. It occurred in three waves between 1918 and 1919, infecting about one-third of the world's population and causing an estimated 50 million deaths globally. The headline likely describes a scenario from that period when hospitals were overwhelmed due to the rapid and widespread increase in cases, leading to significant challenges in medical care and public health responses. |
+| 1 | Women Gain Right to Vote: Historic Amendment Passed | 1918-06-05 | Robert Johnson | Politics | The headline "Women Gain Right to Vote: Historic Amendment Passed" refers to the passage of the 19th Amendment to the United States Constitution. This amendment, ratified on August 18, 1920, granted American women the legal right to vote, marking a significant victory for the women's suffrage movement in the United States. |
+| 2 | Prohibition Debate Heats Up: Public Opinion Divided | 1918-07-20 | Patricia Green | Politics | The headline "Prohibition Debate Heats Up: Public Opinion Divided" likely refers to a renewed discussion or controversy surrounding the topic of prohibition, which historically refers to the legal act of prohibiting the manufacture, transportation, and sale of alcohol. This could be in the context of a historical analysis, a modern-day debate about similar regulatory measures on substances like cannabis, or even discussions about new substances or issues where prohibition is being considered. The headline suggests that there is a significant divide in public opinion on the matter, indicating that it is a contentious issue with strong arguments on both sides. |
+| 3 | New York Yankees Win First Pennant in Franchise History | 1918-09-30 | William Davis | Sports | The headline "New York Yankees Win First Pennant in Franchise History" is likely referring to a fictional or hypothetical scenario, as the New York Yankees are one of the most successful and storied franchises in Major League Baseball (MLB) history. The Yankees won their first American League pennant in 1921. Since then, they have won numerous pennants and World Series titles. If this headline appears in a real context, it might be part of an alternate history, a satirical piece, or a commemorative article reflecting on the team's early history. |
+
+## Posting to the Coop
+
+The [Coop](https://www.expectedparrot.com/content/explore) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Coop account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [using the Coop](/en/latest/coop).
+
+Here we post the scenarios, survey and results from above, and this notebook:
+
+```python
+scenarios.push(
+    description = "Scenarios for example survey using metadata",
+    alias = "example-scenarios-metadata",
+    visibility = "public"
+)
+```
+
+
+```json
+{'description': 'Scenarios for example survey using metadata',
+ 'object_type': 'scenario_list',
+ 'url': 'https://www.expectedparrot.com/content/3dab0bec-eac2-4e99-8e56-479ceaa4d7a5',
+ 'uuid': '3dab0bec-eac2-4e99-8e56-479ceaa4d7a5',
+ 'version': '0.1.47.dev1',
+ 'visibility': 'public'}
+```
+
+
+
+```python
+survey.push(
+    description = "Example survey using scenarios to add metadata to results",
+    alias = "example-survey-scenarios-metadata",
+    visibility = "public"
+)
+```
+
+
+```json
+{'description': 'Example survey using scenarios to add metadata to results',
+ 'object_type': 'survey',
+ 'url': 'https://www.expectedparrot.com/content/dd02126e-fadc-4ce6-bf33-757889764397',
+ 'uuid': 'dd02126e-fadc-4ce6-bf33-757889764397',
+ 'version': '0.1.47.dev1',
+ 'visibility': 'public'}
+```
+
+
+
+```python
+from edsl import Notebook
+```
+
+```python
+n = Notebook(path = "adding_metadata.ipynb")
+```
+
+```python
+info = n.push(
+    description = "Adding metadata to survey results",
+    alias = "adding-metadata-survey-results",
+    visibility = "public"
+)
+info
+```
+
+```json
+{'description': 'Adding metadata to survey results',
+ 'object_type': 'notebook',
+ 'url': 'https://www.expectedparrot.com/content/f938c278-4c25-4e9c-8eef-36735e83530d',
+ 'uuid': 'f938c278-4c25-4e9c-8eef-36735e83530d',
+ 'version': '0.1.47.dev1',
+ 'visibility': 'public'}
+```
+
+
+To update an object at the Coop:
+
+```python
+n = Notebook("adding_metadata.ipynb") # resave
+```
+
+```python
+n.patch("https://www.expectedparrot.com/content/RobinHorton/adding-metadata-survey-results", value = n)
+```
+
+```json
+{'status': 'success'}
+```
+
+This is equivalent:
+
+```python
+n.patch(info["uuid"], value = n)
+```
+
+```json
+{'status': 'success'}
+```

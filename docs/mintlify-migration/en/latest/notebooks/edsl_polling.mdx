@@ -1,0 +1,710 @@
+---
+title: "Using EDSL for AI polling"
+description: "This notebook demonstrates methods for conducting surveys with AI agents using [EDSL](https://github.com/expectedparrot/edsl), an open-source Python library for simulating social science research with large language models. EDSL is developed by [Expected Parrot](https://www.expectedparrot.com/), a start-up building tools for AI-powered research."
+---
+
+## Contents
+
+The sections below include:
+
+1. **Creating an AI agent:** Basic steps to construct an AI agent.
+2. **Administering questions:** How to create questions and prompt agents to answer them.
+3. **Selecting language models:** Specify language models that you want to use to generate responses.
+4. **Analyzing results:** Examples of built-in methods for analyzing responses as datasets.
+5. **Designing agent traits:** How to construct agents with complex personas and traits.
+6. **Converting surveys into EDSL:** Import other surveys into EDSL to analyze and extend them with agents.
+7. **Constructing agents from survey data:** Use survey responses to construct agents representing respondents.
+
+## Sample data: *Cooperative Election Study Common Content, 2022*
+
+For purposes of demonstration, we use data from the [Cooperative Election Study Common Content, 2022](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi%3A10.7910/DVN/PR4L8P) in several ways:
+
+- In this notebook we use lists of respondent attributes from the *Breakdown of National Vote for U.S. House (CES validated voters)* ([CES Guide 2022](https://dataverse.harvard.edu/file.xhtml?fileId=7359254&version=4.0) pp.24-25) to design agents with combinations of the attributes, and then administer questions to them.
+
+Companion notebooks:
+
+- In [Working with CES data in EDSL](/en/latest/notebooks/ces_data_edsl) we reconstruct the [2022 CES Pre-Election Questionnaire](https://dataverse.harvard.edu/file.xhtml?fileId=6987030&version=4.0) in EDSL. The formatted questions can be modified and administered to agents in new surveys as desired. The notebook also contains dictionaries of the CES questions and answer codebook for convenience in working with the data.
+- In [Creating agents for survey respondents](/en/latest/notebooks/ces_agents) we use the [dataset of responses to the 2022 CES Pre-Election Questionnaire](https://dataverse.harvard.edu/file.xhtml?fileId=10140882&version=4.0) to create agents representing the respondents, and administer follow-on questions with them.
+
+## Reference & contact
+
+Documentation for the EDSL package is available at [https://docs/expectedparrot.com](https://docs/expectedparrot.com). You can also find example code, tutorials and notebooks for a variety of use cases.
+
+Please let us know if you have any questions or encounter issues working with this data:
+
+- Discord: [https://discord.com/invite/mxAYkjfy9m](https://discord.com/invite/mxAYkjfy9m)
+- Email: [info@expectedparrot.com](mailto:info@expectedparrot.com)
+
+## Technical setup
+
+EDSL is compatible with Python 3.9-3.12.
+
+See instructions on [installing the EDSL library](/en/latest/installation) and [storing API keys](/en/latest/api_keys) for the language models that you want to use. In examples below where no model is specified, EDSL will use GPT 4 by default (an API key for OpenAI is required). We also show how to use different models.
+
+## Creating an AI agent
+
+In this section we show how to create an AI agent and give it desired attributes. For more details on constructing and using AI agents please see our [documentation page on agents](/en/latest/agents).
+
+We start by importing the tools for creating agents:
+
+```python
+from edsl import Agent
+```
+
+Here we create a simple `Agent` and pass it a dictionary of `traits`. We optionally include a narrative persona and also specify traits individually for use in segmenting and analyzing survey responses:
+
+```python
+agent = Agent(
+    traits={
+        "persona": "You are 55-year-old research scientist living in Cambridge, Massachusetts.",
+        "occupation": "Research scientist",
+        "location": "Cambridge, Massachusetts",
+        "age": 55,
+    }
+)
+```
+
+We can access the traits directly:
+
+```python
+agent.location
+```
+
+```python
+'Cambridge, Massachusetts'
+```
+
+## Designing agent panels
+
+We can also create panels of agents in an `AgentList` and administer surveys to all of the agents at once. Here we construct combinations of traits from lists of respondent attributes in the [CES Guide](https://dataverse.harvard.edu/file.xhtml?fileId=7359254&version=4.0) (see source details above). (Information can be imported from a variety of data source types; [see documentation for details](/en/latest/).)
+
+```python expandable
+sex = ["Male", "Female"]
+race = ["White", "Black", "Hispanic", "Asian", "Other"]
+age = ["18-29", "30-44", "45-64", "65 and over"]
+education = [
+    "High school or less",
+    "Some college/assoc. degree",
+    "College/graduate",
+    "Postgraduate study",
+]
+income = [
+    "Under $30,000",
+    "$30,000 to $49,999",
+    "$50,000 to $99,999",
+    "$100,000 to $199,999",
+    "$200,000 or more",
+]
+party_affiliation = ["Democrat", "Republican", "Independent/Other"]
+political_ideology = ["Liberal", "Moderate", "Conservative", "Unsure"]
+religion = [
+    "Protestant/other Christian",
+    "Catholic",
+    "Jewish",
+    "Something else",
+    "None",
+]
+evangelical = ["Yes", "No"]
+married = ["Yes", "No"]
+lgbt = ["Yes", "No"]
+```
+
+Here we create a method to generate a list of agents with randomly selected combinations of traits:
+
+```python
+from edsl import AgentList
+import random
+
+def generate_random_agents(num_agents):
+    agents = []
+    for _ in range(num_agents):
+        agent_traits = {
+            "sex": random.choice(sex),
+            "race": random.choice(race),
+            "age": random.choice(age),
+            "education": random.choice(education),
+            "income": random.choice(income),
+            "party_affiliation": random.choice(party_affiliation),
+            "political_ideology": random.choice(political_ideology),
+            "religion": random.choice(religion),
+            "evangelical": random.choice(evangelical),
+            "married": random.choice(married),
+            "lgbt": random.choice(lgbt),
+        }
+        agents.append(Agent(traits=agent_traits))
+
+    return AgentList(agents)
+```
+
+Example usage:
+
+```python
+num_agents = 3
+agents = generate_random_agents(num_agents)
+```
+
+## Agent instructions
+
+If we want to give all the agents a special instruction, we can optionally pass an `instruction` to the agents (this can also be done when the agents are created):
+
+```python
+for agent in agents:
+    agent.instruction = "Today is July 1, 2022."
+```
+
+We can inspect the agents that have been created:
+
+```python
+agents
+```
+[AgentList](/en/latest/agents) agents: 3;
+
+
+|  | sex | race | age | education | income | party_affiliation | political_ideology | religion | evangelical | married | lgbt |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | Female | Asian | 30-44 | College/graduate | $30 , 000 t o$49,999 | Republican | Conservative | Jewish | Yes | No | Yes |
+| 1 | Male | Hispanic | 18-29 | High school or less | $100 , 000 t o$199,999 | Democrat | Unsure | Protestant/other Christian | Yes | No | Yes |
+| 2 | Female | White | 30-44 | College/graduate | $100 , 000 t o$199,999 | Republican | Liberal | Something else | Yes | Yes | No |
+
+## Creating questions
+
+An `Agent` is designed to be assigned questions to answer. In this section we construct questions in the form of `Question` objects, combine them into a `Survey`, administer it to some sample agents (from above), and inspect the responses in the dataset of `Results` that is generated.
+
+EDSL comes with many question types that we can select from based on the form of the response that we want to get back from the language model (free text, linear scale, checkbox, etc.). See [examples of all question types](/en/latest/questions).
+
+Here we create a multiple choice question from the [CES Pre-Election Questionnaire](https://dataverse.harvard.edu/file.xhtml?fileId=6987030&version=4.0) (the response will be a selection from the list of options that we include) and compose a follow-up free text question (the response will be unstructured text):
+
+```python
+from edsl import QuestionMultipleChoice, QuestionFreeText
+
+# From the CES pre-election questionnaire
+q_pid3 = QuestionMultipleChoice(
+    question_name="pid3",
+    question_text="Generally speaking, do you think of yourself as a ...?",
+    question_options=["Democrat", "Republican", "Independent", "Other", "Not sure"],
+)
+
+# Potential follow-up question
+q_views = QuestionFreeText(
+    question_name="views", question_text="Describe your political views."
+)
+```
+
+We combine the questions into a `Survey` to administer them together:
+
+```python
+from edsl import Survey
+
+survey = Survey([q_pid3, q_views])
+```
+
+## Administering a survey
+
+We administer a survey by calling the `run` method, after (optionally) adding agents with the `by` method:
+
+```python
+results = survey.by(agents).run()
+```
+
+We can show a list of all the components of the `Results` that have been generated, and see that the results include information about the agents, questions, models, prompts and responses:
+
+```python
+results.columns
+```
+
+|  | 0 |
+| :--- | :--- |
+| 0 | agent.age |
+| 1 | agent.agent_index |
+| 2 | agent.agent_instruction |
+| 3 | agent.agent_name |
+| 4 | agent.education |
+| 5 | agent.evangelical |
+| 6 | agent.income |
+| 7 | agent.lgbt |
+| 8 | agent.married |
+| 9 | agent.party_affiliation |
+| 10 | agent.political_ideology |
+| 11 | agent.race |
+| 12 | agent.religion |
+| 13 | agent.sex |
+| 14 | answer.pid3 |
+| 15 | answer.views |
+| 16 | cache_keys.pid3_cache_key |
+| 17 | cache_keys.views_cache_key |
+| 18 | cache_used.pid3_cache_used |
+| 19 | cache_used.views_cache_used |
+| 20 | comment.pid3_comment |
+| 21 | comment.views_comment |
+| 22 | generated_tokens.pid3_generated_tokens |
+| 23 | generated_tokens.views_generated_tokens |
+| 24 | iteration.iteration |
+| 25 | model.frequency_penalty |
+| 26 | model.inference_service |
+| 27 | model.logprobs |
+| 28 | model.max_tokens |
+| 29 | model.model |
+| 30 | model.model_index |
+| 31 | model.presence_penalty |
+| 32 | model.temperature |
+| 33 | model.top_logprobs |
+| 34 | model.top_p |
+| 35 | prompt.pid3_system_prompt |
+| 36 | prompt.pid3_user_prompt |
+| 37 | prompt.views_system_prompt |
+| 38 | prompt.views_user_prompt |
+| 39 | question_options.pid3_question_options |
+| 40 | question_options.views_question_options |
+| 41 | question_text.pid3_question_text |
+| 42 | question_text.views_question_text |
+| 43 | question_type.pid3_question_type |
+| 44 | question_type.views_question_type |
+| 45 | raw_model_response.pid3_cost |
+| 46 | raw_model_response.pid3_one_usd_buys |
+| 47 | raw_model_response.pid3_raw_model_response |
+| 48 | raw_model_response.views_cost |
+| 49 | raw_model_response.views_one_usd_buys |
+| 50 | raw_model_response.views_raw_model_response |
+| 51 | scenario.scenario_index |
+
+We can select and print components of the `Results` in a table (see examples of all [methods for analyzing results](/en/latest/results)):
+
+```python
+results.select("age", "education", "pid3", "views")
+```
+
+|  | agent.age | agent.education | answer.pid3 | answer.views |
+| :--- | :--- | :--- | :--- | :--- |
+| 0 | 30-44 | College/graduate | Republican | As an AI, I don't have personal beliefs or political views. However, I can provide information on a wide range of political topics and help explain different perspectives. If you have any specific questions or need information on a particular political issue, feel free to ask! |
+| 1 | 18-29 | High school or less | Democrat | As an AI, I don't have personal beliefs or political views. However, I can provide information on various political ideologies, explain party platforms, or discuss current political events if you'd like. Let me know how I can assist you! |
+| 2 | 30-44 | College/graduate | Republican | I don't have personal political views or opinions. However, I can provide information on a wide range of political topics, discuss different political ideologies, and summarize various political perspectives based on data and research. If you have specific questions or topics in mind, feel free to ask! |
+
+## Answer commentary
+
+Question types other than free text automatically include a `comment` field for the agent to provide any unstructured commentary on its response to a question. This is useful in ensuring that responses are formatted as specified, providing an outlet for model verbosity. For example, in `results.columns` we can see that there is a field `comment.pid3_comment`. We can inspect this field as we do any other component of results. Here we also apply some `pretty_labels` to our table for readability:
+
+```python
+(
+    results
+    .select("pid3", "pid3_comment")
+    .print(
+        pretty_labels={"answer.pid3": "Party", "comment.pid3_comment": "Comment"},
+        format="rich",
+    )
+)
+```
+
+|  | Party | Comment |
+| :--- | :--- | :--- |
+| 0 | Republican | Given your traits, you have identified your party affiliation as Republican, which aligns with your political ideology. |
+| 1 | Democrat | Based on your traits, you are affiliated with the Democratic Party, which aligns with the option "Democrat." |
+| 2 | Republican | Based on the provided traits, your party affiliation is listed as Republican. |
+
+## Selecting language models
+
+As mentioned above, if we do not specify a language model GPT 4 is used by default. We can also specify other language models to use in generating results, and compare responses for them.
+
+To see a list of all available models (uncomment the code):
+
+```python
+from edsl import Model, ModelList
+
+# Model.available()
+```
+
+To select models for a survey, pass the model names to `Model` objects:
+
+```python
+models = ModelList(Model(m) for m in ["gemini-pro", "gpt-4o"])
+```
+
+We add a `Model` or list of models to a survey with the `by` method, the same as we do agents:
+
+```python
+results = survey.by(agents).by(models).run()
+
+results.select("model", "pid3", "pid3_comment")
+```
+
+
+|  | model.model | answer.pid3 | comment.pid3_comment |
+| :--- | :--- | :--- | :--- |
+| 0 | gemini-pro | nan | Task failed with exception: Language model did not return a response for question 'pid3.'. |
+| 1 | gpt-4o | Republican | Given your traits, you have identified your party affiliation as Republican, which aligns with your political ideology. |
+| 2 | gemini-pro | nan | Task failed with exception: Language model did not return a response for question 'pid3.'. |
+| 3 | gpt-4o | Democrat | Based on your traits, you are affiliated with the Democratic Party, which aligns with the option "Democrat." |
+| 4 | gemini-pro | nan | Task failed with exception: Language model did not return a response for question 'pid3.'. |
+| 5 | gpt-4o | Republican | Based on the provided traits, your party affiliation is listed as Republican. |
+
+Learn more about [specifying language models](/en/latest/language_models).
+
+## Question context & memory
+
+Survey questions are administered asynchronously by default, for efficiency. If we want an agent to have the context of one or more prior questions when presented a new question we can apply a rule specifying the questions and answers to add to the new question prompt:
+
+```python
+from edsl import QuestionMultipleChoice, QuestionFreeText, Survey
+
+# From the CES pre-election questionnaire
+q_CC22_309e = QuestionMultipleChoice(
+    question_name="CC22_309e",
+    question_text="Would you say that in general your health is...",
+    question_options=["Excellent", "Very good", "Good", "Fair", "Poor"],
+)
+
+q_CC22_309f = QuestionMultipleChoice(
+    question_name="CC22_309f",
+    question_text="Would you say that in general your mental health is...",
+    question_options=["Excellent", "Very good", "Good", "Fair", "Poor"],
+)
+
+survey = Survey([q_CC22_309e, q_CC22_309f])
+```
+
+Here we add a memory of `q_CC22_309e` when administering `q_CC22_309f` and show the prompts that were administered:
+
+```python
+survey = survey.add_targeted_memory(q_CC22_309f, q_CC22_309e)
+```
+
+```python
+results = survey.run()
+```
+
+
+```python
+results.select("CC22_309e_user_prompt", "CC22_309e", "CC22_309f_user_prompt", "CC22_309f")
+```
+
+|  | prompt.CC22_309e_user_prompt | answer.CC22_309e | prompt.CC22_309f_user_prompt | answer.CC22_309f |
+| :--- | :--- | :--- | :--- | :--- |
+| 0 | Would you say that in general your health is... Excellent Very good Good Fair Poor Only 1 option may be selected. Respond only with a string corresponding to one of the options. After the answer, you can put a comment explaining why you chose that option on the next line. | Good | Would you say that in general your mental health is... Excellent Very good Good Fair Poor Only 1 option may be selected. Respond only with a string corresponding to one of the options. After the answer, you can put a comment explaining why you chose that option on the next line. Before the question you are now answering, you already answered the following question(s): Question: Would you say that in general your health is... Answer: Good | Good |
+
+See examples of [all methods for applying question context and memories](/en/latest/surveys) (e.g., full memory of all prior questions, or a subset of questions).
+
+## Piping questions
+
+We can also pipe individual components of questions into other questions. Here we use the answer to `inputstate` in the question text for `CC22_320d`:
+
+```python expandable
+from edsl import QuestionMultipleChoice, Survey
+
+q_inputstate = QuestionMultipleChoice(
+    question_name="inputstate",
+    question_text="What is your State of Residence?",
+    question_options=[
+        "Alabama",
+        "Alaska",
+        "Arizona",
+        "Arkansas",
+        "California",
+        "Colorado",
+        "Connecticut",
+        "Delaware",
+        "District of Columbia",
+        "Florida",
+        "Georgia",
+        "Hawaii",
+        "Idaho",
+        "Illinois",
+        "Indiana",
+        "Iowa",
+        "Kansas",
+        "Kentucky",
+        "Louisiana",
+        "Maine",
+        "Maryland",
+        "Massachusetts",
+        "Michigan",
+        "Minnesota",
+        "Mississippi",
+        "Missouri",
+        "Montana",
+        "Nebraska",
+        "Nevada",
+        "New Hampshire",
+        "New Jersey",
+        "New Mexico",
+        "New York",
+        "North Carolina",
+        "North Dakota",
+        "Ohio",
+        "Oklahoma",
+        "Oregon",
+        "Pennsylvania",
+        "Rhode Island",
+        "South Carolina",
+        "South Dakota",
+        "Tennessee",
+        "Texas",
+        "Utah",
+        "Vermont",
+        "Virginia",
+        "Washington",
+        "West Virginia",
+        "Wisconsin",
+        "Wyoming",
+    ],
+)
+
+q_CC22_320d = QuestionMultipleChoice(
+    question_name="CC22_320d",
+    question_text="Do you approve of the way the Governor of {{ inputstate.answer }} is doing their job?",
+    question_options=[
+        "Strongly approve",
+        "Somewhat approve",
+        "Somewhat disapprove",
+        "Strongly disapprove",
+        "Not sure",
+    ],
+)
+
+survey = Survey([q_inputstate, q_CC22_320d])
+
+results = survey.by(agents).run()
+
+results.select("inputstate", "CC22_320d_user_prompt", "CC22_320d")
+```
+
+|  | answer.inputstate | prompt.CC22_320d_user_prompt | answer.CC22_320d |
+| :--- | :--- | :--- | :--- |
+| 0 | California | Do you approve of the way the Governor of California is doing their job? Strongly approve Somewhat approve Somewhat disapprove Strongly disapprove Not sure Only 1 option may be selected. Respond only with a string corresponding to one of the options. After the answer, you can put a comment explaining why you chose that option on the next line. | Somewhat disapprove |
+| 1 | California | Do you approve of the way the Governor of California is doing their job? Strongly approve Somewhat approve Somewhat disapprove Strongly disapprove Not sure Only 1 option may be selected. Respond only with a string corresponding to one of the options. After the answer, you can put a comment explaining why you chose that option on the next line. | Somewhat approve |
+| 2 | Florida | Do you approve of the way the Governor of Florida is doing their job? Strongly approve Somewhat approve Somewhat disapprove Strongly disapprove Not sure Only 1 option may be selected. Respond only with a string corresponding to one of the options. After the answer, you can put a comment explaining why you chose that option on the next line. | Somewhat disapprove |
+
+## Survey rules & conditions
+
+We can apply survey rules and conditions to administer relevant follow-up questions based on responses to questions. For example, here we add skip rules to a set of questions by calling the method `add_skip_rule()` and passing the target question and the condition to evaluate (questions not administered will show a `None` response):
+
+```python expandable
+from edsl import QuestionCheckBox, QuestionMultipleChoice, Survey
+
+# From the CES pre-election questionnaire
+q_CC22_300 = (
+    QuestionCheckBox(  # Use checkbox to allow the agent to select multiple options
+        question_name="CC22_300",
+        question_text="In the past 24 hours have you... (check all that apply)",
+        question_options=[
+            "Used social media (such as Facebook or Youtube)",
+            "Watched TV news",
+            "Read a newspaper in print or online",
+            "Listened to a radio news program or talk radio",
+            "None of these",
+        ],
+    )
+)
+
+# Skip this question if the agent does not select "Watched TV news"
+q_CC22_300a = QuestionMultipleChoice(
+    question_name="CC22_300a",
+    question_text="Did you watch local news, national news, or both?",
+    question_options=["Local Newscast", "National Newscast", "Both"],
+)
+
+# Skip this question if the agent does not select "Watched TV news"
+q_CC22_300b = QuestionMultipleChoice(
+    question_name="CC22_300b",
+    question_text="Which of these networks did you watch?",
+    question_options=["ABC", "CBS", "NBC", "CNN", "Fox News", "MSNBC", "PBS", "Other"],
+)
+
+# Skip this question if the agent does not select "Read a newspaper..."
+q_CC22_300c = QuestionMultipleChoice(
+    question_name="CC22_300c",
+    question_text="Did you read a print newspaper, an online newspaper, or both?",
+    question_options=["Print", "Online", "Both"],
+)
+
+# Skip this question if the agent does not select "Used social media..."
+q_CC22_300d = QuestionMultipleChoice(
+    question_name="CC22_300d",
+    question_text="In the past 24 hours, did you do any of the following on social media (such as Facebook, Youtube or Twitter)?",
+    question_options=[
+        "Posted a story, photo, video or link about politics",
+        "Posted a comment about politics",
+        "Read a story or watched a video about politics",
+        "Followed a political event",
+        "Forwarded a story, photo, video or link about politics to friends",
+        "None of the above",
+    ],
+)
+
+survey_CC22_300 = (
+    Survey([q_CC22_300, q_CC22_300a, q_CC22_300b, q_CC22_300c, q_CC22_300d])
+    .add_skip_rule(q_CC22_300a, "'Watched TV news' not in CC22_300")
+    .add_skip_rule(q_CC22_300b, "'Watched TV news' not in CC22_300")
+    .add_skip_rule(q_CC22_300c, "'Read a newspaper in print or online' not in CC22_300")
+    .add_skip_rule(
+        q_CC22_300d, "'Used social media (such as Facebook or Youtube)' not in CC22_300"
+    )
+)
+
+results_CC22_300 = survey_CC22_300.by(agents).run()
+
+results_CC22_300.select("CC22_300", "CC22_300a", "CC22_300b", "CC22_300c", "CC22_300d")
+```
+
+
+|  | answer.CC22_300 | answer.CC22_300a | answer.CC22_300b | answer.CC22_300c | answer.CC22_300d |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | ['Used social media (such as Facebook or Youtube)', 'Watched TV news', 'Read a newspaper in print or online', 'Listened to a radio news program or talk radio'] | National Newscast | Fox News | Online | Read a story or watched a video about politics |
+| 1 | ['Used social media (such as Facebook or Youtube)', 'Watched TV news'] | National Newscast | CNN | nan | Read a story or watched a video about politics |
+| 2 | ['Used social media (such as Facebook or Youtube)', 'Watched TV news', 'Read a newspaper in print or online'] | National Newscast | Fox News | Online | None of the above |
+
+Here we use `add_stop_rule()` to end the survey based on the response to an initial question (an option selection that makes the second question unnecessary):
+
+```python expandable
+from edsl import QuestionMultipleChoice, QuestionYesNo, Survey
+
+# From the CES pre-election questionnaire
+q_employ = QuestionMultipleChoice(
+    question_name="employ",
+    question_text="Which of the following best describes your current employment status?",
+    question_options=[
+        "Working full time now",
+        "Working part time now",
+        "Temporarily laid off",
+        "Unemployed",
+        "Retired",
+        "Permanently disabled",
+        "Taking care of home or family",
+        "Student",
+        "Other",
+    ],
+)
+
+q_hadjob = QuestionYesNo(
+    question_name="hadjob",
+    question_text="At any time over the past five years, have you had a job?",
+)
+
+survey = Survey([q_employ, q_hadjob]).add_stop_rule(
+    q_employ,
+    "employ in ['Working full time now', 'Working part time now', 'Temporarily laid off']",
+)
+
+results = survey.by(agents).run()
+
+results.select("employ", "hadjob")
+```
+
+
+|  | answer.employ | answer.hadjob |
+| :--- | :--- | :--- |
+| 0 | Working full time now | nan |
+| 1 | Student | Yes |
+| 2 | Working full time now | nan |
+
+## Combining survey methods
+
+Here we apply multiple methods at once: we add a memory of `region` to the prompt for `inputzip`, then pipe the answer to `inputzip` into the question text of `votereg_f`, and a stop rule if the answer to `votereg` is not “Yes” (i.e., do not administer `votereg_f`):
+
+```python expandable
+from edsl import QuestionMultipleChoice, QuestionList, QuestionYesNo, Survey
+
+# From the CES pre-election questionnaire
+q_region = QuestionMultipleChoice(
+    question_name="region",
+    question_text="In which census region do you live?",
+    question_options=["Northeast", "Midwest", "South", "West"],
+)
+
+q_inputzip = QuestionList(
+    question_name="inputzip",
+    question_text="So that we can ask you about the news and events in your area, in what zip code do you currently reside?",
+    max_list_items=1,
+)
+
+q_votereg = QuestionMultipleChoice(
+    question_name="votereg",
+    question_text="Are you registered to vote?",
+    question_options=["Yes", "No", "Don't know"],
+)
+
+q_votereg_f = QuestionYesNo(
+    question_name="votereg_f",
+    question_text="Is {{ inputzip.answer[0] }} the zip code where you are registered to vote?",
+)
+
+survey = (
+    Survey([q_region, q_inputzip, q_votereg, q_votereg_f])
+    .add_targeted_memory(q_inputzip, q_region)
+    .add_stop_rule(q_votereg, "votereg != 'Yes'")
+)
+
+results = survey.by(agents).run()
+
+results.select("region", "inputzip", "votereg", "votereg_f_user_prompt", "votereg_f")
+```
+
+
+|  | answer.region | answer.inputzip | answer.votereg | prompt.votereg_f_user_prompt | answer.votereg_f |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | West | [94016] | Yes | Is 94016 the zip code where you are registered to vote? No Yes Only 1 option may be selected. Please respond with just your answer. After the answer, you can put a comment explaining your response. | No |
+| 1 | South | [33101] | Yes | Is 33101 the zip code where you are registered to vote? No Yes Only 1 option may be selected. Please respond with just your answer. After the answer, you can put a comment explaining your response. | No |
+| 2 | South | [30301] | Yes | Is 30301 the zip code where you are registered to vote? No Yes Only 1 option may be selected. Please respond with just your answer. After the answer, you can put a comment explaining your response. | No |
+
+See more details on [all survey methods](/en/latest/surveys).
+
+## Parameterizing questions
+
+We can create variations of questions using `Scenario` objects for content that we want to add to questions. This allows us to efficiently administer multiple versions of questions at once. We start by using a `{{ parameter }}` in a question:
+
+```python
+from edsl import QuestionMultipleChoice, Survey
+
+# Modified from the CES pre-election questionnaire
+q_votereg = QuestionMultipleChoice(
+    question_name="votereg",
+    question_text="Are you {{ scenario.status }}?",
+    question_options=["Yes", "No", "Don't know"],
+)
+
+survey = Survey([q_votereg])
+```
+
+Next we create a `Scenario` for each text that we want to insert in the question:
+
+```python
+from edsl import Scenario, ScenarioList
+
+statuses = [
+    "registered to vote",  # original CES question
+    "enrolled in school",
+    "employed full- or part-time",
+    "married or in a domestic partnership",
+    "licensed to drive",
+]
+
+scenarios = ScenarioList(Scenario({"status": s}) for s in statuses)
+```
+
+```python
+results = survey.by(scenarios).by(agents).run()
+```
+
+
+```python
+(
+    results.sort_by("status", "age")
+    .select("age", "education", "sex", "status", "votereg")
+)
+```
+
+|  | agent.age | agent.education | agent.sex | scenario.status | answer.votereg |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | 18-29 | High school or less | Male | employed full- or part-time | Yes |
+| 1 | 30-44 | College/graduate | Female | employed full- or part-time | Yes |
+| 2 | 30-44 | College/graduate | Female | employed full- or part-time | Yes |
+| 3 | 18-29 | High school or less | Male | enrolled in school | Yes |
+| 4 | 30-44 | College/graduate | Female | enrolled in school | No |
+| 5 | 30-44 | College/graduate | Female | enrolled in school | No |
+| 6 | 18-29 | High school or less | Male | licensed to drive | Don't know |
+| 7 | 30-44 | College/graduate | Female | licensed to drive | Don't know |
+| 8 | 30-44 | College/graduate | Female | licensed to drive | Yes |
+| 9 | 18-29 | High school or less | Male | married or in a domestic partnership | No |
+| 10 | 30-44 | College/graduate | Female | married or in a domestic partnership | No |
+| 11 | 30-44 | College/graduate | Female | married or in a domestic partnership | Yes |
+| 12 | 18-29 | High school or less | Male | registered to vote | Yes |
+| 13 | 30-44 | College/graduate | Female | registered to vote | Yes |
+| 14 | 30-44 | College/graduate | Female | registered to vote | Yes |

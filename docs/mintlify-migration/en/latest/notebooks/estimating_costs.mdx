@@ -1,0 +1,238 @@
+---
+title: "Estimating costs"
+---
+
+Before running a survey, you can estimate the cost of running it (in USD and credits) in 2 different ways:
+
+- Call the `estimate_job_cost()` method on the `Job` object (a survey combined with one or more models). This will return the total estimated cost in USD, the total estimated input and output tokens, and estimated costs and tokens for each inference service and model used.
+- Call the `remote_inference_cost()` method on a `Coop` client object and pass it the job. This will return the estimated cost in credits and USD. (Credits are required to run surveys remotely. Learn more about using credits in the [Credits](/en/latest/credits) section of the docs.)
+
+## Calculations
+
+The above-mentioned methods use the following calculation for each question in a survey to estimate the total cost of the job:
+
+1. Estimate the input tokens.
+	- Compute the number of characters in the `user_prompt` and `system_prompt`, with any `Agent` and `Scenario` data piped in. (*Note:* Previous answers cannot be piped in because they are not available until the survey is run; they are left as Jinja-bracketed variables in the prompts for purposes of estimating tokens and costs.)
+	- Apply a piping multiplier of 2 to the number of characters in the user prompt if it has an answer piped in from a previous question (i.e., if the question has Jinja braces). Otherwise, apply a multiplier of 1.
+	- Convert the number of characters into the number of input tokens using a conversion factor of 4 characters per token, rounding down to the nearest whole number. (This approximation was [established by OpenAI](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).)
+2. Estimate the output tokens.
+	- Apply a multiplier of 0.75 to the number of input tokens, rounding up to the nearest whole number.
+3. Apply the token rates for the model and inference service.
+	- Find the model and inference service for the question in the [Pricing](https://www.expectedparrot.com/getting-started/coop-pricing) page: *Total cost = (input tokens* input token rate) + (output tokens * output token rate)*
+	- If the model is not found, a default price for the inference service provider is used. If both the model and the inference service provider are not found, the following fallback token rates are applied (you will also see a warning message that a model price was not found):
+		- USD 1.00 per 1M input tokens
+		- USD 1.00 per 1M ouput tokens
+4. Convert the total cost in USD to credits.
+	- Total cost in credits = total cost in USD * 100, rounded up to the nearest 1/100th credit.
+
+Then sum the costs for all question prompts to get the total cost of the job.
+
+## Example
+
+Here we create an example survey and agent, select a model and combine them to create a job. Then we call the above-mentioned methods for estimating costs and show the underlying calculations. For more details, please see the [Credits](/en/latest/credits) section of the docs.
+
+```python
+from edsl import QuestionFreeText, Survey, Agent, Model, Coop
+from math import ceil
+```
+
+```python
+q0 = QuestionFreeText(
+    question_name = "favorite_flower",
+    question_text = "What is the name of your favorite flower?"
+)
+q1 = QuestionFreeText(
+    question_name = "flower_color",
+    question_text = "What color is {{ favorite_flower.answer }}?"
+)
+
+survey = Survey(questions = [q0, q1])
+```
+
+```python
+a = Agent(traits = {"persona":"You are a botanist on Cape Cod."})
+```
+```python
+m = Model("gpt-4o")
+```
+```python
+job = survey.by(a).by(m)
+```
+```python
+job.estimate_job_cost()
+```
+
+```json
+{'estimated_total_cost_usd': 0.0008775000000000001,
+ 'estimated_total_input_tokens': 87,
+ 'estimated_total_output_tokens': 66,
+ 'detailed_costs': [{'inference_service': 'openai',
+   'model': 'gpt-4o',
+   'token_type': 'input',
+   'price_per_million_tokens': 2.5,
+   'tokens': 87,
+   'cost_usd': 0.00021750000000000003},
+  {'inference_service': 'openai',
+   'model': 'gpt-4o',
+   'token_type': 'output',
+   'price_per_million_tokens': 10.0,
+   'tokens': 66,
+   'cost_usd': 0.0006600000000000001}]}
+```
+```python
+c = Coop()
+```
+```python
+c.remote_inference_cost(job)
+```
+```json
+{'credits': 0.09, 'usd': 0.0008775000000000001}
+```
+
+```python
+job.show_prompts()
+```
+
+|  | user_prompt | system_prompt | interview_index | question_name | scenario_index | agent_index | model | estimated_cost | cache_keys |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | What is the name of your favorite flower? | You are answering questions as if you were a human. Do not break character.Your traits: {`{'persona': 'You are a botanist on Cape Cod.'}`} | 0 | favorite_flower | 0 | 0 | gpt-4o | 0.000438 | ['2c5868d1cffbd9b0c2c31cfe8f05b75b'] |
+| 1 | What color is? | You are answering questions as if you were a human. Do not break character.Your traits: {`{'persona': 'You are a botanist on Cape Cod.'}`} | 0 | flower_color | 0 | 0 | gpt-4o | 0.000440 | ['25a1f3576a97e3d6aa304d2b152e207a'] |
+
+Count the characters in each user prompt and system prompt:
+
+```python
+q0_user_prompt_characters = len("What is the name of your favorite flower?")
+q0_user_prompt_characters
+```
+```
+41
+```
+```python
+q0_system_prompt_characters = len("You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'You are a botanist on Cape Cod.'}")
+q0_system_prompt_characters
+```
+```
+135
+```
+
+Apply the piping multiplier to tbe q1 user prompt:
+
+```python
+q1_user_prompt_characters = len("What color is {{ answer }}?") * 2
+q1_user_prompt_characters
+```
+```
+54
+```
+
+The system prompt characters are identical for the single agent:
+
+```python
+q1_system_prompt_characters = len("You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'You are a botanist on Cape Cod.'}")
+q1_system_prompt_characters
+```
+```
+135
+```
+
+Estimate the input and output tokens for each set of prompts:
+
+```python
+q0_input_tokens = (q0_user_prompt_characters + q0_system_prompt_characters) // 4
+q0_input_tokens
+```
+```
+44
+```
+```python
+q0_output_tokens = ceil(0.75 * q0_input_tokens)
+q0_output_tokens
+```
+```
+33
+```
+```python
+q1_input_tokens = (q1_user_prompt_characters + q1_system_prompt_characters) // 4
+q1_input_tokens
+```
+```
+47
+```
+```python
+q1_output_tokens = ceil(0.75 * q1_input_tokens)
+q1_output_tokens
+```
+```
+36
+```
+
+Apply the token rates for the model:
+
+```python
+q0_tokens_cost = (2.50/1000000 * q0_input_tokens) + (10.00/1000000 * q0_output_tokens)
+q0_tokens_cost
+```
+```
+0.00044000000000000007
+```
+```python
+q1_tokens_cost = (2.50/1000000 * q1_input_tokens) + (10.00/1000000 * q1_output_tokens)
+q1_tokens_cost
+```
+```
+0.00047750000000000006
+```
+```python
+total_cost_usd = q0_tokens_cost + q1_tokens_cost
+total_cost_usd
+```
+```
+0.0009175000000000001
+```
+```python
+q0_credits = ceil(q0_tokens_cost * 100 * 100) / 100
+q0_credits
+```
+```
+0.05
+```
+```python
+q1_credits = ceil(q1_tokens_cost * 100 * 100) / 100
+q1_credits
+```
+```
+0.05
+```
+```python
+total_credits = q0_credits + q1_credits
+total_credits
+```
+```
+0.1
+```
+
+## Posting to Coop
+
+```python
+from edsl import Notebook
+
+n = Notebook(path = "estimating_costs.ipynb")
+
+n.push(
+    description = "Estimating job costs",
+    alias = "estimating-job-costs-notebook",
+    visibility = "public"
+)
+```
+
+```json
+
+{'description': 'Estimating job costs',
+ 'object_type': 'notebook',
+ 'url': 'https://www.expectedparrot.com/content/74768662-8c2c-4e06-9f16-9d457515d249',
+ 'alias_url': 'https://www.expectedparrot.com/content/RobinHorton/estimating-job-costs-notebook',
+ 'uuid': '74768662-8c2c-4e06-9f16-9d457515d249',
+ 'version': '0.1.56.dev1',
+ 'visibility': 'public'}
+```
+

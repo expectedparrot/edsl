@@ -1,0 +1,736 @@
+---
+title: "Dataset"
+description: "The `Dataset` class is a versatile data container for tabular data with powerful manipulation capabilities. It represents data in a column-oriented format, providing methods for analysis, transformation, and visualization.The `Dataset` class is a versatile data container for tabular data with powerful manipulation capabilities. It represents data in a column-oriented format, providing methods for analysis, transformation, and visualization."
+---
+
+## Overview
+
+Dataset is a fundamental data structure in EDSL that provides a column-oriented representation of tabular data. It offers methods for manipulating, analyzing, visualizing, and exporting data, similar to tools like pandas or dplyr.
+
+Key features:
+
+1. Flexible data manipulation (filtering, sorting, transformation)
+2. Visualization capabilities with multiple rendering options
+3. Export to various formats (CSV, Excel, Pandas, etc.)
+4. Integration with other EDSL components
+
+## Creating Datasets
+
+Datasets can be created from various sources:
+
+From dictionaries:
+
+```python
+from edsl import Dataset
+
+ # Create a dataset with two columns
+d  = Dataset( [{'a':  [1, 2, 3 ]}, {'b':  [4, 5, 6 ]} ])
+```
+
+From existing EDSL objects:
+
+```python
+ # From Results object
+dataset  = results.select('how _feeling', 'agent.status')
+
+ # From pandas DataFrame
+import pandas as pd
+df  = pd.DataFrame({'a':  [1, 2, 3 ], 'b':  [4, 5, 6 ]})
+dataset  = Dataset.from _pandas _dataframe(df)
+```
+
+## Displaying and Visualizing Data
+
+The Dataset class provides multiple ways to display and visualize data:
+
+Basic display:
+
+```python
+ # Print the dataset
+dataset.print()
+
+ # Display only the first few rows
+dataset.head()
+
+ # Display only the last few rows
+dataset.tail()
+```
+
+## Table Display Options
+
+You can control the table formatting using the `tablefmt` parameter:
+
+```python
+ # Display as an ASCII grid
+dataset.table(tablefmt ="grid")
+
+ # Display as pipe-separated values
+dataset.table(tablefmt ="pipe")
+
+ # Display as HTML
+dataset.table(tablefmt ="html")
+
+ # Display as Markdown
+dataset.table(tablefmt ="github")
+
+ # Display as LaTeX
+dataset.table(tablefmt ="latex")
+```
+
+### Rich Terminal Output
+
+The Dataset class supports displaying tables with enhanced formatting using the Rich library, which provides beautiful terminal formatting with colors, styles, and more:
+
+```python
+ # Display using Rich formatting
+dataset.table(tablefmt ="rich")
+
+ # Alternative syntax
+dataset.print(format ="rich")
+```
+
+This creates a nicely formatted table in the terminal with automatically sized columns, bold headers, and grid lines.
+
+Example:
+
+```python
+from edsl import Dataset
+
+ # Create a dataset
+d  = Dataset( [
+    {'name':  ['Alice', 'Bob', 'Charlie', 'David' ]},
+    {'age':  [25, 32, 45, 19 ]},
+    {'city':  ['New York', 'Los Angeles', 'Chicago', 'Boston' ]}
+ ])
+
+ # Display with rich formatting
+d.table(tablefmt ="rich")
+```
+
+## Data Manipulation
+
+The Dataset class provides numerous methods for data manipulation:
+
+Filtering:
+
+```python
+ # Filter results for a specific condition
+filtered  = dataset.filter("how _feeling == 'Great'")
+```
+
+Creating new columns:
+
+```python
+ # Create a new column
+with _sentiment  = dataset.mutate("sentiment = 1 if how _feeling == 'Great' else 0")
+```
+
+Sorting:
+
+```python
+ # Sort by a specific column
+sorted _data  = dataset.order _by("age", reverse =True)
+```
+
+Reshaping:
+
+```python
+ # Convert to long format
+long _data  = dataset.long()
+
+ # Convert back to wide format
+wide _data  = long _data.wide()
+```
+
+## Exporting Data
+
+Export to various formats:
+
+```python
+ # Export to CSV
+dataset.to _csv("data.csv")
+
+ # Export to pandas DataFrame
+df  = dataset.to _pandas()
+
+ # Export to Word document
+dataset.to _docx("data.docx", title ="My Dataset")
+```
+
+## Dataset Methods
+
+> ### *class* edsl.dataset.Dataset(*data: list [dict [str, Any ] ]  = None*, *print _parameters: dict | None  = None*) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Bases: `UserList`, `DatasetOperationsMixin`, `PersistenceMixin`, `HashingMixin`
+
+A versatile data container for tabular data with powerful manipulation capabilities.
+
+The Dataset class is a fundamental data structure in EDSL that represents tabular data in a column-oriented format. It provides a rich set of methods for data manipulation, transformation, analysis, visualization, and export through the DatasetOperationsMixin.
+
+Key features:
+
+1. Column-oriented data structure optimized for LLM experiment results
+2. Rich data manipulation API similar to dplyr/pandas (filter, select, mutate, etc.)
+3. Visualization capabilities including tables, plots, and reports
+4. Export to various formats (CSV, Excel, SQLite, pandas, etc.)
+5. Serialization for storage and transport
+6. Tree-based data exploration
+
+A Dataset typically contains multiple columns, each represented as a dictionary with a single key-value pair. The key is the column name and the value is a list of values for that column. All columns must have the same length.
+
+The Dataset class inherits from: - UserList: Provides list-like behavior for storing column data - DatasetOperationsMixin: Provides data manipulation methods - PersistenceMixin: Provides serialization capabilities - HashingMixin: Provides hashing functionality for comparison and storage
+
+Datasets are typically created by transforming other EDSL container types like Results, AgentList, or ScenarioList, but can also be created directly from data.
+
+> #### collapse(*field: str*, *separator: str | None  = None*) → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Collapse multiple values in a field into a single value using a separator.
+
+> **Args:**
+
+field: The name of the field to collapse. separator: Optional string to use as a separator between values.
+
+> Defaults to a space if not specified.
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'words':  [ ['hello', 'world' ],  ['good', 'morning' ] ]} ])
+ >>> d.collapse('words').data
+ [{'words':  [ [ ['hello', 'world' ],  ['good', 'morning' ] ] ]} ]
+```
+```python
+ >>> d  = Dataset( [{'numbers':  [1, 2, 3 ]} ])
+ >>> d.collapse('numbers', separator =',').data
+ [{'numbers':  ['1,2,3' ]} ]
+```
+
+> #### drop(*field _name*) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Returns a new Dataset with the specified field removed.
+
+> **Args:**
+
+field _name (str): The name of the field to remove.
+
+> **Returns:**
+
+Dataset: A new Dataset instance without the specified field.
+
+> **Raises:**
+
+KeyError: If the field _name doesn’t exist in the dataset.
+
+> **Examples:**
+
+```python
+ >>> from .dataset import Dataset
+ >>> d  = Dataset( [{'a':  [1, 2, 3 ]}, {'b':  [4, 5, 6 ]} ])
+ >>> d.drop('a')
+Dataset( [{'b':  [4, 5, 6 ]} ])
+```
+
+```python
+ >>>  # Testing drop with nonexistent field raises DatasetKeyError - tested in unit tests
+```
+
+> #### *classmethod* example(*n: int  = None*) → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Return an example dataset.
+
+> **Examples:**
+
+```python
+ >>> Dataset.example()
+Dataset( [{'a':  [1, 2, 3, 4 ]}, {'b':  [4, 3, 2, 1 ]} ])
+```
+
+```python
+>>> Dataset.example(n =2)
+Dataset( [{'a':  [1, 1 ]}, {'b':  [2, 2 ]} ])
+```
+
+> #### expand(*field: str*, *number _field: bool  = False*) → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Expand a field containing lists into multiple rows.
+
+> **Args:**
+
+field: The field containing lists to expand number _field: If True, adds a number field indicating the position in the original list
+
+> **Returns:**
+
+A new Dataset with the expanded rows
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'a':  [ [1, 2, 3 ],  [4, 5, 6 ] ]}, {'b':  ['x', 'y' ]} ])
+ >>> d.expand('a').data
+ [{'a':  [1, 2, 3, 4, 5, 6 ]}, {'b':  ['x', 'x', 'x', 'y', 'y', 'y' ]} ]
+```
+```python
+ >>> d  = Dataset( [{'items':  [ ['apple', 'banana' ],  ['orange' ] ]}, {'id':  [1, 2 ]} ])
+ >>> d.expand('items', number _field =True).data
+ [{'items':  ['apple', 'banana', 'orange' ]}, {'id':  [1, 1, 2 ]}, {'items _number':  [1, 2, 1 ]} ]
+```
+
+> #### expand _field(*field*) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Expand a field in the dataset.
+
+Renamed to avoid conflict with the expand method defined earlier.
+
+> #### filter(*expression*) → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Filter the dataset based on a boolean expression.
+
+> **Args:**
+
+expression: A string expression that evaluates to a boolean value.
+
+Can reference column names in the dataset.
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'a':  [1, 2, 3, 4 ]}, {'b':  [5, 6, 7, 8 ]} ])
+ >>> d.filter('a > 2').data
+ [{'a':  [3, 4 ]}, {'b':  [7, 8 ]} ]
+```
+
+```python
+ >>> d  = Dataset( [{'x':  ['a', 'b', 'c' ]}, {'y':  [1, 2, 3 ]} ])
+ >>> d.filter('y < 3').data
+ [{'x':  ['a', 'b' ]}, {'y':  [1, 2 ]} ]
+```
+
+> #### first() → dict [str, Any ] [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Get the first value of the first key in the first dictionary.
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'a':  [1, 2, 3, 4 ]}, {'b':  [5, 6, 7, 8 ]} ])
+ >>> d.first()
+1
+```
+
+```python
+ >>> d  = Dataset( [{'x':  ['first', 'second' ]} ])
+ >>> d.first()
+'first'
+```
+
+> #### *classmethod* from _dict(*data: dict*) → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Convert a dictionary to a dataset.
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset.from _dict({'data':  [{'a':  [1, 2, 3 ]}, {'b':  [4, 5, 6 ]} ]})
+ >>> isinstance(d, Dataset)
+True
+ >>> d.data
+ [{'a':  [1, 2, 3 ]}, {'b':  [4, 5, 6 ]} ]
+```
+
+```python
+ >>> d  = Dataset.from _dict({'data':  [{'x':  ['a', 'b' ]} ]})
+ >>> d.data
+ [{'x':  ['a', 'b' ]} ]
+```
+
+> #### *classmethod* from _edsl _object(*object*) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+> #### *classmethod* from _pandas _dataframe(*df*) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+> #### get _sort _indices(*lst: list [Any ]*, *reverse: bool  = False*) → list [int ] [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Return the indices that would sort the list, using either numpy or pure Python. None values are placed at the end of the sorted list.
+
+> **Args:**
+
+lst: The list to be sorted reverse: Whether to sort in descending order use _numpy: Whether to use numpy implementation (falls back to pure Python if numpy is unavailable)
+
+> **Returns:**
+
+A list of indices that would sort the list
+
+> ### head(*n: int  = 5*) → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Return the first n observations in the dataset.
+
+```python
+ >>> d  = Dataset( [{'a.b': [1,2,3,4 ]} ])
+ >>> d.head(2)
+Dataset( [{'a.b':  [1, 2 ]} ])
+```
+
+> #### keys() → list [str ] [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Return the keys of the dataset.
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'a':  [1, 2, 3, 4 ]}, {'b':  [5, 6, 7, 8 ]} ])
+ >>> d.keys()
+ ['a', 'b' ]
+```
+
+```python
+ >>> d  = Dataset( [{'x.y':  [1, 2 ]}, {'z.w':  [3, 4 ]} ])
+ >>> d.keys()
+ ['x.y', 'z.w' ]
+```
+
+> #### latex(* * *kwargs*) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Return a LaTeX representation of the dataset.
+
+> **Args:**
+
+[ * *](/en/latest/#id2)kwargs: Additional arguments to pass to the table formatter.
+
+> #### long(*exclude _fields: list [str ]  = None*) → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Convert the dataset from wide to long format.
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'a':  [1, 2 ], 'b':  [3, 4 ]} ])
+ >>> d.long().data
+ [{'row':  [0, 0, 1, 1 ]}, {'key':  ['a', 'b', 'a', 'b' ]}, {'value':  [1, 3, 2, 4 ]} ]
+```
+```python
+ >>> d  = Dataset( [{'x':  [1, 2 ], 'y':  [3, 4 ], 'z':  [5, 6 ]} ])
+ >>> d.long(exclude _fields = ['z' ]).data
+ [{'row':  [0, 0, 1, 1 ]}, {'key':  ['x', 'y', 'x', 'y' ]}, {'value':  [1, 3, 2, 4 ]}, {'z':  [5, 5, 6, 6 ]} ]
+```
+
+> #### merge(*other: [Dataset](/en/latest/dataset#dataset-methods)*, *by _x*, *by _y*) → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Merge the dataset with another dataset on the given keys.
+
+> **Examples:**
+
+```python
+ >>> d1  = Dataset( [{'key':  [1, 2, 3 ]}, {'value1':  ['a', 'b', 'c' ]} ])
+ >>> d2  = Dataset( [{'key':  [2, 3, 4 ]}, {'value2':  ['x', 'y', 'z' ]} ])
+ >>> merged  = d1.merge(d2, 'key', 'key')
+ >>> len(merged.data [0 ] ['key' ])
+3
+```
+
+```python
+ >>> d1  = Dataset( [{'id':  [1, 2 ]}, {'name':  ['Alice', 'Bob' ]} ])
+ >>> d2  = Dataset( [{'id':  [2, 3 ]}, {'age':  [25, 30 ]} ])
+ >>> merged  = d1.merge(d2, 'id', 'id')
+ >>> len(merged.data [0 ] ['id' ])
+2
+```
+
+> #### order _by(*sort _key: str*, *reverse: bool  = False*) → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Return a new dataset with the observations sorted by the given key.
+
+> **Args:**
+
+sort _key: The key to sort the observations by reverse: Whether to sort in reverse order
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'a':  [3, 1, 4, 1, 5 ]}, {'b':  ['x', 'y', 'z', 'w', 'v' ]} ])
+ >>> sorted _d  = d.order _by('a')
+ >>> sorted _d.data
+ [{'a':  [1, 1, 3, 4, 5 ]}, {'b':  ['y', 'w', 'x', 'z', 'v' ]} ]
+```
+```python
+ >>> d  = Dataset( [{'a':  [3, 1, 4, 1, 5 ]}, {'b':  ['x', 'y', 'z', 'w', 'v' ]} ])
+ >>> sorted _d  = d.order _by('a', reverse =True)
+ >>> sorted _d.data
+ [{'a':  [5, 4, 3, 1, 1 ]}, {'b':  ['v', 'z', 'x', 'y', 'w' ]} ]
+```
+```python
+ >>> d  = Dataset( [{'a':  [3, None, 1, 4, None ]}, {'b':  ['x', 'y', 'z', 'w', 'v' ]} ])
+ >>> sorted _d  = d.order _by('a')
+ >>> sorted _d.data
+ [{'a':  [1, 3, 4, None, None ]}, {'b':  ['z', 'x', 'w', 'y', 'v' ]} ]
+```
+
+> #### print(*pretty _labels =None*, * * *kwargs*) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Print the dataset in a formatted way.
+
+> **Args:**
+
+pretty _labels: A dictionary mapping column names to their display names [ * *](/en/latest/#id4)kwargs: Additional arguments
+
+format: The output format (“html”, “markdown”, “rich”, “latex”)
+
+> **Returns:**
+
+TableDisplay object
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'a':  [1, 2, 3 ]}, {'b':  [4, 5, 6 ]} ])
+ >>> display  = d.print(format ='rich')
+ >>> display is not None
+True
+```
+```python
+ >>> d  = Dataset( [{'long _column _name':  [1, 2 ]} ])
+ >>> display  = d.print(pretty _labels ={'long _column _name': 'Short'})
+ >>> display is not None
+True
+```
+
+> #### remove _prefix() → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Remove the prefix from column names that contain dots.
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'a.b':  [1, 2, 3 ]}, {'c.d':  [4, 5, 6 ]} ])
+ >>> d.remove _prefix().data
+ [{'b':  [1, 2, 3 ]}, {'d':  [4, 5, 6 ]} ]
+```
+```python
+ >>> d  = Dataset( [{'x.y.z':  [1, 2 ]}, {'a.b.c':  [3, 4 ]} ])
+ >>> d.remove _prefix().data
+ [{'y':  [1, 2 ]}, {'b':  [3, 4 ]} ]
+```
+> #### rename(*rename _dic*) → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Rename columns in the dataset according to the provided dictionary.
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'a':  [1, 2, 3 ]}, {'b':  [4, 5, 6 ]} ])
+ >>> d.rename({'a': 'x', 'b': 'y'}).data
+ [{'x':  [1, 2, 3 ]}, {'y':  [4, 5, 6 ]} ]
+```
+```python
+ >>> d  = Dataset( [{'old _name':  [1, 2 ]} ])
+ >>> d.rename({'old _name': 'new _name'}).data
+ [{'new _name':  [1, 2 ]} ]
+```
+
+> #### sample(*n: int  = None*, *frac: float  = None*, *with _replacement: bool  = True*, *seed: str | int | float  = None*) → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Return a new dataset with a sample of the observations.
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'a':  [1, 2, 3, 4, 5 ]}, {'b':  [6, 7, 8, 9, 10 ]} ])
+ >>> sampled  = d.sample(n =3, seed =42)
+ >>> len(sampled.data [0 ] ['a' ])
+3
+```
+```python
+ >>> d  = Dataset( [{'x':  ['a', 'b', 'c', 'd' ]} ])
+ >>> sampled  = d.sample(frac =0.5, seed =123)
+ >>> len(sampled.data [0 ] ['x' ])
+2
+```
+
+> #### select(* *keys*) → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Return a new dataset with only the selected keys.
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'a':  [1, 2, 3, 4 ]}, {'b':  [5, 6, 7, 8 ]}, {'c':  [9, 10, 11, 12 ]} ])
+ >>> d.select('a', 'c').data
+ [{'a':  [1, 2, 3, 4 ]}, {'c':  [9, 10, 11, 12 ]} ]
+```
+```python
+ >>> d  = Dataset( [{'x':  [1, 2 ]}, {'y':  [3, 4 ]} ])
+ >>> d.select('x').data
+ [{'x':  [1, 2 ]} ]
+```
+
+> #### shuffle(*seed =None*) → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Return a new dataset with the observations shuffled.
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'a':  [1, 2, 3, 4 ]}, {'b':  [5, 6, 7, 8 ]} ])
+ >>> shuffled  = d.shuffle(seed =42)
+ >>> len(shuffled.data [0 ] ['a' ])  == len(d.data [0 ] ['a' ])
+True
+```
+```python
+ >>> d  = Dataset( [{'x':  ['a', 'b', 'c' ]} ])
+ >>> shuffled  = d.shuffle(seed =123)
+ >>> set(shuffled.data [0 ] ['x' ])  == set(d.data [0 ] ['x' ])
+True
+```
+
+> #### summary() → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Return a summary of the dataset.
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'a':  [1, 2, 3 ]}, {'b':  [4, 5, 6 ]} ])
+ >>> d.summary().data
+ [{'num _observations':  [3 ]}, {'keys':  [ ['a', 'b' ] ]} ]
+```
+
+> #### table(* *fields*, *tablefmt: str | None  = 'rich'*, *max _rows: int | None  = None*, *pretty _labels =None*, *print _parameters: dict | None  = None*) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+> #### tail(*n: int  = 5*) → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Return the last n observations in the dataset.
+
+```python
+ >>> d  = Dataset( [{'a.b': [1,2,3,4 ]} ])
+ >>> d.tail(2)
+Dataset( [{'a.b':  [3, 4 ]} ])
+```
+
+> #### to(*survey _or _question: 'Survey' | 'QuestionBase'*) → Job [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Transform the dataset using a survey or question.
+
+> **Args:**
+
+survey _or _question: Either a Survey or QuestionBase object to apply to the dataset.
+
+> **Examples:**
+
+```python
+>>> from edsl import QuestionFreeText
+>>> from edsl.jobs import Jobs
+>>> d = Dataset([{'name': ['Alice', 'Bob']}])
+>>> q = QuestionFreeText(question_text="How are you, {{ name }}?", question_name="how_feeling")
+>>> job = d.to(q)
+>>> isinstance(job, Jobs)
+True
+```
+> #### to _dict() → dict [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Convert the dataset to a dictionary.
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'a':  [1, 2, 3 ]}, {'b':  [4, 5, 6 ]} ])
+ >>> d.to _dict()
+{'data':  [{'a':  [1, 2, 3 ]}, {'b':  [4, 5, 6 ]} ]}
+```
+```python
+ >>> d  = Dataset( [{'x':  ['a', 'b' ]} ])
+ >>> d.to _dict()
+{'data':  [{'x':  ['a', 'b' ]} ]}
+```
+> #### to _docx(*output _file: str*, *title: str  = None*) → None [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Convert the dataset to a Word document.
+
+> **Args:**
+
+output _file (str): Path to save the Word document title (str, optional): Title for the document
+
+> **Examples:**
+
+```python
+ >>> import tempfile
+ >>> d  = Dataset( [{'a':  [1, 2, 3 ]}, {'b':  [4, 5, 6 ]} ])
+ >>> with tempfile.NamedTemporaryFile(suffix ='.docx') as tmp:
+...     d.to _docx(tmp.name, title ='Test Document')
+...     import os
+...     os.path.exists(tmp.name)
+True
+```
+> #### to _json() [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Return a JSON representation of the dataset.
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'a':  [1, 2, 3 ]}, {'b':  [4, 5, 6 ]} ])
+ >>> d.to _json()
+ [{'a':  [1, 2, 3 ]}, {'b':  [4, 5, 6 ]} ]
+```
+```python
+ >>> d  = Dataset( [{'x':  ['a', 'b' ]} ])
+ >>> d.to _json()
+ [{'x':  ['a', 'b' ]} ]
+```
+
+> #### tree(*node _order: list [str ] | None  = None*) → Tree [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Return a tree representation of the dataset.
+
+```python
+ >>> d  = Dataset( [{'a': [1,2,3,4 ]}, {'b': [4,3,2,1 ]} ])
+ >>> d.tree()
+Tree(Dataset({'a':  [1, 2, 3, 4 ], 'b':  [4, 3, 2, 1 ]}), node _order= ['a', 'b' ])
+```
+
+> #### unique() → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Remove duplicate rows from the dataset.
+
+> **Returns:**
+
+A new Dataset with duplicate rows removed.
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'a':  [1, 2, 3, 1 ]}, {'b':  [4, 5, 6, 4 ]} ])
+ >>> d.unique().data
+ [{'a':  [1, 2, 3 ]}, {'b':  [4, 5, 6 ]} ]
+
+ >>> d  = Dataset( [{'x':  ['a', 'b', 'a' ]}, {'y':  [1, 2, 1 ]} ])
+ >>> d.unique().data
+ [{'x':  ['a', 'b' ]}, {'y':  [1, 2 ]} ]
+```
+```python
+ >>>  # Dataset with a single column
+ >>> Dataset( [{'value':  [1, 2, 3, 2, 1, 3 ]} ]).unique().data
+ [{'value':  [1, 2, 3 ]} ]
+```
+
+> #### wide() → [Dataset](/en/latest/dataset#dataset-methods) [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Convert a long-format dataset (with row, key, value columns) to wide format.
+
+> **Examples:**
+
+```python
+ >>> d  = Dataset( [{'row':  [0, 0, 1, 1 ]}, {'key':  ['a', 'b', 'a', 'b' ]}, {'value':  [1, 3, 2, 4 ]} ])
+ >>> d.wide().data
+ [{'a':  [1, 2 ]}, {'b':  [3, 4 ]} ]
+```
+```python
+ >>> d  = Dataset( [{'row':  [0, 0, 1, 1 ]}, {'key':  ['x', 'y', 'x', 'y' ]}, {'value':  [1, 3, 2, 4 ]}, {'z':  [5, 5, 6, 6 ]} ])
+ >>> d.wide().data
+ [{'x':  [1, 2 ]}, {'y':  [3, 4 ]}, {'z':  [5, 6 ]} ]
+```
+
+> #### write(*filename: str*, *tablefmt: str | None  = None*) → None [ [source ]](https://github.com/expectedparrot/edsl/blob/main/edsl/dataset.py)
+
+Write the dataset to a file in the specified format.
+
+> **Args:**
+
+filename: The name of the file to write to. tablefmt: Optional format for the table (e.g., ‘csv’, ‘html’, ‘latex’).

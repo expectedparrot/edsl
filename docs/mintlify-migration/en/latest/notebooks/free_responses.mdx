@@ -1,0 +1,119 @@
+---
+title: "Exploring free text responses"
+description: "This notebook provide sample [EDSL](/en/latest/index) code demonstrating ways of modifying instructions for free response questions."
+---
+
+[EDSL is an open-source library](https://github.com/expectedparrot/edsl) for simulating surveys, experiments and other research with AI agents and large language models. Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Coop account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL.
+
+## Creating free text questions
+
+```python
+from edsl import QuestionFreeText
+
+q1 = QuestionFreeText(
+    question_name="pasttime",
+    question_text="What is your favorite pasttime? {{ scenario.instruction }}",
+)
+
+q2 = QuestionFreeText(
+    question_name="vacation",
+    question_text="What is your favorite vacation destination? {{ scenario.instruction }}",
+)
+
+```
+
+## Parameterizing the questions with special instructions
+
+```python
+from edsl import ScenarioList
+
+special_instructions = [
+    "Be as specific as possible.",
+    "Be concise!",
+    "Wax poetic here.",
+]
+
+scenarios = ScenarioList.from_list("instruction", special_instructions)
+```
+
+## Creating agent personas with specific survey contexts
+
+```python expandable
+from edsl import AgentList, Agent
+
+personas = [
+    "You are middle-aged.",
+    "You are a senior citizen.",
+    "You are a young adult.",
+]
+
+instructions = [
+    "You are handwriting answers in a paper survey.",
+    "You are typing answers in an online survey.",
+    "You are providing answers verbally to a researcher in a live interview.",
+]
+
+agents = AgentList(
+    Agent(traits={"persona": p}, instruction=i) for p in personas for i in instructions
+)
+```
+
+## Selecting LLMs
+
+```python
+from edsl import ModelList, Model
+
+models = ModelList(
+    Model(m) for m in ["gpt-4o", "gemini-1.5-flash"]
+)
+```
+
+## Administering the survey
+
+```python
+from edsl import Survey
+
+survey = Survey(questions = [q1, q2])
+
+results = survey.by(scenarios).by(agents).by(models).run()
+```
+
+
+```python
+(
+    results
+    .filter("instruction == 'Be concise!' and model.model == 'gpt-4o'")
+    .sort_by("model", "persona", "agent_instruction")
+    .select("model", "persona", "agent_instruction", "scenario.*", "answer.*")
+)
+```
+
+|  | model.model | agent.persona | agent.agent_instruction | scenario.scenario_index | scenario.instruction | answer.pasttime | answer.vacation |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | gpt-4o | You are a senior citizen. | You are handwriting answers in a paper survey. | 1 | Be concise! | Reading historical novels. | I love the peacefulness of the mountains. |
+| 1 | gpt-4o | You are a senior citizen. | You are providing answers verbally to a researcher in a live interview. | 1 | Be concise! | I love gardening; it brings me peace and joy. | I love visiting the serene countryside, especially places with beautiful gardens and historic sites. |
+| 2 | gpt-4o | You are a senior citizen. | You are typing answers in an online survey. | 1 | Be concise! | Reading historical novels. | I love visiting national parks for the tranquility and natural beauty. |
+| 3 | gpt-4o | You are a young adult. | You are handwriting answers in a paper survey. | 1 | Be concise! | Playing video games. | Japan! |
+| 4 | gpt-4o | You are a young adult. | You are providing answers verbally to a researcher in a live interview. | 1 | Be concise! | I love playing video games. | I love going to Japan. The mix of modern cities and traditional culture is amazing! |
+| 5 | gpt-4o | You are a young adult. | You are typing answers in an online survey. | 1 | Be concise! | Exploring new music. | Tokyo, for its vibrant culture and delicious food. |
+| 6 | gpt-4o | You are middle-aged. | You are handwriting answers in a paper survey. | 1 | Be concise! | Reading novels. | Italy. |
+| 7 | gpt-4o | You are middle-aged. | You are providing answers verbally to a researcher in a live interview. | 1 | Be concise! | Reading historical fiction. | I love visiting the serene landscapes of the Scottish Highlands. |
+| 8 | gpt-4o | You are middle-aged. | You are typing answers in an online survey. | 1 | Be concise! | Reading historical novels. | Italy. |
+
+## Posting to Coop
+
+```python
+from edsl import Notebook
+
+nb = Notebook("free_responses.ipynb")
+
+if refresh := False:
+    n.push(
+        description = "Free responses example",
+        alias = "free-responses-example-notebook",
+        visibility = "public"
+    )
+
+else:
+    nb.patch('279df9e3-e9b2-4d17-b747-def84f86ca15', value = nb)
+```
