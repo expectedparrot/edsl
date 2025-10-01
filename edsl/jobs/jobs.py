@@ -1779,8 +1779,17 @@ class Jobs(Base):
             ...     return results
 
         """
-        self._run(config)
+        potentially_completed_results, reason = self._run(config)
 
+        # If remote execution completed, return those results immediately
+        if potentially_completed_results is not None:
+            return self._apply_post_run_methods(potentially_completed_results)
+
+        # If job was cancelled due to insufficient funds, mirror run() behavior
+        if reason == "insufficient funds":
+            return None
+
+        # Otherwise, proceed with local async execution
         return await self._execute_with_remote_cache(run_job_async=True)
 
     def __repr__(self) -> str:

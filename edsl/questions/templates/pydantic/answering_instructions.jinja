@@ -1,0 +1,12 @@
+Return a valid JSON that will parse as a dict matching the following schema:
+
+{{ json_schema }}
+
+{% if include_comment %}
+Also include a brief comment explaining your reasoning for the values you chose.
+Return a JSON-formatted string with two keys: "answer" (containing the structured data matching the schema above) and "comment" (a string explanation).
+{% else %}
+Return ONLY a JSON-formatted string with the key "answer" containing the structured data matching the schema above.
+{% endif %}
+
+Do not include any other text besides the JSON.

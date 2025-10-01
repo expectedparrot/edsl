@@ -156,6 +156,9 @@ class App(ABC):
         self._debug_output_last: Any | None = None
         self._debug_history: list[dict] = []
 
+        # Cache for generated results keyed by the hash of a jobs object
+        self._generated_results: dict[int, "Results"] = {}
+
         # Register this app instance in the global registry
         try:
             from .app_registry import AppRegistry
@@ -177,8 +180,23 @@ class App(ABC):
         return self.output(params = kwargs)
 
     def _generate_results(self, modified_jobs_object: "Jobs") -> "Results":
-        """Generate results from a modified jobs object."""
-        return modified_jobs_object.run(stop_on_exception=True)
+        """Generate results from a modified jobs object with instance-level caching.
+
+        Results are cached on the instance using the hash of the provided
+        jobs object. If the same jobs configuration is requested again,
+        the cached results are returned without re-running the jobs.
+        """
+        jobs_hash = hash(modified_jobs_object)
+        cache = self._generated_results
+        if jobs_hash in cache:
+            results = cache[jobs_hash]
+            self._debug_results_last = results
+            return results
+
+        results = modified_jobs_object.run(stop_on_exception=True)
+        cache[jobs_hash] = results
+        self._debug_results_last = results
+        return results
 
     def output(
         self,
