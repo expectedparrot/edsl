@@ -21,79 +21,78 @@
     "name": "Dashboard",
     "url": "https://www.expectedparrot.com"
   },
-  "root": "en/latest",
   "navigation": [
     {
       "group": "Get Started",
       "pages": [
-        "index",
-        "installation",
-        "getting_started",
-        "starter_tutorial"
+        "en/latest/index",
+        "en/latest/installation",
+        "en/latest/getting_started",
+        "en/latest/starter_tutorial"
       ]
     },
     {
       "group": "Core Concepts",
       "pages": [
-        "overview",
-        "questions",
-        "agents",
-        "language_models",
-        "surveys",
-        "results",
-        "scenarios"
+        "en/latest/overview",
+        "en/latest/questions",
+        "en/latest/agents",
+        "en/latest/language_models",
+        "en/latest/surveys",
+        "en/latest/results",
+        "en/latest/scenarios"
       ]
     },
     {
       "group": "Features",
       "pages": [
-        "prompts",
-        "coop",
-        "remote_inference",
-        "remote_caching",
-        "notebooks",
-        "data",
-        "filestore",
-        "logging"
+        "en/latest/prompts",
+        "en/latest/coop",
+        "en/latest/remote_inference",
+        "en/latest/remote_caching",
+        "en/latest/notebooks",
+        "en/latest/data",
+        "en/latest/filestore",
+        "en/latest/logging"
       ]
     },
     {
       "group": "Integrations",
       "pages": [
-        "api_keys",
-        "firecrawl",
-        "prolific",
-        "colab_notebooks",
-        "colab_setup"
+        "en/latest/api_keys",
+        "en/latest/firecrawl",
+        "en/latest/prolific",
+        "en/latest/colab_notebooks",
+        "en/latest/colab_setup"
       ]
     },
     {
       "group": "Reference",
       "pages": [
-        "jobs",
-        "interviews",
-        "answers",
-        "dataset",
-        "enums",
-        "base",
-        "exceptions",
-        "humanize",
-        "polly",
-        "survey_builder"
+        "en/latest/jobs",
+        "en/latest/interviews",
+        "en/latest/answers",
+        "en/latest/dataset",
+        "en/latest/enums",
+        "en/latest/base",
+        "en/latest/exceptions",
+        "en/latest/humanize",
+        "en/latest/polly",
+        "en/latest/survey_builder"
       ]
     },
     {
       "group": "Resources",
       "pages": [
-        "costs",
-        "token_usage",
-        "checklist",
-        "teaching",
-        "papers",
-        "whitepaper",
-        "credits",
-        "citation",
-        "contributing"
+        "en/latest/costs",
+        "en/latest/token_usage",
+        "en/latest/checklist",
+        "en/latest/teaching",
+        "en/latest/papers",
+        "en/latest/whitepaper",
+        "en/latest/credits",
+        "en/latest/citation",
+        "en/latest/contributing"
       ]
     }
   ],
