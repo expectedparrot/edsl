@@ -1,0 +1,104 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "EDSL Documentation",
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#0D9373",
+    "light": "#07C983",
+    "dark": "#0D9373",
+    "anchors": {
+      "from": "#0D9373",
+      "to": "#07C983"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Support",
+      "url": "mailto:support@expectedparrot.com"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Dashboard",
+    "url": "https://www.expectedparrot.com"
+  },
+  "navigation": [
+    {
+      "group": "Get Started",
+      "pages": [
+        "en/latest/index",
+        "en/latest/installation",
+        "en/latest/getting_started",
+        "en/latest/starter_tutorial"
+      ]
+    },
+    {
+      "group": "Core Concepts",
+      "pages": [
+        "en/latest/overview",
+        "en/latest/questions",
+        "en/latest/agents",
+        "en/latest/language_models",
+        "en/latest/surveys",
+        "en/latest/results",
+        "en/latest/scenarios"
+      ]
+    },
+    {
+      "group": "Features",
+      "pages": [
+        "en/latest/prompts",
+        "en/latest/coop",
+        "en/latest/remote_inference",
+        "en/latest/remote_caching",
+        "en/latest/notebooks",
+        "en/latest/data",
+        "en/latest/filestore",
+        "en/latest/logging"
+      ]
+    },
+    {
+      "group": "Integrations",
+      "pages": [
+        "en/latest/api_keys",
+        "en/latest/firecrawl",
+        "en/latest/prolific",
+        "en/latest/colab_notebooks",
+        "en/latest/colab_setup"
+      ]
+    },
+    {
+      "group": "Reference",
+      "pages": [
+        "en/latest/jobs",
+        "en/latest/interviews",
+        "en/latest/answers",
+        "en/latest/dataset",
+        "en/latest/enums",
+        "en/latest/base",
+        "en/latest/exceptions",
+        "en/latest/humanize",
+        "en/latest/polly",
+        "en/latest/survey_builder"
+      ]
+    },
+    {
+      "group": "Resources",
+      "pages": [
+        "en/latest/costs",
+        "en/latest/token_usage",
+        "en/latest/checklist",
+        "en/latest/teaching",
+        "en/latest/papers",
+        "en/latest/whitepaper",
+        "en/latest/credits",
+        "en/latest/citation",
+        "en/latest/contributing"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "twitter": "https://twitter.com/expectedparrot",
+    "github": "https://github.com/expectedparrot/edsl",
+    "linkedin": "https://www.linkedin.com/company/expectedparrot"
+  }
+}

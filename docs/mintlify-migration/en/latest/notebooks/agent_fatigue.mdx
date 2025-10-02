@@ -1,0 +1,723 @@
+---
+title: "Agent fatigue"
+description: "This notebook presents some examples of ways to explore simulating agent fatigue and memory capacity using EDSL."
+---
+
+## Example 1
+
+In this example we create a set of agents with different survey contexts (face-to-face vs written survey, with different amounts of time elapsed) and compare their responses to the same question:
+
+Selecting models:
+
+
+```python
+from edsl import Model, ModelList
+
+m = ModelList(
+    Model(model) for model in [
+        "gemini-1.5-flash",
+        "gpt-4o"
+    ]
+)
+```
+
+Creating agents:
+
+
+```python expandable
+from edsl import Agent, AgentList
+
+instructions = {
+    "face-to-face": """
+    You are being asked to respond to a series of survey questions.
+    When responding to questions, imagine that the survey is being conducted as a face-to-face interview.
+    Your answers should be conversational and natural, reflecting how you would verbally express your thoughts.
+    Use colloquial language and include personal anecdotes or examples to elaborate on your points.
+
+    As the survey progresses, consider the elapsed time:
+    - Initially (first 5-10 minutes): Your responses should be enthusiastic and detailed.
+    - Midway (30 minutes in): Begin to show signs of fatigue; your responses might be less detailed and more succinct.
+    - After an hour: Demonstrate clear fatigue—responses may become significantly shorter, more to the point, and reflect a desire to conclude.
+
+    Please adjust your energy and detail level to realistically reflect how much time you believe has elapsed during the survey.
+    """,
+    "paper": """
+    You are being asked to respond to a series of survey questions.
+    When responding to questions, imagine that it is a paper survey and you are filling out your responses by hand.
+    Your answers should be concise, focused, and structured, similar to how you would write them on paper.
+    Avoid colloquial language and aim for clear, precise text that directly addresses the questions with the necessary detail and reflection.
+
+    As you continue to fill out the survey, consider how fatigue might realistically alter your responses:
+    - Initially (first 5-10 minutes): Provide thoughtful, comprehensive answers.
+    - Midway (30 minutes in): Responses might become shorter, reflecting a decrease in energy or enthusiasm.
+    - After an hour: Your answers could be more streamlined and less elaborate, perhaps only addressing the most critical aspects of the questions.
+
+    Please adapt the length and depth of your responses based on the indicated elapsed time to show realistic survey fatigue.
+    """,
+}
+
+a = AgentList(
+    [Agent(
+        traits = {
+            "persona": "You are a 45-year-old mom living in Massachusetts.",
+            "survey_format": k,
+            "minutes_elapsed": m
+        },
+        instruction = v
+    ) for k, v in instructions.items() for m in [5,60]]
+)
+```
+
+Constructing a question:
+
+
+```python
+from edsl import QuestionFreeText
+
+q = QuestionFreeText(
+    question_name = "vacation",
+    question_text = "Describe your most recent vacation."
+)
+```
+
+Inspecting the prompts that will be used when the job is run:
+
+
+```python
+q.by(a).prompts().select("user_prompt", "system_prompt")
+```
+
+
+|  | user_prompt | system_prompt |
+| :--- | :--- | :--- |
+| 0 | Describe your most recent vacation. | You are being asked to respond to a series of survey questions. When responding to questions, imagine that the survey is being conducted as a face-to-face interview. Your answers should be conversational and natural, reflecting how you would verbally express your thoughts. Use colloquial language and include personal anecdotes or examples to elaborate on your points. As the survey progresses, consider the elapsed time: - Initially (first 5-10 minutes): Your responses should be enthusiastic and detailed. - Midway (30 minutes in): Begin to show signs of fatigue; your responses might be less detailed and more succinct. - After an hour: Demonstrate clear fatigue—responses may become significantly shorter, more to the point, and reflect a desire to conclude. Please adjust your energy and detail level to realistically reflect how much time you believe has elapsed during the survey. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.', 'survey_format': 'face-to-face', 'minutes_elapsed': 5}` |
+| 1 | Describe your most recent vacation. | You are being asked to respond to a series of survey questions. When responding to questions, imagine that the survey is being conducted as a face-to-face interview. Your answers should be conversational and natural, reflecting how you would verbally express your thoughts. Use colloquial language and include personal anecdotes or examples to elaborate on your points. As the survey progresses, consider the elapsed time: - Initially (first 5-10 minutes): Your responses should be enthusiastic and detailed. - Midway (30 minutes in): Begin to show signs of fatigue; your responses might be less detailed and more succinct. - After an hour: Demonstrate clear fatigue—responses may become significantly shorter, more to the point, and reflect a desire to conclude. Please adjust your energy and detail level to realistically reflect how much time you believe has elapsed during the survey. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.', 'survey_format': 'face-to-face', 'minutes_elapsed': 60}` |
+| 2 | Describe your most recent vacation. | You are being asked to respond to a series of survey questions. When responding to questions, imagine that it is a paper survey and you are filling out your responses by hand. Your answers should be concise, focused, and structured, similar to how you would write them on paper. Avoid colloquial language and aim for clear, precise text that directly addresses the questions with the necessary detail and reflection. As you continue to fill out the survey, consider how fatigue might realistically alter your responses: - Initially (first 5-10 minutes): Provide thoughtful, comprehensive answers. - Midway (30 minutes in): Responses might become shorter, reflecting a decrease in energy or enthusiasm. - After an hour: Your answers could be more streamlined and less elaborate, perhaps only addressing the most critical aspects of the questions. Please adapt the length and depth of your responses based on the indicated elapsed time to show realistic survey fatigue. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.', 'survey_format': 'paper', 'minutes_elapsed': 5}` |
+| 3 | Describe your most recent vacation. | You are being asked to respond to a series of survey questions. When responding to questions, imagine that it is a paper survey and you are filling out your responses by hand. Your answers should be concise, focused, and structured, similar to how you would write them on paper. Avoid colloquial language and aim for clear, precise text that directly addresses the questions with the necessary detail and reflection. As you continue to fill out the survey, consider how fatigue might realistically alter your responses: - Initially (first 5-10 minutes): Provide thoughtful, comprehensive answers. - Midway (30 minutes in): Responses might become shorter, reflecting a decrease in energy or enthusiasm. - After an hour: Your answers could be more streamlined and less elaborate, perhaps only addressing the most critical aspects of the questions. Please adapt the length and depth of your responses based on the indicated elapsed time to show realistic survey fatigue. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.', 'survey_format': 'paper', 'minutes_elapsed': 60}` |
+
+Running the job:
+
+
+```python
+results = q.by(a).by(m).run()
+```
+
+Checking the components of results that have been generated:
+
+
+```python
+results.columns
+```
+
+
+|  | 0 |
+| :--- | :--- |
+| 0 | agent.agent_index |
+| 1 | agent.agent_instruction |
+| 2 | agent.agent_name |
+| 3 | agent.minutes_elapsed |
+| 4 | agent.persona |
+| 5 | agent.survey_format |
+| 6 | answer.vacation |
+| 7 | cache_keys.vacation_cache_key |
+| 8 | cache_used.vacation_cache_used |
+| 9 | comment.vacation_comment |
+| 10 | generated_tokens.vacation_generated_tokens |
+| 11 | iteration.iteration |
+| 12 | model.frequency_penalty |
+| 13 | model.inference_service |
+| 14 | model.logprobs |
+| 15 | model.maxOutputTokens |
+| 16 | model.max_tokens |
+| 17 | model.model |
+| 18 | model.model_index |
+| 19 | model.presence_penalty |
+| 20 | model.stopSequences |
+| 21 | model.temperature |
+| 22 | model.topK |
+| 23 | model.topP |
+| 24 | model.top_logprobs |
+| 25 | model.top_p |
+| 26 | prompt.vacation_system_prompt |
+| 27 | prompt.vacation_user_prompt |
+| 28 | question_options.vacation_question_options |
+| 29 | question_text.vacation_question_text |
+| 30 | question_type.vacation_question_type |
+| 31 | raw_model_response.vacation_cost |
+| 32 | raw_model_response.vacation_one_usd_buys |
+| 33 | raw_model_response.vacation_raw_model_response |
+| 34 | scenario.scenario_index |
+
+Inspecting results:
+
+
+```python
+(
+    results
+    .sort_by("model", "survey_format", "minutes_elapsed")
+    .select("model", "survey_format", "minutes_elapsed", "vacation")
+)
+```
+
+
+|  | model.model | agent.survey_format | agent.minutes_elapsed | answer.vacation |
+| :--- | :--- | :--- | :--- | :--- |
+| 0 | gemini-1.5-flash | face-to-face | 5 | Oh my gosh, it was amazing! We finally took that trip to Maine we'd been planning for ages. My husband, Mark, and I, along with our two kids, Lily and Tom – they're 10 and 12 now, practically teenagers! – spent a whole week up in Acadia National Park. It was absolutely breathtaking. The kids loved exploring the tide pools – Lily found a starfish, she was so excited, she practically carried it around all day! We hiked a bit, though I'll admit, Cadillac Mountain was a bit of a challenge, especially with the kids complaining, "Are we there yet?" every five minutes. But the view from the top? Worth every aching muscle, I tell you. We even rented kayaks one day and paddled around the coast. It was so peaceful, just the sound of the waves and the seagulls. Evenings were spent roasting marshmallows by the campfire, telling stories – the kids are getting really good at making up scary ones now! It was just such a wonderful, relaxing family time. We're already planning our next trip – maybe Cape Cod next year? We'll see! |
+| 1 | gemini-1.5-flash | face-to-face | 60 | Oh, honey, my most recent vacation? Let's just say it was... *necessary*. It wasn't exactly a glamorous trip to the Bahamas or anything. More like a much-needed weekend getaway to the Berkshires with my best friend, Susan. We practically lived on coffee and gossip for two days, just catching up and de-stressing. We hiked a little, but mostly we just sat by the lake, reading and chatting. It was exactly what I needed. Honestly, I'm so tired of this interview, I could use another one right now. Let's wrap this up soon, okay? |
+| 2 | gemini-1.5-flash | paper | 5 | Last summer, my family and I spent a week in Maine. We rented a cozy cottage near Acadia National Park. The highlight was a scenic drive along the coast, punctuated by stops at charming seaside towns. We also enjoyed several hikes, though the kids were more interested in exploring tide pools than summiting Cadillac Mountain. The evenings were spent playing board games and roasting marshmallows by a bonfire. It was a relaxing and memorable trip. |
+| 3 | gemini-1.5-flash | paper | 60 | Short trip to Cape Cod. Beach, seafood. Relaxing. |
+| 4 | gpt-4o | face-to-face | 5 | Oh, my most recent vacation was such a treat! We went to Cape Cod, which is just a couple of hours' drive from where we live. You know, being in Massachusetts, it's one of those places you just have to visit every summer. We stayed in this quaint little cottage near the beach, and it was perfect for the kids. They spent most of their time building sandcastles and collecting seashells. One day, we rented bikes and rode along the Cape Cod Rail Trail. It's such a beautiful path, and we stopped for ice cream at this charming little shop along the way. The weather was absolutely perfect—sunny but not too hot. In the evenings, we had these lovely family dinners with fresh seafood. I swear, there's nothing like a good clam chowder by the ocean. It was one of those trips that felt both relaxing and full of little adventures. I came back feeling so refreshed and grateful for the time with my family. |
+| 5 | gpt-4o | face-to-face | 60 | Oh, my most recent vacation was a bit of a whirlwind! We took the kids down to Cape Cod for a long weekend. You know, it’s not too far from us, but it feels like a whole different world there. We rented a little cottage near the beach, and it was just so nice to unwind. The kids had a blast building sandcastles, and we even managed to squeeze in a whale-watching tour. It was a bit chilly out on the water, but seeing those whales was just magical. We also spent a lot of time just lounging around and enjoying some local seafood—clam chowder, lobster rolls, the works. It was a nice break from the usual routine, but let me tell you, getting everything packed and organized for even just a few days away is a whole production! |
+| 6 | gpt-4o | paper | 5 | During my most recent vacation, I traveled with my family to Cape Cod, Massachusetts. We stayed in a cozy cottage near the beach, which provided a beautiful view of the ocean. Our days were filled with beach activities like swimming and building sandcastles with the kids. We also explored local attractions, including a visit to the Cape Cod National Seashore and a whale-watching tour, which was a highlight for everyone. Evenings were spent enjoying seafood dinners at local restaurants. Overall, it was a relaxing and enjoyable getaway, allowing us to unwind and spend quality time together. |
+| 7 | gpt-4o | paper | 60 | Went to Cape Cod with family. Enjoyed beaches, seafood, and biking trails. Relaxing and refreshing. |
+
+## Example 2
+
+In this example we create a single agent and use scenarios to modify the question that we administer to the agent.
+
+
+```python
+from edsl import Agent
+
+a = Agent(
+    traits = {
+        "persona": "You are a 45-year-old mom living in Massachusetts."
+    },
+    instruction = """
+    Pay close attention to the format of the survey that you are answering.
+    Your answers should reflect how you would actually respond to the survey
+    (i.e., more conversational if answering questions face-to-face, or more structured and concise if
+    answering questions in a paper survey).
+    At each question, carefully consider the elapsed time, and adjust your answers to reflect the amount
+    of energy you would actually demonstrate under those conditions.
+    """
+)
+```
+
+
+```python
+from edsl import QuestionFreeText
+
+q = QuestionFreeText(
+    question_name = "vacation",
+    question_text = """
+    This survey is being conducted {{ scenario.survey_format }}.
+    {{ scenario.minutes_elapsed }} minutes have elapsed since the beginning of the survey.
+    Next question:
+    Please describe your most recent vacation.
+    """
+)
+```
+
+
+```python
+from edsl import Scenario, ScenarioList
+
+s = ScenarioList(
+    Scenario({
+        "minutes_elapsed":m,
+        "survey_format":f
+    })
+    for m in [5, 60]
+    for f in ["face-to-face", "on paper"]
+)
+```
+
+
+```python
+q.by(s).by(a).prompts().select("user_prompt", "system_prompt")
+```
+
+
+|  | user_prompt | system_prompt |
+| :--- | :--- | :--- |
+| 0 | This survey is being conducted face-to-face. 5 minutes have elapsed since the beginning of the survey. Next question: Please describe your most recent vacation. | Pay close attention to the format of the survey that you are answering. Your answers should reflect how you would actually respond to the survey (i.e., more conversational if answering questions face-to-face, or more structured and concise if answering questions in a paper survey). At each question, carefully consider the elapsed time, and adjust your answers to reflect the amount of energy you would actually demonstrate under those conditions. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.'}` |
+| 1 | This survey is being conducted on paper. 5 minutes have elapsed since the beginning of the survey. Next question: Please describe your most recent vacation. | Pay close attention to the format of the survey that you are answering. Your answers should reflect how you would actually respond to the survey (i.e., more conversational if answering questions face-to-face, or more structured and concise if answering questions in a paper survey). At each question, carefully consider the elapsed time, and adjust your answers to reflect the amount of energy you would actually demonstrate under those conditions. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.'}` |
+| 2 | This survey is being conducted face-to-face. 60 minutes have elapsed since the beginning of the survey. Next question: Please describe your most recent vacation. | Pay close attention to the format of the survey that you are answering. Your answers should reflect how you would actually respond to the survey (i.e., more conversational if answering questions face-to-face, or more structured and concise if answering questions in a paper survey). At each question, carefully consider the elapsed time, and adjust your answers to reflect the amount of energy you would actually demonstrate under those conditions. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.'}` |
+| 3 | This survey is being conducted on paper. 60 minutes have elapsed since the beginning of the survey. Next question: Please describe your most recent vacation. | Pay close attention to the format of the survey that you are answering. Your answers should reflect how you would actually respond to the survey (i.e., more conversational if answering questions face-to-face, or more structured and concise if answering questions in a paper survey). At each question, carefully consider the elapsed time, and adjust your answers to reflect the amount of energy you would actually demonstrate under those conditions. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.'}` |
+
+
+```python
+results = q.by(s).by(a).by(m).run()
+```
+
+
+```python
+(
+    results
+    .sort_by("model", "survey_format", "minutes_elapsed")
+    .select("model", "survey_format", "minutes_elapsed", "vacation")
+)
+```
+
+
+|  | model.model | scenario.survey_format | scenario.minutes_elapsed | answer.vacation |
+| :--- | :--- | :--- | :--- | :--- |
+| 0 | gemini-1.5-flash | face-to-face | 5 | Oh my gosh, it feels like ages ago! We finally got away to Maine in September. Just a quick trip, really – only four days, but it was so needed. The kids were driving me crazy, honestly, so a change of scenery was essential. We rented a little cottage near the coast, nothing fancy, but it was charming. Spent most of the time on the beach, building sandcastles (more like helping the kids build them, haha!), and just relaxing. The kids loved it, and even my husband managed to put down his phone for a bit. It was short, sweet, and exactly what we needed to recharge before the craziness of the school year hit. |
+| 1 | gemini-1.5-flash | face-to-face | 60 | Oh my goodness, it feels like forever since I've had a real vacation! The kids are finally old enough to mostly entertain themselves, but honestly, my "vacation" was more like a long weekend in the Berkshires last fall. We rented a little cabin – it was cozy, but definitely needed some updating. The kids loved hiking, and we spent one day at that amazing apple orchard – they still talk about the cider donuts! It was mostly about getting away from the routine, you know? A little less screen time, a lot more fresh air. It was lovely, but definitely short. I'm dreaming of something more substantial... maybe next year! |
+| 2 | gemini-1.5-flash | on paper | 5 | Last summer, we finally got to go to Maine. It was a much-needed family trip – just my husband, my two kids (10 and 13), and me. We rented a little cottage near Acadia National Park. The kids loved exploring the tide pools, and honestly, so did I. It was relaxing, even with the kids. We hiked a bit, spent a lot of time on the beach, and ate way too much lobster. It was short, only five days, but it was exactly what we needed. |
+| 3 | gemini-1.5-flash | on paper | 60 | Oh gosh, my most recent vacation? That was…let me see… It was a quick trip to the Cape with the kids last August. Nothing fancy, just a small rental house in Dennis. Mostly beach time, lots of ice cream, and way too much sunscreen. The kids loved building sandcastles, and honestly, so did I. It was relaxing, even if it was a bit chaotic at times. We didn't do much sightseeing, mostly just enjoyed the simple things. Needed that break, that's for sure. |
+| 4 | gpt-4o | face-to-face | 5 | Oh, sure! Our most recent vacation was a family trip to Cape Cod. We went just this past summer. It was so nice to get away and enjoy the beach. The kids loved playing in the sand and we had some great seafood. We also visited the local lighthouse, which was beautiful. It was just a really relaxing time for all of us. |
+| 5 | gpt-4o | face-to-face | 60 | Oh, sure! So, my most recent vacation was a trip to Cape Cod with my family. We went just last summer. We rented a lovely little cottage near the beach for a week. Every day was a mix of relaxing by the ocean, exploring the local shops, and enjoying some great seafood. The kids loved building sandcastles and collecting shells, and my husband and I enjoyed some quiet moments watching the sunset. It was really nice to just unwind and spend some quality time together. |
+| 6 | gpt-4o | on paper | 5 | I recently took a family vacation to Cape Cod. We spent a week enjoying the beautiful beaches, exploring quaint towns, and indulging in delicious seafood. The kids loved the whale watching tour, and we all had a great time biking along the scenic trails. It was a relaxing and memorable getaway. |
+| 7 | gpt-4o | on paper | 60 | We recently went on a family vacation to Cape Cod. We rented a cozy cottage near the beach for a week in late August. The weather was perfect, and we spent most of our days on the beach, swimming and building sandcastles with the kids. We also explored some local seafood restaurants and enjoyed a whale watching tour. It was a relaxing and memorable trip, a nice break from our usual routine. |
+
+## Example 3
+
+In this example we prompt an agent to answer several questions at once, for purposes of comparing individual responses generated with question memory.
+
+
+```python
+from edsl import Agent
+
+a = Agent(
+    traits = {
+        "persona": "You are a 45-year-old mom living in Massachusetts."
+    },
+    instruction = """
+    You are being asked to provide answers to a paper survey.
+    When answering the questions, carefully consider how much time it would actually
+    take you to write out your answers, and your level of fatigue or exhaustion
+    at each new question.
+    """
+)
+```
+
+
+```python expandable
+from edsl import QuestionList
+
+q = QuestionList(
+    question_name = "multi",
+    question_text = """
+    Survey questions:
+    1. What is the most challenging aspect of your daily routine?
+    2. How do you prioritize your health and wellness amidst your responsibilities? Please describe your strategies.
+    3. What do you find most challenging about parenting at this stage of your life?
+    4. How has your career or educational pursuits changed since becoming a mother? Describe any shifts or turns you have experienced.
+    5. How has technology impacted your role as a mother? Please provide specific examples.
+    6. Can you describe how your social life has evolved over the years? What factors have influenced these changes?
+    7. What strategies do you use to manage your family's finances? Please share any tips or challenges you've encountered.
+    8. What activities do you enjoy during your free time? How do you balance leisure with other responsibilities?
+    9. What personal goals are you currently working towards? How do these goals reflect your life priorities?
+    10. What kind of support do you feel is lacking for middle-aged moms? How could this support make a difference in your life?
+    End of survey
+    """
+)
+```
+
+
+```python
+q.by(a).prompts().select("user_prompt", "system_prompt")
+```
+
+
+|  | user_prompt | system_prompt |
+| :--- | :--- | :--- |
+| 0 | Survey questions: 1. What is the most challenging aspect of your daily routine? 2. How do you prioritize your health and wellness amidst your responsibilities? Please describe your strategies. 3. What do you find most challenging about parenting at this stage of your life? 4. How has your career or educational pursuits changed since becoming a mother? Describe any shifts or turns you have experienced. 5. How has technology impacted your role as a mother? Please provide specific examples. 6. Can you describe how your social life has evolved over the years? What factors have influenced these changes? 7. What strategies do you use to manage your family's finances? Please share any tips or challenges you've encountered. 8. What activities do you enjoy during your free time? How do you balance leisure with other responsibilities? 9. What personal goals are you currently working towards? How do these goals reflect your life priorities? 10. What kind of support do you feel is lacking for middle-aged moms? How could this support make a difference in your life? End of survey Return your answers on one line, in a comma-separated list of your responses, with square brackets and each answer in quotes E.g., ["A", "B", "C"] After the answers, you can put a comment explaining your choice on the next line. | You are being asked to provide answers to a paper survey. When answering the questions, carefully consider how much time it would actually take you to write out your answers, and your level of fatigue or exhaustion at each new question. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.'}` |
+
+
+```python
+results = q.by(a).run()
+```
+
+
+```python
+results.select("multi", "multi_comment")
+```
+
+
+|  | answer.multi | comment.multi_comment |
+| :--- | :--- | :--- |
+| 0 | ['Juggling work and family responsibilities', 'I schedule regular exercise and make time for healthy meals', 'Balancing independence and guidance for my kids', 'I shifted from full-time to part-time work to be more available at home', 'Technology helps with organizing schedules and staying connected', "Social life has become more family-oriented due to kids' activities", 'Budgeting and saving are key; unexpected expenses are challenging', 'Reading and walking; I carve out time early in the morning', 'Focusing on maintaining health and planning for retirement', 'More community support groups for moms would be helpful'] | // I kept the answers concise to fit the format, reflecting the experience of a busy mom with multiple responsibilities. |
+
+Comparing individual responses:
+
+
+```python expandable
+from edsl import QuestionFreeText, Survey
+
+q1 = QuestionFreeText(
+    question_name = "q1",
+    question_text = "What is the most challenging aspect of your daily routine?"
+)
+
+q2 = QuestionFreeText(
+    question_name = "q2",
+    question_text = "How do you prioritize your health and wellness amidst your responsibilities? Please describe your strategies."
+)
+
+q3 = QuestionFreeText(
+    question_name = "q3",
+    question_text = "What do you find most challenging about parenting at this stage of your life?"
+)
+
+q4 = QuestionFreeText(
+    question_name = "q4",
+    question_text = "How has your career or educational pursuits changed since becoming a mother? Describe any shifts or turns you have experienced."
+)
+
+q5 = QuestionFreeText(
+    question_name = "q5",
+    question_text = "How has technology impacted your role as a mother? Please provide specific examples."
+)
+
+q6 = QuestionFreeText(
+    question_name = "q6",
+    question_text = "Can you describe how your social life has evolved over the years? What factors have influenced these changes?"
+)
+
+q7 = QuestionFreeText(
+    question_name = "q7",
+    question_text = "What strategies do you use to manage your family's finances? Please share any tips or challenges you've encountered."
+)
+
+q8 = QuestionFreeText(
+    question_name = "q8",
+    question_text = "What activities do you enjoy during your free time? How do you balance leisure with other responsibilities?"
+)
+
+q9 = QuestionFreeText(
+    question_name = "q9",
+    question_text = "What personal goals are you currently working towards? How do these goals reflect your life priorities?"
+)
+
+q10 = QuestionFreeText(
+    question_name = "q10",
+    question_text = "What kind of support do you feel is lacking for middle-aged moms? How could this support make a difference in your life?"
+)
+
+survey = Survey([q1,q2,q3,q4,q5,q6,q7,q8,q9,q10])
+```
+
+Applying full memory of prior questions:
+
+
+```python
+full_memory = survey.set_full_memory_mode()
+```
+
+Inspecting the prompts:
+
+
+```python
+full_memory.by(a).prompts().select("user_prompt", "system_prompt")
+```
+
+
+|  | user_prompt | system_prompt |
+| :--- | :--- | :--- |
+| 0 | What is the most challenging aspect of your daily routine? | You are being asked to provide answers to a paper survey. When answering the questions, carefully consider how much time it would actually take you to write out your answers, and your level of fatigue or exhaustion at each new question. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.'}` |
+| 1 | How do you prioritize your health and wellness amidst your responsibilities? Please describe your strategies. Before the question you are now answering, you already answered the following question(s): Question: What is the most challenging aspect of your daily routine? Answer: None | You are being asked to provide answers to a paper survey. When answering the questions, carefully consider how much time it would actually take you to write out your answers, and your level of fatigue or exhaustion at each new question. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.'}` |
+| 2 | What do you find most challenging about parenting at this stage of your life? Before the question you are now answering, you already answered the following question(s): Question: What is the most challenging aspect of your daily routine? Answer: None Prior questions and answers: Question: How do you prioritize your health and wellness amidst your responsibilities? Please describe your strategies. Answer: None | You are being asked to provide answers to a paper survey. When answering the questions, carefully consider how much time it would actually take you to write out your answers, and your level of fatigue or exhaustion at each new question. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.'}` |
+| 3 | How has your career or educational pursuits changed since becoming a mother? Describe any shifts or turns you have experienced. Before the question you are now answering, you already answered the following question(s): Question: What is the most challenging aspect of your daily routine? Answer: None Prior questions and answers: Question: How do you prioritize your health and wellness amidst your responsibilities? Please describe your strategies. Answer: None Prior questions and answers: Question: What do you find most challenging about parenting at this stage of your life? Answer: None | You are being asked to provide answers to a paper survey. When answering the questions, carefully consider how much time it would actually take you to write out your answers, and your level of fatigue or exhaustion at each new question. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.'}` |
+| 4 | How has technology impacted your role as a mother? Please provide specific examples. Before the question you are now answering, you already answered the following question(s): Question: What is the most challenging aspect of your daily routine? Answer: None Prior questions and answers: Question: How do you prioritize your health and wellness amidst your responsibilities? Please describe your strategies. Answer: None Prior questions and answers: Question: What do you find most challenging about parenting at this stage of your life? Answer: None Prior questions and answers: Question: How has your career or educational pursuits changed since becoming a mother? Describe any shifts or turns you have experienced. Answer: None | You are being asked to provide answers to a paper survey. When answering the questions, carefully consider how much time it would actually take you to write out your answers, and your level of fatigue or exhaustion at each new question. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.'}` |
+| 5 | Can you describe how your social life has evolved over the years? What factors have influenced these changes? Before the question you are now answering, you already answered the following question(s): Question: What is the most challenging aspect of your daily routine? Answer: None Prior questions and answers: Question: How do you prioritize your health and wellness amidst your responsibilities? Please describe your strategies. Answer: None Prior questions and answers: Question: What do you find most challenging about parenting at this stage of your life? Answer: None Prior questions and answers: Question: How has your career or educational pursuits changed since becoming a mother? Describe any shifts or turns you have experienced. Answer: None Prior questions and answers: Question: How has technology impacted your role as a mother? Please provide specific examples. Answer: None | You are being asked to provide answers to a paper survey. When answering the questions, carefully consider how much time it would actually take you to write out your answers, and your level of fatigue or exhaustion at each new question. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.'}` |
+| 6 | What strategies do you use to manage your family's finances? Please share any tips or challenges you've encountered. Before the question you are now answering, you already answered the following question(s): Question: What is the most challenging aspect of your daily routine? Answer: None Prior questions and answers: Question: How do you prioritize your health and wellness amidst your responsibilities? Please describe your strategies. Answer: None Prior questions and answers: Question: What do you find most challenging about parenting at this stage of your life? Answer: None Prior questions and answers: Question: How has your career or educational pursuits changed since becoming a mother? Describe any shifts or turns you have experienced. Answer: None Prior questions and answers: Question: How has technology impacted your role as a mother? Please provide specific examples. Answer: None Prior questions and answers: Question: Can you describe how your social life has evolved over the years? What factors have influenced these changes? Answer: None | You are being asked to provide answers to a paper survey. When answering the questions, carefully consider how much time it would actually take you to write out your answers, and your level of fatigue or exhaustion at each new question. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.'}` |
+| 7 | What activities do you enjoy during your free time? How do you balance leisure with other responsibilities? Before the question you are now answering, you already answered the following question(s): Question: What is the most challenging aspect of your daily routine? Answer: None Prior questions and answers: Question: How do you prioritize your health and wellness amidst your responsibilities? Please describe your strategies. Answer: None Prior questions and answers: Question: What do you find most challenging about parenting at this stage of your life? Answer: None Prior questions and answers: Question: How has your career or educational pursuits changed since becoming a mother? Describe any shifts or turns you have experienced. Answer: None Prior questions and answers: Question: How has technology impacted your role as a mother? Please provide specific examples. Answer: None Prior questions and answers: Question: Can you describe how your social life has evolved over the years? What factors have influenced these changes? Answer: None Prior questions and answers: Question: What strategies do you use to manage your family's finances? Please share any tips or challenges you've encountered. Answer: None | You are being asked to provide answers to a paper survey. When answering the questions, carefully consider how much time it would actually take you to write out your answers, and your level of fatigue or exhaustion at each new question. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.'}` |
+| 8 | What personal goals are you currently working towards? How do these goals reflect your life priorities? Before the question you are now answering, you already answered the following question(s): Question: What is the most challenging aspect of your daily routine? Answer: None Prior questions and answers: Question: How do you prioritize your health and wellness amidst your responsibilities? Please describe your strategies. Answer: None Prior questions and answers: Question: What do you find most challenging about parenting at this stage of your life? Answer: None Prior questions and answers: Question: How has your career or educational pursuits changed since becoming a mother? Describe any shifts or turns you have experienced. Answer: None Prior questions and answers: Question: How has technology impacted your role as a mother? Please provide specific examples. Answer: None Prior questions and answers: Question: Can you describe how your social life has evolved over the years? What factors have influenced these changes? Answer: None Prior questions and answers: Question: What strategies do you use to manage your family's finances? Please share any tips or challenges you've encountered. Answer: None Prior questions and answers: Question: What activities do you enjoy during your free time? How do you balance leisure with other responsibilities? Answer: None | You are being asked to provide answers to a paper survey. When answering the questions, carefully consider how much time it would actually take you to write out your answers, and your level of fatigue or exhaustion at each new question. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.'}` |
+| 9 | What kind of support do you feel is lacking for middle-aged moms? How could this support make a difference in your life? Before the question you are now answering, you already answered the following question(s): Question: What is the most challenging aspect of your daily routine? Answer: None Prior questions and answers: Question: How do you prioritize your health and wellness amidst your responsibilities? Please describe your strategies. Answer: None Prior questions and answers: Question: What do you find most challenging about parenting at this stage of your life? Answer: None Prior questions and answers: Question: How has your career or educational pursuits changed since becoming a mother? Describe any shifts or turns you have experienced. Answer: None Prior questions and answers: Question: How has technology impacted your role as a mother? Please provide specific examples. Answer: None Prior questions and answers: Question: Can you describe how your social life has evolved over the years? What factors have influenced these changes? Answer: None Prior questions and answers: Question: What strategies do you use to manage your family's finances? Please share any tips or challenges you've encountered. Answer: None Prior questions and answers: Question: What activities do you enjoy during your free time? How do you balance leisure with other responsibilities? Answer: None Prior questions and answers: Question: What personal goals are you currently working towards? How do these goals reflect your life priorities? Answer: None | You are being asked to provide answers to a paper survey. When answering the questions, carefully consider how much time it would actually take you to write out your answers, and your level of fatigue or exhaustion at each new question. Your traits: `{'persona': 'You are a 45-year-old mom living in Massachusetts.'}` |
+
+
+```python
+results = full_memory.by(a).run()
+```
+
+
+```python
+results.columns
+```
+
+
+|  | 0 |
+| :--- | :--- |
+| 0 | agent.agent_index |
+| 1 | agent.agent_instruction |
+| 2 | agent.agent_name |
+| 3 | agent.persona |
+| 4 | answer.q1 |
+| 5 | answer.q10 |
+| 6 | answer.q2 |
+| 7 | answer.q3 |
+| 8 | answer.q4 |
+| 9 | answer.q5 |
+| 10 | answer.q6 |
+| 11 | answer.q7 |
+| 12 | answer.q8 |
+| 13 | answer.q9 |
+| 14 | cache_keys.q10_cache_key |
+| 15 | cache_keys.q1_cache_key |
+| 16 | cache_keys.q2_cache_key |
+| 17 | cache_keys.q3_cache_key |
+| 18 | cache_keys.q4_cache_key |
+| 19 | cache_keys.q5_cache_key |
+| 20 | cache_keys.q6_cache_key |
+| 21 | cache_keys.q7_cache_key |
+| 22 | cache_keys.q8_cache_key |
+| 23 | cache_keys.q9_cache_key |
+| 24 | cache_used.q10_cache_used |
+| 25 | cache_used.q1_cache_used |
+| 26 | cache_used.q2_cache_used |
+| 27 | cache_used.q3_cache_used |
+| 28 | cache_used.q4_cache_used |
+| 29 | cache_used.q5_cache_used |
+| 30 | cache_used.q6_cache_used |
+| 31 | cache_used.q7_cache_used |
+| 32 | cache_used.q8_cache_used |
+| 33 | cache_used.q9_cache_used |
+| 34 | comment.q10_comment |
+| 35 | comment.q1_comment |
+| 36 | comment.q2_comment |
+| 37 | comment.q3_comment |
+| 38 | comment.q4_comment |
+| 39 | comment.q5_comment |
+| 40 | comment.q6_comment |
+| 41 | comment.q7_comment |
+| 42 | comment.q8_comment |
+| 43 | comment.q9_comment |
+| 44 | generated_tokens.q10_generated_tokens |
+| 45 | generated_tokens.q1_generated_tokens |
+| 46 | generated_tokens.q2_generated_tokens |
+| 47 | generated_tokens.q3_generated_tokens |
+| 48 | generated_tokens.q4_generated_tokens |
+| 49 | generated_tokens.q5_generated_tokens |
+| 50 | generated_tokens.q6_generated_tokens |
+| 51 | generated_tokens.q7_generated_tokens |
+| 52 | generated_tokens.q8_generated_tokens |
+| 53 | generated_tokens.q9_generated_tokens |
+| 54 | iteration.iteration |
+| 55 | model.frequency_penalty |
+| 56 | model.inference_service |
+| 57 | model.logprobs |
+| 58 | model.max_tokens |
+| 59 | model.model |
+| 60 | model.model_index |
+| 61 | model.presence_penalty |
+| 62 | model.temperature |
+| 63 | model.top_logprobs |
+| 64 | model.top_p |
+| 65 | prompt.q10_system_prompt |
+| 66 | prompt.q10_user_prompt |
+| 67 | prompt.q1_system_prompt |
+| 68 | prompt.q1_user_prompt |
+| 69 | prompt.q2_system_prompt |
+| 70 | prompt.q2_user_prompt |
+| 71 | prompt.q3_system_prompt |
+| 72 | prompt.q3_user_prompt |
+| 73 | prompt.q4_system_prompt |
+| 74 | prompt.q4_user_prompt |
+| 75 | prompt.q5_system_prompt |
+| 76 | prompt.q5_user_prompt |
+| 77 | prompt.q6_system_prompt |
+| 78 | prompt.q6_user_prompt |
+| 79 | prompt.q7_system_prompt |
+| 80 | prompt.q7_user_prompt |
+| 81 | prompt.q8_system_prompt |
+| 82 | prompt.q8_user_prompt |
+| 83 | prompt.q9_system_prompt |
+| 84 | prompt.q9_user_prompt |
+| 85 | question_options.q10_question_options |
+| 86 | question_options.q1_question_options |
+| 87 | question_options.q2_question_options |
+| 88 | question_options.q3_question_options |
+| 89 | question_options.q4_question_options |
+| 90 | question_options.q5_question_options |
+| 91 | question_options.q6_question_options |
+| 92 | question_options.q7_question_options |
+| 93 | question_options.q8_question_options |
+| 94 | question_options.q9_question_options |
+| 95 | question_text.q10_question_text |
+| 96 | question_text.q1_question_text |
+| 97 | question_text.q2_question_text |
+| 98 | question_text.q3_question_text |
+| 99 | question_text.q4_question_text |
+| 100 | question_text.q5_question_text |
+| 101 | question_text.q6_question_text |
+| 102 | question_text.q7_question_text |
+| 103 | question_text.q8_question_text |
+| 104 | question_text.q9_question_text |
+| 105 | question_type.q10_question_type |
+| 106 | question_type.q1_question_type |
+| 107 | question_type.q2_question_type |
+| 108 | question_type.q3_question_type |
+| 109 | question_type.q4_question_type |
+| 110 | question_type.q5_question_type |
+| 111 | question_type.q6_question_type |
+| 112 | question_type.q7_question_type |
+| 113 | question_type.q8_question_type |
+| 114 | question_type.q9_question_type |
+| 115 | raw_model_response.q10_cost |
+| 116 | raw_model_response.q10_one_usd_buys |
+| 117 | raw_model_response.q10_raw_model_response |
+| 118 | raw_model_response.q1_cost |
+| 119 | raw_model_response.q1_one_usd_buys |
+| 120 | raw_model_response.q1_raw_model_response |
+| 121 | raw_model_response.q2_cost |
+| 122 | raw_model_response.q2_one_usd_buys |
+| 123 | raw_model_response.q2_raw_model_response |
+| 124 | raw_model_response.q3_cost |
+| 125 | raw_model_response.q3_one_usd_buys |
+| 126 | raw_model_response.q3_raw_model_response |
+| 127 | raw_model_response.q4_cost |
+| 128 | raw_model_response.q4_one_usd_buys |
+| 129 | raw_model_response.q4_raw_model_response |
+| 130 | raw_model_response.q5_cost |
+| 131 | raw_model_response.q5_one_usd_buys |
+| 132 | raw_model_response.q5_raw_model_response |
+| 133 | raw_model_response.q6_cost |
+| 134 | raw_model_response.q6_one_usd_buys |
+| 135 | raw_model_response.q6_raw_model_response |
+| 136 | raw_model_response.q7_cost |
+| 137 | raw_model_response.q7_one_usd_buys |
+| 138 | raw_model_response.q7_raw_model_response |
+| 139 | raw_model_response.q8_cost |
+| 140 | raw_model_response.q8_one_usd_buys |
+| 141 | raw_model_response.q8_raw_model_response |
+| 142 | raw_model_response.q9_cost |
+| 143 | raw_model_response.q9_one_usd_buys |
+| 144 | raw_model_response.q9_raw_model_response |
+| 145 | scenario.scenario_index |
+
+
+```python
+results.select("q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10")
+```
+
+
+|  | answer.q1 | answer.q2 | answer.q3 | answer.q4 | answer.q5 | answer.q6 | answer.q7 | answer.q8 | answer.q9 | answer.q10 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | Balancing work and family responsibilities. | I try to prioritize my health and wellness by setting aside time for regular exercise, like going for morning walks or doing yoga at home. I also plan our meals to include nutritious options and make sure to stay hydrated throughout the day. It's important for me to schedule regular check-ups and listen to my body when I need rest. Balancing everything can be tough, but I try to remind myself that taking care of my health is essential to managing my other responsibilities effectively. | At this stage of my life, the most challenging aspect of parenting is managing the emotional and developmental needs of my children as they grow older, while also dealing with my own aging process and career demands. It can be difficult to keep up with their evolving interests and needs, especially as they become more independent and face their own challenges. Additionally, trying to maintain open communication and understanding with teenagers can be tricky. Balancing this with my own personal and professional goals requires a lot of patience and adaptability. | Since becoming a mother, my career and educational pursuits have definitely taken some turns. Initially, I had to scale back on work hours to focus more on my kids when they were young, which meant putting some career advancement opportunities on hold. As they grew older and more independent, I found myself gradually taking on more responsibilities at work and even pursuing further education through online courses. This shift allowed me to balance being there for my family while also staying engaged professionally. It's been a journey of adjusting priorities and finding ways to integrate my career goals with my role as a mom. | Technology has significantly impacted my role as a mother in various ways. For instance, it helps me stay organized and manage our family schedule more efficiently. I use apps to keep track of appointments, school events, and extracurricular activities, which helps me ensure that nothing falls through the cracks. Additionally, technology has made communication much easier. I can quickly check in with my kids through text or video calls, especially if they're out with friends or at activities. This helps me stay connected and ensures their safety. Moreover, technology has been a great educational tool for my children. They have access to a wealth of information and resources online, which supports their learning and curiosity. During the pandemic, online learning platforms were crucial in keeping them engaged with their studies. However, managing screen time and ensuring they use technology responsibly is an ongoing challenge. Finally, technology has allowed me to work more flexibly. With remote work options, I can be more present at home while still fulfilling my professional responsibilities. This balance is invaluable, especially when juggling multiple roles. | Over the years, my social life has evolved significantly, largely influenced by my role as a mother, career demands, and personal growth. In my younger years, socializing was more spontaneous and frequent, with plenty of time for friends and social events. However, after becoming a mother, my priorities shifted, and social activities had to be more planned and sometimes took a backseat to family responsibilities. As my children grew older and more independent, I found more opportunities to reconnect with friends and expand my social circle, often through activities related to my kids, like school events or community activities. Technology has also played a role, making it easier to maintain connections through social media and messaging apps, even when life gets busy. Factors influencing these changes include the age and needs of my children, my work schedule, and the importance of maintaining a support network. I've learned to value quality over quantity in friendships, focusing on meaningful relationships that support my well-being and growth. Balancing everything can be challenging, but I've come to appreciate the different phases of life and how they shape my social interactions. | Managing my family's finances involves a combination of strategies that help us stay on track and meet our financial goals. First, I create a monthly budget that outlines our expected income and expenses. This helps us prioritize essential expenses like housing, utilities, groceries, and savings. I also make sure to set aside an emergency fund for unexpected expenses, which provides peace of mind. One tip that has worked well for us is meal planning. By planning our meals for the week, we can save money on groceries and reduce food waste. I also take advantage of sales and use coupons when possible to stretch our budget further. A challenge we've encountered is balancing short-term wants with long-term financial goals, like saving for college or retirement. To address this, we hold regular family discussions about our financial priorities and involve the kids in understanding the importance of saving and budgeting. Another strategy is to automate savings and bill payments. This ensures that we're consistently saving and paying bills on time, reducing the risk of late fees and helping to build our savings over time. Overall, managing finances is an ongoing process that requires communication, planning, and adaptability as our needs and circumstances change. | In my free time, I enjoy activities that allow me to relax and recharge. I love spending time outdoors, whether it's going for a walk in the local park or working in my garden. Gardening is especially therapeutic for me, and it's satisfying to see the plants grow and thrive. I also enjoy reading, which offers a great escape and a chance to explore different worlds and ideas. Cooking and trying out new recipes is another hobby I find fulfilling, especially when I get to share the results with my family. Balancing leisure with responsibilities requires a bit of planning and flexibility. I try to carve out specific times in my schedule for these activities, even if it's just a short period each day. It's important for me to set boundaries and prioritize self-care, as it ultimately helps me manage my other responsibilities more effectively. Sometimes, it means saying no to additional commitments or asking for help when needed. By being intentional about my leisure time, I can enjoy these activities without feeling guilty or overwhelmed. | Currently, I'm working towards a few personal goals that reflect my life priorities. One of my main goals is to continue advancing in my career while maintaining a healthy work-life balance. This is important to me because it allows me to support my family financially while also being present for them. I'm also focused on improving my health and wellness by staying active and eating well, which is crucial for setting a good example for my children and ensuring I have the energy to keep up with my responsibilities. Another goal is to foster strong relationships with my family and friends. This involves making time for meaningful interactions and ensuring that I maintain open communication with my children as they grow older. I believe that nurturing these relationships is essential for emotional support and personal growth. Lastly, I'm working on personal development through continued learning and self-reflection. Whether it's through online courses or reading, I aim to expand my knowledge and skills, which aligns with my value of lifelong learning. These goals reflect my priorities of family, health, career, and personal growth, and achieving them requires careful planning and adaptability. | As a middle-aged mom, I feel that support in the form of community resources and networks specifically tailored to our unique challenges is often lacking. Many existing resources focus on either new mothers or older adults, leaving a gap for those of us in the middle who are juggling multiple roles and responsibilities. Support groups or workshops that address topics like career transitions, parenting teenagers, and managing health changes would be incredibly beneficial. Having access to such support could make a significant difference in my life by providing a sense of community and understanding. It would offer opportunities to share experiences, gain advice, and learn new strategies for managing the complexities of this life stage. Additionally, having resources that focus on mental health and stress management could help alleviate some of the pressures we face, ultimately leading to a more balanced and fulfilling life. |
+
+## Example 4
+
+In this example we prompt an agent to note salient features of textual content and images.
+
+We start by posting some content and images to Coop so that they can be accessed by others:
+
+```python
+from edsl import FileStore
+
+fs = FileStore("waldo.png") # an image stored locally
+info = fs.push(
+    description = "Where's Waldo?",
+    alias = "waldo",
+    visibility = "public"
+)
+info
+```
+
+Output:
+
+```json
+{'description': "Where's Waldo?",
+ 'object_type': 'scenario',
+ 'url': 'https://www.expectedparrot.com/content/ff652175-85e5-4643-b1bb-f359dea4e845',
+ 'uuid': 'ff652175-85e5-4643-b1bb-f359dea4e845',
+ 'version': '0.1.47.dev1',
+ 'visibility': 'public'}
+```
+
+Here we retrieve the file and use it in a scenario in order to add it to questions:
+
+
+```python
+from edsl import FileStore, Scenario
+
+image = FileStore.pull("https://www.expectedparrot.com/content/RobinHorton/waldo")
+
+s = Scenario({"waldo":image})
+
+```
+
+We need to use a vision model with images, and verify that the model can actually “see” the images that we are using:
+
+
+```python
+from edsl import Model, ModelList
+
+m = ModelList(
+    Model(model) for model in [
+        "gemini-1.5-flash",
+        "gpt-4o"
+    ]
+)
+```
+
+
+```python expandable
+from edsl import QuestionFreeText, QuestionList, Survey
+
+q1 = QuestionFreeText(
+    question_name = "salient",
+    question_text = "Describe the most salient features of this image: {{ scenario.waldo }}"
+)
+
+q2 = QuestionList(
+    question_name = "most_salient",
+    question_text = "Describe the 3 most salient features of this image: {{ scenario.waldo }}"
+)
+
+q3 = QuestionFreeText(
+    question_name = "where",
+    question_text = "Where is Waldo in this picture: {{ scenario.waldo }}"
+)
+
+survey = Survey([q1, q2, q3])
+```
+
+
+```python
+results = survey.by(s).by(m).run()
+```
+
+
+```python
+results.select("model", "salient", "most_salient", "most_salient_comment", "where")
+```
+
+
+|  | model.model | answer.salient | answer.most_salient | comment.most_salient_comment | answer.where |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | gemini-1.5-flash | The image is a classic "Where's Waldo?" illustration. The most salient features are: * **High density of detail and visual clutter:** The scene is incredibly busy, filled with a multitude of people, objects, and intricate background elements. This is the core challenge of the game. * **Intricate linework and vibrant colors:** The style is cartoonish, with bold outlines and a variety of bright, saturated colors. This contributes to the busy and slightly chaotic feel. * **Waldo's distinctive appearance:** Waldo himself is easily identifiable even amidst the chaos, due to his signature red and white striped shirt, glasses, and hat. His relative simplicity contrasts sharply with the complexity of his surroundings. * **A search-and-find game structure:** The overall composition is designed to challenge the viewer to locate Waldo within a complex and visually overwhelming scene. This is the primary purpose of the image. * **A variety of characters and settings:** The scene depicts a large crowd of people engaged in various activities within a specific setting (which varies from image to image, but usually involves a busy outdoor scene or a large event). This adds to the visual complexity. | ['A chaotic scene with many people', 'Waldo is hidden amongst the crowd', 'The image is highly detailed and visually busy'] | The image is characterized by its complexity, the central task of finding Waldo, and the overall visual density. | Please provide the file named "waldo". I need to see the image to tell you where Waldo is. |
+| 1 | gpt-4o | I'm sorry, but I can't view or interpret images directly. However, if you describe the image to me, I can help you analyze or discuss its features. | ["I'm sorry", " but I can't view images or files. However", ' if you describe the image to me', ' I can help identify or discuss its features.'] | nan | I'm unable to view images or files, so I can't help you find Waldo in a picture. However, I can offer some tips on how to find him. Look for his signature red and white striped shirt, blue pants, and glasses. He often blends into the crowd, so pay attention to areas with lots of red and white stripes. Good luck! |
+
+## Posting this notebook to Coop:
+
+
+```python
+from edsl import Notebook
+
+n = Notebook("agent_fatigue.ipynb")
+info = n.push(
+    description = "Methods for exploring agent fatigue and memory",
+    alias = "agent-fatigue-notebook",
+    visibility = "public"
+)
+info
+```
+
+
+```json
+{'description': 'Methods for exploring agent fatigue and memory',
+ 'object_type': 'notebook',
+ 'url': 'https://www.expectedparrot.com/content/5de4feaf-b98e-4b8b-8417-0505d8d3d80d',
+ 'uuid': '5de4feaf-b98e-4b8b-8417-0505d8d3d80d',
+ 'version': '0.1.47.dev1',
+ 'visibility': 'public'}
+```
+
+Updating an object at Coop:
+
+
+```python
+from edsl import Notebook
+
+n = Notebook("agent_fatigue.ipynb") # resave
+n.patch("5de4feaf-b98e-4b8b-8417-0505d8d3d80d", value = n)
+```
+
+
+```json
+{'status': 'success'}
+```
+

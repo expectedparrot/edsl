@@ -27,9 +27,10 @@ relevant_classes = {
         "to_agent_blueprint",
         "__getitem__",
         'add_scenario_reference',
-        'choose_k'
+        'choose_k',
+        'full_replace',
     ],
-    Scenario: ["chunk_text"],
+    Scenario: ["chunk_text", "replace_value", "to_scenario_list"],
     list: ["__getitem__"],
     AgentBlueprint: ["create_agent_list"],
 }

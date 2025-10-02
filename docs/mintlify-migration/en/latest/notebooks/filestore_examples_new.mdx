@@ -1,0 +1,260 @@
+---
+title: "FileStore examples"
+---
+
+## CSV example
+
+Here we create an example CSV file, post it to Coop using `FileStore`, and then retrieve it and use it to construct a `ScenarioList` and an `AgentList`.
+
+To create a CSV file (this step can be skipped and your own file replaced in the following steps):
+
+```python
+from edsl import FileStore
+```
+
+```python
+data = [
+    ['Age', 'City', 'Occupation'],
+    [25, 'New York', 'Software Engineer'],
+    [30, 'San Francisco', 'Teacher'],
+    [35, 'Chicago', 'Doctor'],
+    [28, 'Boston', 'Data Scientist'],
+    [45, 'Seattle', 'Architect']
+]
+
+# Writing to CSV file
+with open('data.csv', 'w') as file:
+    for row in data:
+        line = ','.join(str(item) for item in row)
+        file.write(line + 'n')
+
+fs = FileStore("data.csv")
+```
+
+Creating scenarios:
+
+```python
+from edsl import ScenarioList
+
+scenarios = ScenarioList.from_source("csv", fs.to_tempfile())
+scenarios # display the scenarios
+```
+
+```python
+ScenarioList scenarios: 5; keys: ['City', 'Age', 'Occupation'];
+```
+
+|  | Age | City | Occupation |
+| :--- | :--- | :--- | :--- |
+| 0 | 25 | New York | Software Engineer |
+| 1 | 30 | San Francisco | Teacher |
+| 2 | 35 | Chicago | Doctor |
+| 3 | 28 | Boston | Data Scientist |
+| 4 | 45 | Seattle | Architect |
+
+Creating agents:
+
+```python
+from edsl import AgentList
+
+agents = AgentList.from_csv(fs.to_tempfile())
+agents # display the agents
+```
+
+```python
+AgentList agents: 5;
+```
+
+|  | Age | City | Occupation |
+| :--- | :--- | :--- | :--- |
+| 0 | 25 | New York | Software Engineer |
+| 1 | 30 | San Francisco | Teacher |
+| 2 | 35 | Chicago | Doctor |
+| 3 | 28 | Boston | Data Scientist |
+| 4 | 45 | Seattle | Architect |
+
+These scenarios and agents can now be used with questions and surveys.
+
+## PNG example
+
+Here we post an image file to Coop using `FileStore`, and then retrieve it and use it to construct a `Scenario`.
+
+<Note>
+**Note**:
+
+Note that we need to specify the scenario key for the file when we create it (whereas in CSV files the keys are taken from the text of the header row).
+</Note> 
+
+We also need to ensure that we have specified a vision model when running the survey (e.g., *gpt-4o*).
+
+Posting a local file to Coop (replace with your own):
+
+
+```python
+from edsl import FileStore
+
+if refresh := False:
+    fs = FileStore("parrot_logo.png")
+    png_info = fs.push(description = "My example PNG file", alias = "my-example-png-file", visibility = "public")
+```
+
+Retrieving the file:
+
+```python
+fs = FileStore.pull("https://www.expectedparrot.com/content/RobinHorton/my-example-png-file")
+```
+
+Creating a scenario:
+
+
+```python
+from edsl import Scenario
+
+image_scenario = Scenario({"parrot_logo":fs}) # including a key for the scenario object
+image_scenario.keys()
+```
+```
+['parrot_logo']
+```
+
+To rename a scenario:
+
+
+```python
+image_scenario = image_scenario.rename({"parrot_logo": "logo"}) # key = old name, value = new name
+image_scenario.keys()
+```
+```
+['logo']
+```
+
+Using an image scenario:
+
+
+```python
+from edsl import QuestionFreeText, Model
+
+model = Model("gpt-4o") # we need to use a vision model
+
+q = QuestionFreeText(
+    question_name = "test",
+    question_text = "Describe this logo: {{ logo }}"
+)
+
+results = q.by(image_scenario).by(model).run()
+```
+
+```python
+results.select("model", "logo", "test")
+```
+
+|  | model.model | scenario.logo | answer.test |
+| :--- | :--- | :--- | :--- |
+| 0 | gpt-4o | FileStore: self.path | The logo features a large, stylized letter "E" in gray on the left. To the right of the "E" is an illustration of a parrot. The parrot is primarily green with an orange beak, a red chest, and blue lower body. It is enclosed in square brackets, also in gray. |
+
+## PDF example
+
+Here we save a PDF from the internet, then post it to Coop and retrieve it using `FileStore`, and then use it to construct a `ScenarioList`.
+
+<Note>
+**Note**:
+
+Note that the default scenario keys for a PDF are `filename`, `page` and `text`.
+</Note>
+
+Selecting a file to use:
+
+
+```python
+import requests
+
+url = "https://arxiv.org/pdf/2404.11794"
+response = requests.get(url)
+with open("automated_social_scientist.pdf", "wb") as file:
+    file.write(response.content)
+```
+
+
+Posting to Coop:
+
+
+```python
+from edsl import FileStore
+
+if refresh := False:
+fs = FileStore("automated_social_scientist.pdf")
+pdf_info = fs.push(description = "My example PDF file", alias = "my-example-pdf-file", visibility = "public")
+pdf_info # display the URL and Coop uuid of the stored file for retrieving it later
+```
+
+
+```json
+{'description': 'My example PDF file',
+ 'object_type': 'scenario',
+ 'url': 'https://www.expectedparrot.com/content/e1770915-7e69-436d-b2ca-f0f92c6f56ba',
+ 'uuid': 'e1770915-7e69-436d-b2ca-f0f92c6f56ba',
+ 'version': '0.1.47.dev1',
+ 'visibility': 'public'}
+```
+
+Retriving the file:
+
+```python
+fs = FileStore.pull("https://www.expectedparrot.com/content/RobinHorton/my-example-pdf-file")
+```
+This is equivalent:
+
+```python
+# fs = FileStore.pull(pdf_info["uuid"])
+```
+
+Creating scenarios:
+
+```python
+from edsl import ScenarioList
+
+scenarios = ScenarioList.from_pdf(fs.to_tempfile())
+```
+Inspecting the default keys:
+
+```python
+scenarios.parameters
+```
+```
+```python
+{'filename', 'page', 'text'}
+```
+
+## Posting to Coop
+
+Here we post this notebook to Coop, and show how to update it:
+
+```python
+from edsl import Notebook
+
+n = Notebook(path = "filestore_examples_new.ipynb")
+
+info = n.push(description = "FileStore examples", alias = "my-example-filestore-notebook", visibility = "public")
+info
+```
+
+```json
+{'description': 'FileStore examples',
+ 'object_type': 'notebook',
+ 'url': 'https://www.expectedparrot.com/content/02d57890-31c2-4bb8-ae7c-f646ac254d5a',
+ 'uuid': '02d57890-31c2-4bb8-ae7c-f646ac254d5a',
+ 'version': '0.1.47.dev1',
+ 'visibility': 'public'}
+```
+
+Use the `patch()` method to update an object at Coop:
+
+```python
+n = Notebook(path = "filestore_examples_new.ipynb") # resave
+
+n.patch("https://www.expectedparrot.com/content/RobinHorton/my-example-filestore-notebook", value = n)
+```
+
+```python
+{'status': 'success'}
+```

@@ -287,11 +287,13 @@ class QuestionOptionsDescriptor(BaseDescriptor):
         num_choices: int = None,
         linear_scale: bool = False,
         q_budget: bool = False,
+        q_demand: bool = False,
     ):
         """Initialize the descriptor."""
         self.num_choices = num_choices
         self.linear_scale = linear_scale
         self.q_budget = q_budget
+        self.q_demand = q_demand
 
     def validate(self, value: Any, instance) -> None:
         """Validate the question options."""
@@ -318,7 +320,7 @@ class QuestionOptionsDescriptor(BaseDescriptor):
                 f"Question options must be unique (got {value})."
             )
         if not self.linear_scale:
-            if not self.q_budget:
+            if not self.q_budget and not self.q_demand:
                 pass
             #     if not (
             #         value
@@ -328,10 +330,15 @@ class QuestionOptionsDescriptor(BaseDescriptor):
             #         raise QuestionCreationValidationError(
             #             f"Question options must be all same type (got {value}).)"
             #         )
-            else:
+            elif self.q_budget:
                 if not all(isinstance(x, (str)) for x in value):
                     raise QuestionCreationValidationError(
                         f"Question options must be strings (got {value}).)"
+                    )
+            elif self.q_demand:
+                if not all(isinstance(x, (int, float)) for x in value):
+                    raise QuestionCreationValidationError(
+                        f"Question options (prices) must be numbers (got {value}).)"
                     )
             if not all(
                 [

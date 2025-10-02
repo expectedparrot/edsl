@@ -1,0 +1,325 @@
+---
+title: "Looping & piping questions"
+description: "This notebook provides example EDSL code for automatically looping (repeating) a question with content piped from other questions and answers."
+---
+
+Please see the EDSL [documentation page](/en/latest/surveys) for more details on each of the object types and methods for looping questions and piping questions and answers that are used below.
+
+```python
+from edsl import QuestionNumerical, Scenario, ScenarioList, Survey
+```
+
+We start by creating an initial question (with no content piped into it). EDSL comes with many common [question types](/en/latest/questions) that we can choose from based on the form of the response that we want to get back from a model (e.g., free text, multiple choice, linear scale, etc.). Here we use a numerical question:
+
+```python
+q_0 = QuestionNumerical(
+    question_name = "q_0",
+    question_text = "Please give me a random number.",
+    min_value = 1,
+    max_value = 100,
+    answering_instructions = "The number must be an integer."
+)
+```
+
+Next we create a question that we will “loop” (repeat) some number of times. We use double braces to create a `{{ placeholder }}` for content to be added to the question when we create copies of it
+
+Here we want to simultaneously set the names of the copies of the question and reference those names in the versions of the question text, so that content from one question and answer can be automatically piped into another cope of the question. To do this, we create placeholders for each question name (``{{ num }}``) (it must be unique) and question text (``{{ text }}``). Then in the next step we reference the question names in those texts.
+
+<Note>
+**Note**:
+
+(Note that the names of the placeholders can be anything other than reserved names, and this example works with any other question types as well. We just use a numerical question to keep the responses brief and easy to check!)
+</Note>
+
+```python
+q = QuestionNumerical(
+    question_name = "q_`{{ scenario.num }}`",
+    question_text = "`{{ scenario.text }}`",
+    min_value = 1,
+    max_value = 100,
+    answering_instructions = "The number must be an integer."
+)
+```
+
+Next we create a list of `Scenario` objects for the question name and question text inputs that we will pass to the `loop` method that we call on the question in order to create the copies (learn more about [using scenarios](/en/latest/scenarios)):
+
+```python
+s = ScenarioList(
+    [Scenario({
+        "num": n,
+        "text": f"""
+        I asked you for a random number between 1 and 100 and you gave me `{{ q_{n-1}.answer }}`.
+        Please give me a new random number.
+        """
+    }) for n in range(1,6)]
+)
+```
+
+The `loop` method creates a list of questions with the scenarios added in. Note that because we used single-braces for ease of referencing the piped question names we will see a warning that scenarios require double braces, in case we used the single braces inadvertently. We can ignore this message here, and confirm that our questions have been formatted as intended:
+
+```python
+qq = q.loop(s)
+qq
+```
+
+```
+[Question('numerical', question_name = """q_1""", question_text = """
+         I asked you for a random number between 1 and 100 and you gave me `{ q_0.answer }`.
+         Please give me a new random number.
+         """, min_value = 1, max_value = 100, answering_instructions = """The number must be an integer."""),
+ Question('numerical', question_name = """q_2""", question_text = """
+         I asked you for a random number between 1 and 100 and you gave me `{ q_1.answer }`.
+         Please give me a new random number.
+         """, min_value = 1, max_value = 100, answering_instructions = """The number must be an integer."""),
+ Question('numerical', question_name = """q_3""", question_text = """
+         I asked you for a random number between 1 and 100 and you gave me `{ q_2.answer }`.
+         Please give me a new random number.
+         """, min_value = 1, max_value = 100, answering_instructions = """The number must be an integer."""),
+ Question('numerical', question_name = """q_4""", question_text = """
+         I asked you for a random number between 1 and 100 and you gave me `{ q_3.answer }`.
+         Please give me a new random number.
+         """, min_value = 1, max_value = 100, answering_instructions = """The number must be an integer."""),
+ Question('numerical', question_name = """q_5""", question_text = """
+         I asked you for a random number between 1 and 100 and you gave me `{ q_4.answer }`.
+         Please give me a new random number.
+         """, min_value = 1, max_value = 100, answering_instructions = """The number must be an integer.""")]
+```
+
+We pass the list of questions to a `Survey` object as usual in order to administer them together. Note that because we are piping answers into questions, the questions will automatically be administered in the order required by the piping. (If no piping or other survey rules are applied, questions are administered asychronously by default. Learn more about applying [survey rules and logic](/en/latest/surveys).)
+
+We can re-inspect the questions that are now in a survey:
+
+```python
+survey = Survey(questions = [q_0] + qq)
+survey
+```
+```python
+Survey # questions: 6; question_name list: ['q_0', 'q_1', 'q_2', 'q_3', 'q_4', 'q_5'];
+```
+
+|  | question_name | question_text | min_value | max_value | answering_instructions | question_type |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | q_0 | Please give me a random number. | 1 | 100 | The number must be an integer. | numerical |
+| 1 | q_1 | I asked you for a random number between 1 and 100 and you gave me `{ q_0.answer }`. Please give me a new random number. | 1 | 100 | The number must be an integer. | numerical |
+| 2 | q_2 | I asked you for a random number between 1 and 100 and you gave me `{ q_1.answer }`. Please give me a new random number. | 1 | 100 | The number must be an integer. | numerical |
+| 3 | q_3 | I asked you for a random number between 1 and 100 and you gave me `{ q_2.answer }`. Please give me a new random number. | 1 | 100 | The number must be an integer. | numerical |
+| 4 | q_4 | I asked you for a random number between 1 and 100 and you gave me `{ q_3.answer }`. Please give me a new random number. | 1 | 100 | The number must be an integer. | numerical |
+| 5 | q_5 | I asked you for a random number between 1 and 100 and you gave me `{ q_4.answer }`. Please give me a new random number. | 1 | 100 | The number must be an integer. | numerical |
+
+Next we select some models to generate responses (see our [models pricing page](https://www.expectedparrot.com/home/pricing) for details on available models and documentation on specifying [model parameters](/en/latest/language_models)):
+
+```python
+from edsl import Model, ModelList
+
+m = ModelList([
+    Model("gemini-1.5-flash", service_name = "google"),
+    Model("gpt-4o", service_name = "openai")
+    # etc.
+])
+```
+
+We run the survey by adding the models and then calling the `run()` method on it:
+
+```python
+results = survey.by(m).run()
+```
+
+We can see a list of the columns of the dataset of `Results` that has been generated:
+
+```python
+results.columns
+```
+
+|  | 0 |
+| :--- | :--- |
+| 0 | agent.agent_index |
+| 1 | agent.agent_instruction |
+| 2 | agent.agent_name |
+| 3 | answer.q_0 |
+| 4 | answer.q_1 |
+| 5 | answer.q_2 |
+| 6 | answer.q_3 |
+| 7 | answer.q_4 |
+| 8 | answer.q_5 |
+| 9 | cache_keys.q_0_cache_key |
+| 10 | cache_keys.q_1_cache_key |
+| 11 | cache_keys.q_2_cache_key |
+| 12 | cache_keys.q_3_cache_key |
+| 13 | cache_keys.q_4_cache_key |
+| 14 | cache_keys.q_5_cache_key |
+| 15 | cache_used.q_0_cache_used |
+| 16 | cache_used.q_1_cache_used |
+| 17 | cache_used.q_2_cache_used |
+| 18 | cache_used.q_3_cache_used |
+| 19 | cache_used.q_4_cache_used |
+| 20 | cache_used.q_5_cache_used |
+| 21 | comment.q_0_comment |
+| 22 | comment.q_1_comment |
+| 23 | comment.q_2_comment |
+| 24 | comment.q_3_comment |
+| 25 | comment.q_4_comment |
+| 26 | comment.q_5_comment |
+| 27 | generated_tokens.q_0_generated_tokens |
+| 28 | generated_tokens.q_1_generated_tokens |
+| 29 | generated_tokens.q_2_generated_tokens |
+| 30 | generated_tokens.q_3_generated_tokens |
+| 31 | generated_tokens.q_4_generated_tokens |
+| 32 | generated_tokens.q_5_generated_tokens |
+| 33 | iteration.iteration |
+| 34 | model.frequency_penalty |
+| 35 | model.inference_service |
+| 36 | model.logprobs |
+| 37 | model.maxOutputTokens |
+| 38 | model.max_tokens |
+| 39 | model.model |
+| 40 | model.model_index |
+| 41 | model.presence_penalty |
+| 42 | model.stopSequences |
+| 43 | model.temperature |
+| 44 | model.topK |
+| 45 | model.topP |
+| 46 | model.top_logprobs |
+| 47 | model.top_p |
+| 48 | prompt.q_0_system_prompt |
+| 49 | prompt.q_0_user_prompt |
+| 50 | prompt.q_1_system_prompt |
+| 51 | prompt.q_1_user_prompt |
+| 52 | prompt.q_2_system_prompt |
+| 53 | prompt.q_2_user_prompt |
+| 54 | prompt.q_3_system_prompt |
+| 55 | prompt.q_3_user_prompt |
+| 56 | prompt.q_4_system_prompt |
+| 57 | prompt.q_4_user_prompt |
+| 58 | prompt.q_5_system_prompt |
+| 59 | prompt.q_5_user_prompt |
+| 60 | question_options.q_0_question_options |
+| 61 | question_options.q_1_question_options |
+| 62 | question_options.q_2_question_options |
+| 63 | question_options.q_3_question_options |
+| 64 | question_options.q_4_question_options |
+| 65 | question_options.q_5_question_options |
+| 66 | question_text.q_0_question_text |
+| 67 | question_text.q_1_question_text |
+| 68 | question_text.q_2_question_text |
+| 69 | question_text.q_3_question_text |
+| 70 | question_text.q_4_question_text |
+| 71 | question_text.q_5_question_text |
+| 72 | question_type.q_0_question_type |
+| 73 | question_type.q_1_question_type |
+| 74 | question_type.q_2_question_type |
+| 75 | question_type.q_3_question_type |
+| 76 | question_type.q_4_question_type |
+| 77 | question_type.q_5_question_type |
+| 78 | raw_model_response.q_0_cost |
+| 79 | raw_model_response.q_0_input_price_per_million_tokens |
+| 80 | raw_model_response.q_0_input_tokens |
+| 81 | raw_model_response.q_0_one_usd_buys |
+| 82 | raw_model_response.q_0_output_price_per_million_tokens |
+| 83 | raw_model_response.q_0_output_tokens |
+| 84 | raw_model_response.q_0_raw_model_response |
+| 85 | raw_model_response.q_1_cost |
+| 86 | raw_model_response.q_1_input_price_per_million_tokens |
+| 87 | raw_model_response.q_1_input_tokens |
+| 88 | raw_model_response.q_1_one_usd_buys |
+| 89 | raw_model_response.q_1_output_price_per_million_tokens |
+| 90 | raw_model_response.q_1_output_tokens |
+| 91 | raw_model_response.q_1_raw_model_response |
+| 92 | raw_model_response.q_2_cost |
+| 93 | raw_model_response.q_2_input_price_per_million_tokens |
+| 94 | raw_model_response.q_2_input_tokens |
+| 95 | raw_model_response.q_2_one_usd_buys |
+| 96 | raw_model_response.q_2_output_price_per_million_tokens |
+| 97 | raw_model_response.q_2_output_tokens |
+| 98 | raw_model_response.q_2_raw_model_response |
+| 99 | raw_model_response.q_3_cost |
+| 100 | raw_model_response.q_3_input_price_per_million_tokens |
+| 101 | raw_model_response.q_3_input_tokens |
+| 102 | raw_model_response.q_3_one_usd_buys |
+| 103 | raw_model_response.q_3_output_price_per_million_tokens |
+| 104 | raw_model_response.q_3_output_tokens |
+| 105 | raw_model_response.q_3_raw_model_response |
+| 106 | raw_model_response.q_4_cost |
+| 107 | raw_model_response.q_4_input_price_per_million_tokens |
+| 108 | raw_model_response.q_4_input_tokens |
+| 109 | raw_model_response.q_4_one_usd_buys |
+| 110 | raw_model_response.q_4_output_price_per_million_tokens |
+| 111 | raw_model_response.q_4_output_tokens |
+| 112 | raw_model_response.q_4_raw_model_response |
+| 113 | raw_model_response.q_5_cost |
+| 114 | raw_model_response.q_5_input_price_per_million_tokens |
+| 115 | raw_model_response.q_5_input_tokens |
+| 116 | raw_model_response.q_5_one_usd_buys |
+| 117 | raw_model_response.q_5_output_price_per_million_tokens |
+| 118 | raw_model_response.q_5_output_tokens |
+| 119 | raw_model_response.q_5_raw_model_response |
+| 120 | reasoning_summary.q_0_reasoning_summary |
+| 121 | reasoning_summary.q_1_reasoning_summary |
+| 122 | reasoning_summary.q_2_reasoning_summary |
+| 123 | reasoning_summary.q_3_reasoning_summary |
+| 124 | reasoning_summary.q_4_reasoning_summary |
+| 125 | reasoning_summary.q_5_reasoning_summary |
+| 126 | scenario.scenario_index |
+
+All of these components can be analyzed in a variety of [built-in methods for working with results](/en/latest/results). Here we create a table of responses, together with the question prompts to verify that the piping worked:
+
+
+```python
+(
+    results
+    .select(
+        "model",
+        "prompt.q_0_user_prompt", "q_0",
+        "prompt.q_1_user_prompt", "q_1",
+        "prompt.q_2_user_prompt", "q_2",
+        "prompt.q_3_user_prompt", "q_3",
+        "prompt.q_4_user_prompt", "q_4",
+        "prompt.q_5_user_prompt", "q_5"
+    )
+)
+```
+
+
+|  | model.model | prompt.q_0_user_prompt | answer.q_0 | prompt.q_1_user_prompt | answer.q_1 | prompt.q_2_user_prompt | answer.q_2 | prompt.q_3_user_prompt | answer.q_3 | prompt.q_4_user_prompt | answer.q_4 | prompt.q_5_user_prompt | answer.q_5 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | gemini-1.5-flash | Please give me a random number. Minimum answer value: 1 Maximum answer value: 100 The number must be an integer. | 67 | I asked you for a random number between 1 and 100 and you gave me `{ q_0.answer }`. Please give me a new random number. Minimum answer value: 1 Maximum answer value: 100 The number must be an integer. | 42 | I asked you for a random number between 1 and 100 and you gave me `{ q_1.answer }`. Please give me a new random number. Minimum answer value: 1 Maximum answer value: 100 The number must be an integer. | 42 | I asked you for a random number between 1 and 100 and you gave me `{ q_2.answer }`. Please give me a new random number. Minimum answer value: 1 Maximum answer value: 100 The number must be an integer. | 42 | I asked you for a random number between 1 and 100 and you gave me { q_3.answer }. Please give me a new random number. Minimum answer value: 1 Maximum answer value: 100 The number must be an integer. | 42 | I asked you for a random number between 1 and 100 and you gave me { q_4.answer }. Please give me a new random number. Minimum answer value: 1 Maximum answer value: 100 The number must be an integer. | 97 |
+| 1 | gpt-4o | Please give me a random number. Minimum answer value: 1 Maximum answer value: 100 The number must be an integer. | 1 | I asked you for a random number between 1 and 100 and you gave me `{ q_0.answer }`. Please give me a new random number. Minimum answer value: 1 Maximum answer value: 100 The number must be an integer. | 1 | I asked you for a random number between 1 and 100 and you gave me `{ q_1.answer }`. Please give me a new random number. Minimum answer value: 1 Maximum answer value: 100 The number must be an integer. | 1 | I asked you for a random number between 1 and 100 and you gave me `{ q_2.answer }`. Please give me a new random number. Minimum answer value: 1 Maximum answer value: 100 The number must be an integer. | 1 | I asked you for a random number between 1 and 100 and you gave me { q_3.answer }. Please give me a new random number. Minimum answer value: 1 Maximum answer value: 100 The number must be an integer. | 1 | I asked you for a random number between 1 and 100 and you gave me { q_4.answer }. Please give me a new random number. Minimum answer value: 1 Maximum answer value: 100 The number must be an integer. | 1 |
+
+## Adding question memory
+
+Re: survey rules mentioned above–here we automatically add a memory of *all* prior questions to each new question, e.g., to see how this may impact responses:
+
+```python
+results_memory = survey.set_full_memory_mode().by(m).run()
+```
+
+```python
+results_memory.select("model", "q_0", "q_1", "q_2", "q_3", "q_4", "q_5")
+```
+
+|  | model.model | answer.q_0 | answer.q_1 | answer.q_2 | answer.q_3 | answer.q_4 | answer.q_5 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | gemini-1.5-flash | 67 | 92 | 42 | 31 | 85 | 17 |
+| 1 | gpt-4o | 1 | 1 | 1 | 1 | 1 | 1 |
+
+## Posting to Coop
+
+Coop is a platform for posting and sharing AI-based research. It is fully integrated with EDSL and free to use. Learn more about [how it works](/en/latest/coop) or create an account: [https://www.expectedparrot.com/login](https://www.expectedparrot.com/login).
+
+In the examples above, results generated using [remote inference](/en/latest/remote_inference) (run at the Expected Parrot server) were automatically posted to Coop (see links to results).
+
+Here we show how to manually post any local content to Coop, such as this notebook:
+
+```python
+from edsl import Notebook
+
+nb = Notebook(path = "looping_and_piping.ipynb")
+
+nb.push(
+    description = "Simultaneous looping and piping",
+    alias = "looping-piping",
+    visibility = "public"
+)
+```
+
+Content posted to Coop can be modified from your workspace or at the web app at any time.
+
