@@ -373,7 +373,7 @@ class JobsRunnerStatus(JobsRunnerStatusBase):
             response = requests.post(
                 self.create_url,
                 headers=headers,
-                timeout=1,
+                timeout=10,
             )
             response.raise_for_status()
             data = response.json()
