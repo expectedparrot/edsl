@@ -1,0 +1,820 @@
+---
+title: Language Models
+description: "Language models are used to generate responses to survey questions. EDSL works with many models from a variety of popular inference service providers, including Anthropic, Azure, Bedrock, Deep Infra, DeepSeek, Google, Mistral, OpenAI, Perplexity, Together and Xai. Current model pricing and performance information can be found at the Coop [model pricing and performance page](https://www.expectedparrot.com/getting-started/models)."
+---
+
+We also recommend checking providers’ websites for the most up-to-date information on models and service providers’ terms of use. Links to providers’ websites can be found at the [models page](https://www.expectedparrot.com/getting-started/models). If you need assistance checking whether a model is working or to report a missing model or price, please send a message to [info@expectedparrot.com](mailto:info@expectedparrot.com) or post a message on [Discord](https://discord.com/invite/mxAYkjfy9m).
+
+This page provides examples of methods for specifying models for surveys using the Model and ModelList classes.
+
+## API keys
+
+In order to use a model, you need to have an API key for the relevant service provider. EDSL allows you to choose whether to provide your own keys from service providers or use an Expected Parrot API key to access all available models at once. See the [Managing Keys](/en/latest/api_keys) page for instructions on storing and prioritizing keys.
+
+## Available services
+
+The following code will return a table of inference service providers:
+
+```python
+from edsl import Model
+
+Model.services()
+```
+
+Output:
+
+| Service Name |
+| :--- |
+| anthropic |
+| azure |
+| bedrock |
+| deep_infra |
+| deepseek |
+| google |
+| groq |
+| mistral |
+| ollama |
+| openai |
+| perplexity |
+| together |
+| xai |
+
+<Note>
+**Note**:
+
+We recently added support for OpenAI reasoning models. See an example notebook for usage [here](https://www.expectedparrot.com/content/RobinHorton/reasoning-model-example). Use service_name = “openai_v2” when using these models. The Results that are generated with reasoning models include additional fields for reasoning summaries.
+</Note>
+
+## Specifying a model
+
+To specify a model to use with a survey, create a Model object and pass it the name of the model. You can optionally set other model parameters at the same time (temperature, etc.). You will sometimes need to specify the name of the service provider as well (for instance, if the model is hosted by multiple service providers).
+
+For example, the following code creates a Model object for gpt-4o with default model parameters that we can inspect:
+
+```python
+from edsl import Model
+
+m = Model("gpt-4o")
+```
+
+This is equivalent:
+
+```python
+from edsl import Model
+
+m = Model(model = "gpt-4o", service_name = "openai")
+m
+```
+
+Output:
+
+| key | value |
+| :--- | :--- |
+| model | gpt-4o |
+| parameters:temperature | 0.5 |
+| parameters:max_tokens | 1000 |
+| parameters:top_p | 1 |
+| parameters:frequency_penalty | 0 |
+| parameters:presence_penalty | 0 |
+| parameters:logprobs | False |
+| parameters:top_logprobs | 3 |
+| inference_service | openai |
+
+We can see that the object consists of a model name and a dictionary of the default parameters of the model, together with the name of the inference service (some models are provided by multiple services).
+
+Here we also specify the temperature when creating the Model object:
+
+```python
+from edsl import Model
+
+m = Model("gpt-4o", service_name = "openai", temperature = 1.0)
+m
+```
+
+Output:
+
+| key | value |
+| :--- | :--- |
+| model | gpt-4o |
+| parameters:temperature | 1.0 |
+| parameters:max_tokens | 1000 |
+| parameters:top_p | 1 |
+| parameters:frequency_penalty | 0 |
+| parameters:presence_penalty | 0 |
+| parameters:logprobs | False |
+| parameters:top_logprobs | 3 |
+| inference_service | openai |
+
+## Creating a list of models
+
+To create a list of models at once, pass a list of model names to a ModelList object.
+
+For example, the following code creates a Model for each of gpt-4o and gemini-pro:
+
+```python
+from edsl import Model, ModelList
+
+ml = ModelList([
+  Model("gpt-4o", service_name = "openai"),
+  Model("gemini-1.5-flash", service_name = "google")
+])
+```
+
+This code is equivalent to the following:
+
+```python
+from edsl import Model, ModelList
+
+ml = ModelList(Model(model) for model in ["gpt-4o", "gemini-1.5-flash"])
+```
+
+We can also use a special method to pass a list of names instead:
+
+```python
+from edsl import Model, ModelList
+
+model_names = ['gpt-4o', 'gemini-1.5-flash']
+
+ml = ModelList.from_names(model_names)
+
+ml
+```
+
+Output:
+
+| topK | presence_penalty | top_logprobs | topP | temperature | stopSequences | maxOutputTokens | logprobs | max_tokens | frequency_penalty | model | top_p | inference_service |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| nan | 0.000000 | 3.000000 | nan | 0.500000 | nan | nan | False | 1000.000000 | 0.000000 | gpt-4o | 1.000000 | openai |
+| 1.000000 | nan | nan | 1.000000 | 0.500000 | [] | 2048.000000 | nan | nan | nan | gemini-1.5-flash | nan | google |
+
+## Running a survey with models
+
+Similar to how we specify [Agents](/en/latest/agents) and [Scenarios](/en/latest/scenarios) to use with a survey, we specify the models to use by adding them to a survey with the by() method when the survey is run. We can pass either a single Model object or a list of models to the by() method. If multiple models are to be used they are passed as a list or as a ModelList object.
+
+For example, the following code specifies that a survey will be run with each of gpt-4o and gemini-1.5-flash:
+
+```python
+from edsl import Model, QuestionFreeText, Survey
+
+m = [Model("gpt-4o", service_name = "openai"), Model("gemini-1.5-flash", service_name = "google")]
+
+q = QuestionFreeText(
+  question_name = "example",
+  question_text = "What is the capital of France?"
+)
+
+survey = Survey(questions = [q])
+
+results = survey.by(m).run()
+```
+
+This code uses ModelList instead of a list of Model objects:
+
+```python
+from edsl import Model, ModelList, QuestionFreeText, Survey
+
+ml = ModelList(Model(model) for model in ["gpt-4o", "gemini-1.5-flash"])
+
+q = QuestionFreeText(
+  question_name = "example",
+  question_text = "What is the capital of France?"
+)
+
+survey = Survey(questions = [q])
+
+results = survey.by(ml).run()
+```
+
+This will generate a result for each question in the survey with each model. If agents and/or scenarios are also specified, the responses will be generated for each combination of agents, scenarios and models. Each component is added with its own by() method, the order of which does not matter. The following commands are equivalent:
+
+```python
+# add code for creating survey, scenarios, agents, models here ...
+
+results = survey.by(scenarios).by(agents).by(models).run()
+
+# this is equivalent:
+results = survey.by(models).by(agents).by(scenarios).run()
+```
+
+## Default model
+
+If no model is specified, a survey is automatically run with the default model. Run Model() to check the current default model.
+
+For example, the following code runs the above survey with the default model (and no agents or scenarios) without needing to import the Model class:
+
+```python
+results = survey.run() # using the survey from above
+
+# this is equivalent
+results = survey.by(Model()).run()
+```
+
+We can verify the model that was used:
+
+```python
+results.select("model.model") # selecting only the model name
+```
+
+Output:
+
+| model |
+| :--- |
+| gpt-4o |
+
+## Inspecting model parameters
+
+We can also inspect parameters of the models that were used by calling the models of the Results object.
+
+For example, we can verify the default model when running a survey without specifying a model:
+
+```python
+results.models # using the results from above
+```
+
+This will return the same information as running results.select(“model.model”) in the example above.
+
+To learn more about all the components of a Results object, please see the [Results](/en/latest/results) section.
+
+## Troubleshooting
+
+Newly released models of service providers are automatically made available to use with your surveys whenever possible (not all service providers facilitate this).
+
+If you do not see a model that you want to work with or are unable to instantiate it using the standard method, please send us a request to add it to *info@expectedparrot.com*.
+
+## ModelList class
+
+> ### *class* edsl.language_models.ModelList(*data: [LanguageModel](/en/latest/#edsl.language_models.LanguageModel "edsl.language_models.LanguageModel") | None = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Bases: [`Base`](/en/latest/base#base-class "edsl.base.base_class.Base"), `UserList`
+
+> #### __init__(*data: [LanguageModel](/en/latest/#edsl.language_models.LanguageModel "edsl.language_models.LanguageModel") | None = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Initialize the ModelList class.
+
+```python
+>>> from edsl import Model
+>>> m = ModelList.from_scenario_list(Model.available())
+```
+
+> #### *classmethod* all() → [ModelList](/en/latest/#edsl.language_models.ModelList "edsl.language_models.model_list.ModelList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Returns all available models.
+
+> #### code() [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Generate Python code that recreates this object.
+
+This method must be implemented by all subclasses to provide a way to generate executable Python code that can recreate the object.
+
+**Returns:**
+
+str: Python code that, when executed, creates an equivalent object
+
+> #### *classmethod* example(*randomize: bool = False*) → [ModelList](/en/latest/#edsl.language_models.ModelList "edsl.language_models.model_list.ModelList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Returns an example ModelList instance.
+
+**Parameters:**
+
+**randomize** – If True, uses Model’s randomize method.
+
+> #### filter(*expression: str*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+> #### *classmethod* from_available_models(*available_models_list: AvailableModels*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Create a ModelList from an AvailableModels object
+
+> #### *classmethod* from_dict(*data*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Create a ModelList from a dictionary.
+
+```python
+>>> newm = ModelList.from_dict(ModelList.example().to_dict())
+>>> assert ModelList.example() == newm
+```
+
+> #### *classmethod* from_names(**args*, ***kwargs*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+A a model list from a list of names
+
+> #### *classmethod* from_scenario_list(*scenario_list*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Create a ModelList from a ScenarioList containing model_name and service_name fields.
+
+> **Args:**
+
+scenario_list: ScenarioList with scenarios containing ‘model_name’ and ‘service_name’ fields
+
+> **Returns:**
+
+ModelList with instantiated Model objects
+
+> **Example:**
+
+```python
+>>> from edsl import Model
+>>> models_data = Model.available(service_name='openai')
+>>> model_list = ModelList.from_scenario_list(models_data)
+```
+
+> #### *property* names [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+```python
+>>> ModelList.example().names
+{'...'}
+```
+
+> #### table(**fields*, *tablefmt: str | None = None*, *pretty_labels: dict | None = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+```python
+>>> ModelList.example().table('model_name')
+model_name
+------------
+gpt-4o
+gpt-4o
+gpt-4o
+```
+
+> #### to_dict(*sort=False*, *add_edsl_version=True*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Serialize this object to a dictionary.
+
+This method must be implemented by all subclasses to provide a standard way to serialize objects to dictionaries. The dictionary should contain all the data needed to reconstruct the object.
+
+> **Returns:**
+
+dict: A dictionary representation of the object
+
+> #### to_list() → list [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+> #### to_scenario_list() [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+> #### tree(*node_list: List[str] | None = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+## LanguageModel class
+
+> ### *class* edsl.language_models.LanguageModel(*tpm: float | None = None*, *rpm: float | None = None*, *omit_system_prompt_if_empty_string: bool = True*, *key_lookup: 'KeyLookup' | None = None*, ***kwargs*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Bases: `PersistenceMixin`, `RepresentationMixin`, `HashingMixin`, `DiffMethodsMixin`, `ABC`
+
+Abstract base class for all language model implementations in EDSL.
+
+This class defines the common interface and functionality for interacting with various language model providers (OpenAI, Anthropic, etc.). It handles caching, response parsing, token usage tracking, and cost calculation, providing a consistent interface regardless of the underlying model.
+
+Subclasses must implement the async_execute_model_call method to handle the actual API call to the model provider. Other methods may also be overridden to customize behavior for specific models.
+
+The class uses several mixins to provide serialization, pretty printing, and hashing functionality, and a metaclass to automatically register model implementations.
+
+> **Attributes:**
+
+\_model\_: The default model identifier (set by subclasses) key_sequence: Path to extract generated text from model responses DEFAULT_RPM: Default requests per minute rate limit DEFAULT_TPM: Default tokens per minute rate limit
+
+> #### DEFAULT_RPM *= 100* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+> #### DEFAULT_TPM *= 1000* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+> #### __init__(*tpm: float | None = None*, *rpm: float | None = None*, *omit_system_prompt_if_empty_string: bool = True*, *key_lookup: 'KeyLookup' | None = None*, ***kwargs*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Initialize a new language model instance.
+
+**Args:**
+
+tpm: Optional tokens per minute rate limit override rpm: Optional requests per minute rate limit override omit_system_prompt_if_empty_string: Whether to omit the system prompt when empty key_lookup: Optional custom key lookup for API credentials [**](/en/latest/#id2)kwargs: Additional parameters to pass to the model provider
+
+The initialization process: 1. Sets up the model identifier from the class attribute 2. Configures model parameters by merging defaults with provided values 3. Sets up API key lookup and rate limits 4. Applies all parameters as instance attributes
+
+For subclasses that define _parameters_ class attribute, these will be used as default parameters that can be overridden by kwargs.
+
+> #### *property* api_token*: str* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Get the API token for this model’s service.
+
+This property lazily fetches the API token from the key lookup mechanism when first accessed, caching it for subsequent uses.
+
+> **Returns:**
+
+str: The API token for authenticating with the model provider
+
+> **Raises:**
+
+ValueError: If no API key is found for this model’s service
+
+> #### ask_question(*question: [QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.QuestionBase")*) → str [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Ask a question using this language model and return the response.
+
+This is a convenience method that extracts the necessary prompts from a question object and makes a model call.
+
+**Args:**
+
+question: The EDSL question object to ask
+
+**Returns:**
+
+str: The model’s response to the question
+
+> #### *abstract async* async_execute_model_call(*user_prompt: str*, *system_prompt: str*, *question_name: str | None = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Execute the model call asynchronously.
+
+This abstract method must be implemented by all model subclasses to handle the actual API call to the language model provider.
+
+**Args:**
+
+user_prompt: The user message or input prompt system_prompt: The system message or context question_name: Optional name of the question being asked (primarily used for test models)
+
+**Returns:**
+
+Coroutine that resolves to the model response
+
+
+**Note:**
+
+Implementations should handle the actual API communication, including authentication, request formatting, and response parsing.
+
+> #### *async* async_get_response(*user_prompt: str*, *system_prompt: str*, *cache: [Cache](/en/latest/data#cache-class "edsl.caching.Cache")*, *iteration: int = 1*, *files_list: List[[FileStore](/en/latest/filestore#edsl.scenarios.FileStore "edsl.scenarios.FileStore")] | None = None*, ***kwargs*) → AgentResponseDict [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Get a complete response with all metadata and parsed format.
+
+This method handles the complete pipeline for: 1. Making a model call (with caching) 2. Parsing the response 3. Constructing a full response object with inputs, outputs, and parsed data
+
+It’s the primary method used by higher-level components to interact with models.
+
+**Args:**
+
+user_prompt: The user’s message or input prompt system_prompt: The system’s message or context cache: The cache object to use for storing/retrieving responses iteration: The iteration number (default: 1) files_list: Optional list of files to include in the prompt [**](/en/latest/#id4)kwargs: Additional parameters (invigilator can be provided here)
+
+**Returns:**
+
+AgentResponseDict: Complete response object with inputs, raw outputs, and parsed data
+
+> #### copy() → [LanguageModel](/en/latest/#edsl.language_models.LanguageModel "edsl.language_models.language_model.LanguageModel") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Create a deep copy of this language model instance.
+
+This method creates a completely independent copy of the language model by creating a new instance with the same parameters and copying relevant attributes.
+
+> **Returns:**
+
+LanguageModel: A new language model instance that is functionally identical to this one
+
+> **Examples:**
+
+```python
+>>> m1 = LanguageModel.example()
+>>> m2 = m1.copy()
+>>> m1 == m2  # Functionally equivalent
+True
+>>> id(m1) == id(m2)  # But different objects
+False
+```
+
+> #### cost(*raw_response: dict[str, Any]*) → ResponseCost [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Calculate the monetary cost of a model API call.
+
+This method extracts token usage information from the response and uses the price manager to calculate the actual cost in dollars based on the model’s pricing structure and token counts.
+
+> **Args:**
+
+raw_response: The complete response dictionary from the model API
+
+> **Returns:**
+
+ResponseCost: Object containing token counts and total cost
+
+> #### *classmethod* example(*test_model: bool = False*, *canned_response: str = 'Hello world'*, *throw_exception: bool = False*) → [LanguageModel](/en/latest/#edsl.language_models.LanguageModel "edsl.language_models.language_model.LanguageModel") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Create an example language model instance for testing and demonstration.
+
+This method provides a convenient way to create a model instance for examples, tests, and documentation. It can create either a real model (with API key checking disabled) or a test model that returns predefined responses.
+
+> **Args:**
+
+test_model: If True, creates a test model that doesn’t make real API calls canned_response: For test models, the predefined response to return throw_exception: For test models, whether to throw an exception instead of responding
+
+> **Returns:**
+
+LanguageModel: An example model instance
+
+> **Examples:**
+
+Create a test model with a custom response:
+
+```python
+>>> from edsl.language_models import LanguageModel
+>>> m = LanguageModel.example(test_model=True, canned_response="WOWZA!")
+>>> isinstance(m, LanguageModel)
+True
+```
+
+Use the test model to answer a question:
+
+```python
+>>> from edsl import QuestionFreeText
+>>> q = QuestionFreeText(question_text="What is your name?", question_name='example')
+>>> q.by(m).run(cache=False, disable_remote_cache=True, disable_remote_inference=True).select('example').first()
+'WOWZA!'
+```
+
+Create a test model that throws exceptions:
+
+```python
+>>> m = LanguageModel.example(test_model=True, canned_response="WOWZA!", throw_exception=True)
+>>> r = q.by(m).run(cache=False, disable_remote_cache=True, disable_remote_inference=True, print_exceptions=True)
+Exception report saved to ...
+```
+
+> #### execute_model_call(***kwargs*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+> #### from_cache(*cache: [Cache](/en/latest/data#cache-class "edsl.caching.Cache")*) → [LanguageModel](/en/latest/#edsl.language_models.LanguageModel "edsl.language_models.LanguageModel") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Create a new model that only returns responses from the cache.
+
+This method creates a modified copy of the model that will only use cached responses, never making new API calls. This is useful for offline operation or repeatable experiments.
+
+> **Args:**
+
+cache: The cache object containing previously cached responses
+
+> **Returns:**
+
+LanguageModel: A new model instance that only reads from cache
+
+> #### *classmethod* from_dict(*data: dict*) → [LanguageModel](/en/latest/#edsl.language_models.LanguageModel "edsl.language_models.language_model.LanguageModel") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Create a language model instance from a dictionary representation.
+
+This class method deserializes a model from its dictionary representation, using the inference service registry to find the correct model class.
+
+> **Args:**
+
+data: Dictionary containing the model configuration
+
+> **Returns:**
+
+LanguageModel: A new model instance of the appropriate type
+
+> #### *classmethod* from_scripted_responses(*agent_question_responses: dict[str, dict[str, str]]*) → [LanguageModel](/en/latest/#edsl.language_models.LanguageModel "edsl.language_models.language_model.LanguageModel") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Create a language model with scripted responses for specific agent-question combinations.
+
+This method creates a specialized model that returns predetermined responses based on the agent name and question name combination. This is useful for testing scenarios where you want to control exactly how different agents respond to different questions.
+
+> **Args:**
+
+**agent_question_responses: Nested dictionary mapping agent names to question names**
+
+to responses. Format: \{‘agent_name’: \{‘question_name’: ‘response’\}\}
+
+> **Returns:**
+
+LanguageModel: A scripted response model
+
+> **Examples:**
+
+Create a model with scripted responses for different agents:
+
+```python
+>>> from edsl.language_models import LanguageModel
+>>> responses = {
+...     'alice': {'favorite_color': 'blue', 'age': '25'},
+...     'bob': {'favorite_color': 'red', 'age': '30'}
+... }
+>>> m = LanguageModel.from_scripted_responses(responses)
+>>> isinstance(m, LanguageModel)
+True
+```
+
+The model will return the appropriate response based on agent and question:
+
+```python
+>>> # When used with agent 'alice' and question 'favorite_color', returns 'blue'
+>>> # When used with agent 'bob' and question 'age', returns '30'
+```
+
+> #### *classmethod* get_generated_token_string(*raw_response: dict[str, Any]*) → str [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Extract the generated text from a raw model response.
+
+This method navigates the response structure using the model’s key_sequence to find and return just the generated text, without metadata.
+
+> **Args:**
+
+raw_response: The complete response dictionary from the model API
+
+> **Returns:**
+
+str: The generated text string
+
+> **Examples:**
+
+```python
+>>> m = LanguageModel.example(test_model=True)
+>>> raw_response = m.execute_model_call("Hello, model!", "You are a helpful agent.")
+>>> m.get_generated_token_string(raw_response)
+'Hello world'
+```
+
+> #### get_response(*user_prompt: str*, *system_prompt: str*, *cache: [Cache](/en/latest/data#cache-class "edsl.caching.Cache")*, *iteration: int = 1*, *files_list: List[[FileStore](/en/latest/filestore#edsl.scenarios.FileStore "edsl.scenarios.FileStore")] | None = None*, ***kwargs*) → AgentResponseDict [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Get a complete response with all metadata and parsed format.
+
+This method handles the complete pipeline for: 1. Making a model call (with caching) 2. Parsing the response 3. Constructing a full response object with inputs, outputs, and parsed data
+
+It’s the primary method used by higher-level components to interact with models.
+
+**Args:**
+
+user_prompt: The user’s message or input prompt system_prompt: The system’s message or context cache: The cache object to use for storing/retrieving responses iteration: The iteration number (default: 1) files_list: Optional list of files to include in the prompt [**](/en/latest/#id6)kwargs: Additional parameters (invigilator can be provided here)
+
+**Returns:**
+
+AgentResponseDict: Complete response object with inputs, raw outputs, and parsed data
+
+> #### *classmethod* get_usage_dict(*raw_response: dict[str, Any]*) → dict[str, Any] [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Extract token usage statistics from a raw model response.
+
+This method navigates the response structure to find and return information about token usage, which is used for cost calculation and monitoring.
+
+**Args:**
+
+raw_response: The complete response dictionary from the model API
+
+**Returns:**
+
+dict: Dictionary of token usage statistics (input tokens, output tokens, etc.)
+
+> #### has_valid_api_key() → bool [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Check if the model has a valid API key available.
+
+This method verifies if the necessary API key is available in environment variables or configuration for this model’s service. Test models always return True.
+
+> **Returns:**
+
+bool: True if a valid API key is available, False otherwise
+
+> **Examples:**
+
+```python
+>>> LanguageModel.example().has_valid_api_key() :
+True
+```
+
+> #### hello(*verbose=False*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Run a simple test to verify the model connection is working.
+
+This method makes a basic model call to check if the API credentials are valid and the model is responsive.
+
+**Args:**
+
+verbose: If True, prints the masked API token
+
+**Returns:**
+
+str: The model’s response to a simple greeting
+
+> #### key_sequence*: tuple[str, ...]* *= None* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+> #### *classmethod* parse_response(*raw_response: dict[str, Any]*) → EDSLOutput [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Parse the raw API response into a standardized EDSL output format.
+
+This method processes the model’s response to extract the generated content and format it according to EDSL’s expected structure, making it consistent across different model providers.
+
+**Args:**
+
+raw_response: The complete response dictionary from the model API
+
+**Returns:**
+
+EDSLOutput: Standardized output structure with answer and optional comment
+
+> #### *async* remote_async_execute_model_call(*user_prompt: str*, *system_prompt: str*, *question_name: str | None = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Execute the model call remotely through the EDSL Coop service.
+
+This method allows offloading the model call to a remote server, which can be useful for models not available in the local environment or to avoid rate limits.
+
+**Args:**
+
+user_prompt: The user message or input prompt system_prompt: The system message or context question_name: Optional name of the question being asked (primarily used for test models)
+
+**Returns:**
+
+Coroutine that resolves to the model response from the remote service
+
+> #### response_handler *= `<edsl.language_models.raw_response_handler.RawResponseHandler object>`* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+> #### *property* rpm [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Get the requests per minute rate limit for this model.
+
+This property provides the rate limit either from an explicitly set value, from the model info in the key lookup, or from the default value.
+
+**Returns:**
+
+float: The requests per minute rate limit
+
+> #### set_key_lookup(*key_lookup: KeyLookup*) → None [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Update the key lookup mechanism after initialization.
+
+This method allows changing the API key lookup after the model has been created, clearing any cached API tokens.
+
+**Args:**
+
+key_lookup: The new key lookup object to use
+
+> #### simple_ask(*question: [QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.QuestionBase")*, *system_prompt='You are a helpful agent pretending to be a human.'*, *top_logprobs=2*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Ask a simple question with log probability tracking.
+
+This is a convenience method for getting responses with log probabilities, which can be useful for analyzing model confidence and alternatives.
+
+**Args:**
+
+question: The EDSL question object to ask system_prompt: System message to use (default is human agent instruction) top_logprobs: Number of top alternative tokens to return probabilities for
+
+**Returns:**
+
+The model response, including log probabilities if supported
+
+> #### to_dict(*add_edsl_version: bool = True*) → dict[str, Any] [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Serialize the model instance to a dictionary representation.
+
+This method creates a dictionary containing all the information needed to recreate this model, including its identifier, parameters, and service. Optionally includes EDSL version information for compatibility checking.
+
+> **Args:**
+
+add_edsl_version: Whether to include EDSL version and class name (default: True)
+
+> **Returns:**
+
+dict: Dictionary representation of this model instance
+
+> **Examples:**
+
+```python
+>>> m = LanguageModel.example()
+>>> m.to_dict()
+{'model': '...', 'parameters': {'temperature': ..., 'max_tokens': ..., 'top_p': ..., 'frequency_penalty': ..., 'presence_penalty': ..., 'logprobs': False, 'top_logprobs': ...}, 'inference_service': 'openai', 'edsl_version': '...', 'edsl_class_name': 'LanguageModel'}
+```
+
+> #### *property* tpm [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models.py)
+
+Get the tokens per minute rate limit for this model.
+
+This property provides the rate limit either from an explicitly set value, from the model info in the key lookup, or from the default value.
+
+**Returns:**
+
+float: The tokens per minute rate limit
+
+## Other methods
+
+> ### *class* edsl.language_models.registry.RegisterLanguageModelsMeta(*name*, *bases*, *namespace*, */*, ***kwargs*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models/registry.py)
+
+Bases: `ABCMeta`
+
+Metaclass to register output elements in a registry i.e., those that have a parent.
+
+> #### REQUIRED_CLASS_ATTRIBUTES *= ['_model_', '_parameters_', '_inference_service_']* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models/registry.py)
+
+> #### __init__(*name*, *bases*, *dct*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models/registry.py)
+
+Register the class in the registry if it has a _model_ attribute.
+
+> #### *static* check_required_class_variables(*candidate_class: [LanguageModel](/en/latest/#edsl.language_models.LanguageModel "edsl.language_models.LanguageModel")*, *required_attributes: List[str] = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models/registry.py)
+
+Check if a class has the required attributes.
+
+```python
+>>> class M:
+...     _model_ = "m"
+...     _parameters_ = {}
+>>> RegisterLanguageModelsMeta.check_required_class_variables(M, ["_model_", "_parameters_"])
+>>> class M2:
+...     _model_ = "m"
+```
+
+> #### *classmethod* clear_registry() [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models/registry.py)
+
+Clear the registry to prevent memory leaks.
+
+> #### *classmethod* get_registered_classes() [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models/registry.py)
+
+Return the registry.
+
+> #### *classmethod* model_names_to_classes() [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models/registry.py)
+
+Return a dictionary of model names to classes.
+
+> #### *static* verify_method(*candidate_class: [LanguageModel](/en/latest/#edsl.language_models.LanguageModel "edsl.language_models.LanguageModel")*, *method_name: str*, *expected_return_type: Any*, *required_parameters: List[tuple[str, Any]] = None*, *must_be_async: bool = False*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/language_models/registry.py)
+
+Verify that a method is defined in a class, has the correct return type, and has the correct parameters.
+

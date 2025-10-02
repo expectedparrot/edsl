@@ -1,0 +1,151 @@
+---
+title: "Comparing model performance"
+description: "In this notebook we show how to use EDSL to prompt a set of models to answer the same survey at once and compare their responses."
+---
+
+We also demonstrate how to prompt models to evaluate the content they have generated.
+
+```python
+from edsl import Model, ModelList, ScenarioList, QuestionFreeText, QuestionLinearScale, Survey
+```
+
+```python
+m = ModelList([
+    Model("claude-3-7-sonnet-20250219", service_name = "anthropic"),
+    Model("gemini-1.5-flash", service_name = "google"),
+    Model("gpt-4o", service_name = "openai")
+])
+```
+
+```python
+s = ScenarioList.from_source("list", "topic", ["winter", "language models"])
+```
+
+```python
+q1 = QuestionFreeText(
+    question_name = "haiku",
+    question_text = "Please draft a haiku about {{ scenario.topic }}."
+)
+
+q2 = QuestionLinearScale(
+    question_name = "originality",
+    question_text = "On a scale from 1 to 5, please rate the originality of this haiku: {{ haiku.answer }}.",
+    question_options = [1,2,3,4,5],
+    option_labels = {1:"Totally unoriginal", 5:"Highly original"}
+)
+
+survey = Survey(questions = [q1, q2])
+
+survey
+```
+
+[Survey](/en/latest/surveys) # questions: 2; question_name list: ['haiku', 'originality'];
+
+|  | option_labels | question_text | question_name | question_options | question_type |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | nan | Please draft a haiku about {`{ scenario.topic }`}. | haiku | nan | free_text |
+| 1 | `{1: 'Totally unoriginal', 5: 'Highly original'}` | On a scale from 1 to 5, please rate the originality of this haiku: {`{ haiku.answer }`}. | originality | [1, 2, 3, 4, 5] | linear_scale |
+
+```python
+results = survey.by(s).by(m).run()
+```
+
+```python
+results.select("model", "topic", "haiku", "originality")
+```
+
+|  | model.model | scenario.topic | answer.haiku | answer.originality |
+| :--- | :--- | :--- | :--- | :--- |
+| 0 | claude-3-7-sonnet-20250219 | winter | Snowflakes drift downward Blanket of white hides the earth Silence embraces | 2 |
+| 1 | gemini-1.5-flash | winter | White breath in the air, Frozen ground crunches below, Silence blankets all. | 2 |
+| 2 | gpt-4o | winter | Snow blankets the earth, Silent whispers fill the air, Cold breath of winter. | 2 |
+| 3 | claude-3-7-sonnet-20250219 | language models | Words dance in code, Patterns weave through silicon— Echoes of our thoughts. | 4 |
+| 4 | gemini-1.5-flash | language models | Data flows like streams, Words bloom, a digital flower, Meaning takes its form. | 2 |
+| 5 | gpt-4o | language models | Words dance in silence, Patterns weave through vast data— Machines learn to speak. | 4 |
+
+## Next we prompt each model to rate every haiku
+
+We modify the second question to use a scenario for each haiku instead of piping the answer from the first question (i.e., `{{ haiku.answer }}` is changed to `{{ scenario.haiku }}`):
+
+```python
+new_q = QuestionLinearScale(
+    question_name = "originality",
+    question_text = "On a scale from 1 to 5, please rate the originality of this haiku: {{ scenario.haiku }}.",
+    question_options = [1,2,3,4,5],
+    option_labels = {1:"Totally unoriginal", 5:"Highly original"}
+)
+```
+
+```python
+haikus = results.select("model", "topic", "haiku").to_scenario_list().rename({"model":"drafting_model"})
+haikus
+```
+
+[ScenarioList](/en/latest/scenarios) scenarios: 6; keys: ['haiku', 'drafting_model', 'topic'];
+
+|  | drafting_model | topic | haiku |
+| :--- | :--- | :--- | :--- |
+| 0 | claude-3-7-sonnet-20250219 | winter | Snowflakes drift downward Blanket of white hides the earth Silence embraces |
+| 1 | gemini-1.5-flash | winter | White breath in the air, Frozen ground crunches below, Silence blankets all. |
+| 2 | gpt-4o | winter | Snow blankets the earth, Silent whispers fill the air, Cold breath of winter. |
+| 3 | claude-3-7-sonnet-20250219 | language models | Words dance in code, Patterns weave through silicon— Echoes of our thoughts. |
+| 4 | gemini-1.5-flash | language models | Data flows like streams, Words bloom, a digital flower, Meaning takes its form. |
+| 5 | gpt-4o | language models | Words dance in silence, Patterns weave through vast data— Machines learn to speak. |
+
+```python
+new_results = new_q.by(haikus).by(m).run()
+```
+
+```python
+(
+    new_results
+    .sort_by("topic", "drafting_model", "model")
+    .select("model", "drafting_model", "topic", "haiku", "originality")
+)
+```
+
+|  | model.model | scenario.drafting_model | scenario.topic | scenario.haiku | answer.originality |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | claude-3-7-sonnet-20250219 | claude-3-7-sonnet-20250219 | language models | Words dance in code, Patterns weave through silicon— Echoes of our thoughts. | 4 |
+| 1 | gemini-1.5-flash | claude-3-7-sonnet-20250219 | language models | Words dance in code, Patterns weave through silicon— Echoes of our thoughts. | 3 |
+| 2 | gpt-4o | claude-3-7-sonnet-20250219 | language models | Words dance in code, Patterns weave through silicon— Echoes of our thoughts. | 4 |
+| 3 | claude-3-7-sonnet-20250219 | gemini-1.5-flash | language models | Data flows like streams, Words bloom, a digital flower, Meaning takes its form. | 3 |
+| 4 | gemini-1.5-flash | gemini-1.5-flash | language models | Data flows like streams, Words bloom, a digital flower, Meaning takes its form. | 2 |
+| 5 | gpt-4o | gemini-1.5-flash | language models | Data flows like streams, Words bloom, a digital flower, Meaning takes its form. | 3 |
+| 6 | claude-3-7-sonnet-20250219 | gpt-4o | language models | Words dance in silence, Patterns weave through vast data— Machines learn to speak. | 4 |
+| 7 | gemini-1.5-flash | gpt-4o | language models | Words dance in silence, Patterns weave through vast data— Machines learn to speak. | 3 |
+| 8 | gpt-4o | gpt-4o | language models | Words dance in silence, Patterns weave through vast data— Machines learn to speak. | 4 |
+| 9 | claude-3-7-sonnet-20250219 | claude-3-7-sonnet-20250219 | winter | Snowflakes drift downward Blanket of white hides the earth Silence embraces | 2 |
+| 10 | gemini-1.5-flash | claude-3-7-sonnet-20250219 | winter | Snowflakes drift downward Blanket of white hides the earth Silence embraces | 2 |
+| 11 | gpt-4o | claude-3-7-sonnet-20250219 | winter | Snowflakes drift downward Blanket of white hides the earth Silence embraces | 2 |
+| 12 | claude-3-7-sonnet-20250219 | gemini-1.5-flash | winter | White breath in the air, Frozen ground crunches below, Silence blankets all. | 3 |
+| 13 | gemini-1.5-flash | gemini-1.5-flash | winter | White breath in the air, Frozen ground crunches below, Silence blankets all. | 2 |
+| 14 | gpt-4o | gemini-1.5-flash | winter | White breath in the air, Frozen ground crunches below, Silence blankets all. | 2 |
+| 15 | claude-3-7-sonnet-20250219 | gpt-4o | winter | Snow blankets the earth, Silent whispers fill the air, Cold breath of winter. | 2 |
+| 16 | gemini-1.5-flash | gpt-4o | winter | Snow blankets the earth, Silent whispers fill the air, Cold breath of winter. | 2 |
+| 17 | gpt-4o | gpt-4o | winter | Snow blankets the earth, Silent whispers fill the air, Cold breath of winter. | 2 |
+
+## Posting this notebook to Coop
+
+```python
+# from edsl import Notebook
+
+# nb = Notebook(path = "models_scoring_models.ipynb")
+
+# nb.push(
+#     description = "Models scoring models",
+#     alias = "models-scoring-models-notebook",
+#     visibility = "public"
+# )
+```
+
+Updating an object at Coop:
+
+```python
+from edsl import Notebook
+
+nb = Notebook(path = "models_scoring_models.ipynb") # resave
+
+nb.patch("https://www.expectedparrot.com/content/RobinHorton/models-scoring-models-notebook", value = nb)
+
+```

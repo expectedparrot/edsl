@@ -248,16 +248,23 @@ class OpenAIService(InferenceServiceABC):
                     "InvigilatorAI"
                 ] = None,  # TBD - can eventually be used for function-calling
                 cache_key: Optional[str] = None,  # Cache key for tracking
+                response_schema: Optional[dict] = None,
+                response_schema_name: Optional[str] = None,
             ) -> dict[str, Any]:
                 """Calls the OpenAI API and returns the API response.
 
                 Args:
-                    user_prompt: The user message or input prompt
-                    system_prompt: The system message or context
+                    user_prompt: The user's message or input
+                    system_prompt: System context or instructions
                     question_name: Optional name of the question being asked
                     files_list: Optional list of files to include
-                    invigilator: Optional invigilator for function-calling
-                    remote_proxy: Optional URL of remote proxy to use instead of direct API call
+                    invigilator: Optional invigilator for additional context
+                    cache_key: Optional cache key for tracking
+                    response_schema: Optional JSON schema for structured output (Pydantic model schema)
+                    response_schema_name: Optional name of the Pydantic model for the schema
+
+                Returns:
+                    dict: The model's response as a dictionary
                 """
 
                 # Check if we should use remote proxy
@@ -314,6 +321,19 @@ class OpenAIService(InferenceServiceABC):
                     logprobs=self.logprobs,
                     top_logprobs=self.top_logprobs,
                 )
+
+                # Add structured output support if response_schema is provided
+                if response_schema is not None:
+                    # OpenAI's JSON schema mode for structured output
+                    params["response_format"] = {
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": response_schema_name or "response_schema",
+                            "strict": True,
+                            "schema": response_schema,
+                        },
+                    }
+
                 # Apply service-specific parameter filtering
                 params = self._filter_parameters_for_service(params)
 

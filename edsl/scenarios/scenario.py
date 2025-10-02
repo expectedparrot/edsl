@@ -954,6 +954,19 @@ class Scenario(Base, UserDict):
 
         return ScenarioFactory.from_pdf_to_image(pdf_path, image_format)
 
+    def to_scenario_list(self) -> "ScenarioList":
+        """
+        Convert the Scenario to a ScenarioList.
+        """
+        from .scenario_list import ScenarioList
+        return ScenarioList([self])
+
+    def replace_value(self, key: str, value: Any) -> "Scenario":
+        """Replace the value of a key in the Scenario.
+        """
+        self[key] = value
+        return self
+
     @classmethod
     def from_docx(cls, docx_path: str) -> "Scenario":
         """

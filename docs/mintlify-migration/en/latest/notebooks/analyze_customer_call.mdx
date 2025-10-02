@@ -1,0 +1,323 @@
+---
+title: "Analyzing a transcript"
+description: "This notebook provides example EDSL code for analyzing a transcript using AI. In the steps below we construct a survey of questions about a transcript of a fictional call between a business development representative and a potential customer, and then use a language model to answer the questions in the persona of an business development expert delivering feedback on the call. The code can easily be modified for purposes of analyzing other textual content, images, PDFs, websites, tables and other data types with diverse personas and many popular language models."
+---
+
+[EDSL is an open-source library](https://github.com/expectedparrot/edsl) for simulating surveys, experiments and other research with AI agents and large language models. Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Coop account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL.
+
+## Constructing questions
+
+We start by importing the tools we will use and constructing questions that we want to ask about the contents of the call. EDSL provides many common [question types](/en/latest/questions) that we can choose from based on the form of the response that we want to get back from language model: free text, multiple choice, etc.
+
+```python
+from edsl import QuestionMultipleChoice, QuestionLinearScale, QuestionFreeText, Survey, Agent, Model
+```
+
+```python expandable
+q1 = QuestionMultipleChoice(
+    question_name = "understanding",
+    question_text = "How would you rate the representative's understanding of the customer's needs?",
+    question_options = ["Excellent", "Good", "Fair", "Poor"]
+)
+q2 = QuestionMultipleChoice(
+    question_name = "explain_features",
+    question_text = "How well did the representative explain the features relevant to the customer's business?",
+    question_options = ["Very clearly", "Somewhat clearly", "Unclear", "Not explained"]
+)
+q3 = QuestionMultipleChoice(
+    question_name = "address_concerns",
+    question_text = "How well did the representative address the questions and concerns of the customer?",
+    question_options = ["Very effectively", "Mostly effectively", "Somewhat effectively", "Not effectively"]
+)
+q4 = QuestionMultipleChoice(
+    question_name = "product_knowledge",
+    question_text = "How would you rate the representative's knowledge of the products and services discussed?",
+    question_options = ["Excellent", "Good", "Fair", "Poor"]
+)
+q5 = QuestionMultipleChoice(
+    question_name = "attentive",
+    question_text = "Did the representative appear attentive to the customer's needs and concerns?",
+    question_options = ["Very attentive", "Mostly attentive", "Somewhat attentive", "Not attentive"]
+)
+q6 = QuestionLinearScale(
+    question_name = "likely_sale",
+    question_text = "On a scale from 1 to 10, how likely is the customer to use the products and servies discussed?",
+    question_options = [1,2,3,4,5,6,7,8,9,10]
+)
+q7 = QuestionMultipleChoice(
+    question_name = "next_steps",
+    question_text = "Did the representative offer relevant next steps for implementation or testing products?",
+    question_options = ["Yes, very clear and actionable", "Somewhat clear", "Not clear", "No next steps offered"]
+)
+q8 = QuestionFreeText(
+    question_name = "helpful_approaches",
+    question_text = "What aspects of the representative’s approach were most helpful to the customer?"
+)
+q9 = QuestionFreeText(
+    question_name = "inadequate_explanation",
+    question_text = "Were any features or details not adequately explained?"
+)
+q10 = QuestionFreeText(
+    question_name = "improvements",
+    question_text = "How could the representative have improved their explanation of the products?"
+)
+q11 = QuestionFreeText(
+    question_name = "confusing",
+    question_text = "Was there anything about the conversation that seemed unclear or confusing?"
+)
+q12 = QuestionFreeText(
+    question_name = "confident",
+    question_text = "What additional information could have helped the customer feel more confident in the representative's offerings?"
+)
+```
+
+We combine the questions in a survey in order to administer them together:
+
+```python
+survey = Survey([q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12])
+```
+
+## Selecting content for review
+
+Next we import the text of the call that we want to give to the model in answering the questions. Here we use a mock transcript drafted by chatGPT:
+
+```python expandable
+transcript = """
+Alex (Quick Representative):
+Hi, Jamie! Thanks so much for taking the time to chat today. How’s everything going with your website?
+
+Jamie (Customer):
+Hi, Alex. It’s going okay, I think. We’re getting some users, but honestly, I’m just trying to figure out the best way to manage payments. It’s all new to me.
+
+Alex:
+Got it, no worries! Quick can really help simplify things for you. Our platform allows you to accept payments easily and has a subscription option, which I think you mentioned you were interested in, right?
+
+Jamie:
+Yeah, we’re thinking about offering different subscription levels for our software, but I’m not sure how to set it all up. And we have some international users, so that’s been a bit confusing too.
+
+Alex:
+Right, right. So, with Quick, you can definitely do subscriptions, and it handles multiple currencies, too. For example, if you have a customer in Europe, Quick can automatically handle the conversion. It’s designed to make that part easy, so you don’t need to worry too much about different currencies.
+
+Jamie:
+That sounds helpful. But I’m a bit concerned about the setup. I’m not a developer, so I’m worried this might be too complicated.
+
+Alex:
+Oh, yeah, I totally understand! Quick’s setup is meant to be as easy as possible. We have plugins and a lot of guides to walk you through it. I’d say that most people get it up and running without too much trouble. And if you do need help, our support team is available.
+
+Jamie:
+Okay, that’s a relief. I’ve heard some stories about people getting stuck for weeks with payment systems. I don’t want that to happen.
+
+Alex:
+I get that completely. We try to make it as straightforward as possible. Also, if you’re worried about fraud or security, Quick has a feature called Shield that helps detect fraud. It’s built in, so it’s automatically protecting you from day one.
+
+Jamie:
+Oh, that sounds good. I don’t know much about fraud detection. Is it something I’d have to set up?
+
+Alex:
+Nope! Shield is on by default, so you don’t have to configure anything special unless you want to. It uses machine learning to detect unusual activity based on data from many transactions, which helps catch fraudulent transactions without much work on your end.
+
+Jamie:
+That’s nice to know. What about fees? I’d like to have a clear idea of what this will cost.
+
+Alex:
+Absolutely. So, Quick charges 2.9% plus 30 cents per transaction. For subscriptions, there’s no extra fee beyond the normal transaction cost. Also, if you start processing a lot of payments, we do offer some discounts, but those kick in at a higher volume.
+
+Jamie:
+Alright, that makes sense. And what about invoicing? A few customers have asked about getting invoices instead of just a credit card charge.
+
+Alex:
+Yes, we can do that too. With Quick Invoicing, you can send out one-time or recurring invoices, which is nice if you have larger clients who prefer an invoice. It’s all within the Quick system, so it integrates well.
+
+Jamie:
+Good to know. I think this covers most of my questions. It sounds like Quick could be a good fit. I’d just need to make sure I’m able to actually set it up without a ton of back-and-forth.
+
+Alex:
+I totally understand, Jamie. I’ll send over some guides and set you up with a sandbox account to test things out. Let’s reconnect in a couple of weeks to go over any questions you might have.
+
+Jamie:
+Sounds good, thanks, Alex. Looking forward to trying it out.
+
+Alex:
+Great! Thanks for your time, Jamie. I’ll follow up soon. Have a good one!
+"""
+```
+
+## AI agent personas and instructions
+
+Here we create a persona and instructions for an AI agent that we will give a model to reference in answering questions. We include the transcript of the customer call in the agent instructions. (We could also include it directly in question texts; [learn more about using questions with multiple pieces of content](/en/latest/scenarios) with `Scenario` objects.)
+
+```python
+agent = Agent(
+        traits = {"persona": "You are an expert business development representative with many years of experience at diverse companies."},
+        instruction = """
+        You are being asked to review the following transcript of a business development call between a representative of a payments
+        processing company and a potential customer and provide critical feedback.
+        Transcript:
+        """ + transcript
+)
+```
+
+## Selecting a model
+
+EDSL works with many popular [language models that we can select](/en/latest/language_models) to generate responses to the questions. Here we specify that we want to use OpenAI’s GPT-4o:
+
+```python
+model = Model("gpt-4o", service_name = "openai")
+```
+
+## Running the survey
+
+Next we add the agents and model to the survey and run it:
+
+```python
+results = survey.by(agent).by(model).run()
+```
+
+This generates a formatted dataset of results that we can inspect with [built-in methods for analyzing responses](/en/latest/results). Here we print them in some tables together with information about each persona that was used:
+
+```python expandable
+(
+    results
+    .select("persona", "understanding", "explain_features", "address_concerns", "product_knowledge",
+            # "attentive", "likely_sale", "next_steps"
+           )
+    .print(
+        pretty_labels = {
+            "agent.persona": "Persona",
+            "answer.understanding": q1.question_text,
+            "answer.explain_features": q2.question_text,
+            "answer.address_concerns": q3.question_text,
+            "answer.product_knowledge": q4.question_text,
+            # "answer.attentive": q5.question_text,
+            # "answer.likely_sale": q6.question_text,
+            # "answer.next_steps": q7.question_text
+        }
+    )
+)
+```
+
+|  | Persona | How would you rate the representative's understanding of the customer's needs? | How well did the representative explain the features relevant to the customer's business? | How well did the representative address the questions and concerns of the customer? | How would you rate the representative's knowledge of the products and services discussed? |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | You are an expert business development representative with many years of experience at diverse companies. | Good | Somewhat clearly | Mostly effectively | Good |
+
+```python
+(
+    results
+    .select("persona",
+            # "understanding", "explain_features", "address_concerns", "product_knowledge",
+            "attentive", "likely_sale", "next_steps"
+           )
+    .print(
+        pretty_labels = {
+            "agent.persona": "Persona",
+            # "answer.understanding": q1.question_text,
+            # "answer.explain_features": q2.question_text,
+            # "answer.address_concerns": q3.question_text,
+            # "answer.product_knowledge": q4.question_text,
+            "answer.attentive": q5.question_text,
+            "answer.likely_sale": q6.question_text,
+            "answer.next_steps": q7.question_text
+        },
+        format = "rich"
+    )
+)
+```
+
+```python
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                           ┃                            ┃ On a scale from 1 to 10,  ┃                            ┃
+┃                           ┃ Did the representative     ┃ how likely is the         ┃ Did the representative     ┃
+┃                           ┃ appear attentive to the    ┃ customer to use the       ┃ offer relevant next steps  ┃
+┃                           ┃ customer's needs and       ┃ products and servies      ┃ for implementation or      ┃
+┃ Persona                   ┃ concerns?                  ┃ discussed?                ┃ testing products?          ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ You are an expert         │ Mostly attentive           │ 8                         │ Yes, very clear and        │
+│ business development      │                            │                           │ actionable                 │
+│ representative with many  │                            │                           │                            │
+│ years of experience at    │                            │                           │                            │
+│ diverse companies.        │                            │                           │                            │
+└───────────────────────────┴────────────────────────────┴───────────────────────────┴────────────────────────────┘
+```
+
+|  | Persona | Did the representative appear attentive to the customer's needs and concerns? | On a scale from 1 to 10, how likely is the customer to use the products and servies discussed? | Did the representative offer relevant next steps for implementation or testing products? |
+| :--- | :--- | :--- | :--- | :--- |
+| 0 | You are an expert business development representative with many years of experience at diverse companies. | Mostly attentive | 8 | Yes, very clear and actionable |
+
+```python
+(
+    results
+    .select("helpful_approaches")
+    .print(pretty_labels = {"answer.helpful_approaches": q8.question_text})
+)
+```
+
+|  | What aspects of the representative’s approach were most helpful to the customer? |
+| :--- | :--- |
+| 0 | The representative, Alex, demonstrated several helpful aspects in their approach: 1. **Understanding and Empathy**: Alex showed understanding and empathy towards Jamie's concerns about managing payments and setting up the system. By acknowledging Jamie's worries about complexity and potential issues, Alex built rapport and trust. 2. **Clear Communication**: Alex communicated the features and benefits of Quick in a clear and straightforward manner. They highlighted key features such as subscription management, multi-currency handling, fraud detection, and invoicing, which directly addressed Jamie's needs and concerns. 3. **Reassurance**: Alex reassured Jamie about the ease of setup, emphasizing that Quick is designed to be user-friendly even for non-developers. They also mentioned the availability of support and resources like guides and plugins to assist with the setup. 4. **Addressing Concerns**: Alex proactively addressed potential concerns about fraud detection and fees, providing detailed information on how Quick handles these aspects without additional setup required from Jamie. 5. **Follow-Up and Support**: Alex offered to send guides and set up a sandbox account for Jamie to test the system, showing a commitment to ongoing support. The suggestion to reconnect in a couple of weeks for further questions demonstrated a proactive approach to customer service. Overall, Alex's approach was customer-focused, informative, and supportive, which helped alleviate Jamie's concerns and positioned Quick as a suitable solution for their needs. |
+
+```python
+(
+    results
+    .select("inadequate_explanation")
+    .print(pretty_labels = {"answer.inadequate_explanation": q8.question_text})
+)
+```
+
+|  | What aspects of the representative’s approach were most helpful to the customer? |
+| :--- | :--- |
+| 0 | Yes, there were a few areas where the explanation could have been more detailed: 1. **International Payments:** Alex mentioned that Quick handles multiple currencies and automatically manages conversions, but did not explain any potential fees associated with currency conversion or how exchange rates are determined. This could be an important factor for Jamie, who has international users. 2. **Setup Process:** While Alex reassured Jamie about the ease of setup and available support, it would have been beneficial to provide more specific examples or a brief overview of the setup steps. This could help alleviate Jamie's concerns about not being a developer. 3. **Fraud Detection:** Although Alex explained that Shield is on by default and uses machine learning, there was no mention of how effective it is, any limitations, or if there are options for customizing fraud detection rules if Jamie's business grows and requires more tailored solutions. 4. **Fees and Discounts:** Alex mentioned the standard transaction fee and potential discounts for high volume but did not specify what constitutes "a lot of payments" or what the discount structure looks like. This information could help Jamie plan for future growth. 5. **Invoicing Details:** While Alex confirmed that Quick can handle invoicing, it would have been helpful to explain how invoicing works within the system, any customization options available, and whether there are additional costs associated with using the invoicing feature. Providing more detailed information on these aspects could help Jamie make a more informed decision and feel more confident in choosing Quick as a payment processing solution. |
+
+```python
+(
+    results
+    .select("improvements")
+    .print(pretty_labels = {"answer.improvements": q8.question_text})
+)
+```
+
+|  | What aspects of the representative’s approach were most helpful to the customer? |
+| :--- | :--- |
+| 0 | The representative, Alex, did a decent job of covering the basics of the Quick platform, but there are several areas where the explanation could have been improved: 1. **Tailored Explanation**: Alex could have asked more detailed questions about Jamie's specific needs and use cases. This would allow Alex to tailor the explanation to Jamie's particular business model and challenges, making the conversation more relevant and engaging. 2. **Technical Clarity**: While Alex mentioned that the setup is easy, providing a brief overview of what the setup process entails could have been beneficial. For instance, explaining the steps involved in integrating Quick with a website or mentioning any technical requirements would help Jamie feel more prepared. 3. **Feature Details**: Alex mentioned features like subscription management and fraud detection but could have gone into more detail about how these features work and their benefits. For example, explaining how the subscription levels can be customized or how Shield's machine learning works in simple terms could add value. 4. **Case Studies or Testimonials**: Sharing a brief success story or testimonial from a similar customer could have helped Jamie visualize the benefits of using Quick and build trust in the product. 5. **Competitive Advantage**: Highlighting what sets Quick apart from competitors would have been useful. This could include unique features, superior customer support, or better pricing models. 6. **Proactive Solutions**: Alex could have proactively addressed common concerns or challenges that businesses face when setting up payment systems and how Quick specifically addresses those issues. By incorporating these elements, Alex could have provided a more comprehensive and compelling explanation of Quick's products and their benefits. |
+
+```python
+(
+    results
+    .select("confusing")
+    .print(pretty_labels = {"answer.confusing": q8.question_text})
+)
+```
+
+|  | What aspects of the representative’s approach were most helpful to the customer? |
+| :--- | :--- |
+| 0 | The conversation between Alex and Jamie was generally clear, but there are a few areas where additional clarity could be beneficial: 1. **Setup Complexity**: While Alex reassures Jamie that the setup is easy, it might have been helpful to provide more specific examples or a brief overview of the setup process to alleviate Jamie’s concerns further. Mentioning any specific integrations or platforms that Quick supports could also be useful. 2. **International Transactions**: Alex mentions that Quick handles multiple currencies and conversions, but it might have been helpful to explain if there are any additional fees or delays associated with currency conversion. This could be an important factor for businesses with international customers. 3. **Fraud Detection**: Although Alex explains that Shield is on by default, Jamie might benefit from knowing if there are any customizable settings or reports available to monitor fraud activity. This could reassure Jamie about the level of control they have over fraud prevention. 4. **Fees and Discounts**: While Alex provides the basic fee structure, more detail on what constitutes "a lot of payments" for discounts to apply could be useful. This would help Jamie understand at what point they might benefit from lower fees. 5. **Invoicing**: Alex mentions Quick Invoicing but doesn’t elaborate on how it integrates with other systems Jamie might be using or if there are any customization options available for the invoices. More detail here could help Jamie understand how this feature would fit into their current workflow. Overall, the conversation is informative, but adding more specific details in these areas could enhance Jamie’s understanding and confidence in using Quick. |
+
+```python
+(
+    results
+    .select("confident")
+    .print(pretty_labels = {"answer.confident": q8.question_text})
+)
+```
+
+|  | What aspects of the representative’s approach were most helpful to the customer? |
+| :--- | :--- |
+| 0 | While Alex did a good job addressing Jamie's concerns and providing an overview of Quick's features, there are a few areas where additional information could have helped Jamie feel more confident: 1. **Case Studies or Testimonials**: Sharing success stories or testimonials from other businesses similar to Jamie's could have provided reassurance about the effectiveness and ease of use of Quick's platform. 2. **Detailed Setup Process**: While Alex mentioned that the setup is easy and there are guides available, providing a brief overview of the actual steps involved or offering a demo could have made Jamie feel more at ease about the process. 3. **Customer Support Details**: Providing more specific information about the availability and responsiveness of the support team, such as support hours or typical response times, could help Jamie feel more secure about getting help if needed. 4. **Security and Compliance**: While fraud detection was mentioned, discussing other security measures and compliance with standards like PCI DSS could reassure Jamie about the platform's security. 5. **Fee Structure Clarity**: Offering a more detailed breakdown of potential costs, including examples of how fees apply in different scenarios, might help Jamie better understand the financial implications. 6. **International Transactions**: Since Jamie has international users, more information on how Quick handles international transactions, including any additional fees or processes, could be beneficial. 7. **Integration with Existing Systems**: Information on how Quick integrates with other tools Jamie might be using, such as accounting software or CRM systems, could add value to the conversation. By addressing these areas, Alex could have provided Jamie with a more comprehensive understanding of Quick's offerings and how they could specifically benefit Jamie's business. |
+
+## Posting to Coop
+
+[Coop](https://www.expectedparrot.com/content/explore) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Coop account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [using Coop](/en/latest/coop).
+
+Here we demonstrate how to post this notebook:
+
+```python
+from edsl import Notebook
+
+nb = Notebook(path = "analyze_customer_call.ipynb")
+
+nb.push(
+    description = "Analyzing a customer call",
+    alias = "analyze-customer-call-notebook",
+    visibility = "public"
+)
+```
+

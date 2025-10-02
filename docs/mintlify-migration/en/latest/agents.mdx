@@ -1,0 +1,3035 @@
+---
+title: Agents
+description: "*Agent* objects are used to simulate survey responses for target audiences. They can be created with specified traits, such as personas and relevant attributes for a survey, that are used together with language models to generate answers to questions."
+---
+
+Agents can be created individually or as a list of agents, and can be updated after they are created. They can be used with any question type, and can be used to generate responses for a single question or a survey of multiple questions.
+
+Agent information is presented to a model in a system prompt; it is delivered together with a user prompt of information about a given question. In the examples below we show how to access these prompts to inspect them before running a survey and in the results that are generated for a survey. Note, however, that certain models do not take system prompts (e.g., OpenAI’s o1). When using a model that does not take a system prompt, agent information should be included in the user prompt.
+
+## Constructing an Agent
+
+An Agent is created by passing a dictionary of traits for a model to reference in answering questions. Traits can be anything that might be relevant to the questions the agent will be asked, and constructed with single values or textual narratives.
+
+For example:
+
+```python
+from edsl import Agent
+
+agent = Agent(
+    traits = {
+        "persona": "You are an expert in machine learning.",
+        "age": 45,
+        "home_state": "Massachusetts"
+    })
+```
+
+<Note>
+**Note**:
+
+Note that traits= must be named explicitly in the construction, and the traits must use Python identifiers as keys (e.g., home_state but not home state or home-state).
+</Note>
+
+## Agent names
+
+We can optionally give an agent a name when it is constructed:
+
+```python
+agent = Agent(
+    name = "Ada",
+    traits = {
+        "persona": "You are an expert in machine learning.",
+        "age": 45,
+        "home_state": "Massachusetts"
+    })
+```
+
+If a name is not passed when the agent is created, an agent_name field is automatically added to the Results that are generated when a survey is run with the agent. This field is a unique identifier for the agent and can be used to filter or group results by agent. It is *not* used in the prompts for generating responses. If you want to use a name in the prompts for generating responses, you can pass it as a trait:
+
+```python
+agent = Agent(
+    traits = {
+        "first_name": "Ada",
+        "persona": "You are an expert in machine learning.",
+        "age": 45,
+        "home_state": "Massachusetts"
+    })
+```
+
+We can see how the agent information is presented to a model by inspecting the system prompt that is generated when we use an agent with a question:
+
+```python
+from edsl import QuestionFreeText
+
+q = QuestionFreeText(
+    question_name = "favorite_food",
+    question_text = "What is your favorite food?"
+)
+
+job = q.by(agent) # using the agent created above
+job.prompts().select("user_prompt", "system_prompt")
+```
+
+Output:
+
+| user_prompt | system_prompt |
+| :--- | :--- |
+| What is your favorite food? | You are answering questions as if you were a human. Do not break character. Your traits: \{‘first_name’: ‘Ada’, ‘persona’: ‘You are an expert in machine learning.’, ‘age’: 45, ‘home_state’: ‘Massachusetts’\} |
+
+<Note>
+Note that trying to create two agents with the same name or trying to use a key “name” in the traits will raise an error.
+</Note>
+
+## Agent lists
+
+Agents can be created collectively and administered a survey together. This is useful for comparing responses for multiple agents.
+
+For example, here we create an a list of agents as an AgentList with different combinations of traits:
+
+```python
+from edsl import AgentList, Agent
+
+ages = [10, 20, 30, 40, 50]
+locations = ["New York", "California", "Texas", "Florida", "Washington"]
+
+agents = AgentList(
+    Agent(traits = {"age": age, "location": location}) for age, location in zip(ages, locations)
+)
+```
+
+This code will create a list of agents that can then be used in a survey.
+
+Example code for running a survey with the agents:
+
+```python
+from edsl import QuestionFreeText, Survey
+
+q = QuestionFreeText(
+    question_name = "favorite_food",
+    question_text = "What is your favorite food?"
+)
+
+survey = Survey(questions = [q])
+
+results = survey.by(agents).run()
+```
+
+This will generate a Results object that contains a Result for each agent’s responses to the survey question. Learn more about working with results in the [Results](/en/latest/results#results) section.
+
+## Generating agents from data
+
+An AgentList can be automatically generated from data stored in many source types, including a list, a dictionary, a CSV, TSV or Excel file, a Pandas dataframe, etc.
+
+A general method for this is from_source() which is called on the AgentList class, takes a data source_type (csv, excel, pandas, etc.) and a data source, and returns an AgentList object. Optional parameters allow you to specify special instructions, a codebook for the traits, and a name_field for the agents.
+
+For example, if you have agent data stored in a CSV file, you can create an AgentList from it using the from_source() method by specifying source_type=”csv” and the path to the CSV file:
+
+```python
+from edsl import AgentList
+
+agents = AgentList.from_source(
+    source_type="csv",
+    file_or_url="agent_data.csv") # replace with your CSV file path
+```
+
+If the data source is a CSV or Excel file, the header row is used as the keys for the traits, and can optionally have a column “name” for the agent names. If a different column name should be used for the agent names, it can be specified with the name_field parameter:
+
+```python
+from edsl import AgentList
+
+agents = AgentList.from_source(
+    source_type="csv",
+    file_or_url="agent_data.csv", # replace with your CSV file path
+    name_field="first_name" # replace with your column name for agent names
+    )
+```
+
+A codebook can also be passed to provide descriptions for the traits. It can be useful for providing context to a model about the traits of an agent. For example, if you have a trait “age” and you want to provide more context about what that means, you could use the codebook to specify that “age” refers to the age of the agent in years:
+
+```python
+from edsl import AgentList
+
+codebook = {
+    "age": "The age of the agent in years",
+    "location": "The location of the agent"
+}
+
+agents = AgentList.from_source(
+    source_type="csv",
+    file_or_url="agent_data.csv", # replace with your CSV file path
+    codebook=codebook
+    )
+```
+
+Special instructions can also be passed to modify the default instructions that are used with agent traits in the system prompt. For example, if you want all agents to answer in German, you could use the instructions parameter to specify that:
+
+```python
+from edsl import AgentList
+
+agents = AgentList.from_source(
+    source_type="csv",
+    file_or_url="agent_data.csv", # replace with your CSV file path
+    instructions="Answer in German."
+    )
+```
+
+### From a list
+
+We can create a simple AgentList from a list using the from_list() method, which takes a single trait_name and a list of values for it and returns an agent for each value (each agent has a single trait):
+
+```python
+from edsl import AgentList
+
+agents = AgentList.from_list(trait_name="age", values=[10, 20, 30, 40])
+agents
+```
+
+Output:
+
+| age |
+| :--- |
+| 10 |
+| 20 |
+| 30 |
+| 40 |
+
+### From a dictionary
+
+We can create a more complex AgentList from a dictionary using the from_dict() method. It takes a dictionary with a key agent_list and a list of dictionaries, each of which must have a traits key with a dictionary of traits and an optional name key for the agent’s name:
+
+```python
+from edsl import AgentList
+
+data = {
+    "agent_list": [
+        {"name":"agent1", "traits":{"age": 10, "location": "New York"}`},
+        {"name":"agent2", "traits":{"age": 20, "location": "California"}`},
+        {"name":"agent3", "traits":{"age": 30, "location": "Texas"}`},
+        {"name":"agent4", "traits":{"age": 40, "location": "Florida"}`},
+        {"name":"agent5", "traits":{"age": 50, "location": "Washington"}`}
+    ]
+}
+
+agents = AgentList.from_dict(data)
+agents
+```
+
+Output:
+
+| location | age |
+| :--- | :--- |
+| New York | 10 |
+| California | 20 |
+| Texas | 30 |
+| Florida | 40 |
+| Washington | 50 |
+
+### From a CSV file
+
+We can also create an AgentList from a CSV file using the from_csv() method. The CSV file must have a header row of Pythonic keys for the traits, and can optionally have a column “name” for the agent names:
+
+```python
+from edsl import AgentList
+
+# Creating a CSV file with agent data to use as an example
+import pandas as pd
+
+data = [
+    {"name": "Alice", "age": 25, "city": "New York"},
+    {"name": "Bob", "age": 30, "city": "San Francisco"},
+    {"name": "Charlie", "age": 35, "city": "Chicago"}
+]
+
+df = pd.DataFrame(data)
+
+df.to_csv("agent_data.csv", index=False)
+
+# Creating an AgentList from the CSV file
+agents = AgentList.from_csv("agent_data.csv")
+agents
+```
+
+Output:
+
+| city | age |
+| :--- | :--- |
+| New York | 25 |
+| San Francisco | 30 |
+| Chicago | 35 |
+
+## Dynamic traits function
+
+Agents can also be created with a dynamic_traits_function parameter. This function can be used to generate traits dynamically based on the question being asked or the scenario in which the question is asked.
+
+<Note>
+**Note:**
+
+This method is only available with local inference. It does not work with remote inference.
+</Note>
+
+Example:
+
+```python
+def dynamic_traits_function(question):
+    if question.question_name == "age":
+        return {"age": 10}
+    elif question.question_name == "hair":
+        return {"hair": "brown"}
+
+a = Agent(dynamic_traits_function = dynamic_traits_function)
+```
+
+When the agent is asked a question about age, the agent will return an age of 10. When asked about hair, the agent will return “brown”. This can be useful for creating agents that can answer questions about different topics without including potentially irrelevant traits in the agent’s traits dictionary.
+
+Note that the traits returned by the function are *not* added to the agent’s traits dictionary.
+
+## Agent direct-answering methods
+
+Agents can also be created with a method that can answer a particular question type directly:
+
+```python
+from edsl import Agent
+
+a = Agent()
+
+def f(self, question, scenario): return "I am a direct answer."
+
+a.add_direct_question_answering_method(f)
+a.answer_question_directly(question = None, scenario = None)
+```
+
+Output:
+
+```
+I am a direct answer.
+```
+
+This can be useful for creating agents that can answer questions directly without needing to use a language model.
+
+## Giving an agent instructions
+
+In addition to traits, agents can be given detailed instructions on how to answer questions. The instruction parameter can be used to omit or modify the default instructions that are used with agent traits in the system prompt.
+
+For example:
+
+```python
+from edsl import Agent
+
+a = Agent(traits = {"age": 10}, instruction = "Answer in German.")
+a.instruction
+```
+
+Output:
+
+```
+Answer in German.
+```
+
+When the agent is assigned to a survey, the special instruction will be added to the prompts for generating responses. We can create a Job object to inspect the prompts (user and system) that will be used to generate responses:
+
+```python
+from edsl import QuestionFreeText
+
+q = QuestionFreeText(
+    question_name = "favorite_food",
+    question_text = "What is your favorite food?"
+)
+
+job = q.by(a)  # using the agent created above
+job.prompts().select("user_prompt", "system_prompt")
+```
+
+Output:
+
+| user_prompt | system_prompt |
+| :--- | :--- |
+| What is your favorite food? | Answer in German. Your traits: \{‘age’: 10\}. Answer in German. |
+
+Learn more about how to use instructions in the [Prompts](/en/latest/prompts) section.
+
+## Controlling the presentation of the persona
+
+The traits_presentation_template parameter can be used to create a narrative persona for an agent. This is a template string that can be rendered with the agent’s traits as variables.
+
+For example:
+
+```python
+a = Agent(
+    traits = {'age': 22, 'hair': 'brown', 'gender': 'female'},
+    traits_presentation_template = "I am a {`{ age }`} year-old {`{ gender }`} with {`{ hair }`} hair."
+    )
+
+a.agent_persona.render(primary_replacement = a.traits)
+```
+
+Output:
+
+```
+I am a 22 year-old female with brown hair.
+```
+
+Note that the trait keys must be valid Python identifiers (e.g., home_state but not home state or home-state). This can be handled by using a dictionary with string keys and values, for example:
+
+```python
+from edsl import Agent
+
+codebook = {'age': 'The age of the agent'}
+
+a = Agent(
+    traits = {'age': 22},
+    codebook = codebook,
+    traits_presentation_template = "{`{ codebook['age'] }`} is {`{ age }`}."
+    )
+
+a.agent_persona.render(primary_replacement = a.traits)
+```
+
+Output:
+
+```
+The age of the agent is 22.
+```
+
+We can also use the traits_presentation_template together with an instruction and inspect the prompts:
+
+```python
+from edsl import Agent, QuestionFreeText
+
+a = Agent(
+    traits = {"age": 10},
+    traits_presentation_template = "(You are {`{ age }`} years old.)",
+    instruction = "Answer in German."
+)
+
+q = QuestionFreeText(
+    question_name = "favorite_food",
+    question_text = "What is your favorite food?"
+)
+
+job = q.by(a)
+job.prompts().select("user_prompt", "system_prompt")
+```
+
+Output:
+
+| user_prompt | system_prompt |
+| :--- | :--- |
+| What is your favorite food? | Answer in German.(You are 10 years old.) |
+
+<Note>
+**Note**:
+
+Note that it can be helpful to include traits mentioned in the persona as independent keys and values in order to analyze survey results by those dimensions individually. For example, we may want the narrative to include a sentence about the agent’s age, but also be able to readily analyze or filter results by age.
+</Note>
+
+The following code will include the agent’s age as a column of a table with any other selected components (e.g., agent name and all the answers):
+
+```python
+results.select("agent.age", "agent.agent_name", "answer.*")
+```
+
+<Note>
+**Note**:
+
+Note that the prefix “agent” can also be dropped. The following code is equivalent:
+</Note>
+
+```
+results.select("age", "agent_name", "answer.*")
+```
+
+We can filter the results by an agent’s traits:
+
+```python
+results.filter("age == 22")
+```
+
+We can also call the filter() method on an agent list to filter agents by their traits:
+
+```python
+middle_aged_agents = agents.filter("40 <= age <= 60")
+```
+
+## Using agent traits in prompts
+
+The traits of an agent can be used in the prompts of questions.
+
+For example:
+
+```python
+from edsl import Agent, QuestionFreeText
+
+a = Agent(traits = {'first_name': 'John'})
+
+q = QuestionFreeText(
+    question_text = 'What is your last name, {`{ agent.first_name }`}?',
+    question_name = "exmaple"
+)
+
+job = q.by(a)
+job.prompts().select("user_prompt")
+```
+
+Output:
+
+| user_prompt |
+| :--- |
+| What is your last name, John? |
+
+Learn more about user and system prompts in the [Prompts](/en/latest/prompts) section.
+
+## Accessing agent traits
+
+The traits of an agent can be accessed directly:
+
+```python
+from edsl import Agent
+
+a = Agent(traits = {'age': 22})
+a.traits
+```
+
+Output:
+
+```python
+{'age': 22}
+```
+The traits of an agent can also be accessed as attributes of the agent:
+
+```python
+from edsl import Agent
+
+a = Agent(traits = {'age': 22})
+a.age
+```
+
+Output:
+```python
+22
+```
+## Simulating agent responses
+
+When a survey is run, agents can be assigned to it using the by method, which can be chained with other components like scenarios and models:
+
+```python
+from edsl import Agent, QuestionList, QuestionMultipleChoice, Survey
+
+agent = Agent(
+    name = "college student",
+    traits = {
+        "persona": "You are a sophomore at a community college in upstate New York.",
+        "year": "sophomore",
+        "school": "community college",
+        "major": "biology",
+        "state": "New York"
+    }
+)
+
+q1 = QuestionList(
+    question_name = "favorite_courses",
+    question_text = "What are the names of your 3 favorite courses?",
+    max_list_items = 3
+)
+
+q2 = QuestionMultipleChoice(
+    question_name = "attend_grad_school",
+    question_text = "Do you plan to attend grad school?",
+    question_options = ["Yes", "No", "Undecided"]
+)
+
+survey = Survey([q1, q2])
+
+results = survey.by(agent).run()
+```
+
+This will generate a Results object that contains a Result for each agent’s responses to the survey questions. We can select and inspect components of the results, such as the agent’s traits and their answers:
+
+```python
+results.select("persona", "year", "school", "major", "state", "answer.*")
+```
+
+Output:
+
+| agent.persona | agent.year | agent.school | agent.major | agent.state | answer.favorite_courses | answer.attend_grad_school |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| You are a sophomore at a community college in upstate New York. | sophomore | community college | biology | New York | [‘General Biology I’, ‘Organic Chemistry’, ‘Environmental Science’] | Undecided |
+
+If multiple agents will be used with a survey, they are passed as a list in the same by call:
+
+```python
+from edsl import Agent, AgentList
+
+agents = AgentList([
+    Agent(traits = {"major": "biology", "year": "sophomore"}),
+    Agent(traits = {"major": "history", "year": "junior"}),
+    Agent(traits = {"major": "mathematics", "year": "senior"}),
+])
+
+results = survey.by(agents).run() # using the same survey as above
+
+results.select("major", "year", "answer.*")
+```
+
+Output:
+
+| agent.major | agent.year | answer.favorite_courses | answer.attend_grad_school |
+| :--- | :--- | :--- | :--- |
+| biology | sophomore | [‘Genetics’, ‘Ecology’, ‘Cell Biology’] | Undecided |
+| history | junior | [‘Medieval Europe’, ‘The American Civil War’, ‘Ancient Civilizations’] | Undecided |
+| mathematics | senior | [‘Abstract Algebra’, ‘Real Analysis’, ‘Topology’] | Undecided |
+
+If scenarios and/or models are also specified for a survey, each component type is added in a separate by call that can be chained in any order with the run method appended last:
+
+```python
+results = survey.by(scenarios).by(agents).by(models).run() # example code - scenarios and models not defined here
+```
+
+Learn more about [Scenarios](/en/latest/scenarios), [Language Models](/en/latest/language_models) and [Results](/en/latest/results).
+
+## Updating agents
+
+Agents can be updated after they are created.
+
+### Changing a trait
+
+Here we create an agent and then change one of its traits:
+
+```python
+from edsl import Agent
+
+a = Agent(traits = {"age": 22})
+a.age = 23
+a.age
+```
+
+Output:
+
+```
+23
+```
+
+### Adding a trait
+
+We can also add a new trait to an agent:
+
+```python
+from edsl import Agent
+
+a = Agent(traits = {"age": 22})
+
+a.add_trait({"location": "California"})
+a
+```
+
+Output:
+
+| key | value |
+| :--- | :--- |
+| traits:age | 22 |
+| traits:location | California |
+
+### Removing a trait
+
+We can remove a trait from an agent:
+
+```python
+from edsl import Agent
+
+a = Agent(traits = {"age": 22, "location": "California"})
+
+a.remove_trait("age")
+a
+```
+
+Output:
+
+| key | value |
+| :--- | :--- |
+| traits:location | California |
+
+### Using survey responses as new agent traits
+
+After running a survey, we can use the responses to create new traits for an agent:
+
+```python
+from edsl import Agent, QuestionMultipleChoice, Survey
+
+a = Agent(traits = {"age": 22, "location": "California"})
+
+q = QuestionMultipleChoice(
+    question_name = "surfing",
+    question_text = "How often do you go surfing?",
+    question_options = ["Never", "Sometimes", "Often"]
+)
+
+survey = Survey([q])
+results = survey.by(a).run()
+
+a = results.select("age", "location", "surfing").to_agent_list() # create new agent with traits from results
+a
+```
+
+Output:
+
+| location | surfing | age |
+| :--- | :--- | :--- |
+| California | Sometimes | 22 |
+
+<Note>
+**Note**:
+
+Note that in the example above we simply replaced the original agent by selecting the first agent from the agent list that we created. This can be useful for creating agents that evolve over time based on their experiences or responses to surveys.
+</Note>
+
+Here we use the same method to update multiple agents at once:
+
+```python
+from edsl import Agent, QuestionMultipleChoice, Survey, AgentList
+
+agents = AgentList([
+    Agent(traits = {"age": 22, "location": "California"}),
+    Agent(traits = {"age": 30, "location": "New York"}),
+    Agent(traits = {"age": 40, "location": "Texas"}),
+])
+
+q = QuestionMultipleChoice(
+    question_name = "surfing",
+    question_text = "How often do you go surfing?",
+    question_options = ["Never", "Sometimes", "Often"]
+)
+
+survey = Survey([q])
+results = survey.by(agents).run()
+
+agents = results.select("age", "location", "surfing").to_agent_list()
+agents
+```
+
+Output:
+
+| location | surfing | age |
+| :--- | :--- | :--- |
+| California | Sometimes | 22 |
+| New York | Never | 30 |
+| Texas | Never | 40 |
+
+### Creating AgentList from Results
+
+The AgentList.from_results() method allows you to create an AgentList directly from a Results object. This is useful when you want to create agents based on survey responses, including their original traits and their answers to questions.
+
+By default, this method includes all answer columns as traits for the new agents:
+
+```python
+from edsl import AgentList
+
+# Create AgentList with all questions included
+new_agents = AgentList.from_results(results)
+
+# The new agents will have traits from the original agents plus all their answers
+new_agents[0]
+
+You can also specify which question responses to include as traits using the question_names parameter:
+
+# Include only specific questions as traits
+new_agents = AgentList.from_results(results, question_names=['surfing', 'age'])
+
+# The new agents will have traits from the original agents plus only the specified answers
+new_agents[0]
+```
+
+This is particularly useful when you want to: - Create agents with only certain response patterns - Filter out irrelevant or sensitive question responses - Create more focused agent profiles based on specific survey questions - Reduce the number of traits when only certain responses are needed
+
+<Note>
+**Note**:
+
+Note that the question_names parameter affects both answer.* columns (as traits) and prompt.* columns (as codebook). Agent traits (from agent.* columns) are always included.
+</Note>
+
+## Agent class
+
+> ### *class* edsl.agents.Agent(*traits: dict | None = None*, *name: str | None = None*, *codebook: dict | None = None*, *instruction: str | None = None*, *trait_categories: dict[str, list[str]] | None = None*, *traits_presentation_template: str | None = None*, *dynamic_traits_function: Callable | None = None*, *dynamic_traits_function_source_code: str | None = None*, *dynamic_traits_function_name: str | None = None*, *answer_question_directly_source_code: str | None = None*, *answer_question_directly_function_name: str | None = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Bases: [`Base`](/en/latest/base#base-class "edsl.base.base_class.Base")
+
+A class representing an AI agent with customizable traits that can answer questions.
+
+An Agent in EDSL represents an entity with specific characteristics (traits) that can answer questions through various mechanisms. Agents can use language models to generate responses based on their traits, directly answer questions through custom functions, or dynamically adjust their traits based on the questions being asked.
+
+Key capabilities: - Store and manage agent characteristics (traits) - Provide instructions on how the agent should answer - Support for custom codebooks to provide human-readable trait descriptions - Integration with multiple question types and language models - Combine agents to create more complex personas - Customize agent behavior through direct answering methods
+
+Agents are used in conjunction with Questions, Scenarios, and Surveys to create structured interactions with language models.
+
+> #### __init__(*traits: dict | None = None*, *name: str | None = None*, *codebook: dict | None = None*, *instruction: str | None = None*, *trait_categories: dict[str, list[str]] | None = None*, *traits_presentation_template: str | None = None*, *dynamic_traits_function: Callable | None = None*, *dynamic_traits_function_source_code: str | None = None*, *dynamic_traits_function_name: str | None = None*, *answer_question_directly_source_code: str | None = None*, *answer_question_directly_function_name: str | None = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Initialize a new Agent instance with specified traits and capabilities.
+
+> #### **Args:**
+
+traits: Dictionary of agent characteristics (e.g., \{“age”: 30, “occupation”: “doctor”\}) name: Optional name identifier for the agent codebook: Dictionary mapping trait keys to human-readable descriptions for prompts.
+
+This provides more descriptive labels for traits when rendering prompts. For example, \{‘age’: ‘Age in years’\} would display “Age in years: 30” instead of “age: 30”.
+
+instruction: Directive for how the agent should answer questions traits_presentation_template: Jinja2 template for formatting traits in prompts dynamic_traits_function: Function that can modify traits based on questions dynamic_traits_function_source_code: Source code string for the dynamic traits function dynamic_traits_function_name: Name of the dynamic traits function answer_question_directly_source_code: Source code for direct question answering method answer_question_directly_function_name: Name of the direct answering function
+
+The Agent class brings together several key concepts:
+
+### Traits
+
+Traits are key-value pairs that define an agent’s characteristics. These are used to construct a prompt that guides the language model on how to respond.
+
+Example: \>\>\> a = Agent(traits=\{“age”: 10, “hair”: “brown”, “height”: 5.5\}) \>\>\> a.traits \{‘age’: 10, ‘hair’: ‘brown’, ‘height’: 5.5\}
+
+### Traits Presentation
+
+The traits_presentation_template controls how traits are formatted in prompts. It uses Jinja2 templating to insert trait values.
+
+Example: \>\>\> a = Agent(traits=\{“age”: 10\}, traits_presentation_template=”I am a \{`{age}`\} year old.”) \>\>\> repr(a.agent_persona) ‘Prompt(text=”””I am a \{`{age}`\} year old.”””)’
+
+### Codebooks
+
+Codebooks provide human-readable descriptions for traits in prompts.
+
+Example: \>\>\> traits = \{“age”: 10, “hair”: “brown”, “height”: 5.5\} \>\>\> codebook = \{‘age’: ‘Their age is’\} \>\>\> a = Agent(traits=traits, codebook=codebook, … traits_presentation_template=”This agent is Dave. \{`{codebook[‘age’]}`\} \{`{age}`\}”) \>\>\> d = a.traits | \{‘codebook’: a.codebook\} \>\>\> a.agent_persona.render(d) Prompt(text=”””This agent is Dave. Their age is 10”””)
+
+### Instructions
+
+Instructions guide how the agent should answer questions. If not provided, a default instruction is used.
+
+```python
+>>> Agent.default_instruction
+'You are answering questions as if you were a human. Do not break character.'
+```
+
+For details on how these components are used to construct prompts, see `edsl.agents.Invigilator.InvigilatorBase`.
+
+> #### add(*other_agent: A | None = None*, *, *conflict_strategy: str = 'numeric'*) → A [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Combine *self* with *other_agent* and return a new Agent.
+
+### Parameters
+
+**other_agent:**
+
+The second agent to merge with *self*. If *None*, *self* is returned unchanged.
+
+**conflict_strategy:**
+
+How to handle overlapping trait names.
+
+- `"numeric"` (default) – rename conflicting traits coming from *other_agent* by appending an incrementing suffix (`_1`, `_2` …). This is identical to the behaviour of the `+` operator before this refactor.
+- `"error"` – raise `edsl.agents.exceptions.AgentCombinationError`.
+- `"repeated_observation"` – if both agents have the same trait *and* the codebook entry for that trait is identical (or missing in both), merge the two values into a list `[old, new]`. If the codebook entries differ, an `edsl.agents.exceptions.AgentCombinationError` is raised.
+
+### Returns
+
+**Agent:**
+
+A new agent containing the merged traits / codebooks.
+
+> #### add_canned_response(*question_name*, *response*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Add a canned response to the agent.
+
+> #### add_category(*category_name: str*, *trait_keys: list[str] | None = None*) → None [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Add a category to the agent
+
+> #### add_direct_question_answering_method(*method: DirectAnswerMethod*, *validate_response: bool = False*, *translate_response: bool = False*) → None [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Add a method to the agent that can answer a particular question type.
+
+See: [/en/latest/agents#agent-direct-answering-methods](/en/latest/agents#agent-direct-answering-methods)
+
+> #### **Args:**
+
+method: A method that can answer a question directly validate_response: Whether to validate the response translate_response: Whether to translate the response
+
+Raises:
+
+AgentDirectAnswerFunctionError: If the method signature is invalid
+
+> #### **Example:**
+
+```python
+>>> a = Agent()
+>>> def f(self, question, scenario): return "I am a direct answer."
+>>> a.add_direct_question_answering_method(f)
+>>> a.answer_question_directly(question = None, scenario = None)
+'I am a direct answer.'
+```
+
+> #### add_trait(*trait_name_or_dict: str | dict[str, Any]*, *value: Any | None = None*) → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Add a trait to an agent and return a new agent.
+
+> #### **Args:**
+
+trait_name_or_dict: Either a trait name string or a dictionary of traits value: The trait value if trait_name_or_dict is a string
+
+> #### **Returns:**
+
+A new Agent instance with the added trait(s)
+
+> #### **Raises:**
+
+AgentErrors: If both a dictionary and a value are provided
+
+> #### **Example:**
+
+```python
+>>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+>>> a.add_trait("weight", 150)
+Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5, 'weight': 150})
+```
+
+> #### *property* agent_persona*: [Prompt](/en/latest/prompts#edsl.prompts.Prompt "edsl.prompts.Prompt")* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Get the agent’s persona template as a Prompt object.
+
+This property provides access to the template that formats the agent’s traits for presentation in prompts. The template is wrapped in a Prompt object that supports rendering with variable substitution.
+
+**Returns:**
+
+Prompt: A prompt object containing the traits presentation template
+
+> #### answer_question(*, *question: [QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.QuestionBase")*, *cache: [Cache](/en/latest/data#cache-class "edsl.caching.Cache")*, *scenario: 'Scenario' | None = None*, *survey: 'Survey' | None = None*, *model: 'LanguageModel' | None = None*, *debug: bool = False*, *memory_plan: MemoryPlan | None = None*, *current_answers: dict | None = None*, *iteration: int = 0*, *key_lookup: 'KeyLookup' | None = None*) → AgentResponseDict [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Answer a posed question asynchronously.
+
+> **Args:**
+
+question: The question to answer cache: The cache to use for storing responses scenario: The scenario in which the question is asked survey: The survey context model: The language model to use debug: Whether to run in debug mode memory_plan: The memory plan to use current_answers: The current answers iteration: The iteration number key_lookup: The key lookup for API credentials
+
+> **Returns:**
+
+An AgentResponseDict containing the answer
+
+> **Example:**
+
+```python
+>>> a = Agent(traits = {})
+>>> a.add_direct_question_answering_method(lambda self, question, scenario: "I am a direct answer.")
+>>> from edsl.questions import QuestionFreeText
+>>> q = QuestionFreeText.example()
+>>> a.answer_question(question = q, cache = False).answer
+'I am a direct answer.'
+```
+
+> **Note:**
+
+This is a function where an agent returns an answer to a particular question. However, there are several different ways an agent can answer a question, so the actual functionality is delegated to an InvigilatorBase object.
+
+> #### answer_question_directly_function_name *= ''* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+> #### *async* async_answer_question(*, *question: [QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.QuestionBase")*, *cache: [Cache](/en/latest/data#cache-class "edsl.caching.Cache")*, *scenario: 'Scenario' | None = None*, *survey: 'Survey' | None = None*, *model: 'LanguageModel' | None = None*, *debug: bool = False*, *memory_plan: MemoryPlan | None = None*, *current_answers: dict | None = None*, *iteration: int = 0*, *key_lookup: 'KeyLookup' | None = None*) → AgentResponseDict [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Answer a posed question asynchronously.
+
+> **Args:**
+
+question: The question to answer cache: The cache to use for storing responses scenario: The scenario in which the question is asked survey: The survey context model: The language model to use debug: Whether to run in debug mode memory_plan: The memory plan to use current_answers: The current answers iteration: The iteration number key_lookup: The key lookup for API credentials
+
+> **Returns:**
+
+An AgentResponseDict containing the answer
+
+> **Example:**
+
+```python
+>>> a = Agent(traits = {})
+>>> a.add_direct_question_answering_method(lambda self, question, scenario: "I am a direct answer.")
+>>> from edsl.questions import QuestionFreeText
+>>> q = QuestionFreeText.example()
+>>> a.answer_question(question = q, cache = False).answer
+'I am a direct answer.'
+```
+
+> **Note:**
+
+This is a function where an agent returns an answer to a particular question. However, there are several different ways an agent can answer a question, so the actual functionality is delegated to an InvigilatorBase object.
+
+> #### chat() [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+> #### code() → str [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Return the code for the agent.
+
+> **Returns:**
+
+Python code string to recreate this agent
+
+> **Example:**
+
+```python
+
+>>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+>>> print(a.code())
+from edsl.agents import Agent
+agent = Agent(traits={'age': 10, 'hair': 'brown', 'height': 5.5})
+```
+
+> #### copy() → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Create a deep copy of this agent using serialization/deserialization.
+
+This method uses to_dict/from_dict to create a completely independent copy of the agent, including all its traits, codebook, instructions, and special functions like dynamic traits and direct answering methods.
+
+> **Returns:**
+
+Agent: A new agent instance that is functionally identical to this one
+
+> **Examples:**
+
+```python
+>>> a = Agent(traits={"age": 10, "hair": "brown"},
+...           codebook={'age': 'Their age is'})
+>>> a2 = a.copy()
+>>> a2 == a  # Functionally equivalent
+True
+>>> id(a) == id(a2)  # But different objects
+False
+```
+
+Copy preserves direct answering methods:
+
+```python
+>>> def f(self, question, scenario): return "I am a direct answer."
+>>> a.add_direct_question_answering_method(f)
+>>> a2 = a.copy()
+>>> a2.answer_question_directly(None, None)
+'I am a direct answer.'
+```
+
+> #### create_invigilator(*, *question: [QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.QuestionBase")*, *cache: [Cache](/en/latest/data#cache-class "edsl.caching.Cache")*, *survey: 'Survey' | None = None*, *scenario: 'Scenario' | None = None*, *model: 'LanguageModel' | None = None*, *memory_plan: 'MemoryPlan' | None = None*, *current_answers: dict | None = None*, *iteration: int = 1*, *raise_validation_errors: bool = True*, *key_lookup: 'KeyLookup' | None = None*) → InvigilatorBase [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Create an Invigilator.
+
+An invigilator is an object that is responsible for administering a question to an agent. There are several different types of invigilators, depending on the type of question and the agent. For example, there are invigilators for functional questions, for direct questions, and for LLM questions.
+
+> **Args:**
+
+question: The question to be asked cache: The cache for storing responses survey: The survey context scenario: The scenario context model: The language model to use memory_plan: The memory plan to use current_answers: The current answers iteration: The iteration number raise_validation_errors: Whether to raise validation errors key_lookup: The key lookup for API credentials
+
+> **Returns:**
+
+An InvigilatorBase instance for handling the question
+
+> **Example:**
+
+```python
+>>> a = Agent(traits = {})
+>>> inv = a.create_invigilator(question = None, cache = False)
+>>> type(inv).__name__
+'InvigilatorAI'
+```
+
+> **Note:**
+
+An invigilator is an object that is responsible for administering a question to an agent and recording the responses.
+
+> #### default_instruction *= 'You are answering questions as if you were a human. Do not break character.'* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+> #### drop(**field_names: str | List[str]*) → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Drop field(s) from the agent.
+
+> **Args:**
+
+[*](/en/latest/#id2)field_names: The name(s) of the field(s) to drop. Can be:
+
+- Single field name: drop(“age”)
+- Multiple field names: drop(“age”, “height”)
+- List of field names: drop([“age”, “height”])
+
+> **Examples:**
+
+Drop a single trait from the agent:
+
+```python
+>>> a = Agent(traits={"age": 30, "hair": "brown", "height": 5.5})
+>>> a_dropped = a.drop("age")
+>>> a_dropped.traits
+{'hair': 'brown', 'height': 5.5}
+```
+
+Drop multiple traits using separate arguments:
+
+```python
+>>> a = Agent(traits={"age": 30, "hair": "brown", "height": 5.5})
+>>> a_dropped = a.drop("age", "height")
+>>> a_dropped.traits
+{'hair': 'brown'}
+```
+
+Drop multiple traits using a list:
+
+```python
+>>> a = Agent(traits={"age": 30, "hair": "brown", "height": 5.5})
+>>> a_dropped = a.drop(["age", "height"])
+>>> a_dropped.traits
+{'hair': 'brown'}
+```
+
+Drop an agent field like name:
+
+```python
+>>> a = Agent(traits={"age": 30}, name="John")
+>>> a_dropped = a.drop("name")
+>>> a_dropped.name is None
+True
+>>> a_dropped.traits
+{'age': 30}
+```
+
+Error when trying to drop a non-existent field:
+
+```python
+>>> a = Agent(traits={"age": 30})
+>>> a.drop("nonexistent")
+Traceback (most recent call last):
+...
+edsl.agents.exceptions.AgentErrors: ...
+```
+
+> #### drop_trait_if(*bad_value: Any*) → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Drop traits that have a specific bad value.
+
+> **Args:**
+
+bad_value: The value to remove from traits
+
+> **Returns:**
+
+A new Agent instance with the bad value traits removed
+
+> **Example:**
+
+```python
+>>> agent = Agent(traits={'age': 30, 'height': None, 'weight': 150})
+>>> clean_agent = agent.drop_trait_if(None)
+>>> clean_agent.traits
+{'age': 30, 'weight': 150}
+```
+
+> #### duplicate() → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Create a deep copy of this agent with all its traits and capabilities.
+
+This method creates a completely independent copy of the agent, including all its traits, codebook, instructions, and special functions like dynamic traits and direct answering methods.
+
+> **Returns:**
+
+Agent: A new agent instance that is functionally identical to this one
+
+> **Examples:**
+
+Create a duplicate agent and verify it’s equal but not the same object:
+
+```python
+>>> a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5},
+...           codebook={'age': 'Their age is'})
+>>> a2 = a.duplicate()
+>>> a2 == a  # Functionally equivalent
+True
+>>> id(a) == id(a2)  # But different objects
+False
+```
+
+Duplicating preserves direct answering methods:
+
+```python
+>>> def f(self, question, scenario): return "I am a direct answer."
+>>> a.add_direct_question_answering_method(f)
+>>> hasattr(a, "answer_question_directly")
+True
+>>> a2 = a.duplicate()
+>>> a2.answer_question_directly(None, None)
+'I am a direct answer.'
+```
+
+Duplicating preserves custom instructions:
+
+```python
+>>> a = Agent(traits={'age': 10}, instruction="Have fun!")
+>>> a2 = a.duplicate()
+>>> a2.instruction
+'Have fun!'
+```
+
+> #### *property* dynamic_traits_function*: Callable | None* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+The dynamic traits function if one exists.
+
+This property provides backward compatibility for the old attribute access pattern.
+
+> **Returns:**
+
+The dynamic traits function or None
+
+> **Examples:**
+
+```python
+>>> agent = Agent(traits={'age': 30})
+>>> agent.dynamic_traits_function is None
+True
+>>> def dynamic_func(): return {'age': 25}
+>>> agent.traits_manager.initialize_dynamic_function(dynamic_func)
+>>> agent.dynamic_traits_function is not None
+True
+```
+
+> #### *property* dynamic_traits_function_name*: str* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+The name of the dynamic traits function.
+
+This property provides backward compatibility for the old attribute access pattern.
+
+> **Returns:**
+
+The function name or empty string if no function
+
+> **Examples:**
+
+```python
+>>> agent = Agent(traits={'age': 30})
+>>> agent.dynamic_traits_function_name
+''
+>>> def my_func(): return {'age': 25}
+>>> agent.traits_manager.initialize_dynamic_function(my_func)
+>>> agent.dynamic_traits_function_name
+'my_func'
+```
+
+> #### *classmethod* example(*randomize: bool = False*) → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Return an example Agent instance.
+
+> **Args:**
+
+randomize: If True, adds a random string to the value of an example key
+
+> **Returns:**
+
+An example Agent instance
+
+> **Example:**
+
+```python
+>>> Agent.example()
+Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})
+```
+
+> #### *classmethod* from_dict(*agent_dict: dict[str, dict | bool | str]*) → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Deserialize from a dictionary.
+
+> **Args:**
+
+agent_dict: Dictionary containing agent data
+
+> **Returns:**
+
+An Agent instance created from the dictionary
+
+> **Example:**
+
+```python
+>>> Agent.from_dict({'name': "Steve", 'traits': {'age': 10, 'hair': 'brown', 'height': 5.5}`})
+Agent(name = """Steve""", traits = {'age': 10, 'hair': 'brown', 'height': 5.5})
+```
+
+> #### *classmethod* from_result(*result: [Result](/en/latest/results#edsl.results.Result "edsl.results.Result")*, *name: str | None = None*) → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Create an Agent instance from a Result object.
+
+The agent’s traits will correspond to the questions asked during the interview (the keys of result.answer) with their respective answers as the values.
+
+A simple, readable traits_presentation_template is automatically generated so that rendering the agent will look like:
+
+```python
+This person was asked the following questions – here are the answers:
+Q: <question 1>
+A: <answer 1>
+
+Q: <question 2>
+A: <answer 2>
+...
+```
+
+> **Args:**
+
+result: The Result instance from which to build the agent name: Optional explicit name for the new agent. If omitted, we attempt
+
+> to reuse result.agent.name if it exists
+
+> **Returns:**
+
+A new Agent instance created from the result
+
+> **Raises:**
+
+TypeError: If result is not a Result object
+
+> **Example:**
+
+```python
+>>> from edsl.results import Result
+>>> # result = Result(...)
+>>> # agent = Agent.from_result(result)
+```
+
+> #### *property* has_dynamic_traits_function*: bool* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Whether the agent has a dynamic traits function.
+
+This property provides backward compatibility for the old attribute access pattern.
+
+> **Returns:**
+
+True if the agent has a dynamic traits function, False otherwise
+
+> **Examples:**
+
+```python
+>>> agent = Agent(traits={'age': 30})
+>>> agent.has_dynamic_traits_function
+False
+>>> def dynamic_func(): return {'age': 25}
+>>> agent.traits_manager.initialize_dynamic_function(dynamic_func)
+>>> agent.has_dynamic_traits_function
+True
+```
+
+> #### instruction [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+ABC for something.
+
+> #### *property* invigilator [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Lazily initialize the invigilator to avoid importing language_models during Survey import
+
+> #### keep(**field_names: str | List[str]*) → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Keep only the specified fields from the agent.
+
+> **Args:**
+
+[*](/en/latest/#id4)field_names: The name(s) of the field(s) to keep. Can be:
+
+- Single field name: keep(“age”)
+- Multiple field names: keep(“age”, “height”)
+- List of field names: keep([“age”, “height”])
+
+> **Examples:**
+
+Keep a single trait:
+
+```python
+>>> a = Agent(traits={"age": 30, "hair": "brown", "height": 5.5})
+>>> a_kept = a.keep("age")
+>>> a_kept.traits
+{'age': 30}
+```
+
+Keep multiple traits using separate arguments:
+
+```python
+>>> a = Agent(traits={"age": 30, "hair": "brown", "height": 5.5})
+>>> a_kept = a.keep("age", "height")
+>>> a_kept.traits
+{'age': 30, 'height': 5.5}
+```
+
+Keep multiple traits using a list:
+
+```python
+>>> a = Agent(traits={"age": 30, "hair": "brown", "height": 5.5})
+>>> a_kept = a.keep(["age", "height"])
+>>> a_kept.traits
+{'age': 30, 'height': 5.5}
+```
+
+Keep agent fields and traits:
+
+```python
+>>> a = Agent(traits={"age": 30, "hair": "brown"}, name="John")
+>>> a_kept = a.keep("name", "age")
+>>> a_kept.name
+'John'
+>>> a_kept.traits
+{'age': 30}
+```
+
+Error when trying to keep a non-existent field:
+
+```python
+>>> a = Agent(traits={"age": 30})
+>>> a.keep("nonexistent")
+Traceback (most recent call last):
+...
+edsl.agents.exceptions.AgentErrors: ...
+```
+
+> #### name [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Valid agent name descriptor.
+
+> #### old_keep(**traits: str*) → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Legacy trait selection method (renamed from select).
+
+Note: This method has data integrity issues and is kept for backward compatibility. Use select() or keep() instead, which provide better data consistency.
+
+> **Args:**
+
+[*](/en/latest/#id6)traits: The trait names to select
+
+> **Returns:**
+
+A new Agent instance with only the selected traits
+
+> **Example:**
+
+```python
+>>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5}, codebook = {'age': 'Their age is'})
+>>> a.old_keep("age", "height")
+Agent(traits = {'age': 10, 'height': 5.5}, codebook = {'age': 'Their age is'})
+```
+
+```python
+>>> a.old_keep("height")
+Agent(traits = {'height': 5.5})
+```
+
+> #### prompt() → [Prompt](/en/latest/prompts#edsl.prompts.Prompt "edsl.prompts.Prompt") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Generate a formatted prompt containing the agent’s traits.
+
+This method renders the agent’s traits presentation template with the agent’s traits and codebook, creating a formatted prompt that can be used in language model requests.
+
+The method is dynamic and responsive to changes in the agent’s state:
+
+1. If a custom template was explicitly set during initialization, it will be used
+2. If using the default template and the codebook has been updated since initialization, this method will recreate the template to reflect the current codebook values
+3. The template is rendered with access to all trait values, the complete traits dictionary, and the codebook
+
+The template rendering makes the following variables available: - All individual trait keys (e.g., {`{age}`}, {`{occupation}`}) - The full traits dictionary as {`{traits}`} - The codebook as {`{codebook}`}
+
+> **Returns:**
+
+Prompt: A Prompt object containing the rendered template
+
+> **Raises:**
+
+QuestionScenarioRenderError: If any template variables remain undefined
+
+> **Examples:**
+
+Basic trait rendering without a codebook:
+
+```python
+>>> agent = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
+>>> agent.prompt()
+Prompt(text="""Your traits: {'age': 10, 'hair': 'brown', 'height': 5.5}""")
+```
+
+Trait rendering with a codebook (more readable format):
+
+```python
+>>> codebook = {"age": "Age in years", "hair": "Hair color"}
+>>> agent = Agent(traits={"age": 10, "hair": "brown"}, codebook=codebook)
+>>> print(agent.prompt().text)
+Your traits:
+Age in years: 10
+Hair color: brown
+```
+
+Adding a codebook after initialization updates the rendering:
+
+```python
+>>> agent = Agent(traits={"age": 30, "occupation": "doctor"})
+>>> initial_prompt = agent.prompt()
+>>> "Your traits: {" in initial_prompt.text
+True
+>>> agent.codebook = {"age": "Age", "occupation": "Profession"}
+>>> updated_prompt = agent.prompt()
+>>> "Age: 30" in updated_prompt.text
+True
+>>> "Profession: doctor" in updated_prompt.text
+True
+```
+
+Custom templates can reference any trait directly:
+
+```python
+>>> template = "Profile: {`{age}`} year old {`{occupation}`}"
+>>> agent = Agent(traits={"age": 45, "occupation": "teacher"},
+...               traits_presentation_template=template)
+>>> agent.prompt().text
+'Profile: 45 year old teacher'
+```
+
+> #### remove_direct_question_answering_method() → None [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Remove the direct question answering method.
+
+> **Example:**
+
+```python
+>>> a = Agent()
+>>> def f(self, question, scenario): return "I am a direct answer."
+>>> a.add_direct_question_answering_method(f)
+>>> a.remove_direct_question_answering_method()
+>>> hasattr(a, "answer_question_directly")
+False
+```
+
+> #### remove_trait(*trait: str*) → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Remove a trait from the agent.
+
+> **Args:**
+
+trait: The name of the trait to remove
+
+> **Returns:**
+
+A new Agent instance without the specified trait
+
+> **Example:**
+
+```python
+>>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+>>> a.remove_trait("age")
+Agent(traits = {'hair': 'brown', 'height': 5.5})
+```
+
+> #### rename(*old_name_or_dict: str | dict[str, str]*, *new_name: str | None = None*) → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Rename a trait.
+
+> **Args:**
+
+old_name_or_dict: The old name of the trait or a dictionary of old names and new names new_name: The new name of the trait (required if old_name_or_dict is a string)
+
+> **Returns:**
+
+A new Agent instance with renamed traits
+
+> **Raises:**
+
+AgentErrors: If invalid arguments are provided
+
+> **Example:**
+
+```python
+>>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+>>> newa = a.rename("age", "years")
+>>> newa == Agent(traits = {'years': 10, 'hair': 'brown', 'height': 5.5})
+True
+```
+
+```python
+>>> newa.rename({'years': 'smage'}) == Agent(traits = {'smage': 10, 'hair': 'brown', 'height': 5.5})
+True
+```
+
+> #### search_traits(*search_string: str*) → RankableItems [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Search the agent’s traits for a string.
+
+This method delegates to the traits manager to search through trait descriptions and return ranked matches based on similarity.
+
+> **Args:**
+
+search_string: The string to search for in trait descriptions
+
+> **Returns:**
+
+A ScenarioList containing ranked trait matches
+
+> **Examples:**
+
+```python
+>>> from edsl.agents import Agent
+>>> agent = Agent(traits={"age": 30, "occupation": "doctor"})
+>>> results = agent.search_traits("age")
+>>> len(results) >= 1
+True
+```
+
+> #### select(**traits: str*) → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Select agents with only the referenced traits.
+
+This method now uses the robust keep() implementation for better data integrity and consistent handling of codebooks and trait_categories.
+
+> **Args:**
+
+[*](/en/latest/#id8)traits: The trait names to select
+
+> **Returns:**
+
+A new Agent instance with only the selected traits
+
+> **Example:**
+
+```python
+>>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5}, codebook = {'age': 'Their age is'})
+>>> a.select("age", "height")
+Agent(traits = {'age': 10, 'height': 5.5}, codebook = {'age': 'Their age is'})
+```
+
+```python
+>>> a.select("height")
+Agent(traits = {'height': 5.5})
+```
+
+> #### table() → [Dataset](/en/latest/dataset#edsl.dataset.Dataset "edsl.dataset.Dataset") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Create a tabular representation of the agent’s traits.
+
+This method delegates to the table manager to create a structured Dataset containing trait information.
+
+> **Returns:**
+
+A Dataset containing trait information
+
+> **Example:**
+
+```python
+>>> agent = Agent(traits={'age': 30, 'height': 5.5}, codebook={'age': 'Age in years'})
+>>> dataset = agent.table()
+>>> len(dataset) == 2
+True
+```
+
+> #### to(*target: 'QuestionBase' | 'Jobs' | 'Survey'*) → [Jobs](/en/latest/jobs#jobs-class "edsl.jobs.Jobs") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Send the agent to a question, job, or survey.
+
+> **Args:**
+
+target: The question, job, or survey to send the agent to
+
+> **Returns:**
+
+A Jobs object containing the agent and target
+
+> **Example:**
+
+```python
+>>> agent = Agent(traits={'age': 30})
+>>> from edsl.questions import QuestionFreeText
+>>> q = QuestionFreeText(question_name='test', question_text='How are you?')
+>>> job = agent.to(q)
+>>> type(job).__name__
+'Jobs'
+```
+
+> #### to_dict(*add_edsl_version: bool = True*, *full_dict: bool = False*) → dict[str, dict | bool | str] [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Serialize to a dictionary with EDSL info.
+
+> **Args:**
+
+add_edsl_version: Whether to include EDSL version information full_dict: Whether to include all attributes even if they have default values
+
+> **Returns:**
+
+A dictionary representation of the agent
+
+> **Example:**
+
+```python
+>>> a = Agent(name = "Steve", traits = {"age": 10, "hair": "brown", "height": 5.5})
+>>> d = a.to_dict()
+>>> d['traits']
+{'age': 10, 'hair': 'brown', 'height': 5.5}
+>>> d['name']
+'Steve'
+>>> d['edsl_class_name']
+'Agent'
+```
+
+```python
+>>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5}, instruction = "Have fun.")
+>>> d = a.to_dict()
+>>> d['traits']
+{'age': 10, 'hair': 'brown', 'height': 5.5}
+>>> d['instruction']
+'Have fun.'
+>>> d['edsl_class_name']
+'Agent'
+```
+
+> #### *property* traits*: dict[str, Any]* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Get the agent’s traits, potentially using dynamic generation.
+
+This property provides access to the agent’s traits, either from the stored traits dictionary or by calling a dynamic traits function if one is defined. If a dynamic traits function is used, it may take the current question as a parameter to generate context-aware traits.
+
+> **Returns:**
+
+dict: Dictionary of agent traits (key-value pairs)
+
+> **Examples:**
+
+```python
+>>> a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
+>>> a.traits
+{'age': 10, 'hair': 'brown', 'height': 5.5}
+```
+
+> #### *property* traits_presentation_template [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Get the traits presentation template.
+
+> #### translate_traits(*values_codebook: dict[str, dict[Any, Any]]*) → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Translate traits to a new codebook.
+
+> **Args:**
+
+values_codebook: Dictionary mapping trait names to value translation dictionaries
+
+> **Returns:**
+
+A new Agent instance with translated trait values
+
+> **Example:**
+
+```python
+>>> a = Agent(traits = {"age": 10, "hair": 1, "height": 5.5})
+>>> a.translate_traits({"hair": {1:"brown"}`})
+Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})
+```
+
+> #### with_categories(**categories: str*) → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Return a new agent with the specified categories
+
+## AgentList class
+
+> #### *class* edsl.agents.AgentList(*data: list[[Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent")] | None = None*, *codebook: dict[str, str] | None = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Bases: `UserList`, [`Base`](/en/latest/base#base-class "edsl.base.base_class.Base"), `AgentListOperationsMixin`
+
+A list of Agents with additional functionality for manipulation and analysis.
+
+The AgentList class extends Python’s UserList to provide a container for Agent objects with methods for filtering, transforming, and analyzing collections of agents.
+
+```python
+>>> AgentList.example().to_scenario_list().drop('age')
+ScenarioList([Scenario({'hair': 'brown', 'height': 5.5}), Scenario({'hair': 'brown', 'height': 5.5})])
+```
+
+```python
+>>> AgentList.example().to_dataset()
+Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}])
+```
+
+```python
+>>> AgentList.example().select('age', 'hair', 'height').to_pandas()
+   age   hair  height
+0   22  brown     5.5
+1   22  brown     5.5
+```
+
+> #### __init__(*data: list[[Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent")] | None = None*, *codebook: dict[str, str] | None = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Initialize a new AgentList.
+
+```python
+>>> from edsl import Agent
+>>> al = AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}),
+...                Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
+>>> al
+AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
+>>> al_with_codebook = AgentList([Agent(traits = {'age': 22})], codebook={'age': 'Age in years'})
+>>> al_with_codebook[0].codebook
+{'age': 'Age in years'}
+```
+
+> **Args:**
+
+data: A list of Agent objects. If None, creates an empty AgentList. codebook: Optional dictionary mapping trait names to descriptions.
+
+If provided, will be applied to all agents in the list.
+
+> #### add_instructions(*instructions: str*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Apply instructions to all agents in the list.
+
+This method provides a more intuitive name for setting instructions on all agents, avoiding the need to iterate manually.
+
+> **Args:**
+
+instructions: The instructions to apply to all agents.
+
+> **Returns:**
+
+AgentList: Returns self for method chaining.
+
+> **Examples:**
+
+```python
+>>> from edsl import Agent, AgentList
+>>> agents = AgentList([Agent(traits={'age': 30}), Agent(traits={'age': 40})])
+>>> agents.add_instructions("Answer as if you were this age")
+AgentList([Agent(traits = {'age': 30}, instruction = """Answer as if you were this age"""), Agent(traits = {'age': 40}, instruction = """Answer as if you were this age""")])
+```
+
+> #### add_trait(*trait: str*, *values: List[Any]*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Adds a new trait to every agent, with values taken from values.
+
+> **Parameters:**
+
+- **trait** – The name of the trait.
+- **values** – The valeues(s) of the trait. If a single value is passed, it is used for all agents.
+
+```python
+>>> al = AgentList.example()
+>>> new_al = al.add_trait('new_trait', 1)
+>>> new_al.select('new_trait').to_scenario_list().to_list()
+[1, 1]
+>>> al.add_trait('new_trait', [1, 2, 3])
+Traceback (most recent call last):
+...
+edsl.agents.exceptions.AgentListError: The passed values have to be the same length as the agent list.
+...
+```
+
+> #### *property* all_traits*: list[str]* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Return all traits in the AgentList. >>> from edsl import Agent >>> agent_1 = Agent(traits = \{‘age’: 22}) >>> agent_2 = Agent(traits = \{‘hair’: ‘brown’}) >>> al = AgentList([agent_1, agent_2]) >>> al.all_traits [‘age’, ‘hair’]
+
+> #### at(*index: int*) → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Get the agent at the specified index position.
+
+> #### chart() [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Create a chart from the results.
+
+> #### clipboard_data() → str [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Return TSV representation of this object for clipboard operations.
+
+This method is called by the clipboard() method in the base class to provide a custom format for copying objects to the system clipboard.
+
+> **Returns:**
+
+str: Tab-separated values representation of the object
+
+> #### code(*string=True*) → str | list[str] [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Return code to construct an AgentList.
+
+```python
+>>> al = AgentList.example()
+>>> print(al.code())
+from edsl import Agent
+from edsl import AgentList
+agent_list = AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
+```
+
+> #### *property* codebook*: dict[str, str]* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Return the codebook for the AgentList.
+
+> #### collapse(*warn_about_none_name: bool = True*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+All agents with the same name have their traits combined.
+
+```python
+>>> al = AgentList([Agent(name = 'steve'), Agent(name = 'roxanne')])
+>>> al.collapse()
+AgentList([Agent(name = """steve""", traits = {}), Agent(name = """roxanne""", traits = {})])
+>>> al = AgentList([Agent(name = 'steve', traits = {'age': 22}), Agent(name = 'steve', traits = {'hair': 'brown'})])
+>>> al.collapse()
+AgentList([Agent(name = """steve""", traits = {'age': 22, 'hair': 'brown'})])
+>>> AgentList.example().collapse(warn_about_none_name = False)
+AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
+```
+
+> #### drop(**field_names: str | List[str]*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Drop field(s) from all agents in the AgentList.
+
+> **Args:**
+
+[*](/en/latest/#id10)**field_names: The name(s) of the field(s) to drop. Can be:**
+
+- Single field name: drop(“age”)
+- Multiple field names: drop(“age”, “height”)
+- List of field names: drop([“age”, “height”])
+
+> **Returns:**
+
+AgentList: A new AgentList with the specified fields dropped from all agents.
+
+> **Examples:**
+
+Drop a single trait from all agents:
+
+```python
+>>> from edsl import Agent, AgentList
+>>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
+>>> al_dropped = al.drop("age")
+>>> al_dropped[0].traits
+{'hair': 'brown', 'height': 5.5}
+```
+
+Drop multiple traits using separate arguments:
+
+```python
+>>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
+>>> al_dropped = al.drop("age", "height")
+>>> al_dropped[0].traits
+{'hair': 'brown'}
+```
+
+Drop multiple traits using a list:
+
+```python
+>>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
+>>> al_dropped = al.drop(["age", "height"])
+>>> al_dropped[0].traits
+{'hair': 'brown'}
+```
+
+> #### duplicate() → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Create a deep copy of the AgentList.
+
+> **Returns:**
+
+AgentList: A new AgentList containing copies of all agents.
+
+> **Examples:**
+
+```python
+>>> al = AgentList.example()
+>>> al2 = al.duplicate()
+>>> al2 == al
+True
+>>> id(al2) == id(al)
+False
+```
+
+> #### edit() [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+> #### *classmethod* example(*randomize: bool = False*, *codebook: dict[str, str] | None = None*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Returns an example AgentList instance.
+
+> **Parameters:**
+
+- **randomize** – If True, uses Agent’s randomize method.
+- **codebook** – Optional dictionary mapping trait names to descriptions.
+
+```python
+>>> al = AgentList.example()
+>>> al
+AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
+>>> al = AgentList.example(codebook={'age': 'Age in years'})
+>>> al[0].codebook
+{'age': 'Age in years'}
+```
+
+> #### filter(*expression: str*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Filter agents based on a boolean expression.
+
+> **Args:**
+
+expression: A string containing a boolean expression to evaluate against
+
+each agent’s traits.
+
+> **Returns:**
+
+AgentList: A new AgentList containing only agents that satisfy the expression.
+
+> **Examples:**
+
+```python
+>>> from edsl import Agent
+>>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}),
+...                Agent(traits = {'a': 1, 'b': 2})])
+>>> al.filter("b == 2")
+AgentList([Agent(traits = {'a': 1, 'b': 2})])
+>>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}, name = 'steve'),
+...                Agent(traits = {'a': 1, 'b': 2}, name = 'roxanne')])
+>>> len(al.filter("name == 'steve'"))
+1
+>>> len(al.filter("name == 'roxanne'"))
+1
+>>> len(al.filter("name == 'steve' and a == 1"))
+1
+>>> len(al.filter("name == 'steve' and a == 2"))
+0
+>>> len(al.filter("name == 'steve' and a == 1 and b == 2"))
+0
+```
+
+> #### first() → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Get the first agent in the list.
+
+> #### flatten(*field: str*, *keep_original: bool = False*) → [Dataset](/en/latest/dataset#edsl.dataset.Dataset "edsl.dataset.Dataset") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Expand a field containing dictionaries into separate fields.
+
+This method takes a field that contains a list of dictionaries and expands it into multiple fields, one for each key in the dictionaries. This is useful when working with nested data structures or results from extraction operations.
+
+> **Parameters:**
+
+field: The field containing dictionaries to flatten keep_original: Whether to retain the original field in the result
+
+> **Returns:**
+
+A new Dataset with the dictionary keys expanded into separate fields
+
+> **Notes:**
+
+- Each key in the dictionaries becomes a new field with name pattern “{field}.{key}”
+- All dictionaries in the field must have compatible structures
+- If a dictionary is missing a key, the corresponding value will be None
+- Non-dictionary values in the field will cause a warning
+
+> **Examples:**
+
+```python
+>>> from edsl.dataset import Dataset
+```
+
+```python
+# Basic flattening of nested dictionaries >>> Dataset([{‘a’: [{‘a’: 1, ‘b’: 2}]}, {‘c’: [5]}]).flatten(‘a’) Dataset([{‘c’: [5]}, {‘a.a’: [1]}, {‘a.b’: [2]}])
+
+# Works with prefixed fields too >>> Dataset([{‘answer.example’: [{‘a’: 1, ‘b’: 2}]}, {‘c’: [5]}]).flatten(‘answer.example’) Dataset([{‘c’: [5]}, {‘answer.example.a’: [1]}, {‘answer.example.b’: [2]}])
+
+# Keep the original field if needed >>> d = Dataset([{‘a’: [{‘a’: 1, ‘b’: 2}]}, {‘c’: [5]}]) >>> d.flatten(‘a’, keep_original=True) Dataset([{‘a’: [{‘a’: 1, ‘b’: 2}]}, {‘c’: [5]}, {‘a.a’: [1]}, {‘a.b’: [2]}])
+
+# Can also use unambiguous unprefixed field name >>> result = Dataset([{‘answer.pros_cons’: [{‘pros’: [‘Safety’], ‘cons’: [‘Cost’]}]}]).flatten(‘pros_cons’) >>> sorted(result.keys()) == [‘answer.pros_cons.cons’, ‘answer.pros_cons.pros’] True >>> sorted(result.to_dicts()[0].items()) == sorted({‘cons’: [‘Cost’], ‘pros’: [‘Safety’]}.items()) True
+```
+
+> #### *classmethod* from_csv(*file_path: str*, *name_field: str | None = None*, *codebook: dict[str, str] | None = None*, *instructions: str | None = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Load AgentList from a CSV file.
+
+**Deprecated since version Use:** AgentList.from_source(‘csv’, …) instead.
+
+```python
+>>> import csv
+>>> import os
+>>> with open('/tmp/agents.csv', 'w') as f:
+...     writer = csv.writer(f)
+...     _ = writer.writerow(['age', 'hair', 'height'])
+...     _ = writer.writerow([22, 'brown', 5.5])
+>>> al = AgentList.from_csv('/tmp/agents.csv')
+>>> al = AgentList.from_csv('/tmp/agents.csv', name_field='hair')
+>>> al = AgentList.from_csv('/tmp/agents.csv', codebook={'age': 'Age in years'})
+>>> al = AgentList.from_csv('/tmp/agents.csv', instructions='Answer as a person')
+>>> os.remove('/tmp/agents.csv')
+```
+
+**Parameters:**
+
+- **file_path** – The path to the CSV file.
+- **name_field** – The name of the field to use as the agent name.
+- **codebook** – Optional dictionary mapping trait names to descriptions.
+- **instructions** – Optional instructions to apply to all created agents.
+
+> #### *classmethod* from_dict(*data: dict*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Deserialize the dictionary back to an AgentList object.
+
+> **Parameters:**
+
+data: A dictionary representing an AgentList.
+
+```python
+>>> from edsl import Agent
+>>> al = AgentList([Agent.example(), Agent.example()])
+>>> al2 = AgentList.from_dict(al.to_dict())
+>>> al2 == al
+True
+>>> example_codebook = {'age': 'Age in years'}
+>>> al = AgentList([Agent.example()]).set_codebook(example_codebook)
+>>> al2 = AgentList.from_dict(al.to_dict())
+>>> al2[0].codebook == example_codebook
+True
+```
+
+> #### *classmethod* from_list(*trait_name: str*, *values: List[Any]*, *codebook: dict[str, str] | None = None*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Create an AgentList from a list of values.
+
+> **Parameters:**
+
+- **trait_name** – The name of the trait.
+- **values** – A list of values.
+- **codebook** – Optional dictionary mapping trait names to descriptions.
+
+```python
+>>> AgentList.from_list('age', [22, 23])
+AgentList([Agent(traits = {'age': 22}), Agent(traits = {'age': 23})])
+>>> al = AgentList.from_list('age', [22], codebook={'age': 'Age in years'})
+>>> al[0].codebook
+{'age': 'Age in years'}
+```
+
+> #### *classmethod* from_results(*results: [Results](/en/latest/results#result-class "edsl.results.Results")*, *question_names: List[str] | None = None*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Create an AgentList from a Results object.
+
+> **Args:**
+
+results: The Results object to convert question_names: Optional list of question names to include. If None, all questions are included.
+
+Affects both answer.* columns (as traits) and prompt.* columns (as codebook). Agent traits are always included.
+
+> **Returns:**
+
+AgentList: A new AgentList created from the Results
+
+> #### *classmethod* from_scenario_list(*scenario_list: [ScenarioList](/en/latest/scenarios#scenariolist-class "edsl.scenarios.ScenarioList")*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Create an AgentList from a ScenarioList.
+
+This method supports special fields that map to Agent parameters: - “name”: Will be used as the agent’s name - “agent_parameters”: A dictionary containing:
+
+- “instruction”: The agent’s instruction text
+- “name”: The agent’s name (overrides the “name” field if present)
+
+> **Examples:**
+
+```python
+>>> from edsl import ScenarioList, Scenario
+>>> # Basic usage with traits
+>>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
+>>> al = AgentList.from_scenario_list(s)
+>>> al
+AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
+```
+
+> #### *classmethod* from_source(*source_type: str*, **args*, *instructions: str | None = None*, *codebook: dict[str, str] | None = None*, *name_field: str | None = None*, ***kwargs*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Create an AgentList from a specified source type.
+
+This method serves as the main entry point for creating AgentList objects, providing a unified interface for various data sources.
+
+> **Args:**
+
+**source_type: The type of source to create an AgentList from.**
+
+Valid values include: ‘csv’, ‘tsv’, ‘excel’, ‘pandas’, etc.
+
+[*](/en/latest/#id12)args: Positional arguments to pass to the source-specific method. instructions: Optional instructions to apply to all created agents. codebook: Optional dictionary mapping trait names to descriptions, or a path to a CSV file.
+
+If a CSV file is provided, it should have 2 columns: original keys and descriptions. Keys will be automatically converted to pythonic names.
+
+name_field: The name of the field to use as the agent name (for CSV/Excel sources). [**](/en/latest/#id14)kwargs: Additional keyword arguments to pass to the source-specific method.
+
+> **Returns:**
+
+An AgentList object created from the specified source.
+
+> **Examples:**
+
+```python
+>>> # Create agents from a CSV file with instructions
+>>> # agents = AgentList.from_source(
+>>> #     'csv', 'agents.csv',
+>>> #     instructions="Answer as if you were the person described"
+>>> # )
+>>> #
+>>> # Create agents with a CSV codebook file
+>>> # agents = AgentList.from_source(
+>>> #     'csv', 'agents.csv',
+>>> #     codebook='codebook.csv'  # CSV with keys like "Age in years" -> "age_in_years"
+>>> # )
+```
+
+> #### *static* get_codebook(*file_path: str*) → dict [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Returns a codebook dictionary mapping CSV column names to None.
+
+Reads the header row of a CSV file and creates a codebook with field names as keys and None as values.
+
+**Args:**
+
+file_path: Path to the CSV file to read.
+
+**Returns:**
+
+A dictionary with CSV column names as keys and None as values.
+
+**Raises:**
+
+FileNotFoundError: If the specified file path does not exist. csv.Error: If there is an error reading the CSV file.
+
+> #### get_tabular_data(*remove_prefix: bool = False*, *pretty_labels: dict | None = None*) → Tuple[List[str], List[List]] [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Internal method to get tabular data in a standard format.
+
+**Args:**
+
+remove_prefix: Whether to remove the prefix from column names pretty_labels: Dictionary mapping original column names to pretty labels
+
+**Returns:**
+
+Tuple containing (header_row, data_rows)
+
+> #### ggplot2(*ggplot_code: str*, *shape: str = 'wide'*, *sql: str | None = None*, *remove_prefix: bool = True*, *debug: bool = False*, *height: float = 4*, *width: float = 6*, *factor_orders: dict | None = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Create visualizations using R’s ggplot2 library.
+
+This method provides a bridge to R’s powerful ggplot2 visualization library, allowing you to create sophisticated plots directly from EDSL data structures.
+
+> **Parameters:**
+
+ggplot_code: R code string containing ggplot2 commands shape: Data shape to use (“wide” or “long”) sql: Optional SQL query to transform data before visualization remove_prefix: Whether to remove prefixes (like “answer.”) from column names debug: Whether to display debugging information height: Plot height in inches width: Plot width in inches factor_orders: Dictionary mapping factor variables to their desired order
+
+> **Returns:**
+
+A plot object that renders in Jupyter notebooks
+
+> **Notes:**
+
+- Requires R and the ggplot2 package to be installed
+- Data is automatically converted to a format suitable for ggplot2
+- The ggplot2 code should reference column names as they appear after any transformations from the shape and remove_prefix parameters
+
+> **Examples:**
+
+```python
+>>> from edsl.results import Results
+>>> r = Results.example()
+>>> # The following would create a plot if R is installed (not shown in doctest):
+>>> # r.ggplot2('''
+>>> #     ggplot(df, aes(x=how_feeling)) +
+>>> #     geom_bar() +
+>>> #     labs(title="Distribution of Feelings")
+>>> # ''')
+```
+
+> #### give_names(**trait_keys: str*, *remove_traits: bool = True*, *separator: str = ','*, *force_name: bool = False*) → None [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Give names to agents based on the values of the specified traits.
+
+```python
+>>> from edsl import Agent
+>>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}),
+...                Agent(traits = {'a': 1, 'b': 2})])
+>>> al.give_names('a')
+>>> al[0].name
+'1'
+```
+
+> #### html(*filename: str | None = None*, *cta: str = 'Open in browser'*, *return_link: bool = False*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+> #### join(*other: [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList")*, *join_type: str = 'inner'*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Join this AgentList with another AgentList.
+
+> **Args:**
+
+other: The other AgentList to join with join_type: The type of join to perform (“inner”, “left”, or “right”)
+
+> **Returns:**
+
+AgentList: A new AgentList containing the joined results
+
+> **Examples:**
+
+```python
+>>> from edsl import Agent, AgentList
+>>> al1 = AgentList([Agent(name="John", traits={"age": 30})])
+>>> al2 = AgentList([Agent(name="John", traits={"height": 180})])
+>>> joined = al1.join(al2)
+>>> joined[0].traits
+{'age': 30, 'height': 180}
+```
+
+> #### *classmethod* join_multiple(**agent_lists: [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList")*, *join_type: str = 'inner'*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Join multiple AgentLists together.
+
+> **Args:**
+
+[*](/en/latest/#id16)agent_lists: Variable number of AgentList objects to join join_type: The type of join to perform (“inner”, “left”, or “right”)
+
+> **Returns:**
+
+AgentList: A new AgentList containing the joined results
+
+> **Raises:**
+
+ValueError: If fewer than 2 AgentLists are provided
+
+> **Examples:**
+
+```python
+>>> from edsl import Agent, AgentList
+>>> al1 = AgentList([Agent(name="John", traits={"age": 30})])
+>>> al2 = AgentList([Agent(name="John", traits={"height": 180})])
+>>> al3 = AgentList([Agent(name="John", traits={"weight": 75})])
+>>> joined = AgentList.join_multiple(al1, al2, al3)
+>>> len(joined)
+1
+>>> joined[0].traits
+{'age': 30, 'height': 180, 'weight': 75}
+```
+
+> #### keep(**field_names: str | List[str]*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Keep only the specified fields from all agents in the AgentList.
+
+> **Args:**
+
+[*](/en/latest/#id18)field_names: The name(s) of the field(s) to keep. Can be:
+
+- Single field name: keep(“age”)
+- Multiple field names: keep(“age”, “height”)
+- List of field names: keep([“age”, “height”])
+
+> **Returns:**
+
+AgentList: A new AgentList with only the specified fields kept for all agents.
+
+> **Examples:**
+
+Keep a single trait for all agents:
+
+```python
+>>> from edsl import Agent, AgentList
+>>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
+>>> al_kept = al.keep("age")
+>>> al_kept[0].traits
+{'age': 30}
+```
+
+Keep multiple traits using separate arguments:
+
+```python
+>>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
+>>> al_kept = al.keep("age", "height")
+>>> al_kept[0].traits
+{'age': 30, 'height': 5.5}
+```
+
+Keep multiple traits using a list:
+
+```python
+>>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
+>>> al_kept = al.keep(["age", "height"])
+>>> al_kept[0].traits
+{'age': 30, 'height': 5.5}
+```
+
+Keep agent fields and traits:
+
+```python
+>>> al = AgentList([Agent(traits={"age": 30, "hair": "brown"}, name="John")])
+>>> al_kept = al.keep("name", "age")
+>>> al_kept[0].name
+'John'
+>>> al_kept[0].traits
+{'age': 30}
+```
+
+> #### last() → [Agent](/en/latest/#edsl.agents.Agent "edsl.agents.agent.Agent") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Get the last agent in the list.
+
+> #### make_tabular(*remove_prefix: bool*, *pretty_labels: dict | None = None*) → tuple[list, List[list]] [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Turn the results into a tabular format.
+
+> **Parameters:**
+
+**remove_prefix** – Whether to remove the prefix from the column names.
+
+```python
+>>> from edsl.results import Results
+>>> r = Results.example()
+>>> r.select('how_feeling').make_tabular(remove_prefix = True)
+(['how_feeling'], [['OK'], ['Great'], ['Terrible'], ['OK']])
+
+>>> r.select('how_feeling').make_tabular(remove_prefix = True, pretty_labels = {'how_feeling': "How are you feeling"})
+(['How are you feeling'], [['OK'], ['Great'], ['Terrible'], ['OK']])
+```
+
+> #### *classmethod* manage() [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+> #### *property* names*: List[str]* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Returns the names of the agents in the AgentList.
+
+> #### num_observations() [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Return the number of observations in the dataset.
+
+```python
+>>> from edsl.results import Results
+>>> Results.example().num_observations()
+4
+```
+
+> #### print_long() [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Print the results in a long format. >>> from edsl.results import Results >>> r = Results.example() >>> r.select(‘how_feeling’).print_long() answer.how_feeling: OK answer.how_feeling: Great answer.how_feeling: Terrible answer.how_feeling: OK
+
+> #### relevant_columns(*data_type: str | None = None*, *remove_prefix: bool = False*) → list [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Return the set of keys that are present in the dataset.
+
+**Parameters:**
+
+- **data_type** – The data type to filter by.
+- **remove_prefix** – Whether to remove the prefix from the column names.
+
+```python expandable
+>>> from ..dataset import Dataset
+>>> d = Dataset([{'a.b':[1,2,3,4]}])
+>>> d.relevant_columns()
+['a.b']
+
+>>> d.relevant_columns(remove_prefix=True)
+['b']
+
+>>> d = Dataset([{'a':[1,2,3,4]}, {'b':[5,6,7,8]}])
+>>> d.relevant_columns()
+['a', 'b']
+
+>>> from edsl.results import Results; Results.example().select('how_feeling', 'how_feeling_yesterday').relevant_columns()
+['answer.how_feeling', 'answer.how_feeling_yesterday']
+
+>>> from edsl.results import Results
+>>> sorted(Results.example().select().relevant_columns(data_type = "model"))
+['model.canned_response', 'model.inference_service', 'model.model', 'model.model_index', 'model.temperature']
+
+>>> # Testing relevant_columns with invalid data_type raises DatasetValueError - tested in unit tests
+```
+
+> #### remove_prefix() [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Returns a new Dataset with the prefix removed from all column names.
+
+The prefix is defined as everything before the first dot (.) in the column name. If removing prefixes would result in duplicate column names, an exception is raised.
+
+> **Returns:**
+
+Dataset: A new Dataset with prefixes removed from column names
+
+> **Raises:**
+
+ValueError: If removing prefixes would result in duplicate column names
+
+> **Examples:**
+
+```python
+>>> from edsl.results import Results
+>>> r = Results.example()
+>>> r.select('how_feeling', 'how_feeling_yesterday').relevant_columns()
+['answer.how_feeling', 'answer.how_feeling_yesterday']
+>>> r.select('how_feeling', 'how_feeling_yesterday').remove_prefix().relevant_columns()
+['how_feeling', 'how_feeling_yesterday']
+```
+```python
+>>> from edsl.dataset import Dataset
+>>> d = Dataset([{'a.x': [1, 2, 3]}, {'b.x': [4, 5, 6]}])
+>>> # d.remove_prefix()
+```
+
+\# Testing remove_prefix with duplicate column names raises DatasetValueError - tested in unit tests
+
+> #### remove_trait(*trait: str*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Remove traits from the AgentList.
+
+> **Parameters:**
+
+**traits** – The traits to remove.
+
+```python
+>>> from edsl import Agent
+>>> al = AgentList([Agent({'age': 22, 'hair': 'brown', 'height': 5.5}), Agent({'age': 22, 'hair': 'brown', 'height': 5.5})])
+>>> al.remove_trait('age')
+AgentList([Agent(traits = {'hair': 'brown', 'height': 5.5}), Agent(traits = {'hair': 'brown', 'height': 5.5})])
+```
+
+> #### rename(*old_name: str*, *new_name: str*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Rename a trait across all agents in the list.
+
+> **Args:**
+
+old_name: The current name of the trait. new_name: The new name to assign to the trait.
+
+> **Returns:**
+
+AgentList: A new AgentList with the renamed trait.
+
+> **Examples:**
+
+```python
+>>> from edsl import Agent
+>>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}),
+...                Agent(traits = {'a': 1, 'b': 2})])
+>>> al2 = al.rename('a', 'c')
+>>> assert al2 == AgentList([Agent(traits = {'c': 1, 'b': 1}),
+...                         Agent(traits = {'c': 1, 'b': 2})])
+>>> assert al != al2
+```
+
+> #### report(**fields: str | None*, *top_n: int | None = None*, *header_fields: List[str] | None = None*, *divider: bool = True*, *return_string: bool = False*, *format: str = 'markdown'*, *filename: str | None = None*) → str | Document | None [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Generates a report of the results by iterating through rows.
+
+> **Args:**
+
+[*](/en/latest/#id20)fields: The fields to include in the report. If none provided, all fields are used. top_n: Optional limit on the number of observations to include. header_fields: Optional list of fields to include in the main header instead of as sections. divider: If True, adds a horizontal rule between observations (markdown only). return_string: If True, returns the markdown string. If False (default in notebooks),
+
+only displays the markdown without returning.
+
+format: Output format - either “markdown” or “docx”. filename: If provided and format is “docx”, saves the document to this file.
+
+> **Returns:**
+
+Depending on format and return_string: - For markdown: A string if return_string is True, otherwise None (displays in notebook) - For docx: A docx.Document object, or None if filename is provided (saves to file)
+
+Examples:
+
+```python
+>>> from edsl.results import Results
+>>> r = Results.example()
+>>> report = r.select('how_feeling').report(return_string=True)
+>>> "# Observation: 1" in report
+True
+>>> doc = r.select('how_feeling').report(format="docx")
+>>> isinstance(doc, object)
+True
+```
+
+> #### report_from_template(*template: str*, **fields: str | None*, *top_n: int | None = None*, *remove_prefix: bool = True*, *return_string: bool = False*, *format: str = 'text'*, *filename: str | None = None*, *separator: str = 'nn'*, *observation_title_template: str | None = None*, *explode: bool = False*, *filestore: bool = False*) → str | Document | List | [FileStore](/en/latest/filestore#edsl.scenarios.FileStore "edsl.scenarios.FileStore") | None [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Generates a report using a Jinja2 template for each row in the dataset.
+
+This method renders a user-provided Jinja2 template for each observation in the dataset, with template variables populated from the row data. This allows for completely customized report formatting using pandoc for advanced output formats.
+
+> **Args:**
+
+template: Jinja2 template string to render for each row [*](/en/latest/#id22)fields: The fields to include in template context. If none provided, all fields are used. top_n: Optional limit on the number of observations to include. remove_prefix: Whether to remove type prefixes (e.g., “answer.”) from field names in template context. return_string: If True, returns the rendered content. If False (default in notebooks),
+
+only displays the content without returning.
+
+format: Output format - one of “text”, “html”, “pdf”, or “docx”. Formats other than “text” require pandoc. filename: If provided, saves the rendered content to this file. For exploded output,
+
+this becomes a template (e.g., “report_{index}”).
+
+separator: String to use between rendered templates for each row (ignored when explode=True). observation_title_template: Optional Jinja2 template for observation titles.
+
+Defaults to “Observation {index}” where index is 1-based. Template has access to all row data plus ‘index’ and ‘index0’ variables.
+
+explode: If True, creates separate files for each observation instead of one combined file. filestore: If True, wraps the generated file(s) in FileStore object(s). If no filename is provided,
+
+creates temporary files. For exploded output, returns a list of FileStore objects.
+
+> **Returns:**
+
+Depending on explode, format, return_string, and filestore: - For text format: String content or None (if displayed in notebook) - For html format: HTML string content or None (if displayed in notebook) - For docx format: Document object or None (if saved to file) - For pdf format: PDF bytes or None (if saved to file) - If explode=True: List of created filenames (when filename provided) or list of documents/content - If filestore=True: FileStore object(s) containing the generated file(s)
+
+> **Notes:**
+
+- Pandoc is required for HTML, PDF, and DOCX output formats
+- Templates are treated as Markdown for all non-text formats
+- PDF output uses XeLaTeX engine through pandoc
+- HTML output includes standalone document structure
+
+> **Examples:**
+
+```python
+>>> from edsl.results import Results
+>>> r = Results.example()
+>>> template = "Person feels: {`{ how_feeling }`}"
+>>> report = r.select('how_feeling').report_from_template(template, return_string=True)
+>>> "Person feels: OK" in report
+True
+>>> "Person feels: Great" in report
+True
+```
+```python
+# Custom observation titles >>> custom_title = “Response {`{ index }`}: {`{ how_feeling }`}” >>> report = r.select(‘how_feeling’).report_from_template( … template, observation_title_template=custom_title, return_string=True) >>> “Response 1: OK” in report True
+
+# HTML output (requires pandoc) >>> html_report = r.select(‘how_feeling’).report_from_template( … template, format=”html”, return_string=True) # doctest: +SKIP >>> # Creates HTML with proper document structure
+
+# PDF output (requires pandoc with XeLaTeX) >>> pdf_report = r.select(‘how_feeling’).report_from_template( … template, format=”pdf”) # doctest: +SKIP >>> # Returns PDF bytes
+
+# Basic template functionality >>> template2 = “Feeling: {`{ how_feeling }`}, Index: {`{ index }`}” >>> report2 = r.select(‘how_feeling’).report_from_template( … template2, return_string=True, top_n=2) >>> “Feeling: OK, Index: 1” in report2 True
+```
+
+> #### sample(*n: int*, *seed: str | None = None*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Return a random sample of agents.
+
+**Args:**
+
+n: The number of agents to sample. seed: Optional seed for the random number generator to ensure reproducibility.
+
+**Returns:**
+
+AgentList: A new AgentList containing the sampled agents.
+
+> #### select(**traits*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Create a new AgentList with only the specified traits.
+
+**Args:**
+
+[*](/en/latest/#id24)traits: Variable number of trait names to keep.
+
+**Returns:**
+
+AgentList: A new AgentList containing agents with only the selected traits.
+
+Examples:
+
+```python
+>>> from edsl import Agent
+>>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}),
+...                Agent(traits = {'a': 1, 'b': 2})])
+>>> al.select('a')
+AgentList([Agent(traits = {'a': 1}), Agent(traits = {'a': 1})])
+```
+
+> #### set_codebook(*codebook: dict[str, str]*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Set the codebook for the AgentList.
+
+```python
+>>> from edsl import Agent
+>>> a = Agent(traits = {'hair': 'brown'})
+>>> al = AgentList([a, a])
+>>> _ = al.set_codebook({'hair': "Color of hair on driver's license"})
+>>> al[0].codebook
+{'hair': "Color of hair on driver's license"}
+```
+
+> **Parameters:**
+
+**codebook** – The codebook.
+
+> #### set_dynamic_traits(*function: Callable*) → None [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Set the dynamic traits for all agents in the list.
+
+> **Args:**
+
+function: The function to set.
+
+> #### set_dynamic_traits_from_question_map(*q_to_traits: dict[str, list[str]]*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Configure dynamic traits for each agent from a question→traits mapping (in-place).
+
+Each agent will get a dynamic traits function that, when asked a question whose `question_name` is present in `q_to_traits`, returns a dict mapping the corresponding trait name(s) to the agent’s original static value(s) for those trait(s).
+
+A warning is emitted if the set of mapped trait names does not exactly equal the set of trait keys present in this AgentList.
+
+> **Args:**
+
+q_to_traits: Mapping from question name to list of trait keys, e.g.
+
+`{"geo": ["hometown"], "cuisine": ["food"]}`.
+
+> **Returns:**
+
+AgentList: self (modified in-place).
+
+> **Examples:**
+
+```python
+>>> from edsl import Agent, AgentList
+>>> a_alice = Agent(name="Alice", traits={'hometown': 'Boston', 'food': 'beans'})
+>>> a_bob = Agent(name="Bob", traits={'hometown': 'SF', 'food': 'sushi'})
+>>> al = AgentList([a_alice, a_bob])
+>>> _ = al.set_dynamic_traits_from_question_map({'geo': ['hometown'], 'cuisine': ['food']})
+>>> class Q:
+...     def __init__(self, name): self.question_name = name
+>>> al[0].dynamic_traits_function(Q('geo'))['hometown']
+'Boston'
+>>> al[1].dynamic_traits_function(Q('geo'))['hometown']
+'SF'
+>>> al[0].dynamic_traits_function(Q('cuisine'))['food']
+'beans'
+```
+
+> #### set_instruction(*instruction: str*) → None [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Set the instruction for all agents in the list.
+
+**Args:**
+
+instruction: The instruction to set.
+
+> #### set_traits_presentation_template(*traits_presentation_template: str*) → None [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Set the traits presentation template for all agents in the list.
+
+**Args:**
+
+traits_presentation_template: The traits presentation template to set.
+
+> #### shuffle(*seed: str | None = None*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Randomly shuffle the agents in place.
+
+**Args:**
+
+seed: Optional seed for the random number generator to ensure reproducibility.
+
+**Returns:**
+
+AgentList: The shuffled AgentList (self).
+
+> #### sql(*query: str*, *transpose: bool = None*, *transpose_by: str = None*, *remove_prefix: bool = True*, *shape: str = 'wide'*) → [Dataset](/en/latest/dataset#edsl.dataset.Dataset "edsl.dataset.Dataset") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Execute SQL queries on the dataset.
+
+This powerful method allows you to use SQL to query and transform your data, combining the expressiveness of SQL with EDSL’s data structures. It works by creating an in-memory SQLite database from your data and executing the query against it.
+
+> **Parameters:**
+
+query: SQL query string to execute transpose: Whether to transpose the resulting table (rows become columns) transpose_by: Column to use as the new index when transposing remove_prefix: Whether to remove type prefixes (e.g., “answer.”) from column names shape: Data shape to use (“wide” or “long”)
+
+- “wide”: Default tabular format with columns for each field
+- “long”: Melted format with key-value pairs, useful for certain queries
+
+> **Returns:**
+
+A Dataset object containing the query results
+
+> **Notes:**
+
+- The data is stored in a table named “self” in the SQLite database
+- In wide format, column names include their type prefix unless remove_prefix=True
+- In long format, the data is melted into columns: row_number, key, value, data_type
+- Complex objects like lists and dictionaries are converted to strings
+
+> **Examples:**
+
+```python
+>>> from edsl import Results
+>>> r = Results.example()
+```
+
+```sql
+# Basic selection >>> len(r.sql(“SELECT * FROM self”, shape=”wide”)) 4
+
+# Filtering with WHERE clause >>> r.sql(“SELECT * FROM self WHERE how_feeling = ‘Great’”).num_observations() 1
+
+# Aggregation >>> r.sql(“SELECT how_feeling, COUNT(*) as count FROM self GROUP BY how_feeling”).keys() [‘how_feeling’, ‘count’]
+
+# Using long format >>> len(r.sql(“SELECT * FROM self”, shape=”long”)) 200
+```
+
+> #### table(**fields*, *tablefmt: str | None = 'rich'*, *pretty_labels: dict | None = None*) → Any [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+> #### tally(**fields: str | None*, *top_n: int | None = None*, *output='Dataset'*) → dict | [Dataset](/en/latest/dataset#edsl.dataset.Dataset "edsl.dataset.Dataset") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Count frequency distributions of values in specified fields.
+
+This method tallies the occurrence of unique values within one or more fields, similar to a GROUP BY and COUNT in SQL. When multiple fields are provided, it performs cross-tabulation across those fields.
+
+> **Parameters:**
+
+[*](/en/latest/#id26)fields: Field names to tally. If none provided, uses all available fields. top_n: Optional limit to return only the top N most frequent values. output: Format for results, either “Dataset” (recommended) or “dict”.
+
+> **Returns:**
+
+By default, returns a Dataset with columns for the field(s) and a ‘count’ column. If output=”dict”, returns a dictionary mapping values to counts.
+
+> **Notes:**
+
+- For single fields, returns counts of each unique value
+- For multiple fields, returns counts of each unique combination of values
+- Results are sorted in descending order by count
+- Fields can be specified with or without their type prefix
+
+> **Examples:**
+
+```python
+>>> from edsl import Results
+>>> r = Results.example()
+```
+```sql
+
+# Single field frequency count >>> r.select(‘how_feeling’).tally(‘answer.how_feeling’, output=”dict”) {‘OK’: 2, ‘Great’: 1, ‘Terrible’: 1}
+
+# Return as Dataset (default) >>> from edsl.dataset import Dataset >>> expected = Dataset([{‘answer.how_feeling’: [‘OK’, ‘Great’, ‘Terrible’]}, {‘count’: [2, 1, 1]}]) >>> r.select(‘how_feeling’).tally(‘answer.how_feeling’, output=”Dataset”) == expected True
+
+# Multi-field cross-tabulation - exact output varies based on data >>> result = r.tally(‘how_feeling’, ‘how_feeling_yesterday’) >>> ‘how_feeling’ in result.keys() and ‘how_feeling_yesterday’ in result.keys() and ‘count’ in result.keys() True
+```
+
+> #### to(*target: 'Question' | 'Jobs' | 'Survey'*) → [Jobs](/en/latest/jobs#jobs-class "edsl.jobs.Jobs") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+> #### to_agent_list(*remove_prefix: bool = True*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Convert the results to a list of dictionaries, one per agent.
+
+> **Parameters:**
+
+**remove_prefix** – Whether to remove the prefix from the column names.
+
+```python
+>>> from edsl.results import Results
+>>> r = Results.example()
+>>> r.select('how_feeling').to_agent_list()
+AgentList([Agent(traits = {'how_feeling': 'OK'}), Agent(traits = {'how_feeling': 'Great'}), Agent(traits = {'how_feeling': 'Terrible'}), Agent(traits = {'how_feeling': 'OK'})])
+```
+
+> #### to_csv(*filename: str | None = None*, *remove_prefix: bool = False*, *pretty_labels: dict | None = None*) → [FileStore](/en/latest/filestore#edsl.scenarios.FileStore "edsl.scenarios.FileStore") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Export the results to a FileStore instance containing CSV data.
+
+> #### to_dataset(*traits_only: bool = True*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Convert the AgentList to a Dataset.
+
+> **Args:**
+
+traits_only: If True, only include agent traits. If False, also include
+
+agent parameters like instructions and names.
+
+> **Returns:**
+
+Dataset: A dataset containing the agents’ traits and optionally their parameters.
+
+> **Examples:**
+
+```python
+>>> from edsl import AgentList
+>>> al = AgentList.example()
+>>> al.to_dataset()
+Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}])
+>>> al.to_dataset(traits_only=False)
+Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}, {'agent_parameters': [{'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None, 'traits_presentation_template': 'Your traits: {`{traits}`}'}, {'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None, 'traits_presentation_template': 'Your traits: {`{traits}`}'}]}])
+```
+
+> #### to_dict(*sorted=False*, *add_edsl_version=True*, *full_dict=False*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Serialize the AgentList to a dictionary.
+
+```python
+>>> AgentList.example().to_dict(add_edsl_version=False)
+{'agent_list': [{'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}`}, {'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}`}]}
+>>> example_codebook = {'age': 'Age in years'}
+>>> al = AgentList.example().set_codebook(example_codebook)
+>>> result = al.to_dict(add_edsl_version=False)
+>>> 'codebook' in result
+True
+>>> result['codebook'] == example_codebook
+True
+```
+
+> #### to_dicts(*remove_prefix: bool = True*) → list[dict] [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Convert the results to a list of dictionaries.
+
+**Parameters:**
+
+**remove_prefix** – Whether to remove the prefix from the column names.
+
+```python
+>>> from edsl.results import Results
+>>> r = Results.example()
+>>> r.select('how_feeling').to_dicts()
+[{'how_feeling': 'OK'}, {'how_feeling': 'Great'}, {'how_feeling': 'Terrible'}, {'how_feeling': 'OK'}]
+```
+
+> #### to_docx(*filename: str | None = None*, *remove_prefix: bool = False*, *pretty_labels: dict | None = None*) → [FileStore](/en/latest/filestore#edsl.scenarios.FileStore "edsl.scenarios.FileStore") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Export the results to a FileStore instance containing DOCX data.
+
+Each row of the dataset will be rendered on its own page, with a 2-column table that lists the keys and associated values for that observation.
+
+> #### to_excel(*filename: str | None = None*, *remove_prefix: bool = False*, *pretty_labels: dict | None = None*, *sheet_name: str | None = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Export the results to a FileStore instance containing Excel data.
+
+> #### to_jsonl(*filename: str | None = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Export the results to a FileStore instance containing JSONL data.
+
+> #### to_list(*flatten=False*, *remove_none=False*, *unzipped=False*) → list[list] [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Convert the results to a list of lists.
+
+> **Parameters:**
+
+- **flatten** – Whether to flatten the list of lists.
+- **remove_none** – Whether to remove None values from the list.
+
+```python
+>>> from edsl.results import Results
+>>> Results.example().select('how_feeling', 'how_feeling_yesterday')
+Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling_yesterday': ['Great', 'Good', 'OK', 'Terrible']}])
+```
+
+```python
+>>> Results.example().select('how_feeling', 'how_feeling_yesterday').to_list()
+[('OK', 'Great'), ('Great', 'Good'), ('Terrible', 'OK'), ('OK', 'Terrible')]
+```
+
+```python
+>>> r = Results.example()
+>>> r.select('how_feeling').to_list()
+['OK', 'Great', 'Terrible', 'OK']
+```
+
+```python
+>>> from edsl.dataset import Dataset
+>>> Dataset([{'a.b': [[1, 9], 2, 3, 4]}]).select('a.b').to_list(flatten = True)
+[1, 9, 2, 3, 4]
+```
+
+```python
+>>> from edsl.dataset import Dataset
+>>> # Testing to_list flatten with multiple columns raises DatasetValueError - tested in unit tests
+```
+
+> #### to_pandas(*remove_prefix: bool = False*, *lists_as_strings=False*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Convert the results to a pandas DataFrame, ensuring that lists remain as lists.
+
+**Args:**
+
+remove_prefix: Whether to remove the prefix from the column names. lists_as_strings: Whether to convert lists to strings.
+
+> **Returns:**
+
+A pandas DataFrame.
+
+> #### to_polars(*remove_prefix: bool = False*, *lists_as_strings=False*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Convert the results to a Polars DataFrame.
+
+> **Args:**
+
+remove_prefix: Whether to remove the prefix from the column names. lists_as_strings: Whether to convert lists to strings.
+
+> **Returns:**
+
+A Polars DataFrame.
+
+> #### to_scenario_list(*remove_prefix: bool = True*) → list[dict] [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Convert the results to a list of dictionaries, one per scenario.
+
+**Parameters:**
+
+**remove_prefix** – Whether to remove the prefix from the column names.
+
+```python
+>>> from edsl.results import Results
+>>> r = Results.example()
+>>> r.select('how_feeling').to_scenario_list()
+ScenarioList([Scenario({'how_feeling': 'OK'}), Scenario({'how_feeling': 'Great'}), Scenario({'how_feeling': 'Terrible'}), Scenario({'how_feeling': 'OK'})])
+```
+
+> #### to_sqlite(*filename: str | None = None*, *remove_prefix: bool = False*, *pretty_labels: dict | None = None*, *table_name: str = 'results'*, *if_exists: str = 'replace'*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Export the results to a SQLite database file.
+
+> #### *property* trait_keys*: List[str]* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Get the trait keys for the AgentList.
+
+> #### translate_traits(*codebook: dict[str, str]*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Translate traits to a new codebook.
+
+**Parameters:**
+
+**codebook** – The new codebook.
+
+```python
+>>> al = AgentList.example()
+>>> codebook = {'hair': {'brown':'Secret word for green'}`}
+>>> al.translate_traits(codebook)
+AgentList([Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5})])
+```
+
+> #### tree(*node_order: List[str] | None = None*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Convert the results to a Tree.
+
+**Args:**
+
+node_order: The order of the nodes.
+
+**Returns:**
+
+A Tree object.
+
+> #### unpack_list(*field: str*, *new_names: List[str] | None = None*, *keep_original: bool = True*) → [Dataset](/en/latest/dataset#edsl.dataset.Dataset "edsl.dataset.Dataset") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Unpack list columns into separate columns with provided names or numeric suffixes.
+
+For example, if a dataset contains: \[\{'data': [[1, 2, 3], [4, 5, 6]], 'other': ['x', 'y']\}\]
+
+After d.unpack_list(‘data’), it should become: \[\{'other': \['x', 'y'], 'data_1': \[1, 4], 'data_2': \[2, 5], 'data_3': \[3, 6]}]
+
+> **Args:**
+
+field: The field containing lists to unpack new_names: Optional list of names for the unpacked fields. If None, uses numeric suffixes. keep_original: If True, keeps the original field in the dataset
+
+> **Returns:**
+
+A new Dataset with unpacked columns
+
+> **Examples:**
+
+```python
+>>> from edsl.dataset import Dataset
+>>> d = Dataset([{'data': [[1, 2, 3], [4, 5, 6]]}])
+>>> d.unpack_list('data')
+Dataset([{'data': [[1, 2, 3], [4, 5, 6]]}, {'data_1': [1, 4]}, {'data_2': [2, 5]}, {'data_3': [3, 6]}])
+```
+
+```python
+>>> d.unpack_list('data', new_names=['first', 'second', 'third'])
+Dataset([{'data': [[1, 2, 3], [4, 5, 6]]}, {'first': [1, 4]}, {'second': [2, 5]}, {'third': [3, 6]}])
+```
+
+> #### with_names(**trait_keys: str*, *remove_traits: bool = True*, *separator: str = ','*, *force_name: bool = False*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
+
+Return a new AgentList with names based on the values of the specified traits.
+
+> **Args:**
+
+[*](/en/latest/#id28)trait_keys: The trait keys to use for naming remove_traits: Whether to remove the traits used for naming from the agents separator: The separator to use when joining multiple trait values force_name: Whether to force naming even if agents already have names
+
+> **Returns:**
+
+AgentList: A new AgentList with named agents
+
+```python
+>>> from edsl import Agent
+>>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}),
+...                Agent(traits = {'a': 1, 'b': 2})])
+>>> al_with_names = al.with_names('a')
+>>> al_with_names[0].name
+'1'
+>>> al[0].name is None  # Original unchanged
+True
+```
+
+
+

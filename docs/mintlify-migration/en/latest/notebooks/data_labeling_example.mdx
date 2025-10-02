@@ -1,0 +1,423 @@
+---
+title: "Data labeling"
+description: "This notebook provides example code for conducting data labeling and content analysis in EDSL, an open-source library for simulating surveys, experiments and research tasks with AI agents and large language models."
+---
+
+Before running the code below please see instructions on [getting started](https://www.expectedparrot.com/getting=started) using EDSL.
+
+## Overview
+
+Using a dataset of mock customer service tickets as an example, we demonstrate how to:
+
+<Steps>
+<Step>
+    Import data into EDSL as [scenarios](https://docs.expectedparrot/en/latest/scenarios)
+</Step>
+<Step>
+    Create [questions](https://docs.expectedparrot/en/latest/questions/html) about the data
+</Step>
+<Step>
+    Design an AI [agent](https://docs.expectedparrot/en/latest/agents) to answer the questions
+</Step>
+<Step>
+    Select a language [model](/en/latest/language_models) to generate responses
+</Step>
+<Step>
+    Analyze [results](https://docs.expectedparrot/en/latest/results) as a formatted dataset
+</Step>
+</Steps>
+
+This workflow can be visualized as follows:
+
+<Frame>
+![general_survey.png](/images/en/notebook/data-labeling-example.png)
+</Frame>
+
+## Selecting data for review
+
+First we identify some data for review. Data can be created in EDSL or imported from other sources (CSV, PDF, PNG, MP4, DOC, tables, lists, dicts, etc.). For purposes of demonstration we import a set of hypothetical customer tickets for a transportation app:
+
+```python expandable
+tickets = [
+    "I just realized I left my phone in the car on my last ride. Can you help me get it back?",
+    "I'm unhappy with my recent experience. The driver was very rude and unprofessional.",
+    "I was charged more than the estimated fare for my trip yesterday. Can you explain why?",
+    "The car seat provided was not properly installed, and I felt my child was at risk. Please ensure driver training.",
+    "My driver took a longer route than necessary, resulting in a higher fare. I request a fare adjustment.",
+    "I had a great experience with my driver today! Very friendly and efficient service.",
+    "I'm concerned about the vehicle's cleanliness. It was not up to the standard I expect.",
+    "The app keeps crashing every time I try to book a ride. Please fix this issue.",
+    "My driver was exceptional - safe driving, polite, and the car was spotless. Kudos!",
+    "I felt unsafe during my ride due to the driver's erratic behavior. This needs to be addressed immediately.",
+    "The driver refused to follow my preferred route, which is shorter. I'm not satisfied with the service.",
+    "Impressed with the quick response to my ride request and the driver's professionalism.",
+    "I was charged for a ride I never took. Please refund me as soon as possible.",
+    "The promo code I tried to use didn't work. Can you assist with this?",
+    "There was a suspicious smell in the car, and I'm worried about hygiene standards.",
+    "My driver was very considerate, especially helping me with my luggage. Appreciate the great service!",
+    "The app's GPS seems inaccurate. It directed the driver to the wrong pick-up location.",
+    "I want to compliment my driver's excellent navigation and time management during rush hour.",
+    "The vehicle didn't match the description in the app. It was confusing and concerning.",
+    "I faced an issue with payment processing after my last ride. Can you look into this?",
+]
+```
+
+## Constructing questions about the data
+
+Next we create some questions about the data. EDSL provides a variety of question types that we can choose from based on the form of the response that we want to get back from the model (multiple choice, free text, checkbox, linear scale, etc.). [Learn more about question types](/en/latest/questions).
+
+<Note>
+**Note**:
+
+Note that we use a `{{ placeholder }}` in each question text in order to parameterize the questions with the individual ticket contents in the next step:
+</Note>
+
+```python
+from edsl import (
+    QuestionMultipleChoice,
+    QuestionCheckBox,
+    QuestionFreeText,
+    QuestionYesNo,
+    QuestionLinearScale,
+)
+```
+
+```python
+q_issues = QuestionCheckBox(
+    question_name="issues",
+    question_text="Check all of the issues mentioned in this ticket: {`{ scenario.ticket }`}",
+    question_options=[
+        "safety",
+        "cleanliness",
+        "driver performance",
+        "GPS/route",
+        "lost item",
+        "other",
+    ],
+)
+```
+
+```python
+q_primary_issue = QuestionFreeText(
+    question_name="primary_issue",
+    question_text="What is the primary issue in this ticket? Ticket: {`{ scenario.ticket }}",
+)
+```
+
+```python
+q_accident = QuestionMultipleChoice(
+    question_name="accident",
+    question_text="If the primary issue in this ticket is safety, was there an accident where someone was hurt? Ticket: {`{ scenario.ticket }}",
+    question_options=["Yes", "No", "Not applicable"],
+)
+```
+
+```python
+q_sentiment = QuestionMultipleChoice(
+    question_name="sentiment",
+    question_text="What is the sentiment of this ticket? Ticket: {`{ scenario.ticket }}",
+    question_options=[
+        "Very positive",
+        "Somewhat positive",
+        "Neutral",
+        "Somewhat negative",
+        "Very negative",
+    ],
+)
+```
+
+```python
+q_refund = QuestionYesNo(
+    question_name="refund",
+    question_text="Does the customer ask for a refund in this ticket? Ticket: {`{ scenario.ticket }}",
+)
+```
+
+```python
+q_priority = QuestionLinearScale(
+    question_name="priority",
+    question_text="On a scale from 0 to 5, what is the priority level of this ticket? Ticket: {`{ scenario.ticket }}",
+    question_options=[0, 1, 2, 3, 4, 5],
+    option_labels={0: "Lowest", 5: "Highest"},
+)
+```
+
+## Building a survey
+
+We combine the questions into a [survey](/en/latest/surveys) in order to administer them together:
+
+from edsl import Survey
+
+survey = Survey(
+    questions=[
+        q_issues,
+        q_primary_issue,
+        q_accident,
+        q_sentiment,
+        q_refund,
+        q_priority,
+    ]
+)
+
+Survey questions are administered asynchronously by default. [Learn more about adding conditional logic and memory to your survey](/en/latest/surveys). Here we inspect them:
+
+
+```python
+survey
+```
+
+```python
+Survey # questions: 6; question_name list: ['issues', 'primary_issue', 'accident', 'sentiment', 'refund', 'priority'];
+```
+
+|  | question_text | question_options | question_type | question_name | option_labels |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | Check all of the issues mentioned in this ticket: {`{ scenario.ticket }`} | ['safety', 'cleanliness', 'driver performance', 'GPS/route', 'lost item', 'other'] | checkbox | issues | nan |
+| 1 | What is the primary issue in this ticket? Ticket: {`{ scenario.ticket }`} | nan | free_text | primary_issue | nan |
+| 2 | If the primary issue in this ticket is safety, was there an accident where someone was hurt? Ticket: {`{ scenario.ticket }`} | ['Yes', 'No', 'Not applicable'] | multiple_choice | accident | nan |
+| 3 | What is the sentiment of this ticket? Ticket: {`{ scenario.ticket }`} | ['Very positive', 'Somewhat positive', 'Neutral', 'Somewhat negative', 'Very negative'] | multiple_choice | sentiment | nan |
+| 4 | Does the customer ask for a refund in this ticket? Ticket: {`{ scenario.ticket }`} | ['No', 'Yes'] | yes_no | refund | nan |
+| 5 | On a scale from 0 to 5, what is the priority level of this ticket? Ticket: {`{ scenario.ticket }`} | [0, 1, 2, 3, 4, 5] | linear_scale | priority | `{0: 'Lowest', 5: 'Highest'}` |
+
+## Designing AI agents
+
+A key feature of EDSL is the ability to create personas for AI agents that the language models are prompted to use in generating responses to the questions. This is done by passing a dictionary of traits to Agent objects:
+
+
+```python
+from edsl import Agent
+
+agent = Agent(
+    traits={
+        "persona": "You are an expert customer service agent.",
+        "years_experience": 15,
+    }
+)
+agent
+```
+```
+Agent
+```
+
+|  | key | value |
+| :--- | :--- | :--- |
+| 0 | traits:persona | You are an expert customer service agent. |
+| 1 | traits:years_experience | 15 |
+
+## Selecting language models
+
+EDSL allows us to select the language models to use in generating results. See the [`model pricing page <>`__](/en/latest/notebooks/#id1) for pricing and performance information for available models.
+
+Here we select gpt-4o (if no model is specified, the default model is used – run `Model()` to verify the current default model):
+
+
+```python
+from edsl import Model
+
+model = Model("gpt-4o", service_name = "openai")
+model
+```
+```
+LanguageModel
+```
+
+|  | key | value |
+| :--- | :--- | :--- |
+| 0 | model | gpt-4o |
+| 1 | parameters:temperature | 0.500000 |
+| 2 | parameters:max_tokens | 1000 |
+| 3 | parameters:top_p | 1 |
+| 4 | parameters:frequency_penalty | 0 |
+| 5 | parameters:presence_penalty | 0 |
+| 6 | parameters:logprobs | False |
+| 7 | parameters:top_logprobs | 3 |
+| 8 | inference_service | openai |
+
+## Adding data to the questions
+
+We add the contents of each ticket into each question as an independent “scenario” for review. This allows us to create versions of the questions for each job post and deliver them to the model all at once:
+
+
+```python
+from edsl import ScenarioList
+
+scenarios = ScenarioList.from_list("ticket", tickets)
+scenarios
+```
+
+```python
+ScenarioList scenarios: 20; keys: ['ticket'];
+```
+
+|  | ticket |
+| :--- | :--- |
+| 0 | I just realized I left my phone in the car on my last ride. Can you help me get it back? |
+| 1 | I'm unhappy with my recent experience. The driver was very rude and unprofessional. |
+| 2 | I was charged more than the estimated fare for my trip yesterday. Can you explain why? |
+| 3 | The car seat provided was not properly installed, and I felt my child was at risk. Please ensure driver training. |
+| 4 | My driver took a longer route than necessary, resulting in a higher fare. I request a fare adjustment. |
+| 5 | I had a great experience with my driver today! Very friendly and efficient service. |
+| 6 | I'm concerned about the vehicle's cleanliness. It was not up to the standard I expect. |
+| 7 | The app keeps crashing every time I try to book a ride. Please fix this issue. |
+| 8 | My driver was exceptional - safe driving, polite, and the car was spotless. Kudos! |
+| 9 | I felt unsafe during my ride due to the driver's erratic behavior. This needs to be addressed immediately. |
+| 10 | The driver refused to follow my preferred route, which is shorter. I'm not satisfied with the service. |
+| 11 | Impressed with the quick response to my ride request and the driver's professionalism. |
+| 12 | I was charged for a ride I never took. Please refund me as soon as possible. |
+| 13 | The promo code I tried to use didn't work. Can you assist with this? |
+| 14 | There was a suspicious smell in the car, and I'm worried about hygiene standards. |
+| 15 | My driver was very considerate, especially helping me with my luggage. Appreciate the great service! |
+| 16 | The app's GPS seems inaccurate. It directed the driver to the wrong pick-up location. |
+| 17 | I want to compliment my driver's excellent navigation and time management during rush hour. |
+| 18 | The vehicle didn't match the description in the app. It was confusing and concerning. |
+| 19 | I faced an issue with payment processing after my last ride. Can you look into this? |
+
+## Running the survey
+
+We run the survey by adding the scenarios, agent and model with the `by()` method and then calling the `run()` method:
+
+
+```python
+results = survey.by(scenarios).by(agent).by(model).run()
+```
+
+This generates a formatted dataset of `Results` that includes information about all the components, including the prompts and responses. We can see a list of all the components:
+
+
+```python
+results.columns
+```
+
+## Analyzing results
+
+EDSL comes with [built-in methods for analyzing results](/en/latest/results). Here we filter, sort, select and print components in a table:
+
+
+```python
+(
+    results
+    .filter("priority in [4, 5]")
+    .sort_by("issues", "sentiment")
+    .select("ticket", "issues", "primary_issue", "accident", "sentiment", "refund", "priority")
+)
+```
+
+
+We can apply some lables to our table:
+
+
+```python expandable
+(
+    results.select(
+        "ticket",
+        "issues",
+        "primary_issue",
+        "accident",
+        "sentiment",
+        "refund",
+        "priority",
+    ).print(
+        pretty_labels={
+            "scenario.ticket": "Ticket",
+            "answer.issues": "Issues",
+            "answer.primary_issue": "Primary issue",
+            "answer.accident": "Accident",
+            "answer.sentiment": "Sentiment",
+            "answer.refund": "Refund request",
+            "answer.priority": "Priority",
+        }
+    )
+)
+```
+
+
+EDSL also comes with methods for accessing results as a dataframe or SQL table:
+
+
+```python
+df = (
+    results
+    .select(
+        "issues",
+        "primary_issue",
+        "accident",
+        "sentiment",
+        "refund",
+        "priority"
+    )
+    .to_pandas(remove_prefix=True)
+)
+df
+```
+
+
+We can also access results as a SQL table:
+
+
+```python
+results.sql("""
+select ticket, issues, primary_issue, accident, sentiment, refund, priority
+from self
+order by priority desc
+""")
+```
+
+
+To export results to a CSV file:
+
+
+```python
+results.to_csv("data_labeling_example.csv")
+```
+
+
+## Posting content to the Coop
+
+We can post any EDSL objects to Coop, and share them publicly, privately or unlisted (by default).
+
+The above results were automatically posted to Coop; we can also post them manually:
+
+
+```python
+# results.push(
+#     description = "Customer service tickets data labeling example",
+#     alias = "customer-service-tickets-results-example",
+#     visibility="public"
+# )
+```
+
+
+```python
+# survey.push(
+#     description = "Customer service tickets data labeling example survey",
+#     alias = "customer-service-tickets-survey-example",
+#     visibility="public"
+# )
+```
+
+To post this notebook:
+
+
+```python
+# from edsl import Notebook
+
+# nb = Notebook("data_labeling_example.ipynb")
+
+# nb.push(
+#     description = "Data labeling example",
+#     alias = "data-labeling-example-notebook",
+#     visibility = "public"
+# )
+```
+
+To update an object at Coop:
+
+
+```python
+from edsl import Notebook
+
+
+nb = Notebook("data_labeling_example.ipynb") # resave
+
+nb.patch("https://www.expectedparrot.com/content/RobinHorton/data-labeling-example-notebook", value = nb)
+```

@@ -1,0 +1,142 @@
+---
+title: "Data labeling with LLMs, validating with humans"
+description: "This notebook provides example [EDSL](https://github.com/expectedparrot/edsl) code for conducting a data labeling task with large language models and validating responses with humans."
+---
+
+The example below consists of the following steps, which can be conducted entirely in EDSL code or interactively at your [Coop account](https://www.expectedparrot.com/):
+
+- Construct questions about a dataset, using a placeholder in each question for the individual piece of data to be labeled (each answer is a “label” for a piece of data)
+- Combine the questions in a survey to administer them together
+- *Optionally* create AI agent personas to answer the questions (e.g., if there is relevant expertise or background for the task)
+- Select language models to generate the answers (for the agents, or without referencing any AI personas)
+- Run the survey with the data, agents and models to generate a formatted dataset of results
+- Select questions and data that you want to validate with humans to create a subset of your survey (or leave it unchanged to run the entire survey with humans)
+- Send a web-based version of the survey to human respondents
+- Compare LLM and human answers, and iterate on the data labeling survey as needed!
+
+Before running the code below please see instructions on [getting started](https://www.expectedparrot.com/en/latest/getting-started) using Expected Parrot tools for AI research.
+
+## Construct questions about a dataset
+
+We start by creating questions about a dataset, where each answer will provide a “label” for each piece of data. EDSL comes with many [common question types](/en/latest/questions) that we can choose from based on the form of the response that we want to get back from a model (multiple choice, linear scale, matrix, etc.).
+
+We use a “scenario” placeholder in each question text for data that we want to add to it. This method allows us to efficiently readminister a question for each piece of data. [Scenarios](/en/latest/scenarios) can be created from many types of data, including PNG, PDF, CSV, docs, lists, tables, videos, and other types.
+
+We combine the questions in a [survey](/en/latest/surveys) in order to administer them together, asynchronously by default, or else according to any [logic or rules](/en/latest/surveys#survey-rules-logic) that we want to add (e.g., skip/stop rules).
+
+[1]:
+
+```python
+from edsl import ScenarioList, QuestionList, QuestionNumerical, Survey
+
+q1 = QuestionList(
+    question_name = "characters",
+    question_text = "Name all of the characters in this show: {{ scenario.show }}"
+)
+
+q2 = QuestionNumerical(
+    question_name = "years",
+    question_text = "Identify the year this show first aired: {{ scenario.show }}"
+)
+
+scenarios = ScenarioList.from_source("list", "show", ["The Simpsons", "South Park", "I Love Lucy"])
+
+questions = q1.loop(scenarios) + q2.loop(scenarios)
+
+survey = Survey(questions)
+```
+
+## Generate data “labels” using LLMs
+
+EDSL allows us to [specify the models](/en/latest/language_models) that we want to use to answer the questions, and optionally [design AI agent personas](/en/latest/agents) for the models to reference in answering the questions. This can be useful if you want to reference specific expertise that is relevant to the labeling task.
+
+We administer the questions by adding the scenarios, agents and models to the survey and calling the `run()` method. This generates a formatted dataset of `Results` that we can analyze with [built-in methods for working with results](/en/latest/results).
+
+[2]:
+
+```python
+from edsl import Agent, AgentList, Model, ModelList
+
+agents = AgentList([
+    Agent(traits = {"persona":"You watch a lot of TV."})
+])
+
+models = ModelList([
+    Model("gemini-1.5-flash", service_name = "google"),
+    Model("gpt-4o", service_name = "openai")
+])
+
+results = survey.by(scenarios).by(agents).by(models).run()
+```
+
+Results are accessible at your Coop account and at your workspace. We can inspect a list of all the components of the results:
+
+[3]:
+
+```python
+results.columns
+```
+
+Here we select components to display in a table:
+
+[4]:
+
+```python
+results.select("model", "persona", "characters_0", "years_0", "characters_1", "years_1", "characters_2", "years_2")
+```
+
+
+## Run the survey with human respondents
+
+We can validate some of all of the responses with human respondents by calling the `humanize()` method on the version of the survey that we want to validate with humans. This method generates a shareable URL for a web-based version of the survey that you can distribute, together with a URL for tracking the responses at your Coop account.
+
+Here we create a new version of the survey to add some screening/information questions of the humans that answer it:
+
+[5]:
+
+```python
+from edsl import QuestionLinearScale
+
+q3 = QuestionLinearScale(
+    question_name = "tv_viewing",
+    question_text = "On a scale from 1 to 5, how much tv would you say that you've watched in your life?",
+    question_options = [1,2,3,4,5],
+    option_labels = {
+        1:"None at all",
+        5:"A ton"
+    }
+)
+
+q4 = QuestionNumerical(
+    question_name = "age",
+    question_text = "How old are you (in years)?"
+)
+
+new_questions = [q3, q4]
+
+human_survey = Survey(questions + new_questions)
+```
+
+[6]:
+
+```python
+human_survey.humanize()
+```
+
+Responses automatically appear at your Coop account, and you can import them into your workspace using `Coop` methods:
+
+[7]:
+
+```python
+from edsl import Coop
+
+human_results = Coop().get_project_human_responses("bbb84776-3364-4bc9-b028-0119cd84d480")
+human_results
+```
+
+[8]:
+
+```python
+human_results.select("age", "tv_viewing", "characters_0", "years_0", "characters_1", "years_1", "characters_2", "years_2")
+```
+
