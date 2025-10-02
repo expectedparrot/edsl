@@ -30,7 +30,7 @@ from ..base import Base
 
 if TYPE_CHECKING:
     from ..agents import Agent
-    from ..scenarios import Scenario
+    from ..scenarios import Scenario, ScenarioList
     from ..language_models import LanguageModel
     from ..surveys import Survey
 
@@ -278,6 +278,63 @@ class Result(Base, UserDict):
         from .result_transcript import generate_transcript
 
         return generate_transcript(self, format)
+
+    def q_and_a(self, include_scenario: bool = False) -> "ScenarioList":
+        """Return a ScenarioList with one row per question containing text, answer, and comment.
+
+        Each Scenario in the returned ScenarioList has these keys:
+        - "question_text": The rendered question text
+        - "answer": The recorded answer value
+        - "comment": The recorded comment for the question (if any)
+
+        If ``include_scenario`` is True, all scenario fields are also included in each row.
+
+        Examples:
+            >>> r = Result.example()
+            >>> sl = r.q_and_a()
+            >>> {"question_text", "answer", "comment"}.issubset(set(sl.parameters))
+            True
+            >>> len(sl) == len(r.answer)
+            True
+            >>> sl2 = r.q_and_a(include_scenario=True)
+            >>> set(r.sub_dicts["scenario"].keys()).issubset(set(sl2.parameters))
+            True
+        """
+        from ..scenarios import Scenario, ScenarioList
+
+        scenarios = []
+        qt_attrs = self.data.get("question_to_attributes", {})
+        comments_direct = self.data.get("comments_dict", {})
+        comments_sub = self.sub_dicts.get("comment", {})
+
+        # Normalize comments so they can be accessed by base question key
+        # e.g., "question_0_comment" -> key "question_0"
+        comments_by_question = {}
+        comments_by_question.update(comments_direct)
+        for ck, cv in comments_sub.items():
+            if isinstance(ck, str) and ck.endswith("_comment"):
+                comments_by_question[ck[:-8]] = cv
+            else:
+                comments_by_question[ck] = cv
+
+        scenario_fields = self.sub_dicts.get("scenario", {}) if include_scenario else {}
+
+        for question_name, answer_value in self.answer.items():
+            q_meta = qt_attrs.get(question_name, {})
+            q_text = q_meta.get("question_text", question_name)
+
+            row = {
+                "question_text": q_text,
+                "answer": answer_value,
+                "comment": comments_by_question.get(question_name),
+            }
+
+            if include_scenario and scenario_fields:
+                row.update(scenario_fields)
+
+            scenarios.append(Scenario(row))
+
+        return ScenarioList(scenarios)
 
     def code(self):
         """Return a string of code that can be used to recreate the Result object.
