@@ -1,0 +1,7 @@
+{{question_text}}
+The prices are:
+{% for price in prices %}
+{{ loop.index0 }}: ${{ "%.2f"|format(price) }}
+{% endfor %}
+For each price, indicate the quantity you would purchase.
+
