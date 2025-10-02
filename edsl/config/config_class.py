@@ -72,7 +72,7 @@ CONFIG_MAP = {
         "info": "This config var determines the logging level for the EDSL package (DEBUG, INFO, WARNING, ERROR, CRITICAL).",
     },
     "EDSL_MAX_ATTEMPTS": {
-        "default": "5",
+        "default": "3",
         "info": "This config var determines the maximum number of times to retry a failed API call.",
     },
     "EDSL_SERVICE_RPM_BASELINE": {
