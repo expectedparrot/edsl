@@ -1165,17 +1165,18 @@ class Jobs(Base):
         self.run_config.parameters = config.parameters
 
         # Handle backward compatibility for deprecated parameters
-        # If old parameters are set, use them to set new parameters
-        if not config.parameters.disable_remote_inference:
-            # Old param was False (enabled), set new param to True
-            self.run_config.parameters.use_api_proxy = True
-        else:
-            # Old param was True (disabled), set new param to False
-            self.run_config.parameters.use_api_proxy = False
+        # Logic:
+        # - disable_remote_inference=False OR use_remote_inference_endpoint=True => offload_execution=True
+        # - use_api_proxy=True (explicit user choice) => offload_execution=False (overrides everything)
 
-        if config.parameters.use_remote_inference_endpoint:
-            # Old param was True, set new param to True
+        # First, check deprecated parameters and set offload_execution
+        if (
+            not config.parameters.disable_remote_inference
+            or config.parameters.use_remote_inference_endpoint
+        ):
+            # Old parameters indicate remote execution should be enabled
             self.run_config.parameters.offload_execution = True
+
         self._logger.info(
             f"Configuration transfer completed in {time.time() - start_time:.3f}s"
         )
@@ -1190,17 +1191,15 @@ class Jobs(Base):
         )
 
         # Handle mutual exclusivity between use_api_proxy and offload_execution
-        # Since offload_execution=True is the default, if user explicitly sets use_api_proxy=True,
-        # we should prioritize their explicit choice and use proxy mode (local execution with API proxy)
+        # If user explicitly sets use_api_proxy=True, it takes priority and disables offload_execution
         if self.run_config.parameters.use_api_proxy:
-            # User explicitly wants API proxy mode - disable offload_execution
-            if self.run_config.parameters.offload_execution:
-                self.run_config.parameters.offload_execution = False
-                self._logger.info(
-                    "use_api_proxy=True (explicit) - disabling offload_execution for local execution with API proxy"
-                )
+            # User explicitly wants API proxy mode - disable offload_execution no matter what
+            self.run_config.parameters.offload_execution = False
+            self._logger.info(
+                "use_api_proxy=True (explicit) - disabling offload_execution for local execution with API proxy"
+            )
         elif self.run_config.parameters.offload_execution:
-            # offload_execution is True (could be default or explicit) - ensure use_api_proxy is False
+            # offload_execution is True (from defaults or deprecated params) - ensure use_api_proxy is False
             self.run_config.parameters.use_api_proxy = False
             self._logger.info("offload_execution=True - using full remote execution")
 
