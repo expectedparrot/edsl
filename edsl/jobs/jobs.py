@@ -1102,6 +1102,15 @@ class Jobs(Base):
             f"Total execution time: {time.time() - execution_start:.3f}s, "
             f"final results count: {len(results) if results else 0}"
         )
+
+        # Clear file cache after job completion
+        if self.run_config.parameters.use_api_proxy:
+            from ..inference_services.services.remote_proxy_handler import (
+                RemoteProxyHandler,
+            )
+
+            await RemoteProxyHandler.clear_file_cache()
+
         return results
 
     @property
