@@ -315,9 +315,9 @@ class Model(metaclass=Meta):
         if force_refresh:
             registry.refresh_model_info()
             if local_only:
-                registry.fetch_model_info_data(source_preferences=["local"])
+                registry.fetch_model_info_data(source_preferences=["local"], service_name=service_name)
             else:
-                registry.fetch_model_info_data()
+                registry.fetch_model_info_data(service_name=service_name)
 
         # Validate service_name if provided
         if service_name is not None:

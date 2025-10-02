@@ -58,6 +58,12 @@ class ProgressBarManager:
     def __enter__(self):
         if self.parameters.progress_bar and self.jobs_runner_status.has_ep_api_key():
             self.jobs_runner_status.setup()
+
+            # Set job_uuid on all models for remote proxy handler tracking
+            if self.jobs_runner_status.job_uuid is not None:
+                for model in self.jobs.models:
+                    model.job_uuid = str(self.jobs_runner_status.job_uuid)
+
             self.progress_thread = threading.Thread(
                 target=self._run_progress_bar,
                 args=(self.stop_event, self.jobs_runner_status),

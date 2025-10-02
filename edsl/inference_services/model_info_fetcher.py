@@ -407,6 +407,7 @@ class ModelInfoServices(ModelInfoFetcherABC):
             **kwargs: Additional arguments:
                 - services_registry: Required - Dictionary of registered service classes
                 - skip_errors: Whether to skip services that fail to load models (default True)
+                - service_name: Optional - Fetch models only for this specific service
 
         Returns:
             Dict[str, List["ModelInfo"]] - Dictionary mapping service names to lists of ModelInfo objects
@@ -415,9 +416,19 @@ class ModelInfoServices(ModelInfoFetcherABC):
             ValueError: If services_registry is not provided
         """
         skip_errors = kwargs.get("skip_errors", True)
+        service_name_filter = kwargs.get("service_name", None)
         data = {}
-        for service_name, service_entry in self.services_registry.services.items():
+
+        # Get list of registered services (all or just the requested one)
+        if service_name_filter:
+            registered_services = [service_name_filter]
+        else:
+            registered_services = self.services_registry.list_registered_services()
+
+        for service_name in registered_services:
             try:
+                # Load the service class (lazy loading)
+                service_entry = self.services_registry.get_service_class(service_name)
                 model_list = service_entry.get_model_list()
                 data[service_name] = model_list
             except Exception as e:

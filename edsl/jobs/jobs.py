@@ -374,9 +374,11 @@ class Jobs(Base):
         self.head_job.agents = agent_list
         return self
 
-    def add_scenario_head(self, scenario_or_scenario_list: Union["Scenario", "ScenarioList"]) -> Jobs:
+    def add_scenario_head(
+        self, scenario_or_scenario_list: Union["Scenario", "ScenarioList"]
+    ) -> Jobs:
         """Add a scenario to the job.
-        
+
         Args:
         ----
             scenario: The scenario to add to the job.
@@ -385,13 +387,14 @@ class Jobs(Base):
         current_job = self
         while current_job._depends_on is not None:
             current_job = current_job._depends_on
-        
+
         from ..scenarios import ScenarioList, Scenario
-        if isinstance(scenario_or_scenario_list, Scenario):  
+
+        if isinstance(scenario_or_scenario_list, Scenario):
             current_job.scenarios = ScenarioList([scenario_or_scenario_list])
-        else:       
+        else:
             current_job.scenarios = scenario_or_scenario_list
-        return self 
+        return self
 
     @property
     def scenarios(self) -> ScenarioList:
@@ -583,7 +586,7 @@ class Jobs(Base):
         from .jobs_interview_constructor import InterviewsConstructor
 
         # If we have pre-stored interviews (from from_interviews method), use those
-        if hasattr(self, '_interviews') and self._interviews:
+        if hasattr(self, "_interviews") and self._interviews:
             yield from self._interviews
         else:
             self.replace_missing_objects()
@@ -633,25 +636,33 @@ class Jobs(Base):
         from ..agents import AgentList
         from ..scenarios import ScenarioList
         from ..language_models import ModelList
+
         survey_info = self.survey.push()
         agent_info = AgentList(self.agents).push()
         scenario_info = ScenarioList(self.scenarios).push()
         models_info = ModelList(self.models).push()
 
         from ..scenarios import Scenario
-        jobs_scenario = Scenario({
-            'survey': survey_info.to_dict(),
-            'agents': agent_info.to_dict(),
-            'scenarios': scenario_info.to_dict(),
-            'models_info': models_info.to_dict(),
-            '_depends_on': self._depends_on.to_dict(add_edsl_version=False) if self._depends_on is not None else None,
-            '_post_run_methods': self._post_run_methods if self._post_run_methods is not None else None
-        })
+
+        jobs_scenario = Scenario(
+            {
+                "survey": survey_info.to_dict(),
+                "agents": agent_info.to_dict(),
+                "scenarios": scenario_info.to_dict(),
+                "models_info": models_info.to_dict(),
+                "_depends_on": self._depends_on.to_dict(add_edsl_version=False)
+                if self._depends_on is not None
+                else None,
+                "_post_run_methods": self._post_run_methods
+                if self._post_run_methods is not None
+                else None,
+            }
+        )
         info = jobs_scenario.push()
         return info
 
     @classmethod
-    def pull(cls, edsl_uuid: str) -> 'Jobs':
+    def pull(cls, edsl_uuid: str) -> "Jobs":
         """Pull the job from the remote server."""
         from ..scenarios import Scenario
         from ..surveys import Survey
@@ -660,15 +671,20 @@ class Jobs(Base):
         from ..scenarios import ScenarioList
 
         jobs_scenario = Scenario.pull(edsl_uuid)
-        # extract the components 
-        survey_info = jobs_scenario.to_dict()['survey']
-        agent_info = jobs_scenario.to_dict()['agents']
-        scenario_info = jobs_scenario.to_dict()['scenarios']
-        models_info = jobs_scenario.to_dict()['models_info']
-        depends_on = jobs_scenario.to_dict()['_depends_on']
-        post_run_methods = jobs_scenario.to_dict()['_post_run_methods']
+        # extract the components
+        survey_info = jobs_scenario.to_dict()["survey"]
+        agent_info = jobs_scenario.to_dict()["agents"]
+        scenario_info = jobs_scenario.to_dict()["scenarios"]
+        models_info = jobs_scenario.to_dict()["models_info"]
+        depends_on = jobs_scenario.to_dict()["_depends_on"]
+        post_run_methods = jobs_scenario.to_dict()["_post_run_methods"]
 
-        jobs = cls(survey = Survey.pull(survey_info['uuid']), agents = AgentList.pull(agent_info['uuid']), scenarios = ScenarioList.pull(scenario_info['uuid']), models = ModelList.pull(models_info['uuid']))
+        jobs = cls(
+            survey=Survey.pull(survey_info["uuid"]),
+            agents=AgentList.pull(agent_info["uuid"]),
+            scenarios=ScenarioList.pull(scenario_info["uuid"]),
+            models=ModelList.pull(models_info["uuid"]),
+        )
         jobs._depends_on = depends_on
         jobs._post_run_methods = post_run_methods
         return jobs
@@ -685,7 +701,12 @@ class Jobs(Base):
         #         add_edsl_version=add_edsl_version
         #     )
 
-        return {"survey": survey_info, "agents": agent_info, "scenarios": scenario_info, "models_info": models_info}
+        return {
+            "survey": survey_info,
+            "agents": agent_info,
+            "scenarios": scenario_info,
+            "models_info": models_info,
+        }
         # [agent.push() for agent in self.agents]
 
         #  d = {
@@ -995,7 +1016,30 @@ class Jobs(Base):
         if run_job_async:
             # For async execution mode (simplified path without progress bar)
             self._logger.info("Starting async interview execution (no progress bar)")
-            await process_interviews(interview_runner, results)
+            try:
+                await process_interviews(interview_runner, results)
+            except Exception as e:
+                from .exceptions import JobTerminationError
+                from ..language_models.exceptions import (
+                    LanguageModelInsufficientCreditsError,
+                )
+
+                if isinstance(e, JobTerminationError):
+                    self._logger.error(f"Job terminated: {e}")
+                    if isinstance(e.cause, LanguageModelInsufficientCreditsError):
+                        # Handle insufficient credits termination
+                        print(f"❌ Job terminated due to insufficient credits")
+                        print(
+                            f"💰 Current balance: {getattr(e.cause, 'current_balance', 'Unknown')}"
+                        )
+                        print(
+                            f"📊 Completed: {len(results)} interviews before termination"
+                        )
+                        print(
+                            f"🔗 Add credits at: https://www.expectedparrot.com/home/credits"
+                        )
+                    return results  # Return partial results
+                raise  # Re-raise other exceptions
         else:
             # For synchronous execution mode (with progress bar)
             self._logger.info("Starting sync interview execution with progress bar")
@@ -1009,6 +1053,27 @@ class Jobs(Base):
                         survey=self.survey, data=[], task_history=TaskHistory()
                     )
                 except Exception as e:
+                    from .exceptions import JobTerminationError
+                    from ..language_models.exceptions import (
+                        LanguageModelInsufficientCreditsError,
+                    )
+
+                    if isinstance(e, JobTerminationError):
+                        self._logger.error(f"Job terminated: {e}")
+                        if isinstance(e.cause, LanguageModelInsufficientCreditsError):
+                            # Handle insufficient credits termination
+                            print(f"❌ Job terminated due to insufficient credits")
+                            print(
+                                f"💰 Current balance: {getattr(e.cause, 'current_balance', 'Unknown')}"
+                            )
+                            print(
+                                f"📊 Completed: {len(results)} interviews before termination"
+                            )
+                            print(
+                                f"🔗 Add credits at: https://www.expectedparrot.com/home/credits"
+                            )
+                        return results  # Return partial results
+
                     self._logger.error(
                         f"Exception during interview execution: {str(e)}"
                     )
@@ -1037,6 +1102,15 @@ class Jobs(Base):
             f"Total execution time: {time.time() - execution_start:.3f}s, "
             f"final results count: {len(results) if results else 0}"
         )
+
+        # Clear file cache after job completion
+        if self.run_config.parameters.use_api_proxy:
+            from ..inference_services.services.remote_proxy_handler import (
+                RemoteProxyHandler,
+            )
+
+            await RemoteProxyHandler.clear_file_cache()
+
         return results
 
     @property
@@ -1074,6 +1148,13 @@ class Jobs(Base):
 
         start_time = time.time()
 
+        # Reset balance error flag for new job
+        from ..inference_services.services.remote_proxy_handler import (
+            reset_balance_error_flag,
+        )
+
+        reset_balance_error_flag()
+
         self._logger.info("Starting job configuration transfer")
         # Apply configuration from input config to self.run_config
         for attr_name in [
@@ -1091,6 +1172,20 @@ class Jobs(Base):
 
         # Replace parameters with the ones from the config
         self.run_config.parameters = config.parameters
+
+        # Handle backward compatibility for deprecated parameters
+        # Logic:
+        # - disable_remote_inference=False OR use_remote_inference_endpoint=True => offload_execution=True
+        # - use_api_proxy=True (explicit user choice) => offload_execution=False (overrides everything)
+
+        # First, check deprecated parameters and set offload_execution
+        if (
+            not config.parameters.disable_remote_inference
+            or config.parameters.use_remote_inference_endpoint
+        ):
+            # Old parameters indicate remote execution should be enabled
+            self.run_config.parameters.offload_execution = True
+
         self._logger.info(
             f"Configuration transfer completed in {time.time() - start_time:.3f}s"
         )
@@ -1104,12 +1199,81 @@ class Jobs(Base):
             f"Object validation completed in {time.time() - setup_start:.3f}s"
         )
 
-        if not self.run_config.parameters.disable_remote_inference:
+        # Handle mutual exclusivity between use_api_proxy and offload_execution
+        # If user explicitly sets use_api_proxy=True, it takes priority and disables offload_execution
+        if self.run_config.parameters.use_api_proxy:
+            # User explicitly wants API proxy mode - disable offload_execution no matter what
+            self.run_config.parameters.offload_execution = False
+            self._logger.info(
+                "use_api_proxy=True (explicit) - disabling offload_execution for local execution with API proxy"
+            )
+        elif self.run_config.parameters.offload_execution:
+            # offload_execution is True (from defaults or deprecated params) - ensure use_api_proxy is False
+            self.run_config.parameters.use_api_proxy = False
+            self._logger.info("offload_execution=True - using full remote execution")
+
+        # Use new parameter (use_api_proxy) to determine if we should enable proxy mode
+        if self.run_config.parameters.use_api_proxy:
+            # Enable progress bar by default when using API proxy
+            if self.run_config.parameters.progress_bar is False:
+                self.run_config.parameters.progress_bar = True
+                self._logger.info("Enabled progress bar for API proxy mode")
+
             key_check_start = time.time()
             self._logger.info("Checking remote inference keys")
             self._check_if_remote_keys_ok()
             self._logger.info(
                 f"Remote key check completed in {time.time() - key_check_start:.3f}s"
+            )
+
+            # Pre-flight balance check with cost estimation
+            balance_check_start = time.time()
+            self._logger.info("Performing pre-flight balance check")
+            insufficient_balance_reason = self._check_balance_before_execution()
+            if insufficient_balance_reason:
+                self._logger.info(
+                    f"Pre-flight balance check failed: {insufficient_balance_reason}"
+                )
+                return None, insufficient_balance_reason
+            self._logger.info(
+                f"Pre-flight balance check completed in {time.time() - balance_check_start:.3f}s"
+            )
+
+            # Configure remote proxy and fresh parameter for all models when remote inference is enabled
+            proxy_config_start = time.time()
+            self._logger.info("Configuring remote proxy and fresh parameter for models")
+            for model in self.models:
+                # Only set to True if it's not already explicitly set to False
+                if (
+                    not hasattr(model, "remote_proxy")
+                    or model.remote_proxy is not False
+                ):
+                    model.remote_proxy = True
+                    self._logger.debug(f"Enabled remote proxy for model: {model.model}")
+                else:
+                    self._logger.debug(
+                        f"Remote proxy disabled by user for model: {model.model}"
+                    )
+
+                # Pass fresh parameter to model
+                model.fresh = self.run_config.parameters.fresh
+                self._logger.debug(f"Set fresh={model.fresh} for model: {model.model}")
+            self._logger.info(
+                f"Remote proxy configuration completed in {time.time() - proxy_config_start:.3f}s"
+            )
+        else:
+            # When API proxy is disabled, ensure remote proxy is also disabled
+            proxy_config_start = time.time()
+            self._logger.info("Disabling remote proxy for models (API proxy disabled)")
+            for model in self.models:
+                model.remote_proxy = False
+                self._logger.debug(f"Disabled remote proxy for model: {model.model}")
+
+                # Pass fresh parameter to model
+                model.fresh = self.run_config.parameters.fresh
+                self._logger.debug(f"Set fresh={model.fresh} for model: {model.model}")
+            self._logger.info(
+                f"Remote proxy disable completed in {time.time() - proxy_config_start:.3f}s"
             )
 
         # Setup caching
@@ -1126,10 +1290,15 @@ class Jobs(Base):
             self.run_config.environment.cache = Cache(immediate_write=False)
         self._logger.info(f"Cache setup completed in {time.time() - cache_start:.3f}s")
 
-        # Try to run the job remotely first
+        # Try to offload entire job execution to Expected Parrot servers
         remote_start = time.time()
-        self._logger.info("Attempting remote execution")
-        results, reason = self._remote_results(config)
+        if self.run_config.parameters.offload_execution:
+            self._logger.info("Offloading job execution to Expected Parrot servers")
+            results, reason = self._remote_results(config)
+        else:
+            self._logger.info("Execution offloading disabled, running locally")
+            results, reason = None, ""
+
         if results is not None:
             self._logger.info(
                 f"Remote execution successful in {time.time() - remote_start:.3f}s"
@@ -1179,6 +1348,88 @@ class Jobs(Base):
         )
 
         return None, reason
+
+    def _check_balance_before_execution(self) -> Optional[str]:
+        """Check if user has sufficient balance to run the job.
+
+        Returns:
+            None if balance is sufficient, error message string if insufficient
+        """
+        try:
+            # Only check balance for remote proxy jobs
+            if not any(getattr(model, "remote_proxy", False) for model in self.models):
+                return None
+
+            # Estimate job cost
+            self._logger.info("Estimating job cost...")
+            try:
+                cost_estimate = self.estimate_job_cost(
+                    iterations=self.run_config.parameters.n
+                )
+                estimated_cost_usd = cost_estimate.get("estimated_total_cost_usd", 0)
+
+                # Get the proper minicredits from the cost estimate
+                estimated_cost_minicredits = cost_estimate.get("total_credits_hold", 0)
+
+                self._logger.info(
+                    f"Estimated job cost: ${estimated_cost_usd:.6f} USD ({estimated_cost_minicredits:.2f} minicredits)"
+                )
+            except Exception as e:
+                print(f"   ⚠️  Could not estimate job cost: {e}")
+                self._logger.warning(
+                    f"Could not estimate job cost: {e}. Proceeding without balance check."
+                )
+                return None
+
+            # Check user balance via Coop
+            self._logger.info("Checking user balance...")
+            try:
+                import time
+                from ..coop import Coop
+
+                balance_check_start = time.time()
+                coop = Coop()
+                balance_data = coop.get_balance()
+                balance_check_time = time.time() - balance_check_start
+
+                # Extract balance from Coop response
+                current_balance = balance_data.get("minicredits", 0)
+                balance_string = f"{current_balance} minicredits"
+
+                # Convert minicredits to dollars for display (1000 minicredits = 1 credit = 1 cent, so 100,000 minicredits = $1 USD)
+                balance_dollars = current_balance / 100000
+
+                self._logger.info(
+                    f"Current user balance: {balance_string} (${balance_dollars:.3f} USD) - fetched in {balance_check_time:.3f}s"
+                )
+
+                # Compare estimated cost with balance
+                if current_balance <= 0:
+                    return f"insufficient funds: Current balance is {balance_string} (${balance_dollars:.3f} USD). Please add credits to your account."
+
+                if estimated_cost_minicredits > current_balance:
+                    estimated_cost_dollars = estimated_cost_minicredits / 100000
+                    return (
+                        f"insufficient funds: Estimated job cost ({estimated_cost_minicredits:.0f} minicredits / ${estimated_cost_dollars:.3f} USD) "
+                        f"exceeds current balance ({balance_string} / ${balance_dollars:.3f} USD). Please add credits to your account."
+                    )
+
+                self._logger.info(
+                    f"Balance check passed: {balance_string} >= {estimated_cost_minicredits:.2f} minicredits needed"
+                )
+                return None
+
+            except Exception as e:
+                self._logger.warning(
+                    f"Could not check user balance: {e}. Proceeding without balance check."
+                )
+                return None
+
+        except Exception as e:
+            self._logger.error(
+                f"Error during balance check: {e}. Proceeding without balance check."
+            )
+            return None
 
     def then(self, method_name, *args, **kwargs) -> "Jobs":
         """Schedule a method to be called on the results object after the job runs.
@@ -1340,7 +1591,13 @@ class Jobs(Base):
         disable_remote_cache : bool, optional
             Whether to disable the remote cache (default: False)
         disable_remote_inference : bool, optional
-            Whether to disable remote inference (default: False)
+            [DEPRECATED] Whether to disable remote inference proxy mode (default: False). Use 'use_api_proxy' instead.
+        use_remote_inference_endpoint : bool, optional
+            [DEPRECATED] Whether to use the old remote inference endpoint (default: False). Use 'offload_execution' instead.
+        use_api_proxy : bool, optional
+            Whether to proxy API calls through Expected Parrot (default: True)
+        offload_execution : bool, optional
+            Whether to offload entire job execution to Expected Parrot servers (default: False)
         fresh : bool, optional
             Whether to ignore cache and force new results (default: False)
         skip_retry : bool, optional
@@ -1386,18 +1643,23 @@ class Jobs(Base):
             ...
 
         """
+
         self._logger.info("Starting job execution")
         self._logger.info(
             f"Job configuration: {self.num_interviews} total interviews, "
-            f"remote_inference={'disabled' if config.parameters.disable_remote_inference else 'enabled'}, "
+            f"api_proxy={'enabled' if config.parameters.use_api_proxy else 'disabled'}, "
+            f"offload_execution={'enabled' if config.parameters.offload_execution else 'disabled'}, "
             f"progress_bar={config.parameters.progress_bar}"
         )
 
         if self._depends_on is not None:
+            print("🔗 Resolving job dependencies...")
             self._logger.info("Checking job dependencies")
             prior_results = self._depends_on.run(config=config)
             self = self.by(prior_results)
             self._logger.info("Job dependencies resolved successfully")
+            print("✅ Job dependencies resolved")
+            print()
 
         self._logger.info("Starting pre-run setup and configuration")
         potentially_completed_results, reason = self._run(config)
@@ -1408,8 +1670,11 @@ class Jobs(Base):
             )
             return self._apply_post_run_methods(potentially_completed_results)
 
-        if reason == "insufficient funds":
-            self._logger.info("Job cancelled due to insufficient funds")
+        if reason and "insufficient funds" in reason:
+            self._logger.info(f"Job cancelled due to insufficient funds: {reason}")
+            print(f"❌ Job cancelled before execution")
+            print(f"💰 {reason}")
+            print(f"🔗 Add credits at: https://www.expectedparrot.com/home/credits")
             return None
 
         self._logger.info("Starting local execution with remote cache")
@@ -1458,7 +1723,13 @@ class Jobs(Base):
         disable_remote_cache : bool, optional
             Whether to disable the remote cache (default: False)
         disable_remote_inference : bool, optional
-            Whether to disable remote inference (default: False)
+            [DEPRECATED] Whether to disable remote inference proxy mode (default: False). Use 'use_api_proxy' instead.
+        use_remote_inference_endpoint : bool, optional
+            [DEPRECATED] Whether to use the old remote inference endpoint (default: False). Use 'offload_execution' instead.
+        use_api_proxy : bool, optional
+            Whether to proxy API calls through Expected Parrot (default: True)
+        offload_execution : bool, optional
+            Whether to offload entire job execution to Expected Parrot servers (default: False)
         fresh : bool, optional
             Whether to ignore cache and force new results (default: False)
         skip_retry : bool, optional
@@ -1530,8 +1801,11 @@ class Jobs(Base):
         config = RunConfig(environment=environment, parameters=parameters)
 
         import time
+
         start_time = time.time()
-        print(f"[DEBUG] Starting batch execution with {num_batches} batches at {time.time():.3f}")
+        print(
+            f"[DEBUG] Starting batch execution with {num_batches} batches at {time.time():.3f}"
+        )
         self._logger.info(f"Starting batch execution with {num_batches} batches")
         self._logger.info(
             f"Job configuration: {self.num_interviews} total interviews, "
@@ -1558,10 +1832,14 @@ class Jobs(Base):
         self._logger.info("Generating interviews and preserving original ordering")
         all_interviews = list(self.generate_interviews())
         total_interviews = len(all_interviews)
-        print(f"[DEBUG] Generated {total_interviews} interviews in {time.time() - interview_gen_start:.3f}s")
+        print(
+            f"[DEBUG] Generated {total_interviews} interviews in {time.time() - interview_gen_start:.3f}s"
+        )
 
         if num_batches > total_interviews:
-            self._logger.warning(f"num_batches ({num_batches}) is greater than total interviews ({total_interviews}), adjusting to {total_interviews}")
+            self._logger.warning(
+                f"num_batches ({num_batches}) is greater than total interviews ({total_interviews}), adjusting to {total_interviews}"
+            )
             num_batches = total_interviews
 
         # Create (interview, original_index) pairs
@@ -1588,8 +1866,12 @@ class Jobs(Base):
             start_idx = end_idx
 
         batch_split_time = time.time()
-        self._logger.info(f"Split interviews into {num_batches} batches: {[len(batch) for batch in batches]}")
-        print(f"[DEBUG] Batch splitting completed in {batch_split_time - start_time:.3f}s total")
+        self._logger.info(
+            f"Split interviews into {num_batches} batches: {[len(batch) for batch in batches]}"
+        )
+        print(
+            f"[DEBUG] Batch splitting completed in {batch_split_time - start_time:.3f}s total"
+        )
 
         # Run each batch separately
         batch_results = []
@@ -1600,23 +1882,31 @@ class Jobs(Base):
 
             batch_start = time.time()
             print(f"[DEBUG] Starting batch {i+1}/{num_batches} at {time.time():.3f}")
-            self._logger.info(f"Running batch {i+1}/{num_batches} with {len(batch)} interviews")
+            self._logger.info(
+                f"Running batch {i+1}/{num_batches} with {len(batch)} interviews"
+            )
 
             # Extract just the interviews (without original indices) for this batch
             extract_start = time.time()
             batch_interviews = [interview for _, interview in batch]
-            print(f"[DEBUG] Batch {i+1}: extracted interviews in {time.time() - extract_start:.3f}s")
+            print(
+                f"[DEBUG] Batch {i+1}: extracted interviews in {time.time() - extract_start:.3f}s"
+            )
 
             # Create a job for this batch
             job_create_start = time.time()
             batch_job = Jobs.from_interviews(batch_interviews)
-            print(f"[DEBUG] Batch {i+1}: created job in {time.time() - job_create_start:.3f}s")
+            print(
+                f"[DEBUG] Batch {i+1}: created job in {time.time() - job_create_start:.3f}s"
+            )
 
             # Run the batch job with the same config
             run_start = time.time()
             print(f"[DEBUG] Batch {i+1}: starting run() at {time.time():.3f}")
             batch_result = batch_job.run(config=config)
-            print(f"[DEBUG] Batch {i+1}: run() completed in {time.time() - run_start:.3f}s")
+            print(
+                f"[DEBUG] Batch {i+1}: run() completed in {time.time() - run_start:.3f}s"
+            )
 
             if batch_result is not None:
                 # Add original indices back to results for proper ordering
@@ -1626,15 +1916,25 @@ class Jobs(Base):
                         original_index = batch[j][0]  # Get original index from batch
                         result.order = original_index
                     else:
-                        self._logger.warning(f"Batch {i+1}: more results ({len(batch_result.data)}) than expected ({len(batch)})")
-                print(f"[DEBUG] Batch {i+1}: ordering completed in {time.time() - ordering_start:.3f}s")
+                        self._logger.warning(
+                            f"Batch {i+1}: more results ({len(batch_result.data)}) than expected ({len(batch)})"
+                        )
+                print(
+                    f"[DEBUG] Batch {i+1}: ordering completed in {time.time() - ordering_start:.3f}s"
+                )
 
                 batch_results.append(batch_result)
-                self._logger.info(f"Batch {i+1} completed with {len(batch_result)} results")
-                print(f"[DEBUG] Batch {i+1}: total time {time.time() - batch_start:.3f}s")
+                self._logger.info(
+                    f"Batch {i+1} completed with {len(batch_result)} results"
+                )
+                print(
+                    f"[DEBUG] Batch {i+1}: total time {time.time() - batch_start:.3f}s"
+                )
             else:
                 self._logger.warning(f"Batch {i+1} returned None results")
-                print(f"[DEBUG] Batch {i+1}: returned None in {time.time() - batch_start:.3f}s")
+                print(
+                    f"[DEBUG] Batch {i+1}: returned None in {time.time() - batch_start:.3f}s"
+                )
 
         if not batch_results:
             self._logger.warning("No batch results to merge")
@@ -1645,11 +1945,7 @@ class Jobs(Base):
         merge_start = time.time()
         print(f"[DEBUG] Starting result merging at {time.time():.3f}")
         self._logger.info("Merging batch results and restoring original order")
-        final_results = Results(
-            survey=self.survey,
-            data=[],
-            task_history=TaskHistory()
-        )
+        final_results = Results(survey=self.survey, data=[], task_history=TaskHistory())
 
         # Collect all individual results from all batches
         collect_start = time.time()
@@ -1660,7 +1956,9 @@ class Jobs(Base):
             # Collect task histories for merging
             if batch_result.task_history:
                 all_task_histories.append(batch_result.task_history)
-        print(f"[DEBUG] Result collection completed in {time.time() - collect_start:.3f}s")
+        print(
+            f"[DEBUG] Result collection completed in {time.time() - collect_start:.3f}s"
+        )
 
         # Sort results by their original order
         sort_start = time.time()
@@ -1677,21 +1975,25 @@ class Jobs(Base):
                 for interview in task_history.total_interviews:
                     merged_task_history.add_interview(interview)
             final_results.task_history = merged_task_history
-            print(f"[DEBUG] Task history merging completed in {time.time() - history_start:.3f}s")
+            print(
+                f"[DEBUG] Task history merging completed in {time.time() - history_start:.3f}s"
+            )
 
         # Merge other attributes from the first batch result
         if batch_results:
             first_batch = batch_results[0]
             final_results.cache = first_batch.cache
             # Only set bucket_collection if it exists on the first batch
-            if hasattr(first_batch, 'bucket_collection'):
+            if hasattr(first_batch, "bucket_collection"):
                 final_results.bucket_collection = first_batch.bucket_collection
 
         post_run_start = time.time()
         print(f"[DEBUG] Starting post-run methods at {time.time():.3f}")
         self._logger.info("Applying post-run methods to merged results")
         final_results = self._apply_post_run_methods(final_results)
-        print(f"[DEBUG] Post-run methods completed in {time.time() - post_run_start:.3f}s")
+        print(
+            f"[DEBUG] Post-run methods completed in {time.time() - post_run_start:.3f}s"
+        )
 
         total_time = time.time() - start_time
         print(f"[DEBUG] Total batch execution time: {total_time:.3f}s")
@@ -1733,7 +2035,13 @@ class Jobs(Base):
         disable_remote_cache : bool, optional
             Whether to disable the remote cache (default: False)
         disable_remote_inference : bool, optional
-            Whether to disable remote inference (default: False)
+            [DEPRECATED] Whether to disable remote inference proxy mode (default: False). Use 'use_api_proxy' instead.
+        use_remote_inference_endpoint : bool, optional
+            [DEPRECATED] Whether to use the old remote inference endpoint (default: False). Use 'offload_execution' instead.
+        use_api_proxy : bool, optional
+            Whether to proxy API calls through Expected Parrot (default: True)
+        offload_execution : bool, optional
+            Whether to offload entire job execution to Expected Parrot servers (default: False)
         fresh : bool, optional
             Whether to ignore cache and force new results (default: False)
         skip_retry : bool, optional
@@ -1814,7 +2122,7 @@ class Jobs(Base):
         4
         """
         # If we have pre-stored interviews (from from_interviews method), count those
-        if hasattr(self, '_interviews') and self._interviews:
+        if hasattr(self, "_interviews") and self._interviews:
             return len(self._interviews)
 
         number_of_interviews = (

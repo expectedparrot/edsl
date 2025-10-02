@@ -3,7 +3,7 @@ from typing import Optional
 
 from uuid import uuid4
 
-from pydantic import model_validator, BaseModel, ValidationError
+from pydantic import model_validator, field_validator, BaseModel, ValidationError
 
 
 from .question_base import QuestionBase
@@ -49,6 +49,14 @@ class FreeTextResponse(BaseModel):
 
     answer: str
     generated_tokens: Optional[str] = None
+
+    @field_validator("answer", mode="before")
+    @classmethod
+    def convert_answer_to_string(cls, v):
+        """Convert answer to string to handle integer responses from language models."""
+        if v is not None:
+            return str(v)
+        return v
 
     @model_validator(mode="after")
     def validate_tokens_match_answer(self):
@@ -160,15 +168,29 @@ class FreeTextResponseValidator(ResponseValidatorABC):
             - For free text responses, the answer is always synchronized with generated_tokens
             - Both fields are converted to strings to ensure type consistency
         """
-        if response.get("generated_tokens") != response.get("answer"):
+        # Convert both answer and generated_tokens to strings to handle integer responses
+        answer = response.get("answer")
+        generated_tokens = response.get("generated_tokens")
+
+        # Convert answer to string if it's not None
+        if answer is not None:
+            answer = str(answer)
+
+        # Convert generated_tokens to string if it's not None
+        if generated_tokens is not None:
+            generated_tokens = str(generated_tokens)
+
+        # If generated_tokens exists, prefer it over answer for consistency
+        if generated_tokens is not None:
             return {
-                "answer": str(response.get("generated_tokens")),
-                "generated_tokens": str(response.get("generated_tokens")),
+                "answer": generated_tokens,
+                "generated_tokens": generated_tokens,
             }
         else:
+            # If no generated_tokens, use the answer (converted to string)
             return {
-                "answer": str(response.get("generated_tokens")),
-                "generated_tokens": str(response.get("generated_tokens")),
+                "answer": answer or "",
+                "generated_tokens": None,
             }
 
 
