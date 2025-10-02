@@ -1,5 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Any, TypedDict, Union, List
+import re
+from html import escape
 from pathlib import Path
 from abc import ABC
 
@@ -154,6 +156,17 @@ class App(ABC):
         self._debug_output_last: Any | None = None
         self._debug_history: list[dict] = []
 
+        # Cache for generated results keyed by the hash of a jobs object
+        self._generated_results: dict[int, "Results"] = {}
+
+        # Register this app instance in the global registry
+        try:
+            from .app_registry import AppRegistry
+            AppRegistry.register(self)
+        except Exception:
+            # Registration failures should not prevent app initialization
+            pass
+
     @classmethod
     def list(cls) -> list[str]:
         """List all apps."""
@@ -162,9 +175,28 @@ class App(ABC):
         coop = Coop()
         return coop.list_apps()
 
+    def __call__(self, **kwargs: Any) -> Any:
+        """Call the app with the given parameters."""
+        return self.output(params = kwargs)
+
     def _generate_results(self, modified_jobs_object: "Jobs") -> "Results":
-        """Generate results from a modified jobs object."""
-        return modified_jobs_object.run(stop_on_exception=True)
+        """Generate results from a modified jobs object with instance-level caching.
+
+        Results are cached on the instance using the hash of the provided
+        jobs object. If the same jobs configuration is requested again,
+        the cached results are returned without re-running the jobs.
+        """
+        jobs_hash = hash(modified_jobs_object)
+        cache = self._generated_results
+        if jobs_hash in cache:
+            results = cache[jobs_hash]
+            self._debug_results_last = results
+            return results
+
+        results = modified_jobs_object.run(stop_on_exception=True)
+        cache[jobs_hash] = results
+        self._debug_results_last = results
+        return results
 
     def output(
         self,
@@ -270,10 +302,135 @@ class App(ABC):
             default_fmt = "<none>"
         attach_names = ", ".join([getattr(f, "name", f.__class__.__name__) for f in (self.attachment_formatters or [])])
         return (
-            f"{cls_name}(name='{self.application_name}', type='{self.application_type}', "
+            f"{cls_name}(name='{self.application_name}', description='{self.description}', "
+            f"parameters={self.parameters}, "
             f"job='{job_cls}', survey_questions={num_questions}, head_params={head_param_count}, "
             f"formatters=[{fmt_names}], default_formatter='{default_fmt}', attachments=[{attach_names}])"
         )
+
+    @staticmethod
+    def _convert_markdown_to_html(md_text: str) -> str:
+        """Convert markdown to HTML.
+
+        Prefers the 'markdown' package if available. Falls back to a minimal
+        regex-based converter that supports headings (#, ##, ###), bold, italics,
+        and inline code, plus paragraph wrapping. Always escapes raw HTML first.
+        """
+        if md_text is None:
+            return ""
+        safe_text = escape(str(md_text))
+        try:
+            import markdown as md  # type: ignore
+            return md.markdown(
+                safe_text,
+                extensions=["extra", "sane_lists", "tables"],
+            )
+        except Exception:
+            pass
+
+        text = safe_text
+        # Headings
+        text = re.sub(r"(?m)^######\s+(.+)$", r"<h6>\\1</h6>", text)
+        text = re.sub(r"(?m)^#####\s+(.+)$", r"<h5>\\1</h5>", text)
+        text = re.sub(r"(?m)^####\s+(.+)$", r"<h4>\\1</h4>", text)
+        text = re.sub(r"(?m)^###\s+(.+)$", r"<h3>\\1</h3>", text)
+        text = re.sub(r"(?m)^##\s+(.+)$", r"<h2>\\1</h2>", text)
+        text = re.sub(r"(?m)^#\s+(.+)$", r"<h1>\\1</h1>", text)
+        # Inline code
+        text = re.sub(r"`([^`]+)`", r"<code>\\1</code>", text)
+        # Bold and italics (simple forms)
+        text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\\1</strong>", text)
+        text = re.sub(r"__(.+?)__", r"<strong>\\1</strong>", text)
+        text = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"<em>\\1</em>", text)
+        text = re.sub(r"_(.+?)_", r"<em>\\1</em>", text)
+        # Paragraphs: split on blank lines
+        parts = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
+        wrapped = [p if p.startswith("<h") else f"<p>{p}</p>" for p in parts]
+        return "\n".join(wrapped)
+
+    def _repr_html_(self) -> str:
+        """Rich HTML representation for IPython/Jupyter.
+
+        Renders the application's name, the description (markdown converted to
+        HTML), and a table of parameters derived from the initial survey.
+        """
+        title_html = f"<h2 style=\"margin-bottom:0.25rem;\">{escape(self.application_name)}</h2>"
+        desc_html = self._convert_markdown_to_html(self.description)
+
+        # Build parameters table
+        rows_html = []
+        for name, qtype, prompt in self.parameters:
+            rows_html.append(
+                """
+                <tr>
+                  <td>{name}</td>
+                  <td><code>{qtype}</code></td>
+                  <td>{prompt}</td>
+                </tr>
+                """.format(
+                    name=escape(str(name)),
+                    qtype=escape(str(qtype)),
+                    prompt=escape(str(prompt)),
+                )
+            )
+
+        table_html = (
+            """
+            <table style="border-collapse:collapse; width:100%; margin-top:0.75rem;">
+              <thead>
+                <tr>
+                  <th style="text-align:left; border-bottom:1px solid #ccc; padding:6px 8px;">Parameter</th>
+                  <th style="text-align:left; border-bottom:1px solid #ccc; padding:6px 8px;">Type</th>
+                  <th style="text-align:left; border-bottom:1px solid #ccc; padding:6px 8px;">Prompt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows}
+              </tbody>
+            </table>
+            """
+        ).format(rows="\n".join(rows_html))
+
+        # Usage example derived from initial survey
+        def _example_value_for_type(question_type: str) -> str:
+            qt = (question_type or "").lower()
+            if "bool" in qt:
+                return "True"
+            if "int" in qt:
+                return "0"
+            if "float" in qt or "number" in qt or "numeric" in qt:
+                return "0.0"
+            if "list" in qt or "array" in qt:
+                return "[\"item1\", \"item2\"]"
+            if "date" in qt:
+                return "\"2025-01-01\""
+            if "file" in qt or "path" in qt:
+                return "\"/path/to/file.txt\""
+            # default to generic text
+            return "\"...\""
+
+        example_kv_lines = []
+        for name, qtype, _prompt in self.parameters:
+            value_literal = _example_value_for_type(str(qtype))
+            example_kv_lines.append(f"    {repr(str(name))}: {value_literal}")
+        params_body = ",\n".join(example_kv_lines) if example_kv_lines else "    # no parameters"
+        usage_code = f"app.output(params={{\n{params_body}\n}})"
+        usage_block = f"<pre style=\"background:#f6f8fa; padding:10px; border-radius:6px; overflow:auto;\"><code class=\"language-python\">{escape(usage_code)}</code></pre>"
+
+        container = (
+            """
+            <div class="edsl-app" style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, sans-serif; line-height:1.5;">
+              {title}
+              <div class="edsl-app-description" style="color:#333; margin-top:0.5rem;">{desc}</div>
+              <h3 style="margin-top:1.25rem;">Parameters</h3>
+              {table}
+              <h3 style="margin-top:1.25rem;">Usage</h3>
+              {usage}
+            </div>
+            """
+        ).format(title=title_html, desc=desc_html, table=table_html, usage=usage_block)
+
+        return container
 
     
 
