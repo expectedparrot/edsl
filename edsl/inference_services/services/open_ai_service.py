@@ -247,6 +247,7 @@ class OpenAIService(InferenceServiceABC):
                 invigilator: Optional[
                     "InvigilatorAI"
                 ] = None,  # TBD - can eventually be used for function-calling
+                cache_key: Optional[str] = None,  # Cache key for tracking
                 response_schema: Optional[dict] = None,
                 response_schema_name: Optional[str] = None,
             ) -> dict[str, Any]:
@@ -258,12 +259,43 @@ class OpenAIService(InferenceServiceABC):
                     question_name: Optional name of the question being asked
                     files_list: Optional list of files to include
                     invigilator: Optional invigilator for additional context
+                    cache_key: Optional cache key for tracking
                     response_schema: Optional JSON schema for structured output (Pydantic model schema)
                     response_schema_name: Optional name of the Pydantic model for the schema
 
                 Returns:
                     dict: The model's response as a dictionary
                 """
+
+                # Check if we should use remote proxy
+                if self.remote_proxy:
+                    # Use remote proxy mode
+                    from .remote_proxy_handler import RemoteProxyHandler
+
+                    handler = RemoteProxyHandler(
+                        model=self.model,
+                        inference_service=self._inference_service_,
+                        job_uuid=getattr(self, "job_uuid", None),
+                    )
+
+                    # Get fresh parameter
+                    fresh_value = getattr(self, "fresh", False)
+
+                    return await handler.execute_model_call(
+                        user_prompt=user_prompt,
+                        system_prompt=system_prompt,
+                        files_list=files_list,
+                        cache_key=cache_key,
+                        temperature=self.temperature,
+                        max_tokens=self.max_tokens,
+                        top_p=self.top_p,
+                        frequency_penalty=self.frequency_penalty,
+                        presence_penalty=self.presence_penalty,
+                        logprobs=self.logprobs,
+                        top_logprobs=self.top_logprobs,
+                        omit_system_prompt_if_empty=self.omit_system_prompt_if_empty,
+                        fresh=fresh_value,  # Pass fresh parameter
+                    )
 
                 # Use MessageBuilder to construct messages
                 message_builder = MessageBuilder(
@@ -298,8 +330,8 @@ class OpenAIService(InferenceServiceABC):
                         "json_schema": {
                             "name": response_schema_name or "response_schema",
                             "strict": True,
-                            "schema": response_schema
-                        }
+                            "schema": response_schema,
+                        },
                     }
 
                 # Apply service-specific parameter filtering

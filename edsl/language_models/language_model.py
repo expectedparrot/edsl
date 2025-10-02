@@ -157,16 +157,16 @@ class LanguageModel(
         DEFAULT_TPM: Default tokens per minute rate limit
     """
 
-    _model_:str = None
-    key_sequence: tuple[str, ...] = (
-        None  # This should be something like ["choices", 0, "message", "content"]
-    )
+    _model_: str = None
+    key_sequence: tuple[
+        str, ...
+    ] = None  # This should be something like ["choices", 0, "message", "content"]
 
-    DEFAULT_RPM = 100
-    DEFAULT_TPM = 1000
+    DEFAULT_RPM = 300
+    DEFAULT_TPM = 1000000
 
     @classproperty
-    def response_handler(cls)    -> RawResponseHandler:
+    def response_handler(cls) -> RawResponseHandler:
         """Get a handler for processing raw model responses.
 
         This property creates a RawResponseHandler configured for the specific
@@ -219,6 +219,10 @@ class LanguageModel(
 
         # Initialize basic settings
         self.remote = False
+        self.remote_proxy = True  # Default to using remote proxy when available
+        self.job_uuid = (
+            None  # Job UUID for progress tracking, set when progress bar is enabled
+        )
         self.omit_system_prompt_if_empty = omit_system_prompt_if_empty_string
 
         # Set up API key lookup and fetch model information
@@ -446,6 +450,7 @@ class LanguageModel(
         # Special handling for ScriptedResponseLanguageModel
         try:
             from .scripted_response_model import ScriptedResponseLanguageModel
+
             if isinstance(self, ScriptedResponseLanguageModel):
                 new_model = ScriptedResponseLanguageModel(self.agent_question_responses)
                 # Copy all important instance attributes
@@ -455,7 +460,7 @@ class LanguageModel(
                 return new_model
         except ImportError:
             pass
-        
+
         # Create a new instance of the same class with the same parameters
         try:
             # For most models, we can instantiate with the saved parameters
@@ -471,7 +476,7 @@ class LanguageModel(
             # Fallback for dynamically created classes like TestServiceLanguageModel
             try:
                 from ..inference_services import default
-                
+
                 # If this is a test model, create a new test model instance
                 if getattr(self, "_inference_service_", "") == "test":
                     service = default.get_service("test")
@@ -827,7 +832,7 @@ class LanguageModel(
         # Try to fetch from cache
         # This if figuring out if we need to go back to a remote
         # server and get a cache response because the question contains
-        # a piped answer, which means it *could* be in cache but isn't in 
+        # a piped answer, which means it *could* be in cache but isn't in
         # the cache that was passed to this particular invigilator.
         if (
             invigilator is not None
@@ -882,13 +887,14 @@ class LanguageModel(
                 "user_prompt": user_prompt,
                 "system_prompt": system_prompt,
                 "files_list": files_list,
+                "cache_key": cache_key,  # Pass cache key for tracking
             }
             # Add question_name parameter for test models
             if self.model == "test" and invigilator:
                 params["question_name"] = invigilator.question.question_name
 
             # Add invigilator parameter for scripted models
-            if hasattr(self, 'agent_question_responses') and invigilator:
+            if hasattr(self, "agent_question_responses") and invigilator:
                 params["invigilator"] = invigilator
 
             # Add response schema if provided (for structured output)
@@ -899,8 +905,8 @@ class LanguageModel(
             TIMEOUT = self._compute_timeout(files_list)
 
             # Execute the model call with timeout
-
             response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
+
             # Store the response in the cache
             new_cache_key = cache.store(
                 **cache_call_params, response=response, service=self._inference_service_
@@ -1016,6 +1022,7 @@ class LanguageModel(
             model_outputs=model_outputs,
             edsl_dict=edsl_dict,
         )
+
         return agent_response_dict
 
     get_response = sync_wrapper(async_get_response)
@@ -1142,10 +1149,14 @@ class LanguageModel(
             if "not found in any service" in str(e):
                 # For serialization compatibility testing, create a test model as fallback
                 # while preserving the original model name for reference
-                test_model_class = registry.create_language_model("test", service_name="test")
+                test_model_class = registry.create_language_model(
+                    "test", service_name="test"
+                )
                 test_data = data.copy()
                 test_data["model"] = "test"  # Test model expects "test" as model name
-                test_data["original_model"] = model_name  # Preserve original for debugging
+                test_data[
+                    "original_model"
+                ] = model_name  # Preserve original for debugging
                 return test_model_class(**test_data)
             else:
                 raise
@@ -1196,8 +1207,7 @@ class LanguageModel(
 
     @classmethod
     def from_scripted_responses(
-        cls,
-        agent_question_responses: dict[str, dict[str, str]]
+        cls, agent_question_responses: dict[str, dict[str, str]]
     ) -> "LanguageModel":
         """Create a language model with scripted responses for specific agent-question combinations.
 
@@ -1231,6 +1241,7 @@ class LanguageModel(
             >>> # When used with agent 'bob' and question 'age', returns '30'
         """
         from .scripted_response_model import ScriptedResponseLanguageModel
+
         return ScriptedResponseLanguageModel(agent_question_responses)
 
     @classmethod

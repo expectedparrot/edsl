@@ -416,8 +416,8 @@ test-notebooks:
 
 test-starter-tutorial:
 	@echo "Testing starter tutorial..."
-	pytest -v integration/active/test_notebooks.py -k docs/notebooks/hello_world.ipynb --override-ini config_file=integration/pytest.ini
-	pytest -v integration/active/test_notebooks.py -k docs/notebooks/starter_tutorial.ipynb --override-ini config_file=integration/pytest.ini
+	pytest -xsv integration/active/test_notebooks.py -k docs/notebooks/hello_world.ipynb --override-ini config_file=integration/pytest.ini
+	pytest -xsv integration/active/test_notebooks.py -k docs/notebooks/starter_tutorial.ipynb --override-ini config_file=integration/pytest.ini
 
 
 # .PHONY: test-notebooks	

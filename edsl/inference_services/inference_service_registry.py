@@ -29,7 +29,11 @@ def discover_service_modules():
         # Extract service name from module name
         # e.g., "edsl.inference_services.services.open_ai_service" -> "openai"
         module_basename = modname.split(".")[-1]
-        if module_basename.endswith("_service"):
+
+        # Handle special case for open_ai_service_v2 first (doesn't end with _service)
+        if module_basename == "open_ai_service_v2":
+            service_name = "openai_v2"
+        elif module_basename.endswith("_service"):
             service_name = module_basename[:-8]  # Remove "_service" suffix
             # Handle special naming cases for modules ending with _service
             if service_name == "open_ai":
@@ -139,10 +143,13 @@ class InferenceServiceRegistry:
         # Lazy loading: store service modules without importing them
         # If classes_to_register=[] is explicitly passed, don't use discovery
         if classes_to_register is not None and len(classes_to_register) == 0:
-            self._service_module_map = service_module_map if service_module_map is not None else {}
+            self._service_module_map = (
+                service_module_map if service_module_map is not None else {}
+            )
         else:
             self._service_module_map = (
-                service_module_map if service_module_map is not None
+                service_module_map
+                if service_module_map is not None
                 else self._default_service_module_map.copy()
             )
         self._loaded_service_classes = {}  # Cache for imported service classes
@@ -203,7 +210,9 @@ class InferenceServiceRegistry:
             # Import module only when needed
             module_name = self._service_module_map[service_name]
             if self.verbose:
-                print(f"[LAZY_LOADING] Loading service '{service_name}' from {module_name}")
+                print(
+                    f"[LAZY_LOADING] Loading service '{service_name}' from {module_name}"
+                )
 
             try:
                 module = importlib.import_module(module_name)
@@ -216,10 +225,14 @@ class InferenceServiceRegistry:
 
                 return service_class
             except ImportError as e:
-                raise ImportError(f"Failed to import service '{service_name}' from {module_name}: {e}")
+                raise ImportError(
+                    f"Failed to import service '{service_name}' from {module_name}: {e}"
+                )
 
         # Service not found anywhere
-        available_services = list(set(self._service_module_map.keys()) | set(self._services.keys()))
+        available_services = list(
+            set(self._service_module_map.keys()) | set(self._services.keys())
+        )
         raise KeyError(
             f"Service '{service_name}' not found in registry. Available services: {available_services}"
         )
@@ -250,29 +263,31 @@ class InferenceServiceRegistry:
         self._services[service_name] = service_class
         self._registration_times[service_name] = datetime.now()
 
-
     def list_registered_services(self) -> list[str]:
         """Returns a list of all discoverable service names."""
         # Return all discoverable services (both loaded and not-yet-loaded)
         all_services = set(self._service_module_map.keys())
-        all_services.update(self._services.keys())  # Include explicitly registered services
+        all_services.update(
+            self._services.keys()
+        )  # Include explicitly registered services
         return list(all_services)
 
     def fetch_model_info_data(
-        self, source_preferences: Optional[List[str]] = None
+        self, source_preferences: Optional[List[str]] = None, service_name: Optional[str] = None
     ) -> Dict[str, List["ModelInfo"]]:
         """
         Refreshes the model info data and rebuilds the model-to-service and service-to-model mappings, taking source preferences into account.
 
         Args:
             source_preferences: Optional list of source preferences to override the default
+            service_name: Optional service name to fetch models only for that service
 
         Returns:
             Dictionary mapping service names to lists of ModelInfo objects
         """
         if self._model_info_data is None:
             self._model_info_data = self._source_handler.fetch_model_info_data(
-                source_preferences
+                source_preferences, service_name=service_name
             )
 
         return self._model_info_data
