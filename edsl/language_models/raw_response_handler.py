@@ -79,7 +79,6 @@ class RawResponseHandler:
         ):
             # For non-reasoning models or reasoning models with different response formats,
             # try to extract text directly from common response formats
-            print("Falling back to common response formats", flush=True)
             if isinstance(raw_response, dict):
                 # Responses API format for non-reasoning models
                 if "output" in raw_response and isinstance(

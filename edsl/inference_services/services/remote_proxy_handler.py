@@ -45,6 +45,11 @@ class RemoteProxyHandler:
     _shared_client: Optional[httpx.AsyncClient] = None
     _client_lock = asyncio.Lock()
 
+    # Class-level file cache for deduplication across interviews
+    # Maps file_hash -> {"gcs_path": str, "url_info": dict, "gcs_reference": dict}
+    _file_cache: Dict[str, Dict[str, Any]] = {}
+    _cache_lock = asyncio.Lock()
+
     def __init__(
         self, model: str, inference_service: str, job_uuid: Optional[str] = None
     ):
@@ -108,6 +113,12 @@ class RemoteProxyHandler:
             await cls._shared_client.aclose()
             cls._shared_client = None
 
+    @classmethod
+    async def clear_file_cache(cls):
+        """Clear the file cache. Should be called after a job completes."""
+        async with cls._cache_lock:
+            cls._file_cache.clear()
+
     @property
     def auth_headers(self) -> Dict[str, str]:
         """Generate authentication headers for proxy requests."""
@@ -161,7 +172,7 @@ class RemoteProxyHandler:
     async def _handle_file_uploads(
         self, files_list: List["Files"]
     ) -> List[Dict[str, Any]]:
-        """Handle file uploads to GCS through signed URLs.
+        """Handle file uploads to GCS through signed URLs with cross-interview caching.
 
         Args:
             files_list: List of files to upload
@@ -169,54 +180,68 @@ class RemoteProxyHandler:
         Returns:
             List of GCS file references with metadata
         """
-        # Step 1: Request signed URLs from proxy
-        upload_metadata = self._prepare_upload_metadata(files_list)
-        signed_urls = await self._request_signed_urls(upload_metadata)
-
-        # Step 2: Upload files to GCS (only if needed)
-        upload_tasks = []
-        for file_entry, url_info in zip(files_list, signed_urls["upload_urls"]):
-            # Only upload if file doesn't exist (has signed_url and status is upload_required)
-            if (
-                url_info.get("signed_url")
-                and url_info.get("status") == "upload_required"
-            ):
-                print(f"[UPLOAD] Uploading new file: {url_info.get('filename')}")
-                upload_tasks.append(self._upload_file_to_gcs(file_entry, url_info))
-            elif url_info.get("status") == "file_exists":
-                print(
-                    f"[DEDUP] Skipping upload for existing file: {url_info.get('filename')}"
-                )
-
-        # Upload only the files that need uploading
-        if upload_tasks:
-            await asyncio.gather(*upload_tasks)
-        else:
-            print("[DEDUP] No files need uploading - all were deduplicated")
-
-        # Step 3: Build GCS file references
         gcs_references = []
-        for file_entry, url_info in zip(files_list, signed_urls["upload_urls"]):
-            filename = getattr(file_entry, "path", "unknown")
+        files_to_upload = []
+        upload_metadata_list = []
 
-            # Log appropriately based on whether file was uploaded or reused
-            if url_info.get("status") == "file_exists":
-                print(
-                    f"[DEDUP] Using existing file {filename} at {url_info['gcs_path']}"
-                )
-            else:
-                print(f"[UPLOAD] File {filename} available at {url_info['gcs_path']}")
-
-            # Extract file extension
-            file_extension = ""
-            if "." in filename:
-                file_extension = filename.rsplit(".", 1)[1].lower()
-
-            # Get file hash for this file entry
+        # Step 1: Check class-level cache first
+        for file_entry in files_list:
             file_hash = file_entry.base64_string[:2000]
 
-            gcs_references.append(
+            async with self._cache_lock:
+                if file_hash in self._file_cache:
+                    # File already uploaded in a previous interview - reuse it
+                    cached_data = self._file_cache[file_hash]
+                    gcs_references.append(cached_data["gcs_reference"])
+                    continue
+
+            # File not in cache - prepare for upload
+            files_to_upload.append(file_entry)
+            upload_metadata_list.append(
                 {
+                    "filename": getattr(
+                        file_entry, "filename", f"file_{len(upload_metadata_list)}"
+                    ),
+                    "mime_type": file_entry.mime_type,
+                    "file_hash": file_hash,
+                }
+            )
+
+        # Step 2: Request signed URLs for files not in cache
+        if files_to_upload:
+            signed_urls = await self._request_signed_urls(upload_metadata_list)
+
+            # Step 3: Upload files to GCS (only if needed)
+            upload_tasks = []
+            for file_entry, url_info in zip(
+                files_to_upload, signed_urls["upload_urls"]
+            ):
+                # Only upload if file doesn't exist (has signed_url and status is upload_required)
+                if (
+                    url_info.get("signed_url")
+                    and url_info.get("status") == "upload_required"
+                ):
+                    upload_tasks.append(self._upload_file_to_gcs(file_entry, url_info))
+
+            # Upload only the files that need uploading
+            if upload_tasks:
+                await asyncio.gather(*upload_tasks)
+
+            # Step 4: Build GCS file references for newly uploaded files and cache them
+            for file_entry, url_info in zip(
+                files_to_upload, signed_urls["upload_urls"]
+            ):
+                filename = getattr(file_entry, "path", "unknown")
+
+                # Extract file extension
+                file_extension = ""
+                if "." in filename:
+                    file_extension = filename.rsplit(".", 1)[1].lower()
+
+                # Get file hash for this file entry
+                file_hash = file_entry.base64_string[:2000]
+
+                gcs_reference = {
                     "type": self._get_file_type(file_entry),
                     "gcs_path": url_info["gcs_path"],
                     "original_filename": filename,
@@ -225,7 +250,16 @@ class RemoteProxyHandler:
                     "processing": self._get_processing_type(file_entry),
                     "file_hash": file_hash,  # Include hash for caching after successful processing
                 }
-            )
+
+                gcs_references.append(gcs_reference)
+
+                # Cache the file reference for future interviews
+                async with self._cache_lock:
+                    self._file_cache[file_hash] = {
+                        "gcs_path": url_info["gcs_path"],
+                        "url_info": url_info,
+                        "gcs_reference": gcs_reference,
+                    }
 
         return gcs_references
 
