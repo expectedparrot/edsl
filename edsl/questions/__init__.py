@@ -26,6 +26,7 @@ Core Question Types:
 - QuestionDict: Responses with key-value pairs
 - QuestionMatrix: Grid-based responses with rows and columns
 - QuestionBudget: Allocation of a budget across multiple options
+- QuestionDemand: Quantities demanded at various price points (demand curve)
 - QuestionRank: Ordering of items by preference or other criteria
 - QuestionExtract: Extraction of specific information from text or data
 
@@ -121,6 +122,7 @@ from .question_dict import QuestionDict
 from .question_multiple_choice import QuestionMultipleChoice
 from .question_numerical import QuestionNumerical
 from .question_budget import QuestionBudget
+from .question_demand import QuestionDemand
 from .question_rank import QuestionRank
 
 # Questions derived from core questions
@@ -170,6 +172,7 @@ __all__ = [
     "QuestionMatrix",
     "QuestionNumerical",
     "QuestionBudget",
+    "QuestionDemand",
     "QuestionRank",
     # Derived question types
     "QuestionLinearScale",
