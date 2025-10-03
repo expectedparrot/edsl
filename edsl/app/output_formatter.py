@@ -8,7 +8,6 @@ from ..results import Results
 from ..dataset import Dataset
 from ..dataset.display.table_display import TableDisplay
 from ..scenarios import ScenarioList, FileStore
-from ..scenarios.scenario_list import ScenarioListConditional
 from ..scenarios import Scenario
 from ..scenarios.agent_blueprint import AgentBlueprint
 
@@ -33,8 +32,6 @@ relevant_classes = {
         'add_scenario_reference',
         'choose_k',
         'full_replace',
-    ],
-    ScenarioListConditional: [
         "then",
         "else_",
         "otherwise",
