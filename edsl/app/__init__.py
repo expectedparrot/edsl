@@ -25,7 +25,6 @@ from .stub_job import StubJob
 from .app_param_preparer import AppParamPreparer
 from .app_validator import AppValidator
 from .answers_collector import AnswersCollector
-from .app_renderer import AppRenderer
 from .app_serialization import AppSerialization
 from .app_remote import AppRemote
 
