@@ -7,40 +7,45 @@ from edsl.agents import Agent
 from edsl.scenarios import ScenarioList
 
 # 1. Initial Survey
-initial_survey = Survey([
-    QuestionFreeText(
-        question_name="product_name",
-        question_text="What product would you like to analyze for conjoint analysis?"
-    )
-])
+initial_survey = Survey(
+    [
+        QuestionFreeText(
+            question_name="product_name",
+            question_text="What product would you like to analyze for conjoint analysis?",
+        )
+    ]
+)
 
 # 2. Agent
 conjoint_analyst = Agent(
     name="conjoint_analyst",
     traits={
         "expertise": "conjoint analysis, market research, product attributes",
-        "analytical_skills": "systematic decomposition of products into components and levels"
-    }
+        "analytical_skills": "systematic decomposition of products into components and levels",
+    },
 )
 
 # 3. Multi-stage analysis questions
 # Stage 1: Get components
 components_question = QuestionList(
     question_name="components",
-    question_text=textwrap.dedent("""
+    question_text=textwrap.dedent(
+        """
     For the product "{{ scenario.product_name }}", identify the key components/attributes
     that would be relevant for a conjoint analysis. These should be the main features
     or characteristics that consumers would consider when making a purchase decision.
 
     Return a list of 4-8 component names (e.g., ["price", "brand", "color", "size"]).
     Each component should be a short, clear attribute name.
-    """)
+    """
+    ),
 )
 
 # Stage 2: Get potential levels for each component
 levels_question = QuestionList(
     question_name="potential_levels",
-    question_text=textwrap.dedent("""
+    question_text=textwrap.dedent(
+        """
     For the product "{{ scenario.product_name }}" and its component "{{ scenario.component }}",
     identify all the potential levels (options) that this component could have in a conjoint study.
 
@@ -54,13 +59,15 @@ levels_question = QuestionList(
     Example for "color": ["Black", "White", "Blue", "Red"]
 
     Component: {{ scenario.component }}
-    """)
+    """
+    ),
 )
 
 # Stage 3: Identify current level
 current_level_question = QuestionFreeText(
     question_name="current_level",
-    question_text=textwrap.dedent("""
+    question_text=textwrap.dedent(
+        """
     For the product "{{ scenario.product_name }}" and its component "{{ scenario.component }}",
     what is the current/default level for this specific product?
 
@@ -71,7 +78,8 @@ current_level_question = QuestionFreeText(
 
     Component: {{ scenario.component }}
     Product: {{ scenario.product_name }}
-    """)
+    """
+    ),
 )
 
 # 4. Complex jobs pipeline
@@ -93,28 +101,37 @@ job = (
 table_formatter = (
     OutputFormatter(name="Dimensions and Levels Table")
     .select("scenario.component", "scenario.potential_levels", "answer.current_level")
-    .rename({
-        "scenario.component": "Component",
-        "scenario.potential_levels": "Levels",
-        "answer.current_level": "Current Level"
-    })
+    .rename(
+        {
+            "scenario.component": "Component",
+            "scenario.potential_levels": "Levels",
+            "answer.current_level": "Current Level",
+        }
+    )
     .table()
 )
 
 structured_formatter = (
     OutputFormatter(name="Structured Results")
-    .select("scenario.component", "scenario.potential_levels", "answer.current_level", "scenario.product_name")
+    .select(
+        "scenario.component",
+        "scenario.potential_levels",
+        "answer.current_level",
+        "scenario.product_name",
+    )
     .to_scenario_list()
 )
 
 scenario_list_formatter = (
     OutputFormatter(name="Conjoint Scenario List")
     .select("scenario.component", "scenario.potential_levels", "answer.current_level")
-    .rename({
-        "scenario.component": "attribute",
-        "scenario.potential_levels": "levels",
-        "answer.current_level": "current_level"
-    })
+    .rename(
+        {
+            "scenario.component": "attribute",
+            "scenario.potential_levels": "levels",
+            "answer.current_level": "current_level",
+        }
+    )
     .to_scenario_list()
 )
 
@@ -124,13 +141,19 @@ app = App(
     description="""Analyzes a product to identify components, potential levels, and current levels for conjoint analysis""",
     initial_survey=initial_survey,
     jobs_object=job,
-    output_formatters=[scenario_list_formatter, table_formatter, structured_formatter]
+    output_formatters={
+        "scenario_list": scenario_list_formatter,
+        "table": table_formatter,
+        "structured": structured_formatter,
+    },
+    default_formatter_name="scenario_list",
 )
 
 # 7. Test with example
 if __name__ == "__main__":
-    result = app.output(params={
-        "product_name": """
+    result = app.output(
+        params={
+            "product_name": """
     Expected Parrot helps teams simulate their customers to improve pricing and other critical business decisions.
     The company offers:
     - EDSL: An open-source package for designing AI agents and simulating surveys and experiments with them
@@ -139,5 +162,7 @@ if __name__ == "__main__":
     - Custom notebooks and templates for pricing and other experiments
     - Support designing agents representing your customers or stakeholders
          """
-    }, verbose=True)
+        },
+        verbose=True,
+    )
     print(result)

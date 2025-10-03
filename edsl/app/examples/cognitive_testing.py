@@ -30,7 +30,8 @@ app = App(
     jobs_object = jobs_object, 
     application_name = "Typo Checker",
     description = "Check for typos in the question text",
-    output_formatters = output_formatter,
+    output_formatters = {'table': output_formatter},
+    default_formatter_name = 'table',
     attachment_formatters = [
         # Convert the provided Survey into scenarios at the head
         SurveyAttachmentFormatter(name="Survey->ScenarioList").to_scenario_list()
