@@ -19,21 +19,11 @@ if TYPE_CHECKING:
     from .head_attachments import HeadAttachments
 
 from .output_formatter import OutputFormatter, OutputFormatters
-from .output_formatter import ObjectFormatter
 from .app_param_preparer import AppParamPreparer
 from .answers_collector import AnswersCollector
 from .app_html_renderer import AppHTMLRenderer
 from .descriptors import InitialSurveyDescriptor, OutputFormattersDescriptor, AttachmentFormattersDescriptor, AppTypeRegistryDescriptor, ApplicationNameDescriptor
 from .debug_info import DebugInfo
-
-## We need the notion of modifying elements before they are attached.
-## The Outformat would be the natural way to do this.
-## Maybe rename to ObjectTransformer?
-
-from abc import ABC, abstractmethod
-
- 
-
 
 class App:
     """
@@ -58,19 +48,14 @@ class App:
         App.__dict__["_registry"].register(cls)
 
 
-    def __rshift__(self, pipe_or_app):
-        "Creates a composite app: either add a pipe or chain to another app."
+    def __rshift__(self, next_app):
+        "Chain this app to another app, creating a CompositeApp."
         from .composite_app import CompositeApp
-        from .output_formatter import ObjectFormatter
 
-        if isinstance(pipe_or_app, ObjectFormatter):
-            return CompositeApp(self, pipe_or_app, None)
-        elif isinstance(pipe_or_app, App):
-            # Use the instance default output formatter (falls back to 'raw_results')
-            pipe = self.output_formatters.get_default()
-            return CompositeApp(self, pipe, pipe_or_app)
+        if isinstance(next_app, App):
+            return CompositeApp(self, next_app)
         else:
-            raise TypeError(f"Invalid operand for >>: {type(pipe_or_app).__name__}")
+            raise TypeError(f"Invalid operand for >>: {type(next_app).__name__}")
 
     # Descriptors
     initial_survey = InitialSurveyDescriptor()
@@ -88,6 +73,7 @@ class App:
         attachment_formatters: Optional[list[ObjectFormatter] | ObjectFormatter] = None,
         default_formatter_name: Optional[str] = None,
         default_params: Optional[dict[str, Any]] = None,
+        fixed_params: Optional[dict[str, Any]] = None,
     ):
         """Instantiate an App object.
 
@@ -116,7 +102,27 @@ class App:
         self.application_name = application_name
         # Defaults for initial_survey params keyed by question_name
         self._default_params: dict[str, Any] = dict(default_params or {})
-        # Parameters are fully determined by the initial_survey
+        # Fixed params override any provided params at runtime
+        self._fixed_params: dict[str, Any] = dict(fixed_params or {})
+        # If any fixed params overlap with survey questions, prune those questions
+        # so fixed param names are not present in the initial_survey.
+        if self._fixed_params:
+            try:
+                survey_names = {q.question_name for q in self.initial_survey}
+            except Exception:
+                survey_names = set()
+            overlapping = [k for k in self._fixed_params.keys() if k in survey_names]
+            if overlapping:
+                try:
+                    # Drop these questions from the survey
+                    self.initial_survey = self.initial_survey.drop(*overlapping)  # type: ignore[assignment]
+                except Exception:
+                    # If pruning fails, surface a clear error
+                    raise ValueError(
+                        f"Failed to prune fixed parameters from initial_survey: {sorted(overlapping)}"
+                    )
+
+        # Parameters are fully determined by the (possibly pruned) initial_survey
         from .app_validator import AppValidator
 
         AppValidator.validate_parameters(self)
@@ -177,6 +183,8 @@ class App:
             params = AnswersCollector.collect_interactively(self)
         # Apply App-level defaults for missing or None values
         params = self._apply_default_params(params)
+        # Apply fixed params last so they win
+        params = self._apply_fixed_params(params)
         head_attachments = self._prepare_and_apply_head_attachments(params)
         jobs = head_attachments.attach_to_head(self.jobs_object)
         self.debug.set_jobs(jobs)
@@ -243,6 +251,27 @@ class App:
                 merged[key] = value
         return merged
 
+    def _apply_fixed_params(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Apply fixed params while rejecting user-provided values for fixed keys.
+
+        If the caller supplies any parameter that is fixed on this App, raise an
+        exception because fixed parameters must not be provided by the caller.
+        Otherwise, merge the fixed values into the params.
+        """
+        if not getattr(self, "_fixed_params", None):
+            return params
+        provided_keys = set((params or {}).keys())
+        fixed_keys = set(self._fixed_params.keys())
+        forbidden = sorted(provided_keys.intersection(fixed_keys))
+        if forbidden:
+            raise ValueError(
+                f"The following parameters are fixed and must not be provided by the caller: {forbidden}"
+            )
+        merged: dict[str, Any] = dict(params or {})
+        for key, value in self._fixed_params.items():
+            merged[key] = value
+        return merged
+
     def _prepare_from_params(self, params: dict[str, Any]) -> HeadAttachments:
         """Translate initial_survey answers (params) into head attachments.
 
@@ -265,9 +294,10 @@ class App:
             )
 
 
-        # Make sure we didn't get any keys we don't know about
+        # Make sure we didn't get any keys we don't know about, except allow fixed params
         survey_question_names = {q.question_name for q in self.initial_survey}
-        unknown_keys = [k for k in params.keys() if k not in survey_question_names]
+        fixed_names = set(getattr(self, "_fixed_params", {}).keys())
+        unknown_keys = [k for k in params.keys() if k not in survey_question_names and k not in fixed_names]
         if unknown_keys:
             raise ValueError(
                 f"Params contain keys not in initial_survey: {sorted(unknown_keys)}. "
@@ -384,6 +414,11 @@ class App:
                 transform = value_transformers.get(q.question_type, _identity)
                 scenario_vars[q_name] = transform(answer_value)
 
+        # Also add fixed params (not present in the pruned survey) to scenario variables
+        for k, v in getattr(self, "_fixed_params", {}).items():
+            if k not in scenario_vars:
+                scenario_vars[k] = v
+
         # If no explicit scenario object is attached but we have scenario variables,
         # synthesize a single Scenario from the collected variables.
         if not dest_assigned["scenario"] and scenario_vars:
@@ -456,6 +491,60 @@ class App:
             application_name=self.application_name,
             initial_survey=self.initial_survey,
             default_formatter_name=self.output_formatters.default,
+        )
+
+    def partial_application(self, fixed: dict[str, Any]) -> "App":
+        """Return a new App instance with specified initial_survey params fixed.
+
+        Args:
+            fixed: Mapping of existing initial_survey question names to fixed values.
+
+        Returns:
+            A new App instance of the same concrete class with these values fixed.
+
+        Raises:
+            ValueError: If any key in `fixed` does not correspond to an initial_survey question.
+        """
+        if fixed is None:
+            fixed = {}
+        # Valid keys for partial application are current survey question names OR existing fixed params
+        try:
+            survey_names = {q.question_name for q in self.initial_survey}
+        except Exception:
+            survey_names = set()
+        allowed_keys = set(survey_names).union(set(getattr(self, "_fixed_params", {}).keys()))
+        unknown = [k for k in fixed.keys() if allowed_keys and k not in allowed_keys]
+        if unknown:
+            raise ValueError(
+                f"partial_application received keys not in the current app's question names or fixed params: {sorted(unknown)}. "
+                f"Allowed keys: {sorted(allowed_keys)}"
+            )
+
+        merged_fixed: dict[str, Any] = dict(getattr(self, "_fixed_params", {}) or {})
+        merged_fixed.update(fixed)
+
+        target_class = type(self)
+        new_output_map = dict(self.output_formatters.mapping)
+        # Build a pruned survey that drops any keys newly becoming fixed that are still present
+        pruned_survey = self.initial_survey
+        try:
+            to_drop = [k for k in fixed.keys() if k in getattr(pruned_survey, "question_name_to_index", {})]
+            if to_drop:
+                pruned_survey = pruned_survey.drop(*to_drop)
+        except Exception:
+            # If we cannot drop, leave survey as-is; constructor will attempt pruning again
+            pass
+
+        return target_class(
+            jobs_object=self.jobs_object,
+            output_formatters=new_output_map,
+            description=self.description,
+            application_name=self.application_name,
+            initial_survey=pruned_survey,
+            default_formatter_name=self.output_formatters.default,
+            attachment_formatters=self.attachment_formatters,
+            default_params=self._default_params,
+            fixed_params=merged_fixed,
         )
 
     @property

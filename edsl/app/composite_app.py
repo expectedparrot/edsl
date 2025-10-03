@@ -1,173 +1,247 @@
-"""Composite application that pipes the output of one `App` into another.
+"""Composite application that orchestrates two `App` instances with explicit wiring.
 
-This module defines `CompositeApp`, a lightweight wrapper that:
-- runs a first `App`
-- formats its output using an `ObjectFormatter` (the "pipe")
-- passes the formatted data as params to a second `App`
+This module defines `CompositeApp`, which:
+- runs a first `App` (app1)
+- binds selected app1 outputs (via its named `output_formatters`) or app1 input
+  params to the second `App` (app2) input params. Bindings are declared as
+  source->target mappings.
+- allows fixing (pre-filling) survey input values for app1 and/or app2
 
-It also supports simple dict-based serialization via `to_dict`/`from_dict`.
+The effective "initial survey" of the composite is computed dynamically as the
+union of required, unfixed parameters from app1 and app2 that are not satisfied
+by the bindings.
+
+Serialization is supported via `to_dict`/`from_dict` for the explicit-wiring
+shape only.
 """
 
+from typing import Any, Optional
+
 from .app import App
-from .output_formatter import ObjectFormatter
+from ..surveys import Survey
 
 
 class CompositeApp:
-    """Compose two `App` instances with an `ObjectFormatter` to form a pipeline.
+    """Compose two `App` instances with explicit param wiring.
 
-    The first app is executed, its output is transformed by the provided
-    formatter, and the transformed data is then provided as `params` to the
-    second app.
+    Users explicitly specify how app2 input params are obtained, either from
+    app1 `output_formatters` (by name) or by reusing app1 input
+    params. Users may also provide fixed values for either app1 or app2 params.
     """
 
     # Align with App naming: expose an application_type for dispatch
     application_type: str = "composite"
 
-    def __init__(self, first_app: App, pipe: ObjectFormatter, second_app:"CompositeApp"):
-        """Initialize the composite pipeline.
+    def __init__(
+        self,
+        first_app: App,
+        second_app: Optional[App] = None,
+        bindings: Optional[dict[str, Any]] = None,
+        fixed: Optional[dict[str, dict[str, Any]]] = None,
+    ):
+        """Initialize the composite application.
 
         Args:
-            first_app: The app executed first to produce initial output.
-            pipe: The `ObjectFormatter` that transforms the first app's output
-                into the parameters expected by the second app.
-            second_app: The app executed after transformation; receives the
-                transformed output as its `params`.
-            pipe: The `ObjectFormatter` that transforms the first app's output
-                into the parameters expected by the second app.
+            first_app: The first app to run (app1).
+            second_app: The second app to run (app2). May be set later via >>.
+            bindings: An explicit dict describing how to populate app2 params.
+                Keys are sources; values are app2 param names:
+                  - Key "param:app1_param" maps that app1 param to the target param name (value)
+                  - Key "formatter_name" renders app1 with that named formatter and maps the result to the target param name (value)
+                  - Key dict {"formatter": "name", "path": "a.b"} maps the resolved value to the target param name (value)
+            fixed: Optional fixed/pre-filled values for surveys:
+                {"app1": {name: value}, "app2": {name: value}}
         """
         self.first_app = first_app
         self.second_app = second_app
-        self.pipe = pipe
+        self.bindings = dict(bindings or {})
+        self.fixed: dict[str, dict[str, Any]] = {
+            "app1": dict((fixed or {}).get("app1", {})),
+            "app2": dict((fixed or {}).get("app2", {})),
+        }
 
     def __rshift__(self, app: "App") -> "CompositeApp":
         self.second_app = app
         return self
 
-    def output(self, params: dict):
-        """Run the pipeline and return the second app's output.
+    # --- Public API -------------------------------------------------------
 
-        The `first_app` is executed with the provided `params`. Its output is
-        then transformed by `pipe`, and the result is passed as `params` to
-        `second_app`.
+    @property
+    def initial_survey(self) -> Survey:
+        """Compute union of unfixed questions from app1 and app2.
 
-        Args:
-            params: Parameters to pass into `first_app`.
-
-        Returns:
-            The return value of `second_app.output(...)`.
+        - Include app1 questions not fixed by self.fixed["app1"].
+        - Include app2 questions not fixed by self.fixed["app2"] AND not
+          satisfied by bindings (either via formatter outputs or by reusing app1 params).
         """
-        return self.second_app.output(
-            params=self.first_app.with_output_formatter(self.pipe).output(params)
+        if self.second_app is None:
+            # Only app1 questions (minus fixed)
+            q_needed = self._filter_questions(
+                list(self.first_app.initial_survey),
+                exclude_names=set(self.fixed["app1"].keys()),
+            )
+            return Survey(q_needed)
+
+        app1_needed = self._filter_questions(
+            list(self.first_app.initial_survey),
+            exclude_names=set(self.fixed["app1"].keys()),
         )
+
+        app2_exclusions = set(self.fixed["app2"].keys()) | self._bound_target_param_names()
+        app2_needed = self._filter_questions(
+            list(self.second_app.initial_survey),
+            exclude_names=app2_exclusions,
+        )
+
+        # De-duplicate by question_name, prefer app1 definitions on conflict
+        seen: set[str] = set()
+        combined = []
+        for q in app1_needed + app2_needed:
+            if getattr(q, "question_name", None) in seen:
+                continue
+            seen.add(getattr(q, "question_name", None))
+            combined.append(q)
+        return Survey(combined)
+
+    def output(self, params: dict[str, Any] | None):
+        """Execute the composite flow.
+
+        Steps:
+        1) Build app1 params from provided `params` merged with fixed["app1"].
+        2) Build app2 params from fixed["app2"], bindings, and user `params` for
+           any remaining required questions.
+        4) Run app2 with constructed params and return its formatted output.
+        """
+        if self.second_app is None:
+            raise ValueError("CompositeApp requires a second_app to run.")
+
+        provided = dict(params or {})
+
+        # 1) Resolve app1 params (fixed overrides take precedence over provided)
+        app1_param_names = {q.question_name for q in self.first_app.initial_survey}
+        app1_params: dict[str, Any] = {}
+        # from user
+        for name in app1_param_names:
+            if name in provided:
+                app1_params[name] = provided[name]
+        # apply fixed overrides last
+        app1_params.update(self.fixed["app1"])  # fixed values win
+
+        # 2) Build app2 params
+        app2_param_names = {q.question_name for q in self.second_app.initial_survey}
+        app2_params: dict[str, Any] = {}
+        # Start with fixed
+        app2_params.update(self.fixed["app2"])  # fixed first
+
+        # Apply bindings declared as source->target
+        for source_spec, target_param in self.bindings.items():
+            if target_param not in app2_param_names:
+                # Ignore bindings for unknown params; user may target attachments or legacy keys
+                continue
+            value = self._resolve_binding_source(source_spec, app1_params)
+            app2_params[target_param] = value
+
+        # Fill any remaining required params from user-provided composite params
+        # that correspond to unfixed/unmapped app2 questions
+        already_set = set(app2_params.keys())
+        for name in app2_param_names:
+            if name in already_set:
+                continue
+            if name in provided:
+                app2_params[name] = provided[name]
+
+        # 4) Run app2
+        return self.second_app.output(params=app2_params)
+
+    # --- Serialization ----------------------------------------------------
 
     def to_dict(self):
         """Serialize this composite app to a dictionary.
 
-        Returns:
-            A dict with `application_type: "composite"` plus `first_app`,
-            `second_app`, and `pipe` keys containing their respective
-            serialized representations.
+        Includes first_app, second_app, bindings, and fixed values.
         """
-        return {
+        data = {
             "application_type": self.application_type,
             "first_app": self.first_app.to_dict(),
-            "second_app": self.second_app.to_dict(),
-            "pipe": self.pipe.to_dict(),
+            "second_app": self.second_app.to_dict() if self.second_app is not None else None,
         }
+        if self.bindings:
+            data["bindings"] = self.bindings
+        if any(self.fixed.values()):
+            data["fixed"] = self.fixed
+        return data
 
     @classmethod
     def from_dict(cls, data: dict):
-        """Deserialize a `CompositeApp` from a dictionary.
-
-        Args:
-            data: Dictionary produced by `to_dict`.
-
-        Returns:
-            A `CompositeApp` instance reconstructed from the serialized data.
-        """
+        """Deserialize a `CompositeApp` from a dictionary."""
         def _deserialize_app_or_composite(payload: dict):
-            # Prefer explicit type dispatch when available
             if not isinstance(payload, dict):
                 raise TypeError("Expected dict for app payload during deserialization")
-            # New naming: application_type == "composite"
             if payload.get("application_type") == "composite":
-                return cls.from_dict(payload)
-            # Legacy compatibility: older tag
-            if payload.get("composite_type") == "composite_app":
                 return cls.from_dict(payload)
             if "application_type" in payload:
                 return App.from_dict(payload)
-            # Backward-compatibility: infer by presence of component keys
-            if {"first_app", "second_app", "pipe"}.issubset(payload.keys()):
-                return cls.from_dict(payload)
-            # Fallback: treat as App
             return App.from_dict(payload)
 
-        return cls(
-            _deserialize_app_or_composite(data["first_app"]),
-            _deserialize_app_or_composite(data["second_app"]),
-            ObjectFormatter.from_dict(data["pipe"]),
-        )
+        first = _deserialize_app_or_composite(data["first_app"]) if "first_app" in data else None
+        second = _deserialize_app_or_composite(data["second_app"]) if "second_app" in data and data["second_app"] is not None else None
+        bindings = data.get("bindings") or {}
+        fixed = data.get("fixed") or {}
+        if first is None:
+            raise ValueError("CompositeApp.from_dict missing 'first_app'")
+        return cls(first_app=first, second_app=second, bindings=bindings, fixed=fixed)
+
+    # --- Internals --------------------------------------------------------
+
+    @staticmethod
+    def _filter_questions(questions, *, exclude_names: set[str]):
+        return [q for q in questions if getattr(q, "question_name", None) not in exclude_names]
+
+    def _bound_target_param_names(self) -> set[str]:
+        return {v for v in self.bindings.values()}
+
+    @staticmethod
+    def _get_by_dotted_path(obj: Any, path: str) -> Any:
+        current = obj
+        if path is None or path == "":
+            return current
+        for part in str(path).split("."):
+            if isinstance(current, dict) and part in current:
+                current = current[part]
+                continue
+            try:
+                current = getattr(current, part)
+                continue
+            except Exception:
+                pass
+            try:
+                index = int(part)
+                current = current[index]
+                continue
+            except Exception:
+                pass
+            # Not found; return None to indicate missing
+            return None
+        return current
+
+    def _resolve_binding_source(self, source_spec: Any, app1_params: dict[str, Any]) -> Any:
+        # Dict form (formatter with optional path)
+        if isinstance(source_spec, dict):
+            if "formatter" in source_spec:
+                formatted = self.first_app.output(app1_params, formatter_name=source_spec.get("formatter"))
+                path = source_spec.get("path")
+                return self._get_by_dotted_path(formatted, path) if path else formatted
+            # Unknown dict spec; return as-is
+            return source_spec
+        # String forms
+        if isinstance(source_spec, str):
+            if source_spec.startswith("param:"):
+                return app1_params.get(source_spec[len("param:"):])
+            # Otherwise treat as an app1 formatter name
+            return self.first_app.output(app1_params, formatter_name=source_spec)
+        # Literal value
+        return source_spec
 
 
 if __name__ == "__main__":
-    from .app import SingleScenarioApp
-    from .output_formatter import OutputFormatter
-
-    from edsl import QuestionFreeText
-
-    initial_survey = QuestionFreeText(
-        question_name="input_text", question_text="What is the input text?"
-    ).to_survey()
-
-    jobs = QuestionFreeText(
-        question_name="translated_text",
-        question_text="Please translate {{ scenario.input_text }} to German. Just return the translated text, no other text.",
-    ).to_jobs()
-
-    of = (
-        OutputFormatter(description="Output Formatter")
-        .select("answer.*")
-        .to_list()
-        .__getitem__(0)
-    )
-
-    english_to_german = SingleScenarioApp(
-        initial_survey=initial_survey,
-        jobs_object=jobs,
-        output_formatters={"of": of},
-        default_formatter_name="of",
-        application_name="to_german",
-        description="Translate the input text to German.",
-    )
-
-    german_to_english = SingleScenarioApp(
-        initial_survey=initial_survey,
-        jobs_object=QuestionFreeText(
-            question_name="translated_text",
-            question_text="""Please translate {{ scenario.input_text }} from German to English. 
-            Just return the translated text, no other text.""",
-        ).to_jobs(),
-        output_formatters={"of": of},
-        default_formatter_name="of",
-        application_name="to_german",
-        description="Translate the input text from German to English.",
-    )
-
-    pipe = (
-        OutputFormatter(description="Pipe")
-        .select("answer.translated_text")
-        .to_scenario_list()
-        .rename({"translated_text": "input_text"})
-        .__getitem__(0)
-    )
-
-    telephone_app = CompositeApp(english_to_german, german_to_english, pipe)
-    results = telephone_app.output(
-        params={
-            "input_text": """Through some singular coincidence, I wouldn't be surprised if it were owing to the agency /
-        of an ill natured fairy you are the victim of the clumsy arrangement having been born in leap year on/
-         the 29th of February"""
-        }
-    )
-    print(results)
+    print("This module defines CompositeApp. See example at edsl/app/examples/telephone_app.py")
