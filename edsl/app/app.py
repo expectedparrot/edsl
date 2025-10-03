@@ -22,9 +22,9 @@ from .output_formatter import OutputFormatter, OutputFormatters
 from .output_formatter import ObjectFormatter
 from .app_param_preparer import AppParamPreparer
 from .answers_collector import AnswersCollector
-from .app_renderer import AppRenderer
 from .app_html_renderer import AppHTMLRenderer
-from .descriptors import InitialSurveyDescriptor, OutputFormattersDescriptor, AttachmentFormattersDescriptor, AppTypeRegistryDescriptor
+from .descriptors import InitialSurveyDescriptor, OutputFormattersDescriptor, AttachmentFormattersDescriptor, AppTypeRegistryDescriptor, ApplicationNameDescriptor
+from .debug_info import DebugInfo
 
 ## We need the notion of modifying elements before they are attached.
 ## The Outformat would be the natural way to do this.
@@ -76,6 +76,7 @@ class App:
     initial_survey = InitialSurveyDescriptor()
     output_formatters = OutputFormattersDescriptor()
     attachment_formatters = AttachmentFormattersDescriptor()
+    application_name: str = ApplicationNameDescriptor()  # type: ignore[assignment]
 
     def __init__(
         self,
@@ -110,23 +111,16 @@ class App:
         # Normalize via descriptor
         self.attachment_formatters = attachment_formatters
 
-        if application_name is not None and not isinstance(application_name, str):
-            raise TypeError("application_name must be a string if provided")
-        # Default to the class name if not provided
-        self.application_name: str = application_name or self.__class__.__name__
+        # Validate and default via descriptor
+        self.application_name = application_name
         # Parameters are fully determined by the initial_survey
         from .app_validator import AppValidator
 
         AppValidator.validate_parameters(self)
         AppValidator.validate_initial_survey_edsl_uniqueness(self)
 
-        # Debug storage for post-hoc inspection
-        self._debug_params_last: Any | None = None
-        self._debug_head_attachments_last: Any | None = None
-        self._debug_jobs_last: Any | None = None
-        self._debug_results_last: Any | None = None
-        self._debug_output_last: Any | None = None
-        self._debug_history: list[dict] = []
+        # Debug info encapsulated in DebugInfo helper
+        self.debug = DebugInfo(self)
 
         # Cache for generated results keyed by the hash of a jobs object
         self._generated_results: dict[int, "Results"] = {}
@@ -178,29 +172,41 @@ class App:
     ) -> Any:
         if params is None:
             params = AnswersCollector.collect_interactively(self)
-        # Capture params and head attachments/jobs for debugging
-        self._debug_params_last = params
+        head_attachments = self._prepare_and_apply_head_attachments(params)
+        jobs = head_attachments.attach_to_head(self.jobs_object)
+        self.debug.set_jobs(jobs)
+        results = self._generate_results(jobs)
+        formatted_output = self._format_output(results, formatter_name)
+        self.debug.record_snapshot()
+        return formatted_output
+
+    # _render was used when renderer was external; no longer needed since
+    # output() now orchestrates steps directly.
+
+    def _prepare_and_apply_head_attachments(self, params: Any):
+        self.debug.set_params(params)
         head_attachments = AppParamPreparer.prepare(self, params)
-        # Apply attachment formatters
         for formatter in self.attachment_formatters:
             head_attachments = head_attachments.apply_formatter(
                 formatter, params=params
             )
+        self.debug.set_head_attachments(head_attachments)
+        return head_attachments
 
-        self._debug_head_attachments_last = head_attachments
-        jobs = head_attachments.attach_to_head(self.jobs_object)
-        self._debug_jobs_last = jobs
-        formatted_output = AppRenderer.render(self, jobs, formatter_name)
+    def _select_formatter(self, formatter_name: Optional[str]):
+        if formatter_name is not None:
+            return self.output_formatters.get_formatter(formatter_name)
+        return self.output_formatters.get_default()
 
-        # Record consolidated snapshot after _render populates results/output
-        from .debug_snapshot import DebugSnapshot
-
-        self._debug_history.append(DebugSnapshot.capture(self))
-
-        return formatted_output
-
-    def _render(self, jobs: "Jobs", formatter_name: Optional[str]) -> Any:
-        return AppRenderer.render(self, jobs, formatter_name)
+    def _format_output(self, results: Any, formatter_name: Optional[str]) -> Any:
+        formatter = self._select_formatter(formatter_name)
+        formatted = formatter.render(
+            results,
+            params=(self.debug.params_last if isinstance(self.debug.params_last, dict) else {}),
+        )
+        self.debug.set_results(results)
+        self.debug.set_output(formatted)
+        return formatted
 
     def _prepare_from_params(self, params: Any) -> HeadAttachments:
         from .app_param_preparer import AppParamPreparer
@@ -223,20 +229,8 @@ class App:
             TypeError: If `formatter` is not an `OutputFormatter`.
             ValueError: If the formatter has no name or the name already exists.
         """
-        if not isinstance(formatter, OutputFormatter):
-            raise TypeError("formatter must be an OutputFormatter")
-        key = getattr(formatter, "description", None) or getattr(formatter, "name", None)
-        if not key:
-            raise ValueError("formatter must have a unique, non-empty description")
-        if key in self.output_formatters.mapping:
-            raise ValueError(f"Formatter with name '{key}' already exists")
-
-        # Append and keep the mapping in sync
-        self.output_formatters.data.append(formatter)
-        self.output_formatters.mapping[key] = formatter
-
-        if set_default:
-            self.output_formatters.set_default(key)
+        # Delegate to OutputFormatters helper
+        self.output_formatters.register(formatter, set_default=set_default)
 
         return self
 
@@ -370,9 +364,7 @@ class App:
     @property
     def debug_last(self) -> dict:
         """Return the most recent debug snapshot of the app run."""
-        from .debug_snapshot import DebugSnapshot
-
-        snap = DebugSnapshot.capture(self)
+        snap = self.debug.capture_snapshot()
         return {
             "params": snap.params,
             "head_attachments": snap.head_attachments,
@@ -384,7 +376,7 @@ class App:
     @property
     def debug_history(self) -> List[dict]:
         """Return the list of all debug snapshots captured so far."""
-        return self._debug_history
+        return self.debug.history
 
     def push(
         self,
