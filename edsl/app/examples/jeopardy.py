@@ -49,7 +49,8 @@ app = App(
     description = "A jeopardy question generator.",
     application_name = "jeopardy",
     jobs_object = jobs_object, 
-    output_formatters = [of],
+    output_formatters = {'survey': of},
+    default_formatter_name = 'survey',
     attachment_formatters = [sa]
 )
 
@@ -70,7 +71,7 @@ As of 14 August 2025, Python 3.13 is the latest stable release and Python 3.9 is
 """
 
 if __name__ == "__main__":
-   gold_standard_survey = app.output(params = {'input_text': text, 'words_per_chunk': 100})
+   gold_standard_survey = app.output(params = {'input_text': text, 'words_per_chunk': 100}, formatter_name = 'survey')
    from edsl.agents import Agent
    a = Agent(traits = {'expert_knowledge_on': text})
 

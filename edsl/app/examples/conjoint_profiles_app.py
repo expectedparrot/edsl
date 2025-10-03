@@ -145,7 +145,7 @@ if __name__ == "__main__":
             'use_seed': 'Yes',
             'random_seed': 123
         },
-        formatter_name="Generation Summary"
+        formatter_name="summary"
     )
     print(f"   ✓ App collected parameters: {app_result}")
 
