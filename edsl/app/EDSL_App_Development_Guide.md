@@ -84,14 +84,14 @@ app = App(
 **Examples**: food_health.py
 
 **Key characteristics**:
-- Use specialized `RankingApp` class
+- Use `App.create_ranking_app`
 - Requires `QuestionMultipleChoice` for comparisons
 - Automatically generates pairwise comparison logic
 
 ```python
-from edsl.app import RankingApp
+from edsl.app import App
 
-app = RankingApp(
+app = App.create_ranking_app(
     ranking_question=comparison_question,
     option_fields=['item_1', 'item_2'],
     application_name="Item Ranker",

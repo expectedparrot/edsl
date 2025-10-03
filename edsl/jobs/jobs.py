@@ -4,15 +4,6 @@ It provides functionality to define, configure, and execute computational jobs t
 involve multiple agents, scenarios, models, and a survey. Jobs are the primary way
 that users run large-scale experiments or simulations in EDSL.
 
-The Jobs class handles:
-1. Organizing all components (agents, scenarios, models, survey)
-2. Configuring execution parameters
-3. Managing resources like caches and API keys
-4. Running interviews in parallel
-5. Collecting and structuring results
-
-This module is designed to be used by both application developers and researchers
-who need to run complex simulations with language models.
 """
 
 from __future__ import annotations

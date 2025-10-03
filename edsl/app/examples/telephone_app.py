@@ -15,7 +15,7 @@ def build_telephone_app() -> CompositeApp:
     jobs_de = QuestionFreeText(
         question_name="translated_text",
         question_text="Please translate {{ scenario.input_text }} to German. Just return the translated text, no other text.",
-    ).to_jobs()
+    ).comment("Translating from English to German").to_jobs()
 
     of = (
         OutputFormatter(description="Output Formatter")
@@ -36,7 +36,7 @@ def build_telephone_app() -> CompositeApp:
     jobs_en = QuestionFreeText(
         question_name="translated_text",
         question_text="Please translate {{ scenario.input_text }} from German to English. Just return the translated text, no other text.",
-    ).to_jobs()
+    ).comment("Translating from German to English").to_jobs()
 
     german_to_english = App(
         initial_survey=initial_survey,
@@ -71,7 +71,7 @@ if __name__ == "__main__":
         jobs_object=QuestionFreeText(
             question_name="example_line",
             question_text="Please return a line from Pirates of Penzance for the character {{ scenario.input_text }}.",
-        ).to_jobs(),
+        ).comment("Getting line from Pirates of Penzance").to_jobs(),
         output_formatters={"of": OutputFormatter(description="Output Formatter").select("answer.*").to_list().__getitem__(0)},
         default_formatter_name="of")
         

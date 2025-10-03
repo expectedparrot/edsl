@@ -61,6 +61,7 @@ class CompositeApp:
         }
 
     def __rshift__(self, app: "App") -> "CompositeApp":
+        """Chain a second app to this composite using the >> operator."""
         self.second_app = app
         return self
 
@@ -195,13 +196,16 @@ class CompositeApp:
 
     @staticmethod
     def _filter_questions(questions, *, exclude_names: set[str]):
+        """Return questions excluding any whose names appear in `exclude_names`."""
         return [q for q in questions if getattr(q, "question_name", None) not in exclude_names]
 
     def _bound_target_param_names(self) -> set[str]:
+        """Return the set of target parameter names bound by the composite `bindings`."""
         return {v for v in self.bindings.values()}
 
     @staticmethod
     def _get_by_dotted_path(obj: Any, path: str) -> Any:
+        """Resolve a dotted path within nested dicts/objects/lists; returns None on missing."""
         current = obj
         if path is None or path == "":
             return current
@@ -225,6 +229,13 @@ class CompositeApp:
         return current
 
     def _resolve_binding_source(self, source_spec: Any, app1_params: dict[str, Any]) -> Any:
+        """Resolve a binding source spec to a concrete value.
+
+        - dict with {"formatter": name, "path": dotted}: run app1 formatter and extract by path
+        - string "param:<name>": take from app1 params
+        - string <formatter_name>: run app1 with that formatter
+        - any other value: returned as-is
+        """
         # Dict form (formatter with optional path)
         if isinstance(source_spec, dict):
             if "formatter" in source_spec:

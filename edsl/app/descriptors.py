@@ -154,3 +154,46 @@ class ApplicationNameDescriptor:
         setattr(instance, self.private_name, value)
 
 
+# New: Descriptor to manage App.fixed_params with normalization and survey pruning
+class FixedParamsDescriptor:
+    """Descriptor that normalizes and applies fixed parameters on an App instance.
+
+    - Stores a normalized dict on the instance
+    - Prunes overlapping question names from the instance.initial_survey
+    """
+
+    def __set_name__(self, owner, name):
+        self.private_name = f"_{name}"
+
+    def __get__(self, instance: Any, owner: type | None = None):
+        if instance is None:
+            return self
+        return getattr(instance, self.private_name, {})
+
+    def __set__(self, instance: Any, value: Any) -> None:
+        # Normalize to a dict
+        if value is None:
+            normalized: dict[str, Any] = {}
+        elif isinstance(value, dict):
+            normalized = dict(value)
+        else:
+            raise TypeError("fixed_params must be a dict[str, Any] if provided")
+
+        setattr(instance, self.private_name, normalized)
+
+        # If there are fixed params, prune overlapping questions from the initial_survey
+        if normalized:
+            try:
+                survey_names = {q.question_name for q in instance.initial_survey}
+            except Exception:
+                survey_names = set()
+
+            overlapping = [k for k in normalized.keys() if k in survey_names]
+            if overlapping:
+                try:
+                    instance.initial_survey = instance.initial_survey.drop(*overlapping)
+                except Exception:
+                    raise ValueError(
+                        f"Failed to prune fixed parameters from initial_survey: {sorted(overlapping)}"
+                    )
+

@@ -6,7 +6,7 @@ SingleScenarioApp = App
 SurveyInputApp = App
 
 # Common app types
-from .ranking_app import RankingApp
+from .ranking_app import create_ranking_app
 from .true_skill_app import TrueSkillApp
 from .person_simulator import PersonSimulator
 

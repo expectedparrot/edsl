@@ -1,5 +1,5 @@
 import textwrap
-from edsl.app import App, RankingApp
+from edsl.app import App
 from edsl.app.output_formatter import OutputFormatter
 from edsl import (
     Survey,
@@ -177,7 +177,7 @@ q_rank = QuestionMultipleChoice(
     use_code = False
 )
 
-ranking_app = RankingApp(
+ranking_app = App.create_ranking_app(
     ranking_question=q_rank,
     option_fields=['two_sentences_1', 'two_sentences_2'],
     application_name="YC Two Sentence Ranker",

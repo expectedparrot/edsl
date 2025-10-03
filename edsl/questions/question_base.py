@@ -48,7 +48,7 @@ Technical Details:
 
 from __future__ import annotations
 from abc import ABC
-from typing import Any, Type, Optional, Union, TypedDict, TYPE_CHECKING, Literal
+from typing import Any, Type, Optional, Union, TypedDict, TYPE_CHECKING, Literal, Callable
 
 from .descriptors import QuestionNameDescriptor, QuestionTextDescriptor
 from .answer_validator_mixin import AnswerValidatorMixin
@@ -190,6 +190,18 @@ class QuestionBase(
 
     _answering_instructions = None
     _question_presentation = None
+
+
+    def comment(self, comment: str, func: Optional[Callable] = None, log_format: Optional[str] = None):
+        """Comment on this question.
+        """
+        if func is None:
+            func = print
+        if log_format is None:
+            log_format = "{comment}"
+        comment = log_format.format(comment=comment)
+        func(comment)
+        return self
 
     def is_valid_question_name(self) -> bool:
         """
