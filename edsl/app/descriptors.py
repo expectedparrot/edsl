@@ -43,8 +43,9 @@ class InitialSurveyDescriptor:
 class OutputFormattersDescriptor:
     """Descriptor that normalizes and validates App.output_formatters.
 
-    Accepts dict[str, OutputFormatter], list[OutputFormatter], OutputFormatters, or None.
+    Accepts dict[str, OutputFormatter], OutputFormatters, or None.
     Always stores an OutputFormatters instance and ensures a 'raw_results' formatter exists.
+    Lists are not accepted; callers must provide a name->formatter mapping.
     """
 
     def __set_name__(self, owner, name):
@@ -62,10 +63,14 @@ class OutputFormattersDescriptor:
             ofs = value
         elif isinstance(value, dict):
             ofs = OutputFormatters(value)
-        elif isinstance(value, list) or value is None:
-            ofs = OutputFormatters(value or [])
+        elif value is None:
+            ofs = OutputFormatters([])
+        elif isinstance(value, list):
+            raise TypeError(
+                "output_formatters must be a dict[str, OutputFormatter] or OutputFormatters"
+            )
         else:
-            raise TypeError("output_formatters must be a dict, list, or OutputFormatters")
+            raise TypeError("output_formatters must be a dict[str, OutputFormatter] or OutputFormatters")
 
         # OutputFormatters ensures 'raw_results' via _ensure_raw_results in its ctor
         setattr(instance, self.private_name, ofs)
@@ -123,5 +128,29 @@ class AppTypeRegistryDescriptor:
                 f"Duplicate application_type '{app_type}' for {app_subclass.__name__}; already registered by {existing.__name__}."
             )
         self._map[app_type] = app_subclass
+
+
+class ApplicationNameDescriptor:
+    """Descriptor that validates and defaults App.application_name.
+
+    - If None or falsy, defaults to the class name of the instance
+    - Otherwise must be a string
+    """
+
+    def __set_name__(self, owner, name):
+        self.private_name = f"_{name}"
+
+    def __get__(self, instance: Any, owner: type | None = None):
+        if instance is None:
+            return self
+        return getattr(instance, self.private_name, owner.__name__ if owner is not None else None)
+
+    def __set__(self, instance: Any, value: Any) -> None:
+        if value is None or value == "":
+            setattr(instance, self.private_name, instance.__class__.__name__)
+            return
+        if not isinstance(value, str):
+            raise TypeError("application_name must be a string if provided")
+        setattr(instance, self.private_name, value)
 
 
