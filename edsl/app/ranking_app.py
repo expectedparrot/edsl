@@ -6,7 +6,6 @@ from ..surveys import Survey
 
 class RankingApp(App):
     application_type: str = "pairwise_ranking"
-    default_output_formatter: OutputFormatter = OutputFormatter(name="Ranked Scenario List")
 
     def __init__(
         self,
@@ -41,7 +40,7 @@ class RankingApp(App):
 
 
         output_formatters = (
-            OutputFormatter(name="Ranked Scenario List")
+            OutputFormatter(description="Ranked Scenario List")
             .to_scenario_list()
             .to_ranked_scenario_list(
                 option_fields=option_fields, answer_field=ranking_question.question_name
@@ -50,10 +49,11 @@ class RankingApp(App):
 
         super().__init__(
             jobs_object=jobs_object,
-            output_formatters=output_formatters,
+            output_formatters={"ranked_list": output_formatters},
+            default_formatter_name="ranked_list",
             attachment_formatters=[
                 # Transform the provided ScenarioList into pairwise comparisons
-                ScenarioAttachmentFormatter(name="Pairwise choose_k").choose_k(2)
+                ScenarioAttachmentFormatter(description="Pairwise choose_k").choose_k(2)
             ],
             description=description,
             application_name=application_name,

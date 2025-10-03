@@ -4,7 +4,7 @@ from typing import Any, TypedDict
 
 from .app import App
 from .head_attachments import HeadAttachments
-from .output_formatter import OutputFormatter, OutputFormatters
+from .output_formatter import OutputFormatter
 
 
 class DataLabelingParams(TypedDict):
@@ -15,7 +15,7 @@ class DataLabelingParams(TypedDict):
 class DataLabelingApp(App):
     application_type: str = "data_labeling"
 
-    default_output_formatter = OutputFormatter(name="Data Labeling")
+    default_output_formatter = OutputFormatter(description="Data Labeling")
 
     def _prepare_from_params(self, params: DataLabelingParams) -> "HeadAttachments":
         if "labeling_question" not in params:
@@ -60,13 +60,12 @@ class DataLabelingApp(App):
         return App(
             initial_survey=initial_survey,
             jobs_object=job,
-            output_formatters=OutputFormatters(
-                [
-                    OutputFormatter(name="Courses To Take")
-                    .select("scenario.intended_college_major", "answer.courses_to_take")
-                    .table()
-                ]
-            ),
+            output_formatters={
+                "courses": OutputFormatter(description="Courses To Take")
+                .select("scenario.intended_college_major", "answer.courses_to_take")
+                .table()
+            },
+            default_formatter_name="courses",
         )
 
 

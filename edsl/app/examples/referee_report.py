@@ -90,7 +90,7 @@ report_template = """
 {{ reviewer_round_2 }}
 """
 
-output_formatter = (OutputFormatter(name = "Report From Template")
+output_formatter = (OutputFormatter(description = "Report From Template")
 .report_from_template(template=report_template, format='docx')
 .save('referee_report.docx')
 )
@@ -100,7 +100,9 @@ app = App(
     application_name = "referee_report",
     initial_survey = initial_survey,
     jobs_object = survey.by(referees).by(models),
-    output_formatters = [output_formatter])
+    output_formatters = {"report": output_formatter},
+    default_formatter_name = "report",
+)
 
 if __name__ == "__main__":
     # Pass initial_survey-derived params directly (no legacy 'scenario' wrapper)

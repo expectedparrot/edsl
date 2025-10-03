@@ -59,7 +59,7 @@ jobs_object = (
 .to(q_scales.to_survey())
 )
 
-rubric_formatter = (OutputFormatter("Rubric Survey")
+rubric_formatter = (OutputFormatter(description="Rubric Survey")
 .select('scenario.dimensions', 'answer.scales')
 .rename( 
     {'scenario.dimensions': 'question_text', 
@@ -86,7 +86,8 @@ app = App(
      """,
      application_name = "rubric_generator",
      jobs_object=jobs_object,
-     output_formatters=[rubric_formatter],
+     output_formatters={"rubric": rubric_formatter},
+     default_formatter_name="rubric",
 )
 
  

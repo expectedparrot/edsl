@@ -59,7 +59,7 @@ jobs_object = q_variant.by(Scenario.example())
 
 # Output formatter to create scenario list with variants
 output_formatter = (
-    OutputFormatter(name="Variant List")
+    OutputFormatter(description="Variant List")
     .select("scenario.modifications", "answer.variant_text")
     .to_scenario_list()
 )
@@ -79,7 +79,8 @@ app = App(
     application_name="variant_creator",
     initial_survey=initial_survey,
     jobs_object=jobs_object,
-    output_formatters=[output_formatter],
+    output_formatters={"variant_list": output_formatter},
+    default_formatter_name="variant_list",
     attachment_formatters=[attachment_formatter],
 )
 

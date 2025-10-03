@@ -94,7 +94,7 @@ initial_survey = Survey([
 # Output formatter to create AgentBlueprint
 output_formatter = (
     OutputFormatter(
-        name="Agent Blueprint",
+        description="Agent Blueprint",
     )
     .select("scenario.*", "answer.*")
     .to_scenario_list()
@@ -110,7 +110,8 @@ app = App(
     application_name="agent_blueprint_creator",
     initial_survey=initial_survey,
     jobs_object=jobs_object,
-    output_formatters=[output_formatter],
+    output_formatters={"agent_blueprint": output_formatter},
+    default_formatter_name="agent_blueprint",
 )
 
 if __name__ == "__main__":

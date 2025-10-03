@@ -129,8 +129,11 @@ class ObjectFormatter(ABC):
         allowed_commands: Optional[list[str]] = None,
         params: Optional[Any] = None,
     ) -> None:
-        self.name = name
-        self.description = description
+        # Treat "name" as a legacy alias for description. If only name is provided,
+        # store it in description; keep a .name attribute for backwards references.
+        final_description = description if description is not None else name
+        self.description = final_description
+        self.name = final_description
         if allowed_commands is None:
             allowed_commands = white_list_commands
         self.allowed_commands = allowed_commands
@@ -283,8 +286,9 @@ class ObjectFormatter(ABC):
         True
         """
         return {
-            "name": self.name,
+            # Prefer description as the canonical field; include name for legacy readers
             "description": self.description,
+            "name": self.description,
             "allowed_commands": list(self.allowed_commands),
             "target": self.target,
             "params": self.params,
@@ -331,9 +335,10 @@ class ObjectFormatter(ABC):
         target_value = data.get("target")
         subclass = ObjectFormatter._subclass_registry.get(target_value, cls)
         allowed = data.get("allowed_commands")
+        # Accept either 'description' or legacy 'name'
+        description_value = data.get("description", data.get("name"))
         instance = subclass(
-            name=data.get("name"),
-            description=data.get("description"),
+            description=description_value,
             allowed_commands=allowed,
             params=data.get("params"),
         )
@@ -352,11 +357,30 @@ class OutputFormatter(ObjectFormatter):
 
 
 class OutputFormatters(UserList):
-    def __init__(self, data: list[OutputFormatter] = None):
-        super().__init__(data)
+    def __init__(self, data: dict[str, OutputFormatter] | list[OutputFormatter] | None = None, default: Optional[str] = None):
+        # Support dict-based initialization as the primary API. List remains for legacy paths.
+        if isinstance(data, dict):
+            mapping: dict[str, OutputFormatter] = dict(data)
+            data_list: list[OutputFormatter] = list(mapping.values())
+        else:
+            data_list = list(data) if data is not None else []
+            # Derive mapping keys from description (or legacy name) when constructed from list
+            mapping = {}
+            for f in data_list:
+                key = getattr(f, "description", None) or getattr(f, "name", None)
+                if not key:
+                    raise ValueError("Each formatter must have a non-empty description to be keyed.")
+                if key in mapping:
+                    raise ValueError(f"Duplicate formatter key '{key}' detected")
+                mapping[key] = f
 
-        self.mapping = {f.name: f for f in (data or [])}
-        self.default = None
+        super().__init__(data_list)
+
+        self.mapping = mapping
+        self.default: Optional[str] = default
+
+        # Ensure a pass-through 'raw_results' exists by default
+        self._ensure_raw_results()
 
     def __repr__(self) -> str:
         return f"OutputFormatters({self.data})"
@@ -367,9 +391,12 @@ class OutputFormatters(UserList):
         self.default = name
 
     def get_default(self) -> OutputFormatter:
-        if self.default is not None:
+        if self.default is not None and self.default in self.mapping:
             return self.mapping[self.default]
-        return self.data[0]
+        if "raw_results" in self.mapping:
+            return self.mapping["raw_results"]
+        # Fallback to first available
+        return next(iter(self.mapping.values()))
 
     def get_formatter(self, name: str) -> OutputFormatter:
         """Get a formatter by name."""
@@ -396,8 +423,9 @@ class OutputFormatters(UserList):
         >>> len(data['formatters'])
         2
         """
+        # Serialize to a dict keyed by formatter names (descriptions)
         return {
-            "formatters": [formatter.to_dict() for formatter in self.data],
+            "formatters": {name: formatter.to_dict() for name, formatter in self.mapping.items()},
             "default": self.default,
         }
 
@@ -422,13 +450,32 @@ class OutputFormatters(UserList):
         >>> len(ofs)
         2
         """
-        formatter_dicts = data.get("formatters", [])
-        formatters = [ObjectFormatter.from_dict(fd) for fd in formatter_dicts]
-        instance = cls(formatters)
+        payload = data.get("formatters", {})
+        # Accept both new dict-shaped and legacy list-shaped payloads
+        mapping: dict[str, OutputFormatter]
+        if isinstance(payload, dict):
+            mapping = {name: ObjectFormatter.from_dict(fd) for name, fd in payload.items()}
+        else:
+            # Legacy: list of formatter dicts; key by description/name
+            mapping = {}
+            for fd in (payload or []):
+                of = ObjectFormatter.from_dict(fd)
+                key = getattr(of, "description", None) or getattr(of, "name", None)
+                if not key:
+                    raise ValueError("Formatter entry missing description/name for keying")
+                mapping[key] = of
         default_name = data.get("default")
+        instance = cls(mapping, default=default_name)
+        # Ensure the selected default exists if provided
         if default_name is not None:
             instance.set_default(default_name)
         return instance
+
+    def _ensure_raw_results(self) -> None:
+        if "raw_results" not in self.mapping:
+            self.mapping["raw_results"] = OutputFormatter(description="Raw results")
+            # Keep underlying list in sync for any legacy accesses
+            self.data.append(self.mapping["raw_results"])
 
 
 class ScenarioAttachmentFormatter(ObjectFormatter):

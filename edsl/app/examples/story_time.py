@@ -10,7 +10,7 @@ generation_question = QuestionFreeText(
     question_name="generated_content",
     question_text="""Based on your characteristics and background, please {{ scenario.generation_instructions }}.
 
-Provide a detailed, realistic response that authentically represents someone with your profile."""
+Provide a detailed, realistic response that authentically represents someone with your profile.""",
 )
 
 # Create initial survey to collect user input
@@ -31,7 +31,7 @@ jobs_object = Survey([generation_question]).to_jobs()
 
 # Define output formatter to return the original scenarios augmented with generated content
 output_formatter = (
-    OutputFormatter(name="Agent Stories")
+    OutputFormatter(description="Agent Stories")
     .select("scenario.*", "answer.*", 'agent.*')
     .to_scenario_list()
 )
@@ -42,7 +42,8 @@ app = App(
     application_name="story_time",
     initial_survey=initial_survey,
     jobs_object=jobs_object,
-    output_formatters=[output_formatter]
+    output_formatters={"stories": output_formatter},
+    default_formatter_name="stories",
 )
 
 if __name__ == "__main__":

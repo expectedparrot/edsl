@@ -27,7 +27,7 @@ q_questions = QuestionList(
 
 jobs_object = (q_questions.by(Scenario.example()))
 
-of = (OutputFormatter(name="Topics")
+of = (OutputFormatter(description="Topics")
 .select('answer.generated_questions', 'scenario.input_text')
 .expand('answer.generated_questions')
 .select('answer.generated_questions')

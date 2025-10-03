@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional, Any, TypedDict, Union, List
+from typing import TYPE_CHECKING, Optional, Any, TypedDict, Union, List, Mapping
 import re
 from html import escape
 from pathlib import Path
@@ -49,9 +49,6 @@ class App(ABC):
     # Each subclass should set a unique application_type
     application_type: str = "base"
 
-        # Subclasses must define a default_output_formatter used when none is supplied
-    default_output_formatter: Optional[OutputFormatter] = None
-
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         # Skip base class itself
@@ -68,16 +65,6 @@ class App(ABC):
             raise ValueError(
                 f"Duplicate application_type '{app_type}' for {cls.__name__}; already registered by {existing}."
             )
-        # Enforce that subclasses declare a class-level default_output_formatter
-        default_fmt = getattr(cls, "default_output_formatter", None)
-        if not isinstance(default_fmt, OutputFormatter):
-            raise TypeError(
-                f"{cls.__name__} must define a class-level default_output_formatter (OutputFormatter)."
-            )
-        if not getattr(default_fmt, "name", None):
-            raise ValueError(
-                f"{cls.__name__}.default_output_formatter must have a unique, non-empty name"
-            )
         App._registry[app_type] = cls
 
 
@@ -89,7 +76,8 @@ class App(ABC):
         if isinstance(pipe_or_app, ObjectFormatter):
             return CompositeApp(self, pipe_or_app, None)
         elif isinstance(pipe_or_app, App):
-            pipe = self.default_output_formatter
+            # Use the instance default output formatter (falls back to 'raw_results')
+            pipe = self.output_formatters.get_default()
             return CompositeApp(self, pipe, pipe_or_app)
         else:
             raise TypeError(f"Invalid operand for >>: {type(pipe_or_app).__name__}")
@@ -100,8 +88,9 @@ class App(ABC):
         description: str,
         application_name: str,
         initial_survey: Survey,  # type: ignore[assignment]
-        output_formatters: Optional[list[OutputFormatter] | OutputFormatter] = None,
+        output_formatters: Optional[Mapping[str, OutputFormatter] | list[OutputFormatter] | OutputFormatters] = None,
         attachment_formatters: Optional[list[ObjectFormatter] | ObjectFormatter] = None,
+        default_formatter_name: Optional[str] = None,
     ):
         """Instantiate an App object.
 
@@ -120,17 +109,21 @@ class App(ABC):
             raise ValueError("An initial_survey is required for all apps. The initial survey fully determines parameter names and EDSL object inputs.")
         # Enforce default_output_formatter contract
 
-        # Normalize provided formatters or fall back to class default
-        formatters = output_formatters or type(self).default_output_formatter
-
-        if isinstance(formatters, OutputFormatters):
-            self.output_formatters = formatters
+        # Normalize provided formatters to dict-backed OutputFormatters
+        if isinstance(output_formatters, OutputFormatters):
+            ofs = output_formatters
+        elif isinstance(output_formatters, dict):
+            ofs = OutputFormatters(output_formatters)
+        elif isinstance(output_formatters, list) or output_formatters is None:
+            # Accept list (legacy) or None. If None, start with empty and rely on raw_results
+            ofs = OutputFormatters(output_formatters or [])
         else:
-            if not isinstance(formatters, list):
-                formatters = [formatters]
-            if not formatters:
-                raise ValueError("output_formatters must be a non-empty list")
-            self.output_formatters = OutputFormatters(formatters)
+            raise TypeError("output_formatters must be a dict, list, or OutputFormatters")
+
+        # Set explicit default if provided
+        if default_formatter_name is not None:
+            ofs.set_default(default_formatter_name)
+        self.output_formatters = ofs
 
         attachment_formatters = [] if attachment_formatters is None else attachment_formatters
         if attachment_formatters and not isinstance(attachment_formatters, list):
@@ -253,29 +246,39 @@ class App(ABC):
         """
         if not isinstance(formatter, OutputFormatter):
             raise TypeError("formatter must be an OutputFormatter")
-        if not getattr(formatter, "name", None):
-            raise ValueError("formatter must have a unique, non-empty name")
-        if formatter.name in self.output_formatters.mapping:
-            raise ValueError(f"Formatter with name '{formatter.name}' already exists")
+        key = getattr(formatter, "description", None) or getattr(formatter, "name", None)
+        if not key:
+            raise ValueError("formatter must have a unique, non-empty description")
+        if key in self.output_formatters.mapping:
+            raise ValueError(f"Formatter with name '{key}' already exists")
 
         # Append and keep the mapping in sync
         self.output_formatters.data.append(formatter)
-        self.output_formatters.mapping[formatter.name] = formatter
+        self.output_formatters.mapping[key] = formatter
 
         if set_default:
-            self.output_formatters.set_default(formatter.name)
+            self.output_formatters.set_default(key)
 
         return self
 
     def with_output_formatter(self, formatter: OutputFormatter) -> "App":
         """Make a new app with the same parameters but with the additional output formatter."""
         target_class = type(self)
+        # Insert using description as key
+        key = getattr(formatter, "description", None) or getattr(formatter, "name", None)
+        if not key:
+            raise ValueError("formatter must have a non-empty description")
+        new_map = dict(self.output_formatters.mapping)
+        if key in new_map:
+            raise ValueError(f"Formatter with name '{key}' already exists")
+        new_map[key] = formatter
         return target_class(
             jobs_object=self.jobs_object,
-            output_formatters=[formatter],
+            output_formatters=new_map,
             description=self.description,
             application_name=self.application_name,
             initial_survey=self.initial_survey,
+            default_formatter_name=self.output_formatters.default,
         )
 
     @property
@@ -295,14 +298,18 @@ class App(ABC):
         job_cls = getattr(self.jobs_object, "__class__").__name__
         num_questions = len(list(self.initial_survey))
         head_param_count = len(getattr(self.jobs_object, "head_parameters", []) or [])
-        fmt_names = ", ".join([f.name for f in getattr(self.output_formatters, "data", [])])
+        fmt_names = ", ".join(list(getattr(self.output_formatters, "mapping", {}).keys()))
         try:
-            default_fmt = self.output_formatters.get_default().name
+            default_fmt = getattr(self.output_formatters, "default", None) or self.output_formatters.get_default()
+            if not isinstance(default_fmt, str):
+                default_fmt = getattr(default_fmt, "description", None) or getattr(default_fmt, "name", "<none>")
         except Exception:
             default_fmt = "<none>"
         attach_names = ", ".join([getattr(f, "name", f.__class__.__name__) for f in (self.attachment_formatters or [])])
+        app_type = self.application_type
         return (
             f"{cls_name}(name='{self.application_name}', description='{self.description}', "
+            f"application_type='{app_type}', "
             f"parameters={self.parameters}, "
             f"job='{job_cls}', survey_questions={num_questions}, head_params={head_param_count}, "
             f"formatters=[{fmt_names}], default_formatter='{default_fmt}', attachments=[{attach_names}])"
@@ -510,7 +517,7 @@ if __name__ == "__main__":
     )
 
     twitter_output_formatter = (
-        OutputFormatter(name="Twitter Thread Splitter")
+        OutputFormatter(description="Twitter Thread Splitter")
         .select("answer.twitter_thread")
         .expand("answer.twitter_thread")
         .table()
@@ -521,7 +528,8 @@ if __name__ == "__main__":
         description="This application splits text into a twitter thread.",
         initial_survey=initial_survey,
         jobs_object=jobs_survey.to_jobs(),
-        output_formatters=OutputFormatters([twitter_output_formatter]),
+        output_formatters={"splitter": twitter_output_formatter},
+        default_formatter_name="splitter",
     )
 
     raw_text = """ 

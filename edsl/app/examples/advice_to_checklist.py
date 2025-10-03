@@ -41,7 +41,7 @@ jobs_object = (
     Survey([checklist_question]).by(s)
 )
 
-checklist_formatter = (OutputFormatter("Checklist Survey")
+checklist_formatter = (OutputFormatter(description="Checklist Survey")
     .select('scenario.advice_text', 'answer.checklist_items')
     .expand('answer.checklist_items')
     .select('answer.checklist_items')
@@ -68,7 +68,8 @@ app = App(
     """),
     application_name="advice_to_checklist",
     jobs_object=jobs_object,
-    output_formatters=[checklist_formatter],
+    output_formatters={"checklist": checklist_formatter},
+    default_formatter_name="checklist",
 )
 
 

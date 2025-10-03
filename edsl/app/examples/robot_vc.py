@@ -92,15 +92,16 @@ q6 = QuestionCompute(
 survey = Survey([q1, q2, q3, q4, q5, q6])
 
 
-of1 = OutputFormatter(name = "Robot VC").select('answer.*').table().flip()
-of2 = OutputFormatter(name = "Robot VC").select('comment.*').table().flip()
+of1 = OutputFormatter(description="Robot VC - Answers").select('answer.*').table().flip()
+of2 = OutputFormatter(description="Robot VC - Comments").select('comment.*').table().flip()
 
 app = App(
     initial_survey=initial_survey,
     application_name="Robot VC",
     description="Score a startup for a VC investment.",
     jobs_object=survey.to_jobs(),
-    output_formatters=[of1, of2]
+    output_formatters={"answers": of1, "comments": of2},
+    default_formatter_name="answers",
 )
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ It is randomly collected from a population.
 Is the agent eligible to participate in the study?""")
 
 jobs = q.to_jobs()
-of = OutputFormatter(name="Eligible Agents").select('answer.eligible').to_list(
+of = OutputFormatter(description="Eligible Agents").select('answer.eligible').to_list(
 
 )
 # Provide initial_survey so the agent list can be supplied as an EDSL object
@@ -34,7 +34,8 @@ app = App(
     jobs_object=jobs,
     application_name="Eligible Agents",
     description="This is a constructed agent. It is randomly collected from a population. Is the agent eligible to participate in the study?",
-    output_formatters=[of],
+    output_formatters={"eligible_list": of},
+    default_formatter_name="eligible_list",
 )
 
 if __name__ == "__main__":

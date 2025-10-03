@@ -11,7 +11,7 @@ from .output_formatter import OutputFormatter
 class PersonSimulator(App):
     application_type: str = "person_simulator"
     default_output_formatter: OutputFormatter = (
-        OutputFormatter(name="Persona Answers").select("answer.*").to_list()
+        OutputFormatter(description="Persona Answers").select("answer.*").to_list()
     )
 
     input_type: "Survey"
