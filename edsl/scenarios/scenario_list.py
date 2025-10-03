@@ -15,6 +15,31 @@ Key features include:
 
 ScenarioList is a core component in the EDSL framework for creating, managing, and
 manipulating collections of Scenarios for experiments, surveys, and data processing tasks.
+
+Doctest (chainable conditionals design)
+    >>> from edsl.scenarios import Scenario, ScenarioList
+    >>> sl = ScenarioList([Scenario({"a": "x"}), Scenario({"a": "y"})])
+    >>> # If True, apply then-branch; else apply else-branch
+    >>> out_true = (
+    ...     sl.when(True)            # start recording (active branch: then)
+    ...       .then()                # explicitly set then-branch (optional)
+    ...         .add_value("flag", 1)
+    ...       .else_()               # switch to else branch
+    ...         .add_value("flag", 0)
+    ...       .end()                 # evaluate and apply
+    ... )
+    >>> set(s["flag"] for s in out_true) == {1}
+    True
+    >>> out_false = (
+    ...     sl.when(False)
+    ...       .then()
+    ...         .add_value("flag", 1)
+    ...       .else_()
+    ...         .add_value("flag", 0)
+    ...       .end()
+    ... )
+    >>> set(s["flag"] for s in out_false) == {0}
+    True
 """
 
 from __future__ import annotations
@@ -55,6 +80,8 @@ if TYPE_CHECKING:
     from ..jobs import Jobs, Job
     from ..surveys import Survey
     from ..questions import QuestionBase, Question
+    from ..agents import Agent
+    from typing import Sequence
 
 
 from ..base import Base
@@ -147,6 +174,135 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         for item in data or []:
             self.data.append(item)
         self.codebook = codebook or {}
+        # Conditional builder state (ephemeral)
+        self._cond_active: bool = False
+        self._cond_branch: Optional[str] = None
+        self._cond_condition: Any = None
+        self._cond_ops: dict[str, list[tuple[str, tuple, dict]]] = {"then": [], "else": []}
+
+    # Intercept method access during conditional recording
+    def __getattribute__(self, name: str):  # noqa: D401
+        # Fast path for core attributes to avoid recursion
+        if name in {"_cond_active", "_cond_branch", "_cond_condition", "_cond_ops", "when", "then", "else_", "otherwise", "end", "cancel"}:
+            return object.__getattribute__(self, name)
+
+        attr = object.__getattribute__(self, name)
+
+        # Only intercept when actively recording and the attribute is a public bound method to record
+        try:
+            is_active = object.__getattribute__(self, "_cond_active")
+            current_branch = object.__getattribute__(self, "_cond_branch")
+        except Exception:
+            return attr
+
+        if not is_active:
+            return attr
+
+        # Do not record private/dunder or builder controls
+        if name.startswith("_"):
+            return attr
+
+        builder_exclusions = {
+            "when",
+            "then",
+            "else_",
+            "otherwise",
+            "end",
+            "cancel",
+        }
+
+        if name in builder_exclusions:
+            return attr
+
+        # Only wrap callables (methods)
+        import inspect as _inspect
+        if callable(attr) and _inspect.ismethod(attr):
+            def recorder(*args, **kwargs):
+                ops = object.__getattribute__(self, "_cond_ops")
+                branch = object.__getattribute__(self, "_cond_branch")
+                ops[branch].append((name, args, kwargs))
+                return self
+
+            return recorder
+
+        return attr
+
+    # ---- Chainable conditional builder API ----
+    def when(self, condition: Any) -> "ScenarioList":
+        """Begin a conditional chain on this ScenarioList.
+
+        Records subsequent method calls until `end()`.
+        """
+        if self._cond_active:
+            raise ScenarioError("Nested when() is not supported. Call end() or cancel() first.")
+        self._cond_active = True
+        self._cond_branch = "then"
+        self._cond_condition = condition
+        self._cond_ops = {"then": [], "else": []}
+        return self
+
+    def then(self) -> "ScenarioList":
+        if not self._cond_active:
+            raise ScenarioError("then() called without an active when().")
+        self._cond_branch = "then"
+        return self
+
+    def else_(self) -> "ScenarioList":
+        if not self._cond_active:
+            raise ScenarioError("else_() called without an active when().")
+        self._cond_branch = "else"
+        return self
+
+    def otherwise(self) -> "ScenarioList":
+        return self.else_()
+
+    def cancel(self) -> "ScenarioList":
+        """Abort the current conditional recording and reset state."""
+        self._cond_active = False
+        self._cond_branch = None
+        self._cond_condition = None
+        self._cond_ops = {"then": [], "else": []}
+        return self
+
+    @staticmethod
+    def _cond_to_bool(val: Any) -> bool:
+        if isinstance(val, bool):
+            return val
+        if val is None:
+            return False
+        if isinstance(val, (int, float)):
+            return bool(val)
+        if isinstance(val, str):
+            lowered = val.strip().lower()
+            if lowered in {"", "false", "no", "0", "off", "n"}:
+                return False
+            if lowered in {"true", "yes", "1", "on", "y"}:
+                return True
+            return True
+        return bool(val)
+
+    def end(self) -> "ScenarioList":
+        """End the conditional chain, apply recorded ops for the chosen branch, and return a ScenarioList."""
+        if not self._cond_active:
+            raise ScenarioError("end() called without an active when().")
+
+        chosen_branch = "then" if self._cond_to_bool(self._cond_condition) else "else"
+        ops_to_apply = self._cond_ops.get(chosen_branch, [])
+
+        sl: "ScenarioList" = self
+        for method_name, args, kwargs in ops_to_apply:
+            method = object.__getattribute__(sl, method_name)
+            result = method(*args, **kwargs)
+            # Preserve chaining semantics: some methods return None/inplace
+            sl = result if isinstance(result, ScenarioList) else sl
+
+        # Reset state
+        self._cond_active = False
+        self._cond_branch = None
+        self._cond_condition = None
+        self._cond_ops = {"then": [], "else": []}
+
+        return sl
 
     def is_serializable(self):
         for item in self.data:

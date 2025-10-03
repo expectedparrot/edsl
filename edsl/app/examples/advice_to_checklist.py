@@ -81,5 +81,6 @@ app = App(
 
 
 if __name__ == "__main__":
-    checklist_survey = app.output({'advice_text': "Make sure your API is secure and well-documented"})
+    checklist_survey = app.output({'advice_text': "Make sure your API is secure and well-documented", 
+                                   "include_moustache": "Yes"})
     print(checklist_survey.table())
