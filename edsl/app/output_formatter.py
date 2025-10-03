@@ -121,6 +121,12 @@ def _normalize_annotation_to_name(annotation: Any, current_type_name: Optional[s
     return text
 
 class ObjectFormatter(ABC):
+    """Declarative, chainable renderer that applies whitelisted methods to a target type.
+
+    Instances record a sequence of method calls and arguments. When `render` is invoked,
+    those methods are applied to the provided object. Templates in recorded args/kwargs
+    are resolved lazily against a `params` context.
+    """
 
     target = None
     _subclass_registry: dict[str, "ObjectFormatter"] = {}
@@ -171,6 +177,7 @@ class ObjectFormatter(ABC):
         )
 
     def render(self, results: Any, params: Optional[dict] = None) -> Any:
+        """Apply recorded operations to `results`, resolving templates via `params`."""
         if not self._stored_commands:
             return results
 
@@ -369,6 +376,12 @@ class OutputFormatter(ObjectFormatter):
 
 
 class OutputFormatters(UserList):
+    """Container for named output formatters with a default selection.
+
+    Accepts initialization from either a dict mapping names to `OutputFormatter`
+    instances, or a list of `OutputFormatter` instances (legacy). Ensures a
+    pass-through `raw_results` formatter is always present.
+    """
     def __init__(self, data: dict[str, OutputFormatter] | list[OutputFormatter] | None = None, default: Optional[str] = None):
         # Support dict-based initialization as the primary API. List remains for legacy paths.
         if isinstance(data, dict):

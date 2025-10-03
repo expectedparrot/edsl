@@ -1,7 +1,7 @@
 from edsl import ScenarioList, QuestionMultipleChoice
-from edsl.app import RankingApp
+from edsl.app import App
 
-"""Construct a RankingApp configured to rank foods by healthiness.
+"""Construct a ranking app configured to rank foods by healthiness.
 
 The app expects a ScenarioList with a single field 'food', and it will
 generate pairwise comparisons automatically and return a ranked ScenarioList
@@ -14,7 +14,7 @@ q = QuestionMultipleChoice(
     question_options=["{{ scenario.food_1 }}", "{{ scenario.food_2 }}"],
 )
 
-app = RankingApp(
+app = App.create_ranking_app(
     ranking_question=q,
     option_fields=['food_1', 'food_2'],
     application_name="Food Health Ranking",

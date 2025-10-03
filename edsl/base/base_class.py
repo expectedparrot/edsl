@@ -15,7 +15,7 @@ JSON/YAML serialization, file persistence, pretty printing, and object compariso
 from abc import ABC, abstractmethod, ABCMeta
 import gzip
 import json
-from typing import Any, Optional, Union, TYPE_CHECKING
+from typing import Any, Optional, Union, TYPE_CHECKING, Callable
 from uuid import UUID
 import difflib
 from typing import Dict, Literal, List, Tuple
@@ -1131,6 +1131,22 @@ class Base(
             str: A JSON string representation of the object
         """
         return json.dumps(self.to_dict())
+
+    def comment(self, comment: str, func: Optional[Callable] = None, log_format: Optional[str] = None):
+        """Comment on this object.
+
+        Args:
+            comment: The comment to print
+            func: The function to use to print the comment
+            log_format: The format to use to print the comment
+        """
+        if func is None:
+            func = print
+        if log_format is None:
+            log_format = "{comment}"
+        comment = log_format.format(comment=comment)
+        func(comment)
+        return self
 
     def store(self, d: dict, key_name: Optional[str] = None):
         """Store this object in a dictionary with an optional key.
