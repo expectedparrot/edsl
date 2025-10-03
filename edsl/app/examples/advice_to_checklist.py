@@ -2,7 +2,7 @@ import textwrap
 
 from edsl.app import App
 from edsl.surveys import Survey
-from edsl.questions import QuestionList, QuestionFreeText
+from edsl.questions import QuestionList, QuestionFreeText, QuestionYesNo
 from edsl.app import OutputFormatter
 from edsl import Scenario
 
@@ -10,6 +10,11 @@ initial_survey = Survey([
     QuestionFreeText(
         question_name="advice_text",
         question_text="What advice would you like to convert into a checklist?",
+    ),
+    QuestionYesNo(
+        question_name="include_moustache",
+        question_text="Append {{ scenario.item }} to each checklist question?",
+        question_options=["No", "Yes"],
     ),
 ])
 
@@ -47,11 +52,10 @@ checklist_formatter = (OutputFormatter(description="Checklist Survey")
     .select('answer.checklist_items')
     .rename({'answer.checklist_items': 'question_text'})
     .to_scenario_list()
-    .string_cat("question_text", ": {{ scenario.item }}")
+    .string_cat_if("question_text", ": {{ scenario.item }}", condition="{{ params.include_moustache }}")
     .add_value('question_type', 'yes_no')
 ).to_survey()
 
-import textwrap
 app = App(
     initial_survey=initial_survey,
     description=textwrap.dedent("""
@@ -70,6 +74,7 @@ app = App(
     jobs_object=jobs_object,
     output_formatters={"checklist": checklist_formatter},
     default_formatter_name="checklist",
+    default_params={"include_moustache": "No"},
 )
 
 

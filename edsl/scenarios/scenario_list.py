@@ -494,6 +494,40 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             )
         return new_list
 
+    def string_cat_if(
+        self,
+        key: str,
+        addend: str,
+        condition: Any,
+        position: str = "suffix",
+        inplace: bool = False,
+    ) -> ScenarioList:
+        """Conditionally concatenate a string to a field across all Scenarios.
+
+        The condition may be a boolean or a string such as 'yes'/'no', 'true'/'false', '1'/'0'.
+        Non-empty strings are coerced using a permissive truthy mapping.
+        """
+        def _to_bool(val: Any) -> bool:
+            if isinstance(val, bool):
+                return val
+            if val is None:
+                return False
+            if isinstance(val, (int, float)):
+                return bool(val)
+            if isinstance(val, str):
+                lowered = val.strip().lower()
+                if lowered in {"", "false", "no", "0", "off", "n"}:
+                    return False
+                if lowered in {"true", "yes", "1", "on", "y"}:
+                    return True
+                # Fallback: any other non-empty string is considered True
+                return True
+            return bool(val)
+
+        if not _to_bool(condition):
+            return self if inplace else self.duplicate()
+        return self.string_cat(key, addend, position=position, inplace=inplace)
+
     def transform_by_key(self, key_field: str) -> Scenario:
         """Transform the ScenarioList into a single Scenario with key/value pairs.
         

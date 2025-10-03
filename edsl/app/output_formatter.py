@@ -21,6 +21,7 @@ relevant_classes = {
         "rename",
         "zip",
         "string_cat",
+        "string_cat_if",
         "add_value",
         "to_ranked_scenario_list",
         "to_true_skill_ranked_list",
@@ -406,6 +407,28 @@ class OutputFormatters(UserList):
             )
         return self.mapping[name]
 
+    def register(self, formatter: OutputFormatter, key: str | None = None, *, set_default: bool = False) -> None:
+        """Add a formatter to the collection, updating mapping and optional default.
+
+        Args:
+            formatter: The OutputFormatter to add.
+            key: Optional explicit key to register under. If None, uses
+                 formatter.description or legacy formatter.name.
+            set_default: If True, set this formatter as the default.
+        """
+        if not isinstance(formatter, OutputFormatter):
+            raise TypeError("formatter must be an OutputFormatter")
+        name = key or getattr(formatter, "description", None) or getattr(formatter, "name", None)
+        if not name:
+            raise ValueError("formatter must have a unique, non-empty description")
+        if name in self.mapping:
+            raise ValueError(f"Formatter with name '{name}' already exists")
+        # Append and update mapping
+        self.data.append(formatter)
+        self.mapping[name] = formatter
+        if set_default:
+            self.set_default(name)
+
     def to_dict(self, add_edsl_version: bool = True) -> dict[str, Any]:
         """Serialize the collection of formatters and default selection to a dict.
 
@@ -486,6 +509,35 @@ class SurveyAttachmentFormatter(ObjectFormatter):
 
 class AgentAttachmentFormatter(ObjectFormatter):
     target = 'agent_list'
+
+
+class AttachmentsFormatter(ObjectFormatter):
+    target = 'attachments'
+
+    def render(self, attachments: Any, params: Optional[dict] = None) -> Any:
+        # attachments here is a HeadAttachments instance when applied
+        # Execute stored named ops via AttachmentOps
+        from .attachments_ops import AttachmentOps
+        if attachments is None:
+            # Import here to avoid cycle
+            from .head_attachments import HeadAttachments
+            attachments = HeadAttachments()
+        for command, args, kwargs in self._stored_commands:
+            # Support either .op(name='...') or .then('op', name='...') shapes
+            if command != 'op':
+                raise ValueError("AttachmentsFormatter only supports op(name=..., **kwargs) steps")
+            op_name = kwargs.pop('name', None)
+            if not isinstance(op_name, str) or not op_name:
+                raise ValueError(".op requires a 'name' keyword argument")
+            fn = AttachmentOps.get(op_name)
+            attachments = fn(attachments, params or {}, **kwargs)
+        return attachments
+
+    # Provide a fluent helper for clarity and serialization friendliness
+    def op(self, **kwargs) -> "AttachmentsFormatter":
+        # Record an op step; name is required and validated in render
+        self._stored_commands.append(("op", (), dict(kwargs)))
+        return self
 
 
 if __name__ == "__main__":
