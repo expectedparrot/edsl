@@ -87,6 +87,7 @@ class App:
         output_formatters: Optional[Mapping[str, OutputFormatter] | list[OutputFormatter] | OutputFormatters] = None,
         attachment_formatters: Optional[list[ObjectFormatter] | ObjectFormatter] = None,
         default_formatter_name: Optional[str] = None,
+        default_params: Optional[dict[str, Any]] = None,
     ):
         """Instantiate an App object.
 
@@ -113,6 +114,8 @@ class App:
 
         # Validate and default via descriptor
         self.application_name = application_name
+        # Defaults for initial_survey params keyed by question_name
+        self._default_params: dict[str, Any] = dict(default_params or {})
         # Parameters are fully determined by the initial_survey
         from .app_validator import AppValidator
 
@@ -166,12 +169,14 @@ class App:
 
     def output(
         self,
-        params: "Any",
+        params: dict[str, Any] | None,
         verbose: bool = False,
         formatter_name: Optional[str] = None,
     ) -> Any:
         if params is None:
             params = AnswersCollector.collect_interactively(self)
+        # Apply App-level defaults for missing or None values
+        params = self._apply_default_params(params)
         head_attachments = self._prepare_and_apply_head_attachments(params)
         jobs = head_attachments.attach_to_head(self.jobs_object)
         self.debug.set_jobs(jobs)
@@ -185,7 +190,7 @@ class App:
 
     def _prepare_and_apply_head_attachments(self, params: Any):
         self.debug.set_params(params)
-        # Allow subclasses (e.g., DataLabelingApp) to customize how head attachments
+        # Allow subclasses to customize how head attachments
         # are created from params via _prepare_from_params
         head_attachments = self._prepare_from_params(params)
         for formatter in self.attachment_formatters:
@@ -202,15 +207,56 @@ class App:
 
     def _format_output(self, results: Any, formatter_name: Optional[str]) -> Any:
         formatter = self._select_formatter(formatter_name)
+        # Provide a clear namespaced 'params' for template resolution while
+        # preserving legacy top-level keys for backward compatibility.
+        if isinstance(self.debug.params_last, dict):
+            context_params = dict(self.debug.params_last)
+            context = {"params": context_params, **context_params}
+        else:
+            context = {"params": {}}
         formatted = formatter.render(
             results,
-            params=(self.debug.params_last if isinstance(self.debug.params_last, dict) else {}),
+            params=context,
         )
         self.debug.set_results(results)
         self.debug.set_output(formatted)
         return formatted
 
-    def _prepare_from_params(self, params: Any) -> HeadAttachments:
+    def _apply_default_params(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Merge provided params with defaults declared on the App.
+
+        Any key missing from params or explicitly None will be filled with the
+        corresponding default when provided and when the key exists on the
+        initial_survey.
+        """
+        merged: dict[str, Any] = dict(params or {})
+        if not getattr(self, "_default_params", None):
+            return merged
+        try:
+            survey_names = {q.question_name for q in self.initial_survey}
+        except Exception:
+            survey_names = set()
+        for key, value in self._default_params.items():
+            if survey_names and key not in survey_names:
+                continue
+            if key not in merged or merged.get(key) is None:
+                merged[key] = value
+        return merged
+
+    def _prepare_from_params(self, params: dict[str, Any]) -> HeadAttachments:
+        """Translate initial_survey answers (params) into head attachments.
+
+        This method is the canonical, single place where we:
+        - Verify that the provided params align with the initial survey
+        - Instantiate any declared EDSL objects (Scenario/ScenarioList, Survey, Agent/AgentList)
+        
+        - Collect non-EDSL answers as scenario variables and, if no Scenario is provided,
+          build a single Scenario from those variables
+        
+        - Return a HeadAttachments instance containing up to one attachment for each
+          destination (scenario, survey, agent_list)
+
+        """
         # Derive head attachments exclusively from the initial_survey answers.
         if not isinstance(params, dict):
             raise TypeError(
@@ -218,6 +264,8 @@ class App:
                 + type(params).__name__
             )
 
+
+        # Make sure we didn't get any keys we don't know about
         survey_question_names = {q.question_name for q in self.initial_survey}
         unknown_keys = [k for k in params.keys() if k not in survey_question_names]
         if unknown_keys:
@@ -243,6 +291,8 @@ class App:
         edsl_registry = RegisterSubclassesMeta.get_registry()
 
         # Value transformers keyed by question_type
+        # Each transformer takes the raw answer value and returns a normalized value
+        # suitable for scenario variables. Unspecified types default to identity.
         def _identity(v: Any) -> Any:
             return v
 
@@ -259,6 +309,8 @@ class App:
         }
 
         # Attachment handlers dispatched by instance type
+        # Each handler performs destination uniqueness checks and sets the
+        # corresponding attachment.
         from ..agents import Agent as _Agent
 
         def _attach_scenario(obj: Any) -> None:
@@ -293,7 +345,6 @@ class App:
         def _instantiate_edsl_object(expected_type: str, answer_value: Any, question_name: str) -> tuple[bool, Any]:
             """Return (present, instance) where present indicates a meaningful value was provided.
 
-            Avoids using None as a sentinel for 'no instance'.
             """
             if answer_value is None:
                 return False, None
@@ -317,6 +368,7 @@ class App:
                 continue
             answer_value = params[q_name]
 
+            # 1) edsl_object: instantiate, then dispatch by instance type
             if q.question_type == "edsl_object":
                 present, obj_instance = _instantiate_edsl_object(q.expected_object_type, answer_value, q_name)
                 if not present:
@@ -328,15 +380,19 @@ class App:
                         break
                 # Ignore other EDSL object types that are not head attachments
             else:
+                # 2) Non-EDSL answers: treat as scenario variables (with per-type normalization)
                 transform = value_transformers.get(q.question_type, _identity)
                 scenario_vars[q_name] = transform(answer_value)
 
+        # If no explicit scenario object is attached but we have scenario variables,
+        # synthesize a single Scenario from the collected variables.
         if not dest_assigned["scenario"] and scenario_vars:
             scenario_attachment = Scenario(scenario_vars)
             dest_assigned["scenario"] = True
 
         from .head_attachments import HeadAttachments
 
+        # Assemble and return the final HeadAttachments bundle
         return HeadAttachments(
             scenario=(
                 scenario_attachment
