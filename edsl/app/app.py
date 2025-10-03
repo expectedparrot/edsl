@@ -24,6 +24,7 @@ from .app_param_preparer import AppParamPreparer
 from .answers_collector import AnswersCollector
 from .app_renderer import AppRenderer
 from .app_html_renderer import AppHTMLRenderer
+from .descriptors import InitialSurveyDescriptor, OutputFormattersDescriptor, AttachmentFormattersDescriptor, AppTypeRegistryDescriptor
 
 ## We need the notion of modifying elements before they are attached.
 ## The Outformat would be the natural way to do this.
@@ -34,7 +35,7 @@ from abc import ABC, abstractmethod
  
 
 
-class App(ABC):
+class App:
     """
     A class representing an EDSL application.
 
@@ -43,30 +44,18 @@ class App(ABC):
     The jobs object has the logic for the application.
     """
 
-    # Subclass registry: maps application_type -> subclass
-    _registry: dict[str, type["App"]] = {}
+    # Subclass registry managed via descriptor
+    _registry = AppTypeRegistryDescriptor()
 
 
     # Each subclass should set a unique application_type
     application_type: str = "base"
 
     def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        # Skip base class itself
         if cls is App:
             return
-        app_type = getattr(cls, "application_type", None)
-        if not isinstance(app_type, str) or not app_type.strip():
-            raise TypeError(
-                f"{cls.__name__} must define a non-empty 'application_type' class attribute."
-            )
-        # Enforce uniqueness
-        if app_type in App._registry and App._registry[app_type] is not cls:
-            existing = App._registry[app_type].__name__
-            raise ValueError(
-                f"Duplicate application_type '{app_type}' for {cls.__name__}; already registered by {existing}."
-            )
-        App._registry[app_type] = cls
+        # Delegate validation and registration to descriptor (access the descriptor itself)
+        App.__dict__["_registry"].register(cls)
 
 
     def __rshift__(self, pipe_or_app):
@@ -82,6 +71,11 @@ class App(ABC):
             return CompositeApp(self, pipe, pipe_or_app)
         else:
             raise TypeError(f"Invalid operand for >>: {type(pipe_or_app).__name__}")
+
+    # Descriptors
+    initial_survey = InitialSurveyDescriptor()
+    output_formatters = OutputFormattersDescriptor()
+    attachment_formatters = AttachmentFormattersDescriptor()
 
     def __init__(
         self,
@@ -104,32 +98,16 @@ class App(ABC):
         """
         self.jobs_object = jobs_object
         self.description = description
+        # Validation is handled by descriptor
         self.initial_survey = initial_survey
-
-        if self.initial_survey is None:
-            raise ValueError("An initial_survey is required for all apps. The initial survey fully determines parameter names and EDSL object inputs.")
         # Enforce default_output_formatter contract
 
-        # Normalize provided formatters to dict-backed OutputFormatters
-        if isinstance(output_formatters, OutputFormatters):
-            ofs = output_formatters
-        elif isinstance(output_formatters, dict):
-            ofs = OutputFormatters(output_formatters)
-        elif isinstance(output_formatters, list) or output_formatters is None:
-            # Accept list (legacy) or None. If None, start with empty and rely on raw_results
-            ofs = OutputFormatters(output_formatters or [])
-        else:
-            raise TypeError("output_formatters must be a dict, list, or OutputFormatters")
-
-        # Set explicit default if provided
+        # Normalize and validate via descriptor
+        self.output_formatters = output_formatters
         if default_formatter_name is not None:
-            ofs.set_default(default_formatter_name)
-        self.output_formatters = ofs
+            self.output_formatters.set_default(default_formatter_name)
 
-        attachment_formatters = [] if attachment_formatters is None else attachment_formatters
-        if attachment_formatters and not isinstance(attachment_formatters, list):
-            attachment_formatters = [attachment_formatters]
-
+        # Normalize via descriptor
         self.attachment_formatters = attachment_formatters
 
         if application_name is not None and not isinstance(application_name, str):
@@ -262,17 +240,31 @@ class App(ABC):
 
         return self
 
-    def with_output_formatter(self, formatter: OutputFormatter) -> "App":
-        """Make a new app with the same parameters but with the additional output formatter."""
+    def with_output_formatter(self, name_or_formatter: str | OutputFormatter, formatter: OutputFormatter | None = None) -> "App":
+        """Return a new app with an additional named output formatter.
+
+        Args:
+            name_or_formatter: Either the key to register under, or the formatter itself for backward-compatibility.
+            formatter: The `OutputFormatter` instance to add (required if first arg is a name).
+        """
         target_class = type(self)
-        # Insert using description as key
-        key = getattr(formatter, "description", None) or getattr(formatter, "name", None)
-        if not key:
-            raise ValueError("formatter must have a non-empty description")
+        # Backward-compatible: called with only a formatter
+        if isinstance(name_or_formatter, OutputFormatter) and formatter is None:
+            name = getattr(name_or_formatter, "description", None) or getattr(name_or_formatter, "name", None)
+            if not name:
+                raise ValueError("formatter must have a non-empty description")
+            formatter_obj = name_or_formatter
+        else:
+            name = name_or_formatter
+            formatter_obj = formatter  # type: ignore[assignment]
+            if not isinstance(name, str) or not name.strip():
+                raise ValueError("formatter name must be a non-empty string")
+            if not isinstance(formatter_obj, OutputFormatter):
+                raise TypeError("formatter must be an OutputFormatter")
         new_map = dict(self.output_formatters.mapping)
-        if key in new_map:
-            raise ValueError(f"Formatter with name '{key}' already exists")
-        new_map[key] = formatter
+        if name in new_map:
+            raise ValueError(f"Formatter with name '{name}' already exists")
+        new_map[name] = formatter_obj
         return target_class(
             jobs_object=self.jobs_object,
             output_formatters=new_map,
