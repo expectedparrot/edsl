@@ -152,7 +152,7 @@ generate_job = (
 
 # Output formatter for Stage 1
 candidates_formatter = (
-    OutputFormatter(name="Candidate Pitches")
+    OutputFormatter(description="Create a ScenarioList of 2-sentence startup descriptions")
     .select('answer.shorten')
     .rename({'answer.shorten': 'two_sentences'})
     .to_scenario_list()
@@ -164,7 +164,8 @@ app = App(
     description="Generates candidate 2-sentence startup descriptions using YC best practices",
     initial_survey=initial_survey,
     jobs_object=generate_job,
-    output_formatters=candidates_formatter
+    output_formatters={'scenario_list':candidates_formatter},
+    default_formatter_name='scenario_list'
 )
 
 # Stage 2: Ranking App
@@ -212,6 +213,6 @@ and skip-logic to ask follow-up questions based on answers.""",
     print("\n=== Stage 2: Ranking candidates ===")
     ranked = ranking_app.output(
         params={'input_items': sampled_candidates},
-        verbose=True
+        verbose=True, 
     )
     print(ranked.table())

@@ -121,7 +121,7 @@ scenario_list_formatter = (
 # 6. Complete App
 app = App(
     application_name="Conjoint Analysis Setup",
-    description="Analyzes a product to identify components, potential levels, and current levels for conjoint analysis",
+    description="""Analyzes a product to identify components, potential levels, and current levels for conjoint analysis""",
     initial_survey=initial_survey,
     jobs_object=job,
     output_formatters=[scenario_list_formatter, table_formatter, structured_formatter]

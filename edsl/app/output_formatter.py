@@ -8,6 +8,7 @@ from ..results import Results
 from ..dataset import Dataset
 from ..dataset.display.table_display import TableDisplay
 from ..scenarios import ScenarioList, FileStore
+from ..scenarios.scenario_list import ScenarioListConditional
 from ..scenarios import Scenario
 from ..scenarios.agent_blueprint import AgentBlueprint
 
@@ -22,6 +23,8 @@ relevant_classes = {
         "zip",
         "string_cat",
         "string_cat_if",
+        "if_",
+        "when",
         "add_value",
         "to_ranked_scenario_list",
         "to_true_skill_ranked_list",
@@ -31,6 +34,12 @@ relevant_classes = {
         'choose_k',
         'full_replace',
     ],
+    ScenarioListConditional: [
+        "then",
+        "else_",
+        "otherwise",
+        "end",
+    ],
     Scenario: ["chunk_text", "replace_value", "to_scenario_list"],
     list: ["__getitem__"],
     AgentBlueprint: ["create_agent_list"],
@@ -39,7 +48,12 @@ relevant_classes = {
 white_list_methods = []
 for cls, methods in relevant_classes.items():
     for method in methods:
-        white_list_methods.append(getattr(cls, method))
+        try:
+            white_list_methods.append(getattr(cls, method))
+        except AttributeError:
+            # Some methods may not be available at import time due to import order/cycles
+            # Skip missing ones; unknown commands won't be whitelisted
+            continue
 
 
 def _get_return_annotation_safe(func: Any) -> Any:

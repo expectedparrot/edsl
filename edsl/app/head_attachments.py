@@ -30,6 +30,15 @@ class HeadAttachments:
         else:
             starting_value = None
 
+        # Guard: if a typed formatter is applied but no starting attachment exists,
+        # raise a clear error to help the caller fix missing inputs.
+        if formatter.target in {"scenario", "survey", "agent_list"} and starting_value is None:
+            raise ValueError(
+                f"AttachmentFormatter targeting '{formatter.target}' requires an existing attachment. "
+                f"No '{formatter.target}' is currently attached. Ensure your initial_survey and params "
+                f"provide a {formatter.target} attachment before applying this formatter."
+            )
+
         rendered = formatter.render(starting_value, params=params)
 
         # Route to the correct slot based on the rendered value type
