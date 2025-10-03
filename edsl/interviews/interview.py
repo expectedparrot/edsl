@@ -526,7 +526,9 @@ class Interview:
         self._logger.info("Processing interview results")
         self.answers.replace_missing_answers_with_none(self.survey)
         valid_results = list(
-            self._extract_valid_results(self.tasks, self.invigilators, self.exceptions)
+            self._extract_valid_results(
+                self.tasks, self.invigilators, self.exceptions, run_config
+            )
         )
         self.valid_results = valid_results
         self._logger.info(
@@ -536,11 +538,12 @@ class Interview:
         #
         # return self.answers, valid_results
 
-    @staticmethod
     def _extract_valid_results(
+        self,
         tasks: List["asyncio.Task"],
         invigilators: List["InvigilatorBase"],
         exceptions: InterviewExceptionCollection,
+        run_config: "RunConfig",
     ) -> Generator["Answers", None, None]:
         """Extract valid results from completed tasks and handle exceptions.
 
@@ -570,7 +573,31 @@ class Interview:
         def handle_task(task, invigilator):
             try:
                 result: Answers = task.result()
-                if result == "skipped":
+
+                # Check if result is actually an exception (happens when return_exceptions=True)
+                if isinstance(result, Exception):
+                    e = result
+                    result = invigilator.get_failed_task_result(
+                        failure_reason=f"Task failed with exception: {str(e)}."
+                    )
+                    exception_entry = InterviewExceptionEntry(
+                        exception=e,
+                        invigilator=invigilator,
+                    )
+                    exceptions.add(task.get_name(), exception_entry)
+
+                    # Track failed question for progress tracking
+                    if (
+                        run_config
+                        and hasattr(run_config, "environment")
+                        and hasattr(run_config.environment, "jobs_runner_status")
+                        and run_config.environment.jobs_runner_status is not None
+                    ):
+                        run_config.environment.jobs_runner_status.add_failed_question(
+                            model_name=self.model.model,
+                            question_name=task.get_name(),
+                        )
+                elif result == "skipped":
                     result = invigilator.get_failed_task_result(
                         failure_reason="Task was skipped."
                     )
@@ -587,15 +614,28 @@ class Interview:
                     invigilator=invigilator,
                 )
                 exceptions.add(task.get_name(), exception_entry)
+
+                # Track failed question for progress tracking
+                if (
+                    run_config
+                    and hasattr(run_config, "environment")
+                    and hasattr(run_config.environment, "jobs_runner_status")
+                    and run_config.environment.jobs_runner_status is not None
+                ):
+                    run_config.environment.jobs_runner_status.add_failed_question(
+                        model_name=self.model.model,
+                        question_name=task.get_name(),
+                    )
             return result
 
-        for task, invigilator in zip(tasks, invigilators):
+        for i, (task, invigilator) in enumerate(zip(tasks, invigilators)):
             if not task.done():
                 from edsl.interviews.exceptions import InterviewTaskError
 
                 raise InterviewTaskError(f"Task {task.get_name()} is not done.")
 
-            yield handle_task(task, invigilator)
+            result = handle_task(task, invigilator)
+            yield result
 
     def __repr__(self) -> str:
         """Generate a string representation of the interview.

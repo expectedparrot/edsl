@@ -399,6 +399,13 @@ class AnswerQuestionFunctionConstructor:
                     f"Question '{question.question_name}' completed in {answer_time:.3f}s"
                 )
 
+                # Check for exceptions FIRST before marking as success
+                if (
+                    hasattr(response, "exception_occurred")
+                    and response.exception_occurred
+                ):
+                    raise response.exception_occurred
+
                 if response.validated:
                     # Re-check if interview exists before updating it
                     interview = self._interview_ref()
@@ -427,12 +434,6 @@ class AnswerQuestionFunctionConstructor:
                         except Exception as e:
                             # Don't let progress tracking break question answering
                             self._logger.warning(f"Progress tracking failed: {e}")
-                else:
-                    if (
-                        hasattr(response, "exception_occurred")
-                        and response.exception_occurred
-                    ):
-                        raise response.exception_occurred
 
             except QuestionAnswerValidationError as e:
                 self._handle_exception(e, invigilator, task)
