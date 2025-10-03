@@ -42,6 +42,14 @@ class AppValidator:
                 "Cannot have post_run_methods in the jobs object if using output formatters."
             )
 
+        # Ensure reserved formatter key exists and is correctly mapped
+        try:
+            _ = app.output_formatters.get_formatter("raw_results")
+        except Exception:
+            raise ValueError(
+                "OutputFormatters must include a reserved 'raw_results' formatter."
+            )
+
     @staticmethod
     def validate_initial_survey_edsl_uniqueness(app: Any) -> None:
         """Ensure at most one EDSL object per attachment destination is requested by the initial_survey."""

@@ -126,7 +126,7 @@ if __name__ == "__main__":
     ).to_jobs()
 
     of = (
-        OutputFormatter(name="Output Formatter")
+        OutputFormatter(description="Output Formatter")
         .select("answer.*")
         .to_list()
         .__getitem__(0)
@@ -135,7 +135,8 @@ if __name__ == "__main__":
     english_to_german = SingleScenarioApp(
         initial_survey=initial_survey,
         jobs_object=jobs,
-        output_formatters=[of],
+        output_formatters={"of": of},
+        default_formatter_name="of",
         application_name="to_german",
         description="Translate the input text to German.",
     )
@@ -147,13 +148,14 @@ if __name__ == "__main__":
             question_text="""Please translate {{ scenario.input_text }} from German to English. 
             Just return the translated text, no other text.""",
         ).to_jobs(),
-        output_formatters=[of],
+        output_formatters={"of": of},
+        default_formatter_name="of",
         application_name="to_german",
         description="Translate the input text from German to English.",
     )
 
     pipe = (
-        OutputFormatter(name="Pipe")
+        OutputFormatter(description="Pipe")
         .select("answer.translated_text")
         .to_scenario_list()
         .rename({"translated_text": "input_text"})

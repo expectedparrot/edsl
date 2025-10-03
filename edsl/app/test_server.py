@@ -13,7 +13,7 @@ def test_server():
     try:
         from edsl.app.client import EDSLAppClient
         from edsl.app.app import App
-        from edsl.app.output_formatter import OutputFormatter, OutputFormatters
+        from edsl.app.output_formatter import OutputFormatter
         from edsl.surveys import Survey
         from edsl.questions import QuestionFreeText, QuestionList
     except ImportError as e:
@@ -39,14 +39,15 @@ def test_server():
     ])
 
     # Use a simple output formatter that works with JSON
-    twitter_output_formatter = OutputFormatter(name="Twitter Thread Splitter")
+    twitter_output_formatter = OutputFormatter(description="Twitter Thread Splitter")
 
     test_app = App(
         application_name="Twitter Thread Splitter",
         description="This application splits text into a twitter thread.",
         initial_survey=initial_survey,
         jobs_object=jobs_survey.to_jobs(),
-        output_formatters=OutputFormatters([twitter_output_formatter])
+        output_formatters={"splitter": twitter_output_formatter},
+        default_formatter_name="splitter",
     )
 
     # Test client

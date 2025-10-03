@@ -53,7 +53,7 @@ def push_sample_apps():
         # Create and push a simple test app
         try:
             from edsl.app.app import App
-            from edsl.app.output_formatter import OutputFormatter, OutputFormatters
+            from edsl.app.output_formatter import OutputFormatter
             from edsl.surveys import Survey
             from edsl.questions import QuestionFreeText
 
@@ -65,7 +65,7 @@ def push_sample_apps():
             ])
 
             simple_formatter = (
-                OutputFormatter(name="Simple Response")
+                OutputFormatter(description="Simple Response")
                 .select('answer.user_input')
                 .table()
             )
@@ -75,7 +75,8 @@ def push_sample_apps():
                 description="A simple app that echoes your input",
                 initial_survey=simple_survey,
                 jobs_object=simple_survey.to_jobs(),
-                output_formatters=OutputFormatters([simple_formatter])
+                output_formatters={"simple": simple_formatter},
+                default_formatter_name="simple",
             )
 
             app_id2 = client.push_app(simple_app)

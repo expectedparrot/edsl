@@ -83,7 +83,7 @@ job = (
 # )
 
 output_formatter = (
-    OutputFormatter(name="Survey")
+    OutputFormatter(description="Survey")
     .select(
         "generated_question_text",
         "generated_question_type",
@@ -107,7 +107,8 @@ app = App(
     application_name="auto_survey",
     initial_survey=initial_survey,
     jobs_object=job,
-    output_formatters=[output_formatter],
+    output_formatters={"survey": output_formatter},
+    default_formatter_name="survey",
 )
 
 if __name__ == "__main__":

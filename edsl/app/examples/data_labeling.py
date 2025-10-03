@@ -13,7 +13,7 @@ labeling_question = QuestionYesNo(
     question_name = "in_asia", 
     question_text = "Is this city in Asia? {{ scenario.City }}")
 
-of = OutputFormatter(name = "Data Labeling").select('City','answer.*', 'generated_tokens.*').table()
+of = OutputFormatter(description = "Data Labeling").select('City','answer.*', 'generated_tokens.*').table()
 
 # initial_survey collects the items to label and the labeling survey
 initial_survey = Survey([
@@ -37,7 +37,8 @@ app = App(
     description = "A data labeling app.",
     application_name = "data_labeling",
     jobs_object = jobs_object,
-    output_formatters = [of]
+    output_formatters = {"labeling": of},
+    default_formatter_name = "labeling"
     )
 
 if __name__ == "__main__":

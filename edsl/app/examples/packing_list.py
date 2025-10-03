@@ -133,7 +133,7 @@ from edsl.app import App
 from edsl.app import OutputFormatter
 
 markdown_viewer = (
-    OutputFormatter(name = "Markdown Viewer")
+    OutputFormatter(description = "Markdown Viewer")
     .select('answer.packing_checklist', 'answer.packing_tips', 'answer.weight_estimates')
     .to_markdown()
     .view()
@@ -144,7 +144,8 @@ app = App(
     application_name = "packing_list",
     initial_survey=initial_survey,
     jobs_object=jobs,
-    output_formatters=[markdown_viewer],
+    output_formatters={"markdown": markdown_viewer},
+    default_formatter_name="markdown",
 )
 
 if __name__ == "__main__":

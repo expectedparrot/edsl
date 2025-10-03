@@ -126,14 +126,14 @@ jobs = s.by(a)
 
 
 markdown_viewer = (
-    OutputFormatter(name = "Markdown Viewer")
+    OutputFormatter(description = "Markdown Viewer")
     .select('answer.meal_plan_table', 'answer.shopping_list', 'answer.recipes')
     .to_markdown()
     .view()
 )
 
 docx_writer = (
-    OutputFormatter(name = "Docx Writer")
+    OutputFormatter(description = "Docx Writer")
     .select('answer.meal_plan_table', 'answer.shopping_list', 'answer.recipes')
     .to_markdown()
     .to_docx()
@@ -145,7 +145,8 @@ app = App(
     application_name="Meal Planner",
     description="Create a meal plan for a given number of people.",
     jobs_object=jobs,
-    output_formatters=[markdown_viewer, docx_writer]
+    output_formatters={"markdown": markdown_viewer, "docx": docx_writer},
+    default_formatter_name="markdown",
 )
 
 if __name__ == "__main__":

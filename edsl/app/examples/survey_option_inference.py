@@ -101,7 +101,7 @@ jobs_object = (
 
 # Output formatter for the clean option list
 clean_options_formatter = (
-    OutputFormatter(name="Clean Survey Options")
+    OutputFormatter(description="Clean Survey Options")
     .select("answer.ordered_complete_options", "answer.ordering_explanation")
     .to_scenario_list()
     .rename({
@@ -112,7 +112,7 @@ clean_options_formatter = (
 
 # Output formatter for detailed analysis
 analysis_formatter = (
-    OutputFormatter(name="Option Analysis Report")
+    OutputFormatter(description="Option Analysis Report")
     .select(
         "scenario.raw_options",
         "scenario.option_context",
@@ -126,7 +126,7 @@ analysis_formatter = (
 
 # Output formatter that creates a survey-ready format
 survey_ready_formatter = (
-    OutputFormatter(name="Survey Ready Options")
+    OutputFormatter(description="Survey Ready Options")
     .select("answer.ordered_complete_options")
     .expand("answer.ordered_complete_options")
     .select("answer.ordered_complete_options")
@@ -140,7 +140,12 @@ app = App(
     description="Cleans and properly orders survey options, filling in missing values and ensuring logical sequence",
     initial_survey=initial_survey,
     jobs_object=jobs_object,
-    output_formatters=[clean_options_formatter, analysis_formatter, survey_ready_formatter]
+    output_formatters={
+        "clean": clean_options_formatter,
+        "analysis": analysis_formatter,
+        "survey_ready": survey_ready_formatter,
+    },
+    default_formatter_name="clean",
 )
 
 if __name__ == "__main__":
