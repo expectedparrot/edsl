@@ -23,6 +23,7 @@ from .output_formatter import ObjectFormatter
 from .app_param_preparer import AppParamPreparer
 from .answers_collector import AnswersCollector
 from .app_renderer import AppRenderer
+from .app_html_renderer import AppHTMLRenderer
 
 ## We need the notion of modifying elements before they are attached.
 ## The Outformat would be the natural way to do this.
@@ -356,95 +357,9 @@ class App(ABC):
         return "\n".join(wrapped)
 
     def _repr_html_(self) -> str:
-        """Rich HTML representation for IPython/Jupyter.
-
-        Renders the application's name, the description (markdown converted to
-        HTML), and a table of parameters derived from the initial survey.
-        """
-        title_html = f"<h2 style=\"margin-bottom:0.25rem;\">{escape(self.application_name)}</h2>"
-        desc_html = self._convert_markdown_to_html(self.description)
-
-        # Build parameters table
-        rows_html = []
-        for name, qtype, prompt in self.parameters:
-            rows_html.append(
-                """
-                <tr>
-                  <td>{name}</td>
-                  <td><code>{qtype}</code></td>
-                  <td>{prompt}</td>
-                </tr>
-                """.format(
-                    name=escape(str(name)),
-                    qtype=escape(str(qtype)),
-                    prompt=escape(str(prompt)),
-                )
-            )
-
-        table_html = (
-            """
-            <table style="border-collapse:collapse; width:100%; margin-top:0.75rem;">
-              <thead>
-                <tr>
-                  <th style="text-align:left; border-bottom:1px solid #ccc; padding:6px 8px;">Parameter</th>
-                  <th style="text-align:left; border-bottom:1px solid #ccc; padding:6px 8px;">Type</th>
-                  <th style="text-align:left; border-bottom:1px solid #ccc; padding:6px 8px;">Prompt</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows}
-              </tbody>
-            </table>
-            """
-        ).format(rows="\n".join(rows_html))
-
-        # Usage example derived from initial survey
-        def _example_value_for_type(question_type: str) -> str:
-            qt = (question_type or "").lower()
-            if "bool" in qt:
-                return "True"
-            if "int" in qt:
-                return "0"
-            if "float" in qt or "number" in qt or "numeric" in qt:
-                return "0.0"
-            if "list" in qt or "array" in qt:
-                return "[\"item1\", \"item2\"]"
-            if "date" in qt:
-                return "\"2025-01-01\""
-            if "file" in qt or "path" in qt:
-                return "\"/path/to/file.txt\""
-            # default to generic text
-            return "\"...\""
-
-        example_kv_lines = []
-        for name, qtype, _prompt in self.parameters:
-            value_literal = _example_value_for_type(str(qtype))
-            example_kv_lines.append(f"    {repr(str(name))}: {value_literal}")
-        params_body = ",\n".join(example_kv_lines) if example_kv_lines else "    # no parameters"
-        usage_code = f"app.output(params={{\n{params_body}\n}})"
-        usage_block = f"<pre style=\"background:#f6f8fa; padding:10px; border-radius:6px; overflow:auto;\"><code class=\"language-python\">{escape(usage_code)}</code></pre>"
-
-        container = (
-            """
-            <div class="edsl-app" style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, sans-serif; line-height:1.5;">
-              {title}
-              <div class="edsl-app-description" style="color:#333; margin-top:0.5rem;">{desc}</div>
-              <h3 style="margin-top:1.25rem;">Parameters</h3>
-              {table}
-              <h3 style="margin-top:1.25rem;">Usage</h3>
-              {usage}
-            </div>
-            """
-        ).format(title=title_html, desc=desc_html, table=table_html, usage=usage_block)
-
-        return container
+        return AppHTMLRenderer(self).render()
 
     
-
-    
-
-    
-
     def to_dict(self, add_edsl_version: bool = True) -> dict:
         from .app_serialization import AppSerialization
 
