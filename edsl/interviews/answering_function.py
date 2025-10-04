@@ -364,7 +364,9 @@ class AnswerQuestionFunctionConstructor:
             # Check if interview still exists
             if interview is None:
                 # If interview is gone, we can't really process this question
-                # Return a failure result
+                # This is a failure case, not a skip
+                # Note: We can't track this in jobs_runner_status because interview is None
+                # so we don't have access to the model name. This case should be very rare.
                 return invigilator.get_failed_task_result(
                     failure_reason="Interview has been garbage collected."
                 )
@@ -437,6 +439,21 @@ class AnswerQuestionFunctionConstructor:
 
             except QuestionAnswerValidationError as e:
                 self._handle_exception(e, invigilator, task)
+
+                # Track failed question for progress tracking
+                interview = self._interview_ref()
+                if (
+                    interview is not None
+                    and self.run_config
+                    and hasattr(self.run_config, "environment")
+                    and hasattr(self.run_config.environment, "jobs_runner_status")
+                    and self.run_config.environment.jobs_runner_status is not None
+                ):
+                    self.run_config.environment.jobs_runner_status.add_failed_question(
+                        model_name=interview.model.model,
+                        question_name=question.question_name,
+                    )
+
                 return invigilator.get_failed_task_result(
                     failure_reason="Question answer validation failed."
                 )
