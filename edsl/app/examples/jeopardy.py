@@ -38,8 +38,22 @@ of = (OutputFormatter(description="Topics", output_type="edsl_object")
 .to_survey()
 )
 
+# Markdown formatter that displays the generated questions as a table
+markdown_formatter = (
+    OutputFormatter(description="Questions Preview (Markdown)", output_type="markdown")
+    .select('answer.generated_questions', 'scenario.input_text')
+    .expand('answer.generated_questions')
+    .select('answer.generated_questions')
+    .to_scenario_list()
+    .select('generated_questions')
+    .rename({'generated_questions':'question_text'})
+    .add_value('question_type', 'free_text')
+    .table(tablefmt="github")
+    .to_string()
+)
+
 # This modifies the scenario by chunking the text
-# before attaching it to the jobs object. 
+# before attaching it to the jobs object.
 sa = (ScenarioAttachmentFormatter(name="Scenario Attachment Formatter")
     .chunk_text(field = 'input_text', chunk_size_field = 'words_per_chunk', unit='word')
 )
@@ -48,8 +62,8 @@ app = App(
     initial_survey = input_survey,
     description = "A jeopardy question generator.",
     application_name = "jeopardy",
-    jobs_object = jobs_object, 
-    output_formatters = {'survey': of},
+    jobs_object = jobs_object,
+    output_formatters = {'survey': of, 'markdown': markdown_formatter},
     default_formatter_name = 'survey',
     attachment_formatters = [sa]
 )
