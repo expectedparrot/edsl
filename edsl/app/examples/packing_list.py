@@ -133,10 +133,11 @@ from edsl.app import App
 from edsl.app import OutputFormatter
 
 markdown_viewer = (
-    OutputFormatter(description = "Markdown Viewer")
+    OutputFormatter(description = "Markdown Viewer", output_type="markdown")
     .select('answer.packing_checklist', 'answer.packing_tips', 'answer.weight_estimates')
-    .to_markdown()
-    .view()
+    .table(tablefmt="github")
+    .flip()
+    .to_string()
 )
 
 app = App(

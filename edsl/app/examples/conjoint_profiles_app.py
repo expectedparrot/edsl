@@ -44,21 +44,23 @@ jobs_object = Survey([confirmation_question]).by(conjoint_analyst)
 
 # 4. Standard output formatters (the actual profile generation will happen when apps are chained)
 profiles_formatter = (
-    OutputFormatter(description="Conjoint Profiles")
+    OutputFormatter(description="Conjoint Profiles", output_type="edsl_object")
     .select("*")
     .to_scenario_list()
 )
 
 table_formatter = (
-    OutputFormatter(description="Profiles Table")
+    OutputFormatter(description="Profiles Table", output_type="table")
     .select("*")
     .table()
 )
 
 summary_formatter = (
-    OutputFormatter(description="Generation Summary")
+    OutputFormatter(description="Generation Summary", output_type="markdown")
     .select("scenario.profile_count", "answer.generation_confirmation")
-    .to_markdown()
+    .table(tablefmt="github")
+    .flip()
+    .to_string()
 )
 
 # 5. Create the standard EDSL app

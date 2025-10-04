@@ -10,12 +10,14 @@ from ..dataset.display.table_display import TableDisplay
 from ..scenarios import ScenarioList, FileStore
 from ..scenarios import Scenario
 from ..scenarios.agent_blueprint import AgentBlueprint
+from ..surveys import Survey
 
 relevant_classes = {
     Results: ["to_scenario_list", "select", "table", "report_from_template"],
     Dataset: ["table", "expand", "to_markdown", "to_list"],
-    TableDisplay: ["flip"],
+    TableDisplay: ["flip", "to_string"],
     FileStore: ["view", "to_docx", "save"],
+    Survey: ["to_scenario_list", "table"],
     ScenarioList: [
         "to_survey",
         "rename",
@@ -146,6 +148,7 @@ class ObjectFormatter(ABC):
         description: Optional[str] = None,
         allowed_commands: Optional[list[str]] = None,
         params: Optional[Any] = None,
+        output_type: str = "auto",
     ) -> None:
         # Treat "name" as a legacy alias for description. If only name is provided,
         # store it in description; keep a .name attribute for backwards references.
@@ -159,6 +162,8 @@ class ObjectFormatter(ABC):
         self._stored_commands = []
         # Optional declarative params spec (names or defaults) supplied by user
         self.params = params
+        # Output type hint for frontend rendering: "markdown", "html", "file", "json", "auto"
+        self.output_type = output_type
 
     def __getattr__(self, name: str) -> Any:
 
@@ -311,6 +316,7 @@ class ObjectFormatter(ABC):
             "allowed_commands": list(self.allowed_commands),
             "target": self.target,
             "params": self.params,
+            "output_type": getattr(self, 'output_type', 'auto'),
             "stored_commands": [
                 {"name": name, "args": list(args), "kwargs": kwargs}
                 for name, args, kwargs in self._stored_commands
@@ -360,6 +366,7 @@ class ObjectFormatter(ABC):
             description=description_value,
             allowed_commands=allowed,
             params=data.get("params"),
+            output_type=data.get("output_type", "auto"),
         )
         stored = []
         for item in data.get("stored_commands", []):

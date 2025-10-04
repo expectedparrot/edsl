@@ -126,16 +126,17 @@ jobs = s.by(a)
 
 
 markdown_viewer = (
-    OutputFormatter(description = "Markdown Viewer")
+    OutputFormatter(description = "Markdown Viewer", output_type="markdown")
     .select('answer.meal_plan_table', 'answer.shopping_list', 'answer.recipes')
-    .to_markdown()
-    .view()
+    .table(tablefmt="github")
+    .flip()
+    .to_string()
+    # Returns inline markdown string instead of FileStore
 )
 
 docx_writer = (
-    OutputFormatter(description = "Docx Writer")
+    OutputFormatter(description = "Docx Writer", output_type="docx")
     .select('answer.meal_plan_table', 'answer.shopping_list', 'answer.recipes')
-    .to_markdown()
     .to_docx()
 )
 

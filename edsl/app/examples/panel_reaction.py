@@ -21,7 +21,7 @@ al = AgentList([
 # Minimal jobs survey; will be replaced by the provided survey via head attachment
 jobs_object = Survey([]).to_jobs().by(al)
 
-output_formatter = OutputFormatter(description="Panel Reaction").select('agent_name', 'answer.*').table()
+output_formatter = OutputFormatter(description="Panel Reaction", output_type="table").select('agent_name', 'answer.*').table()
 
 app = App(
     initial_survey = initial_survey,

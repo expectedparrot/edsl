@@ -59,10 +59,10 @@ jobs_object = (
 .to(q_scales.to_survey())
 )
 
-rubric_formatter = (OutputFormatter(description="Rubric Survey")
+rubric_formatter = (OutputFormatter(description="Rubric Survey", output_type="edsl_object")
 .select('scenario.dimensions', 'answer.scales')
-.rename( 
-    {'scenario.dimensions': 'question_text', 
+.rename(
+    {'scenario.dimensions': 'question_text',
     'answer.scales': 'option_labels'}
 ).to_scenario_list().string_cat("question_text", ": {{ scenario.item}}")
 .to_scenario_list().add_value('question_type', 'linear_scale')

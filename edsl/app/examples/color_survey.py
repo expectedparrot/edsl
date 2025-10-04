@@ -95,15 +95,16 @@ color_survey_pipeline = Survey([
 
 # Markdown formatter for viewing the results
 markdown_output = (
-    OutputFormatter(description="Color Survey Results")
+    OutputFormatter(description="Color Survey Results", output_type="markdown")
     .select("answer.color_survey_questions", "answer.color_analysis")
-    .to_markdown()
-    .view()
+    .table(tablefmt="github")
+    .flip()
+    .to_string()
 )
 
 # Scenario list formatter for further processing
 survey_data_output = (
-    OutputFormatter(description="Survey Data")
+    OutputFormatter(description="Survey Data", output_type="edsl_object")
     .select(
         "scenario.survey_context",
         "scenario.survey_style",
@@ -116,7 +117,7 @@ survey_data_output = (
 
 # Raw results formatter
 raw_output = (
-    OutputFormatter(description="Raw Results")
+    OutputFormatter(description="Raw Results", output_type="table")
     .select("scenario.*", "answer.*")
     .table()
 )
