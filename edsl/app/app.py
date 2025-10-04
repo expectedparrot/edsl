@@ -4,6 +4,9 @@ import re
 from html import escape
 from pathlib import Path
 from abc import ABC
+import logging
+
+logger = logging.getLogger(__name__)
 
 from ..scenarios import Scenario, ScenarioList
 from ..surveys import Survey
@@ -205,21 +208,43 @@ class App:
         Returns:
             The formatted output as produced by the selected output formatter.
         """
+        logger.info(f"App.output called with params keys: {params.keys() if params else None}")
+        logger.info(f"App.output formatter_name: {formatter_name}")
+
         if params is None:
             params = AnswersCollector.collect_interactively(self)
+
         # Apply App-level defaults for missing or None values
+        logger.info("Applying default params")
         params = self._apply_default_params(params)
+
         # Apply fixed params last so they win
+        logger.info("Applying fixed params")
         params = self._apply_fixed_params(params)
+        logger.info(f"After applying defaults/fixed, params keys: {params.keys()}")
+
+        logger.info("Preparing head attachments")
+        logger.info(f"self.attachment_formatters: {self.attachment_formatters}")
+        logger.info(f"Number of attachment formatters: {len(list(self.attachment_formatters or []))}")
         head_attachments = self._prepare_head_attachments(params)
+        logger.info(f"Head attachments prepared: scenario={head_attachments.scenario is not None}, survey={head_attachments.survey is not None}, agent_list={head_attachments.agent_list is not None}")
+
+        logger.info("Attaching to head")
         jobs = head_attachments.attach_to_head(self.jobs_object)
         self.debug.set_jobs(jobs)
+
+        logger.info("Generating results")
         results = self._generate_results(
             jobs,
             stop_on_exception=stop_on_exception,
             disable_remote_inference=disable_remote_inference,
         )
+        logger.info(f"Results generated, type: {type(results)}")
+
+        logger.info("Formatting output")
         formatted_output = self._format_output(results, formatter_name)
+        logger.info(f"Output formatted, type: {type(formatted_output)}")
+
         self.debug.record_snapshot()
         return formatted_output
 
@@ -237,7 +262,9 @@ class App:
         """
         self.debug.set_params(params)
         head_attachments = self._prepare_from_params(params)
+        logger.info(f"About to apply {len(list(self.attachment_formatters or []))} attachment formatters")
         for formatter in self.attachment_formatters:
+            logger.info(f"Applying attachment formatter: {formatter}")
             head_attachments = head_attachments.apply_formatter(
                 formatter, params=params
             )
@@ -328,6 +355,8 @@ class App:
           destination (scenario, survey, agent_list)
 
         """
+        logger.info(f"_prepare_from_params called with params keys: {params.keys() if params else None}")
+
         # Derive head attachments exclusively from the initial_survey answers.
         if not isinstance(params, dict):
             raise TypeError(
@@ -441,20 +470,26 @@ class App:
 
         for q in self.initial_survey:
             q_name = q.question_name
+            logger.info(f"Processing question: {q_name}, type: {q.question_type}")
             if q_name not in params:
+                logger.info(f"Question {q_name} not in params, skipping")
                 continue
             answer_value = params[q_name]
+            logger.info(f"Answer value for {q_name}: type={type(answer_value)}, is_dict={isinstance(answer_value, dict)}")
 
             # 1) edsl_object: instantiate, then dispatch by instance type
             if q.question_type == "edsl_object":
+                logger.info(f"Processing edsl_object question {q_name}, expected_type={q.expected_object_type}")
                 present, obj_instance = _instantiate_edsl_object(
                     q.expected_object_type, answer_value, q_name
                 )
+                logger.info(f"After instantiation: present={present}, obj_instance type={type(obj_instance)}")
                 if not present:
                     continue
                 # Dispatch by instance type
                 for types, handler in attach_dispatch:
                     if isinstance(obj_instance, types):
+                        logger.info(f"Dispatching {q_name} to {handler.__name__}")
                         handler(obj_instance)
                         break
                 # Ignore other EDSL object types that are not head attachments
@@ -462,6 +497,7 @@ class App:
                 # 2) Non-EDSL answers: treat as scenario variables (with per-type normalization)
                 transform = value_transformers.get(q.question_type, _identity)
                 scenario_vars[q_name] = transform(answer_value)
+                logger.info(f"Added {q_name} to scenario_vars")
 
         # Also add fixed params (not present in the pruned survey) to scenario variables
         for k, v in getattr(self, "fixed_params", {}).items():
@@ -470,13 +506,17 @@ class App:
 
         # If no explicit scenario object is attached but we have scenario variables,
         # synthesize a single Scenario from the collected variables.
+        logger.info(f"dest_assigned: {dest_assigned}")
+        logger.info(f"scenario_vars: {scenario_vars}")
         if not dest_assigned["scenario"] and scenario_vars:
+            logger.info(f"Creating Scenario from scenario_vars: {scenario_vars}")
             scenario_attachment = Scenario(scenario_vars)
             dest_assigned["scenario"] = True
 
         from .head_attachments import HeadAttachments
 
         # Assemble and return the final HeadAttachments bundle
+        logger.info(f"Creating HeadAttachments: scenario={scenario_attachment}, survey={survey_attachment}, agent_list={agent_list_attachment}")
         return HeadAttachments(
             scenario=(
                 scenario_attachment
