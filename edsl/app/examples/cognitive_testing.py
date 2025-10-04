@@ -11,7 +11,7 @@ jobs_object = Survey([
 ]).to_jobs()
 
 output_formatter = (
-    OutputFormatter(name = "Typo Checker")
+    OutputFormatter(name = "Typo Checker", output_type="table")
     .select('scenario.question_text', 'answer.typos')
     .table()
 )

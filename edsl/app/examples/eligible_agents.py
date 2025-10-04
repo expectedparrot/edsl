@@ -17,7 +17,7 @@ It is randomly collected from a population.
 Is the agent eligible to participate in the study?""")
 
 jobs = q.to_jobs()
-of = OutputFormatter(description="Eligible Agents").select('answer.eligible').to_list(
+of = OutputFormatter(description="Eligible Agents", output_type="json").select('answer.eligible').to_list(
 
 )
 # Provide initial_survey so the agent list can be supplied as an EDSL object

@@ -78,6 +78,7 @@ initial_survey = Survey([
 output_formatter = (
     OutputFormatter(
         description="Agent Blueprint",
+        output_type="edsl_object"
     )
     .select("scenario.*", "answer.*")
     .to_scenario_list()
@@ -88,12 +89,14 @@ output_formatter = (
     ).create_agent_list(n="{{n}}")
 )
 
+raw = OutputFormatter(description="Raw results")
+
 app = App(
     description = "A persona generator.",
     application_name = "create_personas",
     initial_survey=initial_survey,
     jobs_object=jobs_object,
-    output_formatters={"agent_blueprint": output_formatter},
+    output_formatters={"agent_blueprint": output_formatter, "raw": raw},
     default_formatter_name="agent_blueprint",
     attachment_formatters=[
         # Convert the passed Survey into a ScenarioList and attach as scenarios
@@ -102,8 +105,11 @@ app = App(
 )
 
 if __name__ == "__main__":
+    from edsl import Survey
+    survey = Survey.pull("fde03dfc-732c-44fc-a90f-ae1104ee90a6")
+    
     output = app.output(params={
-        'input_survey': Survey.example(),
+        'input_survey': survey,
         'n': 3,
     })
     print(output)

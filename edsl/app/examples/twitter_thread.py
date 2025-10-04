@@ -132,8 +132,18 @@ thread_template = """
 *Generated with EDSL*
 """
 
-output_formatter = (OutputFormatter(description="Twitter Thread Report")
+docx_formatter = (OutputFormatter(description="DOCX Report")
     .to_docx('twitter_thread.docx')
+)
+
+# Markdown formatter - just select and convert to markdown
+# This will return the selected fields as inline markdown text
+markdown_formatter = (
+    OutputFormatter(description="Markdown", output_type="markdown")
+    .select('answer.twitter_thread', 'answer.hashtags', 'answer.visual_suggestion')
+    .table(tablefmt="github")
+    .flip()
+    .to_string()
 )
 
 # Create the app
@@ -142,8 +152,11 @@ app = App(
     application_name="twitter_thread",
     initial_survey=initial_survey,
     jobs_object=survey.by(thread_writer),
-    output_formatters={"report": output_formatter},
-    default_formatter_name="report",
+    output_formatters={
+        "markdown": markdown_formatter,
+        "docx": docx_formatter
+    },
+    default_formatter_name="markdown",
 )
 
 if __name__ == "__main__":

@@ -95,6 +95,7 @@ initial_survey = Survey([
 output_formatter = (
     OutputFormatter(
         description="Agent Blueprint",
+        output_type="edsl_object"
     )
     .select("scenario.*", "answer.*")
     .to_scenario_list()
