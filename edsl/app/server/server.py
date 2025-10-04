@@ -6,10 +6,12 @@ import uuid
 import json
 import logging
 import sqlite3
+import tempfile
+import shutil
 from pathlib import Path
 
 try:
-    from fastapi import FastAPI, HTTPException, Depends, status
+    from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File, Form
     from fastapi.responses import JSONResponse, FileResponse
     from fastapi.staticfiles import StaticFiles
     from fastapi.middleware.cors import CORSMiddleware
@@ -18,24 +20,36 @@ try:
 except ImportError:
     raise ImportError(
         "FastAPI and uvicorn are required for the app server. "
-        "Install with: pip install 'edsl[services]' or poetry install -E services"
+        "Install with: pip install fastapi uvicorn pydantic"
     )
 
-from .app import AppBase
+import sys
+from pathlib import Path
+
+# Add parent directories to path to import edsl
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+from edsl.app.app import App
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Pydantic models for API
+class FormatterMetadata(BaseModel):
+    name: str
+    description: Optional[str] = None
+    output_type: str = "auto"
+
 class AppMetadata(BaseModel):
     app_id: str
     name: str
     description: Optional[str] = None
     application_type: str
     created_at: datetime
-    parameters: List[tuple] = Field(default_factory=list)
+    parameters: List[Dict[str, Any]] = Field(default_factory=list)
     available_formatters: List[str] = Field(default_factory=list)
+    formatter_metadata: List[Dict[str, Any]] = Field(default_factory=list)
 
 class AppExecutionRequest(BaseModel):
     answers: Dict[str, Any]
@@ -91,32 +105,64 @@ class DatabaseManager:
             """)
             conn.commit()
 
-    def store_app(self, app: AppBase) -> str:
+    def store_app(self, app: App) -> str:
         """Store an app and return its app_id."""
         app_id = str(uuid.uuid4())
-        app_data = json.dumps(app.to_dict())
-        parameters = json.dumps(app.parameters)
+        app_dict = app.to_dict()
+        app_data = json.dumps(app_dict)
+
+        # Extract parameters from initial_survey
+        parameters = json.dumps([
+            {
+                "question_name": q.question_name,
+                "question_text": q.question_text,
+                "question_type": q.question_type,
+                "question_options": getattr(q, 'question_options', None),
+                "expected_object_type": getattr(q, 'expected_object_type', None)
+            }
+            for q in app.initial_survey.questions
+        ])
         available_formatters = json.dumps(list(app.output_formatters.mapping.keys()))
+
+        # Extract formatter metadata (output_type)
+        try:
+            formatter_metadata_list = [
+                {
+                    "name": name,
+                    "description": getattr(formatter, 'description', None),
+                    "output_type": getattr(formatter, 'output_type', 'auto')
+                }
+                for name, formatter in app.output_formatters.mapping.items()
+            ]
+            logger.info(f"Extracted formatter metadata: {formatter_metadata_list}")
+            formatter_metadata = json.dumps(formatter_metadata_list)
+        except Exception as e:
+            logger.error(f"Failed to extract formatter metadata: {e}")
+            formatter_metadata = json.dumps([])
+
+        # Get application_type from the dict to avoid descriptor issues
+        application_type = app_dict.get('application_type', 'base')
 
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
-                INSERT INTO apps (app_id, name, description, application_type, app_data, parameters, available_formatters)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO apps (app_id, name, description, application_type, app_data, parameters, available_formatters, formatter_metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 app_id,
                 app.application_name,
                 app.description,
-                app.application_type,
+                application_type,
                 app_data,
                 parameters,
-                available_formatters
+                available_formatters,
+                formatter_metadata
             ))
             conn.commit()
 
         logger.info(f"Stored app {app_id} ({app.application_name})")
         return app_id
 
-    def get_app(self, app_id: str) -> Optional[AppBase]:
+    def get_app(self, app_id: str) -> Optional[App]:
         """Retrieve an app by ID."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
@@ -126,14 +172,14 @@ class DatabaseManager:
 
             if row:
                 app_data = json.loads(row[0])
-                return AppBase.from_dict(app_data)
+                return App.from_dict(app_data)
             return None
 
     def get_app_metadata(self, app_id: str) -> Optional[AppMetadata]:
         """Get app metadata without full app data."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute("""
-                SELECT app_id, name, description, application_type, created_at, parameters, available_formatters
+                SELECT app_id, name, description, application_type, created_at, parameters, available_formatters, formatter_metadata
                 FROM apps WHERE app_id = ?
             """, (app_id,))
             row = cursor.fetchone()
@@ -146,7 +192,8 @@ class DatabaseManager:
                     application_type=row[3],
                     created_at=datetime.fromisoformat(row[4]),
                     parameters=json.loads(row[5]),
-                    available_formatters=json.loads(row[6])
+                    available_formatters=json.loads(row[6]),
+                    formatter_metadata=json.loads(row[7]) if len(row) > 7 and row[7] else []
                 )
             return None
 
@@ -154,7 +201,7 @@ class DatabaseManager:
         """List all apps."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute("""
-                SELECT app_id, name, description, application_type, created_at, parameters, available_formatters
+                SELECT app_id, name, description, application_type, created_at, parameters, available_formatters, formatter_metadata
                 FROM apps ORDER BY created_at DESC
             """)
 
@@ -167,7 +214,8 @@ class DatabaseManager:
                     application_type=row[3],
                     created_at=datetime.fromisoformat(row[4]),
                     parameters=json.loads(row[5]),
-                    available_formatters=json.loads(row[6])
+                    available_formatters=json.loads(row[6]),
+                    formatter_metadata=json.loads(row[7]) if len(row) > 7 and row[7] else []
                 ))
             return apps
 
@@ -254,16 +302,59 @@ async def get_stats():
         uptime="N/A"  # TODO: Track actual uptime
     )
 
+# EDSL object listing endpoint
+@app.get("/edsl-objects/{object_type}")
+async def list_edsl_objects(object_type: str):
+    """List available EDSL objects from Coop for a given type."""
+    try:
+        # Import and call .list() on the appropriate class
+        if object_type == "Survey":
+            from edsl import Survey
+            objects = Survey.list()
+        elif object_type == "ScenarioList":
+            from edsl import ScenarioList
+            objects = ScenarioList.list()
+        elif object_type == "Scenario":
+            from edsl import Scenario
+            objects = Scenario.list()
+        elif object_type == "AgentList":
+            from edsl import AgentList
+            objects = AgentList.list()
+        elif object_type == "Agent":
+            from edsl import Agent
+            objects = Agent.list()
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown object type: {object_type}")
+
+        # Convert to list of dicts with key fields
+        object_list = []
+        for obj in objects:
+            obj_dict = obj if isinstance(obj, dict) else (obj.to_dict() if hasattr(obj, 'to_dict') else {})
+            object_list.append({
+                "uuid": obj_dict.get("uuid"),
+                "alias": obj_dict.get("alias"),
+                "description": obj_dict.get("description"),
+                "owner_username": obj_dict.get("owner_username"),
+                "url": obj_dict.get("url")
+            })
+
+        logger.info(f"Listed {len(object_list)} {object_type} objects from Coop")
+        return {"objects": object_list}
+
+    except Exception as e:
+        logger.error(f"Error listing {object_type}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to list objects: {str(e)}")
+
 # App management endpoints
 @app.post("/apps")
 async def push_app(app_data: dict):
     """Push a new app to the server."""
     try:
         # Reconstruct the app from the dictionary
-        app = AppBase.from_dict(app_data)
-        app_id = db_manager.store_app(app)
+        app_instance = App.from_dict(app_data)
+        app_id = db_manager.store_app(app_instance)
 
-        return {"app_id": app_id, "message": f"App '{app.application_name}' pushed successfully"}
+        return {"app_id": app_id, "message": f"App '{app_instance.application_name}' pushed successfully"}
     except Exception as e:
         logger.error(f"Error pushing app: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Invalid app data: {str(e)}")
@@ -326,6 +417,29 @@ async def delete_app(app_id: str):
         logger.error(f"Error deleting app {app_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error deleting app: {str(e)}")
 
+# File upload endpoint
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """Upload a file and return its temporary path."""
+    try:
+        # Create a temporary file
+        suffix = Path(file.filename).suffix if file.filename else ''
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+
+        # Write uploaded content to temp file
+        shutil.copyfileobj(file.file, temp_file)
+        temp_file.close()
+
+        logger.info(f"File uploaded: {file.filename} -> {temp_file.name}")
+
+        return {
+            "file_path": temp_file.name,
+            "original_filename": file.filename
+        }
+    except Exception as e:
+        logger.error(f"File upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
+
 # App execution endpoints
 @app.post("/apps/{app_id}/execute", response_model=AppExecutionResponse)
 async def execute_app(app_id: str, request: AppExecutionRequest):
@@ -341,24 +455,103 @@ async def execute_app(app_id: str, request: AppExecutionRequest):
     try:
         # Execute the app
         logger.info(f"Executing app {app_id} with execution_id {execution_id}")
+        logger.info(f"Request answers: {request.answers}")
+        logger.info(f"Request formatter_name: {request.formatter_name}")
+
+        # Process EDSL object parameters - pull from Coop if UUIDs provided
+        processed_answers = dict(request.answers)
+        logger.info(f"Initial processed_answers: {processed_answers}")
+
+        for q in app_instance.initial_survey.questions:
+            if q.question_type == "edsl_object" and q.question_name in processed_answers:
+                uuid_value = processed_answers[q.question_name]
+                if isinstance(uuid_value, str) and len(uuid_value) == 36:  # Looks like a UUID
+                    logger.info(f"Pulling {q.expected_object_type} with UUID: {uuid_value}")
+                    try:
+                        # Pull the object from Coop
+                        if q.expected_object_type == "Survey":
+                            from edsl import Survey
+                            obj = Survey.pull(uuid_value)
+                        elif q.expected_object_type == "ScenarioList":
+                            from edsl import ScenarioList
+                            obj = ScenarioList.pull(uuid_value)
+                        elif q.expected_object_type == "Scenario":
+                            from edsl import Scenario
+                            obj = Scenario.pull(uuid_value)
+                        elif q.expected_object_type == "AgentList":
+                            from edsl import AgentList
+                            obj = AgentList.pull(uuid_value)
+                        elif q.expected_object_type == "Agent":
+                            from edsl import Agent
+                            obj = Agent.pull(uuid_value)
+                        else:
+                            continue
+
+                        # Store the object's dict - app.output will reconstruct it
+                        # Important: Pass the dict, not the object instance, because app.output
+                        # expects dicts for edsl_object types and will reconstruct them
+                        processed_answers[q.question_name] = obj.to_dict()
+                        logger.info(f"Successfully pulled and serialized {q.expected_object_type}")
+                        logger.info(f"Object dict keys: {obj.to_dict().keys()}")
+                    except Exception as e:
+                        logger.error(f"Failed to pull {q.expected_object_type}: {e}")
+                        raise HTTPException(status_code=400, detail=f"Failed to load {q.expected_object_type}: {str(e)}")
+
+        logger.info(f"Final processed_answers keys: {processed_answers.keys()}")
+        logger.info(f"Final processed_answers: {processed_answers}")
 
         # Use the formatter if specified, otherwise use default
         formatter_name = request.formatter_name
+        logger.info(f"About to call app_instance.output with formatter_name={formatter_name}")
+
         result = app_instance.output(
-            answers=request.answers,
-            formater_to_use=formatter_name  # Note: typo in original method name
+            params=processed_answers,
+            formatter_name=formatter_name,
+            stop_on_exception=True  # Make errors visible
         )
+
+        logger.info(f"app_instance.output completed successfully, result type: {type(result)}")
 
         # Convert result to JSON-serializable format
         try:
-            # Try to convert to dict if possible
+            # Check if it's a Results object or has to_dict
             if hasattr(result, 'to_dict'):
-                serializable_result = result.to_dict()
+                try:
+                    result_dict = result.to_dict()
+                    # Check if it's a FileStore with text content (markdown, txt, etc.)
+                    if isinstance(result_dict, dict) and 'base64_string' in result_dict:
+                        # Check if it's a text file (markdown, txt, etc.) vs binary
+                        # Check both 'suffix' field and extract from 'path'
+                        suffix = result_dict.get('suffix', '')
+                        if not suffix and 'path' in result_dict:
+                            suffix = Path(result_dict['path']).suffix
+
+                        if suffix in ['.md', '.txt', '.markdown']:
+                            # Decode and return as string for inline display
+                            import base64
+                            try:
+                                text_content = base64.b64decode(result_dict['base64_string']).decode('utf-8')
+                                serializable_result = text_content
+                            except:
+                                # If decode fails, return as file
+                                serializable_result = result_dict
+                        else:
+                            # Binary file - return as-is for download
+                            serializable_result = result_dict
+                    else:
+                        serializable_result = result_dict
+                except Exception as e:
+                    logger.warning(f"to_dict() failed: {e}, falling back to string")
+                    serializable_result = str(result)
+            # Check if it's a FileStore dict
+            elif isinstance(result, dict) and 'base64_string' in result:
+                serializable_result = result
             elif hasattr(result, '__dict__'):
                 serializable_result = {k: str(v) for k, v in result.__dict__.items()}
             else:
                 serializable_result = str(result)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Serialization failed: {e}")
             serializable_result = str(result)
 
         # Store the successful execution
@@ -377,8 +570,11 @@ async def execute_app(app_id: str, request: AppExecutionRequest):
         )
 
     except Exception as e:
+        import traceback
         error_msg = str(e)
+        full_traceback = traceback.format_exc()
         logger.error(f"App execution {execution_id} failed: {error_msg}")
+        logger.error(f"Full traceback:\n{full_traceback}")
 
         # Store the failed execution
         db_manager.store_execution(
