@@ -166,17 +166,14 @@ output_formatter = (OutputFormatter(description="Sample Size Calculator Results"
 
 # Create the app
 app = App(
-    description=textwrap.dedent("""
-    A sample size calculator for research studies.
-
-    This app helps you determine:
-    - The sample size needed for your study
-    - The margin of error for an existing sample
-    - How many people to invite to reach your target sample size
-
-    It accounts for confidence levels, expected response rates, and finite population corrections.
-    """),
-    application_name="sample_size_calculator",
+    description={
+        "short": "Calculate required sample sizes for research studies.",
+        "long": "This application helps you determine the sample size needed for your study, the margin of error for an existing sample, or how many people to invite to reach your target sample size. It accounts for confidence levels, expected response rates, and finite population corrections to provide accurate statistical estimates."
+    },
+    application_name={
+        "name": "Sample Size Calculator",
+        "alias": "sample_size_calculator"
+    },
     initial_survey=initial_survey,
     jobs_object=survey.by(s),
     output_formatters={"results": output_formatter}

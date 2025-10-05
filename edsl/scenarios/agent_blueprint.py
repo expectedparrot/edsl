@@ -16,6 +16,7 @@ class AgentBlueprint:
         dimension_name_field: str = "dimension",
         dimension_values_field: str = "dimension_values",
         dimension_description_field: str | None = None,
+        dimension_probs_field: str | None = None,
     ):
         # Allow custom field names for the scenario schema. Defaults align with legacy behavior.
         # If no description field is provided, we will accept either
@@ -23,7 +24,8 @@ class AgentBlueprint:
         self._dimension_name_field = dimension_name_field
         self._dimension_values_field = dimension_values_field
         self._dimension_description_field = dimension_description_field
-
+        self._dimension_probs_field = dimension_probs_field
+        
         for scenario in scenario_list:
             assert (
                 self._dimension_name_field in scenario
@@ -69,8 +71,49 @@ class AgentBlueprint:
                 else:
                     raw_values = dim_values_field  # type: ignore[assignment]
 
-                # Construct a Dimension object from the legacy representation.
-                dim_obj = Dimension(name=dim_name, description=dim_desc, values=raw_values)  # type: ignore[arg-type]
+                # Optionally read per-value probabilities from a parallel field
+                # and construct weighted Dimension values.
+                weighted_values = None
+                if (
+                    self._dimension_probs_field is not None
+                    and self._dimension_probs_field in sc
+                ):
+                    probs_field = sc[self._dimension_probs_field]
+                    if (
+                        isinstance(probs_field, list)
+                        and len(probs_field) == 1
+                        and isinstance(probs_field[0], list)
+                    ):
+                        raw_probs = probs_field[0]
+                    else:
+                        raw_probs = probs_field  # type: ignore[assignment]
+
+                    # Validate length alignment
+                    if not isinstance(raw_values, list) or not isinstance(raw_probs, list):  # type: ignore[unreachable]
+                        raise ValueError(
+                            "dimension_values and dimension_probs must be list-like when using separate probability field"
+                        )
+                    if len(raw_values) != len(raw_probs):
+                        raise ValueError(
+                            f"Length mismatch for dimension '{dim_name}': {len(raw_values)} values but {len(raw_probs)} probabilities"
+                        )
+                    # Coerce and validate numeric probabilities early for clearer errors
+                    weighted_values = []
+                    for _val, _prob in zip(raw_values, raw_probs):
+                        try:
+                            w = float(_prob)
+                        except Exception:
+                            raise ValueError(
+                                f"Non-numeric probability specified for dimension '{dim_name}': {_prob!r}"
+                            )
+                        weighted_values.append((_val, w))
+
+                # Construct a Dimension object, using weights if provided.
+                dim_obj = Dimension(
+                    name=dim_name,
+                    description=dim_desc,
+                    values=weighted_values if weighted_values is not None else raw_values,  # type: ignore[arg-type]
+                )
 
             self._dimension_map[dim_name] = dim_obj
 
@@ -138,6 +181,19 @@ class AgentBlueprint:
             traits[dimension] = values[idx]
         return traits
 
+    def _build_codebook(self) -> dict[str, str]:
+        """Construct a codebook mapping dimension names to descriptions.
+
+        Excludes the special "name" field which is treated as an Agent parameter,
+        not a trait.
+        """
+        codebook: dict[str, str] = {}
+        for dim_name, dim in self._dimension_map.items():
+            if dim_name == "name":
+                continue
+            codebook[dim_name] = dim.description or ""
+        return codebook
+
     def _permutation_stream(self):
         """Yield a pseudo-random permutation of ``range(self._total_combinations)``.
 
@@ -191,19 +247,99 @@ class AgentBlueprint:
 
             yield Agent(traits, name=agent_name)
 
-    def create_agent_list(self, n: int = 10):
-        """Create a list of agents by randomly sampling a value from each dimension_values field"""
+    def create_agent_list(
+        self,
+        n: int = 10,
+        *,
+        strategy: str = "permutation",
+        unique: bool = False,
+        seed: int | None = None,
+    ):
+        """Create an :class:`edsl.agents.AgentList` using either deterministic permutations or probability sampling.
+
+        Parameters
+        ----------
+        n: int, default=10
+            Number of agents to return.
+        strategy: {"permutation", "probability"}, default="permutation"
+            - "permutation": enumerate the Cartesian product in a deterministic pseudo-random order
+              (seeded by ``self.seed``) and take the first ``n``.
+            - "probability": independently sample each dimension according to its weights. If all
+              weights are 1.0 this is uniform per-dimension sampling.
+        unique: bool, default=False
+            When ``strategy='probability'``, attempt to reject duplicate joint trait vectors. If ``n``
+            exceeds the number of unique combinations, a ``ValueError`` is raised.
+        seed: int | None
+            Optional seed used when ``strategy='probability'``. Defaults to ``self.seed`` when omitted.
+        """
         if isinstance(n, str):
             n = int(n)
-        if n > self._total_combinations:
+
+        from ..agents import Agent, AgentList
+        import random
+
+        if strategy not in {"permutation", "probability"}:
+            raise ValueError("strategy must be either 'permutation' or 'probability'")
+
+        # Build a codebook mapping trait (dimension) names to their descriptions
+        codebook = self._build_codebook()
+
+        if strategy == "permutation":
+            if n > self._total_combinations:
+                raise ValueError(
+                    f"Requested {n} agents but only {self._total_combinations} unique permutations exist."
+                )
+            generator = self.generate_agent()
+            return AgentList([next(generator) for _ in range(n)], codebook=codebook)
+
+        # strategy == "probability"
+        if unique and n > self._total_combinations:
             raise ValueError(
-                f"Requested {n} agents but only {self._total_combinations} unique permutations exist."
+                f"Requested {n} unique agents but only {self._total_combinations} unique permutations exist."
             )
 
-        from ..agents import AgentList
+        rng = random.Random(self.seed if seed is None else seed)
 
-        generator = self.generate_agent()
-        return AgentList([next(generator) for _ in range(n)])
+        def _sample_once() -> Agent:
+            # Draw one value from each Dimension according to weights
+            traits = {}
+            for dim_name in self.dimensions:
+                dim = self._dimension_map[dim_name]
+                traits[dim_name] = dim.sample(rng=rng)
+
+            agent_name = traits.pop("name", None) if "name" in traits else None
+            return Agent(traits, name=agent_name)
+
+        if not unique:
+            return AgentList([_sample_once() for _ in range(n)], codebook=codebook)
+
+        # unique=True: rejection sampling with a safety cap
+        seen: set = set()
+        agents: list[Agent] = []
+        # Allow generous attempts before giving up (helps when weights are skewed)
+        max_attempts = max(1000, 20 * n)
+        attempts = 0
+        while len(agents) < n and attempts < max_attempts:
+            attempts += 1
+            agent = _sample_once()
+            # Key by ordered tuple of values for stable uniqueness across dimensions
+            try:
+                key = tuple(agent.traits.get(dim) for dim in self.dimensions)
+            except Exception:
+                # Fallback to repr-based key if values are problematic
+                key = tuple(repr(agent.traits.get(dim)) for dim in self.dimensions)
+            if key in seen:
+                continue
+            seen.add(key)
+            agents.append(agent)
+
+        if len(agents) < n:
+            raise RuntimeError(
+                "Could not generate the requested number of unique agents via probability sampling. "
+                "Consider reducing 'n' or using strategy='permutation'."
+            )
+
+        return AgentList(agents, codebook=codebook)
 
     # ------------------------------------------------------------------
     # Convenience constructors / fluent builder

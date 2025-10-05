@@ -143,8 +143,14 @@ docx_writer = (
 
 app = App(
     initial_survey=initial_survey,
-    application_name="Meal Planner",
-    description="Create a meal plan for a given number of people.",
+    application_name={
+        "name": "Meal Planner",
+        "alias": "meal_planner"
+    },
+    description={
+        "short": "Plan meals based on dietary preferences.",
+        "long": "This application helps users plan meals by suggesting recipes and meal plans based on dietary preferences, restrictions, available ingredients, and nutritional goals."
+    },
     jobs_object=jobs,
     output_formatters={"markdown": markdown_viewer, "docx": docx_writer},
     default_formatter_name="markdown",

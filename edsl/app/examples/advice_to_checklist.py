@@ -76,19 +76,14 @@ markdown_formatter = (
 
 app = App(
     initial_survey=initial_survey,
-    description=textwrap.dedent("""
-    An advice-to-checklist converter.
-
-    This app takes a block of textual advice and converts it into a checklist of yes/no questions.
-    Each question can be applied to a specific item by using {{ scenario.item }} in the question text.
-
-    For example, if you provide advice like "Make sure your code is well-tested", it will generate questions like:
-    - Does the code have unit tests: {{ scenario.item }}
-    - Does the code have integration tests: {{ scenario.item }}
-
-    This allows you to apply the same checklist to multiple items by creating scenarios with different values for 'item'.
-    """),
-    application_name="advice_to_checklist",
+    description={
+        "short": "Convert advice into actionable checklists.",
+        "long": "This application takes a block of textual advice and converts it into a checklist of yes/no questions. Each question can be applied to a specific item by using template variables. For example, advice like 'Make sure your code is well-tested' generates questions like 'Does the code have unit tests?' This allows you to apply the same checklist to multiple items by creating scenarios with different values."
+    },
+    application_name={
+        "name": "Advice to Checklist",
+        "alias": "advice_to_checklist"
+    },
     jobs_object=jobs_object,
     output_formatters={"checklist": checklist_formatter, "markdown": markdown_formatter},
     default_formatter_name="checklist",

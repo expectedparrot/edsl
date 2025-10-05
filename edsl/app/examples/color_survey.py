@@ -125,8 +125,14 @@ raw_output = (
 
 # 7. Complete App Instance
 app = App(
-    application_name="color_survey",
-    description="Create a customized survey about favorite colors with insights and analysis",
+    application_name={
+        "name": "Color Survey",
+        "alias": "color_survey"
+    },
+    description={
+        "short": "Survey about color preferences.",
+        "long": "This application collects and analyzes color preferences and associations, useful for design research, branding studies, and understanding aesthetic preferences across demographics."
+    },
     initial_survey=initial_survey,
     jobs_object=color_survey_pipeline,
     output_formatters={

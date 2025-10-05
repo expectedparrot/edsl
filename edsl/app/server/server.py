@@ -717,5 +717,69 @@ async def get_execution_status(execution_id: str):
         raise HTTPException(status_code=404, detail="Execution not found")
     return execution
 
+class PushObjectRequest(BaseModel):
+    object_dict: Dict[str, Any]
+    visibility: str = "unlisted"  # unlisted, public, private
+    alias: Optional[str] = None
+    description: Optional[str] = None
+
+@app.post("/push-object")
+async def push_edsl_object(request: PushObjectRequest):
+    """Push an EDSL object to Coop."""
+    try:
+        object_dict = request.object_dict
+
+        # Determine object type from the dict (supports both object_type and edsl_class_name)
+        object_type = object_dict.get('object_type') or object_dict.get('edsl_class_name')
+        if not object_type:
+            raise HTTPException(status_code=400, detail="Object dict must contain 'object_type' or 'edsl_class_name' field")
+
+        # Normalize to lowercase with underscores
+        object_type = object_type.lower().replace(' ', '_')
+
+        logger.info(f"Pushing {object_type} to Coop with visibility={request.visibility}, alias={request.alias}")
+
+        # Reconstruct the object from dict
+        if object_type == "survey":
+            from edsl import Survey
+            obj = Survey.from_dict(object_dict)
+        elif object_type == "scenario_list" or object_type == "scenariolist":
+            from edsl import ScenarioList
+            obj = ScenarioList.from_dict(object_dict)
+        elif object_type == "scenario":
+            from edsl import Scenario
+            obj = Scenario.from_dict(object_dict)
+        elif object_type == "agent_list" or object_type == "agentlist":
+            from edsl import AgentList
+            obj = AgentList.from_dict(object_dict)
+        elif object_type == "agent":
+            from edsl import Agent
+            obj = Agent.from_dict(object_dict)
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported object type: {object_type}")
+
+        # Push to Coop
+        result = obj.push(
+            visibility=request.visibility,
+            description=request.description,
+            alias=request.alias
+        )
+
+        logger.info(f"Successfully pushed {object_type} to Coop: {result}")
+
+        return {
+            "success": True,
+            "message": f"{object_type.replace('_', ' ').title()} pushed to Coop successfully",
+            "result": result
+        }
+
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        full_traceback = traceback.format_exc()
+        logger.error(f"Failed to push object to Coop: {error_msg}")
+        logger.error(f"Full traceback:\n{full_traceback}")
+        raise HTTPException(status_code=500, detail=f"Failed to push object: {error_msg}")
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")

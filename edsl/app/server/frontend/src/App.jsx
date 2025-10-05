@@ -3,14 +3,14 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import mammoth from 'mammoth'
 
+const API_BASE = '/api'
+
 function App() {
   const [apps, setApps] = useState([])
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const chatEndRef = useRef(null)
-
-  const API_BASE = '/api'
 
   useEffect(() => {
     fetchApps()
@@ -139,6 +139,39 @@ function App() {
     }])
   }
 
+  const handleClearAllApps = async () => {
+    if (!window.confirm('Are you sure you want to delete ALL apps from the server? This cannot be undone.')) {
+      return
+    }
+
+    try {
+      setLoading(true)
+      // Get all apps
+      const response = await fetch(`${API_BASE}/apps`)
+      if (!response.ok) throw new Error('Failed to fetch apps')
+      const allApps = await response.json()
+
+      // Delete each app
+      let deleted = 0
+      for (const app of allApps) {
+        const deleteResponse = await fetch(`${API_BASE}/apps/${app.app_id}`, {
+          method: 'DELETE'
+        })
+        if (deleteResponse.ok) {
+          deleted++
+        }
+      }
+
+      // Refresh the apps list
+      await fetchApps()
+      alert(`Successfully deleted ${deleted} app${deleted !== 1 ? 's' : ''}`)
+    } catch (err) {
+      alert('Error clearing apps: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (loading) {
     return <div className="container"><div className="loading">Loading apps...</div></div>
   }
@@ -155,8 +188,15 @@ function App() {
   return (
     <div className="chat-app">
       <div className="chat-header">
-        <h1>EDSL Apps</h1>
-        <p>{apps.length} app{apps.length !== 1 ? 's' : ''} available</p>
+        <div className="header-content">
+          <div>
+            <h1>EDSL Apps</h1>
+            <p>{apps.length} app{apps.length !== 1 ? 's' : ''} available</p>
+          </div>
+          <button onClick={handleClearAllApps} className="clear-apps-button" disabled={loading || apps.length === 0}>
+            🗑️ Clear All Apps
+          </button>
+        </div>
       </div>
 
       <div className="chat-messages">
@@ -252,6 +292,14 @@ function ChatMessage({ message, messageIndex, apps, onAppSelect, onFormSubmit, o
   if (message.type === 'assistant-response') {
     const [docxPreview, setDocxPreview] = useState(null)
     const [showingPreview, setShowingPreview] = useState(false)
+    const [showPushModal, setShowPushModal] = useState(false)
+    const [pushFormData, setPushFormData] = useState({
+      visibility: 'unlisted',
+      alias: '',
+      description: ''
+    })
+    const [pushing, setPushing] = useState(false)
+    const [pushResult, setPushResult] = useState(null)
 
     const isFile = message.data.result &&
                    typeof message.data.result === 'object' &&
@@ -263,6 +311,7 @@ function ChatMessage({ message, messageIndex, apps, onAppSelect, onFormSubmit, o
     const outputType = formatterMeta?.output_type || 'auto'
 
     const isDocx = isFile && message.data.result.path?.endsWith('.docx')
+    const isEdslObject = outputType === 'edsl_object' && typeof message.data.result === 'object' && (message.data.result.object_type || message.data.result.edsl_class_name)
 
     useEffect(() => {
       if (isDocx && !docxPreview) {
@@ -326,6 +375,35 @@ function ChatMessage({ message, messageIndex, apps, onAppSelect, onFormSubmit, o
       link.click()
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
+    }
+
+    const handlePushToCoop = async () => {
+      setPushing(true)
+      setPushResult(null)
+      try {
+        const response = await fetch(`${API_BASE}/push-object`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            object_dict: message.data.result,
+            visibility: pushFormData.visibility,
+            alias: pushFormData.alias || undefined,
+            description: pushFormData.description || undefined
+          })
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || 'Push failed')
+        }
+
+        const result = await response.json()
+        setPushResult({ success: true, message: result.message, data: result.result })
+      } catch (err) {
+        setPushResult({ success: false, message: err.message })
+      } finally {
+        setPushing(false)
+      }
     }
 
     return (
@@ -432,6 +510,98 @@ function ChatMessage({ message, messageIndex, apps, onAppSelect, onFormSubmit, o
                       </table>
                     )
                   })()}
+                </div>
+              ) : isEdslObject ? (
+                <div className="edsl-object-result">
+                  <div className="edsl-object-header">
+                    <div className="edsl-object-info">
+                      <span className="edsl-badge">
+                        {(message.data.result.object_type || message.data.result.edsl_class_name || 'EDSL').replace('_', ' ').toUpperCase()}
+                      </span>
+                      <span className="edsl-object-summary">
+                        EDSL {(message.data.result.object_type || message.data.result.edsl_class_name || 'object').replace('_', ' ')} created
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setShowPushModal(true)}
+                      className="push-button"
+                    >
+                      📤 Push to Coop
+                    </button>
+                  </div>
+
+                  {showPushModal && (
+                    <div className="push-modal-overlay" onClick={() => setShowPushModal(false)}>
+                      <div className="push-modal" onClick={(e) => e.stopPropagation()}>
+                        <h3>Push to Coop</h3>
+                        <div className="push-form">
+                          <div className="form-group">
+                            <label>Visibility</label>
+                            <select
+                              value={pushFormData.visibility}
+                              onChange={(e) => setPushFormData({...pushFormData, visibility: e.target.value})}
+                            >
+                              <option value="unlisted">Unlisted</option>
+                              <option value="public">Public</option>
+                              <option value="private">Private</option>
+                            </select>
+                          </div>
+                          <div className="form-group">
+                            <label>Alias (optional)</label>
+                            <input
+                              type="text"
+                              placeholder="e.g., my-survey"
+                              value={pushFormData.alias}
+                              onChange={(e) => setPushFormData({...pushFormData, alias: e.target.value})}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Description (optional)</label>
+                            <textarea
+                              placeholder="Describe this object..."
+                              value={pushFormData.description}
+                              onChange={(e) => setPushFormData({...pushFormData, description: e.target.value})}
+                              rows={3}
+                            />
+                          </div>
+
+                          {pushResult && (
+                            <div className={`push-result ${pushResult.success ? 'success' : 'error'}`}>
+                              {pushResult.message}
+                              {pushResult.success && pushResult.data && (
+                                <div className="push-details">
+                                  <a href={pushResult.data.url} target="_blank" rel="noopener noreferrer">
+                                    View on Coop →
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="modal-actions">
+                            <button
+                              onClick={() => setShowPushModal(false)}
+                              className="cancel-button"
+                              disabled={pushing}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={handlePushToCoop}
+                              className="submit-button"
+                              disabled={pushing}
+                            >
+                              {pushing ? 'Pushing...' : 'Push to Coop'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <pre className="edsl-object-preview">
+                    {JSON.stringify(message.data.result, null, 2)}
+                  </pre>
                 </div>
               ) : (
                 <div className="result-text">

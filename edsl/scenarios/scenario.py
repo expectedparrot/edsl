@@ -516,6 +516,12 @@ class Scenario(Base, UserDict):
 
         return ScenarioGCS(self).get_filestore_info()
 
+    def to_agent_list(self) -> "AgentList":
+        """Convert the scenario to an agent list.
+        """
+        from .scenario_list import ScenarioList
+        return ScenarioList([self]).to_agent_list()
+
     def to(self, question_or_survey: Union["Question", "Survey"]) -> "Jobs":
         """Send the scenario to a question or survey for execution.
 

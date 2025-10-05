@@ -38,8 +38,14 @@ output_formatter = (
 
 # Create the app
 app = App(
-    description="Takes an AgentList and generation instructions, then augments each agent's scenario with generated content based on their characteristics",
-    application_name="story_time",
+    description={
+        "short": "Generate creative stories based on prompts.",
+        "long": "This application generates creative stories based on user prompts, themes, or scenarios using AI storytelling capabilities."
+    },
+    application_name={
+        "name": "Story Time",
+        "alias": "story_time"
+    },
     initial_survey=initial_survey,
     jobs_object=jobs_object,
     output_formatters={"stories": output_formatter},

@@ -83,12 +83,13 @@ class Dimension(Generic[T]):
         dim_values: List[DimensionValue[T]] = []
         for v in values:
             if isinstance(v, tuple):
-                if len(v) != 2:
-                    raise ValueError(
-                        "Each (value, weight) tuple must have exactly two elements"
-                    )
-                value, weight = v  # type: ignore[misc]
-                dim_values.append(DimensionValue(value=value, weight=float(weight)))
+                # Only treat as a weighted pair when the second element is numeric.
+                if len(v) == 2 and isinstance(v[1], (int, float)):
+                    value, weight = v  # type: ignore[misc]
+                    dim_values.append(DimensionValue(value=value, weight=float(weight)))
+                else:
+                    # Treat arbitrary tuples as a single categorical value.
+                    dim_values.append(DimensionValue(value=v))
             else:
                 dim_values.append(DimensionValue(value=v))
 

@@ -20,6 +20,7 @@ APP_FILES = [
     "color_survey",
     "conjoint_analysis",
     "conjoint_profiles_app",
+    "create_eval_from_text",
     "create_personas",
     "data_labeling",
     "eligible_agents",
@@ -47,7 +48,18 @@ def delete_existing_app(app_name):
         if response.status_code == 200:
             apps = response.json()
             for app_meta in apps:
-                if app_meta["name"] == app_name:
+                # Handle both old string format and new TypedDict format
+                stored_name = app_meta["name"]
+                if isinstance(stored_name, dict):
+                    stored_name = stored_name.get("name", stored_name.get("alias", ""))
+
+                # Compare with provided app_name (which might also be dict or string)
+                if isinstance(app_name, dict):
+                    compare_name = app_name.get("name", app_name.get("alias", ""))
+                else:
+                    compare_name = app_name
+
+                if stored_name == compare_name:
                     print(f"  Deleting existing app with ID: {app_meta['app_id']}")
                     delete_response = requests.delete(f"{SERVER_URL}/apps/{app_meta['app_id']}")
                     if delete_response.status_code == 200:
@@ -64,8 +76,9 @@ def load_app(module_name):
     print(f"{'='*60}")
 
     try:
-        # Import the module
-        module = importlib.import_module(module_name)
+        # Import the module from edsl.app.examples package
+        full_module_name = f"edsl.app.examples.{module_name}"
+        module = importlib.import_module(full_module_name)
 
         # Get the app object
         if not hasattr(module, 'app'):
@@ -75,17 +88,51 @@ def load_app(module_name):
         app = module.app
         app_name = app.application_name
 
-        print(f"  App name: {app_name}")
-        print(f"  Description: {app.description}")
+        # Extract display values from TypedDict structure
+        if isinstance(app_name, dict):
+            display_name = app_name.get("name", app_name.get("alias", "Unknown"))
+        else:
+            display_name = app_name
+
+        if isinstance(app.description, dict):
+            display_desc = app.description.get("short", "No description")
+        else:
+            display_desc = str(app.description)[:60] + "..."
+
+        print(f"  App name: {display_name}")
+        print(f"  Description: {display_desc}")
         print(f"  Output formatters: {list(app.output_formatters.mapping.keys())}")
-        print(f"  Attachment formatters: {len(list(app.attachment_formatters or []))}")
+        # CompositeApp doesn't have attachment_formatters
+        if hasattr(app, 'attachment_formatters'):
+            print(f"  Attachment formatters: {len(list(app.attachment_formatters or []))}")
+        else:
+            print(f"  App type: {getattr(app, 'application_type', 'unknown')}")
 
         # Delete existing app if present
         delete_existing_app(app_name)
 
         # Push the app
         print(f"  Pushing to server...")
-        response = requests.post(f"{SERVER_URL}/apps", json=app.to_dict())
+
+        # First, convert to dict
+        try:
+            app_dict = app.to_dict()
+            print(f"  ✓ Serialized app to dict")
+        except Exception as e:
+            print(f"  ✗ Failed to serialize: {e}")
+            raise
+
+        # Then, post to server
+        import json
+        try:
+            # Test JSON serialization before sending
+            json_str = json.dumps(app_dict)
+            print(f"  ✓ JSON serialization OK ({len(json_str)} bytes)")
+        except Exception as e:
+            print(f"  ✗ JSON serialization failed: {e}")
+            raise
+
+        response = requests.post(f"{SERVER_URL}/apps", json=app_dict)
 
         if response.status_code == 200:
             result = response.json()
@@ -97,8 +144,6 @@ def load_app(module_name):
 
     except Exception as e:
         print(f"  ✗ Error loading {module_name}: {e}")
-        import traceback
-        traceback.print_exc()
         return False
 
 def main():

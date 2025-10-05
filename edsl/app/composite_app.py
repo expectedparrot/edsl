@@ -18,6 +18,7 @@ shape only.
 from typing import Any, Optional
 
 from .app import App
+from .descriptors import ApplicationName, Description
 from ..surveys import Survey
 
 
@@ -38,8 +39,8 @@ class CompositeApp:
         second_app: Optional[App] = None,
         bindings: Optional[dict[str, Any]] = None,
         fixed: Optional[dict[str, dict[str, Any]]] = None,
-        application_name: Optional[str] = None,
-        description: Optional[str] = None,
+        application_name: Optional[str | dict | ApplicationName] = None,
+        description: Optional[str | dict | Description] = None,
     ):
         """Initialize the composite application.
 
@@ -53,6 +54,8 @@ class CompositeApp:
                   - Key dict {"formatter": "name", "path": "a.b"} maps the resolved value to the target param name (value)
             fixed: Optional fixed/pre-filled values for surveys:
                 {"app1": {name: value}, "app2": {name: value}}
+            application_name: Name for the composite app. Can be a string, or dict with 'name' and 'alias' keys.
+            description: Description for the composite app. Can be a string, or dict with 'short' and 'long' keys.
         """
         self.first_app = first_app
         self.second_app = second_app
@@ -61,14 +64,60 @@ class CompositeApp:
             "app1": dict((fixed or {}).get("app1", {})),
             "app2": dict((fixed or {}).get("app2", {})),
         }
+
         # Generate application_name from component apps if not provided
-        self.application_name = application_name or f"{first_app.application_name} >> {second_app.application_name if second_app else '?'}"
-        self.description = description or f"Composite app: {self.application_name}"
+        if application_name is None:
+            first_name = self._extract_app_name(first_app)
+            second_name = self._extract_app_name(second_app) if second_app else '?'
+            generated_name = f"{first_name} >> {second_name}"
+            self.application_name = ApplicationName(
+                name=generated_name,
+                alias=self._name_to_alias(generated_name)
+            )
+        elif isinstance(application_name, str):
+            self.application_name = ApplicationName(
+                name=application_name,
+                alias=self._name_to_alias(application_name)
+            )
+        elif isinstance(application_name, dict):
+            if "name" in application_name and "alias" in application_name:
+                self.application_name = ApplicationName(**application_name)
+            else:
+                raise ValueError("application_name dict must contain 'name' and 'alias' keys")
+        else:
+            raise TypeError("application_name must be a string, dict, or None")
+
+        # Generate description from component apps if not provided
+        if description is None:
+            app_name_str = self.application_name["name"]
+            self.description = Description(
+                short=f"Composite app: {app_name_str}.",
+                long=f"Composite app: {app_name_str}."
+            )
+        elif isinstance(description, str):
+            desc_with_period = description if description.endswith('.') else f"{description}."
+            self.description = Description(short=desc_with_period, long=description)
+        elif isinstance(description, dict):
+            if "short" in description and "long" in description:
+                self.description = Description(**description)
+            else:
+                raise ValueError("description dict must contain 'short' and 'long' keys")
+        else:
+            raise TypeError("description must be a string, dict, or None")
 
     def __rshift__(self, app: "App") -> "CompositeApp":
         """Chain a second app to this composite using the >> operator."""
         self.second_app = app
         return self
+
+    def show(self, filename: Optional[str] = None) -> None:
+        """Show a visualization of the composite app flow.
+
+        Args:
+            filename: Optional path to save the image. If None, displays in notebook or opens viewer.
+        """
+        from .composite_app_visualization import CompositeAppVisualization
+        CompositeAppVisualization(self).show(filename=filename)
 
     # --- Public API -------------------------------------------------------
 
@@ -274,6 +323,26 @@ class CompositeApp:
             return self.first_app.output(app1_params, formatter_name=source_spec)
         # Literal value
         return source_spec
+
+    @staticmethod
+    def _extract_app_name(app: App) -> str:
+        """Extract the pretty name from an App's application_name."""
+        if isinstance(app.application_name, dict):
+            return app.application_name.get("name", "Unknown")
+        return str(app.application_name)
+
+    @staticmethod
+    def _name_to_alias(name: str) -> str:
+        """Convert a pretty name to a valid Python identifier alias."""
+        import re
+        alias = name.lower()
+        alias = re.sub(r'[\s\-]+', '_', alias)
+        alias = re.sub(r'[^\w]', '', alias)
+        if alias and alias[0].isdigit():
+            alias = f"app_{alias}"
+        if not alias:
+            alias = "app"
+        return alias
 
 
 if __name__ == "__main__":

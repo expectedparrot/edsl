@@ -13,11 +13,11 @@ from ..scenarios.agent_blueprint import AgentBlueprint
 from ..surveys import Survey
 
 relevant_classes = {
-    Results: ["to_scenario_list", "select", "table", "report_from_template"],
+    Results: ["to_scenario_list", "select", "table", "report_from_template", "long_view"],
     Dataset: ["table", "expand", "to_markdown", "to_list"],
     TableDisplay: ["flip", "to_string"],
     FileStore: ["view", "to_docx", "save"],
-    Survey: ["to_scenario_list", "table"],
+    Survey: ["to_scenario_list", "table", "add_weighted_linear_scale_sum"],
     ScenarioList: [
         "to_survey",
         "rename",
@@ -39,7 +39,7 @@ relevant_classes = {
         "otherwise",
         "end",
     ],
-    Scenario: ["chunk_text", "replace_value", "to_scenario_list"],
+    Scenario: ["chunk_text", "replace_value", "to_scenario_list", "to_agent_list"],
     list: ["__getitem__"],
     AgentBlueprint: ["create_agent_list"],
 }
@@ -141,6 +141,37 @@ class ObjectFormatter(ABC):
         if target is not None:
             # Last definition wins if duplicates occur
             ObjectFormatter._subclass_registry[target] = cls  # type: ignore[assignment]
+
+    def copy(self):
+        """Return a copy of the formatter.
+        
+        This is useful for creating a new formatter with the same configuration but a different target.
+        """
+        return self.__class__.from_dict(self.to_dict())
+
+    def set_description(self, description: str):
+        """Set the description of the formatter.
+        
+        This is useful for creating a new formatter with the same configuration but a different description.
+        """
+        self.description = description
+        return self
+
+    def breakpoint(self):
+        """Set a breakpoint in the formatter.
+        
+        This is useful for debugging the formatter.
+        """
+        breakpoint()
+        return self
+
+    def set_output_type(self, output_type: str):
+        """Set the output type of the formatter.
+        
+        This is useful for creating a new formatter with the same configuration but a different output type.
+        """
+        self.output_type = output_type
+        return self
 
     def __init__(
         self,

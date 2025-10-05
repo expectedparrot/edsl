@@ -26,13 +26,19 @@ initial_survey = Survey([
 ])
 
 app = App(
-    initial_survey = initial_survey, 
-    jobs_object = jobs_object, 
-    application_name = "Typo Checker",
-    description = "Check for typos in the question text",
-    output_formatters = {'table': output_formatter},
-    default_formatter_name = 'table',
-    attachment_formatters = [
+    initial_survey=initial_survey,
+    jobs_object=jobs_object,
+    application_name={
+        "name": "Cognitive Testing (Typo Checker)",
+        "alias": "cognitive_testing"
+    },
+    description={
+        "short": "Check for typos in survey question text.",
+        "long": "This application performs cognitive testing on survey questions by checking for typos and language issues. It analyzes each question in a provided survey and identifies potential typos or grammatical errors that could affect respondent comprehension."
+    },
+    output_formatters={'table': output_formatter},
+    default_formatter_name='table',
+    attachment_formatters=[
         # Convert the provided Survey into scenarios at the head
         SurveyAttachmentFormatter(name="Survey->ScenarioList").to_scenario_list()
     ]

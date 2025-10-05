@@ -33,13 +33,19 @@ initial_survey = Survey([
 jobs_object = Survey([]).to_jobs()
 
 app = App(
-    initial_survey = initial_survey, 
-    description = "A data labeling app.",
-    application_name = "data_labeling",
-    jobs_object = jobs_object,
-    output_formatters = {"labeling": of},
-    default_formatter_name = "labeling"
-    )
+    initial_survey=initial_survey,
+    description={
+        "short": "A data labeling application.",
+        "long": "This application enables efficient data labeling by allowing users to provide a ScenarioList of items and a labeling Survey, then automatically applies the survey to each item and returns structured results."
+    },
+    application_name={
+        "name": "Data Labeling",
+        "alias": "data_labeling"
+    },
+    jobs_object=jobs_object,
+    output_formatters={"labeling": of},
+    default_formatter_name="labeling"
+)
 
 if __name__ == "__main__":
     from edsl import FileStore

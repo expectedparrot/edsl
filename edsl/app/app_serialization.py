@@ -24,6 +24,19 @@ class AppSerialization:
                 for formatter in app.attachment_formatters
             ]
 
+        # Serialize application_name and description (convert TypedDicts to dicts)
+        app_name = app.application_name
+        if isinstance(app_name, dict):
+            app_name_data = dict(app_name)  # Convert TypedDict to regular dict
+        else:
+            app_name_data = app_name
+
+        description = app.description
+        if isinstance(description, dict):
+            description_data = dict(description)  # Convert TypedDict to regular dict
+        else:
+            description_data = description
+
         return {
             "initial_survey": (
                 app.initial_survey.to_dict(add_edsl_version=add_edsl_version)
@@ -32,8 +45,8 @@ class AppSerialization:
             ),
             "jobs_object": app.jobs_object.to_dict(add_edsl_version=add_edsl_version),
             "application_type": app_type,
-            "application_name": app.application_name,
-            "description": app.description,
+            "application_name": app_name_data,
+            "description": description_data,
             "output_formatters": app.output_formatters.to_dict(
                 add_edsl_version=add_edsl_version
             ),
