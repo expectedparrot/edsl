@@ -41,15 +41,26 @@ class FormatterMetadata(BaseModel):
     description: Optional[str] = None
     output_type: str = "auto"
 
+class ApplicationNameModel(BaseModel):
+    """Pydantic model for application name with pretty name and alias."""
+    name: str
+    alias: str
+
+class DescriptionModel(BaseModel):
+    """Pydantic model for application description with short and long forms."""
+    short: str
+    long: str
+
 class AppMetadata(BaseModel):
     app_id: str
-    name: str
-    description: Optional[str] = None
+    name: ApplicationNameModel  # Changed from str to structured type
+    description: DescriptionModel  # Changed from Optional[str] to structured type
     application_type: str
     created_at: datetime
     parameters: List[Dict[str, Any]] = Field(default_factory=list)
     available_formatters: List[str] = Field(default_factory=list)
     formatter_metadata: List[Dict[str, Any]] = Field(default_factory=list)
+    default_formatter_name: Optional[str] = None
 
 class AppExecutionRequest(BaseModel):
     answers: Dict[str, Any]
@@ -79,18 +90,41 @@ class DatabaseManager:
     def init_database(self):
         """Initialize SQLite database with required tables."""
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS apps (
-                    app_id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    description TEXT,
-                    application_type TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    app_data TEXT NOT NULL,
-                    parameters TEXT,
-                    available_formatters TEXT
-                )
-            """)
+            # Check if we need to migrate existing schema
+            cursor = conn.execute("PRAGMA table_info(apps)")
+            columns = {row[1]: row[2] for row in cursor.fetchall()}
+
+            if not columns:
+                # Fresh database - create with new schema
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS apps (
+                        app_id TEXT PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        description TEXT,
+                        application_type TEXT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        app_data TEXT NOT NULL,
+                        parameters TEXT,
+                        available_formatters TEXT,
+                        formatter_metadata TEXT,
+                        default_formatter_name TEXT
+                    )
+                """)
+            else:
+                # Check if formatter_metadata column exists, add if missing
+                if 'formatter_metadata' not in columns:
+                    try:
+                        conn.execute("ALTER TABLE apps ADD COLUMN formatter_metadata TEXT")
+                        logger.info("Added formatter_metadata column to apps table")
+                    except sqlite3.OperationalError:
+                        pass  # Column already exists
+                # Check if default_formatter_name column exists, add if missing
+                if 'default_formatter_name' not in columns:
+                    try:
+                        conn.execute("ALTER TABLE apps ADD COLUMN default_formatter_name TEXT")
+                        logger.info("Added default_formatter_name column to apps table")
+                    except sqlite3.OperationalError:
+                        pass  # Column already exists
 
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS executions (
@@ -111,6 +145,24 @@ class DatabaseManager:
         app_dict = app.to_dict()
         app_data = json.dumps(app_dict)
 
+        # Extract application_name and description from TypedDicts
+        app_name = app.application_name
+        if isinstance(app_name, dict):
+            name_json = json.dumps(app_name)
+        else:
+            # Fallback for string (backward compatibility)
+            name_json = json.dumps({"name": str(app_name), "alias": str(app_name).lower().replace(" ", "_")})
+
+        app_description = app.description
+        if isinstance(app_description, dict):
+            description_json = json.dumps(app_description)
+        else:
+            # Fallback for string (backward compatibility)
+            desc_str = str(app_description) if app_description else "No description provided."
+            if not desc_str.endswith('.'):
+                desc_str = f"{desc_str}."
+            description_json = json.dumps({"short": desc_str, "long": desc_str})
+
         # Extract parameters from initial_survey
         parameters = json.dumps([
             {
@@ -123,6 +175,9 @@ class DatabaseManager:
             for q in app.initial_survey.questions
         ])
         available_formatters = json.dumps(list(app.output_formatters.mapping.keys()))
+
+        # Extract default formatter name
+        default_formatter_name = getattr(app.output_formatters, 'default', None)
 
         # Extract formatter metadata (output_type)
         try:
@@ -145,21 +200,24 @@ class DatabaseManager:
 
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
-                INSERT INTO apps (app_id, name, description, application_type, app_data, parameters, available_formatters, formatter_metadata)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO apps (app_id, name, description, application_type, app_data, parameters, available_formatters, formatter_metadata, default_formatter_name)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 app_id,
-                app.application_name,
-                app.description,
+                name_json,
+                description_json,
                 application_type,
                 app_data,
                 parameters,
                 available_formatters,
-                formatter_metadata
+                formatter_metadata,
+                default_formatter_name
             ))
             conn.commit()
 
-        logger.info(f"Stored app {app_id} ({app.application_name})")
+        # Log with pretty name
+        pretty_name = app_name.get("name", "Unknown") if isinstance(app_name, dict) else str(app_name)
+        logger.info(f"Stored app {app_id} ({pretty_name})")
         return app_id
 
     def get_app(self, app_id: str) -> Optional[App]:
@@ -183,21 +241,47 @@ class DatabaseManager:
         """Get app metadata without full app data."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute("""
-                SELECT app_id, name, description, application_type, created_at, parameters, available_formatters, formatter_metadata
+                SELECT app_id, name, description, application_type, created_at, parameters, available_formatters, formatter_metadata, default_formatter_name
                 FROM apps WHERE app_id = ?
             """, (app_id,))
             row = cursor.fetchone()
 
             if row:
+                # Parse name and description from JSON
+                try:
+                    name_data = json.loads(row[1])
+                    if not isinstance(name_data, dict):
+                        # Fallback for old data
+                        name_data = {"name": str(row[1]), "alias": str(row[1]).lower().replace(" ", "_")}
+                except (json.JSONDecodeError, TypeError):
+                    # Fallback for old string data
+                    name_data = {"name": str(row[1]), "alias": str(row[1]).lower().replace(" ", "_")}
+
+                try:
+                    description_data = json.loads(row[2])
+                    if not isinstance(description_data, dict):
+                        # Fallback for old data
+                        desc_str = str(row[2]) if row[2] else "No description provided."
+                        if not desc_str.endswith('.'):
+                            desc_str = f"{desc_str}."
+                        description_data = {"short": desc_str, "long": desc_str}
+                except (json.JSONDecodeError, TypeError):
+                    # Fallback for old string data
+                    desc_str = str(row[2]) if row[2] else "No description provided."
+                    if not desc_str.endswith('.'):
+                        desc_str = f"{desc_str}."
+                    description_data = {"short": desc_str, "long": desc_str}
+
                 return AppMetadata(
                     app_id=row[0],
-                    name=row[1],
-                    description=row[2],
+                    name=ApplicationNameModel(**name_data),
+                    description=DescriptionModel(**description_data),
                     application_type=row[3],
                     created_at=datetime.fromisoformat(row[4]),
                     parameters=json.loads(row[5]),
                     available_formatters=json.loads(row[6]),
-                    formatter_metadata=json.loads(row[7]) if len(row) > 7 and row[7] else []
+                    formatter_metadata=json.loads(row[7]) if len(row) > 7 and row[7] else [],
+                    default_formatter_name=row[8] if len(row) > 8 else None
                 )
             return None
 
@@ -205,21 +289,43 @@ class DatabaseManager:
         """List all apps."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute("""
-                SELECT app_id, name, description, application_type, created_at, parameters, available_formatters, formatter_metadata
+                SELECT app_id, name, description, application_type, created_at, parameters, available_formatters, formatter_metadata, default_formatter_name
                 FROM apps ORDER BY created_at DESC
             """)
 
             apps = []
             for row in cursor.fetchall():
+                # Parse name and description from JSON
+                try:
+                    name_data = json.loads(row[1])
+                    if not isinstance(name_data, dict):
+                        name_data = {"name": str(row[1]), "alias": str(row[1]).lower().replace(" ", "_")}
+                except (json.JSONDecodeError, TypeError):
+                    name_data = {"name": str(row[1]), "alias": str(row[1]).lower().replace(" ", "_")}
+
+                try:
+                    description_data = json.loads(row[2])
+                    if not isinstance(description_data, dict):
+                        desc_str = str(row[2]) if row[2] else "No description provided."
+                        if not desc_str.endswith('.'):
+                            desc_str = f"{desc_str}."
+                        description_data = {"short": desc_str, "long": desc_str}
+                except (json.JSONDecodeError, TypeError):
+                    desc_str = str(row[2]) if row[2] else "No description provided."
+                    if not desc_str.endswith('.'):
+                        desc_str = f"{desc_str}."
+                    description_data = {"short": desc_str, "long": desc_str}
+
                 apps.append(AppMetadata(
                     app_id=row[0],
-                    name=row[1],
-                    description=row[2],
+                    name=ApplicationNameModel(**name_data),
+                    description=DescriptionModel(**description_data),
                     application_type=row[3],
                     created_at=datetime.fromisoformat(row[4]),
                     parameters=json.loads(row[5]),
                     available_formatters=json.loads(row[6]),
-                    formatter_metadata=json.loads(row[7]) if len(row) > 7 and row[7] else []
+                    formatter_metadata=json.loads(row[7]) if len(row) > 7 and row[7] else [],
+                    default_formatter_name=row[8] if len(row) > 8 else None
                 ))
             return apps
 
@@ -363,7 +469,11 @@ async def push_app(app_data: dict):
             app_instance = App.from_dict(app_data)
         app_id = db_manager.store_app(app_instance)
 
-        return {"app_id": app_id, "message": f"App '{app_instance.application_name}' pushed successfully"}
+        # Extract pretty name for response message
+        app_name = app_instance.application_name
+        pretty_name = app_name.get("name", "Unknown") if isinstance(app_name, dict) else str(app_name)
+
+        return {"app_id": app_id, "message": f"App '{pretty_name}' pushed successfully"}
     except Exception as e:
         logger.error(f"Error pushing app: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Invalid app data: {str(e)}")

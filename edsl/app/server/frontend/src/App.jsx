@@ -221,8 +221,8 @@ function ChatMessage({ message, messageIndex, apps, onAppSelect, onFormSubmit, o
       <div className="message-container user">
         <div className="message-content form-message">
           <div className="app-selected-header">
-            <strong>{message.app.name}</strong>
-            <p>{message.app.description}</p>
+            <strong>{message.app.name?.name || message.app.name}</strong>
+            <p>{message.app.description?.short || message.app.description}</p>
           </div>
           <InputForm app={message.app} onSubmit={onFormSubmit} />
         </div>
@@ -258,7 +258,7 @@ function ChatMessage({ message, messageIndex, apps, onAppSelect, onFormSubmit, o
                    message.data.result.base64_string
 
     // Get the output_type for the selected formatter (or default if none selected)
-    const currentFormatter = message.selectedFormatter || message.app.available_formatters?.[0]
+    const currentFormatter = message.selectedFormatter || message.app.default_formatter_name || message.app.available_formatters?.[0]
     const formatterMeta = message.app.formatter_metadata?.find(f => f.name === currentFormatter)
     const outputType = formatterMeta?.output_type || 'auto'
 
@@ -354,11 +354,14 @@ function ChatMessage({ message, messageIndex, apps, onAppSelect, onFormSubmit, o
                 typeClass = 'type-json'
               }
 
+              const isSelected = message.selectedFormatter === formatter
+              const isDefault = !message.selectedFormatter && formatter === message.app.default_formatter_name
+
               return (
                 <button
                   key={formatter}
                   onClick={() => onFormatterSelect(messageIndex, message.app, message.originalInput, formatter)}
-                  className={`formatter-chip ${message.selectedFormatter === formatter ? 'selected' : ''} ${typeClass}`}
+                  className={`formatter-chip ${isSelected || isDefault ? 'selected' : ''} ${typeClass}`}
                 >
                   {typeBadge && <span className="type-badge">{typeBadge}</span>}
                   {formatter}
@@ -495,10 +498,13 @@ function AppSearchSelector({ apps, onAppSelect }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
 
-  const filteredApps = apps.filter(app =>
-    app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (app.description && app.description.toLowerCase().includes(searchTerm.toLowerCase()))
-  )
+  const filteredApps = apps.filter(app => {
+    // Handle both structured and string formats
+    const name = app.name?.name || app.name || ''
+    const description = app.description?.short || app.description?.long || app.description || ''
+    return name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           description.toLowerCase().includes(searchTerm.toLowerCase())
+  })
 
   const handleKeyDown = (e) => {
     if (e.key === 'ArrowDown') {
@@ -540,15 +546,15 @@ function AppSearchSelector({ apps, onAppSelect }) {
               onClick={() => onAppSelect(app)}
               onMouseEnter={() => setSelectedIndex(idx)}
             >
-              <div className="app-search-name">{app.name}</div>
-              <div className="app-search-desc">{app.description || 'No description'}</div>
+              <div className="app-search-name">{app.name?.name || app.name}</div>
+              <div className="app-search-desc">{app.description?.short || app.description || 'No description'}</div>
             </div>
           ))
         )}
       </div>
       {filteredApps.length > 0 && (
         <div className="search-hint">
-          Press Enter to use "{filteredApps[selectedIndex].name}" or click to select
+          Press Enter to use "{filteredApps[selectedIndex].name?.name || filteredApps[selectedIndex].name}" or click to select
         </div>
       )}
     </div>
@@ -775,10 +781,10 @@ function InputForm({ app, onSubmit }) {
           <div key={question_name} className="form-group-inline">
             <label>{question_text}</label>
             <input
-              type="text"
+              type="number"
               placeholder="Enter a number"
               value={formData[question_name] ?? ''}
-              onChange={(e) => handleInputChange(question_name, e.target.value)}
+              onChange={(e) => handleInputChange(question_name, e.target.value === '' ? '' : Number(e.target.value))}
             />
           </div>
         )
@@ -1032,10 +1038,11 @@ function OldAppDetail({ app, onBack, apiBase }) {
           <div key={question_name} className="form-group">
             <label>{question_text}</label>
             <input
-              type="text"
+              type="number"
               placeholder="Enter a number (e.g., 0.05, 100, 3.14)"
+              step="any"
               value={formData[question_name] ?? ''}
-              onChange={(e) => handleInputChange(question_name, e.target.value)}
+              onChange={(e) => handleInputChange(question_name, e.target.value === '' ? '' : Number(e.target.value))}
             />
           </div>
         )
@@ -1137,8 +1144,8 @@ function OldAppDetail({ app, onBack, apiBase }) {
       <button onClick={onBack} className="back-button">← Back to Apps</button>
 
       <div className="app-detail">
-        <h1>{app.name}</h1>
-        <p style={{ color: '#666', marginBottom: '20px' }}>{app.description}</p>
+        <h1>{app.name?.name || app.name}</h1>
+        <p style={{ color: '#666', marginBottom: '20px' }}>{app.description?.long || app.description?.short || app.description}</p>
 
         {error && <div className="error">{error}</div>}
 
