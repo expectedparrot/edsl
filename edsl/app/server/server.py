@@ -172,6 +172,10 @@ class DatabaseManager:
 
             if row:
                 app_data = json.loads(row[0])
+                # Check if it's a CompositeApp
+                if app_data.get("application_type") == "composite":
+                    from edsl.app.composite_app import CompositeApp
+                    return CompositeApp.from_dict(app_data)
                 return App.from_dict(app_data)
             return None
 
@@ -351,7 +355,12 @@ async def push_app(app_data: dict):
     """Push a new app to the server."""
     try:
         # Reconstruct the app from the dictionary
-        app_instance = App.from_dict(app_data)
+        # Check if it's a CompositeApp
+        if app_data.get("application_type") == "composite":
+            from edsl.app.composite_app import CompositeApp
+            app_instance = CompositeApp.from_dict(app_data)
+        else:
+            app_instance = App.from_dict(app_data)
         app_id = db_manager.store_app(app_instance)
 
         return {"app_id": app_id, "message": f"App '{app_instance.application_name}' pushed successfully"}

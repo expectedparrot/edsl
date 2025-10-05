@@ -135,6 +135,21 @@ scenario_list_formatter = (
     .to_scenario_list()
 )
 
+markdown_formatter = (
+    OutputFormatter(name="Analysis Preview (Markdown)", output_type="markdown")
+    .select("scenario.component", "scenario.potential_levels", "answer.current_level")
+    .rename(
+        {
+            "scenario.component": "Component",
+            "scenario.potential_levels": "Levels",
+            "answer.current_level": "Current Level",
+        }
+    )
+    .table(tablefmt="github")
+    .flip()
+    .to_string()
+)
+
 # 6. Complete App
 app = App(
     application_name="Conjoint Analysis Setup",
@@ -145,6 +160,7 @@ app = App(
         "scenario_list": scenario_list_formatter,
         "table": table_formatter,
         "structured": structured_formatter,
+        "markdown": markdown_formatter,
     },
     default_formatter_name="scenario_list",
 )
