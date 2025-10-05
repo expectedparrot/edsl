@@ -145,32 +145,34 @@ onboarding_analysis_pipeline = Survey([
 
 # Comprehensive markdown report
 comprehensive_report = (
-    OutputFormatter(description="Comprehensive Onboarding Analysis Report")
+    OutputFormatter(description="Comprehensive Onboarding Analysis Report", output_type="markdown")
     .select(
         "scenario.industry_or_product",
         "answer.competitor_research",
         "answer.comparative_analysis",
         "answer.actionable_recommendations"
     )
-    .to_markdown()
-    .view()
+    .table(tablefmt="github")
+    .flip()
+    .to_string()
 )
 
 # Executive summary for quick review
 executive_summary = (
-    OutputFormatter(description="Executive Summary")
+    OutputFormatter(description="Executive Summary", output_type="markdown")
     .select(
         "scenario.industry_or_product",
         "answer.comparative_analysis",
         "answer.actionable_recommendations"
     )
-    .to_markdown()
-    .view()
+    .table(tablefmt="github")
+    .flip()
+    .to_string()
 )
 
 # Raw data for further analysis
 raw_data_output = (
-    OutputFormatter(description="Raw Analysis Data")
+    OutputFormatter(description="Raw Analysis Data", output_type="table")
     .select("scenario.*", "answer.*")
     .table()
 )

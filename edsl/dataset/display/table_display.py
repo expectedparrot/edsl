@@ -132,6 +132,40 @@ class TableDisplay:
 
             return tabulate(self.data, headers=self.headers, tablefmt=self.tablefmt)
 
+    def to_string(self) -> str:
+        """Return a string rendering of the table using the current format/renderer.
+
+        This mirrors the logic used by __repr__: when tablefmt is 'rich' it uses the
+        Rich renderer's string output; otherwise it renders via `tabulate` using the
+        configured `tablefmt`.
+        """
+        return self.__repr__()
+
+    def to_markdown(self) -> str:
+        """Return the table as a Markdown string.
+
+        Uses the 'pipe' table format (GitHub-flavored Markdown compatible).
+        Falls back to a minimal manual renderer if 'tabulate' is unavailable.
+        """
+        try:
+            from tabulate import tabulate
+
+            return tabulate(self.data, headers=self.headers, tablefmt="pipe")
+        except Exception:
+            # Minimal fallback: construct a simple pipe table without alignment
+            headers_line = "| " + " | ".join([str(h) for h in self.headers]) + " |"
+            separator = "| " + " | ".join(["---" for _ in self.headers]) + " |"
+            rows = [
+                "| "
+                + " | ".join([
+                    "" if v is None else str(v)  # ensure printable
+                    for v in row
+                ])
+                + " |"
+                for row in self.data
+            ]
+            return "\n".join([headers_line, separator, *rows])
+
     @classmethod
     def from_dictionary(
         cls,
