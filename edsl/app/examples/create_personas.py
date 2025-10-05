@@ -2,7 +2,7 @@ from edsl.app.app import App
 from edsl.app.output_formatter import OutputFormatter, SurveyAttachmentFormatter
 
 from edsl.surveys import Survey
-from edsl.questions import QuestionList, QuestionFreeText, QuestionEDSLObject
+from edsl.questions import QuestionList, QuestionFreeText, QuestionEDSLObject, QuestionNumerical
 
 
 # Prompt the model for dimensions given each survey question
@@ -37,6 +37,36 @@ For example, if the dimension is "company size", the levels could be "1-10", "11
 """,
 )
 
+from edsl.questions import QuestionFreeText
+q_description = QuestionFreeText(
+    question_name="dimension_description",
+    question_text="""We are constructing a persona for someone who answers this question: 
+<question>
+{{ scenario.question_text }}
+</question>
+
+One relevant dimension of a person is: 
+<dimension>
+{{ scenario.dimensions }}.
+</dimension>
+
+Provide a short description of this dimension, as it relates to the question.
+""",
+)
+
+q_probs = QuestionList(
+    question_name="probs",
+    question_text="""For this dimension:
+<dimension>
+{{ scenario.dimensions }}.
+</dimension>
+The associated levels were: {{ levels.answer }}.
+Estimate, as best you can, the probability that a random person would have that value for this dimension.
+E.g., if dimensions were 'sex' and levels were 'male' and 'female', 
+the probabilities to return would be [0.5, 0.5] as males and females are equally likely.
+""",
+)
+
 # Ask for a concise machine-friendly dimension name
 q_name = QuestionFreeText(
     question_name="dimension_name",
@@ -53,7 +83,7 @@ jobs_object = (
     Survey([q]).to_jobs()
     .select("scenario.question_text", "answer.dimensions")
     .expand("answer.dimensions")
-    .to(Survey([q_levels, q_name]))
+    .to(Survey([q_levels, q_name, q_probs, q_description]))
 )
 
 """
@@ -68,7 +98,7 @@ initial_survey = Survey([
         question_text="Provide the Survey to analyze",
         expected_object_type="Survey",
     ),
-    QuestionFreeText(
+    QuestionNumerical(
         question_name="n",
         question_text="How many personas should be generated?",
     ),
@@ -86,18 +116,41 @@ output_formatter = (
         dimension_name_field="dimension_name",
         dimension_values_field="levels",
         dimension_description_field="dimension_description",
-    ).create_agent_list(n="{{n}}")
+        dimension_probs_field="probs",
+        seed='1234'
+    ).create_agent_list(n="{{params.n|int}}", strategy="probability", unique=True)
+)
+
+agent_list_markdown = output_formatter.copy().set_output_type("markdown").table(tablefmt="github").to_string()
+
+# Markdown formatter that displays the persona dimensions and levels as a table
+markdown_formatter = (
+    OutputFormatter(
+        description="Persona Dimensions Preview (Markdown)",
+        output_type="markdown"
+    )
+    .select("scenario.*", "answer.*")
+    .to_scenario_list()
+    .select("question_text", "dimension_name", "levels")
+    .table(tablefmt="github")
+    .to_string()
 )
 
 raw = OutputFormatter(description="Raw results")
 
 app = App(
-    description = "A persona generator.",
-    application_name = "create_personas",
+    description={
+        "short": "A persona generator.",
+        "long": "This application generates synthetic personas by analyzing survey questions, identifying relevant dimensions, and creating agent blueprints with appropriate trait levels."
+    },
+    application_name={
+        "name": "Persona Generator",
+        "alias": "create_personas"
+    },
     initial_survey=initial_survey,
     jobs_object=jobs_object,
-    output_formatters={"agent_blueprint": output_formatter, "raw": raw},
-    default_formatter_name="agent_blueprint",
+    output_formatters={'agent_list': output_formatter, 'agent_list_markdown': agent_list_markdown, 'raw': raw},
+    default_formatter_name="agent_list_markdown",
     attachment_formatters=[
         # Convert the passed Survey into a ScenarioList and attach as scenarios
         SurveyAttachmentFormatter(description="Survey->ScenarioList").to_scenario_list()
@@ -106,10 +159,10 @@ app = App(
 
 if __name__ == "__main__":
     from edsl import Survey
-    survey = Survey.pull("fde03dfc-732c-44fc-a90f-ae1104ee90a6")
+    survey = Survey.pull("5cde9b3b-3548-418c-9500-074103a13eef")
     
     output = app.output(params={
         'input_survey': survey,
-        'n': 3,
-    })
+        'n': 10,
+    }, formatter_name="agent_list")
     print(output)

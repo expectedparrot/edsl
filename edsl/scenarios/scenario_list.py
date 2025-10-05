@@ -983,31 +983,80 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         data_list = list(sl.data)
         return ScenarioList(random.sample(data_list, n))
 
-    def expand(self, expand_field: str, number_field: bool = False) -> ScenarioList:
-        """Expand the ScenarioList by a field.
+    def expand(self, *expand_fields: str, number_field: bool = False) -> ScenarioList:
+        """Expand the ScenarioList by one or more fields.
 
-        :param expand_field: The field to expand.
-        :param number_field: Whether to add a field with the index of the value
+        - When a single field is provided, behavior is unchanged: expand rows by that field.
+        - When multiple fields are provided, they are expanded in lockstep (aligned). Each
+          field must be an iterable (strings are treated as scalars) of equal length; the
+          i-th elements across all fields are combined into one expanded row.
 
-        Example:
+        Args:
+            *expand_fields: One or more field names to expand. When multiple, lengths must match.
+            number_field: Whether to add a per-field index (1-based) for expanded values as
+                ``<field>_number``.
 
-        >>> s = ScenarioList( [ Scenario({'a':1, 'b':[1,2]}) ] )
-        >>> s.expand('b')
-        ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
-        >>> s.expand('b', number_field=True)
-        ScenarioList([Scenario({'a': 1, 'b': 1, 'b_number': 1}), Scenario({'a': 1, 'b': 2, 'b_number': 2})])
+        Examples:
+
+            Single-field (unchanged):
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': [1, 2]})])
+            >>> s.expand('b')
+            ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+            >>> s.expand('b', number_field=True)
+            ScenarioList([Scenario({'a': 1, 'b': 1, 'b_number': 1}), Scenario({'a': 1, 'b': 2, 'b_number': 2})])
+
+            Multi-field aligned expansion:
+            >>> s2 = ScenarioList([Scenario({'a': 1, 'b': [1, 2], 'c': ['x', 'y']})])
+            >>> s2.expand('b', 'c')
+            ScenarioList([Scenario({'a': 1, 'b': 1, 'c': 'x'}), Scenario({'a': 1, 'b': 2, 'c': 'y'})])
+            >>> s2.expand('b', 'c', number_field=True)  # doctest: +ELLIPSIS
+            ScenarioList([Scenario({'a': 1, 'b': 1, 'c': 'x', 'b_number': 1, 'c_number': 1}), ...])
         """
+        if not expand_fields:
+            raise ScenarioError("expand() requires at least one field name")
+
+        # Preserve original behavior for the single-field case
+        if len(expand_fields) == 1:
+            expand_field = expand_fields[0]
+            new_scenarios = []
+            for scenario in self:
+                values = scenario[expand_field]
+                if not isinstance(values, Iterable) or isinstance(values, str):
+                    values = [values]
+                for index, value in enumerate(values):
+                    new_scenario = scenario.copy()
+                    new_scenario[expand_field] = value
+                    if number_field:
+                        new_scenario[expand_field + "_number"] = index + 1
+                    new_scenarios.append(new_scenario)
+            return ScenarioList(new_scenarios)
+
+        # Multi-field aligned expansion
+        fields = list(expand_fields)
         new_scenarios = []
         for scenario in self:
-            values = scenario[expand_field]
-            if not isinstance(values, Iterable) or isinstance(values, str):
-                values = [values]
-            for index, value in enumerate(values):
+            value_lists = []
+            for field in fields:
+                vals = scenario[field]
+                if not isinstance(vals, Iterable) or isinstance(vals, str):
+                    vals = [vals]
+                value_lists.append(list(vals))
+
+            lengths = {len(v) for v in value_lists}
+            if len(lengths) != 1:
+                lengths_str = ", ".join(f"{fld}:{len(v)}" for fld, v in zip(fields, value_lists))
+                raise ScenarioError(
+                    f"All fields must have equal lengths for aligned expansion; got {lengths_str}"
+                )
+
+            for index, tuple_vals in enumerate(zip(*value_lists)):
                 new_scenario = scenario.copy()
-                new_scenario[expand_field] = value
-                if number_field:
-                    new_scenario[expand_field + "_number"] = index + 1
+                for field, val in zip(fields, tuple_vals):
+                    new_scenario[field] = val
+                    if number_field:
+                        new_scenario[field + "_number"] = index + 1
                 new_scenarios.append(new_scenario)
+
         return ScenarioList(new_scenarios)
 
     def _concatenate(
@@ -1581,6 +1630,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             if d['question_type'] == None:
                 d['question_type'] = "free_text"
                 d['question_options'] = None
+
+            if 'weight' in d:
+                d['weight'] = float(d['weight'])
+
+
             new_d = d
             question = QuestionBase.from_dict(new_d)
             s.add_question(question)
@@ -2328,6 +2382,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         dimension_name_field: str = "dimension",
         dimension_values_field: str = "dimension_values",
         dimension_description_field: Optional[str] = None,
+        dimension_probs_field: Optional[str] = None,
     ):
         """Create an AgentBlueprint from this ScenarioList.
 
@@ -2347,6 +2402,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             dimension_name_field=dimension_name_field,
             dimension_values_field=dimension_values_field,
             dimension_description_field=dimension_description_field,
+            dimension_probs_field=dimension_probs_field,
         )
 
     def collapse(

@@ -841,6 +841,104 @@ class Survey(Base):
         )
         return self.add_question(compute_q)
 
+    def add_weighted_linear_scale_sum(
+        self,
+        question_name: str = "weighted_score",
+        include: Optional[List[Union[str, "QuestionBase"]]] = None,
+    ) -> "Survey":
+        """Add a compute question that sums weighted answers from linear_scale questions.
+
+        This method creates a QuestionCompute that iterates through all linear_scale
+        questions (or a specified subset), multiplying each answer by its weight
+        (if provided) and summing the results. Questions without a weight are skipped.
+
+        Args:
+            question_name: Name for the new compute question.
+            include: Optional list of question names or question objects to include;
+                if omitted, all prior `linear_scale` questions with weights are used.
+
+        Returns:
+            Survey: The updated survey (supports chaining).
+
+        Raises:
+            SurveyCreationError: If any included question is not of type linear_scale,
+                or if none with weights are available.
+
+        Example:
+            >>> from edsl import Survey
+            >>> from edsl.questions import QuestionLinearScale
+            >>> s = Survey()
+            >>> s = s.add_question(QuestionLinearScale(
+            ...     question_name="q1",
+            ...     question_text="Quality?",
+            ...     question_options=[1, 2, 3, 4, 5],
+            ...     weight=2.0
+            ... ))
+            >>> s = s.add_question(QuestionLinearScale(
+            ...     question_name="q2",
+            ...     question_text="Speed?",
+            ...     question_options=[1, 2, 3, 4, 5],
+            ...     weight=1.5
+            ... ))
+            >>> s = s.add_weighted_linear_scale_sum()
+        """
+        # Resolve included questions
+        if include is None:
+            included_questions: List["QuestionBase"] = [
+                q
+                for q in self.questions
+                if getattr(q, "question_type", None) == "linear_scale"
+                and getattr(q, "_weight", None) is not None
+            ]
+        else:
+            name_to_q = self.question_names_to_questions()
+            included_questions = []
+            for item in include:
+                if isinstance(item, str):
+                    if item not in name_to_q:
+                        raise SurveyCreationError(
+                            f"Question '{item}' not found in survey."
+                        )
+                    q_obj = name_to_q[item]
+                else:
+                    q_obj = item
+
+                if getattr(q_obj, "question_type", None) != "linear_scale":
+                    raise SurveyCreationError(
+                        f"Question '{q_obj.question_name}' must be of type 'linear_scale'."
+                    )
+                if getattr(q_obj, "_weight", None) is None:
+                    raise SurveyCreationError(
+                        f"Question '{q_obj.question_name}' must have a weight."
+                    )
+                included_questions.append(q_obj)
+
+        # Must have at least one valid prior question
+        if not included_questions:
+            raise SurveyCreationError(
+                "No prior 'linear_scale' questions with weights available."
+            )
+
+        # Build the Jinja template to compute weighted sum
+        # Create a list of weighted values and sum them
+        weighted_values = []
+        for q in included_questions:
+            weight = getattr(q, "_weight")
+            weighted_values.append(f"({q.question_name}.answer * {weight})")
+
+        question_text = (
+            f"{{% set weighted_values = [{', '.join(weighted_values)}] %}}\n"
+            "{{ weighted_values | sum }}"
+        )
+
+        # Create and add the compute question
+        from ..questions import QuestionCompute
+
+        compute_q = QuestionCompute(
+            question_name=question_name, question_text=question_text
+        )
+        return self.add_question(compute_q)
+
     def _recombined_questions_and_instructions(
         self,
     ) -> List[Union["QuestionBase", "Instruction"]]:

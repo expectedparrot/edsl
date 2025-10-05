@@ -75,8 +75,14 @@ attachment_formatter = (
 )
 
 app = App(
-    description="Create multiple variants of a text based on modification instructions.",
-    application_name="variant_creator",
+    description={
+        "short": "Create variations of content.",
+        "long": "This application generates variations of text, questions, or content for A/B testing, survey randomization, or creative exploration of different phrasings and approaches."
+    },
+    application_name={
+        "name": "Variant Creator",
+        "alias": "variant_creator"
+    },
     initial_survey=initial_survey,
     jobs_object=jobs_object,
     output_formatters={"variant_list": output_formatter},

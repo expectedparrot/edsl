@@ -24,13 +24,19 @@ jobs_object = Survey([]).to_jobs().by(al)
 output_formatter = OutputFormatter(description="Panel Reaction", output_type="table").select('agent_name', 'answer.*').table()
 
 app = App(
-    initial_survey = initial_survey,
-    jobs_object = jobs_object,
-    description = "A panel reaction to a question about cheese.",
-    application_name = "panel_reaction",
-    output_formatters = {"panel_reaction": output_formatter},
-    default_formatter_name = "panel_reaction",
-    )
+    initial_survey=initial_survey,
+    jobs_object=jobs_object,
+    description={
+        "short": "A panel reaction application.",
+        "long": "This application collects reactions from a panel of agents with different perspectives. Users provide a survey, and the app runs it across multiple agents (like cheese lovers and cheese haters) to capture diverse viewpoints."
+    },
+    application_name={
+        "name": "Panel Reaction",
+        "alias": "panel_reaction"
+    },
+    output_formatters={"panel_reaction": output_formatter},
+    default_formatter_name="panel_reaction",
+)
 
 if __name__ == "__main__":
     output = app.output(params={

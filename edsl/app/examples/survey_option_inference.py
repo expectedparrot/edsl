@@ -137,8 +137,14 @@ survey_ready_formatter = (
 
 # Create the complete app
 app = App(
-    application_name="Survey Option Inference",
-    description="Cleans and properly orders survey options, filling in missing values and ensuring logical sequence",
+    application_name={
+        "name": "Survey Option Inference",
+        "alias": "survey_option_inference"
+    },
+    description={
+        "short": "Infer survey answer options automatically.",
+        "long": "This application automatically infers appropriate answer options for survey questions based on question text and context, helping to design better structured surveys."
+    },
     initial_survey=initial_survey,
     jobs_object=jobs_object,
     output_formatters={

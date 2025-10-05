@@ -152,8 +152,14 @@ markdown_formatter = (
 
 # 6. Complete App
 app = App(
-    application_name="Conjoint Analysis Setup",
-    description="""Analyzes a product to identify components, potential levels, and current levels for conjoint analysis""",
+    application_name={
+        "name": "Conjoint Analysis",
+        "alias": "conjoint_analysis"
+    },
+    description={
+        "short": "Perform conjoint analysis on preferences.",
+        "long": "This application conducts conjoint analysis to understand how respondents value different attributes of a product or service by analyzing trade-offs in preference judgments."
+    },
     initial_survey=initial_survey,
     jobs_object=job,
     output_formatters={

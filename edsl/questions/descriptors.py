@@ -454,6 +454,24 @@ class AnswerKeysDescriptor(BaseDescriptor):
             )
 
 
+class WeightDescriptor(BaseDescriptor):
+    """Validate that the `weight` attribute is a non-negative number or None."""
+
+    def validate(self, value, instance):
+        """Validate the value is a non-negative number or None."""
+        if value is None:
+            return None
+        if not isinstance(value, (int, float)):
+            raise QuestionCreationValidationError(
+                f"`weight` must be a number or None (got {value})."
+            )
+        if value < 0:
+            raise QuestionCreationValidationError(
+                f"`weight` must be non-negative (got {value})."
+            )
+        return value
+
+
 if __name__ == "__main__":
     import doctest
 

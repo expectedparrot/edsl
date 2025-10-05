@@ -1,11 +1,10 @@
 import textwrap
 
 from edsl.app import App
-
 from edsl.surveys import Survey
 from edsl.questions import QuestionList, QuestionFreeText
 from edsl.app import OutputFormatter
-from edsl import Scenario
+from edsl.scenarios import Scenario
 
 initial_survey = Survey([
     QuestionFreeText(
@@ -28,9 +27,20 @@ dimensions_question = QuestionList(
         - Offers unique perspective or solution not readily available elsewhere
         - Matches your expertise level and can add genuine value
 
-        They shoudl be concise and specific, and a model should be able to score them.
+        They should be concise and specific but with the unambigous context, and a model should be able to score them.
+        For example, if the rubric was about 'coffee' the dimensions should not just be 'Body' but rather 'Body of the coffee'.
         """
     ),
+)
+
+weight_question = QuestionList(
+    question_name="weights",
+    question_text="""
+    We are building a scoring rubric for {{ scenario.artifact_description }}.
+    An identified dimension is: {{ dimensions.answer }}
+    Please propose a list of weights for each dimension to capture its relative importance to the overall quality of the artifact.
+    For example, if the dimensions are 'Clarity', 'Originality', and 'Usefulness', the weights could be [0.3, 0.3, 0.4].
+    """
 )
 
 q_scales = QuestionList(
@@ -53,45 +63,52 @@ q_scales = QuestionList(
 
 s = Scenario({"artifact_description": "a technical blog post"})
 jobs_object = (
-    Survey([dimensions_question]).by(s)
-.select('scenario.artifact_description', 'answer.dimensions')
-.expand('answer.dimensions')
+    Survey([dimensions_question, weight_question]).by(s)
+.select('scenario.artifact_description', 'answer.dimensions', 'answer.weights')
+.to_scenario_list()
+.expand('dimensions', 'weights')
 .to(q_scales.to_survey())
 )
 
-rubric_formatter = (OutputFormatter(description="Rubric Survey", output_type="edsl_object")
-.select('scenario.dimensions', 'answer.scales')
+base_formatter = (OutputFormatter(description="Rubric Survey", output_type="edsl_object")
+.select('scenario.dimensions', 'answer.scales', 'scenario.weights')
 .rename(
     {'scenario.dimensions': 'question_text',
-    'answer.scales': 'option_labels'}
+    'answer.scales': 'option_labels', 
+    'scenario.weights': 'weight'}
 ).to_scenario_list().string_cat("question_text", ": {{ scenario.item}}")
-.to_scenario_list().add_value('question_type', 'linear_scale')
+.to_scenario_list()
+.add_value('question_type', 'linear_scale')
 .add_value('question_options', [1,2,3,4,5])
 .zip('question_options', 'option_labels', 'option_labels')
-).to_survey()
+)
+
+rubric_survey = base_formatter.copy().set_output_type('edsl_object').to_survey()
+survey_with_weights = rubric_survey.copy().add_weighted_linear_scale_sum()
+survey_table = rubric_survey.copy().set_output_type("markdown").table(tablefmt = "github").to_string()
 
 app = App(
-     initial_survey=initial_survey,
-     description = """A rubric generator.
-     A rubric generator is a tool that generates a rubric for a given `artifact`.
-     For example, if the artifact is a technical blog post, the rubric generator for the blog post.
-     The rubric is formatted as an EDSL survey that can then be used to score the artifact.
-     For example, the survey questions if the artifact is a technical blog post might be: 
-     - How clear is the post?
-     - How original is the post?
-     - How useful is the post?
-     - How impactful is the post?
-
-     Each question is a linear scale question with 5 options, with 5 being the highest score.
-     """,
-     application_name = "rubric_generator",
-     jobs_object=jobs_object,
-     output_formatters={"rubric": rubric_formatter},
-     default_formatter_name="rubric",
+    initial_survey=initial_survey,
+    description={
+        "short": "A rubric generator for evaluating artifacts.",
+        "long": """A rubric generator is a tool that generates a rubric for a given artifact. 
+        For example, if the artifact is a technical blog post, the rubric generator creates evaluation criteria for the blog post. 
+        The rubric is formatted as an EDSL survey that can then be used to score the artifact. 
+        For example, the survey questions for a technical blog post might be: How clear is the post? 
+        How original is the post? How useful is the post? 
+        How impactful is the post? Each question is a linear scale question with 5 options, with 5 being the highest score."""
+    },
+    application_name={
+        "name": "Rubric Generator",
+        "alias": "rubric_generator"
+    },
+    jobs_object=jobs_object,
+    output_formatters={"survey": rubric_survey, "survey_table": survey_table, "survey_with_weights": survey_with_weights},
+    default_formatter_name="survey_table",
 )
 
  
 if __name__ == "__main__":
-    rubric_survey = app.output({'artifact_description':"A new mattress"})
-    print(rubric_survey.table())
+    rubric_survey = app.output({'artifact_description':"coffee beans"}, formatter_name="survey_with_weights")
+    print(rubric_survey)
 

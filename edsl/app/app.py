@@ -30,7 +30,10 @@ from .descriptors import (
     AttachmentFormattersDescriptor,
     AppTypeRegistryDescriptor,
     ApplicationNameDescriptor,
+    DescriptionDescriptor,
     FixedParamsDescriptor,
+    ApplicationName,
+    Description,
 )
  
 
@@ -65,14 +68,15 @@ class App(Base):
     initial_survey = InitialSurveyDescriptor()
     output_formatters = OutputFormattersDescriptor()
     attachment_formatters = AttachmentFormattersDescriptor()
-    application_name: str = ApplicationNameDescriptor()  # type: ignore[assignment]
+    application_name: ApplicationName = ApplicationNameDescriptor()  # type: ignore[assignment]
+    description: Description = DescriptionDescriptor()  # type: ignore[assignment]
     fixed_params = FixedParamsDescriptor()
 
     def __init__(
         self,
         jobs_object: "Jobs",
-        description: str,
-        application_name: str,
+        description: str | dict | Description,
+        application_name: str | dict | ApplicationName,
         initial_survey: Survey,  # type: ignore[assignment]
         output_formatters: Optional[
             Mapping[str, OutputFormatter] | list[OutputFormatter] | OutputFormatters
@@ -86,10 +90,16 @@ class App(Base):
 
         Args:
             jobs_object: The jobs object that is the logic of the application.
-            output_formatters: The output formatters to use for the application.
-            description: The description of the application.
-            application_name: Human-readable name for this application. Must be a string if provided.
+            description: The description of the application. Can be a string (used for both short and long),
+                        or a dict/Description TypedDict with 'short' and 'long' keys.
+            application_name: Human-readable name for this application. Can be a string (alias auto-generated),
+                             or a dict/ApplicationName TypedDict with 'name' and 'alias' keys.
             initial_survey: The initial survey to use for the application.
+            output_formatters: The output formatters to use for the application.
+            attachment_formatters: The attachment formatters to use for the application.
+            default_formatter_name: The name of the default output formatter.
+            default_params: Default parameter values for the initial survey.
+            fixed_params: Fixed parameter values that cannot be overridden by the caller.
         """
         self.jobs_object = jobs_object
         self.description = description
@@ -553,8 +563,13 @@ class App(Base):
         ]
         attach_names = ", ".join(attach_names_list[:8]) + ("..." if len(attach_names_list) > 8 else "")
         app_type = self.application_type
+
+        # Extract name and description strings from TypedDicts
+        app_name = self.application_name.get("name", "Unknown") if isinstance(self.application_name, dict) else str(self.application_name)
+        app_desc = self.description.get("short", "No description") if isinstance(self.description, dict) else str(self.description)
+
         return (
-            f"{cls_name}(name='{self.application_name}', description='{self.description}', "
+            f"{cls_name}(name='{app_name}', description='{app_desc}', "
             f"application_type='{app_type}', parameters={self.parameters}, job='{job_cls}', "
             f"survey_questions={num_questions}, head_params={head_param_count}, "
             f"formatters=[{fmt_names}], default_formatter='{default_fmt}', attachments=[{attach_names}])"

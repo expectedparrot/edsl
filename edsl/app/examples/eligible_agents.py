@@ -32,8 +32,14 @@ initial_survey = Survey([
 app = App(
     initial_survey=initial_survey,
     jobs_object=jobs,
-    application_name="Eligible Agents",
-    description="This is a constructed agent. It is randomly collected from a population. Is the agent eligible to participate in the study?",
+    application_name={
+        "name": "Eligible Agents Finder",
+        "alias": "eligible_agents"
+    },
+    description={
+        "short": "Find eligible agents based on criteria.",
+        "long": "This application identifies and filters agents that meet specific eligibility criteria, useful for targeted surveys and research studies requiring specific respondent characteristics."
+    },
     output_formatters={"eligible_list": of},
     default_formatter_name="eligible_list",
 )

@@ -26,7 +26,12 @@ class AppRegistry:
         Latest registration for the same name wins.
         """
         try:
-            name = str(app.application_name)
+            app_name = app.application_name
+            # Extract name from TypedDict if necessary
+            if isinstance(app_name, dict):
+                name = app_name.get("name", "Unknown")
+            else:
+                name = str(app_name)
         except Exception as exc:
             raise TypeError("App must have an 'application_name' attribute") from exc
         cls._apps_by_name[name] = app
@@ -130,7 +135,11 @@ class AppRegistry:
                 )
             app_obj = getattr(module, "app")
             cls.register(app_obj)
-            loaded_names.append(str(getattr(app_obj, "application_name", module.__name__)))
+            # Extract name from TypedDict if necessary
+            app_name = getattr(app_obj, "application_name", module.__name__)
+            if isinstance(app_name, dict):
+                app_name = app_name.get("name", module.__name__)
+            loaded_names.append(str(app_name))
 
         # If it's a package, walk all submodules recursively; otherwise load the module itself
         if hasattr(mod, "__path__"):

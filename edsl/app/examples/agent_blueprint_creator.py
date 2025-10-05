@@ -107,8 +107,14 @@ output_formatter = (
 )
 
 app = App(
-    description="Creates an agent blueprint for generating personas from a population description",
-    application_name="agent_blueprint_creator",
+    description={
+        "short": "Create agent blueprints with defined traits.",
+        "long": "This application helps create detailed agent blueprints by defining dimensions, traits, and characteristics for synthetic agents used in surveys and research studies."
+    },
+    application_name={
+        "name": "Agent Blueprint Creator",
+        "alias": "agent_blueprint_creator"
+    },
     initial_survey=initial_survey,
     jobs_object=jobs_object,
     output_formatters={"agent_blueprint": output_formatter},
