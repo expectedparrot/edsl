@@ -38,6 +38,8 @@ class CompositeApp:
         second_app: Optional[App] = None,
         bindings: Optional[dict[str, Any]] = None,
         fixed: Optional[dict[str, dict[str, Any]]] = None,
+        application_name: Optional[str] = None,
+        description: Optional[str] = None,
     ):
         """Initialize the composite application.
 
@@ -59,6 +61,9 @@ class CompositeApp:
             "app1": dict((fixed or {}).get("app1", {})),
             "app2": dict((fixed or {}).get("app2", {})),
         }
+        # Generate application_name from component apps if not provided
+        self.application_name = application_name or f"{first_app.application_name} >> {second_app.application_name if second_app else '?'}"
+        self.description = description or f"Composite app: {self.application_name}"
 
     def __rshift__(self, app: "App") -> "CompositeApp":
         """Chain a second app to this composite using the >> operator."""
@@ -66,6 +71,14 @@ class CompositeApp:
         return self
 
     # --- Public API -------------------------------------------------------
+
+    @property
+    def output_formatters(self):
+        """Return the second app's output formatters (or empty if not set)."""
+        if self.second_app is None:
+            from .output_formatter import OutputFormatters
+            return OutputFormatters()
+        return self.second_app.output_formatters
 
     @property
     def initial_survey(self) -> Survey:
@@ -104,7 +117,7 @@ class CompositeApp:
             combined.append(q)
         return Survey(combined)
 
-    def output(self, params: dict[str, Any] | None):
+    def output(self, params: dict[str, Any] | None, formatter_name: Optional[str] = None, **kwargs):
         """Execute the composite flow.
 
         Steps:
@@ -112,6 +125,11 @@ class CompositeApp:
         2) Build app2 params from fixed["app2"], bindings, and user `params` for
            any remaining required questions.
         4) Run app2 with constructed params and return its formatted output.
+
+        Args:
+            params: Parameters for the composite app
+            formatter_name: Optional formatter to use for the final output (passed to app2)
+            **kwargs: Additional arguments passed through to app2.output()
         """
         if self.second_app is None:
             raise ValueError("CompositeApp requires a second_app to run.")
@@ -151,8 +169,8 @@ class CompositeApp:
             if name in provided:
                 app2_params[name] = provided[name]
 
-        # 4) Run app2
-        return self.second_app.output(params=app2_params)
+        # 4) Run app2 with formatter_name and other kwargs
+        return self.second_app.output(params=app2_params, formatter_name=formatter_name, **kwargs)
 
     # --- Serialization ----------------------------------------------------
 
@@ -163,6 +181,8 @@ class CompositeApp:
         """
         data = {
             "application_type": self.application_type,
+            "application_name": self.application_name,
+            "description": self.description,
             "first_app": self.first_app.to_dict(),
             "second_app": self.second_app.to_dict() if self.second_app is not None else None,
         }
@@ -188,9 +208,11 @@ class CompositeApp:
         second = _deserialize_app_or_composite(data["second_app"]) if "second_app" in data and data["second_app"] is not None else None
         bindings = data.get("bindings") or {}
         fixed = data.get("fixed") or {}
+        application_name = data.get("application_name")
+        description = data.get("description")
         if first is None:
             raise ValueError("CompositeApp.from_dict missing 'first_app'")
-        return cls(first_app=first, second_app=second, bindings=bindings, fixed=fixed)
+        return cls(first_app=first, second_app=second, bindings=bindings, fixed=fixed, application_name=application_name, description=description)
 
     # --- Internals --------------------------------------------------------
 

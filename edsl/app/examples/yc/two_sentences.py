@@ -152,10 +152,19 @@ generate_job = (
 
 # Output formatter for Stage 1
 candidates_formatter = (
-    OutputFormatter(description="Create a ScenarioList of 2-sentence startup descriptions")
+    OutputFormatter(description="Create a ScenarioList of 2-sentence startup descriptions", output_type="edsl_object")
     .select('answer.shorten')
     .rename({'answer.shorten': 'two_sentences'})
     .to_scenario_list()
+)
+
+# Markdown formatter to preview the candidates
+markdown_formatter = (
+    OutputFormatter(description="Candidates Preview (Markdown)", output_type="markdown")
+    .select('answer.shorten')
+    .rename({'answer.shorten': 'two_sentences'})
+    .table(tablefmt="github")
+    .to_string()
 )
 
 # Stage 1 App: Generate candidates
@@ -164,7 +173,7 @@ app = App(
     description="Generates candidate 2-sentence startup descriptions using YC best practices",
     initial_survey=initial_survey,
     jobs_object=generate_job,
-    output_formatters={'scenario_list':candidates_formatter},
+    output_formatters={'scenario_list': candidates_formatter, 'markdown': markdown_formatter},
     default_formatter_name='scenario_list'
 )
 

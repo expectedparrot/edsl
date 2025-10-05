@@ -149,6 +149,7 @@ class ObjectFormatter(ABC):
         allowed_commands: Optional[list[str]] = None,
         params: Optional[Any] = None,
         output_type: str = "auto",
+        _stored_commands: Optional[list[tuple[str, tuple, dict]]] = None,
     ) -> None:
         # Treat "name" as a legacy alias for description. If only name is provided,
         # store it in description; keep a .name attribute for backwards references.
@@ -159,7 +160,7 @@ class ObjectFormatter(ABC):
             allowed_commands = white_list_commands
         self.allowed_commands = allowed_commands
 
-        self._stored_commands = []
+        self._stored_commands = list(_stored_commands) if _stored_commands is not None else []
         # Optional declarative params spec (names or defaults) supplied by user
         self.params = params
         # Output type hint for frontend rendering: "markdown", "html", "file", "json", "auto"
@@ -323,6 +324,26 @@ class ObjectFormatter(ABC):
             ],
         }
 
+    def __repr__(self) -> str:
+        # Return a compact, constructor-style string that can recreate this instance.
+        cls_name = self.__class__.__name__
+        parts: list[str] = []
+        if self.description is not None:
+            parts.append(f"description={self.description!r}")
+        # Only include allowed_commands if it differs from the default
+        try:
+            if self.allowed_commands != white_list_commands:
+                parts.append(f"allowed_commands={self.allowed_commands!r}")
+        except Exception:
+            parts.append(f"allowed_commands={self.allowed_commands!r}")
+        if self.params is not None:
+            parts.append(f"params={self.params!r}")
+        if getattr(self, 'output_type', 'auto') != 'auto':
+            parts.append(f"output_type={self.output_type!r}")
+        if self._stored_commands:
+            parts.append(f"_stored_commands={self._stored_commands!r}")
+        return f"{cls_name}({', '.join(parts)})"
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "OutputFormatter":
         """Create a formatter from a dict produced by to_dict.
@@ -362,19 +383,19 @@ class ObjectFormatter(ABC):
         allowed = data.get("allowed_commands")
         # Accept either 'description' or legacy 'name'
         description_value = data.get("description", data.get("name"))
-        instance = subclass(
-            description=description_value,
-            allowed_commands=allowed,
-            params=data.get("params"),
-            output_type=data.get("output_type", "auto"),
-        )
         stored = []
         for item in data.get("stored_commands", []):
             name = item["name"]
             args = tuple(item.get("args", []))
             kwargs = dict(item.get("kwargs", {}))
             stored.append((name, args, kwargs))
-        instance._stored_commands = stored
+        instance = subclass(
+            description=description_value,
+            allowed_commands=allowed,
+            params=data.get("params"),
+            output_type=data.get("output_type", "auto"),
+            _stored_commands=stored,
+        )
         return instance
 
 class OutputFormatter(ObjectFormatter):

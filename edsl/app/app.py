@@ -4,14 +4,13 @@ import re
 from html import escape
 from pathlib import Path
 from abc import ABC
-import logging
 
-logger = logging.getLogger(__name__)
+ 
 
 from ..scenarios import Scenario, ScenarioList
 from ..surveys import Survey
 from ..agents import AgentList
-
+from ..base import Base
 
 if TYPE_CHECKING:
     from ..scenarios import ScenarioList
@@ -33,7 +32,7 @@ from .descriptors import (
     ApplicationNameDescriptor,
     FixedParamsDescriptor,
 )
-from .debug_info import DebugInfo
+ 
 
 
 class ParamsDict(TypedDict, total=False):
@@ -41,7 +40,7 @@ class ParamsDict(TypedDict, total=False):
     pass
 
 
-class App:
+class App(Base):
     """
     A class representing an EDSL application.
 
@@ -61,15 +60,6 @@ class App:
             return
         # Delegate validation and registration to descriptor (access the descriptor itself)
         App.__dict__["_registry"].register(cls)
-
-    def __rshift__(self, next_app):
-        "Chain this app to another app, creating a CompositeApp."
-        from .composite_app import CompositeApp
-
-        if isinstance(next_app, App):
-            return CompositeApp(self, next_app)
-        else:
-            raise TypeError(f"Invalid operand for >>: {type(next_app).__name__}")
 
     # Descriptors
     initial_survey = InitialSurveyDescriptor()
@@ -129,8 +119,7 @@ class App:
         AppValidator.validate_parameters(self)
         AppValidator.validate_initial_survey_edsl_uniqueness(self)
 
-        # Debug info encapsulated in DebugInfo helper
-        self.debug = DebugInfo(self)
+        
 
         # Cache for generated results keyed by the hash of a jobs object
         self._generated_results: dict[int, "Results"] = {}
@@ -164,6 +153,15 @@ class App:
     ) -> "Results":
         """Generate results for the given jobs object with instance-level caching.
 
+
+        >>> app = App.example()
+        >>> app._generated_results 
+        {}
+        >>> app._generate_results(app.jobs_object)  # doctest: +ELLIPSIS
+        Results(...)
+        >>> len(app._generated_results)
+        1
+
         Args:
             modified_jobs_object: Fully prepared jobs object (after head attachments).
             stop_on_exception: If True, abort execution on the first exception.
@@ -177,7 +175,6 @@ class App:
         cache = self._generated_results
         if jobs_hash in cache:
             results = cache[jobs_hash]
-            self._debug_results_last = results
             return results
 
         results = modified_jobs_object.run(
@@ -185,16 +182,15 @@ class App:
             disable_remote_inference=disable_remote_inference,
         )
         cache[jobs_hash] = results
-        self._debug_results_last = results
         return results
 
     def output(
         self,
         params: ParamsDict | None,
-        verbose: bool = False,
         formatter_name: Optional[str] = None,
         stop_on_exception: bool = True,
         disable_remote_inference: bool = False,
+        verbose: bool = False,
     ) -> Any:
         """Run the app and return formatted output.
 
@@ -208,51 +204,36 @@ class App:
         Returns:
             The formatted output as produced by the selected output formatter.
         """
-        logger.info(f"App.output called with params keys: {params.keys() if params else None}")
-        logger.info(f"App.output formatter_name: {formatter_name}")
-
+        
         if params is None:
             params = AnswersCollector.collect_interactively(self)
 
-        # Apply App-level defaults for missing or None values
-        logger.info("Applying default params")
-        params = self._apply_default_params(params)
+        params = self._apply_default_params(params) # Apply default params first so they can be overridden by fixed params
+        params = self._apply_fixed_params(params)  # Apply fixed params last so they 'win'
 
-        # Apply fixed params last so they win
-        logger.info("Applying fixed params")
-        params = self._apply_fixed_params(params)
-        logger.info(f"After applying defaults/fixed, params keys: {params.keys()}")
-
-        logger.info("Preparing head attachments")
-        logger.info(f"self.attachment_formatters: {self.attachment_formatters}")
-        logger.info(f"Number of attachment formatters: {len(list(self.attachment_formatters or []))}")
+        
+        # Prepare head attachments - these are what will get attached to the jobs object
         head_attachments = self._prepare_head_attachments(params)
-        logger.info(f"Head attachments prepared: scenario={head_attachments.scenario is not None}, survey={head_attachments.survey is not None}, agent_list={head_attachments.agent_list is not None}")
+        modified_jobs_object = head_attachments.attach_to_head(self.jobs_object) # attach them
 
-        logger.info("Attaching to head")
-        jobs = head_attachments.attach_to_head(self.jobs_object)
-        self.debug.set_jobs(jobs)
-
-        logger.info("Generating results")
         results = self._generate_results(
-            jobs,
+            modified_jobs_object,
             stop_on_exception=stop_on_exception,
             disable_remote_inference=disable_remote_inference,
         )
-        logger.info(f"Results generated, type: {type(results)}")
 
-        logger.info("Formatting output")
-        formatted_output = self._format_output(results, formatter_name)
-        logger.info(f"Output formatted, type: {type(formatted_output)}")
+        formatted_output = self._format_output(results, formatter_name, params)
 
-        self.debug.record_snapshot()
         return formatted_output
 
-    def _prepare_head_attachments(self, params: ParamsDict):
+    def _prepare_head_attachments(self, params: ParamsDict) -> HeadAttachments:
         """Prepare and apply head attachments derived from provided params.
 
         Derives a `HeadAttachments` instance based on the `initial_survey` answers
-        and applies any configured attachment formatters.
+        and applies any configured attachment formatters to those attachments.
+
+        The attachment formatters are applied to the attachments after they are prepared.
+        They do things like take an inputed Survey and turn it into a ScenarioList, for example.
 
         Args:
             params: Parameters keyed by `initial_survey` question names.
@@ -260,84 +241,118 @@ class App:
         Returns:
             A finalized `HeadAttachments` instance ready to attach to the jobs object.
         """
-        self.debug.set_params(params)
         head_attachments = self._prepare_from_params(params)
-        logger.info(f"About to apply {len(list(self.attachment_formatters or []))} attachment formatters")
         for formatter in self.attachment_formatters:
-            logger.info(f"Applying attachment formatter: {formatter}")
             head_attachments = head_attachments.apply_formatter(
                 formatter, params=params
             )
-        self.debug.set_head_attachments(head_attachments)
         return head_attachments
 
-    def _select_formatter(self, formatter_name: Optional[str]):
-        """Return the output formatter by explicit name or the default when not provided."""
+    def _select_formatter(self, formatter_name: Optional[str]) -> OutputFormatter:
+        """Return the output formatter by explicit name or the default when not provided.
+        
+        Args:
+            formatter_name: The name of the output formatter to select.
+
+        Returns:
+            The output formatter.
+
+        >>> app = App.example()
+        >>> app._select_formatter(None)
+        OutputFormatter(...)
+        >>> app._select_formatter("echo")
+        OutputFormatter(...)
+        >>> app._select_formatter("fake")
+        Traceback (most recent call last):
+        ...
+        ValueError: Formatter 'fake' not found. Available formatters: ['echo', 'raw_results']
+
+        """
         if formatter_name is not None:
             return self.output_formatters.get_formatter(formatter_name)
         return self.output_formatters.get_default()
 
-    def _format_output(self, results: Any, formatter_name: Optional[str]) -> Any:
+    def _format_output(self, results: 'Results', formatter_name: Optional[str], params: ParamsDict) -> Any:
         """Apply the selected output formatter to results with a params context.
 
         Builds a context with both namespaced `params` and top-level keys for compatibility
         with existing templates and passes it to the formatter's render method.
+
+        The 'params' key allows the formatter to be parameterized with the values from the initial_survey.
+
+
         """
         formatter = self._select_formatter(formatter_name)
-        # Provide a clear namespaced 'params' for template resolution while
-        # preserving legacy top-level keys for backward compatibility.
-        if isinstance(self.debug.params_last, dict):
-            context_params = dict(self.debug.params_last)
-            context = {"params": context_params, **context_params}
-        else:
-            context = {"params": {}}
-        formatted = formatter.render(
-            results,
-            params=context,
-        )
-        self.debug.set_results(results)
-        self.debug.set_output(formatted)
-        return formatted
+        return formatter.render(results, params={"params": dict(params or {})}) # {"params": dict(params or {})} is a bit of a hack to allow the formatter to be parameterized with the values from the initial_survey.
 
-    def _apply_default_params(self, params: ParamsDict) -> ParamsDict:
+
+    def _apply_default_params(self, params: ParamsDict, *, survey_names = None, default_params = None) -> ParamsDict:
         """Merge provided params with defaults declared on the App.
 
         Any key missing from params or explicitly None will be filled with the
         corresponding default when provided and when the key exists on the
         initial_survey.
+
+        Args:
+            params: The parameters to merge with the defaults.
+            survey_names: Optional set of allowed question names; defaults to the App's `initial_survey` names.
+            default_params: Optional mapping of default parameter values; defaults to the App's `_default_params`.
+
+        Doctest:
+        >>> app = App.example()
+        >>> # Provide defaults and limit to a specific survey key via overrides
+        >>> app._apply_default_params({}, survey_names={'text'}, default_params={'text': 'hi', 'extra': 'x'})
+        {'text': 'hi'}
+        >>> # Existing non-None value is preserved
+        >>> app._apply_default_params({'text': 'yo'}, survey_names={'text'}, default_params={'text': 'hi'})
+        {'text': 'yo'}
+        >>> # None is treated as missing and gets filled from defaults
+        >>> app._apply_default_params({'text': None}, survey_names={'text'}, default_params={'text': 'hi'})
+        {'text': 'hi'}
+
+        Returns:
+            The merged parameters.
         """
+        survey_names = {q.question_name for q in self.initial_survey} if survey_names is None else survey_names
+        default_params = self._default_params if default_params is None else default_params
+
+        #survey_names = {q.question_name for q in initial_survey}
         merged: dict[str, Any] = dict(params or {})
-        if not getattr(self, "_default_params", None):
-            return merged
-        try:
-            survey_names = {q.question_name for q in self.initial_survey}
-        except (TypeError, AttributeError):
-            survey_names = set()
-        for key, value in self._default_params.items():
+        for key, value in default_params.items():
             if survey_names and key not in survey_names:
                 continue
             if key not in merged or merged.get(key) is None:
                 merged[key] = value
         return merged
 
-    def _apply_fixed_params(self, params: ParamsDict) -> ParamsDict:
+    def _apply_fixed_params(self, params: ParamsDict, *, fixed_params = None) -> ParamsDict:
         """Apply fixed params while rejecting user-provided values for fixed keys.
 
         If the caller supplies any parameter that is fixed on this App, raise an
         exception because fixed parameters must not be provided by the caller.
         Otherwise, merge the fixed values into the params.
+
+        Doctest (dependency-injected fixed_params):
+        >>> app = App.example()
+        >>> # Merge injected fixed params when caller doesn't provide those keys
+        >>> app._apply_fixed_params({'text': 'hi'}, fixed_params={'lang': 'en'})
+        {'text': 'hi', 'lang': 'en'}
+        >>> # Reject when caller supplies a fixed key
+        >>> app._apply_fixed_params({'lang': 'fr'}, fixed_params={'lang': 'en'})
+        Traceback (most recent call last):
+        ...
+        ValueError: The following parameters are fixed and must not be provided by the caller: ['lang']
         """
-        if not getattr(self, "fixed_params", None):
-            return params
+        fixed_params = self.fixed_params if fixed_params is None else fixed_params
         provided_keys = set((params or {}).keys())
-        fixed_keys = set(self.fixed_params.keys())
+        fixed_keys = set(fixed_params.keys())
         forbidden = sorted(provided_keys.intersection(fixed_keys))
         if forbidden:
             raise ValueError(
                 f"The following parameters are fixed and must not be provided by the caller: {forbidden}"
             )
         merged: dict[str, Any] = dict(params or {})
-        for key, value in self.fixed_params.items():
+        for key, value in fixed_params.items():
             merged[key] = value
         return merged
 
@@ -355,177 +370,9 @@ class App:
           destination (scenario, survey, agent_list)
 
         """
-        logger.info(f"_prepare_from_params called with params keys: {params.keys() if params else None}")
-
-        # Derive head attachments exclusively from the initial_survey answers.
-        if not isinstance(params, dict):
-            raise TypeError(
-                "App.output expects a params dict keyed by initial_survey question names. Got: "
-                + type(params).__name__
-            )
-
-        # Make sure we didn't get any keys we don't know about, except allow fixed params
-        survey_question_names = {q.question_name for q in self.initial_survey}
-        fixed_names = set(getattr(self, "fixed_params", {}).keys())
-        unknown_keys = [
-            k
-            for k in params.keys()
-            if k not in survey_question_names and k not in fixed_names
-        ]
-        if unknown_keys:
-            raise ValueError(
-                f"Params contain keys not in initial_survey: {sorted(unknown_keys)}. "
-                f"Survey question names: {sorted(survey_question_names)}"
-            )
-
-        from ..scenarios import Scenario, ScenarioList
-        from ..surveys import Survey
-        from ..agents import AgentList
-        from ..base import RegisterSubclassesMeta
-        from ..questions.register_questions_meta import RegisterQuestionsMeta
-
-        scenario_attachment: ScenarioList | Scenario | None = None
-        survey_attachment: Survey | None = None
-        agent_list_attachment: AgentList | None = None
-
-        dest_assigned = {"scenario": False, "survey": False, "agent_list": False}
-        scenario_vars: dict[str, Any] = {}
-
-        question_registry = RegisterQuestionsMeta.question_types_to_classes()
-        edsl_registry = RegisterSubclassesMeta.get_registry()
-
-        # Value transformers keyed by question_type
-        # Each transformer takes the raw answer value and returns a normalized value
-        # suitable for scenario variables. Unspecified types default to identity.
-        def _identity(v: Any) -> Any:
-            return v
-
-        def _to_filestore(v: Any) -> Any:
-            try:
-                from ..scenarios import FileStore
-
-                return FileStore(path=v)
-            except Exception:
-                return v
-
-        value_transformers = {
-            "file_upload": _to_filestore,
-        }
-
-        # Attachment handlers dispatched by instance type
-        # Each handler performs destination uniqueness checks and sets the
-        # corresponding attachment.
-        from ..agents import Agent as _Agent
-
-        def _attach_scenario(obj: Any) -> None:
-            nonlocal scenario_attachment
-            if dest_assigned["scenario"]:
-                raise ValueError(
-                    "Only one scenario attachment is allowed (Scenario or ScenarioList)."
-                )
-            scenario_attachment = obj
-            dest_assigned["scenario"] = True
-
-        def _attach_survey(obj: Any) -> None:
-            nonlocal survey_attachment
-            if dest_assigned["survey"]:
-                raise ValueError("Only one Survey attachment is allowed.")
-            survey_attachment = obj
-            dest_assigned["survey"] = True
-
-        def _attach_agent(obj: Any) -> None:
-            nonlocal agent_list_attachment
-            if dest_assigned["agent_list"]:
-                raise ValueError("Only one AgentList/Agent attachment is allowed.")
-            agent_list_attachment = (
-                obj if isinstance(obj, AgentList) else AgentList([obj])
-            )
-            dest_assigned["agent_list"] = True
-
-        attach_dispatch: list[tuple[tuple[type, ...], Any]] = [
-            ((Scenario, ScenarioList), _attach_scenario),
-            ((Survey,), _attach_survey),
-            ((AgentList, _Agent), _attach_agent),
-        ]
-
-        def _instantiate_edsl_object(
-            expected_type: str, answer_value: Any, question_name: str
-        ) -> tuple[bool, Any]:
-            """Return (present, instance) where present indicates a meaningful value was provided."""
-            if answer_value is None:
-                return False, None
-            if not isinstance(answer_value, dict):
-                return True, answer_value
-            if expected_type in question_registry:
-                target_cls = question_registry[expected_type]
-            else:
-                target_cls = edsl_registry.get(expected_type)
-            if target_cls is None:
-                raise ValueError(
-                    f"Unknown expected_object_type '{expected_type}' for question '{question_name}'."
-                )
-            if hasattr(target_cls, "from_dict"):
-                return True, target_cls.from_dict(answer_value)
-            return True, target_cls(**answer_value)
-
-        for q in self.initial_survey:
-            q_name = q.question_name
-            logger.info(f"Processing question: {q_name}, type: {q.question_type}")
-            if q_name not in params:
-                logger.info(f"Question {q_name} not in params, skipping")
-                continue
-            answer_value = params[q_name]
-            logger.info(f"Answer value for {q_name}: type={type(answer_value)}, is_dict={isinstance(answer_value, dict)}")
-
-            # 1) edsl_object: instantiate, then dispatch by instance type
-            if q.question_type == "edsl_object":
-                logger.info(f"Processing edsl_object question {q_name}, expected_type={q.expected_object_type}")
-                present, obj_instance = _instantiate_edsl_object(
-                    q.expected_object_type, answer_value, q_name
-                )
-                logger.info(f"After instantiation: present={present}, obj_instance type={type(obj_instance)}")
-                if not present:
-                    continue
-                # Dispatch by instance type
-                for types, handler in attach_dispatch:
-                    if isinstance(obj_instance, types):
-                        logger.info(f"Dispatching {q_name} to {handler.__name__}")
-                        handler(obj_instance)
-                        break
-                # Ignore other EDSL object types that are not head attachments
-            else:
-                # 2) Non-EDSL answers: treat as scenario variables (with per-type normalization)
-                transform = value_transformers.get(q.question_type, _identity)
-                scenario_vars[q_name] = transform(answer_value)
-                logger.info(f"Added {q_name} to scenario_vars")
-
-        # Also add fixed params (not present in the pruned survey) to scenario variables
-        for k, v in getattr(self, "fixed_params", {}).items():
-            if k not in scenario_vars:
-                scenario_vars[k] = v
-
-        # If no explicit scenario object is attached but we have scenario variables,
-        # synthesize a single Scenario from the collected variables.
-        logger.info(f"dest_assigned: {dest_assigned}")
-        logger.info(f"scenario_vars: {scenario_vars}")
-        if not dest_assigned["scenario"] and scenario_vars:
-            logger.info(f"Creating Scenario from scenario_vars: {scenario_vars}")
-            scenario_attachment = Scenario(scenario_vars)
-            dest_assigned["scenario"] = True
-
-        from .head_attachments import HeadAttachments
-
-        # Assemble and return the final HeadAttachments bundle
-        logger.info(f"Creating HeadAttachments: scenario={scenario_attachment}, survey={survey_attachment}, agent_list={agent_list_attachment}")
-        return HeadAttachments(
-            scenario=(
-                scenario_attachment
-                if isinstance(scenario_attachment, (Scenario, ScenarioList))
-                else None
-            ),
-            survey=survey_attachment,
-            agent_list=agent_list_attachment,
-        )
+        
+        from .head_attachments_builder import HeadAttachmentsBuilder
+        return HeadAttachmentsBuilder.build(self, params)
 
     def add_output_formatter(
         self, formatter: OutputFormatter, set_default: bool = False
@@ -549,11 +396,26 @@ class App:
         return self
 
     def add_attachment_formatter(self, formatter: "ObjectFormatter") -> "App":
-        """Add an attachment formatter (fluent)."""
+        """Add an attachment formatter (fluent).
+        
+        Args:
+            formatter: The `ObjectFormatter` instance to add.
+
+        Returns:
+            The `App` instance to allow fluent chaining.
+        """
         current = list(self.attachment_formatters or [])
         current.append(formatter)
         self.attachment_formatters = current
         return self
+
+    def code(self) -> str:
+        """Return the code for the app.
+        
+        Returns:
+            The code for the app.
+        """
+        raise NotImplementedError("App.code() is not implemented")
 
     def with_output_formatter(
         self,
@@ -857,22 +719,7 @@ class App:
             ),
         )
 
-    @property
-    def debug_last(self) -> dict:
-        """Return the most recent debug snapshot of the app run."""
-        snap = self.debug.capture_snapshot()
-        return {
-            "params": snap.params,
-            "head_attachments": snap.head_attachments,
-            "jobs": snap.jobs,
-            "results": snap.results,
-            "formatted_output": snap.formatted_output,
-        }
-
-    @property
-    def debug_history(self) -> List[dict]:
-        """Return the list of all debug snapshots captured so far."""
-        return self.debug.history
+    
 
     def push(
         self,
@@ -922,7 +769,7 @@ class App:
         # Simple echo job that repeats the input text; bound to test model
         echo_job = Survey(
             [
-                QuestionList(
+                QuestionFreeText(
                     question_name="echo",
                     question_text="Echo this back: {{ scenario.text }}",
                 )
@@ -947,53 +794,55 @@ class App:
 
 
 if __name__ == "__main__":
-    from edsl import QuestionFreeText, QuestionList
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
+    # from edsl import QuestionFreeText, QuestionList
 
-    initial_survey = Survey(
-        [
-            QuestionFreeText(
-                question_name="raw_text",
-                question_text="What is the text to split into a twitter thread?",
-            )
-        ]
-    )
-    jobs_survey = Survey(
-        [
-            QuestionList(
-                question_name="twitter_thread",
-                question_text="Please take this text: {{scenario.raw_text}} and split into a twitter thread, if necessary.",
-            )
-        ]
-    )
+    # initial_survey = Survey(
+    #     [
+    #         QuestionFreeText(
+    #             question_name="raw_text",
+    #             question_text="What is the text to split into a twitter thread?",
+    #         )
+    #     ]
+    # )
+    # jobs_survey = Survey(
+    #     [
+    #         QuestionList(
+    #             question_name="twitter_thread",
+    #             question_text="Please take this text: {{scenario.raw_text}} and split into a twitter thread, if necessary.",
+    #         )
+    #     ]
+    # )
 
-    twitter_output_formatter = (
-        OutputFormatter(description="Twitter Thread Splitter")
-        .select("answer.twitter_thread")
-        .expand("answer.twitter_thread")
-        .table()
-    )
+    # twitter_output_formatter = (
+    #     OutputFormatter(description="Twitter Thread Splitter")
+    #     .select("answer.twitter_thread")
+    #     .expand("answer.twitter_thread")
+    #     .table()
+    # )
 
-    app = App(
-        application_name="Twitter Thread Splitter",
-        description="This application splits text into a twitter thread.",
-        initial_survey=initial_survey,
-        jobs_object=jobs_survey.to_jobs(),
-        output_formatters={"splitter": twitter_output_formatter},
-        default_formatter_name="splitter",
-    )
+    # app = App(
+    #     application_name="Twitter Thread Splitter",
+    #     description="This application splits text into a twitter thread.",
+    #     initial_survey=initial_survey,
+    #     jobs_object=jobs_survey.to_jobs(),
+    #     output_formatters={"splitter": twitter_output_formatter},
+    #     default_formatter_name="splitter",
+    # )
 
-    raw_text = """ 
-    The Senate of the United States shall be composed of two Senators from each State, chosen by the Legislature thereof, for six Years; and each Senator shall have one Vote.
-    Immediately after they shall be assembled in Consequence of the first Election, they shall be divided as equally as may be into three Classes. The Seats of the Senators of the first Class shall be vacated at the Expiration of the second Year, of the second Class at the Expiration of the fourth Year, and of the third Class at the Expiration of the sixth Year, so that one third may be chosen every second Year; and if Vacancies happen by Resignation, or otherwise, during the Recess of the Legislature of any State, the Executive thereof may make temporary Appointments until the next Meeting of the Legislature, which shall then fill such Vacancies.
-    No Person shall be a Senator who shall not have attained to the Age of thirty Years, and been nine Years a Citizen of the United States, and who shall not, when elected, be an Inhabitant of that State for which he shall be chosen.
-    The Vice President of the United States shall be President of the Senate, but shall have no Vote, unless they be equally divided.
-    The Senate shall chuse their other Officers, and also a President pro tempore, in the Absence of the Vice President, or when he shall exercise the Office of President of the United States.
-    The Senate shall have the sole Power to try all Impeachments. When sitting for that Purpose, they shall be on Oath or Affirmation. When the President of the United States is tried, the Chief Justice shall preside: And no Person shall be convicted without the Concurrence of two thirds of the Members present.
-    Judgment in Cases of Impeachment shall not extend further than to removal from Office, and disqualification to hold and enjoy any Office of honor, Trust or Profit under the United States: but the Party convicted shall nevertheless be liable and subject to Indictment, Trial, Judgment and Punishment, according to Law.
-    """
+    # raw_text = """ 
+    # The Senate of the United States shall be composed of two Senators from each State, chosen by the Legislature thereof, for six Years; and each Senator shall have one Vote.
+    # Immediately after they shall be assembled in Consequence of the first Election, they shall be divided as equally as may be into three Classes. The Seats of the Senators of the first Class shall be vacated at the Expiration of the second Year, of the second Class at the Expiration of the fourth Year, and of the third Class at the Expiration of the sixth Year, so that one third may be chosen every second Year; and if Vacancies happen by Resignation, or otherwise, during the Recess of the Legislature of any State, the Executive thereof may make temporary Appointments until the next Meeting of the Legislature, which shall then fill such Vacancies.
+    # No Person shall be a Senator who shall not have attained to the Age of thirty Years, and been nine Years a Citizen of the United States, and who shall not, when elected, be an Inhabitant of that State for which he shall be chosen.
+    # The Vice President of the United States shall be President of the Senate, but shall have no Vote, unless they be equally divided.
+    # The Senate shall chuse their other Officers, and also a President pro tempore, in the Absence of the Vice President, or when he shall exercise the Office of President of the United States.
+    # The Senate shall have the sole Power to try all Impeachments. When sitting for that Purpose, they shall be on Oath or Affirmation. When the President of the United States is tried, the Chief Justice shall preside: And no Person shall be convicted without the Concurrence of two thirds of the Members present.
+    # Judgment in Cases of Impeachment shall not extend further than to removal from Office, and disqualification to hold and enjoy any Office of honor, Trust or Profit under the United States: but the Party convicted shall nevertheless be liable and subject to Indictment, Trial, Judgment and Punishment, according to Law.
+    # """
 
-    lazarus_app = App.from_dict(app.to_dict())
+    # lazarus_app = App.from_dict(app.to_dict())
 
-    # non-interactive mode
-    output = lazarus_app.output(params={"raw_text": raw_text}, verbose=True)
-    print(output)
+    # # non-interactive mode
+    # output = lazarus_app.output(params={"raw_text": raw_text}, verbose=True)
+    # print(output)

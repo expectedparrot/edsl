@@ -775,9 +775,10 @@ function InputForm({ app, onSubmit }) {
           <div key={question_name} className="form-group-inline">
             <label>{question_text}</label>
             <input
-              type="number"
-              value={formData[question_name] || ''}
-              onChange={(e) => handleInputChange(question_name, parseFloat(e.target.value) || 0)}
+              type="text"
+              placeholder="Enter a number"
+              value={formData[question_name] ?? ''}
+              onChange={(e) => handleInputChange(question_name, e.target.value)}
             />
           </div>
         )
@@ -1031,9 +1032,10 @@ function OldAppDetail({ app, onBack, apiBase }) {
           <div key={question_name} className="form-group">
             <label>{question_text}</label>
             <input
-              type="number"
-              value={formData[question_name] || ''}
-              onChange={(e) => handleInputChange(question_name, parseFloat(e.target.value) || 0)}
+              type="text"
+              placeholder="Enter a number (e.g., 0.05, 100, 3.14)"
+              value={formData[question_name] ?? ''}
+              onChange={(e) => handleInputChange(question_name, e.target.value)}
             />
           </div>
         )
