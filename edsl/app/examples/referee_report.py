@@ -90,9 +90,8 @@ report_template = """
 {{ reviewer_round_2 }}
 """
 
-output_formatter = (OutputFormatter(description = "Report From Template")
-.report_from_template(template=report_template, format='docx')
-.save('referee_report.docx')
+output_formatter = (OutputFormatter(description = "Report From Template", output_type="docx")
+.report_from_template(template=report_template, format='docx', filestore=True)
 )
 
 app = App(
