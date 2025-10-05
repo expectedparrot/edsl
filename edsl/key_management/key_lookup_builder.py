@@ -82,7 +82,7 @@ class KeyLookupBuilder:
     Configuration parameters:
         >>> builder = KeyLookupBuilder()
         >>> builder.DEFAULT_RPM  # Default API calls per minute
-        100
+        1000
         >>> builder.DEFAULT_TPM  # Default tokens per minute
         2000000
 

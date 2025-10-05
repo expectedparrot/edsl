@@ -162,7 +162,8 @@ class ObjectFormatter(ABC):
         
         This is useful for debugging the formatter.
         """
-        breakpoint()
+        if True:
+            # breakpoint()
         return self
 
     def set_output_type(self, output_type: str):
