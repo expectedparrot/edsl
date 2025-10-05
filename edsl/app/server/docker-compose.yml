@@ -1,0 +1,26 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./edsl_apps.db:/app/edsl_apps.db
+      - ../..:/edsl:ro
+      - .:/app
+    environment:
+      - PYTHONPATH=/edsl
+    working_dir: /app
+    command: bash -c "cd /edsl && pip install -e '.[services]' && cd /app && python -m uvicorn server:app --host 0.0.0.0 --port 8000 --reload"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=http://backend:8000

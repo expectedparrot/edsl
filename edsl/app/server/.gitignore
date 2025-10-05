@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.db
+*.db-journal
+.env
+.venv
+env/
+venv/
+node_modules/
+dist/
+build/
