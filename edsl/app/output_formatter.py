@@ -159,11 +159,12 @@ class ObjectFormatter(ABC):
 
     def breakpoint(self):
         """Set a breakpoint in the formatter.
-        
+
         This is useful for debugging the formatter.
         """
         if True:
             # breakpoint()
+            pass
         return self
 
     def set_output_type(self, output_type: str):

@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from .head_attachments import HeadAttachments
 
 from .output_formatter import OutputFormatter, OutputFormatters
+from .api_payload import build_api_payload, reconstitute_from_api_payload
 from .app_param_preparer import AppParamPreparer
 from .answers_collector import AnswersCollector
 from .app_html_renderer import AppHTMLRenderer
@@ -143,13 +144,37 @@ class App(Base):
             # Registration failures should not prevent app initialization
             pass
 
-    @classmethod
-    def list(cls) -> list[str]:
-        """List all apps."""
-        from ..coop.coop import Coop
+    def deploy(self, server_url: str = "http://localhost:8000") -> str:
+        """Deploy this app to a FastAPI server.
 
-        coop = Coop()
-        return coop.list_apps()
+        Args:
+            server_url: URL of the FastAPI server (default: http://localhost:8000)
+
+        Returns:
+            The app_id assigned by the server.
+
+        Example:
+            >>> app = App.example()
+            >>> app_id = app.deploy()  # doctest: +SKIP
+        """
+        from .app_server_client import AppServerClient
+        return AppServerClient.deploy(self, server_url=server_url)
+
+    @classmethod
+    def list(cls, server_url: str = "http://localhost:8000") -> list[dict]:
+        """List all apps from a FastAPI server.
+
+        Args:
+            server_url: URL of the FastAPI server (default: http://localhost:8000)
+
+        Returns:
+            List of app metadata dictionaries.
+
+        Example:
+            >>> apps = App.list()  # doctest: +SKIP
+        """
+        from .app_server_client import AppServerClient
+        return AppServerClient.list_apps(server_url=server_url)
 
     def __call__(self, **kwargs: Any) -> Any:
         """Call the app with the given parameters."""
@@ -201,8 +226,9 @@ class App(Base):
         stop_on_exception: bool = True,
         disable_remote_inference: bool = False,
         verbose: bool = False,
+        api_payload: bool = False,
     ) -> Any:
-        """Run the app and return formatted output.
+        """Run the app and return formatted output or a JSON API payload.
 
         Args:
             params: Mapping of answers keyed by `initial_survey` question names. If None, collects interactively.
@@ -210,9 +236,17 @@ class App(Base):
             formatter_name: Optional explicit formatter selection; defaults to the App's default formatter.
             stop_on_exception: If True, abort job execution on first exception.
             disable_remote_inference: If True, force local execution where supported.
+            api_payload: When True, return a JSON-serializable payload suitable for API responses.
 
         Returns:
-            The formatted output as produced by the selected output formatter.
+            The formatted output as produced by the selected formatter, or a JSON-serializable object when
+            `api_payload=True` containing `meta` and `data` (plus optional `preview`).
+
+        Doctest (API payload keys):
+            >>> app = App.example()
+            >>> out = app.output(params={"text": "hello"}, api_payload=True, disable_remote_inference=True)
+            >>> set(["meta","data"]).issubset(set(out.keys()))
+            True
         """
         
         if params is None:
@@ -234,7 +268,13 @@ class App(Base):
 
         formatted_output = self._format_output(results, formatter_name, params)
 
-        return formatted_output
+        if not api_payload:
+            return formatted_output
+
+        # Build an envelope with metadata and reconstruction hints
+        return build_api_payload(formatted_output, formatter_name, self, params)
+
+    # Inline helpers moved to api_payload module
 
     def _prepare_head_attachments(self, params: ParamsDict) -> HeadAttachments:
         """Prepare and apply head attachments derived from provided params.
@@ -294,6 +334,52 @@ class App(Base):
         """
         formatter = self._select_formatter(formatter_name)
         return formatter.render(results, params={"params": dict(params or {})}) # {"params": dict(params or {})} is a bit of a hack to allow the formatter to be parameterized with the values from the initial_survey.
+
+    @staticmethod
+    def reconstitute_api_output(payload: Any) -> Any:
+        """Reverse `api_payload` envelope back to the formatted output.
+
+        Accepts either a full API envelope or a raw value; raw values are returned unchanged.
+
+        Doctest:
+            >>> app = App.example()
+            >>> env = app.output(params={"text": "hello"}, api_payload=True, disable_remote_inference=True)
+            >>> restored = App.reconstitute_api_output(env)
+            >>> isinstance(restored, str) or isinstance(restored, list) or hasattr(restored, 'to_dict')
+            True
+        """
+        return reconstitute_from_api_payload(payload)
+
+    def _remote_output(
+        self,
+        *,
+        params: ParamsDict | None,
+        formatter_name: Optional[str] = None,
+        server_url: str = "http://localhost:8000",
+        app_id: Optional[str] = None,
+    ) -> Any:
+        """Run output remotely and return the locally rendered result using server-returned Results + formatters."""
+        # Lazy import to avoid cycles
+        from .app_server_client import AppServerClient
+
+        target_app_id = app_id or AppServerClient.deploy(self, server_url=server_url)
+        exec_resp = AppServerClient.execute_app(
+            target_app_id,
+            dict(params or {}),
+            formatter_name=formatter_name,
+            server_url=server_url,
+            api_payload=True,
+            return_results=True,
+        )
+        # Expect standardized payload strictly: result -> results/formatters/selected_formatter
+        packet = exec_resp["result"]
+        from .output_formatter import OutputFormatters
+        from ..results import Results
+        reconstructed_results = Results.from_dict(packet["results"])
+        ofs = OutputFormatters.from_dict(packet["formatters"])
+        selected = packet.get("selected_formatter")
+        fmt = ofs.get_formatter(selected) if selected else ofs.get_default()
+        return fmt.render(reconstructed_results, params={"params": dict(params or {})})
 
 
     def _apply_default_params(self, params: ParamsDict, *, survey_names = None, default_params = None) -> ParamsDict:
@@ -811,53 +897,68 @@ class App(Base):
 if __name__ == "__main__":
     import doctest
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-    # from edsl import QuestionFreeText, QuestionList
+    from edsl import QuestionFreeText, QuestionList
 
-    # initial_survey = Survey(
-    #     [
-    #         QuestionFreeText(
-    #             question_name="raw_text",
-    #             question_text="What is the text to split into a twitter thread?",
-    #         )
-    #     ]
-    # )
-    # jobs_survey = Survey(
-    #     [
-    #         QuestionList(
-    #             question_name="twitter_thread",
-    #             question_text="Please take this text: {{scenario.raw_text}} and split into a twitter thread, if necessary.",
-    #         )
-    #     ]
-    # )
+    initial_survey = Survey(
+        [
+            QuestionFreeText(
+                question_name="raw_text",
+                question_text="What is the text to split into a twitter thread?",
+            )
+        ]
+    )
+    jobs_survey = Survey(
+        [
+            QuestionList(
+                question_name="twitter_thread",
+                question_text="Please take this text: {{scenario.raw_text}} and split into a twitter thread, if necessary.",
+            )
+        ]
+    )
 
-    # twitter_output_formatter = (
-    #     OutputFormatter(description="Twitter Thread Splitter")
-    #     .select("answer.twitter_thread")
-    #     .expand("answer.twitter_thread")
-    #     .table()
-    # )
+    twitter_output_formatter = (
+        OutputFormatter(description="Twitter Thread Splitter")
+        .select("answer.twitter_thread")
+        .expand("answer.twitter_thread")
+        .to_markdown()
+    )
 
-    # app = App(
-    #     application_name="Twitter Thread Splitter",
-    #     description="This application splits text into a twitter thread.",
-    #     initial_survey=initial_survey,
-    #     jobs_object=jobs_survey.to_jobs(),
-    #     output_formatters={"splitter": twitter_output_formatter},
-    #     default_formatter_name="splitter",
-    # )
+    app = App(
+        application_name="Twitter Thread Splitter",
+        description="This application splits text into a twitter thread.",
+        initial_survey=initial_survey,
+        jobs_object=jobs_survey.to_jobs(),
+        output_formatters={"splitter": twitter_output_formatter},
+        default_formatter_name="splitter",
+    )
 
-    # raw_text = """ 
-    # The Senate of the United States shall be composed of two Senators from each State, chosen by the Legislature thereof, for six Years; and each Senator shall have one Vote.
-    # Immediately after they shall be assembled in Consequence of the first Election, they shall be divided as equally as may be into three Classes. The Seats of the Senators of the first Class shall be vacated at the Expiration of the second Year, of the second Class at the Expiration of the fourth Year, and of the third Class at the Expiration of the sixth Year, so that one third may be chosen every second Year; and if Vacancies happen by Resignation, or otherwise, during the Recess of the Legislature of any State, the Executive thereof may make temporary Appointments until the next Meeting of the Legislature, which shall then fill such Vacancies.
-    # No Person shall be a Senator who shall not have attained to the Age of thirty Years, and been nine Years a Citizen of the United States, and who shall not, when elected, be an Inhabitant of that State for which he shall be chosen.
-    # The Vice President of the United States shall be President of the Senate, but shall have no Vote, unless they be equally divided.
-    # The Senate shall chuse their other Officers, and also a President pro tempore, in the Absence of the Vice President, or when he shall exercise the Office of President of the United States.
-    # The Senate shall have the sole Power to try all Impeachments. When sitting for that Purpose, they shall be on Oath or Affirmation. When the President of the United States is tried, the Chief Justice shall preside: And no Person shall be convicted without the Concurrence of two thirds of the Members present.
-    # Judgment in Cases of Impeachment shall not extend further than to removal from Office, and disqualification to hold and enjoy any Office of honor, Trust or Profit under the United States: but the Party convicted shall nevertheless be liable and subject to Indictment, Trial, Judgment and Punishment, according to Law.
-    # """
+    raw_text = """
+    The Senate of the United States shall be composed of two Senators from each State, chosen by the Legislature thereof, for six Years; and each Senator shall have one Vote.
+    Immediately after they shall be assembled in Consequence of the first Election, they shall be divided as equally as may be into three Classes. The Seats of the Senators of the first Class shall be vacated at the Expiration of the second Year, of the second Class at the Expiration of the fourth Year, and of the third Class at the Expiration of the sixth Year, so that one third may be chosen every second Year; and if Vacancies happen by Resignation, or otherwise, during the Recess of the Legislature, the Executive thereof may make temporary Appointments until the next Meeting of the Legislature, which shall then fill such Vacancies.
+    No Person shall be a Senator who shall not have attained to the Age of thirty Years, and been nine Years a Citizen of the United States, and who shall not, when elected, be an Inhabitant of that State for which he shall be chosen.
+    The Vice President of the United States shall be President of the Senate, but shall have no Vote, unless they be equally divided.
+    The Senate shall chuse their other Officers, and also a President pro tempore, in the Absence of the Vice President, or when he shall exercise the Office of President of the United States.
+    The Senate shall have the sole Power to try all Impeachments. When sitting for that Purpose, they shall be on Oath or Affirmation. When the President of the United States is tried, the Chief Justice shall preside: And no Person shall be convicted without the Concurrence of two thirds of the Members present.
+    Judgment in Cases of Impeachment shall not extend further than to removal from Office, and disqualification to hold and enjoy any Office of honor, Trust or Profit under the United States: but the Party convicted shall nevertheless be liable and subject to Indictment, Trial, Judgment and Punishment, according to Law.
+    """
 
-    # lazarus_app = App.from_dict(app.to_dict())
+    # Deploy and run remotely (standardized path)
+    app_id = app.deploy()
 
-    # # non-interactive mode
-    # output = lazarus_app.output(params={"raw_text": raw_text}, verbose=True)
-    # print(output)
+    # Local output
+    local_out = app.output(
+        params={"raw_text": raw_text},
+        formatter_name="splitter",
+        disable_remote_inference=False,
+    )
+
+    # Remote output
+    remote_out = app._remote_output(
+        params={"raw_text": raw_text},
+        formatter_name="splitter",
+        server_url="http://localhost:8000",
+        app_id=app_id,
+    )
+
+    print("Local equals Remote:", str(local_out) == str(remote_out))
+    print(remote_out)
