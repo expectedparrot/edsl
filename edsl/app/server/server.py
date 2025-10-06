@@ -65,6 +65,8 @@ class AppMetadata(BaseModel):
 class AppExecutionRequest(BaseModel):
     answers: Dict[str, Any]
     formatter_name: Optional[str] = None
+    api_payload: Optional[bool] = True
+    return_results: Optional[bool] = None
 
 class AppExecutionResponse(BaseModel):
     execution_id: str
@@ -619,59 +621,28 @@ async def execute_app(app_id: str, request: AppExecutionRequest):
         logger.info(f"Final processed_answers keys: {processed_answers.keys()}")
         logger.info(f"Final processed_answers: {processed_answers}")
 
-        # Use the formatter if specified, otherwise use default
+        # Generate results and send back with formatters
         formatter_name = request.formatter_name
-        logger.info(f"About to call app_instance.output with formatter_name={formatter_name}")
+        logger.info(f"Generating results for app {app_id}")
 
-        result = app_instance.output(
-            params=processed_answers,
-            formatter_name=formatter_name,
-            stop_on_exception=True  # Make errors visible
+        # Prepare head attachments and generate results
+        head_attachments = app_instance._prepare_head_attachments(processed_answers)
+        modified_jobs_object = head_attachments.attach_to_head(app_instance.jobs_object)
+
+        results = app_instance._generate_results(
+            modified_jobs_object,
+            stop_on_exception=True,
+            disable_remote_inference=False,
         )
 
-        logger.info(f"app_instance.output completed successfully, result type: {type(result)}")
+        logger.info(f"Results generated successfully, type: {type(results)}")
 
-        # Convert result to JSON-serializable format
-        try:
-            # Check if it's a Results object or has to_dict
-            if hasattr(result, 'to_dict'):
-                try:
-                    result_dict = result.to_dict()
-                    # Check if it's a FileStore with text content (markdown, txt, etc.)
-                    if isinstance(result_dict, dict) and 'base64_string' in result_dict:
-                        # Check if it's a text file (markdown, txt, etc.) vs binary
-                        # Check both 'suffix' field and extract from 'path'
-                        suffix = result_dict.get('suffix', '')
-                        if not suffix and 'path' in result_dict:
-                            suffix = Path(result_dict['path']).suffix
-
-                        if suffix in ['.md', '.txt', '.markdown']:
-                            # Decode and return as string for inline display
-                            import base64
-                            try:
-                                text_content = base64.b64decode(result_dict['base64_string']).decode('utf-8')
-                                serializable_result = text_content
-                            except:
-                                # If decode fails, return as file
-                                serializable_result = result_dict
-                        else:
-                            # Binary file - return as-is for download
-                            serializable_result = result_dict
-                    else:
-                        serializable_result = result_dict
-                except Exception as e:
-                    logger.warning(f"to_dict() failed: {e}, falling back to string")
-                    serializable_result = str(result)
-            # Check if it's a FileStore dict
-            elif isinstance(result, dict) and 'base64_string' in result:
-                serializable_result = result
-            elif hasattr(result, '__dict__'):
-                serializable_result = {k: str(v) for k, v in result.__dict__.items()}
-            else:
-                serializable_result = str(result)
-        except Exception as e:
-            logger.warning(f"Serialization failed: {e}")
-            serializable_result = str(result)
+        # Serialize results and formatters
+        serializable_result = {
+            "results": results.to_dict(add_edsl_version=True),
+            "formatters": app_instance.output_formatters.to_dict(),
+            "selected_formatter": formatter_name,
+        }
 
         # Store the successful execution
         db_manager.store_execution(
