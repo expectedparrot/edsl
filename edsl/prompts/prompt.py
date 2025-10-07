@@ -49,19 +49,21 @@ def make_env() -> Environment:
     return Environment(undefined=PreserveUndefined)
 
 
-@lru_cache(maxsize=1024)
+@lru_cache(maxsize=100000)
 def _find_template_variables(template_text: str) -> List[str]:
     env = make_env()
     ast = env.parse(template_text)
     return list(meta.find_undeclared_variables(ast))
 
 
-@lru_cache(maxsize=2048)
+@lru_cache(maxsize=100000)
 def _get_compiled_template(template_text: str):
     """Cache compiled Jinja2 templates for reuse.
-    
+
     This is the main performance optimization - instead of recompiling
     templates for every render, we cache compiled templates by their text.
+
+    Note: maxsize set to 100000 to handle large jobs with many unique templates.
     """
     env = make_env()
     return env.from_string(template_text)
@@ -331,7 +333,10 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
         current_text = text
 
         for _ in range(MAX_NESTING):
-            template = env.from_string(current_text)
+            # Use cached template compilation for performance
+            template = _get_compiled_template(current_text)
+            # Set the template environment's globals to include template_vars
+            template.globals["vars"] = template_vars
             rendered_text = template.render(**all_replacements)
 
             if rendered_text == current_text:

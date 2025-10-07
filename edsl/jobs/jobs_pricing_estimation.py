@@ -111,10 +111,22 @@ class JobsPrompts:
     @classmethod
     def from_jobs(cls, jobs: "Jobs"):
         """Construct a JobsPrompts object from a Jobs object."""
+        import time
+
+        start = time.time()
+        print(f"[PROMPTS] Starting from_jobs()")
+
+        interviews_start = time.time()
         interviews = jobs.interviews()
+        print(
+            f"[PROMPTS] Created {len(interviews)} interviews in {time.time() - interviews_start:.3f}s"
+        )
+
         agents = jobs.agents
         scenarios = jobs.scenarios
         survey = jobs.survey
+
+        print(f"[PROMPTS] from_jobs() completed in {time.time() - start:.3f}s")
         return cls(
             interviews=interviews, agents=agents, scenarios=scenarios, survey=survey
         )
@@ -150,11 +162,40 @@ class JobsPrompts:
 
     def _process_one_invigilator(
         self, invigilator: "Invigilator", interview_index: int, iterations: int = 1
-    ) -> dict:
-        """Process a single invigilator and return a dictionary with all needed data fields."""
+    ):
+        """Process a single invigilator and return a dictionary with all needed data fields and timings."""
+        import time
         from ..caching import CacheEntry
 
+        other_start = time.time()
+
+        # Track time for getting prompts
+        prompts_start = time.time()
         prompts = invigilator.get_prompts()
+        prompts_time = time.time() - prompts_start
+        if prompts_time > 0.1:  # Log if getting prompts takes more than 100ms
+            print(
+                f"[PROMPTS] WARNING: get_prompts() took {prompts_time:.3f}s for question {invigilator.question.question_name}"
+            )
+
+        # Extract detailed timing breakdown from prompt_constructor if available
+        prompt_timing = {}
+        has_pc = hasattr(invigilator, "prompt_constructor")
+        if has_pc:
+            pc = invigilator.prompt_constructor
+            has_timing = hasattr(pc, "_last_get_prompts_timing")
+            if interview_index == 0:
+                print(
+                    f"[DEBUG] has prompt_constructor: True, has _last_get_prompts_timing: {has_timing}"
+                )
+            if has_timing:
+                prompt_timing = pc._last_get_prompts_timing
+                if interview_index == 0:
+                    print(f"[DEBUG] Timing data: {prompt_timing}")
+        else:
+            if interview_index == 0:
+                print(f"[DEBUG] No prompt_constructor attribute on invigilator")
+
         user_prompt = prompts["user_prompt"]
         system_prompt = prompts["system_prompt"]
 
@@ -164,6 +205,7 @@ class JobsPrompts:
         question_name = invigilator.question.question_name
 
         # Calculate prompt cost
+        cost_start = time.time()
         prompt_cost = self.estimate_prompt_cost(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
@@ -172,8 +214,12 @@ class JobsPrompts:
             model=model,
         )
         cost = prompt_cost["cost_usd"]
+        cost_time = time.time() - cost_start
+        if cost_time > 0.05:  # Log if cost estimation takes more than 50ms
+            print(f"[PROMPTS] WARNING: estimate_prompt_cost() took {cost_time:.3f}s")
 
         # Generate cache keys for each iteration
+        cache_start = time.time()
         files_list = prompts.get("files_list", None)
         if files_list:
             # Sort hashes to ensure consistent cache keys regardless of file order
@@ -191,6 +237,12 @@ class JobsPrompts:
             )
             cache_keys.append(cache_key)
 
+        cache_time = time.time() - cache_start
+        if cache_time > 0.05:  # Log if cache key generation takes more than 50ms
+            print(
+                f"[PROMPTS] WARNING: cache key generation took {cache_time:.3f}s for {iterations} iterations"
+            )
+
         d = {
             "user_prompt": user_prompt,
             "system_prompt": system_prompt,
@@ -203,7 +255,20 @@ class JobsPrompts:
             "cache_keys": cache_keys,
         }
         assert list(d.keys()) == self.relevant_keys
-        return d
+
+        # Calculate time spent on other operations
+        total_time = time.time() - other_start
+        other_time = total_time - prompts_time - cost_time - cache_time
+
+        timings = {
+            "get_prompts": prompts_time,
+            "cost_estimation": cost_time,
+            "cache_generation": cache_time,
+            "other": other_time,
+            "prompt_breakdown": prompt_timing,  # Detailed breakdown of get_prompts()
+        }
+
+        return d, timings
 
     def prompts(self, iterations=1) -> "Dataset":
         """Return a Dataset of prompts that will be used.
@@ -212,31 +277,174 @@ class JobsPrompts:
         >>> Jobs.example().prompts()
         Dataset(...)
         """
+        import time
+
+        overall_start = time.time()
+        print(f"[PROMPTS] Starting prompts() with {len(self.interviews)} interviews")
+
         from ..dataset import Dataset
 
         # Initialize dataset
         dataset_of_prompts = {k: [] for k in self.relevant_keys}
         interviews = self.interviews
 
+        invigilator_creation_time = 0
+        get_prompts_time = 0
+        cost_estimation_time = 0
+        cache_generation_time = 0
+        other_processing_time = 0
+        total_invigilators = 0
+
+        # Detailed breakdown of get_prompts() time
+        prompt_breakdown = {
+            "agent_instructions": 0,
+            "agent_persona": 0,
+            "question_instructions": 0,
+            "prior_question_memory": 0,
+            "components_dict": 0,
+            "prompt_plan": 0,
+            "file_keys": 0,
+        }
+
         # Process interviews
         for interview_index, interview in enumerate(interviews):
+            if interview_index % 100 == 0 and interview_index > 0:
+                print(
+                    f"[PROMPTS] Processed {interview_index}/{len(interviews)} interviews, {total_invigilators} invigilators so far"
+                )
+                print(f"  - Invigilator creation: {invigilator_creation_time:.3f}s")
+                print(f"  - get_prompts(): {get_prompts_time:.3f}s")
+
+                # Show detailed breakdown
+                breakdown_total = sum(prompt_breakdown.values())
+                print(
+                    f"[DEBUG] breakdown_total={breakdown_total:.3f}s, dict={prompt_breakdown}"
+                )
+                if breakdown_total > 0:
+                    top_components = sorted(
+                        prompt_breakdown.items(), key=lambda x: x[1], reverse=True
+                    )[:3]
+                    parts = []
+                    for component, comp_time in top_components:
+                        if comp_time > 0.01:
+                            pct = (
+                                (comp_time / get_prompts_time * 100)
+                                if get_prompts_time > 0
+                                else 0
+                            )
+                            parts.append(f"{component}:{comp_time:.2f}s ({pct:.0f}%)")
+                    if parts:
+                        print(f"    └─ {', '.join(parts)}")
+                else:
+                    print(f"    └─ [No breakdown data collected]")
+
+                print(f"  - estimate_cost(): {cost_estimation_time:.3f}s")
+                print(f"  - cache_keys: {cache_generation_time:.3f}s")
+                print(f"  - other: {other_processing_time:.3f}s")
+
             # Create invigilators
+            inv_start = time.time()
             invigilators = [
                 FetchInvigilator(interview)(question)
                 for question in interview.survey.questions
             ]
+            invigilator_creation_time += time.time() - inv_start
+            total_invigilators += len(invigilators)
 
             # Process invigilators
             for invigilator in invigilators:
                 # Process the invigilator and get all data as a dictionary
-                data = self._process_one_invigilator(
+                data, timings = self._process_one_invigilator(
                     invigilator, interview_index, iterations
                 )
+                get_prompts_time += timings["get_prompts"]
+                cost_estimation_time += timings["cost_estimation"]
+                cache_generation_time += timings["cache_generation"]
+                other_processing_time += timings["other"]
+
+                # Aggregate prompt breakdown if available
+                if timings.get("prompt_breakdown"):
+                    for key, value in timings["prompt_breakdown"].items():
+                        if key in prompt_breakdown:
+                            prompt_breakdown[key] += value
+                elif interview_index == 0:  # Debug on first interview only
+                    print(
+                        f"[DEBUG] No prompt_breakdown in timings. Keys: {timings.keys()}"
+                    )
+
                 for k in self.relevant_keys:
                     dataset_of_prompts[k].append(data[k])
 
+        total_processing_time = (
+            get_prompts_time
+            + cost_estimation_time
+            + cache_generation_time
+            + other_processing_time
+        )
+        print(
+            f"[PROMPTS] Processed all {len(interviews)} interviews, {total_invigilators} total invigilators"
+        )
+        print(f"  - Invigilator creation: {invigilator_creation_time:.3f}s")
+        print(
+            f"  - get_prompts(): {get_prompts_time:.3f}s ({get_prompts_time/total_processing_time*100:.1f}%)"
+        )
+
+        # Show detailed breakdown of get_prompts() time
+        breakdown_total = sum(prompt_breakdown.values())
+        if breakdown_total > 0:
+            print(f"    Breakdown of get_prompts():")
+            for component, comp_time in sorted(
+                prompt_breakdown.items(), key=lambda x: x[1], reverse=True
+            ):
+                if (
+                    comp_time > 0.01
+                ):  # Only show components that took more than 10ms total
+                    pct_of_prompts = (
+                        (comp_time / get_prompts_time * 100)
+                        if get_prompts_time > 0
+                        else 0
+                    )
+                    pct_of_total = (
+                        (comp_time / total_processing_time * 100)
+                        if total_processing_time > 0
+                        else 0
+                    )
+                    print(
+                        f"      • {component}: {comp_time:.3f}s ({pct_of_prompts:.1f}% of get_prompts, {pct_of_total:.1f}% of total)"
+                    )
+
+        print(
+            f"  - estimate_cost(): {cost_estimation_time:.3f}s ({cost_estimation_time/total_processing_time*100:.1f}%)"
+        )
+        print(
+            f"  - cache_keys: {cache_generation_time:.3f}s ({cache_generation_time/total_processing_time*100:.1f}%)"
+        )
+        print(
+            f"  - other: {other_processing_time:.3f}s ({other_processing_time/total_processing_time*100:.1f}%)"
+        )
+        print(f"  - Total processing: {total_processing_time:.3f}s")
+
+        # Show cache statistics
+        from ..prompts.prompt import _get_compiled_template
+
+        cache_info = _get_compiled_template.cache_info()
+        print(f"[PROMPTS] Jinja2 template cache: {cache_info}")
+        if cache_info.misses > 0:
+            hit_rate = cache_info.hits / (cache_info.hits + cache_info.misses) * 100
+            print(
+                f"[PROMPTS] Cache hit rate: {hit_rate:.1f}% ({cache_info.hits:,} hits / {cache_info.misses:,} misses)"
+            )
+            if cache_info.currsize >= cache_info.maxsize:
+                print(
+                    f"[PROMPTS] WARNING: Cache is full! Consider increasing maxsize from {cache_info.maxsize:,}"
+                )
+
         # Create final dataset
+        dataset_start = time.time()
         result = Dataset([{k: dataset_of_prompts[k]} for k in self.relevant_keys])
+        print(f"[PROMPTS] Created Dataset in {time.time() - dataset_start:.3f}s")
+
+        print(f"[PROMPTS] Total prompts() time: {time.time() - overall_start:.3f}s")
         return result
 
     @staticmethod

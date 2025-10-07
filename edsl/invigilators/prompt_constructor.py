@@ -648,30 +648,88 @@ class PromptConstructor:
             - Handles file attachments if specified in the question
             - Returns a complete dictionary ready for use with the language model
         """
+        import time
+
+        start = time.time()
+
         # Build all the components
+        t1 = time.time()
         agent_instructions = self.agent_instructions_prompt
+        agent_instructions_time = time.time() - t1
+
+        t2 = time.time()
         agent_persona = self.agent_persona_prompt
+        agent_persona_time = time.time() - t2
+
+        t3 = time.time()
         question_instructions = self.question_instructions_prompt
+        question_instructions_time = time.time() - t3
+
+        t4 = time.time()
         prior_question_memory = self.prior_question_memory_prompt
+        prior_question_memory_time = time.time() - t4
 
         # Get components dict
+        t5 = time.time()
         components = {
             "agent_instructions": agent_instructions.text,
             "agent_persona": agent_persona.text,
             "question_instructions": question_instructions.text,
             "prior_question_memory": prior_question_memory.text,
         }
+        components_dict_time = time.time() - t5
 
         # Generate prompts from plan
+        t6 = time.time()
         prompts = self.prompt_plan.get_prompts(**components)
+        prompt_plan_time = time.time() - t6
 
         # Handle file keys if present
+        t7 = time.time()
         file_keys = self.file_keys_from_question
         if file_keys:
             files_list = []
             for key in file_keys:
                 files_list.append(self.scenario[key])
             prompts["files_list"] = files_list
+        file_keys_time = time.time() - t7
+
+        total = time.time() - start
+
+        # Store timing breakdown for external access
+        self._last_get_prompts_timing = {
+            "total": total,
+            "agent_instructions": agent_instructions_time,
+            "agent_persona": agent_persona_time,
+            "question_instructions": question_instructions_time,
+            "prior_question_memory": prior_question_memory_time,
+            "components_dict": components_dict_time,
+            "prompt_plan": prompt_plan_time,
+            "file_keys": file_keys_time,
+        }
+
+        # Log slow operations
+        if total > 0.01:  # Log if total takes more than 10ms
+            parts = []
+            if agent_instructions_time > 0.002:
+                parts.append(f"agent_inst:{agent_instructions_time*1000:.1f}ms")
+            if agent_persona_time > 0.002:
+                parts.append(f"agent_persona:{agent_persona_time*1000:.1f}ms")
+            if question_instructions_time > 0.002:
+                parts.append(f"q_inst:{question_instructions_time*1000:.1f}ms")
+            if prior_question_memory_time > 0.002:
+                parts.append(f"prior_mem:{prior_question_memory_time*1000:.1f}ms")
+            if components_dict_time > 0.002:
+                parts.append(f"comp_dict:{components_dict_time*1000:.1f}ms")
+            if prompt_plan_time > 0.002:
+                parts.append(f"plan:{prompt_plan_time*1000:.1f}ms")
+            if file_keys_time > 0.002:
+                parts.append(f"files:{file_keys_time*1000:.1f}ms")
+
+            if parts:
+                print(
+                    f"[PROMPTS DETAIL] get_prompts() {total*1000:.1f}ms total: {', '.join(parts)}"
+                )
 
         return prompts
 
