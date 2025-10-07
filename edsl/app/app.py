@@ -32,10 +32,10 @@ from .descriptors import (
     AttachmentFormattersDescriptor,
     AppTypeRegistryDescriptor,
     ApplicationNameDescriptor,
-    DescriptionDescriptor,
+    DisplayNameDescriptor,
+    ShortDescriptionDescriptor,
+    LongDescriptionDescriptor,
     FixedParamsDescriptor,
-    ApplicationName,
-    Description,
 )
 
 
@@ -115,11 +115,42 @@ class AppMixin:
                 app_id = self[id].get("app_id")
                 return App.from_id(app_id)
 
+        apps_data = AppServerClient.list_apps(server_url=server_url, search=search, owner=owner)
+        
+        # Handle both old and new field structures
+        normalized_apps = []
+        for app_data in apps_data:
+            # Convert old structure to new structure if needed
+            if 'name' in app_data and 'description' in app_data:
+                # Old structure - convert to new
+                name_data = app_data['name']
+                desc_data = app_data['description']
+                
+                if isinstance(name_data, dict):
+                    app_data['application_name'] = name_data.get('alias', 'unknown_app')
+                    app_data['display_name'] = name_data.get('name', 'Unknown App')
+                else:
+                    app_data['application_name'] = str(name_data).lower().replace(' ', '_')
+                    app_data['display_name'] = str(name_data)
+                
+                if isinstance(desc_data, dict):
+                    app_data['short_description'] = desc_data.get('short', 'No description available.')
+                    app_data['long_description'] = desc_data.get('long', desc_data.get('short', 'No description available.'))
+                else:
+                    desc_str = str(desc_data)
+                    app_data['short_description'] = desc_str
+                    app_data['long_description'] = desc_str
+                
+                # Remove old fields
+                app_data.pop('name', None)
+                app_data.pop('description', None)
+            
+            normalized_apps.append(app_data)
+        
         sl = AvailableApps(
-            Scenario.from_dict(s)
-            for s in AppServerClient.list_apps(server_url=server_url, search=search, owner=owner)
+            Scenario.from_dict(s) for s in normalized_apps
         )
-        return sl.unpack_dict('description').select('qualified_name', 'short', 'long')
+        return sl.select('qualified_name', 'display_name', 'short_description', 'long_description')
 
     @classmethod
     def full_info(cls, app_id_or_qualified_name: str, server_url: str = "http://localhost:8000") -> dict:
@@ -187,8 +218,10 @@ class AppMixin:
         )
 
         return cls(
-            application_name="Example App",
-            description="A minimal example app that echoes user input.",
+            application_name="example_app",
+            display_name="Example App",
+            short_description="A minimal example app that echoes user input.",
+            long_description="A minimal example app that echoes user input using the test model.",
             initial_survey=initial_survey,
             jobs_object=echo_job,
             output_formatters={"echo": echo_formatter},
@@ -226,7 +259,11 @@ class AppMixin:
                 owner = parts[0]
         
         resolved_app_id = cls._resolve_app_identifier(app_id_or_qualified_name, server_url)
-        return AppServerClient.delete_app(resolved_app_id, server_url=server_url, owner=owner)
+        try:
+            return AppServerClient.delete_app(resolved_app_id, server_url=server_url, owner=owner)
+        except Exception as e:
+            from .exceptions import FailedToDeleteAppError
+            raise FailedToDeleteAppError(f"Failed to delete app {app_id_or_qualified_name}: {e}") from e
 
 
 class ClientFacingApp(AppMixin):    
@@ -257,14 +294,18 @@ class App(AppMixin, Base):
     initial_survey = InitialSurveyDescriptor()
     output_formatters = OutputFormattersDescriptor()
     attachment_formatters = AttachmentFormattersDescriptor()
-    application_name: ApplicationName = ApplicationNameDescriptor()  # type: ignore[assignment]
-    description: Description = DescriptionDescriptor()  # type: ignore[assignment]
+    application_name: str = ApplicationNameDescriptor()  # type: ignore[assignment]
+    display_name: str = DisplayNameDescriptor()  # type: ignore[assignment]
+    short_description: str = ShortDescriptionDescriptor()  # type: ignore[assignment]
+    long_description: str = LongDescriptionDescriptor()  # type: ignore[assignment]
     fixed_params = FixedParamsDescriptor()
 
     def __init__(
         self,
-        description: str | dict | Description,
-        application_name: str | dict | ApplicationName,
+        application_name: str,
+        display_name: str,
+        short_description: str,
+        long_description: str,
         initial_survey: Survey,  # type: ignore[assignment]
         jobs_object: Optional["Jobs"] = None,
         output_formatters: Optional[
@@ -279,20 +320,25 @@ class App(AppMixin, Base):
         """Instantiate an App object.
 
         Args:
-            jobs_object: The jobs object that is the logic of the application.
-            description: The description of the application. Can be a string (used for both short and long),
-                        or a dict/Description TypedDict with 'short' and 'long' keys.
-            application_name: Human-readable name for this application. Can be a string (alias auto-generated),
-                             or a dict/ApplicationName TypedDict with 'name' and 'alias' keys.
+            application_name: Valid Python identifier used as alias for deployment.
+            display_name: Human-readable name for this application.
+            short_description: One sentence description.
+            long_description: Longer description of the application.
             initial_survey: The initial survey to use for the application.
+            jobs_object: The jobs object that is the logic of the application.
             output_formatters: The output formatters to use for the application.
             attachment_formatters: The attachment formatters to use for the application.
             default_formatter_name: The name of the default output formatter.
             default_params: Default parameter values for the initial survey.
             fixed_params: Fixed parameter values that cannot be overridden by the caller.
+            client_mode: Whether the app is in client mode (remote execution).
         """
         self.jobs_object = jobs_object
-        self.description = description
+        # Set via descriptors (handles validation)
+        self.application_name = application_name
+        self.display_name = display_name
+        self.short_description = short_description
+        self.long_description = long_description
         # Validation is handled by descriptor
         self.initial_survey = initial_survey
         # Enforce default_output_formatter contract
@@ -304,14 +350,12 @@ class App(AppMixin, Base):
 
         # Normalize via descriptor
         self.attachment_formatters = attachment_formatters
-
-        # Validate and default via descriptor
-        self.application_name = application_name
         # Defaults for initial_survey params keyed by question_name
         self._default_params: dict[str, Any] = dict(default_params or {})
         # Fixed params override any provided params at runtime
         # Normalize and assign via descriptor (handles pruning on assignment)
         self.fixed_params = dict(fixed_params or {})
+        self._set_params = None
 
         # Parameters are fully determined by the (possibly pruned) initial_survey
         from .app_validator import AppValidator
@@ -426,13 +470,24 @@ class App(AppMixin, Base):
         cache[jobs_hash] = results
         return results
 
-    def run(
-        self, params: ParamsDict | None, formatter_name: Optional[str] = None
-    ) -> Any:
+    def by(self, params: Scenario | dict) -> Any:
+        """
+        Use 
+        """
+        self._set_params = dict(params)
+        return self
+
+
+    def run(self, **kwargs: Any) -> Any:
         """
         Run the app and return formatted output or a JSON API payload.
         """
-        return self.output(params, formatter_name)
+        if kwargs == {}:
+            if self._set_params is not None:
+                kwargs = self._set_params
+            else:
+                raise ValueError("params must be provided, got empty dict")
+        return self.output(params=kwargs)
 
     def output(
         self,
@@ -826,11 +881,13 @@ class App(AppMixin, Base):
             raise ValueError(f"Formatter with name '{name}' already exists")
         new_map[name] = formatter_obj
         return target_class(
+            application_name=self.application_name,
+            display_name=self.display_name,
+            short_description=self.short_description,
+            long_description=self.long_description,
+            initial_survey=self.initial_survey,
             jobs_object=self.jobs_object,
             output_formatters=new_map,
-            description=self.description,
-            application_name=self.application_name,
-            initial_survey=self.initial_survey,
             default_formatter_name=self.output_formatters.default,
         )
 
@@ -884,11 +941,13 @@ class App(AppMixin, Base):
             pass
 
         return target_class(
+            application_name=self.application_name,
+            display_name=self.display_name,
+            short_description=self.short_description,
+            long_description=self.long_description,
+            initial_survey=pruned_survey,
             jobs_object=self.jobs_object,
             output_formatters=new_output_map,
-            description=self.description,
-            application_name=self.application_name,
-            initial_survey=pruned_survey,
             default_formatter_name=self.output_formatters.default,
             attachment_formatters=self.attachment_formatters,
             default_params=self._default_params,
@@ -937,20 +996,9 @@ class App(AppMixin, Base):
         )
         app_type = self.application_type
 
-        # Extract name and description strings from TypedDicts
-        app_name = (
-            self.application_name.get("name", "Unknown")
-            if isinstance(self.application_name, dict)
-            else str(self.application_name)
-        )
-        app_desc = (
-            self.description.get("short", "No description")
-            if isinstance(self.description, dict)
-            else str(self.description)
-        )
-
         return (
-            f"{cls_name}(name='{app_name}', description='{app_desc}', "
+            f"{cls_name}(application_name='{self.application_name}', display_name='{self.display_name}', "
+            f"short_description='{self.short_description}', "
             f"application_type='{app_type}', parameters={self.parameters}, job='{job_cls}', "
             f"survey_questions={num_questions}, head_params={head_param_count}, "
             f"formatters=[{fmt_names}], default_formatter='{default_fmt}', attachments=[{attach_names}])"
@@ -1030,7 +1078,9 @@ class App(AppMixin, Base):
         ranking_question: "QuestionMultipleChoice",
         option_fields: "Sequence[str]",
         application_name: Optional[str] = None,
-        description: Optional[str] = None,
+        display_name: Optional[str] = None,
+        short_description: Optional[str] = None,
+        long_description: Optional[str] = None,
         option_base: Optional[str] = None,
         rank_field: str = "rank",
         max_pairwise_count: int = 500,
@@ -1042,8 +1092,10 @@ class App(AppMixin, Base):
                 using Jinja placeholders like '{{ scenario.<field>_1 }}' and '{{ scenario.<field>_2 }}'.
             option_fields: Sequence of field names corresponding to the two options in the comparison
                 (e.g., ['food_1', 'food_2']).
-            application_name: Optional human-readable name.
-            description: Optional description.
+            application_name: Optional Python identifier for the app (defaults to 'ranking_app').
+            display_name: Optional human-readable name (defaults to 'Ranking App').
+            short_description: Optional one-sentence description.
+            long_description: Optional longer description.
             option_base: Optional base field name (e.g., 'food'). Currently not used by the builder; kept for API parity.
             rank_field: Name of the rank field to include in the output ScenarioList. Currently controlled by the formatter.
             max_pairwise_count: Maximum number of pairwise comparisons to generate. Reserved for future use.
@@ -1101,15 +1153,10 @@ class App(AppMixin, Base):
         )
 
         return cls(
-            jobs_object=jobs_object,
-            output_formatters={"ranked_list": output_formatter},
-            default_formatter_name="ranked_list",
-            attachment_formatters=[
-                # Transform the provided ScenarioList into pairwise comparisons
-                ScenarioAttachmentFormatter(description="Pairwise choose_k").choose_k(2)
-            ],
-            description=description,
-            application_name=application_name,
+            application_name=application_name or "ranking_app",
+            display_name=display_name or "Ranking App",
+            short_description=short_description or "An app that ranks items via pairwise comparisons.",
+            long_description=long_description or "An app that ranks items via pairwise comparisons using a survey-based approach.",
             initial_survey=Survey(
                 [
                     QuestionEDSLObject(
@@ -1119,6 +1166,13 @@ class App(AppMixin, Base):
                     )
                 ]
             ),
+            jobs_object=jobs_object,
+            output_formatters={"ranked_list": output_formatter},
+            default_formatter_name="ranked_list",
+            attachment_formatters=[
+                # Transform the provided ScenarioList into pairwise comparisons
+                ScenarioAttachmentFormatter(description="Pairwise choose_k").choose_k(2)
+            ],
         )
 
     @disabled_in_client_mode
@@ -1167,8 +1221,10 @@ if __name__ == "__main__":
     )
 
     app = ClientFacingApp(
-        application_name="Twitter Thread Splitter",
-        description="This application splits text into a twitter thread.",
+        application_name="twitter_thread_splitter",
+        display_name="Twitter Thread Splitter",
+        short_description="This application splits text into a twitter thread.",
+        long_description="This application takes long-form text and splits it into tweet-sized chunks suitable for posting as a Twitter thread.",
         initial_survey=initial_survey,
         jobs_object=jobs_survey.to_jobs(),
         output_formatters={"splitter": twitter_output_formatter},

@@ -48,18 +48,10 @@ def delete_existing_app(app_name):
         if response.status_code == 200:
             apps = response.json()
             for app_meta in apps:
-                # Handle both old string format and new TypedDict format
-                stored_name = app_meta["name"]
-                if isinstance(stored_name, dict):
-                    stored_name = stored_name.get("name", stored_name.get("alias", ""))
+                # Use new application_name field (Python identifier)
+                stored_name = app_meta["application_name"]
 
-                # Compare with provided app_name (which might also be dict or string)
-                if isinstance(app_name, dict):
-                    compare_name = app_name.get("name", app_name.get("alias", ""))
-                else:
-                    compare_name = app_name
-
-                if stored_name == compare_name:
+                if stored_name == app_name:
                     print(f"  Deleting existing app with ID: {app_meta['app_id']}")
                     delete_response = requests.delete(f"{SERVER_URL}/apps/{app_meta['app_id']}")
                     if delete_response.status_code == 200:
@@ -86,21 +78,14 @@ def load_app(module_name):
             return False
 
         app = module.app
-        app_name = app.application_name
+        
+        # Use new simple string fields
+        display_name = app.display_name
+        display_desc = app.short_description
 
-        # Extract display values from TypedDict structure
-        if isinstance(app_name, dict):
-            display_name = app_name.get("name", app_name.get("alias", "Unknown"))
-        else:
-            display_name = app_name
-
-        if isinstance(app.description, dict):
-            display_desc = app.description.get("short", "No description")
-        else:
-            display_desc = str(app.description)[:60] + "..."
-
-        print(f"  App name: {display_name}")
-        print(f"  Description: {display_desc}")
+        print(f"  Application name (identifier): {app.application_name}")
+        print(f"  Display name: {display_name}")
+        print(f"  Short description: {display_desc}")
         print(f"  Output formatters: {list(app.output_formatters.mapping.keys())}")
         # CompositeApp doesn't have attachment_formatters
         if hasattr(app, 'attachment_formatters'):
@@ -109,7 +94,7 @@ def load_app(module_name):
             print(f"  App type: {getattr(app, 'application_type', 'unknown')}")
 
         # Delete existing app if present
-        delete_existing_app(app_name)
+        delete_existing_app(app.application_name)
 
         # Push the app
         print(f"  Pushing to server...")

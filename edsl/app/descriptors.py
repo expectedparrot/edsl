@@ -1,29 +1,6 @@
 from __future__ import annotations
-from typing import Any, TypedDict
+from typing import Any
 import re
-
-
-# TypedDict definitions
-class ApplicationName(TypedDict):
-    """TypedDict for application name with pretty name and alias.
-
-    Attributes:
-        name: Human-readable pretty name (e.g., "Persona Generator").
-        alias: Valid Python identifier for the app (e.g., "persona_generator").
-    """
-    name: str
-    alias: str
-
-
-class Description(TypedDict):
-    """TypedDict for application description with short and long forms.
-
-    Attributes:
-        short: Single sentence description ending with a period.
-        long: Longer paragraph description of the application.
-    """
-    short: str
-    long: str
 
 
 class InitialSurveyDescriptor:
@@ -155,21 +132,10 @@ class AppTypeRegistryDescriptor:
 
 
 class ApplicationNameDescriptor:
-    """Descriptor that validates and normalizes App.application_name.
-
-    Accepts either:
-    - A string (auto-generates alias from the string)
-    - An ApplicationName TypedDict with 'name' and 'alias' keys
-    - None (defaults to class name)
-
-    Validates:
-    - Name length does not exceed MAX_NAME_LENGTH
-    - Alias is a valid Python identifier
-
-    Stores an ApplicationName TypedDict internally.
+    """Descriptor that validates App.application_name as a valid Python identifier.
+    
+    Used for the 'alias' in deployment; must be a valid Python identifier.
     """
-
-    MAX_NAME_LENGTH = 100  # Maximum character length for pretty name
 
     def __set_name__(self, owner, name):
         self.private_name = f"_{name}"
@@ -179,106 +145,54 @@ class ApplicationNameDescriptor:
             return self
         stored = getattr(instance, self.private_name, None)
         if stored is None and owner is not None:
-            # Default: use class name
-            default_name = owner.__name__
-            return ApplicationName(name=default_name, alias=self._name_to_alias(default_name))
+            # Default: use class name converted to identifier
+            return self._to_identifier(owner.__name__)
         return stored
 
     def __set__(self, instance: Any, value: Any) -> None:
         from .exceptions import ApplicationNameError
 
-        # None or empty string: use class name as default
         if value is None or value == "":
-            class_name = instance.__class__.__name__
-            normalized = ApplicationName(
-                name=class_name,
-                alias=self._name_to_alias(class_name)
-            )
-        # String: convert to ApplicationName TypedDict
-        elif isinstance(value, str):
-            if len(value) > self.MAX_NAME_LENGTH:
-                raise ApplicationNameError(
-                    f"Application name '{value}' exceeds maximum length of {self.MAX_NAME_LENGTH} characters"
-                )
-            normalized = ApplicationName(
-                name=value,
-                alias=self._name_to_alias(value)
-            )
-        # Dict: validate as ApplicationName
-        elif isinstance(value, dict):
-            if "name" not in value or "alias" not in value:
-                raise ApplicationNameError(
-                    "application_name dict must contain 'name' and 'alias' keys"
-                )
-            name = value["name"]
-            alias = value["alias"]
-
-            if not isinstance(name, str) or not isinstance(alias, str):
-                raise ApplicationNameError(
-                    "Both 'name' and 'alias' must be strings"
-                )
-
-            if len(name) > self.MAX_NAME_LENGTH:
-                raise ApplicationNameError(
-                    f"Application name '{name}' exceeds maximum length of {self.MAX_NAME_LENGTH} characters"
-                )
-
-            if not self._is_valid_identifier(alias):
-                raise ApplicationNameError(
-                    f"Alias '{alias}' must be a valid Python identifier"
-                )
-
-            normalized = ApplicationName(name=name, alias=alias)
-        else:
+            # Default to class name
+            value = self._to_identifier(instance.__class__.__name__)
+        elif not isinstance(value, str):
+            raise ApplicationNameError("application_name must be a string")
+        
+        # Validate it's a valid Python identifier
+        if not value.isidentifier():
             raise ApplicationNameError(
-                "application_name must be a string, dict with 'name' and 'alias' keys, or None"
+                f"application_name '{value}' must be a valid Python identifier"
             )
-
-        setattr(instance, self.private_name, normalized)
+        
+        setattr(instance, self.private_name, value)
 
     @staticmethod
-    def _name_to_alias(name: str) -> str:
-        """Convert a pretty name to a valid Python identifier alias.
-
+    def _to_identifier(name: str) -> str:
+        """Convert a name to a valid Python identifier.
+        
         Examples:
-            "Persona Generator" -> "persona_generator"
-            "Twitter Thread Splitter" -> "twitter_thread_splitter"
-            "My-App!" -> "my_app"
+            "PersonaGenerator" -> "personagenerator"
+            "My App" -> "my_app"
         """
         # Convert to lowercase
-        alias = name.lower()
+        identifier = name.lower()
         # Replace spaces and hyphens with underscores
-        alias = re.sub(r'[\s\-]+', '_', alias)
+        identifier = re.sub(r'[\s\-]+', '_', identifier)
         # Remove any non-alphanumeric characters except underscores
-        alias = re.sub(r'[^\w]', '', alias)
+        identifier = re.sub(r'[^\w]', '', identifier)
         # Ensure it doesn't start with a digit
-        if alias and alias[0].isdigit():
-            alias = f"app_{alias}"
+        if identifier and identifier[0].isdigit():
+            identifier = f"app_{identifier}"
         # Ensure it's not empty
-        if not alias:
-            alias = "app"
-        return alias
-
-    @staticmethod
-    def _is_valid_identifier(s: str) -> bool:
-        """Check if a string is a valid Python identifier."""
-        return s.isidentifier()
+        if not identifier:
+            identifier = "app"
+        return identifier
 
 
-class DescriptionDescriptor:
-    """Descriptor that validates and normalizes App.description.
+class DisplayNameDescriptor:
+    """Descriptor for App.display_name - human-readable name (no constraints)."""
 
-    Accepts either:
-    - A string (used as both short and long description)
-    - A Description TypedDict with 'short' and 'long' keys
-    - None (defaults to empty descriptions)
-
-    Validates:
-    - Short description is a single sentence ending with a period
-    - Long description is provided
-
-    Stores a Description TypedDict internally.
-    """
+    MAX_LENGTH = 100
 
     def __set_name__(self, owner, name):
         self.private_name = f"_{name}"
@@ -286,70 +200,78 @@ class DescriptionDescriptor:
     def __get__(self, instance: Any, owner: type | None = None):
         if instance is None:
             return self
-        stored = getattr(instance, self.private_name, None)
-        if stored is None:
-            # Default: empty descriptions
-            return Description(short="No description provided.", long="No description provided.")
-        return stored
+        return getattr(instance, self.private_name, "Unnamed App")
+
+    def __set__(self, instance: Any, value: Any) -> None:
+        from .exceptions import ApplicationNameError
+
+        if value is None or value == "":
+            value = "Unnamed App"
+        elif not isinstance(value, str):
+            raise ApplicationNameError("display_name must be a string")
+        
+        if len(value) > self.MAX_LENGTH:
+            raise ApplicationNameError(
+                f"display_name '{value}' exceeds maximum length of {self.MAX_LENGTH} characters"
+            )
+        
+        setattr(instance, self.private_name, value.strip())
+
+
+class ShortDescriptionDescriptor:
+    """Descriptor for App.short_description - one sentence description."""
+
+    def __set_name__(self, owner, name):
+        self.private_name = f"_{name}"
+
+    def __get__(self, instance: Any, owner: type | None = None):
+        if instance is None:
+            return self
+        return getattr(instance, self.private_name, "No description provided.")
 
     def __set__(self, instance: Any, value: Any) -> None:
         from .exceptions import DescriptionError
 
-        # None or empty string: use default
         if value is None or value == "":
-            normalized = Description(
-                short="No description provided.",
-                long="No description provided."
-            )
-        # String: use as both short and long (validate short is single sentence)
-        elif isinstance(value, str):
-            # Ensure it ends with a period
-            short = value.strip()
-            if not short.endswith('.'):
-                short = f"{short}."
+            value = "No description provided."
+        elif not isinstance(value, str):
+            raise DescriptionError("short_description must be a string")
+        
+        # Ensure it ends with a period
+        value = value.strip()
+        if not value.endswith('.'):
+            value = f"{value}."
 
-            # Validate it's a single sentence (no multiple periods except at end)
-            sentence_count = short[:-1].count('.') + 1
-            if sentence_count > 1:
-                raise DescriptionError(
-                    f"Short description must be a single sentence. Found {sentence_count} sentences: '{short}'"
-                )
-
-            normalized = Description(short=short, long=value.strip())
-        # Dict: validate as Description
-        elif isinstance(value, dict):
-            if "short" not in value or "long" not in value:
-                raise DescriptionError(
-                    "description dict must contain 'short' and 'long' keys"
-                )
-
-            short = value["short"]
-            long_desc = value["long"]
-
-            if not isinstance(short, str) or not isinstance(long_desc, str):
-                raise DescriptionError(
-                    "Both 'short' and 'long' descriptions must be strings"
-                )
-
-            # Validate short description
-            short = short.strip()
-            if not short.endswith('.'):
-                short = f"{short}."
-
-            # Check for single sentence
-            sentence_count = short[:-1].count('.') + 1
-            if sentence_count > 1:
-                raise DescriptionError(
-                    f"Short description must be a single sentence. Found {sentence_count} sentences: '{short}'"
-                )
-
-            normalized = Description(short=short, long=long_desc.strip())
-        else:
+        # Validate it's a single sentence (no multiple periods except at end)
+        sentence_count = value[:-1].count('.') + 1
+        if sentence_count > 1:
             raise DescriptionError(
-                "description must be a string, dict with 'short' and 'long' keys, or None"
+                f"short_description must be a single sentence. Found {sentence_count} sentences: '{value}'"
             )
+        
+        setattr(instance, self.private_name, value)
 
-        setattr(instance, self.private_name, normalized)
+
+class LongDescriptionDescriptor:
+    """Descriptor for App.long_description - longer description."""
+
+    def __set_name__(self, owner, name):
+        self.private_name = f"_{name}"
+
+    def __get__(self, instance: Any, owner: type | None = None):
+        if instance is None:
+            return self
+        return getattr(instance, self.private_name, "No description provided.")
+
+    def __set__(self, instance: Any, value: Any) -> None:
+        from .exceptions import DescriptionError
+
+        if value is None or value == "":
+            value = "No description provided."
+        elif not isinstance(value, str):
+            raise DescriptionError("long_description must be a string")
+        
+        setattr(instance, self.private_name, value.strip())
 
 
 # New: Descriptor to manage App.fixed_params with normalization and survey pruning

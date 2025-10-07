@@ -103,14 +103,10 @@ output_formatter = (
 )
 
 app = App(
-    description={
-        "short": "Automatically generate a survey based on user input.",
-        "long": "This application uses AI to automatically generate a complete survey based on a research question and target population. It determines appropriate question types, generates relevant questions, and produces answer options for structured questions."
-    },
-    application_name={
-        "name": "Auto Survey Generator",
-        "alias": "auto_survey"
-    },
+    application_name="auto_survey",
+    display_name="Auto Survey Generator",
+    short_description="Automatically generate a survey based on user input.",
+    long_description="This application uses AI to automatically generate a complete survey based on a research question and target population. It determines appropriate question types, generates relevant questions, and produces answer options for structured questions.",
     initial_survey=initial_survey,
     jobs_object=job,
     output_formatters={"survey": output_formatter},

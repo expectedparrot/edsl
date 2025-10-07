@@ -17,8 +17,10 @@ q = QuestionMultipleChoice(
 app = App.create_ranking_app(
     ranking_question=q,
     option_fields=['food_1', 'food_2'],
-    application_name="Food Health Ranking",
-    description="Ranks foods from healthiest to least healthy using pairwise comparisons.",
+    application_name="food_health_ranking",
+    display_name="Food Health Ranking",
+    short_description="Ranks foods from healthiest to least healthy using pairwise comparisons.",
+    long_description="This application ranks different foods by their perceived health benefits using pairwise comparisons to determine the relative health rankings.",
     option_base="food",
     rank_field="health_rank",
 )

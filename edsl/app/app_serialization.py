@@ -24,19 +24,6 @@ class AppSerialization:
                 for formatter in app.attachment_formatters
             ]
 
-        # Serialize application_name and description (convert TypedDicts to dicts)
-        app_name = app.application_name
-        if isinstance(app_name, dict):
-            app_name_data = dict(app_name)  # Convert TypedDict to regular dict
-        else:
-            app_name_data = app_name
-
-        description = app.description
-        if isinstance(description, dict):
-            description_data = dict(description)  # Convert TypedDict to regular dict
-        else:
-            description_data = description
-
         return {
             "initial_survey": (
                 app.initial_survey.to_dict(add_edsl_version=add_edsl_version)
@@ -45,8 +32,10 @@ class AppSerialization:
             ),
             "jobs_object": app.jobs_object.to_dict(add_edsl_version=add_edsl_version),
             "application_type": app_type,
-            "application_name": app_name_data,
-            "description": description_data,
+            "application_name": app.application_name,
+            "display_name": app.display_name,
+            "short_description": app.short_description,
+            "long_description": app.long_description,
             "output_formatters": app.output_formatters.to_dict(
                 add_edsl_version=add_edsl_version
             ),
@@ -77,13 +66,15 @@ class AppSerialization:
                     attachment_formatters.append(formatter)
 
         kwargs = {
+            "application_name": data.get("application_name"),
+            "display_name": data.get("display_name"),
+            "short_description": data.get("short_description"),
+            "long_description": data.get("long_description"),
+            "initial_survey": Survey.from_dict(data.get("initial_survey")),
             "jobs_object": jobs_object,
             "output_formatters": OutputFormatters.from_dict(
                 data.get("output_formatters")
             ),
-            "description": data.get("description"),
-            "application_name": data.get("application_name"),
-            "initial_survey": Survey.from_dict(data.get("initial_survey")),
             "attachment_formatters": attachment_formatters,
             "client_mode": data.get("client_mode", False),
         }

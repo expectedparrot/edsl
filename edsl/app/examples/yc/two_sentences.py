@@ -169,8 +169,10 @@ markdown_formatter = (
 
 # Stage 1 App: Generate candidates
 app = App(
-    application_name="YC Two Sentence Generator",
-    description="Generates candidate 2-sentence startup descriptions using YC best practices",
+    application_name="yc_two_sentence_generator",
+    display_name="YC Two Sentence Generator",
+    short_description="Generates candidate 2-sentence startup descriptions using YC best practices.",
+    long_description="This application helps startups create compelling 2-sentence descriptions following Y Combinator best practices. It generates multiple variations highlighting different aspects of the startup, then shortens them to be crisp and impactful for investors.",
     initial_survey=initial_survey,
     jobs_object=generate_job,
     output_formatters={'scenario_list': candidates_formatter, 'markdown': markdown_formatter},
@@ -189,8 +191,10 @@ q_rank = QuestionMultipleChoice(
 ranking_app = App.create_ranking_app(
     ranking_question=q_rank,
     option_fields=['two_sentences_1', 'two_sentences_2'],
-    application_name="YC Two Sentence Ranker",
-    description="Ranks 2-sentence startup descriptions by effectiveness",
+    application_name="yc_two_sentence_ranker",
+    display_name="YC Two Sentence Ranker",
+    short_description="Ranks 2-sentence startup descriptions by effectiveness.",
+    long_description="This application ranks different variations of 2-sentence startup descriptions by their effectiveness for investors using pairwise comparisons.",
     option_base="two_sentences",
     rank_field="pitch_rank"
 )

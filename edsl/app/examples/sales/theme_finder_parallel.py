@@ -99,8 +99,10 @@ def create_parallel_theme_generator():
     )
 
     return App(
-        application_name="Parallel Theme Generator",
-        description="Generates themes from all responses in parallel",
+        application_name="parallel_theme_generator",
+        display_name="Parallel Theme Generator",
+        short_description="Generates themes from all responses in parallel.",
+        long_description="This application processes response text in parallel to generate themes efficiently, identifying patterns across multiple responses simultaneously.",
         initial_survey=initial_survey,
         jobs_object=jobs_object,
         output_formatters={"all_themes": all_themes_formatter},
@@ -180,8 +182,10 @@ def create_theme_consolidator():
     )
 
     return App(
-        application_name="Theme Consolidator",
-        description="Consolidates overlapping themes into distinct set",
+        application_name="theme_consolidator",
+        display_name="Theme Consolidator",
+        short_description="Consolidates overlapping themes into distinct set.",
+        long_description="This application takes a large collection of generated themes and consolidates overlapping or similar themes into a distinct, manageable set.",
         initial_survey=initial_survey,
         jobs_object=jobs_object,
         output_formatters={"consolidated": consolidated_formatter},
@@ -259,8 +263,10 @@ def create_parallel_labeler():
     )
 
     return App(
-        application_name="Parallel Response Labeler",
-        description="Labels all responses with themes in parallel",
+        application_name="parallel_response_labeler",
+        display_name="Parallel Response Labeler",
+        short_description="Labels all responses with themes in parallel.",
+        long_description="This application labels individual responses with applicable themes from a provided theme set, processing multiple responses in parallel for efficiency.",
         initial_survey=initial_survey,
         jobs_object=jobs_object,
         output_formatters={"labeled": labeled_formatter},
@@ -351,8 +357,10 @@ def create_theme_validator():
     )
 
     return App(
-        application_name="Theme Validator",
-        description="Validates theme quality and suggests refinements",
+        application_name="theme_validator",
+        display_name="Theme Validator",
+        short_description="Validates theme quality and suggests refinements.",
+        long_description="This application analyzes theme usage patterns and suggests improvements such as merging underused themes or splitting overused ones.",
         initial_survey=initial_survey,
         jobs_object=jobs_object,
         output_formatters={"report": report_formatter},
@@ -441,8 +449,10 @@ def create_theme_refiner():
     )
 
     return App(
-        application_name="Theme Refiner",
-        description="Executes theme refinements based on validation",
+        application_name="theme_refiner",
+        display_name="Theme Refiner",
+        short_description="Executes theme refinements based on validation.",
+        long_description="This application executes refinement actions on themes based on validation feedback, merging or splitting themes to improve the overall theme set quality.",
         initial_survey=initial_survey,
         jobs_object=jobs_object,
         output_formatters={"refined": refined_formatter},
@@ -538,8 +548,10 @@ def create_integrated_theme_finder():
     )
 
     return App(
-        application_name="Integrated Theme Finder",
-        description="Complete theme generation and labeling pipeline",
+        application_name="integrated_theme_finder",
+        display_name="Integrated Theme Finder",
+        short_description="Complete theme generation and labeling pipeline.",
+        long_description="This application provides a complete pipeline for theme generation and labeling, combining parallel processing with theme consolidation and validation for efficient text analysis.",
         initial_survey=initial_survey,
         jobs_object=jobs_object,
         output_formatters={"labeled": labeled_formatter},
@@ -638,8 +650,10 @@ def create_simple_theme_finder():
     )
 
     return App(
-        application_name="Simple Theme Finder",
-        description="Generates themes from responses",
+        application_name="simple_theme_finder",
+        display_name="Simple Theme Finder",
+        short_description="Generates themes from responses.",
+        long_description="This application analyzes response text and generates a set of themes that capture the main topics and patterns in the data.",
         initial_survey=initial_survey,
         jobs_object=jobs_object,
         output_formatters={"themes": themes_formatter},
