@@ -19,6 +19,7 @@ relevant_classes = {
     FileStore: ["view", "to_docx", "save"],
     Survey: ["to_scenario_list", "table", "add_weighted_linear_scale_sum"],
     ScenarioList: [
+        "slice",
         "to_survey",
         "rename",
         "zip",

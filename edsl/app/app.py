@@ -144,13 +144,22 @@ class AppMixin:
                 # Remove old fields
                 app_data.pop('name', None)
                 app_data.pop('description', None)
+            # If it's already the new structure, ensure all required fields exist
+            elif 'application_name' in app_data:
+                # New structure - ensure all fields exist
+                if 'display_name' not in app_data:
+                    app_data['display_name'] = app_data.get('application_name', 'Unknown App')
+                if 'short_description' not in app_data:
+                    app_data['short_description'] = 'No description available.'
+                if 'long_description' not in app_data:
+                    app_data['long_description'] = app_data.get('short_description', 'No description available.')
             
             normalized_apps.append(app_data)
         
         sl = AvailableApps(
             Scenario.from_dict(s) for s in normalized_apps
         )
-        return sl.select('qualified_name', 'display_name', 'short_description', 'long_description')
+        return sl.select('qualified_name', 'application_name', 'display_name', 'short_description', 'long_description')
 
     @classmethod
     def full_info(cls, app_id_or_qualified_name: str, server_url: str = "http://localhost:8000") -> dict:
@@ -274,6 +283,11 @@ class ClientFacingApp(AppMixin):
             return App.from_id(resolved_app_id)
         else:
             return App(**config)
+    
+    @classmethod
+    def from_dict(cls, data: dict):
+        """Delegate to the actual App class."""
+        return App.from_dict(data)
 
 
 class App(AppMixin, Base):
@@ -518,6 +532,135 @@ class App(AppMixin, Base):
                 api_payload=api_payload,
             )
 
+    def _serialize_params(self, params: ParamsDict | None) -> dict:
+        """Serialize params by calling to_dict on objects that have that attribute.
+        
+        This method handles the serialization of EDSL objects (Scenario, ScenarioList, 
+        Survey, Agent, etc.) for transmission to remote servers. Objects with a 'to_dict' 
+        method are wrapped with metadata to enable reconstruction on the server side.
+        
+        Server-side usage:
+            On the server, use _deserialize_params to reconstruct the original objects
+            before calling the app's output method:
+            
+            ```python
+            # On server
+            deserialized_params = app._deserialize_params(serialized_params)
+            result = app.output(params=deserialized_params, ...)
+            ```
+        
+        Args:
+            params: The parameters to serialize
+            
+        Returns:
+            Dictionary with serialized parameters. EDSL objects are wrapped with:
+            - '__edsl_object__': True (marker)
+            - '__edsl_type__': Class name
+            - '__edsl_module__': Module path
+            - 'data': Serialized object data
+        """
+        if params is None:
+            return {}
+        
+        serialized = {}
+        for key, value in params.items():
+            if hasattr(value, 'to_dict'):
+                # Serialize EDSL objects (Scenario, ScenarioList, Survey, Agent, etc.)
+                serialized[key] = {
+                    '__edsl_object__': True,
+                    '__edsl_type__': value.__class__.__name__,
+                    '__edsl_module__': value.__class__.__module__,
+                    'data': value.to_dict()
+                }
+            else:
+                # Keep primitive types as-is
+                serialized[key] = value
+        
+        return serialized
+
+    def _deserialize_params(self, serialized_params: dict) -> ParamsDict:
+        """Deserialize params by reconstructing EDSL objects from their serialized form.
+        
+        Args:
+            serialized_params: The serialized parameters
+            
+        Returns:
+            Dictionary with deserialized parameters
+        """
+        if not serialized_params:
+            return {}
+        
+        deserialized = {}
+        for key, value in serialized_params.items():
+            if isinstance(value, dict) and value.get('__edsl_object__'):
+                # Reconstruct EDSL object
+                obj_type = value['__edsl_type__']
+                obj_module = value['__edsl_module__']
+                obj_data = value['data']
+                
+                try:
+                    # Import the module and get the class
+                    import importlib
+                    module = importlib.import_module(obj_module)
+                    obj_class = getattr(module, obj_type)
+                    
+                    # Reconstruct the object
+                    deserialized[key] = obj_class.from_dict(obj_data)
+                except (ImportError, AttributeError, TypeError) as e:
+                    # If reconstruction fails, keep the serialized data
+                    # This provides graceful degradation
+                    deserialized[key] = value
+            else:
+                # Keep primitive types as-is
+                deserialized[key] = value
+        
+        return deserialized
+
+    def _test_serialization_roundtrip(self, params: ParamsDict | None) -> bool:
+        """Test that serialization and deserialization preserves the original params.
+        
+        This method is useful for debugging and ensuring the round trip works correctly.
+        
+        Args:
+            params: The parameters to test
+            
+        Returns:
+            True if the round trip preserves the original params, False otherwise
+            
+        Example:
+            >>> app = App.example()
+            >>> test_params = {"text": "hello", "number": 42}
+            >>> app._test_serialization_roundtrip(test_params)
+            True
+        """
+        if params is None:
+            return True
+            
+        try:
+            # Serialize and then deserialize
+            serialized = self._serialize_params(params)
+            deserialized = self._deserialize_params(serialized)
+            
+            # Compare the results
+            # For EDSL objects, we need to compare their dict representations
+            # since object identity won't be preserved
+            for key in params:
+                original = params[key]
+                restored = deserialized[key]
+                
+                if hasattr(original, 'to_dict') and hasattr(restored, 'to_dict'):
+                    # Compare EDSL objects by their dict representation
+                    if original.to_dict() != restored.to_dict():
+                        return False
+                else:
+                    # Compare primitive types directly
+                    if original != restored:
+                        return False
+            
+            return True
+        except Exception:
+            return False
+
     def _remote_output(
         self,
         *,
@@ -533,10 +676,15 @@ class App(AppMixin, Base):
         if app_id is None:
             app_id = self.app_id
 
+        # Serialize params before sending to server
+        # The server should use _deserialize_params to reconstruct the original objects
+        # before calling the app's output method
+        serialized_params = self._serialize_params(params)
+        
         target_app_id = app_id or AppServerClient.deploy(self, server_url=server_url, owner="johnjhorton")
         exec_resp = AppServerClient.execute_app(
             target_app_id,
-            dict(params or {}),
+            serialized_params,
             formatter_name=formatter_name,
             server_url=server_url,
             api_payload=True,
@@ -557,6 +705,22 @@ class App(AppMixin, Base):
             formatters=ofs,
             params=params or {},
             default_formatter_name=selected or ofs.default,
+        )
+
+    def inject_results(self, results: Results, params: ParamsDict | None = None) -> Any:
+        """Inject results into the app.
+        
+        Args:
+            results: The results to inject.
+            
+        Returns:
+            The app.
+        """
+        return AppRunOutput(
+            results=results,
+            formatters=self.output_formatters,
+            params=params or {},
+            default_formatter_name=self.output_formatters.default,
         )
 
     @disabled_in_client_mode
