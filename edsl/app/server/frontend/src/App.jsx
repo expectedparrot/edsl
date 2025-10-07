@@ -68,7 +68,7 @@ function App() {
       const response = await fetch(`${API_BASE}/apps/${app.app_id}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers: formData })
+        body: JSON.stringify({ answers: formData, api_payload: true, return_results: false })
       })
 
       if (!response.ok) {
@@ -116,7 +116,9 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           answers: formData,
-          formatter_name: formatterName
+          formatter_name: formatterName,
+          api_payload: true,
+          return_results: false
         })
       })
 
@@ -154,7 +156,8 @@ function App() {
       // Delete each app
       let deleted = 0
       for (const app of allApps) {
-        const deleteResponse = await fetch(`${API_BASE}/apps/${app.app_id}`, {
+        const ownerParam = app.owner ? `?owner=${encodeURIComponent(app.owner)}` : ''
+        const deleteResponse = await fetch(`${API_BASE}/apps/${app.app_id}${ownerParam}`, {
           method: 'DELETE'
         })
         if (deleteResponse.ok) {
@@ -301,17 +304,22 @@ function ChatMessage({ message, messageIndex, apps, onAppSelect, onFormSubmit, o
     const [pushing, setPushing] = useState(false)
     const [pushResult, setPushResult] = useState(null)
 
-    const isFile = message.data.result &&
-                   typeof message.data.result === 'object' &&
-                   message.data.result.base64_string
+    // Normalize server response: unwrap API envelope { meta, data, preview }
+    const packet = message.data?.result
+    const isEnvelope = packet && typeof packet === 'object' && packet.meta && Object.prototype.hasOwnProperty.call(packet, 'data')
+    const meta = isEnvelope ? packet.meta : null
+    const content = isEnvelope ? packet.data : packet
+    const outputTypeFromMeta = meta?.formatter_output_type || null
+
+    const isFile = content && typeof content === 'object' && content.base64_string
 
     // Get the output_type for the selected formatter (or default if none selected)
     const currentFormatter = message.selectedFormatter || message.app.default_formatter_name || message.app.available_formatters?.[0]
     const formatterMeta = message.app.formatter_metadata?.find(f => f.name === currentFormatter)
-    const outputType = formatterMeta?.output_type || 'auto'
+    const outputType = outputTypeFromMeta || formatterMeta?.output_type || 'auto'
 
-    const isDocx = isFile && message.data.result.path?.endsWith('.docx')
-    const isEdslObject = outputType === 'edsl_object' && typeof message.data.result === 'object' && (message.data.result.object_type || message.data.result.edsl_class_name)
+    const isDocx = isFile && content.path?.endsWith('.docx')
+    const isEdslObject = (outputType === 'edsl_object' || meta?.content_type === 'edsl_object') && typeof content === 'object' && (content.object_type || content.edsl_class_name)
 
     useEffect(() => {
       if (isDocx && !docxPreview) {
@@ -333,11 +341,11 @@ function ChatMessage({ message, messageIndex, apps, onAppSelect, onFormSubmit, o
             console.error('Failed to preview docx:', err)
           })
       }
-    }, [isDocx, message.data.result])
+    }, [isDocx, content])
 
-    const isCSV = typeof message.data.result === 'string' &&
-                  message.data.result.includes(',') &&
-                  (message.data.result.startsWith('answer.') || message.data.result.match(/^[^,\n]+,[^,\n]+/))
+    const isCSV = typeof content === 'string' &&
+                  content.includes(',') &&
+                  (content.startsWith('answer.') || content.match(/^[^,\n]+,[^,\n]+/))
 
     const parseCSV = (csvText) => {
       const lines = csvText.trim().split('\n')
@@ -353,7 +361,7 @@ function ChatMessage({ message, messageIndex, apps, onAppSelect, onFormSubmit, o
     }
 
     const handleDownload = () => {
-      const result = message.data.result
+      const result = content
       const base64 = result.base64_string
       const filename = result.path ? result.path.split('/').pop() : 'download.docx'
 
@@ -385,7 +393,7 @@ function ChatMessage({ message, messageIndex, apps, onAppSelect, onFormSubmit, o
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            object_dict: message.data.result,
+            object_dict: content,
             visibility: pushFormData.visibility,
             alias: pushFormData.alias || undefined,
             description: pushFormData.description || undefined
@@ -448,7 +456,7 @@ function ChatMessage({ message, messageIndex, apps, onAppSelect, onFormSubmit, o
             })}
           </div>
 
-          {message.data.result && (
+          {content && (
             <div className="response-result">
               {isFile ? (
                 <div className="file-result">
@@ -458,7 +466,7 @@ function ChatMessage({ message, messageIndex, apps, onAppSelect, onFormSubmit, o
                       <polyline points="14 2 14 8 20 8"></polyline>
                     </svg>
                     <div>
-                      <strong>{message.data.result.path ? message.data.result.path.split('/').pop() : 'Document'}</strong>
+                      <strong>{content.path ? content.path.split('/').pop() : 'Document'}</strong>
                       <p>Ready to download</p>
                     </div>
                   </div>
@@ -488,7 +496,7 @@ function ChatMessage({ message, messageIndex, apps, onAppSelect, onFormSubmit, o
               ) : isCSV ? (
                 <div className="csv-table-container">
                   {(() => {
-                    const { headers, rows } = parseCSV(message.data.result)
+                    const { headers, rows } = parseCSV(content)
                     return (
                       <table className="csv-table">
                         <thead>
@@ -600,33 +608,33 @@ function ChatMessage({ message, messageIndex, apps, onAppSelect, onFormSubmit, o
                   )}
 
                   <pre className="edsl-object-preview">
-                    {JSON.stringify(message.data.result, null, 2)}
+                    {JSON.stringify(content, null, 2)}
                   </pre>
                 </div>
               ) : (
                 <div className="result-text">
-                  {message.data.result === null || message.data.result === 'None' ? (
+                  {content === null || content === 'None' ? (
                     <div style={{ color: '#999', fontStyle: 'italic' }}>
                       This formatter displays output in the console/terminal but doesn't return displayable content.
                       Try selecting a different format.
                     </div>
-                  ) : typeof message.data.result === 'string' ? (
+                  ) : typeof content === 'string' ? (
                     (() => {
                       // Use explicit output_type if specified
                       if (outputType === 'markdown') {
                         return (
                           <div className="markdown-content">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.data.result}</ReactMarkdown>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
                           </div>
                         )
                       }
 
                       // Otherwise show as plain text
-                      return <div style={{ whiteSpace: 'pre-wrap' }}>{message.data.result}</div>
+                      return <div style={{ whiteSpace: 'pre-wrap' }}>{content}</div>
                     })()
-                  ) : typeof message.data.result === 'object' ? (
+                  ) : typeof content === 'object' ? (
                     (() => {
-                      const jsonStr = JSON.stringify(message.data.result, null, 2)
+                      const jsonStr = JSON.stringify(content, null, 2)
                       const sizeKB = (jsonStr.length / 1024).toFixed(1)
                       return (
                         <>

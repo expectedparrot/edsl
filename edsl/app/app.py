@@ -5,7 +5,7 @@ from html import escape
 from pathlib import Path
 from abc import ABC
 
- 
+from functools import wraps
 
 from ..scenarios import Scenario, ScenarioList
 from ..surveys import Survey
@@ -25,6 +25,7 @@ from .api_payload import build_api_payload, reconstitute_from_api_payload
 from .app_param_preparer import AppParamPreparer
 from .answers_collector import AnswersCollector
 from .app_html_renderer import AppHTMLRenderer
+from .app_run_output import AppRunOutput
 from .descriptors import (
     InitialSurveyDescriptor,
     OutputFormattersDescriptor,
@@ -36,22 +37,209 @@ from .descriptors import (
     ApplicationName,
     Description,
 )
- 
 
 
 class ParamsDict(TypedDict, total=False):
     """Loose schema for params supplied to App.output; keys are initial_survey question names."""
+
     pass
 
 
-class App(Base):
-    """
-    A class representing an EDSL application.
+def disabled_in_client_mode(method):
+    """Decorator to disable instance methods when `self.client_mode` is True.
 
-    An EDSL application requires the user to complete an initial survey.
-    This creates parameters that are used to run a jobs object.
-    The jobs object has the logic for the application.
+    When applied to an instance method, calling the method will raise a RuntimeError
+    if the instance has `client_mode` set to True. Otherwise, the method executes normally.
     """
+
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        if getattr(self, "client_mode", False):
+            raise RuntimeError(
+                f"{self.__class__.__name__}.{method.__name__} is disabled in client mode"
+            )
+        return method(self, *args, **kwargs)
+
+    return wrapper
+
+
+class AppMixin:
+
+    @staticmethod
+    def _resolve_app_identifier(
+        app_id_or_qualified_name: str, server_url: str = "http://localhost:8000"
+    ) -> str:
+        """Resolve a qualified name 'owner/alias' to an app_id, or return the app_id unchanged.
+        
+        Args:
+            app_id_or_qualified_name: Either an app_id UUID or a qualified name 'owner/alias'.
+            server_url: URL of the FastAPI server.
+            
+        Returns:
+            The resolved app_id.
+        """
+        if isinstance(app_id_or_qualified_name, str) and "/" in app_id_or_qualified_name:
+            parts = app_id_or_qualified_name.split("/", 1)
+            if len(parts) == 2:
+                try:
+                    from .app_server_client import AppServerClient
+                    return AppServerClient.resolve_app_id(app_id_or_qualified_name, server_url=server_url)
+                except Exception:
+                    # Fall back to treating input as an app_id if resolution fails
+                    pass
+        return app_id_or_qualified_name
+
+    @classmethod
+    def list(
+        cls, server_url: str = "http://localhost:8000", search: Optional[str] = None, owner: Optional[str] = None
+    ) -> list[dict]:
+        """List all apps from a FastAPI server.
+
+        Args:
+            server_url: URL of the FastAPI server (default: http://localhost:8000)
+            search: Optional search string to filter apps.
+            owner: Optional owner string to filter apps by owner.
+
+        Returns:
+            List of app metadata dictionaries.
+
+        Example:
+            >>> apps = App.list()  # doctest: +SKIP
+        """
+        from .app_server_client import AppServerClient
+        from ..scenarios import ScenarioList
+
+        class AvailableApps(ScenarioList):
+
+            def fetch(self, id: int):
+                app_id = self[id].get("app_id")
+                return App.from_id(app_id)
+
+        sl = AvailableApps(
+            Scenario.from_dict(s)
+            for s in AppServerClient.list_apps(server_url=server_url, search=search, owner=owner)
+        )
+        return sl.unpack_dict('description').select('qualified_name', 'short', 'long')
+
+    @classmethod
+    def full_info(cls, app_id_or_qualified_name: str, server_url: str = "http://localhost:8000") -> dict:
+        """Get full information about an app."""
+        resolved_app_id = cls._resolve_app_identifier(app_id_or_qualified_name, server_url)
+        d = App.from_id(resolved_app_id, server_url).to_dict()
+        d.pop('jobs_object')
+        d.pop('output_formatters')
+        d.pop('attachment_formatters')
+        survey = Survey.from_dict(d.pop('initial_survey'))
+        d['params'] = {q.question_name: q.question_text for q in survey.questions}
+        from ..scenarios import Scenario
+        return Scenario(d)
+
+    @classmethod
+    def pull(cls, edsl_uuid: str) -> "App":
+        """Pull an app by UUID from the remote registry/service.
+        
+        This gets the full app definition from the remote registry/service.
+        """
+        from .app_remote import AppRemote
+
+        return AppRemote.pull(cls, edsl_uuid)
+
+    @classmethod
+    def example(cls) -> "App":
+        """Return a minimal App configured with Model('test') for local testing.
+
+        Example:
+            >>> app = App.example()
+            >>> out = app.output(params={"text": "hello"}, disable_remote_inference=True)
+            >>> bool(out)
+            True
+        """
+        # Import locally to avoid cycles
+        from ..surveys import Survey
+        from ..questions import QuestionFreeText, QuestionList
+        from ..language_models.model import Model
+        from .output_formatter import OutputFormatter
+
+        initial_survey = Survey(
+            [
+                QuestionFreeText(
+                    question_name="text",
+                    question_text="Provide a short text",
+                )
+            ]
+        )
+
+        # Simple echo job that repeats the input text; bound to test model
+        echo_job = Survey(
+            [
+                QuestionFreeText(
+                    question_name="echo",
+                    question_text="Echo this back: {{ scenario.text }}",
+                )
+            ]
+        ).by(Model("test"))
+
+        echo_formatter = (
+            OutputFormatter(description="Echo")
+            .select("answer.echo")
+            .to_scenario_list()
+            .table()
+        )
+
+        return cls(
+            application_name="Example App",
+            description="A minimal example app that echoes user input.",
+            initial_survey=initial_survey,
+            jobs_object=echo_job,
+            output_formatters={"echo": echo_formatter},
+            default_formatter_name="echo",
+        )
+    
+    @classmethod
+    def delete(
+        cls,
+        app_id_or_qualified_name: str,
+        *,
+        server_url: str = "http://localhost:8000",
+        owner: str | None = None,
+    ) -> dict:
+        """Delete an app from the server.
+
+        Args:
+            app_id_or_qualified_name: The app ID or qualified name 'owner/alias' to delete.
+                If a qualified name is provided and no explicit owner is given, the owner
+                will be extracted from the qualified name.
+            server_url: URL of the FastAPI server.
+            owner: Optional owner string; required if the server stored an owner.
+                If not provided and app_id_or_qualified_name is a qualified name, 
+                the owner will be extracted automatically.
+
+        Returns:
+            Server response dictionary.
+        """
+        from .app_server_client import AppServerClient
+
+        # Extract owner from qualified name if not explicitly provided
+        if owner is None and isinstance(app_id_or_qualified_name, str) and "/" in app_id_or_qualified_name:
+            parts = app_id_or_qualified_name.split("/", 1)
+            if len(parts) == 2:
+                owner = parts[0]
+        
+        resolved_app_id = cls._resolve_app_identifier(app_id_or_qualified_name, server_url)
+        return AppServerClient.delete_app(resolved_app_id, server_url=server_url, owner=owner)
+
+
+class ClientFacingApp(AppMixin):    
+
+    def __new__(cls, app_id_or_qualified_name: Optional[str] = None, **config):
+        if app_id_or_qualified_name:
+            resolved_app_id = cls._resolve_app_identifier(app_id_or_qualified_name)
+            return App.from_id(resolved_app_id)
+        else:
+            return App(**config)
+
+
+class App(AppMixin, Base):
 
     # Subclass registry managed via descriptor
     _registry = AppTypeRegistryDescriptor()
@@ -75,10 +263,10 @@ class App(Base):
 
     def __init__(
         self,
-        jobs_object: "Jobs",
         description: str | dict | Description,
         application_name: str | dict | ApplicationName,
         initial_survey: Survey,  # type: ignore[assignment]
+        jobs_object: Optional["Jobs"] = None,
         output_formatters: Optional[
             Mapping[str, OutputFormatter] | list[OutputFormatter] | OutputFormatters
         ] = None,
@@ -86,6 +274,7 @@ class App(Base):
         default_formatter_name: Optional[str] = None,
         default_params: Optional[dict[str, Any]] = None,
         fixed_params: Optional[dict[str, Any]] = None,
+        client_mode: bool = False,
     ):
         """Instantiate an App object.
 
@@ -130,8 +319,6 @@ class App(Base):
         AppValidator.validate_parameters(self)
         AppValidator.validate_initial_survey_edsl_uniqueness(self)
 
-        
-
         # Cache for generated results keyed by the hash of a jobs object
         self._generated_results: dict[int, "Results"] = {}
 
@@ -144,11 +331,45 @@ class App(Base):
             # Registration failures should not prevent app initialization
             pass
 
-    def deploy(self, server_url: str = "http://localhost:8000") -> str:
+        self.client_mode = client_mode
+
+    @classmethod
+    def from_id(cls, app_id: str, server_url: str = "http://localhost:8000") -> "BaseApp":
+        """Create an app from a given app_id or qualified name 'owner/alias'."""
+        # Lazy imports to avoid cycles
+        from .app_server_client import AppServerClient
+        from .output_formatter import OutputFormatters, ObjectFormatter
+        from .stub_job import StubJob
+
+        resolved_app_id = cls._resolve_app_identifier(app_id, server_url)
+
+        # Fetch client-safe app dict from server
+        data = AppServerClient.instantiate_remote_app_client(resolved_app_id)
+
+        # Inject a minimal StubJob dict so from_dict can deserialize it
+        if not data.get("jobs_object"):
+            data["jobs_object"] = {"return_type": "survey"}
+        data['client_mode'] = True
+        app = cls.from_dict(data)
+        app.app_id = resolved_app_id
+        return app
+
+    @disabled_in_client_mode
+    def to_dict_for_client(self) -> dict:
+        """Convert the app to a dictionary suitable for client-side use."""
+        d = self.to_dict()
+        _ = d.pop("jobs_object")
+        return d
+
+    @disabled_in_client_mode
+    def deploy(self, server_url: str = "http://localhost:8000", owner: str = "johnjhorton", source_available: bool = False, force: bool = False) -> str:
         """Deploy this app to a FastAPI server.
 
         Args:
             server_url: URL of the FastAPI server (default: http://localhost:8000)
+            owner: Required owner string used for global uniqueness (default: 'johnjhorton').
+            source_available: If True, the source code is available to future users.
+            force: If True, overwrite any existing app with the same owner/alias.
 
         Returns:
             The app_id assigned by the server.
@@ -158,28 +379,14 @@ class App(Base):
             >>> app_id = app.deploy()  # doctest: +SKIP
         """
         from .app_server_client import AppServerClient
-        return AppServerClient.deploy(self, server_url=server_url)
-
-    @classmethod
-    def list(cls, server_url: str = "http://localhost:8000") -> list[dict]:
-        """List all apps from a FastAPI server.
-
-        Args:
-            server_url: URL of the FastAPI server (default: http://localhost:8000)
-
-        Returns:
-            List of app metadata dictionaries.
-
-        Example:
-            >>> apps = App.list()  # doctest: +SKIP
-        """
-        from .app_server_client import AppServerClient
-        return AppServerClient.list_apps(server_url=server_url)
+ 
+        return AppServerClient.deploy(self, server_url=server_url, owner=owner, source_available=source_available, force=force)
 
     def __call__(self, **kwargs: Any) -> Any:
         """Call the app with the given parameters."""
         return self.output(params=kwargs)
 
+    @disabled_in_client_mode
     def _generate_results(
         self,
         modified_jobs_object: "Jobs",
@@ -190,7 +397,7 @@ class App(Base):
 
 
         >>> app = App.example()
-        >>> app._generated_results 
+        >>> app._generated_results
         {}
         >>> app._generate_results(app.jobs_object)  # doctest: +ELLIPSIS
         Results(...)
@@ -219,7 +426,86 @@ class App(Base):
         cache[jobs_hash] = results
         return results
 
+    def run(
+        self, params: ParamsDict | None, formatter_name: Optional[str] = None
+    ) -> Any:
+        """
+        Run the app and return formatted output or a JSON API payload.
+        """
+        return self.output(params, formatter_name)
+
     def output(
+        self,
+        params: ParamsDict | None,
+        formatter_name: Optional[str] = None,
+        stop_on_exception: bool = True,
+        disable_remote_inference: bool = False,
+        verbose: bool = False,
+        api_payload: bool = False,
+        server_url: str = "http://localhost:8000",
+        app_id: Optional[str] = None,
+    ) -> Any:
+        """Run the app and return formatted output or a JSON API payload."""
+        if self.client_mode:
+            return self._remote_output(
+                params=params,
+                formatter_name=formatter_name,
+                server_url=server_url,
+                app_id=app_id,
+            )
+        else:
+            return self._local_output(
+                params=params,
+                formatter_name=formatter_name,
+                stop_on_exception=stop_on_exception,
+                disable_remote_inference=disable_remote_inference,
+                verbose=verbose,
+                api_payload=api_payload,
+            )
+
+    def _remote_output(
+        self,
+        *,
+        params: ParamsDict | None,
+        formatter_name: Optional[str] = None,
+        server_url: str = "http://localhost:8000",
+        app_id: Optional[str] = None,
+    ) -> Any:
+        """Run output remotely and return the locally rendered result using server-returned Results + formatters."""
+        # Lazy import to avoid cycles
+        from .app_server_client import AppServerClient
+
+        if app_id is None:
+            app_id = self.app_id
+
+        target_app_id = app_id or AppServerClient.deploy(self, server_url=server_url, owner="johnjhorton")
+        exec_resp = AppServerClient.execute_app(
+            target_app_id,
+            dict(params or {}),
+            formatter_name=formatter_name,
+            server_url=server_url,
+            api_payload=True,
+            return_results=True,
+        )
+        # Expect standardized payload strictly: result -> results/formatters/selected_formatter
+        packet = exec_resp["result"]
+        from .output_formatter import OutputFormatters
+        from ..results import Results
+
+        reconstructed_results = Results.from_dict(packet["results"])
+        ofs = OutputFormatters.from_dict(packet["formatters"])
+        selected = packet.get("selected_formatter")
+        
+        # Return AppRunOutput for consistent interface
+        return AppRunOutput(
+            results=reconstructed_results,
+            formatters=ofs,
+            params=params or {},
+            default_formatter_name=selected or ofs.default,
+        )
+
+    @disabled_in_client_mode
+    def _local_output(
         self,
         params: ParamsDict | None,
         formatter_name: Optional[str] = None,
@@ -248,17 +534,22 @@ class App(Base):
             >>> set(["meta","data"]).issubset(set(out.keys()))
             True
         """
-        
+
         if params is None:
             params = AnswersCollector.collect_interactively(self)
 
-        params = self._apply_default_params(params) # Apply default params first so they can be overridden by fixed params
-        params = self._apply_fixed_params(params)  # Apply fixed params last so they 'win'
+        params = self._apply_default_params(
+            params
+        )  # Apply default params first so they can be overridden by fixed params
+        params = self._apply_fixed_params(
+            params
+        )  # Apply fixed params last so they 'win'
 
-        
         # Prepare head attachments - these are what will get attached to the jobs object
         head_attachments = self._prepare_head_attachments(params)
-        modified_jobs_object = head_attachments.attach_to_head(self.jobs_object) # attach them
+        modified_jobs_object = head_attachments.attach_to_head(
+            self.jobs_object
+        )  # attach them
 
         results = self._generate_results(
             modified_jobs_object,
@@ -266,16 +557,21 @@ class App(Base):
             disable_remote_inference=disable_remote_inference,
         )
 
-        formatted_output = self._format_output(results, formatter_name, params)
-
         if not api_payload:
-            return formatted_output
+            # Return AppRunOutput for interactive use
+            return AppRunOutput(
+                results=results,
+                formatters=self.output_formatters,
+                params=params or {},
+                default_formatter_name=formatter_name or self.output_formatters.default,
+            )
 
-        # Build an envelope with metadata and reconstruction hints
+        # For API payload, format immediately and build envelope
+        formatted_output = self._format_output(results, formatter_name, params)
         return build_api_payload(formatted_output, formatter_name, self, params)
 
     # Inline helpers moved to api_payload module
-
+    @disabled_in_client_mode
     def _prepare_head_attachments(self, params: ParamsDict) -> HeadAttachments:
         """Prepare and apply head attachments derived from provided params.
 
@@ -300,7 +596,7 @@ class App(Base):
 
     def _select_formatter(self, formatter_name: Optional[str]) -> OutputFormatter:
         """Return the output formatter by explicit name or the default when not provided.
-        
+
         Args:
             formatter_name: The name of the output formatter to select.
 
@@ -322,7 +618,9 @@ class App(Base):
             return self.output_formatters.get_formatter(formatter_name)
         return self.output_formatters.get_default()
 
-    def _format_output(self, results: 'Results', formatter_name: Optional[str], params: ParamsDict) -> Any:
+    def _format_output(
+        self, results: "Results", formatter_name: Optional[str], params: ParamsDict
+    ) -> Any:
         """Apply the selected output formatter to results with a params context.
 
         Builds a context with both namespaced `params` and top-level keys for compatibility
@@ -333,7 +631,9 @@ class App(Base):
 
         """
         formatter = self._select_formatter(formatter_name)
-        return formatter.render(results, params={"params": dict(params or {})}) # {"params": dict(params or {})} is a bit of a hack to allow the formatter to be parameterized with the values from the initial_survey.
+        return formatter.render(
+            results, params={"params": dict(params or {})}
+        )  # {"params": dict(params or {})} is a bit of a hack to allow the formatter to be parameterized with the values from the initial_survey.
 
     @staticmethod
     def reconstitute_api_output(payload: Any) -> Any:
@@ -350,39 +650,9 @@ class App(Base):
         """
         return reconstitute_from_api_payload(payload)
 
-    def _remote_output(
-        self,
-        *,
-        params: ParamsDict | None,
-        formatter_name: Optional[str] = None,
-        server_url: str = "http://localhost:8000",
-        app_id: Optional[str] = None,
-    ) -> Any:
-        """Run output remotely and return the locally rendered result using server-returned Results + formatters."""
-        # Lazy import to avoid cycles
-        from .app_server_client import AppServerClient
-
-        target_app_id = app_id or AppServerClient.deploy(self, server_url=server_url)
-        exec_resp = AppServerClient.execute_app(
-            target_app_id,
-            dict(params or {}),
-            formatter_name=formatter_name,
-            server_url=server_url,
-            api_payload=True,
-            return_results=True,
-        )
-        # Expect standardized payload strictly: result -> results/formatters/selected_formatter
-        packet = exec_resp["result"]
-        from .output_formatter import OutputFormatters
-        from ..results import Results
-        reconstructed_results = Results.from_dict(packet["results"])
-        ofs = OutputFormatters.from_dict(packet["formatters"])
-        selected = packet.get("selected_formatter")
-        fmt = ofs.get_formatter(selected) if selected else ofs.get_default()
-        return fmt.render(reconstructed_results, params={"params": dict(params or {})})
-
-
-    def _apply_default_params(self, params: ParamsDict, *, survey_names = None, default_params = None) -> ParamsDict:
+    def _apply_default_params(
+        self, params: ParamsDict, *, survey_names=None, default_params=None
+    ) -> ParamsDict:
         """Merge provided params with defaults declared on the App.
 
         Any key missing from params or explicitly None will be filled with the
@@ -409,10 +679,16 @@ class App(Base):
         Returns:
             The merged parameters.
         """
-        survey_names = {q.question_name for q in self.initial_survey} if survey_names is None else survey_names
-        default_params = self._default_params if default_params is None else default_params
+        survey_names = (
+            {q.question_name for q in self.initial_survey}
+            if survey_names is None
+            else survey_names
+        )
+        default_params = (
+            self._default_params if default_params is None else default_params
+        )
 
-        #survey_names = {q.question_name for q in initial_survey}
+        # survey_names = {q.question_name for q in initial_survey}
         merged: dict[str, Any] = dict(params or {})
         for key, value in default_params.items():
             if survey_names and key not in survey_names:
@@ -421,7 +697,9 @@ class App(Base):
                 merged[key] = value
         return merged
 
-    def _apply_fixed_params(self, params: ParamsDict, *, fixed_params = None) -> ParamsDict:
+    def _apply_fixed_params(
+        self, params: ParamsDict, *, fixed_params=None
+    ) -> ParamsDict:
         """Apply fixed params while rejecting user-provided values for fixed keys.
 
         If the caller supplies any parameter that is fixed on this App, raise an
@@ -466,8 +744,9 @@ class App(Base):
           destination (scenario, survey, agent_list)
 
         """
-        
+
         from .head_attachments_builder import HeadAttachmentsBuilder
+
         return HeadAttachmentsBuilder.build(self, params)
 
     def add_output_formatter(
@@ -491,9 +770,10 @@ class App(Base):
 
         return self
 
+    @disabled_in_client_mode
     def add_attachment_formatter(self, formatter: "ObjectFormatter") -> "App":
         """Add an attachment formatter (fluent).
-        
+
         Args:
             formatter: The `ObjectFormatter` instance to add.
 
@@ -505,9 +785,10 @@ class App(Base):
         self.attachment_formatters = current
         return self
 
+    @disabled_in_client_mode
     def code(self) -> str:
         """Return the code for the app.
-        
+
         Returns:
             The code for the app.
         """
@@ -553,6 +834,7 @@ class App(Base):
             default_formatter_name=self.output_formatters.default,
         )
 
+    @disabled_in_client_mode
     def partial_application(self, fixed: dict[str, Any]) -> "App":
         """Return a new App instance with specified initial_survey params fixed.
 
@@ -630,7 +912,9 @@ class App(Base):
         num_questions = len(list(self.initial_survey))
         head_param_count = len(getattr(self.jobs_object, "head_parameters", []) or [])
         fmt_names_list = list(getattr(self.output_formatters, "mapping", {}).keys())
-        fmt_names = ", ".join(fmt_names_list[:8]) + ("..." if len(fmt_names_list) > 8 else "")
+        fmt_names = ", ".join(fmt_names_list[:8]) + (
+            "..." if len(fmt_names_list) > 8 else ""
+        )
         try:
             default_fmt_obj = (
                 getattr(self.output_formatters, "default", None)
@@ -645,14 +929,25 @@ class App(Base):
         except Exception:
             default_fmt = "<none>"
         attach_names_list = [
-            getattr(f, "name", f.__class__.__name__) for f in (self.attachment_formatters or [])
+            getattr(f, "name", f.__class__.__name__)
+            for f in (self.attachment_formatters or [])
         ]
-        attach_names = ", ".join(attach_names_list[:8]) + ("..." if len(attach_names_list) > 8 else "")
+        attach_names = ", ".join(attach_names_list[:8]) + (
+            "..." if len(attach_names_list) > 8 else ""
+        )
         app_type = self.application_type
 
         # Extract name and description strings from TypedDicts
-        app_name = self.application_name.get("name", "Unknown") if isinstance(self.application_name, dict) else str(self.application_name)
-        app_desc = self.description.get("short", "No description") if isinstance(self.description, dict) else str(self.description)
+        app_name = (
+            self.application_name.get("name", "Unknown")
+            if isinstance(self.application_name, dict)
+            else str(self.application_name)
+        )
+        app_desc = (
+            self.description.get("short", "No description")
+            if isinstance(self.description, dict)
+            else str(self.description)
+        )
 
         return (
             f"{cls_name}(name='{app_name}', description='{app_desc}', "
@@ -764,12 +1059,18 @@ class App(Base):
                     "option_fields must contain exactly two field names, e.g., ['item_1','item_2']"
                 )
         except TypeError:
-            raise TypeError("option_fields must be a sequence of exactly two field names")
+            raise TypeError(
+                "option_fields must be a sequence of exactly two field names"
+            )
 
         try:
             q_opts = getattr(ranking_question, "question_options", None)
             q_text = getattr(ranking_question, "question_text", "") or ""
-            haystack = " ".join([str(x) for x in (q_opts or []) if isinstance(x, str)]) + " " + str(q_text)
+            haystack = (
+                " ".join([str(x) for x in (q_opts or []) if isinstance(x, str)])
+                + " "
+                + str(q_text)
+            )
             missing = [f for f in option_fields if f not in haystack]
             if missing:
                 raise ValueError(
@@ -820,8 +1121,7 @@ class App(Base):
             ),
         )
 
-    
-
+    @disabled_in_client_mode
     def push(
         self,
         visibility: Optional[str] = "unlisted",
@@ -835,68 +1135,11 @@ class App(Base):
             self, visibility=visibility, description=description, alias=alias
         )
 
-    @classmethod
-    def pull(cls, edsl_uuid: str) -> "App":
-        """Pull an app by UUID from the remote registry/service."""
-        from .app_remote import AppRemote
-
-        return AppRemote.pull(cls, edsl_uuid)
-
-    @classmethod
-    def example(cls) -> "App":
-        """Return a minimal App configured with Model('test') for local testing.
-
-        Example:
-            >>> app = App.example()
-            >>> out = app.output(params={"text": "hello"}, disable_remote_inference=True)
-            >>> bool(out)
-            True
-        """
-        # Import locally to avoid cycles
-        from ..surveys import Survey
-        from ..questions import QuestionFreeText, QuestionList
-        from ..language_models.model import Model
-        from .output_formatter import OutputFormatter
-
-        initial_survey = Survey(
-            [
-                QuestionFreeText(
-                    question_name="text",
-                    question_text="Provide a short text",
-                )
-            ]
-        )
-
-        # Simple echo job that repeats the input text; bound to test model
-        echo_job = Survey(
-            [
-                QuestionFreeText(
-                    question_name="echo",
-                    question_text="Echo this back: {{ scenario.text }}",
-                )
-            ]
-        ).by(Model("test"))
-
-        echo_formatter = (
-            OutputFormatter(description="Echo")
-            .select("answer.echo")
-            .to_scenario_list()
-            .table()
-        )
-
-        return cls(
-            application_name="Example App",
-            description="A minimal example app that echoes user input.",
-            initial_survey=initial_survey,
-            jobs_object=echo_job,
-            output_formatters={"echo": echo_formatter},
-            default_formatter_name="echo",
-        )
 
 
 if __name__ == "__main__":
-    import doctest
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
+    # import doctest
+    # doctest.testmod(optionflags=doctest.ELLIPSIS)
     from edsl import QuestionFreeText, QuestionList
 
     initial_survey = Survey(
@@ -923,7 +1166,7 @@ if __name__ == "__main__":
         .to_markdown()
     )
 
-    app = App(
+    app = ClientFacingApp(
         application_name="Twitter Thread Splitter",
         description="This application splits text into a twitter thread.",
         initial_survey=initial_survey,
@@ -953,11 +1196,13 @@ if __name__ == "__main__":
     )
 
     # Remote output
-    remote_out = app._remote_output(
+    remote_app = ClientFacingApp(app_id=app_id)
+
+    remote_out = remote_app._remote_output(
         params={"raw_text": raw_text},
         formatter_name="splitter",
         server_url="http://localhost:8000",
-        app_id=app_id,
+        #      app_id=app_id,
     )
 
     print("Local equals Remote:", str(local_out) == str(remote_out))

@@ -5,23 +5,17 @@ from typing import Any, Optional, Dict, List
 import uuid
 import json
 import logging
-import sqlite3
 import tempfile
 import shutil
 from pathlib import Path
+from collections import Counter
 
-try:
-    from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File, Form
-    from fastapi.responses import JSONResponse, FileResponse
-    from fastapi.staticfiles import StaticFiles
-    from fastapi.middleware.cors import CORSMiddleware
-    from pydantic import BaseModel, Field
-    import uvicorn
-except ImportError:
-    raise ImportError(
-        "FastAPI and uvicorn are required for the app server. "
-        "Install with: pip install fastapi uvicorn pydantic"
-    )
+from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File, Form
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+import uvicorn
 
 import sys
 from pathlib import Path
@@ -30,6 +24,55 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from edsl.app.app import App
+from edsl.app.api_payload import build_api_payload
+from edsl.app.server.search_utils import rank_apps_bm25
+
+# SQLAlchemy ORM setup
+from sqlalchemy import (
+    create_engine,
+    Column,
+    String,
+    Text,
+    DateTime,
+    ForeignKey,
+    UniqueConstraint,
+    Boolean,
+)
+from sqlalchemy.orm import declarative_base, sessionmaker, Session
+
+# SQLAlchemy base and engine
+Base = declarative_base()
+
+class AppModel(Base):
+    __tablename__ = "apps"
+    app_id = Column(String, primary_key=True)
+    name = Column(Text, nullable=False)
+    alias = Column(Text, nullable=True)
+    qualified_name = Column(Text, nullable=True)
+    description = Column(Text, nullable=True)
+    application_type = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    app_data = Column(Text, nullable=False)
+    parameters = Column(Text, nullable=True)
+    available_formatters = Column(Text, nullable=True)
+    formatter_metadata = Column(Text, nullable=True)
+    default_formatter_name = Column(Text, nullable=True)
+    owner = Column(Text, nullable=True)
+    source_available = Column(Boolean, default=False)
+
+    __table_args__ = (
+        UniqueConstraint("owner", "alias", name="idx_apps_owner_alias_unique"),
+        UniqueConstraint("qualified_name", name="idx_apps_qualified_name_unique"),
+    )
+
+class ExecutionModel(Base):
+    __tablename__ = "executions"
+    execution_id = Column(String, primary_key=True)
+    app_id = Column(String, ForeignKey("apps.app_id"), nullable=False)
+    status = Column(Text, default="running")
+    result = Column(Text, nullable=True)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -61,6 +104,8 @@ class AppMetadata(BaseModel):
     available_formatters: List[str] = Field(default_factory=list)
     formatter_metadata: List[Dict[str, Any]] = Field(default_factory=list)
     default_formatter_name: Optional[str] = None
+    owner: Optional[str] = None
+    qualified_name: Optional[str] = None  # "owner/alias" when available
 
 class AppExecutionRequest(BaseModel):
     answers: Dict[str, Any]
@@ -83,88 +128,70 @@ class StatsResponse(BaseModel):
     total_executions: int
     uptime: str
 
+class AppStatsResponse(BaseModel):
+    app: AppMetadata
+    total_runs: int
+    completed_runs: int
+    failed_runs: int
+    last_run: Optional[str] = None
+
 # Database setup
 class DatabaseManager:
     def __init__(self, db_path: str = "edsl_apps.db"):
         self.db_path = db_path
+        # SQLite URL for SQLAlchemy
+        self.db_url = f"sqlite:///{self.db_path}"
+        # create_engine with check_same_thread for FastAPI
+        self.engine = create_engine(self.db_url, connect_args={"check_same_thread": False})
+        self.SessionLocal = sessionmaker(bind=self.engine, autocommit=False, autoflush=False)
         self.init_database()
 
+    def get_session(self) -> Session:
+        return self.SessionLocal()
+
     def init_database(self):
-        """Initialize SQLite database with required tables."""
-        with sqlite3.connect(self.db_path) as conn:
-            # Check if we need to migrate existing schema
-            cursor = conn.execute("PRAGMA table_info(apps)")
-            columns = {row[1]: row[2] for row in cursor.fetchall()}
+        """Initialize database by wiping existing file and recreating schema."""
+        try:
+            db_file = Path(self.db_path)
+            if db_file.exists():
+                db_file.unlink()
+                logger.info("Removed existing database file; recreating schema fresh")
+        except Exception as e:
+            logger.warning(f"Failed to remove existing database file: {e}")
+        # Recreate schema fresh
+        Base.metadata.create_all(bind=self.engine)
 
-            if not columns:
-                # Fresh database - create with new schema
-                conn.execute("""
-                    CREATE TABLE IF NOT EXISTS apps (
-                        app_id TEXT PRIMARY KEY,
-                        name TEXT NOT NULL,
-                        description TEXT,
-                        application_type TEXT NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        app_data TEXT NOT NULL,
-                        parameters TEXT,
-                        available_formatters TEXT,
-                        formatter_metadata TEXT,
-                        default_formatter_name TEXT
-                    )
-                """)
-            else:
-                # Check if formatter_metadata column exists, add if missing
-                if 'formatter_metadata' not in columns:
-                    try:
-                        conn.execute("ALTER TABLE apps ADD COLUMN formatter_metadata TEXT")
-                        logger.info("Added formatter_metadata column to apps table")
-                    except sqlite3.OperationalError:
-                        pass  # Column already exists
-                # Check if default_formatter_name column exists, add if missing
-                if 'default_formatter_name' not in columns:
-                    try:
-                        conn.execute("ALTER TABLE apps ADD COLUMN default_formatter_name TEXT")
-                        logger.info("Added default_formatter_name column to apps table")
-                    except sqlite3.OperationalError:
-                        pass  # Column already exists
-
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS executions (
-                    execution_id TEXT PRIMARY KEY,
-                    app_id TEXT NOT NULL,
-                    status TEXT DEFAULT 'running',
-                    result TEXT,
-                    error TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (app_id) REFERENCES apps (app_id)
-                )
-            """)
-            conn.commit()
-
-    def store_app(self, app: App) -> str:
-        """Store an app and return its app_id."""
+    def store_app(self, app: App, owner: Optional[str] = None, source_available: Optional[bool] = False, force: bool = False) -> str:
+        """Store an app and return its app_id.
+        
+        Args:
+            app: The App instance to store.
+            owner: Optional owner string for global uniqueness.
+            source_available: If True, the source code is available to future users.
+            force: If True, overwrite any existing app with the same owner/alias.
+        """
         app_id = str(uuid.uuid4())
         app_dict = app.to_dict()
         app_data = json.dumps(app_dict)
 
         # Extract application_name and description from TypedDicts
         app_name = app.application_name
+        # Normalize to dict form with ensured alias
         if isinstance(app_name, dict):
-            name_json = json.dumps(app_name)
+            pretty_name = app_name.get("name") or "Unknown"
+            alias_value = app_name.get("alias")
         else:
-            # Fallback for string (backward compatibility)
-            name_json = json.dumps({"name": str(app_name), "alias": str(app_name).lower().replace(" ", "_")})
+            pretty_name = str(app_name)
+            alias_value = None
+        # Derive alias if missing; simple slug: lower, spaces->underscore
+        if not alias_value and isinstance(pretty_name, str):
+            alias_value = pretty_name.lower().replace(" ", "_")
+        # Persist a clean name dict with alias
+        name_json = json.dumps({"name": pretty_name, "alias": alias_value})
 
         app_description = app.description
-        if isinstance(app_description, dict):
-            description_json = json.dumps(app_description)
-        else:
-            # Fallback for string (backward compatibility)
-            desc_str = str(app_description) if app_description else "No description provided."
-            if not desc_str.endswith('.'):
-                desc_str = f"{desc_str}."
-            description_json = json.dumps({"short": desc_str, "long": desc_str})
-
+        description_json = json.dumps(app_description)
+        
         # Extract parameters from initial_survey
         parameters = json.dumps([
             {
@@ -182,181 +209,243 @@ class DatabaseManager:
         default_formatter_name = getattr(app.output_formatters, 'default', None)
 
         # Extract formatter metadata (output_type)
-        try:
-            formatter_metadata_list = [
-                {
-                    "name": name,
-                    "description": getattr(formatter, 'description', None),
-                    "output_type": getattr(formatter, 'output_type', 'auto')
-                }
-                for name, formatter in app.output_formatters.mapping.items()
-            ]
-            logger.info(f"Extracted formatter metadata: {formatter_metadata_list}")
-            formatter_metadata = json.dumps(formatter_metadata_list)
-        except Exception as e:
-            logger.error(f"Failed to extract formatter metadata: {e}")
-            formatter_metadata = json.dumps([])
+        formatter_metadata_list = [
+            {
+                "name": name,
+                "description": getattr(formatter, 'description', None),
+                "output_type": getattr(formatter, 'output_type', 'auto')
+            }
+            for name, formatter in app.output_formatters.mapping.items()
+        ]
+        logger.info(f"Extracted formatter metadata: {formatter_metadata_list}")
+        formatter_metadata = json.dumps(formatter_metadata_list)
 
         # Get application_type from the dict to avoid descriptor issues
         application_type = app_dict.get('application_type', 'base')
 
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
-                INSERT INTO apps (app_id, name, description, application_type, app_data, parameters, available_formatters, formatter_metadata, default_formatter_name)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                app_id,
-                name_json,
-                description_json,
-                application_type,
-                app_data,
-                parameters,
-                available_formatters,
-                formatter_metadata,
-                default_formatter_name
-            ))
-            conn.commit()
+        # Compute qualified_name if possible
+        qualified_name_value = f"{owner}/{alias_value}" if owner and alias_value else None
+
+        # Enforce global uniqueness of owner/alias or qualified_name when provided
+        session = self.get_session()
+        try:
+            if qualified_name_value:
+                existing = (
+                    session.query(AppModel)
+                    .filter(AppModel.qualified_name == qualified_name_value)
+                    .first()
+                )
+                if existing:
+                    if force:
+                        # Delete the existing app and its executions
+                        logger.info(f"Force=True: Deleting existing app {existing.app_id} with qualified name '{qualified_name_value}'")
+                        session.query(ExecutionModel).filter(ExecutionModel.app_id == existing.app_id).delete()
+                        session.delete(existing)
+                        session.commit()
+                    else:
+                        raise ValueError(f"An app with qualified name '{qualified_name_value}' already exists")
+
+            app_row = AppModel(
+                app_id=app_id,
+                name=name_json,
+                alias=alias_value,
+                qualified_name=qualified_name_value,
+                description=description_json,
+                application_type=application_type,
+                created_at=datetime.utcnow(),
+                app_data=app_data,
+                parameters=parameters,
+                available_formatters=available_formatters,
+                formatter_metadata=formatter_metadata,
+                default_formatter_name=default_formatter_name,
+                owner=owner,
+                source_available=bool(source_available),
+            )
+            session.add(app_row)
+            session.commit()
+        finally:
+            session.close()
 
         # Log with pretty name
-        pretty_name = app_name.get("name", "Unknown") if isinstance(app_name, dict) else str(app_name)
+        pretty_name = pretty_name if isinstance(pretty_name, str) else str(pretty_name)
         logger.info(f"Stored app {app_id} ({pretty_name})")
         return app_id
 
     def get_app(self, app_id: str) -> Optional[App]:
         """Retrieve an app by ID."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute(
-                "SELECT app_data FROM apps WHERE app_id = ?", (app_id,)
-            )
-            row = cursor.fetchone()
-
+        session = self.get_session()
+        try:
+            row = session.get(AppModel, app_id)
             if row:
-                app_data = json.loads(row[0])
-                # Check if it's a CompositeApp
+                app_data = json.loads(row.app_data)
                 if app_data.get("application_type") == "composite":
                     from edsl.app.composite_app import CompositeApp
                     return CompositeApp.from_dict(app_data)
                 return App.from_dict(app_data)
             return None
+        finally:
+            session.close()
 
     def get_app_metadata(self, app_id: str) -> Optional[AppMetadata]:
         """Get app metadata without full app data."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute("""
-                SELECT app_id, name, description, application_type, created_at, parameters, available_formatters, formatter_metadata, default_formatter_name
-                FROM apps WHERE app_id = ?
-            """, (app_id,))
-            row = cursor.fetchone()
+        session = self.get_session()
+        try:
+            row = session.get(AppModel, app_id)
+            if not row:
+                return None
 
-            if row:
+            # Parse name and description from JSON
+            try:
+                name_data = json.loads(row.name)
+                if not isinstance(name_data, dict):
+                    name_data = {"name": str(row.name), "alias": str(row.name).lower().replace(" ", "_")}
+            except (json.JSONDecodeError, TypeError):
+                name_data = {"name": str(row.name), "alias": str(row.name).lower().replace(" ", "_")}
+
+            try:
+                description_data = json.loads(row.description) if row.description else None
+                if not isinstance(description_data, dict):
+                    desc_str = str(row.description) if row.description else "No description provided."
+                    if not desc_str.endswith('.'):  # type: ignore[union-attr]
+                        desc_str = f"{desc_str}."
+                    description_data = {"short": desc_str, "long": desc_str}
+            except (json.JSONDecodeError, TypeError):
+                desc_str = str(row.description) if row.description else "No description provided."
+                if not desc_str.endswith('.'):
+                    desc_str = f"{desc_str}."
+                description_data = {"short": desc_str, "long": desc_str}
+
+            owner = row.owner
+            alias = row.alias if row.alias else (name_data.get("alias") if isinstance(name_data, dict) else None)
+            qualified = f"{owner}/{alias}" if owner and alias else None
+
+            return AppMetadata(
+                app_id=row.app_id,
+                name=ApplicationNameModel(**name_data),
+                description=DescriptionModel(**description_data),
+                application_type=row.application_type,
+                created_at=row.created_at if isinstance(row.created_at, datetime) else datetime.fromisoformat(str(row.created_at)),
+                parameters=json.loads(row.parameters) if row.parameters else [],
+                available_formatters=json.loads(row.available_formatters) if row.available_formatters else [],
+                formatter_metadata=json.loads(row.formatter_metadata) if row.formatter_metadata else [],
+                default_formatter_name=row.default_formatter_name,
+                owner=owner,
+                qualified_name=qualified,
+            )
+        finally:
+            session.close()
+
+    def list_apps(self, search: Optional[str] = None) -> List[AppMetadata]:
+        """List all apps, optionally ranked by BM25 for a search query."""
+        session = self.get_session()
+        try:
+            rows = session.query(AppModel).all()
+
+            items_for_ranking = []  # Each item: mapping used by ranker
+
+            for row in rows:
                 # Parse name and description from JSON
                 try:
-                    name_data = json.loads(row[1])
+                    name_data = json.loads(row.name)
                     if not isinstance(name_data, dict):
-                        # Fallback for old data
-                        name_data = {"name": str(row[1]), "alias": str(row[1]).lower().replace(" ", "_")}
+                        name_data = {"name": str(row.name), "alias": str(row.name).lower().replace(" ", "_")}
                 except (json.JSONDecodeError, TypeError):
-                    # Fallback for old string data
-                    name_data = {"name": str(row[1]), "alias": str(row[1]).lower().replace(" ", "_")}
+                    name_data = {"name": str(row.name), "alias": str(row.name).lower().replace(" ", "_")}
 
                 try:
-                    description_data = json.loads(row[2])
+                    description_data = json.loads(row.description) if row.description else None
                     if not isinstance(description_data, dict):
-                        # Fallback for old data
-                        desc_str = str(row[2]) if row[2] else "No description provided."
+                        desc_str = str(row.description) if row.description else "No description provided."
                         if not desc_str.endswith('.'):
                             desc_str = f"{desc_str}."
                         description_data = {"short": desc_str, "long": desc_str}
                 except (json.JSONDecodeError, TypeError):
-                    # Fallback for old string data
-                    desc_str = str(row[2]) if row[2] else "No description provided."
+                    desc_str = str(row.description) if row.description else "No description provided."
                     if not desc_str.endswith('.'):
                         desc_str = f"{desc_str}."
                     description_data = {"short": desc_str, "long": desc_str}
 
-                return AppMetadata(
-                    app_id=row[0],
+                parameters = json.loads(row.parameters) if row.parameters else []
+                available_formatters = json.loads(row.available_formatters) if row.available_formatters else []
+                formatter_metadata = json.loads(row.formatter_metadata) if row.formatter_metadata else []
+
+                owner = row.owner
+                alias = row.alias if row.alias else (name_data.get("alias") if isinstance(name_data, dict) else None)
+                qualified = f"{owner}/{alias}" if owner and alias else None
+
+                metadata = AppMetadata(
+                    app_id=row.app_id,
                     name=ApplicationNameModel(**name_data),
                     description=DescriptionModel(**description_data),
-                    application_type=row[3],
-                    created_at=datetime.fromisoformat(row[4]),
-                    parameters=json.loads(row[5]),
-                    available_formatters=json.loads(row[6]),
-                    formatter_metadata=json.loads(row[7]) if len(row) > 7 and row[7] else [],
-                    default_formatter_name=row[8] if len(row) > 8 else None
+                    application_type=row.application_type,
+                    created_at=row.created_at if isinstance(row.created_at, datetime) else datetime.fromisoformat(str(row.created_at)),
+                    parameters=parameters,
+                    available_formatters=available_formatters,
+                    formatter_metadata=formatter_metadata,
+                    default_formatter_name=row.default_formatter_name,
+                    owner=owner,
+                    qualified_name=qualified,
                 )
-            return None
 
-    def list_apps(self) -> List[AppMetadata]:
-        """List all apps."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute("""
-                SELECT app_id, name, description, application_type, created_at, parameters, available_formatters, formatter_metadata, default_formatter_name
-                FROM apps ORDER BY created_at DESC
-            """)
+                items_for_ranking.append({
+                    "meta": metadata,
+                    "name": name_data.get("name"),
+                    "short_desc": description_data.get("short"),
+                    "long_desc": description_data.get("long"),
+                    "application_type": row.application_type,
+                    "parameters": parameters,
+                    "available_formatters": available_formatters,
+                })
 
-            apps = []
-            for row in cursor.fetchall():
-                # Parse name and description from JSON
-                try:
-                    name_data = json.loads(row[1])
-                    if not isinstance(name_data, dict):
-                        name_data = {"name": str(row[1]), "alias": str(row[1]).lower().replace(" ", "_")}
-                except (json.JSONDecodeError, TypeError):
-                    name_data = {"name": str(row[1]), "alias": str(row[1]).lower().replace(" ", "_")}
+            # If no search provided, preserve created_at DESC order as before
+            if not search or not search.strip():
+                return sorted([it["meta"] for it in items_for_ranking], key=lambda m: m.created_at, reverse=True)
 
-                try:
-                    description_data = json.loads(row[2])
-                    if not isinstance(description_data, dict):
-                        desc_str = str(row[2]) if row[2] else "No description provided."
-                        if not desc_str.endswith('.'):
-                            desc_str = f"{desc_str}."
-                        description_data = {"short": desc_str, "long": desc_str}
-                except (json.JSONDecodeError, TypeError):
-                    desc_str = str(row[2]) if row[2] else "No description provided."
-                    if not desc_str.endswith('.'):
-                        desc_str = f"{desc_str}."
-                    description_data = {"short": desc_str, "long": desc_str}
-
-                apps.append(AppMetadata(
-                    app_id=row[0],
-                    name=ApplicationNameModel(**name_data),
-                    description=DescriptionModel(**description_data),
-                    application_type=row[3],
-                    created_at=datetime.fromisoformat(row[4]),
-                    parameters=json.loads(row[5]),
-                    available_formatters=json.loads(row[6]),
-                    formatter_metadata=json.loads(row[7]) if len(row) > 7 and row[7] else [],
-                    default_formatter_name=row[8] if len(row) > 8 else None
-                ))
-            return apps
+            # Use search utility for BM25 ranking
+            ranked_metas = rank_apps_bm25(items_for_ranking, search)
+            return ranked_metas
+        finally:
+            session.close()
 
     def store_execution(self, app_id: str, execution_id: str, status: str, result: Any = None, error: str = None):
         """Store execution result."""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
-                INSERT OR REPLACE INTO executions (execution_id, app_id, status, result, error)
-                VALUES (?, ?, ?, ?, ?)
-            """, (execution_id, app_id, status, json.dumps(result) if result else None, error))
-            conn.commit()
+        session = self.get_session()
+        try:
+            row = session.get(ExecutionModel, execution_id)
+            if row is None:
+                row = ExecutionModel(
+                    execution_id=execution_id,
+                    app_id=app_id,
+                    status=status,
+                    result=json.dumps(result) if result is not None else None,
+                    error=error,
+                    created_at=datetime.utcnow(),
+                )
+                session.add(row)
+            else:
+                row.status = status
+                row.result = json.dumps(result) if result is not None else None
+                row.error = error
+            session.commit()
+        finally:
+            session.close()
 
     def get_execution(self, execution_id: str) -> Optional[AppExecutionResponse]:
         """Get execution status and result."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute("""
-                SELECT execution_id, status, result, error FROM executions WHERE execution_id = ?
-            """, (execution_id,))
-            row = cursor.fetchone()
-
+        session = self.get_session()
+        try:
+            row = session.get(ExecutionModel, execution_id)
             if row:
-                result = json.loads(row[2]) if row[2] else None
+                result = json.loads(row.result) if row.result else None
                 return AppExecutionResponse(
-                    execution_id=row[0],
-                    status=row[1],
+                    execution_id=row.execution_id,
+                    status=row.status,
                     result=result,
-                    error=row[3]
+                    error=row.error,
                 )
             return None
+        finally:
+            session.close()
 
 # Global database manager
 db_manager = DatabaseManager()
@@ -404,9 +493,12 @@ async def health_check():
 @app.get("/stats", response_model=StatsResponse)
 async def get_stats():
     """Get server statistics."""
-    with sqlite3.connect(db_manager.db_path) as conn:
-        app_count = conn.execute("SELECT COUNT(*) FROM apps").fetchone()[0]
-        exec_count = conn.execute("SELECT COUNT(*) FROM executions").fetchone()[0]
+    session = db_manager.get_session()
+    try:
+        app_count = session.query(AppModel).count()
+        exec_count = session.query(ExecutionModel).count()
+    finally:
+        session.close()
 
     return StatsResponse(
         total_apps=app_count,
@@ -462,6 +554,15 @@ async def list_edsl_objects(object_type: str):
 async def push_app(app_data: dict):
     """Push a new app to the server."""
     try:
+        # Capture optional owner from payload and remove it from app dict used to construct the App
+        owner = app_data.pop("owner", None)
+        if owner is None or str(owner).strip() == "":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Owner is required to deploy an app")
+        # Capture source_available flag; not part of App schema
+        source_available = bool(app_data.pop("source_available", False))
+        # Capture force flag; not part of App schema
+        force = bool(app_data.pop("force", False))
+
         # Reconstruct the app from the dictionary
         # Check if it's a CompositeApp
         if app_data.get("application_type") == "composite":
@@ -469,21 +570,79 @@ async def push_app(app_data: dict):
             app_instance = CompositeApp.from_dict(app_data)
         else:
             app_instance = App.from_dict(app_data)
-        app_id = db_manager.store_app(app_instance)
+        app_id = db_manager.store_app(app_instance, owner=owner, source_available=source_available, force=force)
 
         # Extract pretty name for response message
         app_name = app_instance.application_name
         pretty_name = app_name.get("name", "Unknown") if isinstance(app_name, dict) else str(app_name)
 
-        return {"app_id": app_id, "message": f"App '{pretty_name}' pushed successfully"}
+        return {"app_id": app_id, "message": f"App '{pretty_name}' pushed successfully", "owner": owner}
+    except ValueError as e:
+        logger.error(f"Error pushing app (conflict): {str(e)}")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except Exception as e:
         logger.error(f"Error pushing app: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Invalid app data: {str(e)}")
 
 @app.get("/apps", response_model=List[AppMetadata])
-async def list_apps():
-    """List all available apps."""
-    return db_manager.list_apps()
+async def list_apps(search: Optional[str] = None):
+    """List all available apps, optionally ranked by BM25 if 'search' is provided."""
+    return db_manager.list_apps(search=search)
+
+@app.get("/apps/resolve")
+async def resolve_app_id(qualified_name: str):
+    """Resolve a qualified name 'owner/alias' to an app_id."""
+    try:
+        if "/" not in qualified_name:
+            raise HTTPException(status_code=400, detail="qualified_name must be in the form 'owner/alias'")
+        owner, alias = qualified_name.split("/", 1)
+        owner = owner.strip()
+        alias = alias.strip()
+        if not owner or not alias:
+            raise HTTPException(status_code=400, detail="Both owner and alias must be non-empty")
+        session = db_manager.get_session()
+        try:
+            # Prefer direct lookup by qualified_name
+            app_row = (
+                session.query(AppModel)
+                .filter(AppModel.qualified_name == qualified_name)
+                .first()
+            )
+            if not app_row:
+                # Backward path: match by owner/alias columns
+                app_row = (
+                    session.query(AppModel)
+                    .filter(AppModel.owner == owner, AppModel.alias == alias)
+                    .first()
+                )
+                if not app_row:
+                    # Final fallback: derive alias from stored name JSON
+                    owner_rows = (
+                        session.query(AppModel)
+                        .filter(AppModel.owner == owner)
+                        .all()
+                    )
+                    for row in owner_rows:
+                        try:
+                            name_data = json.loads(row.name) if row.name else {}
+                        except Exception:
+                            name_data = {}
+                        derived_alias = name_data.get("alias")
+                        if not derived_alias and isinstance(name_data.get("name"), str):
+                            derived_alias = name_data["name"].lower().replace(" ", "_")
+                        if derived_alias == alias:
+                            app_row = row
+                            break
+        finally:
+            session.close()
+        if not app_row:
+            raise HTTPException(status_code=404, detail="App not found for qualified name")
+        return {"app_id": app_row.app_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error resolving qualified name '{qualified_name}': {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to resolve qualified name: {str(e)}")
 
 @app.get("/apps/{app_id}", response_model=AppMetadata)
 async def get_app_metadata(app_id: str):
@@ -492,6 +651,229 @@ async def get_app_metadata(app_id: str):
     if not metadata:
         raise HTTPException(status_code=404, detail="App not found")
     return metadata
+
+@app.get("/apps/resolve")
+async def resolve_app_id(qualified_name: str):
+    """Resolve a qualified name 'owner/alias' to an app_id."""
+    try:
+        if "/" not in qualified_name:
+            raise HTTPException(status_code=400, detail="qualified_name must be in the form 'owner/alias'")
+        owner, alias = qualified_name.split("/", 1)
+        owner = owner.strip()
+        alias = alias.strip()
+        if not owner or not alias:
+            raise HTTPException(status_code=400, detail="Both owner and alias must be non-empty")
+        session = db_manager.get_session()
+        try:
+            # Prefer direct lookup by qualified_name
+            app_row = (
+                session.query(AppModel)
+                .filter(AppModel.qualified_name == qualified_name)
+                .first()
+            )
+            if not app_row:
+                # Backward path: match by owner/alias columns
+                app_row = (
+                    session.query(AppModel)
+                    .filter(AppModel.owner == owner, AppModel.alias == alias)
+                    .first()
+                )
+                if not app_row:
+                    # Final fallback: derive alias from stored name JSON
+                    owner_rows = (
+                        session.query(AppModel)
+                        .filter(AppModel.owner == owner)
+                        .all()
+                    )
+                    for row in owner_rows:
+                        try:
+                            name_data = json.loads(row.name) if row.name else {}
+                        except Exception:
+                            name_data = {}
+                        derived_alias = name_data.get("alias")
+                        if not derived_alias and isinstance(name_data.get("name"), str):
+                            derived_alias = name_data["name"].lower().replace(" ", "_")
+                        if derived_alias == alias:
+                            app_row = row
+                            break
+        finally:
+            session.close()
+        if not app_row:
+            raise HTTPException(status_code=404, detail="App not found for qualified name")
+        return {"app_id": app_row.app_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error resolving qualified name '{qualified_name}': {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to resolve qualified name: {str(e)}")
+
+@app.get("/apps/{app_id}/stats", response_model=AppStatsResponse)
+async def get_app_stats(app_id: str):
+    """Return app metadata and execution statistics for frontend consumption."""
+    metadata = db_manager.get_app_metadata(app_id)
+    if not metadata:
+        raise HTTPException(status_code=404, detail="App not found")
+    session = db_manager.get_session()
+    try:
+        total_runs = session.query(ExecutionModel).filter(ExecutionModel.app_id == app_id).count()
+        completed_runs = (
+            session.query(ExecutionModel)
+            .filter(ExecutionModel.app_id == app_id, ExecutionModel.status == "completed")
+            .count()
+        )
+        failed_runs = (
+            session.query(ExecutionModel)
+            .filter(ExecutionModel.app_id == app_id, ExecutionModel.status == "failed")
+            .count()
+        )
+        last_run_row = (
+            session.query(ExecutionModel.created_at)
+            .filter(ExecutionModel.app_id == app_id)
+            .order_by(ExecutionModel.created_at.desc())
+            .first()
+        )
+    finally:
+        session.close()
+
+    last_run_iso = None
+    if last_run_row and last_run_row[0]:
+        try:
+            last_run_value = last_run_row[0]
+            last_run_iso = last_run_value.isoformat() if isinstance(last_run_value, datetime) else datetime.fromisoformat(str(last_run_value)).isoformat()
+        except Exception:
+            last_run_iso = str(last_run_row[0])
+
+    return AppStatsResponse(
+        app=metadata,
+        total_runs=total_runs,
+        completed_runs=completed_runs,
+        failed_runs=failed_runs,
+        last_run=last_run_iso,
+    )
+
+@app.get("/apps/{app_id}/page", response_class=HTMLResponse)
+async def get_app_page(app_id: str):
+    """Render an HTML page with detailed app metadata and execution statistics."""
+    metadata = db_manager.get_app_metadata(app_id)
+    if not metadata:
+        raise HTTPException(status_code=404, detail="App not found")
+
+    # Compute execution statistics
+    session = db_manager.get_session()
+    try:
+        total_runs = session.query(ExecutionModel).filter(ExecutionModel.app_id == app_id).count()
+        completed_runs = (
+            session.query(ExecutionModel)
+            .filter(ExecutionModel.app_id == app_id, ExecutionModel.status == "completed")
+            .count()
+        )
+        failed_runs = (
+            session.query(ExecutionModel)
+            .filter(ExecutionModel.app_id == app_id, ExecutionModel.status == "failed")
+            .count()
+        )
+        last_run_row = (
+            session.query(ExecutionModel.created_at)
+            .filter(ExecutionModel.app_id == app_id)
+            .order_by(ExecutionModel.created_at.desc())
+            .first()
+        )
+        last_run = last_run_row[0] if last_run_row else None
+    finally:
+        session.close()
+
+    # Build HTML content
+    app_name = metadata.name.name
+    alias = metadata.name.alias
+    short_desc = metadata.description.short
+    long_desc = metadata.description.long
+    created_at_str = metadata.created_at.isoformat()
+    application_type = metadata.application_type
+    default_formatter = metadata.default_formatter_name or "None"
+
+    # Formatters table rows
+    formatter_rows = "".join([
+        f"<tr><td>{fm.get('name','')}</td><td>{fm.get('output_type','auto')}</td><td>{(fm.get('description') or '')}</td></tr>"
+        for fm in (metadata.formatter_metadata or [])
+    ])
+    if not formatter_rows:
+        formatter_rows = "<tr><td colspan='3'>No formatter metadata available</td></tr>"
+
+    # Parameters list
+    param_items = "".join([
+        f"<li><strong>{p.get('question_name','')}</strong> — {p.get('question_text','')} <em>({p.get('question_type','')})</em></li>"
+        for p in (metadata.parameters or [])
+    ]) or "<li>No parameters</li>"
+
+    last_run_html = last_run or "Never"
+
+    html = f"""
+    <!doctype html>
+    <html lang=\"en\">
+    <head>
+        <meta charset=\"utf-8\" />
+        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+        <title>{app_name} — App Details</title>
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif; margin: 24px; color: #111; }}
+            .container {{ max-width: 960px; margin: 0 auto; }}
+            h1 {{ margin-bottom: 0; }}
+            .muted {{ color: #666; }}
+            .section {{ margin-top: 24px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 8px; }}
+            th, td {{ text-align: left; border-bottom: 1px solid #eee; padding: 8px; vertical-align: top; }}
+            code {{ background: #f6f8fa; padding: 2px 6px; border-radius: 4px; }}
+            .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 12px; }}
+            .card {{ border: 1px solid #eee; border-radius: 8px; padding: 12px; }}
+            a {{ color: #0366d6; text-decoration: none; }}
+            a:hover {{ text-decoration: underline; }}
+        </style>
+    </head>
+    <body>
+      <div class=\"container\">
+        <a href=\"/\">← Back to apps</a>
+        <h1>{app_name}</h1>
+        <div class=\"muted\">Alias: <code>{alias}</code> · Type: <code>{application_type}</code> · Created: {created_at_str}</div>
+
+        <div class=\"section\">
+          <h2>Description</h2>
+          <p>{short_desc}</p>
+          <details><summary>Full description</summary><p>{long_desc}</p></details>
+        </div>
+
+        <div class=\"section\">
+          <h2>Execution statistics</h2>
+          <div class=\"stats\">
+            <div class=\"card\"><div class=\"muted\">Total runs</div><div><strong>{total_runs}</strong></div></div>
+            <div class=\"card\"><div class=\"muted\">Completed</div><div><strong>{completed_runs}</strong></div></div>
+            <div class=\"card\"><div class=\"muted\">Failed</div><div><strong>{failed_runs}</strong></div></div>
+            <div class=\"card\"><div class=\"muted\">Last run</div><div><strong>{last_run_html}</strong></div></div>
+          </div>
+        </div>
+
+        <div class=\"section\">
+          <h2>Output formatters</h2>
+          <div class=\"muted\">Default: <code>{default_formatter}</code></div>
+          <table>
+            <thead><tr><th>Name</th><th>Output type</th><th>Description</th></tr></thead>
+            <tbody>
+              {formatter_rows}
+            </tbody>
+          </table>
+        </div>
+
+        <div class=\"section\">
+          <h2>Parameters</h2>
+          <ul>
+            {param_items}
+          </ul>
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+
+    return HTMLResponse(content=html)
 
 @app.get("/apps/{app_id}/parameters")
 async def get_app_parameters(app_id: str):
@@ -504,36 +886,56 @@ async def get_app_parameters(app_id: str):
 @app.get("/apps/{app_id}/data")
 async def get_app_data(app_id: str):
     """Get full app data for reconstruction."""
-    with sqlite3.connect(db_manager.db_path) as conn:
-        cursor = conn.execute("SELECT app_data FROM apps WHERE app_id = ?", (app_id,))
-        row = cursor.fetchone()
-
+    session = db_manager.get_session()
+    try:
+        row = session.get(AppModel, app_id)
         if not row:
             raise HTTPException(status_code=404, detail="App not found")
-
-        app_data = json.loads(row[0])
+        app_data = json.loads(row.app_data)
         return app_data
+    finally:
+        session.close()
+
+@app.get("/instantiate_remote_app_client/{app_id}")
+async def instantiate_remote_app_client(app_id: str):
+    """Return app dict suitable for client instantiation (without jobs_object)."""
+    app_instance = db_manager.get_app(app_id)
+    if not app_instance:
+        raise HTTPException(status_code=404, detail="App not found")
+    try:
+        return app_instance.to_dict_for_client()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to serialize app for client: {str(e)}")
 
 @app.delete("/apps/{app_id}")
-async def delete_app(app_id: str):
+async def delete_app(app_id: str, owner: Optional[str] = None):
     """Remove an app from the server."""
-    # Check if app exists
-    if not db_manager.get_app_metadata(app_id):
-        raise HTTPException(status_code=404, detail="App not found")
-
     try:
-        with sqlite3.connect(db_manager.db_path) as conn:
-            # Delete executions first (foreign key constraint)
-            conn.execute("DELETE FROM executions WHERE app_id = ?", (app_id,))
-            # Delete the app
-            cursor = conn.execute("DELETE FROM apps WHERE app_id = ?", (app_id,))
-            conn.commit()
-
-            if cursor.rowcount == 0:
+        session = db_manager.get_session()
+        try:
+            app_row = session.get(AppModel, app_id)
+            if not app_row:
                 raise HTTPException(status_code=404, detail="App not found")
+
+            stored_owner = app_row.owner
+            if stored_owner:
+                if owner is None:
+                    raise HTTPException(status_code=400, detail="Owner is required to delete this app")
+                if owner != stored_owner:
+                    raise HTTPException(status_code=403, detail="Owner mismatch. Only the owner can delete this app")
+
+            # Delete executions first (no cascade configured here)
+            session.query(ExecutionModel).filter(ExecutionModel.app_id == app_id).delete()
+            session.delete(app_row)
+            session.commit()
+        finally:
+            session.close()
 
         logger.info(f"Deleted app {app_id}")
         return {"message": "App deleted successfully"}
+    except HTTPException:
+        # Re-raise HTTPExceptions so their status codes propagate correctly to the client
+        raise
     except Exception as e:
         logger.error(f"Error deleting app {app_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error deleting app: {str(e)}")
@@ -567,6 +969,8 @@ async def execute_app(app_id: str, request: AppExecutionRequest):
     """Execute an app with provided parameters."""
     # Get the app
     app_instance = db_manager.get_app(app_id)
+
+    logger.info(f"App instance jobs_object: {str(app_instance.jobs_object)}")
     if not app_instance:
         raise HTTPException(status_code=404, detail="App not found")
 
@@ -629,20 +1033,55 @@ async def execute_app(app_id: str, request: AppExecutionRequest):
         head_attachments = app_instance._prepare_head_attachments(processed_answers)
         modified_jobs_object = head_attachments.attach_to_head(app_instance.jobs_object)
 
-        results = app_instance._generate_results(
-            modified_jobs_object,
+        # Force local execution: disable proxy and offloading explicitly
+        results = modified_jobs_object.run(
             stop_on_exception=True,
-            disable_remote_inference=False,
+            disable_remote_inference=True,
         )
 
         logger.info(f"Results generated successfully, type: {type(results)}")
 
-        # Serialize results and formatters
-        serializable_result = {
+        # Serialize and/or format results depending on flags
+        if results is None:
+            raise RuntimeError("Jobs.run returned None; no results were produced. Check inputs and configuration.")
+
+        # Determine selected formatter name (robust fallbacks to avoid 'raw_results')
+        mapping_keys = list(getattr(app_instance.output_formatters, "mapping", {}).keys())
+        non_raw_keys = [k for k in mapping_keys if k != "raw_results"]
+        selected_formatter_name = (
+            formatter_name
+            or getattr(app_instance.output_formatters, "default", None)
+            or ("survey_table" if "survey_table" in mapping_keys else None)
+            or (non_raw_keys[0] if non_raw_keys else None)
+        )
+
+        # Apply formatter server-side for payload/raw paths
+        try:
+            formatted_output = app_instance._format_output(results, selected_formatter_name, processed_answers)
+        except Exception as e:
+            logger.error(f"Failed to apply formatter '{formatter_name}': {e}")
+            raise
+
+        # Packet used by client-side reconstruction path
+        results_packet = {
             "results": results.to_dict(add_edsl_version=True),
             "formatters": app_instance.output_formatters.to_dict(),
-            "selected_formatter": formatter_name,
+            "selected_formatter": selected_formatter_name,
         }
+
+        # Choose response payload according to flags
+        if request.return_results:
+            # Return raw results + formatters for client-side rendering
+            serializable_result = results_packet
+        else:
+            if request.api_payload:
+                # Return standardized API payload with meta + data for frontend rendering
+                serializable_result = build_api_payload(
+                    formatted_output, selected_formatter_name, app_instance, processed_answers
+                )
+            else:
+                # Return raw formatted output (string/dict/FileStore/etc.)
+                serializable_result = formatted_output
 
         # Store the successful execution
         db_manager.store_execution(

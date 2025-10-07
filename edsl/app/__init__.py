@@ -1,9 +1,7 @@
-from .app import App
+from .app import ClientFacingApp as App
 # Registry export
 from .app_registry import AppRegistry
 # Backwards-compat shim: export removed classes as aliases to App
-SingleScenarioApp = App
-SurveyInputApp = App
 
 # Common app types
 from .ranking_app import create_ranking_app
@@ -12,6 +10,7 @@ from .person_simulator import PersonSimulator
 
 # Output formatting
 from .output_formatter import OutputFormatter, OutputFormatters, ObjectFormatter
+from .app_run_output import AppRunOutput
 
 # App composition
 from .composite_app import CompositeApp
