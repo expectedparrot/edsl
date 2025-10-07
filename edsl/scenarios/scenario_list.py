@@ -353,6 +353,51 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         return self.data[index]
     
+    def slice(self, slice_str: str) -> ScenarioList:
+        """Get a slice of the ScenarioList using string notation.
+        
+        Args:
+            slice_str: String slice notation like '1:', '2:5', ':3', '1:5:2'
+            
+        Returns:
+            A new ScenarioList containing the sliced scenarios.
+            
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList.from_list("a", [1, 2, 3, 4, 5])
+            >>> sl.slice('1:')  # Everything from index 1 onwards
+            ScenarioList([Scenario({'a': 2}), Scenario({'a': 3}), Scenario({'a': 4}), Scenario({'a': 5})])
+            >>> sl.slice(':3')  # First 3 elements
+            ScenarioList([Scenario({'a': 1}), Scenario({'a': 2}), Scenario({'a': 3})])
+            >>> sl.slice('2:4')  # Elements from index 2 to 4 (exclusive)
+            ScenarioList([Scenario({'a': 3}), Scenario({'a': 4})])
+            >>> sl.slice('1:5:2')  # Every 2nd element from index 1 to 5
+            ScenarioList([Scenario({'a': 2}), Scenario({'a': 4})])
+        """
+        # Parse the slice string
+        parts = slice_str.split(':')
+        if len(parts) == 1:
+            # Single index
+            start = int(parts[0]) if parts[0] else 0
+            stop = start + 1
+            step = 1
+        elif len(parts) == 2:
+            # start:stop
+            start = int(parts[0]) if parts[0] else None
+            stop = int(parts[1]) if parts[1] else None
+            step = 1
+        elif len(parts) == 3:
+            # start:stop:step
+            start = int(parts[0]) if parts[0] else None
+            stop = int(parts[1]) if parts[1] else None
+            step = int(parts[2]) if parts[2] else 1
+        else:
+            raise ValueError(f"Invalid slice string: {slice_str}")
+        
+        # Create slice object and use existing __getitem__ method
+        slice_obj = slice(start, stop, step)
+        return self[slice_obj]
+    
     def sum(self, field: str) -> int:
         """Sum the values of a field across all scenarios."""
         return sum(scenario[field] for scenario in self)

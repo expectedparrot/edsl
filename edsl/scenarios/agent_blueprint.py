@@ -95,7 +95,8 @@ class AgentBlueprint:
                         )
                     if len(raw_values) != len(raw_probs):
                         raise ValueError(
-                            f"Length mismatch for dimension '{dim_name}': {len(raw_values)} values but {len(raw_probs)} probabilities"
+                            f"Length mismatch for dimension '{dim_name}': {len(raw_values)} values but {len(raw_probs)} probabilities. "
+                            f"Values: {raw_values}. Probabilities: {raw_probs}"
                         )
                     # Coerce and validate numeric probabilities early for clearer errors
                     weighted_values = []
@@ -104,7 +105,9 @@ class AgentBlueprint:
                             w = float(_prob)
                         except Exception:
                             raise ValueError(
-                                f"Non-numeric probability specified for dimension '{dim_name}': {_prob!r}"
+                                f"Non-numeric probability specified for dimension '{dim_name}': {_prob!r} "
+                                f"(type: {type(_prob).__name__}). Expected numeric values but got: "
+                                f"values={raw_values}, probabilities={raw_probs}"
                             )
                         weighted_values.append((_val, w))
 
@@ -398,6 +401,84 @@ class AgentBlueprint:
             dimension_values_field=dimension_values_field,
             dimension_description_field=dimension_description_field,
         )
+
+    @classmethod
+    def from_dict(
+        cls,
+        dimensions_dict: dict[str, list],
+        seed: int | None = None,
+        cycle: bool = True,
+    ) -> "AgentBlueprint":
+        """Create an *AgentBlueprint* from a simple dictionary mapping dimension names to values.
+
+        This is a convenient constructor for quickly creating blueprints from simple
+        data structures without needing to construct Dimension objects explicitly.
+
+        Parameters
+        ----------
+        dimensions_dict : dict[str, list]
+            Dictionary mapping dimension names to lists of possible values.
+            Example: {"politics": ["left", "right", "center"], "age": ["young", "old"]}
+        seed, cycle
+            Passed through to the main constructor for determinism and cycling behaviour.
+
+        Examples
+        --------
+        >>> blueprint = AgentBlueprint.from_dict({
+        ...     "politics": ["left", "right", "center"],
+        ...     "age": ["young", "old"]
+        ... })
+        >>> print(blueprint._total_combinations)  # 6 combinations
+        """
+        if not dimensions_dict:
+            raise ValueError("dimensions_dict cannot be empty")
+
+        dimensions = []
+        for name, values in dimensions_dict.items():
+            if not isinstance(values, list) or not values:
+                raise ValueError(f"Dimension '{name}' must have a non-empty list of values")
+            dimensions.append(Dimension(name=name, values=values))
+
+        return cls.from_dimensions(*dimensions, seed=seed, cycle=cycle)
+
+    @classmethod
+    def example(cls) -> "AgentBlueprint":
+        """Create an example AgentBlueprint with sample dimensions for demonstration.
+
+        Returns
+        -------
+        AgentBlueprint
+            A blueprint with politics, age, and gender dimensions showing
+            different value types including weighted values.
+
+        Examples
+        --------
+        >>> blueprint = AgentBlueprint.example()
+        >>> print(blueprint)
+        >>> # Generate a few sample agents
+        >>> agents = blueprint.create_agent_list(n=3)
+        >>> for agent in agents:
+        ...     print(f"Agent: {agent.traits}")
+        """
+        politics = Dimension(
+            name="politics",
+            description="Political leaning",
+            values=["left", "right", "center"],
+        )
+        
+        age = Dimension(
+            name="age",
+            description="Age bracket",
+            values=[("18-25", 2), ("26-35", 3), ("36-45", 1)],  # weighted values
+        )
+        
+        gender = Dimension(
+            name="gender",
+            description="Gender identity",
+            values=["male", "female", "non-binary"],
+        )
+        
+        return cls.from_dimensions(politics, age, gender, seed=42)
 
     # Fluent API --------------------------------------------------------
 

@@ -1251,3 +1251,112 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Formatter Selector Styles */
+.formatter-selector-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.formatter-chip-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.formatter-chip-inline:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.formatter-chip-inline.selected {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.formatter-chip-inline.selected:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.formatter-chip-inline .type-badge {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.formatter-chip-inline.type-markdown {
+  border-color: #10b981;
+  color: #047857;
+}
+
+.formatter-chip-inline.type-markdown:hover {
+  background: #ecfdf5;
+  border-color: #059669;
+}
+
+.formatter-chip-inline.type-markdown.selected {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+.formatter-chip-inline.type-file {
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.formatter-chip-inline.type-file:hover {
+  background: #fffbeb;
+  border-color: #d97706;
+}
+
+.formatter-chip-inline.type-file.selected {
+  background: #f59e0b;
+  color: white;
+  border-color: #f59e0b;
+}
+
+.formatter-chip-inline.type-edsl {
+  border-color: #8b5cf6;
+  color: #6b21a8;
+}
+
+.formatter-chip-inline.type-edsl:hover {
+  background: #faf5ff;
+  border-color: #7c3aed;
+}
+
+.formatter-chip-inline.type-edsl.selected {
+  background: #8b5cf6;
+  color: white;
+  border-color: #8b5cf6;
+}
+
+.formatter-chip-inline.type-json {
+  border-color: #6b7280;
+  color: #374151;
+}
+
+.formatter-chip-inline.type-json:hover {
+  background: #f9fafb;
+  border-color: #4b5563;
+}
+
+.formatter-chip-inline.type-json.selected {
+  background: #6b7280;
+  color: white;
+  border-color: #6b7280;
+}

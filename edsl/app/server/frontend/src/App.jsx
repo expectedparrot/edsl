@@ -44,12 +44,13 @@ function App() {
     }])
   }
 
-  const handleFormSubmit = async (app, formData) => {
+  const handleFormSubmit = async (app, formData, selectedFormatter) => {
     // Add user input message (right side)
     setMessages(prev => [...prev, {
       type: 'user-input',
       app: app,
       data: formData,
+      selectedFormatter: selectedFormatter,
       timestamp: new Date().toISOString()
     }])
 
@@ -60,15 +61,26 @@ function App() {
     }])
 
     // Execute and replace loading with result
-    await executeApp(app, formData)
+    await executeApp(app, formData, selectedFormatter)
   }
 
-  const executeApp = async (app, formData) => {
+  const executeApp = async (app, formData, selectedFormatter) => {
     try {
+      const requestBody = { 
+        answers: formData, 
+        api_payload: true, 
+        return_results: false 
+      }
+      
+      // Include formatter if one was selected
+      if (selectedFormatter) {
+        requestBody.formatter_name = selectedFormatter
+      }
+      
       const response = await fetch(`${API_BASE}/apps/${app.app_id}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers: formData, api_payload: true, return_results: false })
+        body: JSON.stringify(requestBody)
       })
 
       if (!response.ok) {
@@ -93,7 +105,7 @@ function App() {
                 app: app,
                 data: result,
                 originalInput: formData,
-                selectedFormatter: null,
+                selectedFormatter: selectedFormatter,
                 timestamp: new Date().toISOString()
               }
             : msg
@@ -264,8 +276,8 @@ function ChatMessage({ message, messageIndex, apps, onAppSelect, onFormSubmit, o
       <div className="message-container user">
         <div className="message-content form-message">
           <div className="app-selected-header">
-            <strong>{message.app.name?.name || message.app.name}</strong>
-            <p>{message.app.description?.short || message.app.description}</p>
+            <strong>{message.app.display_name}</strong>
+            <p>{message.app.short_description}</p>
           </div>
           <InputForm app={message.app} onSubmit={onFormSubmit} />
         </div>
@@ -286,6 +298,12 @@ function ChatMessage({ message, messageIndex, apps, onAppSelect, onFormSubmit, o
                 </span>
               </div>
             ))}
+            {message.selectedFormatter && (
+              <div className="input-item">
+                <span className="input-label">Format:</span>{' '}
+                <span className="input-value">{message.selectedFormatter}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -677,9 +695,9 @@ function AppSearchSelector({ apps, onAppSelect }) {
   const [selectedIndex, setSelectedIndex] = useState(0)
 
   const filteredApps = apps.filter(app => {
-    // Handle both structured and string formats
-    const name = app.name?.name || app.name || ''
-    const description = app.description?.short || app.description?.long || app.description || ''
+    // Use new field structure
+    const name = app.display_name || ''
+    const description = app.short_description || app.long_description || ''
     return name.toLowerCase().includes(searchTerm.toLowerCase()) ||
            description.toLowerCase().includes(searchTerm.toLowerCase())
   })
@@ -724,15 +742,15 @@ function AppSearchSelector({ apps, onAppSelect }) {
               onClick={() => onAppSelect(app)}
               onMouseEnter={() => setSelectedIndex(idx)}
             >
-              <div className="app-search-name">{app.name?.name || app.name}</div>
-              <div className="app-search-desc">{app.description?.short || app.description || 'No description'}</div>
+              <div className="app-search-name">{app.display_name}</div>
+              <div className="app-search-desc">{app.short_description || 'No description'}</div>
             </div>
           ))
         )}
       </div>
       {filteredApps.length > 0 && (
         <div className="search-hint">
-          Press Enter to use "{filteredApps[selectedIndex].name?.name || filteredApps[selectedIndex].name}" or click to select
+          Press Enter to use "{filteredApps[selectedIndex].display_name}" or click to select
         </div>
       )}
     </div>
@@ -886,8 +904,59 @@ function EdslObjectSelector({ param, value, onChange }) {
   )
 }
 
+function FormatterSelector({ app, selectedFormatter, onFormatterChange }) {
+  if (!app.available_formatters || app.available_formatters.length <= 1) {
+    return null // Don't show selector if there's only one or no formatters
+  }
+
+  return (
+    <div className="form-group-inline">
+      <label>Output Format:</label>
+      <div className="formatter-selector-inline">
+        {app.available_formatters.map(formatter => {
+          const meta = app.formatter_metadata?.find(f => f.name === formatter)
+          const outputType = meta?.output_type || 'auto'
+
+          // Determine type badge and color
+          let typeBadge = ''
+          let typeClass = ''
+          if (outputType === 'markdown') {
+            typeBadge = 'MD'
+            typeClass = 'type-markdown'
+          } else if (outputType === 'file' || formatter.includes('docx') || formatter.includes('pdf')) {
+            typeBadge = '📄'
+            typeClass = 'type-file'
+          } else if (outputType === 'edsl_object' || formatter.includes('survey') || formatter.includes('scenario') || formatter.includes('agent')) {
+            typeBadge = '🔧'
+            typeClass = 'type-edsl'
+          } else if (formatter === 'raw_results') {
+            typeBadge = 'JSON'
+            typeClass = 'type-json'
+          }
+
+          const isSelected = selectedFormatter === formatter
+          const isDefault = !selectedFormatter && formatter === app.default_formatter_name
+
+          return (
+            <button
+              key={formatter}
+              type="button"
+              onClick={() => onFormatterChange(formatter)}
+              className={`formatter-chip-inline ${isSelected || isDefault ? 'selected' : ''} ${typeClass}`}
+            >
+              {typeBadge && <span className="type-badge">{typeBadge}</span>}
+              {formatter}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function InputForm({ app, onSubmit }) {
   const [formData, setFormData] = useState({})
+  const [selectedFormatter, setSelectedFormatter] = useState(null)
   const [uploading, setUploading] = useState(false)
 
   const handleInputChange = (questionName, value) => {
@@ -933,7 +1002,7 @@ function InputForm({ app, onSubmit }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    onSubmit(app, formData)
+    onSubmit(app, formData, selectedFormatter)
   }
 
   const renderFormField = (param) => {
@@ -1070,6 +1139,11 @@ function InputForm({ app, onSubmit }) {
   return (
     <form onSubmit={handleSubmit} className="input-form">
       {app.parameters && app.parameters.map(param => renderFormField(param))}
+      <FormatterSelector 
+        app={app} 
+        selectedFormatter={selectedFormatter} 
+        onFormatterChange={setSelectedFormatter} 
+      />
       <button type="submit" className="submit-button-inline" disabled={uploading}>
         {uploading ? 'Uploading files...' : 'Run'}
       </button>
@@ -1322,8 +1396,8 @@ function OldAppDetail({ app, onBack, apiBase }) {
       <button onClick={onBack} className="back-button">← Back to Apps</button>
 
       <div className="app-detail">
-        <h1>{app.name?.name || app.name}</h1>
-        <p style={{ color: '#666', marginBottom: '20px' }}>{app.description?.long || app.description?.short || app.description}</p>
+        <h1>{app.display_name}</h1>
+        <p style={{ color: '#666', marginBottom: '20px' }}>{app.long_description || app.short_description}</p>
 
         {error && <div className="error">{error}</div>}
 

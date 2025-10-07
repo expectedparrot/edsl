@@ -4,12 +4,18 @@ from edsl.app.output_formatter import OutputFormatter, SurveyAttachmentFormatter
 from edsl.surveys import Survey
 from edsl.questions import QuestionList, QuestionFreeText, QuestionEDSLObject, QuestionNumerical
 
+import textwrap
 
 # Prompt the model for dimensions given each survey question
 q = QuestionList(
     question_name="dimensions",
-    question_text="""What dimensions of a person would you need to know to predict how they 
-would answer this question: {{ scenario.question_text }}?""",
+    question_text=textwrap.dedent("""\
+What dimensions of a person would you need to know to predict how they  would answer this question: {{ scenario.question_text }}?
+These dimensions should be thinks that could have 'levels' or 'values' that someone could have.
+E.g., age, gender, education, income, location, industry, company size, etc.
+Return only the dimensions that are relevant to the question.
+"""
+),
 )
 
 # For each proposed dimension, ask for possible levels
@@ -105,23 +111,31 @@ initial_survey = Survey([
 ])
 
 # Output an AgentBlueprint using the answers
-output_formatter = (
-    OutputFormatter(
+
+agent_blueprint = (OutputFormatter(
         description="Agent Blueprint",
         output_type="edsl_object"
     )
     .select("scenario.*", "answer.*")
     .to_scenario_list()
+    .slice('1:')
     .to_agent_blueprint(
         dimension_name_field="dimension_name",
         dimension_values_field="levels",
         dimension_description_field="dimension_description",
         dimension_probs_field="probs",
         seed='1234'
-    ).create_agent_list(n="{{params.n|int}}", strategy="probability", unique=True)
+    )
 )
 
-agent_list_markdown = output_formatter.copy().set_output_type("markdown").table(tablefmt="github").to_string()
+agent_list = (agent_blueprint
+.copy()
+.create_agent_list(n="{{params.n|int}}", strategy="probability", unique=True)
+)
+
+agent_list_markdown = agent_list.copy().set_output_type("markdown").table(tablefmt="github").to_string()
+
+agent_list_rich = agent_list.copy().set_output_type("rich").table(tablefmt="rich")
 
 # Markdown formatter that displays the persona dimensions and levels as a table
 markdown_formatter = (
@@ -145,8 +159,13 @@ app = App(
     long_description="This application generates synthetic personas by analyzing survey questions, identifying relevant dimensions, and creating agent blueprints with appropriate trait levels.",
     initial_survey=initial_survey,
     jobs_object=jobs_object,
-    output_formatters={'agent_list': output_formatter, 'agent_list_markdown': agent_list_markdown, 'raw': raw},
-    default_formatter_name="agent_list_markdown",
+    output_formatters={
+        'agent_list': agent_list, 
+        'agent_list_markdown': agent_list_markdown, 
+        'agent_blueprint': agent_blueprint,
+        'agent_list_rich': agent_list_rich,
+        },
+    default_formatter_name="agent_blueprint",
     attachment_formatters=[
         # Convert the passed Survey into a ScenarioList and attach as scenarios
         SurveyAttachmentFormatter(description="Survey->ScenarioList").to_scenario_list()
@@ -155,10 +174,10 @@ app = App(
 
 if __name__ == "__main__":
     from edsl import Survey
-    survey = Survey.pull("5cde9b3b-3548-418c-9500-074103a13eef")
-    
+    #survey = Survey.pull("7e80e0dd-5d8a-4f91-afef-c06e9756c0a2")
+    survey = Survey.pull('5cde9b3b-3548-418c-9500-074103a13eef')
     output = app.output(params={
         'input_survey': survey,
         'n': 10,
-    }, formatter_name="agent_list")
-    print(output)
+    })
+    print(output.agent_list_rich)

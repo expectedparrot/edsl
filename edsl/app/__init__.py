@@ -15,6 +15,9 @@ from .app_run_output import AppRunOutput
 # App composition
 from .composite_app import CompositeApp
 
+# App collections
+from .app_collection import AppCollection, load_examples_collection
+
 # Head attachments and stub job utilities
 from .head_attachments import HeadAttachments
 from .stub_job import StubJob

@@ -46,7 +46,7 @@ class AppServerClient:
         app_data["owner"] = owner
         app_data["source_available"] = source_available
         app_data["force"] = force
-        alias = app_data["application_name"]["alias"]
+        alias = app_data["application_name"]  # Now it's just a string
 
         from .exceptions import DuplicateAppException
 
