@@ -27,16 +27,12 @@ initial_survey = Survey([
 ])
 
 app = App(
+    application_name="cognitive_testing",
+    display_name="Cognitive Testing (Typo Checker)",
+    short_description="Check for typos in survey question text.",
+    long_description="This application performs cognitive testing on survey questions by checking for typos and language issues. It analyzes each question in a provided survey and identifies potential typos or grammatical errors that could affect respondent comprehension.",
     initial_survey=initial_survey,
     jobs_object=jobs_object,
-    application_name={
-        "name": "Cognitive Testing (Typo Checker)",
-        "alias": "cognitive_testing"
-    },
-    description={
-        "short": "Check for typos in survey question text.",
-        "long": "This application performs cognitive testing on survey questions by checking for typos and language issues. It analyzes each question in a provided survey and identifies potential typos or grammatical errors that could affect respondent comprehension."
-    },
     output_formatters={'table': output_formatter},
     default_formatter_name='table',
     attachment_formatters=[

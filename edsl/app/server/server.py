@@ -46,10 +46,11 @@ Base = declarative_base()
 class AppModel(Base):
     __tablename__ = "apps"
     app_id = Column(String, primary_key=True)
-    name = Column(Text, nullable=False)
-    alias = Column(Text, nullable=True)
+    application_name = Column(Text, nullable=False)  # Python identifier (alias)
+    display_name = Column(Text, nullable=False)
+    short_description = Column(Text, nullable=True)
+    long_description = Column(Text, nullable=True)
     qualified_name = Column(Text, nullable=True)
-    description = Column(Text, nullable=True)
     application_type = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     app_data = Column(Text, nullable=False)
@@ -61,7 +62,7 @@ class AppModel(Base):
     source_available = Column(Boolean, default=False)
 
     __table_args__ = (
-        UniqueConstraint("owner", "alias", name="idx_apps_owner_alias_unique"),
+        UniqueConstraint("owner", "application_name", name="idx_apps_owner_application_name_unique"),
         UniqueConstraint("qualified_name", name="idx_apps_qualified_name_unique"),
     )
 
@@ -84,20 +85,12 @@ class FormatterMetadata(BaseModel):
     description: Optional[str] = None
     output_type: str = "auto"
 
-class ApplicationNameModel(BaseModel):
-    """Pydantic model for application name with pretty name and alias."""
-    name: str
-    alias: str
-
-class DescriptionModel(BaseModel):
-    """Pydantic model for application description with short and long forms."""
-    short: str
-    long: str
-
 class AppMetadata(BaseModel):
     app_id: str
-    name: ApplicationNameModel  # Changed from str to structured type
-    description: DescriptionModel  # Changed from Optional[str] to structured type
+    application_name: str  # Python identifier
+    display_name: str
+    short_description: str
+    long_description: str
     application_type: str
     created_at: datetime
     parameters: List[Dict[str, Any]] = Field(default_factory=list)
@@ -105,7 +98,7 @@ class AppMetadata(BaseModel):
     formatter_metadata: List[Dict[str, Any]] = Field(default_factory=list)
     default_formatter_name: Optional[str] = None
     owner: Optional[str] = None
-    qualified_name: Optional[str] = None  # "owner/alias" when available
+    qualified_name: Optional[str] = None  # "owner/application_name" when available
 
 class AppExecutionRequest(BaseModel):
     answers: Dict[str, Any]
@@ -174,23 +167,11 @@ class DatabaseManager:
         app_dict = app.to_dict()
         app_data = json.dumps(app_dict)
 
-        # Extract application_name and description from TypedDicts
-        app_name = app.application_name
-        # Normalize to dict form with ensured alias
-        if isinstance(app_name, dict):
-            pretty_name = app_name.get("name") or "Unknown"
-            alias_value = app_name.get("alias")
-        else:
-            pretty_name = str(app_name)
-            alias_value = None
-        # Derive alias if missing; simple slug: lower, spaces->underscore
-        if not alias_value and isinstance(pretty_name, str):
-            alias_value = pretty_name.lower().replace(" ", "_")
-        # Persist a clean name dict with alias
-        name_json = json.dumps({"name": pretty_name, "alias": alias_value})
-
-        app_description = app.description
-        description_json = json.dumps(app_description)
+        # Extract simple string fields
+        application_name = app.application_name
+        display_name = app.display_name
+        short_description = app.short_description
+        long_description = app.long_description
         
         # Extract parameters from initial_survey
         parameters = json.dumps([
@@ -224,9 +205,9 @@ class DatabaseManager:
         application_type = app_dict.get('application_type', 'base')
 
         # Compute qualified_name if possible
-        qualified_name_value = f"{owner}/{alias_value}" if owner and alias_value else None
+        qualified_name_value = f"{owner}/{application_name}" if owner and application_name else None
 
-        # Enforce global uniqueness of owner/alias or qualified_name when provided
+        # Enforce global uniqueness of owner/application_name or qualified_name when provided
         session = self.get_session()
         try:
             if qualified_name_value:
@@ -247,10 +228,11 @@ class DatabaseManager:
 
             app_row = AppModel(
                 app_id=app_id,
-                name=name_json,
-                alias=alias_value,
+                application_name=application_name,
+                display_name=display_name,
+                short_description=short_description,
+                long_description=long_description,
                 qualified_name=qualified_name_value,
-                description=description_json,
                 application_type=application_type,
                 created_at=datetime.utcnow(),
                 app_data=app_data,
@@ -266,9 +248,7 @@ class DatabaseManager:
         finally:
             session.close()
 
-        # Log with pretty name
-        pretty_name = pretty_name if isinstance(pretty_name, str) else str(pretty_name)
-        logger.info(f"Stored app {app_id} ({pretty_name})")
+        logger.info(f"Stored app {app_id} ({display_name})")
         return app_id
 
     def get_app(self, app_id: str) -> Optional[App]:
@@ -294,104 +274,64 @@ class DatabaseManager:
             if not row:
                 return None
 
-            # Parse name and description from JSON
-            try:
-                name_data = json.loads(row.name)
-                if not isinstance(name_data, dict):
-                    name_data = {"name": str(row.name), "alias": str(row.name).lower().replace(" ", "_")}
-            except (json.JSONDecodeError, TypeError):
-                name_data = {"name": str(row.name), "alias": str(row.name).lower().replace(" ", "_")}
-
-            try:
-                description_data = json.loads(row.description) if row.description else None
-                if not isinstance(description_data, dict):
-                    desc_str = str(row.description) if row.description else "No description provided."
-                    if not desc_str.endswith('.'):  # type: ignore[union-attr]
-                        desc_str = f"{desc_str}."
-                    description_data = {"short": desc_str, "long": desc_str}
-            except (json.JSONDecodeError, TypeError):
-                desc_str = str(row.description) if row.description else "No description provided."
-                if not desc_str.endswith('.'):
-                    desc_str = f"{desc_str}."
-                description_data = {"short": desc_str, "long": desc_str}
-
-            owner = row.owner
-            alias = row.alias if row.alias else (name_data.get("alias") if isinstance(name_data, dict) else None)
-            qualified = f"{owner}/{alias}" if owner and alias else None
-
             return AppMetadata(
                 app_id=row.app_id,
-                name=ApplicationNameModel(**name_data),
-                description=DescriptionModel(**description_data),
+                application_name=row.application_name,
+                display_name=row.display_name,
+                short_description=row.short_description or "No description provided.",
+                long_description=row.long_description or "No description provided.",
                 application_type=row.application_type,
                 created_at=row.created_at if isinstance(row.created_at, datetime) else datetime.fromisoformat(str(row.created_at)),
                 parameters=json.loads(row.parameters) if row.parameters else [],
                 available_formatters=json.loads(row.available_formatters) if row.available_formatters else [],
                 formatter_metadata=json.loads(row.formatter_metadata) if row.formatter_metadata else [],
                 default_formatter_name=row.default_formatter_name,
-                owner=owner,
-                qualified_name=qualified,
+                owner=row.owner,
+                qualified_name=row.qualified_name,
             )
         finally:
             session.close()
 
-    def list_apps(self, search: Optional[str] = None) -> List[AppMetadata]:
-        """List all apps, optionally ranked by BM25 for a search query."""
+    def list_apps(self, search: Optional[str] = None, owner: Optional[str] = None) -> List[AppMetadata]:
+        """List all apps, optionally filtered by owner and/or ranked by BM25 for a search query."""
         session = self.get_session()
         try:
-            rows = session.query(AppModel).all()
+            query = session.query(AppModel)
+            
+            # Filter by owner if provided
+            if owner:
+                query = query.filter(AppModel.owner == owner)
+            
+            rows = query.all()
 
             items_for_ranking = []  # Each item: mapping used by ranker
 
             for row in rows:
-                # Parse name and description from JSON
-                try:
-                    name_data = json.loads(row.name)
-                    if not isinstance(name_data, dict):
-                        name_data = {"name": str(row.name), "alias": str(row.name).lower().replace(" ", "_")}
-                except (json.JSONDecodeError, TypeError):
-                    name_data = {"name": str(row.name), "alias": str(row.name).lower().replace(" ", "_")}
-
-                try:
-                    description_data = json.loads(row.description) if row.description else None
-                    if not isinstance(description_data, dict):
-                        desc_str = str(row.description) if row.description else "No description provided."
-                        if not desc_str.endswith('.'):
-                            desc_str = f"{desc_str}."
-                        description_data = {"short": desc_str, "long": desc_str}
-                except (json.JSONDecodeError, TypeError):
-                    desc_str = str(row.description) if row.description else "No description provided."
-                    if not desc_str.endswith('.'):
-                        desc_str = f"{desc_str}."
-                    description_data = {"short": desc_str, "long": desc_str}
-
                 parameters = json.loads(row.parameters) if row.parameters else []
                 available_formatters = json.loads(row.available_formatters) if row.available_formatters else []
                 formatter_metadata = json.loads(row.formatter_metadata) if row.formatter_metadata else []
 
-                owner = row.owner
-                alias = row.alias if row.alias else (name_data.get("alias") if isinstance(name_data, dict) else None)
-                qualified = f"{owner}/{alias}" if owner and alias else None
-
                 metadata = AppMetadata(
                     app_id=row.app_id,
-                    name=ApplicationNameModel(**name_data),
-                    description=DescriptionModel(**description_data),
+                    application_name=row.application_name,
+                    display_name=row.display_name,
+                    short_description=row.short_description or "No description provided.",
+                    long_description=row.long_description or "No description provided.",
                     application_type=row.application_type,
                     created_at=row.created_at if isinstance(row.created_at, datetime) else datetime.fromisoformat(str(row.created_at)),
                     parameters=parameters,
                     available_formatters=available_formatters,
                     formatter_metadata=formatter_metadata,
                     default_formatter_name=row.default_formatter_name,
-                    owner=owner,
-                    qualified_name=qualified,
+                    owner=row.owner,
+                    qualified_name=row.qualified_name,
                 )
 
                 items_for_ranking.append({
                     "meta": metadata,
-                    "name": name_data.get("name"),
-                    "short_desc": description_data.get("short"),
-                    "long_desc": description_data.get("long"),
+                    "name": row.display_name,
+                    "short_desc": row.short_description or "No description provided.",
+                    "long_desc": row.long_description or "No description provided.",
                     "application_type": row.application_type,
                     "parameters": parameters,
                     "available_formatters": available_formatters,
@@ -563,6 +503,18 @@ async def push_app(app_data: dict):
         # Capture force flag; not part of App schema
         force = bool(app_data.pop("force", False))
 
+        # Extract and validate required fields
+        application_name = app_data.get("application_name")
+        display_name = app_data.get("display_name")
+        
+        if not application_name or not isinstance(application_name, str) or not application_name.strip():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="application_name is required and must be a non-empty string (Python identifier)")
+        
+        if not display_name or not isinstance(display_name, str) or not display_name.strip():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="display_name is required and must be a non-empty string")
+        
+        logger.info(f"Deploy: application_name={application_name}, display_name={display_name}, owner={owner}")
+
         # Reconstruct the app from the dictionary
         # Check if it's a CompositeApp
         if app_data.get("application_type") == "composite":
@@ -572,11 +524,18 @@ async def push_app(app_data: dict):
             app_instance = App.from_dict(app_data)
         app_id = db_manager.store_app(app_instance, owner=owner, source_available=source_available, force=force)
 
-        # Extract pretty name for response message
-        app_name = app_instance.application_name
-        pretty_name = app_name.get("name", "Unknown") if isinstance(app_name, dict) else str(app_name)
-
-        return {"app_id": app_id, "message": f"App '{pretty_name}' pushed successfully", "owner": owner}
+        # Construct qualified name
+        qualified_name = f"{owner}/{application_name}" if owner and application_name else None
+        
+        response_dict = {
+            "app_id": app_id, 
+            "message": f"App '{display_name}' pushed successfully", 
+            "owner": owner,
+            "qualified_name": qualified_name
+        }
+        
+        logger.info(f"Returning deployment response: {response_dict}")
+        return response_dict
     except ValueError as e:
         logger.error(f"Error pushing app (conflict): {str(e)}")
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
@@ -585,54 +544,36 @@ async def push_app(app_data: dict):
         raise HTTPException(status_code=400, detail=f"Invalid app data: {str(e)}")
 
 @app.get("/apps", response_model=List[AppMetadata])
-async def list_apps(search: Optional[str] = None):
-    """List all available apps, optionally ranked by BM25 if 'search' is provided."""
-    return db_manager.list_apps(search=search)
+async def list_apps(search: Optional[str] = None, owner: Optional[str] = None):
+    """List all available apps, optionally filtered by owner and/or ranked by BM25 if 'search' is provided."""
+    return db_manager.list_apps(search=search, owner=owner)
 
 @app.get("/apps/resolve")
 async def resolve_app_id(qualified_name: str):
-    """Resolve a qualified name 'owner/alias' to an app_id."""
+    """Resolve a qualified name 'owner/application_name' to an app_id."""
     try:
         if "/" not in qualified_name:
-            raise HTTPException(status_code=400, detail="qualified_name must be in the form 'owner/alias'")
-        owner, alias = qualified_name.split("/", 1)
+            raise HTTPException(status_code=400, detail="qualified_name must be in the form 'owner/application_name'")
+        owner, app_name = qualified_name.split("/", 1)
         owner = owner.strip()
-        alias = alias.strip()
-        if not owner or not alias:
-            raise HTTPException(status_code=400, detail="Both owner and alias must be non-empty")
+        app_name = app_name.strip()
+        if not owner or not app_name:
+            raise HTTPException(status_code=400, detail="Both owner and application_name must be non-empty")
         session = db_manager.get_session()
         try:
-            # Prefer direct lookup by qualified_name
+            # Direct lookup by qualified_name
             app_row = (
                 session.query(AppModel)
                 .filter(AppModel.qualified_name == qualified_name)
                 .first()
             )
             if not app_row:
-                # Backward path: match by owner/alias columns
+                # Fallback: match by owner/application_name columns
                 app_row = (
                     session.query(AppModel)
-                    .filter(AppModel.owner == owner, AppModel.alias == alias)
+                    .filter(AppModel.owner == owner, AppModel.application_name == app_name)
                     .first()
                 )
-                if not app_row:
-                    # Final fallback: derive alias from stored name JSON
-                    owner_rows = (
-                        session.query(AppModel)
-                        .filter(AppModel.owner == owner)
-                        .all()
-                    )
-                    for row in owner_rows:
-                        try:
-                            name_data = json.loads(row.name) if row.name else {}
-                        except Exception:
-                            name_data = {}
-                        derived_alias = name_data.get("alias")
-                        if not derived_alias and isinstance(name_data.get("name"), str):
-                            derived_alias = name_data["name"].lower().replace(" ", "_")
-                        if derived_alias == alias:
-                            app_row = row
-                            break
         finally:
             session.close()
         if not app_row:
@@ -651,61 +592,6 @@ async def get_app_metadata(app_id: str):
     if not metadata:
         raise HTTPException(status_code=404, detail="App not found")
     return metadata
-
-@app.get("/apps/resolve")
-async def resolve_app_id(qualified_name: str):
-    """Resolve a qualified name 'owner/alias' to an app_id."""
-    try:
-        if "/" not in qualified_name:
-            raise HTTPException(status_code=400, detail="qualified_name must be in the form 'owner/alias'")
-        owner, alias = qualified_name.split("/", 1)
-        owner = owner.strip()
-        alias = alias.strip()
-        if not owner or not alias:
-            raise HTTPException(status_code=400, detail="Both owner and alias must be non-empty")
-        session = db_manager.get_session()
-        try:
-            # Prefer direct lookup by qualified_name
-            app_row = (
-                session.query(AppModel)
-                .filter(AppModel.qualified_name == qualified_name)
-                .first()
-            )
-            if not app_row:
-                # Backward path: match by owner/alias columns
-                app_row = (
-                    session.query(AppModel)
-                    .filter(AppModel.owner == owner, AppModel.alias == alias)
-                    .first()
-                )
-                if not app_row:
-                    # Final fallback: derive alias from stored name JSON
-                    owner_rows = (
-                        session.query(AppModel)
-                        .filter(AppModel.owner == owner)
-                        .all()
-                    )
-                    for row in owner_rows:
-                        try:
-                            name_data = json.loads(row.name) if row.name else {}
-                        except Exception:
-                            name_data = {}
-                        derived_alias = name_data.get("alias")
-                        if not derived_alias and isinstance(name_data.get("name"), str):
-                            derived_alias = name_data["name"].lower().replace(" ", "_")
-                        if derived_alias == alias:
-                            app_row = row
-                            break
-        finally:
-            session.close()
-        if not app_row:
-            raise HTTPException(status_code=404, detail="App not found for qualified name")
-        return {"app_id": app_row.app_id}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error resolving qualified name '{qualified_name}': {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to resolve qualified name: {str(e)}")
 
 @app.get("/apps/{app_id}/stats", response_model=AppStatsResponse)
 async def get_app_stats(app_id: str):
@@ -783,10 +669,10 @@ async def get_app_page(app_id: str):
         session.close()
 
     # Build HTML content
-    app_name = metadata.name.name
-    alias = metadata.name.alias
-    short_desc = metadata.description.short
-    long_desc = metadata.description.long
+    app_name = metadata.display_name
+    alias = metadata.application_name
+    short_desc = metadata.short_description
+    long_desc = metadata.long_description
     created_at_str = metadata.created_at.isoformat()
     application_type = metadata.application_type
     default_formatter = metadata.default_formatter_name or "None"
@@ -898,12 +784,29 @@ async def get_app_data(app_id: str):
 
 @app.get("/instantiate_remote_app_client/{app_id}")
 async def instantiate_remote_app_client(app_id: str):
-    """Return app dict suitable for client instantiation (without jobs_object)."""
+    """Return app dict suitable for client instantiation.
+    
+    If source_available=True, includes jobs_object. Otherwise, jobs_object is omitted.
+    """
     app_instance = db_manager.get_app(app_id)
     if not app_instance:
         raise HTTPException(status_code=404, detail="App not found")
+    
+    # Check if source is available by querying the database
+    session = db_manager.get_session()
     try:
-        return app_instance.to_dict_for_client()
+        app_row = session.get(AppModel, app_id)
+        source_available = app_row.source_available if app_row else False
+    finally:
+        session.close()
+    
+    try:
+        if source_available:
+            # Include full app dict with jobs_object
+            return app_instance.to_dict()
+        else:
+            # Return client-safe dict without jobs_object
+            return app_instance.to_dict_for_client()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to serialize app for client: {str(e)}")
 

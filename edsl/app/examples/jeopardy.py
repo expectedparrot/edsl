@@ -59,19 +59,15 @@ sa = (ScenarioAttachmentFormatter(name="Scenario Attachment Formatter")
 )
 
 app = App(
-    initial_survey = input_survey,
-    description={
-        "short": "Generate Jeopardy-style questions.",
-        "long": "This application creates Jeopardy-style trivia questions with clues and answers based on provided topics or knowledge domains."
-    },
-    application_name={
-        "name": "Jeopardy Question Generator",
-        "alias": "jeopardy"
-    },
-    jobs_object = jobs_object,
-    output_formatters = {'survey': of, 'markdown': markdown_formatter},
-    default_formatter_name = 'survey',
-    attachment_formatters = [sa]
+    application_name="jeopardy",
+    display_name="Jeopardy Question Generator",
+    short_description="Generate Jeopardy-style questions.",
+    long_description="This application creates Jeopardy-style trivia questions with clues and answers based on provided topics or knowledge domains.",
+    initial_survey=input_survey,
+    jobs_object=jobs_object,
+    output_formatters={'survey': of, 'markdown': markdown_formatter},
+    default_formatter_name='survey',
+    attachment_formatters=[sa]
 )
 
 text = """

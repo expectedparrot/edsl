@@ -77,8 +77,10 @@ def create_theme_generation_app():
     )
 
     return App(
-        application_name="Theme Generator",
-        description="Generates initial themes from response chunks",
+        application_name="theme_generator",
+        display_name="Theme Generator",
+        short_description="Generates initial themes from response chunks.",
+        long_description="This application analyzes chunks of text responses and generates initial themes by identifying patterns and common topics.",
         initial_survey=initial_survey,
         jobs_object=jobs_object,
         output_formatters={"themes": theme_list_formatter},
@@ -143,8 +145,10 @@ def create_theme_consolidation_app():
     )
 
     return App(
-        application_name="Theme Consolidator",
-        description="Consolidates themes to target number",
+        application_name="theme_consolidator",
+        display_name="Theme Consolidator",
+        short_description="Consolidates themes to target number.",
+        long_description="This application takes a list of candidate themes and consolidates them to a target number by merging similar themes and ensuring distinctiveness.",
         initial_survey=initial_survey,
         jobs_object=jobs_object,
         output_formatters={"consolidated": consolidated_formatter},
@@ -231,8 +235,10 @@ def create_labeling_app(theme_labels=None):
     )
 
     return App(
-        application_name="Response Labeler",
-        description="Labels responses with themes",
+        application_name="response_labeler",
+        display_name="Response Labeler",
+        short_description="Labels responses with themes.",
+        long_description="This application labels individual responses with applicable themes from a provided theme set, enabling theme-based analysis of text data.",
         initial_survey=initial_survey,
         jobs_object=jobs_object,
         output_formatters={"labeled": labeled_formatter},
@@ -300,8 +306,10 @@ def create_theme_validation_app():
     )
 
     return App(
-        application_name="Theme Validator",
-        description="Validates themes and suggests refinements",
+        application_name="theme_validator",
+        display_name="Theme Validator",
+        short_description="Validates themes and suggests refinements.",
+        long_description="This application analyzes theme usage patterns and suggests refinements such as merging underused themes or splitting overused ones.",
         initial_survey=initial_survey,
         jobs_object=jobs_object,
         output_formatters={"report": report_formatter},
@@ -375,8 +383,10 @@ def create_theme_refinement_app():
     )
 
     return App(
-        application_name="Theme Refiner",
-        description="Refines themes based on usage analysis",
+        application_name="theme_refiner",
+        display_name="Theme Refiner",
+        short_description="Refines themes based on usage analysis.",
+        long_description="This application executes refinement actions on themes based on validation feedback, merging or splitting themes to improve the overall theme set quality.",
         initial_survey=initial_survey,
         jobs_object=jobs_object,
         output_formatters={"refined": refined_formatter},

@@ -18,7 +18,6 @@ shape only.
 from typing import Any, Optional
 
 from .app import App
-from .descriptors import ApplicationName, Description
 from ..surveys import Survey
 
 
@@ -39,8 +38,10 @@ class CompositeApp:
         second_app: Optional[App] = None,
         bindings: Optional[dict[str, Any]] = None,
         fixed: Optional[dict[str, dict[str, Any]]] = None,
-        application_name: Optional[str | dict | ApplicationName] = None,
-        description: Optional[str | dict | Description] = None,
+        application_name: Optional[str] = None,
+        display_name: Optional[str] = None,
+        short_description: Optional[str] = None,
+        long_description: Optional[str] = None,
     ):
         """Initialize the composite application.
 
@@ -54,8 +55,10 @@ class CompositeApp:
                   - Key dict {"formatter": "name", "path": "a.b"} maps the resolved value to the target param name (value)
             fixed: Optional fixed/pre-filled values for surveys:
                 {"app1": {name: value}, "app2": {name: value}}
-            application_name: Name for the composite app. Can be a string, or dict with 'name' and 'alias' keys.
-            description: Description for the composite app. Can be a string, or dict with 'short' and 'long' keys.
+            application_name: Python identifier for the composite app.
+            display_name: Human-readable name for the composite app.
+            short_description: One sentence description.
+            long_description: Longer description.
         """
         self.first_app = first_app
         self.second_app = second_app
@@ -65,45 +68,16 @@ class CompositeApp:
             "app2": dict((fixed or {}).get("app2", {})),
         }
 
-        # Generate application_name from component apps if not provided
-        if application_name is None:
-            first_name = self._extract_app_name(first_app)
-            second_name = self._extract_app_name(second_app) if second_app else '?'
-            generated_name = f"{first_name} >> {second_name}"
-            self.application_name = ApplicationName(
-                name=generated_name,
-                alias=self._name_to_alias(generated_name)
-            )
-        elif isinstance(application_name, str):
-            self.application_name = ApplicationName(
-                name=application_name,
-                alias=self._name_to_alias(application_name)
-            )
-        elif isinstance(application_name, dict):
-            if "name" in application_name and "alias" in application_name:
-                self.application_name = ApplicationName(**application_name)
-            else:
-                raise ValueError("application_name dict must contain 'name' and 'alias' keys")
-        else:
-            raise TypeError("application_name must be a string, dict, or None")
-
-        # Generate description from component apps if not provided
-        if description is None:
-            app_name_str = self.application_name["name"]
-            self.description = Description(
-                short=f"Composite app: {app_name_str}.",
-                long=f"Composite app: {app_name_str}."
-            )
-        elif isinstance(description, str):
-            desc_with_period = description if description.endswith('.') else f"{description}."
-            self.description = Description(short=desc_with_period, long=description)
-        elif isinstance(description, dict):
-            if "short" in description and "long" in description:
-                self.description = Description(**description)
-            else:
-                raise ValueError("description dict must contain 'short' and 'long' keys")
-        else:
-            raise TypeError("description must be a string, dict, or None")
+        # Generate names from component apps if not provided
+        if application_name is None or display_name is None:
+            first_display = self._extract_app_display_name(first_app)
+            second_display = self._extract_app_display_name(second_app) if second_app else '?'
+            generated_display = f"{first_display} >> {second_display}"
+            
+        self.application_name = application_name or self._name_to_alias(generated_display if display_name is None else display_name)
+        self.display_name = display_name or generated_display
+        self.short_description = short_description or f"Composite app: {self.display_name}."
+        self.long_description = long_description or f"Composite app: {self.display_name}."
 
     def __rshift__(self, app: "App") -> "CompositeApp":
         """Chain a second app to this composite using the >> operator."""
@@ -231,7 +205,9 @@ class CompositeApp:
         data = {
             "application_type": self.application_type,
             "application_name": self.application_name,
-            "description": self.description,
+            "display_name": self.display_name,
+            "short_description": self.short_description,
+            "long_description": self.long_description,
             "first_app": self.first_app.to_dict(),
             "second_app": self.second_app.to_dict() if self.second_app is not None else None,
         }
@@ -258,10 +234,21 @@ class CompositeApp:
         bindings = data.get("bindings") or {}
         fixed = data.get("fixed") or {}
         application_name = data.get("application_name")
-        description = data.get("description")
+        display_name = data.get("display_name")
+        short_description = data.get("short_description")
+        long_description = data.get("long_description")
         if first is None:
             raise ValueError("CompositeApp.from_dict missing 'first_app'")
-        return cls(first_app=first, second_app=second, bindings=bindings, fixed=fixed, application_name=application_name, description=description)
+        return cls(
+            first_app=first, 
+            second_app=second, 
+            bindings=bindings, 
+            fixed=fixed, 
+            application_name=application_name, 
+            display_name=display_name,
+            short_description=short_description,
+            long_description=long_description
+        )
 
     # --- Internals --------------------------------------------------------
 
@@ -325,11 +312,9 @@ class CompositeApp:
         return source_spec
 
     @staticmethod
-    def _extract_app_name(app: App) -> str:
-        """Extract the pretty name from an App's application_name."""
-        if isinstance(app.application_name, dict):
-            return app.application_name.get("name", "Unknown")
-        return str(app.application_name)
+    def _extract_app_display_name(app: App) -> str:
+        """Extract the display name from an App."""
+        return app.display_name
 
     @staticmethod
     def _name_to_alias(name: str) -> str:

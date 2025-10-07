@@ -148,14 +148,10 @@ markdown_formatter = (
 
 # Create the app
 app = App(
-    description={
-        "short": "Generate Twitter threads from text.",
-        "long": "This application converts long-form text into engaging Twitter threads by breaking content into tweet-sized chunks while maintaining narrative flow and engagement."
-    },
-    application_name={
-        "name": "Twitter Thread Generator",
-        "alias": "twitter_thread"
-    },
+    application_name="twitter_thread",
+    display_name="Twitter Thread Generator",
+    short_description="Generate Twitter threads from text.",
+    long_description="This application converts long-form text into engaging Twitter threads by breaking content into tweet-sized chunks while maintaining narrative flow and engagement.",
     initial_survey=initial_survey,
     jobs_object=survey.by(thread_writer),
     output_formatters={

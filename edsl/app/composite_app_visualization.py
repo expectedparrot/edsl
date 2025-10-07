@@ -36,11 +36,11 @@ class CompositeAppVisualization:
         graph = pydot.Dot(graph_type="digraph", rankdir="LR", fontsize=FONT_SIZE)
 
         # Create subgraphs for each app
-        # Extract names from TypedDicts
-        app1_name = self.composite_app.first_app.application_name.get("name", "Unknown") if isinstance(self.composite_app.first_app.application_name, dict) else str(self.composite_app.first_app.application_name)
+        # Extract display names (now simple strings)
+        app1_name = self.composite_app.first_app.display_name
         app2_name = "?"
         if self.composite_app.second_app:
-            app2_name = self.composite_app.second_app.application_name.get("name", "Unknown") if isinstance(self.composite_app.second_app.application_name, dict) else str(self.composite_app.second_app.application_name)
+            app2_name = self.composite_app.second_app.display_name
 
         cluster_app1 = pydot.Cluster(
             "app1",

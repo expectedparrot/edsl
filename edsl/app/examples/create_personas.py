@@ -139,14 +139,10 @@ markdown_formatter = (
 raw = OutputFormatter(description="Raw results")
 
 app = App(
-    description={
-        "short": "A persona generator.",
-        "long": "This application generates synthetic personas by analyzing survey questions, identifying relevant dimensions, and creating agent blueprints with appropriate trait levels."
-    },
-    application_name={
-        "name": "Persona Generator",
-        "alias": "create_personas"
-    },
+    application_name="create_personas",
+    display_name="Persona Generator",
+    short_description="A persona generator.",
+    long_description="This application generates synthetic personas by analyzing survey questions, identifying relevant dimensions, and creating agent blueprints with appropriate trait levels.",
     initial_survey=initial_survey,
     jobs_object=jobs_object,
     output_formatters={'agent_list': output_formatter, 'agent_list_markdown': agent_list_markdown, 'raw': raw},

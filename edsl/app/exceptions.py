@@ -8,6 +8,17 @@ class to provide consistent error handling throughout the EDSL framework.
 from ..base.base_exception import BaseException
 
 
+class FailedToDeleteAppError(BaseException):
+    """
+    Exception raised when a failed to delete an app.
+    """
+
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/apps.html"
+    
+    def __init__(self, message="Failed to delete app", **kwargs):
+        super().__init__(message, **kwargs)
+
+
 class AppError(BaseException):
     """
     Base exception for app-related errors.

@@ -38,9 +38,9 @@ class AppHTMLRenderer:
         return "\n".join(wrapped)
 
     def render(self) -> str:
-        # Extract name and description from TypedDicts
-        app_name = self.app.application_name.get("name", "Unknown") if isinstance(self.app.application_name, dict) else str(self.app.application_name)
-        app_desc = self.app.description.get("long", self.app.description.get("short", "")) if isinstance(self.app.description, dict) else str(self.app.description)
+        # Extract name and description (now simple strings)
+        app_name = self.app.display_name
+        app_desc = self.app.long_description
 
         title_html = f"<h2 style=\"margin-bottom:0.25rem;\">{escape(app_name)}</h2>"
         desc_html = self._convert_markdown_to_html(app_desc)

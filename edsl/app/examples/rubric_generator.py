@@ -87,12 +87,11 @@ rubric_survey = base_formatter.copy().set_output_type('edsl_object').to_survey()
 survey_with_weights = rubric_survey.copy().add_weighted_linear_scale_sum()
 survey_table = rubric_survey.copy().set_output_type("markdown").table(tablefmt = "github").to_string()
 
-import textwrap
 app = App(
-    initial_survey=initial_survey,
-    description={
-        "short": "A rubric generator for evaluating artifacts.",
-        "long": textwrap.dedent("""\
+    application_name="rubric_generator",
+    display_name="Rubric Generator",
+    short_description="A rubric generator for evaluating artifacts.",
+    long_description=textwrap.dedent("""\
         A rubric generator is a tool that generates a rubric for a given artifact. 
         For example, if the artifact is a technical blog post, the rubric generator creates evaluation criteria for the blog post. 
         The rubric is formatted as an EDSL survey that can then be used to score the artifact. 
@@ -100,12 +99,8 @@ app = App(
         - How clear is the post? 
         - How original is the post? How useful is the post? 
         - How impactful is the post? Each question is a linear scale question with 5 options, with 5 being the highest score."""
-        )
-    },
-    application_name={
-        "name": "Rubric Generator",
-        "alias": "rubric_generator"
-    },
+        ),
+    initial_survey=initial_survey,
     jobs_object=jobs_object,
     output_formatters={"survey": rubric_survey, "survey_table": survey_table, "survey_with_weights": survey_with_weights},
     default_formatter_name="survey_table",

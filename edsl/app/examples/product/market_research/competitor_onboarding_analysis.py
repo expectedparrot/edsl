@@ -181,7 +181,9 @@ raw_data_output = (
 # 8. Complete App Instance
 app = App(
     application_name="competitor_onboarding_analysis",
-    description="Research and analyze competitors' user onboarding processes to identify best practices, friction points, and opportunities for improvement",
+    display_name="Competitor Onboarding Analysis",
+    short_description="Research and analyze competitors' user onboarding processes to identify best practices, friction points, and opportunities for improvement.",
+    long_description="This application researches and analyzes competitors' user onboarding processes to identify best practices, friction points, and opportunities for improvement. It provides comprehensive competitive analysis with actionable insights for UX optimization.",
     initial_survey=initial_survey,
     jobs_object=onboarding_analysis_pipeline,
     output_formatters={

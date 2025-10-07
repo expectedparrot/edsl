@@ -25,12 +25,14 @@ def build_telephone_app() -> CompositeApp:
     )
 
     english_to_german = App(
+        application_name="to_german",
+        display_name="English to German Translator",
+        short_description="Translate the input text to German.",
+        long_description="This application translates English text to German.",
         initial_survey=initial_survey,
         jobs_object=jobs_de,
         output_formatters={"of": of},
         default_formatter_name="of",
-        application_name="to_german",
-        description="Translate the input text to German.",
     )
 
     jobs_en = QuestionFreeText(
@@ -39,12 +41,14 @@ def build_telephone_app() -> CompositeApp:
     ).comment("Translating from German to English").to_jobs()
 
     german_to_english = App(
+        application_name="to_english",
+        display_name="German to English Translator",
+        short_description="Translate the input text from German to English.",
+        long_description="This application translates German text to English.",
         initial_survey=initial_survey,
         jobs_object=jobs_en,
         output_formatters={"of": of},
         default_formatter_name="of",
-        application_name="to_english",
-        description="Translate the input text from German to English.",
     )
 
     bindings = {"of": "input_text"}
@@ -63,7 +67,9 @@ if __name__ == "__main__":
 
     pirates_of_penzance_line = App(
         application_name="pirates_of_penzance_line",
-        description="Returns a line from Pirates of Penzance.",
+        display_name="Pirates of Penzance Line Generator",
+        short_description="Returns a line from Pirates of Penzance.",
+        long_description="This application returns a line from the Gilbert and Sullivan operetta Pirates of Penzance for a specified character.",
         initial_survey=QuestionFreeText(
             question_name="input_text",
             question_text="What character is speaking?",
