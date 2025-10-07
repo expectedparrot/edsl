@@ -102,3 +102,17 @@ class DescriptionError(AppValueError):
 
     def __init__(self, message="Invalid application description", **kwargs):
         super().__init__(message, **kwargs)
+
+
+class DuplicateAppException(AppError):
+    """
+    Exception raised when attempting to deploy an app with a duplicate qualified name.
+
+    This is raised by the client when the server responds with HTTP 409 Conflict
+    due to an existing app with the same "owner/alias" combination.
+    """
+
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/apps.html"
+
+    def __init__(self, message: str = "Duplicate app: owner/alias already exists", **kwargs):
+        super().__init__(message, **kwargs)

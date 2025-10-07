@@ -11,9 +11,10 @@ jobs_object = Survey([
 ]).to_jobs()
 
 output_formatter = (
-    OutputFormatter(name = "Typo Checker", output_type="table")
+    OutputFormatter(description = "Typo Checker", output_type="markdown")
     .select('scenario.question_text', 'answer.typos')
-    .table()
+    .table(tablefmt = "github")
+    .to_string()
 )
 
 # Initial survey: accept a Survey as input to turn into scenarios
@@ -48,6 +49,9 @@ if __name__ == "__main__":
     output = app.output(params = {
         'input_survey': Survey.example()
     })
-    print(output)
+    #print(output)
+
+    info = app.deploy(owner="johnhorton")
+    print(info)
 
 

@@ -102,6 +102,70 @@ class AppHTMLRenderer:
         usage_code = f"app.output(params={{\n{params_body}\n}})"
         usage_block = f"<pre style=\"background:#f6f8fa; padding:10px; border-radius:6px; overflow:auto;\"><code class=\"language-python\">{escape(usage_code)}</code></pre>"
 
+        # Build output formatters table
+        formatter_rows_html: list[str] = []
+        try:
+            formatters_mapping = self.app.output_formatters.mapping
+            default_formatter_name = self.app.output_formatters.default
+            
+            for formatter_name, formatter in formatters_mapping.items():
+                # Determine if this is the default formatter
+                is_default = formatter_name == default_formatter_name
+                name_display = f"<strong>{escape(str(formatter_name))}</strong>" if is_default else escape(str(formatter_name))
+                if is_default:
+                    name_display += " <span style=\"background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:600;\">DEFAULT</span>"
+                
+                # Get output type
+                output_type = getattr(formatter, "output_type", "auto")
+                output_type_display = escape(str(output_type))
+                
+                # Get command chain summary
+                stored_commands = getattr(formatter, "_stored_commands", [])
+                if stored_commands:
+                    command_names = [cmd[0] for cmd in stored_commands[:5]]  # First 5 commands
+                    commands_display = " → ".join(command_names)
+                    if len(stored_commands) > 5:
+                        commands_display += " → ..."
+                    commands_display = escape(commands_display)
+                else:
+                    commands_display = "<em>pass-through</em>"
+                
+                formatter_rows_html.append(
+                    """
+                    <tr>
+                      <td style="padding:8px;">{name}</td>
+                      <td style="padding:8px;"><code>{output_type}</code></td>
+                      <td style="padding:8px; font-family:ui-monospace, monospace; font-size:0.875rem;">{commands}</td>
+                    </tr>
+                    """.format(
+                        name=name_display,
+                        output_type=output_type_display,
+                        commands=commands_display,
+                    )
+                )
+        except Exception:
+            # If there's any error getting formatters, just skip the section
+            formatter_rows_html = []
+        
+        formatters_table_html = ""
+        if formatter_rows_html:
+            formatters_table_html = (
+                """
+                <table style="border-collapse:collapse; width:100%; margin-top:0.75rem;">
+                  <thead>
+                    <tr>
+                      <th style="text-align:left; border-bottom:1px solid #ccc; padding:6px 8px;">Formatter Name</th>
+                      <th style="text-align:left; border-bottom:1px solid #ccc; padding:6px 8px;">Output Type</th>
+                      <th style="text-align:left; border-bottom:1px solid #ccc; padding:6px 8px;">Transformation Pipeline</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows}
+                  </tbody>
+                </table>
+                """
+            ).format(rows="\n".join(formatter_rows_html))
+
         container = (
             """
             <div class="edsl-app" style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, sans-serif; line-height:1.5;">
@@ -109,11 +173,18 @@ class AppHTMLRenderer:
               <div class="edsl-app-description" style="color:#333; margin-top:0.5rem;">{desc}</div>
               <h3 style="margin-top:1.25rem;">Parameters</h3>
               {table}
+              {formatters_section}
               <h3 style="margin-top:1.25rem;">Usage</h3>
               {usage}
             </div>
             """
-        ).format(title=title_html, desc=desc_html, table=table_html, usage=usage_block)
+        ).format(
+            title=title_html,
+            desc=desc_html,
+            table=table_html,
+            formatters_section=f"<h3 style=\"margin-top:1.25rem;\">Output Formatters</h3>\n{formatters_table_html}" if formatters_table_html else "",
+            usage=usage_block
+        )
 
         return container
 

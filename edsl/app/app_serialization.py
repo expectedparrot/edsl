@@ -85,6 +85,7 @@ class AppSerialization:
             "application_name": data.get("application_name"),
             "initial_survey": Survey.from_dict(data.get("initial_survey")),
             "attachment_formatters": attachment_formatters,
+            "client_mode": data.get("client_mode", False),
         }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
 
