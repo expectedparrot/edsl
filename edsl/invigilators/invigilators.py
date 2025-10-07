@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 import asyncio
+from functools import cached_property
 from typing import Coroutine, Dict, Any, Optional, TYPE_CHECKING
 from typing import Literal
 
@@ -80,9 +81,9 @@ class InvigilatorBase(ABC):
         # placeholder to store the raw model response
         self.raw_model_response = None
 
-    @property
+    @cached_property
     def prompt_constructor(self) -> PromptConstructor:
-        """Return the prompt constructor."""
+        """Return the prompt constructor (cached to preserve timing data)."""
         return PromptConstructor.from_invigilator(self, prompt_plan=self.prompt_plan)
 
     def to_dict(self, include_cache=False) -> Dict[str, Any]:
@@ -298,7 +299,7 @@ class InvigilatorAI(InvigilatorBase):
             params["files_list"] = prompts["files_list"]
 
         # Pass response schema for QuestionPydantic if available
-        if hasattr(self.question, 'get_response_schema'):
+        if hasattr(self.question, "get_response_schema"):
             params["response_schema"] = self.question.get_response_schema()
             params["response_schema_name"] = self.question.user_pydantic_model.__name__
 

@@ -180,21 +180,10 @@ class JobsPrompts:
 
         # Extract detailed timing breakdown from prompt_constructor if available
         prompt_timing = {}
-        has_pc = hasattr(invigilator, "prompt_constructor")
-        if has_pc:
-            pc = invigilator.prompt_constructor
-            has_timing = hasattr(pc, "_last_get_prompts_timing")
-            if interview_index == 0:
-                print(
-                    f"[DEBUG] has prompt_constructor: True, has _last_get_prompts_timing: {has_timing}"
-                )
-            if has_timing:
-                prompt_timing = pc._last_get_prompts_timing
-                if interview_index == 0:
-                    print(f"[DEBUG] Timing data: {prompt_timing}")
-        else:
-            if interview_index == 0:
-                print(f"[DEBUG] No prompt_constructor attribute on invigilator")
+        if hasattr(invigilator, "prompt_constructor") and hasattr(
+            invigilator.prompt_constructor, "_last_get_prompts_timing"
+        ):
+            prompt_timing = invigilator.prompt_constructor._last_get_prompts_timing
 
         user_prompt = prompts["user_prompt"]
         system_prompt = prompts["system_prompt"]
@@ -317,9 +306,6 @@ class JobsPrompts:
 
                 # Show detailed breakdown
                 breakdown_total = sum(prompt_breakdown.values())
-                print(
-                    f"[DEBUG] breakdown_total={breakdown_total:.3f}s, dict={prompt_breakdown}"
-                )
                 if breakdown_total > 0:
                     top_components = sorted(
                         prompt_breakdown.items(), key=lambda x: x[1], reverse=True
@@ -367,10 +353,6 @@ class JobsPrompts:
                     for key, value in timings["prompt_breakdown"].items():
                         if key in prompt_breakdown:
                             prompt_breakdown[key] += value
-                elif interview_index == 0:  # Debug on first interview only
-                    print(
-                        f"[DEBUG] No prompt_breakdown in timings. Keys: {timings.keys()}"
-                    )
 
                 for k in self.relevant_keys:
                     dataset_of_prompts[k].append(data[k])
