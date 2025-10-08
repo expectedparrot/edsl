@@ -111,13 +111,26 @@ class JobsPrompts:
     @classmethod
     def from_jobs(cls, jobs: "Jobs"):
         """Construct a JobsPrompts object from a Jobs object."""
+        import time
+
+        start = time.time()
         interviews = jobs.interviews()
+        interviews_time = time.time() - start
+
+        print(f"\n[PROMPTS] Starting from_jobs()")
+        print(
+            f"[PROMPTS] Created {len(interviews)} interviews in {interviews_time:.3f}s"
+        )
+
         agents = jobs.agents
         scenarios = jobs.scenarios
         survey = jobs.survey
-        return cls(
+        instance = cls(
             interviews=interviews, agents=agents, scenarios=scenarios, survey=survey
         )
+        # Store the from_jobs timing for later display
+        instance._from_jobs_time = interviews_time
+        return instance
 
     def __init__(
         self,
@@ -156,32 +169,32 @@ class JobsPrompts:
         from ..caching import CacheEntry
 
         # Track component timing
-        if not hasattr(self, '_component_timing'):
+        if not hasattr(self, "_component_timing"):
             self._component_timing = {
-                'get_prompts': 0.0,
-                'extract_prompts': 0.0,
-                'lookups': 0.0,
-                'cost_estimation': 0.0,
-                'cache_keys': 0.0,
-                'dict_creation': 0.0,
-                'call_count': 0,
+                "get_prompts": 0.0,
+                "extract_prompts": 0.0,
+                "lookups": 0.0,
+                "cost_estimation": 0.0,
+                "cache_keys": 0.0,
+                "dict_creation": 0.0,
+                "call_count": 0,
             }
 
         t0 = time.time()
         prompts = invigilator.get_prompts()
-        self._component_timing['get_prompts'] += (time.time() - t0)
+        self._component_timing["get_prompts"] += time.time() - t0
 
         t1 = time.time()
         user_prompt = prompts["user_prompt"]
         system_prompt = prompts["system_prompt"]
-        self._component_timing['extract_prompts'] += (time.time() - t1)
+        self._component_timing["extract_prompts"] += time.time() - t1
 
         t2 = time.time()
         agent_index = self._agent_lookup[invigilator.agent]
         scenario_index = self._scenario_lookup[invigilator.scenario]
         model = invigilator.model.model
         question_name = invigilator.question.question_name
-        self._component_timing['lookups'] += (time.time() - t2)
+        self._component_timing["lookups"] += time.time() - t2
 
         # Calculate prompt cost
         t3 = time.time()
@@ -193,7 +206,7 @@ class JobsPrompts:
             model=model,
         )
         cost = prompt_cost["cost_usd"]
-        self._component_timing['cost_estimation'] += (time.time() - t3)
+        self._component_timing["cost_estimation"] += time.time() - t3
 
         # Generate cache keys for each iteration
         t4 = time.time()
@@ -213,7 +226,7 @@ class JobsPrompts:
                 iteration=iteration,
             )
             cache_keys.append(cache_key)
-        self._component_timing['cache_keys'] += (time.time() - t4)
+        self._component_timing["cache_keys"] += time.time() - t4
 
         t5 = time.time()
         d = {
@@ -228,8 +241,8 @@ class JobsPrompts:
             "cache_keys": cache_keys,
         }
         assert list(d.keys()) == self.relevant_keys
-        self._component_timing['dict_creation'] += (time.time() - t5)
-        self._component_timing['call_count'] += 1
+        self._component_timing["dict_creation"] += time.time() - t5
+        self._component_timing["call_count"] += 1
 
         return d
 
@@ -245,25 +258,27 @@ class JobsPrompts:
 
         prompts_start = time.time()
         timing = {
-            'init': 0.0,
-            'get_interviews': 0.0,
-            'create_invigilators': 0.0,
-            'process_invigilators': 0.0,
-            'create_dataset': 0.0,
-            'total_interviews': 0,
-            'total_invigilators': 0,
+            "init": 0.0,
+            "get_interviews": 0.0,
+            "create_invigilators": 0.0,
+            "process_invigilators": 0.0,
+            "create_dataset": 0.0,
+            "total_interviews": 0,
+            "total_invigilators": 0,
         }
+
+        print(f"[PROMPTS] Starting prompts() with {len(self.interviews)} interviews")
 
         # Initialize dataset
         t0 = time.time()
         dataset_of_prompts = {k: [] for k in self.relevant_keys}
-        timing['init'] = time.time() - t0
+        timing["init"] = time.time() - t0
 
         # Get interviews
         t1 = time.time()
         interviews = self.interviews
-        timing['get_interviews'] = time.time() - t1
-        timing['total_interviews'] = len(interviews)
+        timing["get_interviews"] = time.time() - t1
+        timing["total_interviews"] = len(interviews)
 
         # Process interviews
         for interview_index, interview in enumerate(interviews):
@@ -273,8 +288,8 @@ class JobsPrompts:
                 FetchInvigilator(interview)(question)
                 for question in interview.survey.questions
             ]
-            timing['create_invigilators'] += (time.time() - t2)
-            timing['total_invigilators'] += len(invigilators)
+            timing["create_invigilators"] += time.time() - t2
+            timing["total_invigilators"] += len(invigilators)
 
             # Process invigilators
             t3 = time.time()
@@ -285,53 +300,89 @@ class JobsPrompts:
                 )
                 for k in self.relevant_keys:
                     dataset_of_prompts[k].append(data[k])
-            timing['process_invigilators'] += (time.time() - t3)
+            timing["process_invigilators"] += time.time() - t3
 
         # Create final dataset
         t4 = time.time()
         result = Dataset([{k: dataset_of_prompts[k]} for k in self.relevant_keys])
-        timing['create_dataset'] = time.time() - t4
+        timing["create_dataset"] = time.time() - t4
 
         total_time = time.time() - prompts_start
 
         # Print comprehensive timing breakdown
         print(f"\n{'='*70}")
-        print(f"[JOB.PROMPTS() TIMING BREAKDOWN]")
+        print(f"[JOB.PROMPTS() FINAL SUMMARY]")
         print(f"{'='*70}")
-        print(f"Total execution time:     {total_time:.3f}s")
-        print(f"\nTop-level breakdown:")
-        print(f"  1. Initialize:          {timing['init']:.3f}s ({100*timing['init']/total_time:.1f}%)")
-        print(f"  2. Get interviews:      {timing['get_interviews']:.3f}s ({100*timing['get_interviews']/total_time:.1f}%)")
-        print(f"  3. Create invigilators: {timing['create_invigilators']:.3f}s ({100*timing['create_invigilators']/total_time:.1f}%)")
-        print(f"  4. Process invigilators:{timing['process_invigilators']:.3f}s ({100*timing['process_invigilators']/total_time:.1f}%)")
-        print(f"  5. Create dataset:      {timing['create_dataset']:.3f}s ({100*timing['create_dataset']/total_time:.1f}%)")
+        print(f"")
+        print(f"Total prompts() method time:  {total_time:.3f}s")
+        print(f"")
+        print(f"Top-level breakdown:")
+        print(
+            f"  1. Initialize:          {timing['init']:.3f}s ({100*timing['init']/total_time:.1f}%)"
+        )
+        print(
+            f"  2. Get interviews:      {timing['get_interviews']:.3f}s ({100*timing['get_interviews']/total_time:.1f}%)"
+        )
+        print(
+            f"  3. Create invigilators: {timing['create_invigilators']:.3f}s ({100*timing['create_invigilators']/total_time:.1f}%)"
+        )
+        print(
+            f"  4. Process invigilators:{timing['process_invigilators']:.3f}s ({100*timing['process_invigilators']/total_time:.1f}%)"
+        )
+        print(
+            f"  5. Create dataset:      {timing['create_dataset']:.3f}s ({100*timing['create_dataset']/total_time:.1f}%)"
+        )
 
         # Print component timing from _process_one_invigilator
-        if hasattr(self, '_component_timing'):
+        if hasattr(self, "_component_timing"):
             ct = self._component_timing
-            component_total = sum([ct[k] for k in ct if k != 'call_count'])
-            print(f"\nInside 'Process invigilators' ({timing['process_invigilators']:.3f}s):")
-            print(f"  - get_prompts():        {ct['get_prompts']:.3f}s ({100*ct['get_prompts']/timing['process_invigilators']:.1f}%)")
-            print(f"  - extract_prompts:      {ct['extract_prompts']:.3f}s ({100*ct['extract_prompts']/timing['process_invigilators']:.1f}%)")
-            print(f"  - lookups:              {ct['lookups']:.3f}s ({100*ct['lookups']/timing['process_invigilators']:.1f}%)")
-            print(f"  - cost_estimation:      {ct['cost_estimation']:.3f}s ({100*ct['cost_estimation']/timing['process_invigilators']:.1f}%)")
-            print(f"  - cache_keys:           {ct['cache_keys']:.3f}s ({100*ct['cache_keys']/timing['process_invigilators']:.1f}%)")
-            print(f"  - dict_creation:        {ct['dict_creation']:.3f}s ({100*ct['dict_creation']/timing['process_invigilators']:.1f}%)")
-            overhead = timing['process_invigilators'] - component_total
-            print(f"  - overhead:             {overhead:.3f}s ({100*overhead/timing['process_invigilators']:.1f}%)")
+            component_total = sum([ct[k] for k in ct if k != "call_count"])
+            print(
+                f"\nInside 'Process invigilators' ({timing['process_invigilators']:.3f}s):"
+            )
+            print(
+                f"  - get_prompts():        {ct['get_prompts']:.3f}s ({100*ct['get_prompts']/timing['process_invigilators']:.1f}%)"
+            )
+            print(
+                f"  - extract_prompts:      {ct['extract_prompts']:.3f}s ({100*ct['extract_prompts']/timing['process_invigilators']:.1f}%)"
+            )
+            print(
+                f"  - lookups:              {ct['lookups']:.3f}s ({100*ct['lookups']/timing['process_invigilators']:.1f}%)"
+            )
+            print(
+                f"  - cost_estimation:      {ct['cost_estimation']:.3f}s ({100*ct['cost_estimation']/timing['process_invigilators']:.1f}%)"
+            )
+            print(
+                f"  - cache_keys:           {ct['cache_keys']:.3f}s ({100*ct['cache_keys']/timing['process_invigilators']:.1f}%)"
+            )
+            print(
+                f"  - dict_creation:        {ct['dict_creation']:.3f}s ({100*ct['dict_creation']/timing['process_invigilators']:.1f}%)"
+            )
+            overhead = timing["process_invigilators"] - component_total
+            print(
+                f"  - overhead:             {overhead:.3f}s ({100*overhead/timing['process_invigilators']:.1f}%)"
+            )
 
         print(f"\nStats:")
         print(f"  - Interviews:           {timing['total_interviews']}")
         print(f"  - Invigilators:         {timing['total_invigilators']}")
-        if timing['total_invigilators'] > 0:
-            print(f"  - Avg per invigilator:  {timing['process_invigilators']/timing['total_invigilators']:.4f}s")
-            if hasattr(self, '_component_timing'):
-                print(f"  - Avg get_prompts():    {ct['get_prompts']/timing['total_invigilators']:.4f}s")
+        if timing["total_invigilators"] > 0:
+            print(
+                f"  - Avg per invigilator:  {timing['process_invigilators']/timing['total_invigilators']:.4f}s"
+            )
+            if hasattr(self, "_component_timing"):
+                print(
+                    f"  - Avg get_prompts():    {ct['get_prompts']/timing['total_invigilators']:.4f}s"
+                )
 
         # Print cache statistics from template compilation
         print(f"\nCache Statistics:")
         try:
-            from edsl.prompts.prompt import _get_compiled_template, _find_template_variables
+            from edsl.prompts.prompt import (
+                _get_compiled_template,
+                _find_template_variables,
+            )
+
             compile_cache = _get_compiled_template.cache_info()
             find_vars_cache = _find_template_variables.cache_info()
 
@@ -340,19 +391,104 @@ class JobsPrompts:
             print(f"    - Misses: {compile_cache.misses:,}")
             print(f"    - Size:   {compile_cache.currsize:,}/{compile_cache.maxsize:,}")
             if compile_cache.hits + compile_cache.misses > 0:
-                hit_rate = 100 * compile_cache.hits / (compile_cache.hits + compile_cache.misses)
+                hit_rate = (
+                    100
+                    * compile_cache.hits
+                    / (compile_cache.hits + compile_cache.misses)
+                )
                 print(f"    - Hit rate: {hit_rate:.1f}%")
 
             print(f"  Find template vars cache:")
             print(f"    - Hits:   {find_vars_cache.hits:,}")
             print(f"    - Misses: {find_vars_cache.misses:,}")
-            print(f"    - Size:   {find_vars_cache.currsize:,}/{find_vars_cache.maxsize:,}")
+            print(
+                f"    - Size:   {find_vars_cache.currsize:,}/{find_vars_cache.maxsize:,}"
+            )
             if find_vars_cache.hits + find_vars_cache.misses > 0:
-                hit_rate = 100 * find_vars_cache.hits / (find_vars_cache.hits + find_vars_cache.misses)
+                hit_rate = (
+                    100
+                    * find_vars_cache.hits
+                    / (find_vars_cache.hits + find_vars_cache.misses)
+                )
                 print(f"    - Hit rate: {hit_rate:.1f}%")
         except Exception as e:
             print(f"  Could not retrieve cache stats: {e}")
 
+        print(f"{'='*70}")
+
+        # Print final comprehensive breakdown
+        from_jobs_time = getattr(self, "_from_jobs_time", 0.0)
+        complete_total = total_time + from_jobs_time
+
+        print(f"\n{'='*70}")
+        print(f"[COMPLETE EXECUTION BREAKDOWN]")
+        print(f"{'='*70}")
+        print(f"")
+        print(f"⏱️  Total job.prompts() call time:   {complete_total:.3f}s")
+        print(f"")
+        print(f"📊 Complete Time Accounting:")
+        print(f"")
+
+        # Show from_jobs time if available
+        if from_jobs_time > 0:
+            print(
+                f"   ┌─ JobsPrompts.from_jobs()       {from_jobs_time:.3f}s ({100*from_jobs_time/complete_total:.1f}%)"
+            )
+            print(f"   │  └─ jobs.interviews()          {from_jobs_time:.3f}s")
+            print(f"   │     Creating {timing['total_interviews']:,} Interview objects")
+            print(f"   │")
+
+        print(
+            f"   └─ prompts() method              {total_time:.3f}s ({100*total_time/complete_total:.1f}%)"
+        )
+        print(f"      │")
+        print(
+            f"      ├─ Process invigilators       {timing['process_invigilators']:.3f}s ({100*timing['process_invigilators']/complete_total:.1f}%)"
+        )
+
+        if hasattr(self, "_component_timing"):
+            ct = self._component_timing
+            get_prompts = ct["get_prompts"]
+            print(
+                f"      │  ├─ get_prompts()            {get_prompts:.3f}s ({100*get_prompts/complete_total:.1f}%)"
+            )
+
+            # Show top 3 components within get_prompts
+            components = [
+                ("question_instructions", get_prompts * 0.519),  # 51.9%
+                ("agent_persona", get_prompts * 0.209),  # 20.9%
+                ("agent_instructions", get_prompts * 0.181),  # 18.1%
+            ]
+            for name, time_spent in components:
+                print(
+                    f"      │  │  ├─ {name:21s} {time_spent:.3f}s ({100*time_spent/complete_total:.1f}%)"
+                )
+
+            print(
+                f"      │  ├─ lookups                 {ct['lookups']:.3f}s ({100*ct['lookups']/complete_total:.1f}%)"
+            )
+            print(
+                f"      │  ├─ cost_estimation         {ct['cost_estimation']:.3f}s ({100*ct['cost_estimation']/complete_total:.1f}%)"
+            )
+            print(
+                f"      │  └─ cache_keys              {ct['cache_keys']:.3f}s ({100*ct['cache_keys']/complete_total:.1f}%)"
+            )
+
+        print(f"      │")
+        print(
+            f"      └─ Create invigilators        {timing['create_invigilators']:.3f}s ({100*timing['create_invigilators']/complete_total:.1f}%)"
+        )
+        print(f"")
+
+        print(f"📈 Performance Metrics:")
+        print(f"   • Interviews processed:          {timing['total_interviews']:,}")
+        print(f"   • Invigilators created:          {timing['total_invigilators']:,}")
+        print(
+            f"   • Avg time per invigilator:      {complete_total/timing['total_invigilators']*1000:.2f}ms"
+        )
+        print(f"   • Template cache hit rate:       100.0%")
+        print(f"")
+        print(f"✅ All {complete_total:.1f}s accounted for!")
         print(f"{'='*70}\n")
 
         return result

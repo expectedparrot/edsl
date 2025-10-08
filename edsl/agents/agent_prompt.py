@@ -105,14 +105,14 @@ class AgentPrompt:
         from ..questions import QuestionScenarioRenderError
 
         # Track timing for this method
-        if not hasattr(self, '_prompt_timing'):
+        if not hasattr(self, "_prompt_timing"):
             self._prompt_timing = {
-                'template_rebuild': 0.0,
-                'dict_creation': 0.0,
-                'get_persona': 0.0,
-                'validate': 0.0,
-                'render': 0.0,
-                'call_count': 0,
+                "template_rebuild": 0.0,
+                "dict_creation": 0.0,
+                "get_persona": 0.0,
+                "validate": 0.0,
+                "render": 0.0,
+                "call_count": 0,
             }
 
         # If using the default template and the codebook has been updated since initialization,
@@ -135,7 +135,7 @@ class AgentPrompt:
             self.agent.traits_presentation_template = "Your traits:\n" + "\n".join(
                 traits_lines
             )
-        self._prompt_timing['template_rebuild'] += (time.time() - t0)
+        self._prompt_timing["template_rebuild"] += time.time() - t0
 
         # Create a dictionary with traits, a reference to all traits, and the codebook
         t1 = time.time()
@@ -144,12 +144,12 @@ class AgentPrompt:
             | {"traits": self.agent.traits}
             | {"codebook": self.agent.codebook}
         )
-        self._prompt_timing['dict_creation'] += (time.time() - t1)
+        self._prompt_timing["dict_creation"] += time.time() - t1
 
         # Get the agent persona
         t2 = time.time()
         agent_persona = self.agent_persona()
-        self._prompt_timing['get_persona'] += (time.time() - t2)
+        self._prompt_timing["get_persona"] += time.time() - t2
 
         # Check for any undefined variables in the template
         t3 = time.time()
@@ -157,21 +157,21 @@ class AgentPrompt:
             raise QuestionScenarioRenderError(
                 f"Agent persona still has variables that were not rendered: {undefined}"
             )
-        self._prompt_timing['validate'] += (time.time() - t3)
+        self._prompt_timing["validate"] += time.time() - t3
 
         t4 = time.time()
 
         # Cache the rendered result using a hash of the replacement dict
         # This avoids re-rendering the same agent persona multiple times
         cache_key = None
-        if hasattr(self, '_render_cache'):
+        if hasattr(self, "_render_cache"):
             # Create a simple cache key from traits (which are typically small)
             try:
                 cache_key = hash(frozenset(self.agent.traits.items()))
                 if cache_key in self._render_cache:
                     result = self._render_cache[cache_key]
-                    self._prompt_timing['render'] += (time.time() - t4)
-                    self._prompt_timing['call_count'] += 1
+                    self._prompt_timing["render"] += time.time() - t4
+                    self._prompt_timing["call_count"] += 1
                     return result
             except (TypeError, AttributeError):
                 # If traits aren't hashable, skip caching
@@ -185,26 +185,46 @@ class AgentPrompt:
         if cache_key is not None:
             self._render_cache[cache_key] = result
 
-        self._prompt_timing['render'] += (time.time() - t4)
+        self._prompt_timing["render"] += time.time() - t4
 
-        self._prompt_timing['call_count'] += 1
+        self._prompt_timing["call_count"] += 1
 
-        # Print stats every 1000 calls
-        if self._prompt_timing['call_count'] % 1000 == 0:
+        # Print stats every 10000 calls
+        if self._prompt_timing["call_count"] % 100 == 0:
             stats = self._prompt_timing
-            total = sum([stats[k] for k in stats if k != 'call_count'])
-            print(f"\n[AGENT.PROMPT_MANAGER.PROMPT] Call #{stats['call_count']}")
-            print(f"  Total time:        {total:.3f}s")
-            print(f"  - template_rebuild:{stats['template_rebuild']:.3f}s ({100*stats['template_rebuild']/total:.1f}%)")
-            print(f"  - dict_creation:   {stats['dict_creation']:.3f}s ({100*stats['dict_creation']/total:.1f}%)")
-            print(f"  - get_persona:     {stats['get_persona']:.3f}s ({100*stats['get_persona']/total:.1f}%)")
-            print(f"  - validate:        {stats['validate']:.3f}s ({100*stats['validate']/total:.1f}%)")
-            print(f"  - render:          {stats['render']:.3f}s ({100*stats['render']/total:.1f}%)")
-            print(f"  Avg per call:      {total/stats['call_count']:.4f}s")
-            if hasattr(self, '_render_cache'):
+            total = sum([stats[k] for k in stats if k != "call_count"])
+            print(f"\n[AGENT.PROMPT] Call #{stats['call_count']}")
+            print(f"{'='*70}")
+            print(f"Total time:              {total:.3f}s")
+            print(f"")
+            print(f"Component breakdown:")
+            print(
+                f"  render               {stats['render']:.3f}s ({100*stats['render']/total:5.1f}%) - avg: {stats['render']/stats['call_count']:.4f}s/call"
+            )
+            print(
+                f"  template_rebuild     {stats['template_rebuild']:.3f}s ({100*stats['template_rebuild']/total:5.1f}%) - avg: {stats['template_rebuild']/stats['call_count']:.4f}s/call"
+            )
+            print(
+                f"  validate             {stats['validate']:.3f}s ({100*stats['validate']/total:5.1f}%) - avg: {stats['validate']/stats['call_count']:.4f}s/call"
+            )
+            print(
+                f"  dict_creation        {stats['dict_creation']:.3f}s ({100*stats['dict_creation']/total:5.1f}%) - avg: {stats['dict_creation']/stats['call_count']:.4f}s/call"
+            )
+            print(
+                f"  get_persona          {stats['get_persona']:.3f}s ({100*stats['get_persona']/total:5.1f}%) - avg: {stats['get_persona']/stats['call_count']:.4f}s/call"
+            )
+            print(f"")
+            print(f"Overall avg per call:    {total/stats['call_count']:.4f}s")
+            if hasattr(self, "_render_cache"):
                 cache_size = len(self._render_cache)
-                print(f"  Render cache size: {cache_size}")
-            print()
+                hit_rate = (
+                    (stats["call_count"] - cache_size) / stats["call_count"] * 100
+                    if stats["call_count"] > 0
+                    else 0
+                )
+                print(f"Render cache size:       {cache_size}")
+                print(f"Estimated cache hit rate: {hit_rate:.1f}%")
+            print(f"{'='*70}\n")
 
         return result
 
