@@ -327,6 +327,32 @@ class JobsPrompts:
             print(f"  - Avg per invigilator:  {timing['process_invigilators']/timing['total_invigilators']:.4f}s")
             if hasattr(self, '_component_timing'):
                 print(f"  - Avg get_prompts():    {ct['get_prompts']/timing['total_invigilators']:.4f}s")
+
+        # Print cache statistics from template compilation
+        print(f"\nCache Statistics:")
+        try:
+            from edsl.prompts.prompt import _get_compiled_template, _find_template_variables
+            compile_cache = _get_compiled_template.cache_info()
+            find_vars_cache = _find_template_variables.cache_info()
+
+            print(f"  Template compilation cache:")
+            print(f"    - Hits:   {compile_cache.hits:,}")
+            print(f"    - Misses: {compile_cache.misses:,}")
+            print(f"    - Size:   {compile_cache.currsize:,}/{compile_cache.maxsize:,}")
+            if compile_cache.hits + compile_cache.misses > 0:
+                hit_rate = 100 * compile_cache.hits / (compile_cache.hits + compile_cache.misses)
+                print(f"    - Hit rate: {hit_rate:.1f}%")
+
+            print(f"  Find template vars cache:")
+            print(f"    - Hits:   {find_vars_cache.hits:,}")
+            print(f"    - Misses: {find_vars_cache.misses:,}")
+            print(f"    - Size:   {find_vars_cache.currsize:,}/{find_vars_cache.maxsize:,}")
+            if find_vars_cache.hits + find_vars_cache.misses > 0:
+                hit_rate = 100 * find_vars_cache.hits / (find_vars_cache.hits + find_vars_cache.misses)
+                print(f"    - Hit rate: {hit_rate:.1f}%")
+        except Exception as e:
+            print(f"  Could not retrieve cache stats: {e}")
+
         print(f"{'='*70}\n")
 
         return result
