@@ -2,9 +2,22 @@ from __future__ import annotations
 from typing import Dict, Any, Optional, TYPE_CHECKING, Literal
 from functools import cached_property
 import logging
+import time
 
 # Module-level cache for prior_answers_dict to avoid recomputation across questions
 _prior_answers_dict_cache = {}
+
+# Global timing statistics for get_prompts
+_get_prompts_timing = {
+    'call_count': 0,
+    'total_time': 0.0,
+    'agent_instructions_time': 0.0,
+    'agent_persona_time': 0.0,
+    'question_instructions_time': 0.0,
+    'prior_memory_time': 0.0,
+    'plan_get_prompts_time': 0.0,
+    'file_keys_time': 0.0,
+}
 
 from .prompt_helpers import PromptPlan
 from .question_template_replacements_builder import (
@@ -300,13 +313,19 @@ class PromptConstructor:
             >>> i.prompt_constructor.agent_instructions_prompt
             Prompt(text=\"""You are answering questions as if you were a human. Do not break character.\""")
         """
+        start = time.time()
         from ..agents import Agent
         from ..prompts import Prompt
 
         if self.agent == Agent():  # if agent is empty, then return an empty prompt
-            return Prompt(text="")
+            result = Prompt(text="")
+        else:
+            result = Prompt(text=self.agent.instruction)
 
-        return Prompt(text=self.agent.instruction)
+        elapsed = time.time() - start
+        if elapsed > 0.001:  # Only log if takes more than 1ms
+            print(f"[DEBUG] agent_instructions_prompt took {elapsed:.4f}s")
+        return result
 
     @cached_property
     def agent_persona_prompt(self) -> "Prompt":
@@ -322,13 +341,19 @@ class PromptConstructor:
             >>> i.prompt_constructor.agent_persona_prompt
             Prompt(text=\"""Your traits: {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
         """
+        start = time.time()
         from ..agents import Agent
         from ..prompts import Prompt
 
         if self.agent == Agent():  # if agent is empty, then return an empty prompt
-            return Prompt(text="")
+            result = Prompt(text="")
+        else:
+            result = self.agent.prompt()
 
-        return self.agent.prompt()
+        elapsed = time.time() - start
+        if elapsed > 0.001:  # Only log if takes more than 1ms
+            print(f"[DEBUG] agent_persona_prompt took {elapsed:.4f}s")
+        return result
 
     def prior_answers_dict(self) -> dict[str, "QuestionBase"]:
         """
@@ -648,11 +673,24 @@ class PromptConstructor:
             - Handles file attachments if specified in the question
             - Returns a complete dictionary ready for use with the language model
         """
+        start_time = time.time()
+
         # Build all the components
+        t0 = time.time()
         agent_instructions = self.agent_instructions_prompt
+        _get_prompts_timing['agent_instructions_time'] += (time.time() - t0)
+
+        t1 = time.time()
         agent_persona = self.agent_persona_prompt
+        _get_prompts_timing['agent_persona_time'] += (time.time() - t1)
+
+        t2 = time.time()
         question_instructions = self.question_instructions_prompt
+        _get_prompts_timing['question_instructions_time'] += (time.time() - t2)
+
+        t3 = time.time()
         prior_question_memory = self.prior_question_memory_prompt
+        _get_prompts_timing['prior_memory_time'] += (time.time() - t3)
 
         # Get components dict
         components = {
@@ -663,15 +701,36 @@ class PromptConstructor:
         }
 
         # Generate prompts from plan
+        t4 = time.time()
         prompts = self.prompt_plan.get_prompts(**components)
+        _get_prompts_timing['plan_get_prompts_time'] += (time.time() - t4)
 
         # Handle file keys if present
+        t5 = time.time()
         file_keys = self.file_keys_from_question
         if file_keys:
             files_list = []
             for key in file_keys:
                 files_list.append(self.scenario[key])
             prompts["files_list"] = files_list
+        _get_prompts_timing['file_keys_time'] += (time.time() - t5)
+
+        total_time = time.time() - start_time
+        _get_prompts_timing['total_time'] += total_time
+        _get_prompts_timing['call_count'] += 1
+
+        # Print stats every 100 calls
+        if _get_prompts_timing['call_count'] % 100 == 0:
+            stats = _get_prompts_timing
+            print(f"\n[PROMPT_CONSTRUCTOR.GET_PROMPTS] Call #{stats['call_count']}")
+            print(f"  Total time:              {stats['total_time']:.3f}s")
+            print(f"  - agent_instructions:    {stats['agent_instructions_time']:.3f}s ({100*stats['agent_instructions_time']/stats['total_time']:.1f}%)")
+            print(f"  - agent_persona:         {stats['agent_persona_time']:.3f}s ({100*stats['agent_persona_time']/stats['total_time']:.1f}%)")
+            print(f"  - question_instructions: {stats['question_instructions_time']:.3f}s ({100*stats['question_instructions_time']/stats['total_time']:.1f}%)")
+            print(f"  - prior_memory:          {stats['prior_memory_time']:.3f}s ({100*stats['prior_memory_time']/stats['total_time']:.1f}%)")
+            print(f"  - plan.get_prompts():    {stats['plan_get_prompts_time']:.3f}s ({100*stats['plan_get_prompts_time']/stats['total_time']:.1f}%)")
+            print(f"  - file_keys:             {stats['file_keys_time']:.3f}s ({100*stats['file_keys_time']/stats['total_time']:.1f}%)")
+            print(f"  Avg per call:            {stats['total_time']/stats['call_count']:.4f}s\n")
 
         return prompts
 

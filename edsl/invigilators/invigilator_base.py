@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import asyncio
 from typing import Coroutine, Dict, Any, Optional, TYPE_CHECKING
+from functools import cached_property
 
 from ..utilities.decorators import jupyter_nb_handler
 
@@ -123,7 +124,7 @@ class InvigilatorBase(ABC):
         # Storage for the raw model response
         self.raw_model_response = None
 
-    @property
+    @cached_property
     def prompt_constructor(self) -> PromptConstructor:
         """
         Get the prompt constructor for this invigilator.
@@ -141,6 +142,7 @@ class InvigilatorBase(ABC):
             - The constructor has access to all the context of this invigilator
             - The prompt_plan controls the structure and components of the prompts
             - This is a key part of the separation of concerns in the invigilator architecture
+            - Changed to @cached_property to avoid recreating PromptConstructor on every access
         """
         return PromptConstructor.from_invigilator(self, prompt_plan=self.prompt_plan)
 

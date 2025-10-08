@@ -24,6 +24,22 @@ _render_timing = {
     'total_iterations': 0,
 }
 
+# Global timing statistics for undefined_template_variables
+_undefined_vars_timing = {
+    'call_count': 0,
+    'total_time': 0.0,
+    'template_vars_time': 0.0,
+    'list_comp_time': 0.0,
+}
+
+# Global timing statistics for _find_template_variables
+_find_vars_timing = {
+    'call_count': 0,
+    'total_time': 0.0,
+    'parse_time': 0.0,
+    'meta_time': 0.0,
+}
+
 
 class PreserveUndefined(Undefined):
     def __str__(self):
@@ -61,9 +77,34 @@ def make_env() -> Environment:
 
 @lru_cache(maxsize=100000)
 def _find_template_variables(template_text: str) -> List[str]:
+    start = time.time()
+
     env = make_env()
+
+    t0 = time.time()
     ast = env.parse(template_text)
-    return list(meta.find_undeclared_variables(ast))
+    _find_vars_timing['parse_time'] += (time.time() - t0)
+
+    t1 = time.time()
+    result = list(meta.find_undeclared_variables(ast))
+    _find_vars_timing['meta_time'] += (time.time() - t1)
+
+    _find_vars_timing['total_time'] += (time.time() - start)
+    _find_vars_timing['call_count'] += 1
+
+    # Print stats and cache info every 100 calls
+    if _find_vars_timing['call_count'] % 100 == 0:
+        stats = _find_vars_timing
+        cache_info = _find_template_variables.cache_info()
+        print(f"\n[FIND_TEMPLATE_VARS] Call #{stats['call_count']}")
+        print(f"  Total time:       {stats['total_time']:.3f}s")
+        print(f"  - parse():        {stats['parse_time']:.3f}s ({100*stats['parse_time']/stats['total_time']:.1f}%)")
+        print(f"  - meta.find():    {stats['meta_time']:.3f}s ({100*stats['meta_time']/stats['total_time']:.1f}%)")
+        print(f"  Avg per call:     {stats['total_time']/stats['call_count']:.4f}s")
+        print(f"  Cache: hits={cache_info.hits}, misses={cache_info.misses}, size={cache_info.currsize}")
+        print(f"  Cache hit rate:   {100*cache_info.hits/(cache_info.hits+cache_info.misses):.1f}%\n")
+
+    return result
 
 
 @lru_cache(maxsize=100000)
@@ -222,7 +263,11 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
 
     def template_variables(self) -> list[str]:
         """Return the variables in the template."""
-        return _find_template_variables(str(self))
+        # Fast path: if no template syntax, return empty list
+        text = str(self)
+        if '{{' not in text and '{%' not in text:
+            return []
+        return _find_template_variables(text)
 
     def undefined_template_variables(self, replacement_dict: dict) -> list[str]:
         """Return the variables in the template that are not in the replacement_dict.
@@ -239,7 +284,29 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
         >>> p.undefined_template_variables({"person": "John"})
         ['title']
         """
-        return [var for var in self.template_variables() if var not in replacement_dict]
+        start = time.time()
+
+        t0 = time.time()
+        template_vars = self.template_variables()
+        _undefined_vars_timing['template_vars_time'] += (time.time() - t0)
+
+        t1 = time.time()
+        result = [var for var in template_vars if var not in replacement_dict]
+        _undefined_vars_timing['list_comp_time'] += (time.time() - t1)
+
+        _undefined_vars_timing['total_time'] += (time.time() - start)
+        _undefined_vars_timing['call_count'] += 1
+
+        # Print stats every 100 calls
+        if _undefined_vars_timing['call_count'] % 100 == 0:
+            stats = _undefined_vars_timing
+            print(f"\n[UNDEFINED_TEMPLATE_VARS] Call #{stats['call_count']}")
+            print(f"  Total time:       {stats['total_time']:.3f}s")
+            print(f"  - template_vars(): {stats['template_vars_time']:.3f}s ({100*stats['template_vars_time']/stats['total_time']:.1f}%)")
+            print(f"  - list comp:      {stats['list_comp_time']:.3f}s ({100*stats['list_comp_time']/stats['total_time']:.1f}%)")
+            print(f"  Avg per call:     {stats['total_time']/stats['call_count']:.4f}s\n")
+
+        return result
 
     def unused_traits(self, traits: dict) -> list[str]:
         """Return the traits that are not used in the template."""
