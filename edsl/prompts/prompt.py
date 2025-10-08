@@ -422,9 +422,9 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
             t1 = time.time()
            # print("$$$$$$$$$$$$$$$$$$$",iterations)
            # print(current_text)
-            if "{{"  in current_text:
+            if "{{"  in current_text or "{%" in current_text:
                 template = _get_compiled_template(current_text)
-            
+
                 # Re-inject the vars object since cached template doesn't have it
                 template.globals["vars"] = template_vars
                 _render_timing['compile_time'] += (time.time() - t1)
@@ -432,6 +432,9 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
                 t2 = time.time()
                 rendered_text = template.render(**all_replacements)
                 _render_timing['render_time'] += (time.time() - t2)
+            else:
+                # No template syntax, use text as-is
+                rendered_text = current_text
 
             if rendered_text == current_text:
                 # No more changes, return final text with captured variables.
