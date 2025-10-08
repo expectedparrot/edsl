@@ -9,14 +9,14 @@ _prior_answers_dict_cache = {}
 
 # Global timing statistics for get_prompts
 _get_prompts_timing = {
-    'call_count': 0,
-    'total_time': 0.0,
-    'agent_instructions_time': 0.0,
-    'agent_persona_time': 0.0,
-    'question_instructions_time': 0.0,
-    'prior_memory_time': 0.0,
-    'plan_get_prompts_time': 0.0,
-    'file_keys_time': 0.0,
+    "call_count": 0,
+    "total_time": 0.0,
+    "agent_instructions_time": 0.0,
+    "agent_persona_time": 0.0,
+    "question_instructions_time": 0.0,
+    "prior_memory_time": 0.0,
+    "plan_get_prompts_time": 0.0,
+    "file_keys_time": 0.0,
 }
 
 from .prompt_helpers import PromptPlan
@@ -313,18 +313,51 @@ class PromptConstructor:
             >>> i.prompt_constructor.agent_instructions_prompt
             Prompt(text=\"""You are answering questions as if you were a human. Do not break character.\""")
         """
+        if not hasattr(PromptConstructor, "_agent_instructions_timing"):
+            PromptConstructor._agent_instructions_timing = {
+                "agent_check": 0.0,
+                "prompt_creation": 0.0,
+                "total": 0.0,
+                "call_count": 0,
+            }
+
         start = time.time()
-        from ..agents import Agent
         from ..prompts import Prompt
 
-        if self.agent == Agent():  # if agent is empty, then return an empty prompt
+        t1 = time.time()
+        # Check if agent is empty by checking if it has any traits
+        # This is much faster than creating Agent() and comparing hashes
+        is_empty = not self.agent.traits
+        PromptConstructor._agent_instructions_timing["agent_check"] += time.time() - t1
+
+        t2 = time.time()
+        if is_empty:  # if agent is empty, then return an empty prompt
             result = Prompt(text="")
         else:
             result = Prompt(text=self.agent.instruction)
+        PromptConstructor._agent_instructions_timing["prompt_creation"] += (
+            time.time() - t2
+        )
 
         elapsed = time.time() - start
-        if elapsed > 0.001:  # Only log if takes more than 1ms
-            print(f"[DEBUG] agent_instructions_prompt took {elapsed:.4f}s")
+        PromptConstructor._agent_instructions_timing["total"] += elapsed
+        PromptConstructor._agent_instructions_timing["call_count"] += 1
+
+        # Print stats every 10000 calls
+        if PromptConstructor._agent_instructions_timing["call_count"] % 100 == 0:
+            stats = PromptConstructor._agent_instructions_timing
+            print(f"\n[AGENT_INSTRUCTIONS] Call #{stats['call_count']}")
+            print(f"{'='*70}")
+            print(f"Total time:              {stats['total']:.3f}s")
+            print(
+                f"  - agent_check:         {stats['agent_check']:.3f}s ({100*stats['agent_check']/stats['total']:.1f}%)"
+            )
+            print(
+                f"  - prompt_creation:     {stats['prompt_creation']:.3f}s ({100*stats['prompt_creation']/stats['total']:.1f}%)"
+            )
+            print(f"Avg per call:            {stats['total']/stats['call_count']:.4f}s")
+            print(f"{'='*70}\n")
+
         return result
 
     @cached_property
@@ -341,18 +374,49 @@ class PromptConstructor:
             >>> i.prompt_constructor.agent_persona_prompt
             Prompt(text=\"""Your traits: {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
         """
+        if not hasattr(PromptConstructor, "_agent_persona_timing"):
+            PromptConstructor._agent_persona_timing = {
+                "agent_check": 0.0,
+                "agent_prompt": 0.0,
+                "total": 0.0,
+                "call_count": 0,
+            }
+
         start = time.time()
-        from ..agents import Agent
         from ..prompts import Prompt
 
-        if self.agent == Agent():  # if agent is empty, then return an empty prompt
+        t1 = time.time()
+        # Check if agent is empty by checking if it has any traits
+        # This is much faster than creating Agent() and comparing hashes
+        is_empty = not self.agent.traits
+        PromptConstructor._agent_persona_timing["agent_check"] += time.time() - t1
+
+        t2 = time.time()
+        if is_empty:  # if agent is empty, then return an empty prompt
             result = Prompt(text="")
         else:
-            result = self.agent.prompt()
+            result = self.agent.prompt()  # This calls AgentPrompt.prompt()
+        PromptConstructor._agent_persona_timing["agent_prompt"] += time.time() - t2
 
         elapsed = time.time() - start
-        if elapsed > 0.001:  # Only log if takes more than 1ms
-            print(f"[DEBUG] agent_persona_prompt took {elapsed:.4f}s")
+        PromptConstructor._agent_persona_timing["total"] += elapsed
+        PromptConstructor._agent_persona_timing["call_count"] += 1
+
+        # Print stats every 10000 calls
+        if PromptConstructor._agent_persona_timing["call_count"] % 100 == 0:
+            stats = PromptConstructor._agent_persona_timing
+            print(f"\n[AGENT_PERSONA] Call #{stats['call_count']}")
+            print(f"{'='*70}")
+            print(f"Total time:              {stats['total']:.3f}s")
+            print(
+                f"  - agent_check:         {stats['agent_check']:.3f}s ({100*stats['agent_check']/stats['total']:.1f}%)"
+            )
+            print(
+                f"  - agent.prompt():      {stats['agent_prompt']:.3f}s ({100*stats['agent_prompt']/stats['total']:.1f}%)"
+            )
+            print(f"Avg per call:            {stats['total']/stats['call_count']:.4f}s")
+            print(f"{'='*70}\n")
+
         return result
 
     def prior_answers_dict(self) -> dict[str, "QuestionBase"]:
@@ -682,19 +746,19 @@ class PromptConstructor:
         # Build all the components
         t0 = time.time()
         agent_instructions = self.agent_instructions_prompt
-        _get_prompts_timing['agent_instructions_time'] += (time.time() - t0)
+        _get_prompts_timing["agent_instructions_time"] += time.time() - t0
 
         t1 = time.time()
         agent_persona = self.agent_persona_prompt
-        _get_prompts_timing['agent_persona_time'] += (time.time() - t1)
+        _get_prompts_timing["agent_persona_time"] += time.time() - t1
 
         t2 = time.time()
         question_instructions = self.question_instructions_prompt
-        _get_prompts_timing['question_instructions_time'] += (time.time() - t2)
+        _get_prompts_timing["question_instructions_time"] += time.time() - t2
 
         t3 = time.time()
         prior_question_memory = self.prior_question_memory_prompt
-        _get_prompts_timing['prior_memory_time'] += (time.time() - t3)
+        _get_prompts_timing["prior_memory_time"] += time.time() - t3
 
         # Get components dict
         components = {
@@ -707,7 +771,7 @@ class PromptConstructor:
         # Generate prompts from plan
         t4 = time.time()
         prompts = self.prompt_plan.get_prompts(**components)
-        _get_prompts_timing['plan_get_prompts_time'] += (time.time() - t4)
+        _get_prompts_timing["plan_get_prompts_time"] += time.time() - t4
 
         # Handle file keys if present
         t5 = time.time()
@@ -717,14 +781,14 @@ class PromptConstructor:
             for key in file_keys:
                 files_list.append(self.scenario[key])
             prompts["files_list"] = files_list
-        _get_prompts_timing['file_keys_time'] += (time.time() - t5)
+        _get_prompts_timing["file_keys_time"] += time.time() - t5
 
         total_time = time.time() - start_time
-        _get_prompts_timing['total_time'] += total_time
-        _get_prompts_timing['call_count'] += 1
+        _get_prompts_timing["total_time"] += total_time
+        _get_prompts_timing["call_count"] += 1
 
         # Print stats every 100 calls
-        if _get_prompts_timing['call_count'] % 100 == 0:
+        if _get_prompts_timing["call_count"] % 100 == 0:
             stats = _get_prompts_timing
             print(f"\n{'='*70}")
             print(f"[PROMPT_CONSTRUCTOR.GET_PROMPTS] Call #{stats['call_count']}")
@@ -734,21 +798,25 @@ class PromptConstructor:
 
             # Create sorted list of components by time
             components = [
-                ('agent_instructions', stats['agent_instructions_time']),
-                ('agent_persona', stats['agent_persona_time']),
-                ('question_instructions', stats['question_instructions_time']),
-                ('prior_memory', stats['prior_memory_time']),
-                ('plan.get_prompts()', stats['plan_get_prompts_time']),
-                ('file_keys', stats['file_keys_time']),
+                ("agent_instructions", stats["agent_instructions_time"]),
+                ("agent_persona", stats["agent_persona_time"]),
+                ("question_instructions", stats["question_instructions_time"]),
+                ("prior_memory", stats["prior_memory_time"]),
+                ("plan.get_prompts()", stats["plan_get_prompts_time"]),
+                ("file_keys", stats["file_keys_time"]),
             ]
             components.sort(key=lambda x: x[1], reverse=True)
 
             for name, comp_time in components:
-                pct = 100 * comp_time / stats['total_time']
-                avg_per_call = comp_time / stats['call_count']
-                print(f"  {name:25s} {comp_time:7.3f}s ({pct:5.1f}%) - avg: {avg_per_call:.4f}s/call")
+                pct = 100 * comp_time / stats["total_time"]
+                avg_per_call = comp_time / stats["call_count"]
+                print(
+                    f"  {name:25s} {comp_time:7.3f}s ({pct:5.1f}%) - avg: {avg_per_call:.4f}s/call"
+                )
 
-            print(f"\nOverall avg per call:    {stats['total_time']/stats['call_count']:.4f}s")
+            print(
+                f"\nOverall avg per call:    {stats['total_time']/stats['call_count']:.4f}s"
+            )
             print(f"{'='*70}\n")
 
         return prompts
