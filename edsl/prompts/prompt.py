@@ -14,6 +14,16 @@ logger = logging.getLogger(__name__)
 
 MAX_NESTING = 100
 
+# Global timing statistics for Prompt.render
+_render_timing = {
+    'call_count': 0,
+    'total_time': 0.0,
+    'find_vars_time': 0.0,
+    'compile_time': 0.0,
+    'render_time': 0.0,
+    'total_iterations': 0,
+}
+
 
 class PreserveUndefined(Undefined):
     def __str__(self):
@@ -49,20 +59,22 @@ def make_env() -> Environment:
     return Environment(undefined=PreserveUndefined)
 
 
-@lru_cache(maxsize=1024)
+@lru_cache(maxsize=100000)
 def _find_template_variables(template_text: str) -> List[str]:
     env = make_env()
     ast = env.parse(template_text)
     return list(meta.find_undeclared_variables(ast))
 
 
-@lru_cache(maxsize=2048)
+@lru_cache(maxsize=100000)
 def _get_compiled_template(template_text: str):
     """Cache compiled Jinja2 templates for reuse.
     
     This is the main performance optimization - instead of recompiling
     templates for every render, we cache compiled templates by their text.
     """
+    # print("#################")
+    # print(template_text)
     env = make_env()
     return env.from_string(template_text)
 
@@ -76,22 +88,16 @@ def _make_hashable(value):
     return value
 
 
-@lru_cache(maxsize=1024)
+@lru_cache(maxsize=100000)
 def _compile_template(text: str):
     """Compile a Jinja template with caching."""
     env = make_env()
     return env.from_string(text)
 
 
-@lru_cache(maxsize=1024)
+@lru_cache(maxsize=100000)
 def _cached_render(text: str, frozen_replacements: frozenset) -> str:
     """Cached version of template rendering with frozen replacements."""
-    # Print cache info on every call
-    cache_info = _cached_render.cache_info()
-    print(
-        f"\t\t\t\t\t Cache status - hits: {cache_info.hits}, misses: {cache_info.misses}, current size: {cache_info.currsize}"
-    )
-
     # Convert back to dict with original types for rendering
     replacements = {k: v for k, v in frozen_replacements}
 
@@ -282,6 +288,7 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
         >>> result.captured_variables['x']
         5
         """
+
         try:
             template_vars = TemplateVars()
             new_text, captured_vars = self._render(
@@ -306,6 +313,12 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
         Render the template text with variables replaced.
         Returns (rendered_text, captured_variables).
         """
+        render_start = time.time()
+        # print("##################")
+        # print(text)
+        # print(primary_replacement)
+        # print(template_vars)
+        # print("##################")
         # Combine replacements.
         from ..scenarios import Scenario
 
@@ -319,8 +332,13 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
             **additional_replacements,
             **additional,
         }
+
         # If no replacements and no Jinja variables, just return the text.
-        if not all_replacements and not _find_template_variables(text):
+        t0 = time.time()
+
+        has_vars = _find_template_variables(text)
+        _render_timing['find_vars_time'] += (time.time() - t0)
+        if not all_replacements and not has_vars:
             return text, template_vars.get_all()
 
         env = make_env()
@@ -329,13 +347,43 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
 
         # Start with the original text
         current_text = text
+        iterations = 0
 
         for _ in range(MAX_NESTING):
-            template = env.from_string(current_text)
-            rendered_text = template.render(**all_replacements)
+            iterations += 1
+
+            t1 = time.time()
+           # print("$$$$$$$$$$$$$$$$$$$",iterations)
+           # print(current_text)
+            if "{{"  in current_text:
+                template = _get_compiled_template(current_text)
+            
+                # Re-inject the vars object since cached template doesn't have it
+                template.globals["vars"] = template_vars
+                _render_timing['compile_time'] += (time.time() - t1)
+
+                t2 = time.time()
+                rendered_text = template.render(**all_replacements)
+                _render_timing['render_time'] += (time.time() - t2)
 
             if rendered_text == current_text:
                 # No more changes, return final text with captured variables.
+                _render_timing['total_iterations'] += iterations
+                _render_timing['call_count'] += 1
+                _render_timing['total_time'] += (time.time() - render_start)
+
+                # Print stats every 100 calls
+                if _render_timing['call_count'] % 100 == 0:
+                    stats = _render_timing
+                    avg_iterations = stats['total_iterations'] / stats['call_count']
+                    print(f"\n[PROMPT.RENDER] Call #{stats['call_count']}")
+                    print(f"  Total time:       {stats['total_time']:.3f}s")
+                    print(f"  - Find vars:      {stats['find_vars_time']:.3f}s ({100*stats['find_vars_time']/stats['total_time']:.1f}%)")
+                    print(f"  - Compile:        {stats['compile_time']:.3f}s ({100*stats['compile_time']/stats['total_time']:.1f}%)")
+                    print(f"  - Render:         {stats['render_time']:.3f}s ({100*stats['render_time']/stats['total_time']:.1f}%)")
+                    print(f"  Avg iterations:   {avg_iterations:.2f}")
+                    print(f"  Avg per call:     {stats['total_time']/stats['call_count']:.4f}s\n")
+
                 return rendered_text, template_vars.get_all()
 
             # Update current_text for next iteration
