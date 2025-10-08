@@ -28,6 +28,8 @@ _timing_stats = {
     'render_build_dict': 0.0,
     'render_prompt_render': 0.0,
     'validate_time': 0.0,
+    'validate_undefined_vars': 0.0,
+    'validate_check_names': 0.0,
     'append_time': 0.0,
 }
 
@@ -171,6 +173,8 @@ class QuestionInstructionPromptBuilder:
             print(f"    • build_dict:   {stats['render_build_dict']:.3f}s ({100*stats['render_build_dict']/stats['total_time']:.1f}%)")
             print(f"    • prompt.render:{stats['render_prompt_render']:.3f}s ({100*stats['render_prompt_render']/stats['total_time']:.1f}%)")
             print(f"  - Validate:       {stats['validate_time']:.3f}s ({100*stats['validate_time']/stats['total_time']:.1f}%)")
+            print(f"    • undefined_vars:{stats['validate_undefined_vars']:.3f}s ({100*stats['validate_undefined_vars']/stats['total_time']:.1f}%)")
+            print(f"    • check_names:  {stats['validate_check_names']:.3f}s ({100*stats['validate_check_names']/stats['total_time']:.1f}%)")
             print(f"  - Append:         {stats['append_time']:.3f}s ({100*stats['append_time']/stats['total_time']:.1f}%)")
             print(f"  Avg per call:     {stats['total_time']/stats['call_count']:.4f}s\n")
 
@@ -296,10 +300,14 @@ class QuestionInstructionPromptBuilder:
         Warns:
             If any template variables remain undefined
         """
+        t0 = time.time()
         undefined_vars = rendered_prompt.undefined_template_variables({})
+        _timing_stats['validate_undefined_vars'] += (time.time() - t0)
 
         # Check for question names in undefined variables
+        t1 = time.time()
         self._check_question_names_in_undefined_vars(undefined_vars)
+        _timing_stats['validate_check_names'] += (time.time() - t1)
 
         # Warn about any remaining undefined variables
         if undefined_vars:
