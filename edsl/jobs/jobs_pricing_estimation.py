@@ -443,6 +443,15 @@ class JobsPrompts:
         )
         print(f"      │")
         print(
+            f"      ├─ Initialize                 {timing['init']:.3f}s ({100*timing['init']/complete_total:.1f}%)"
+        )
+        print(
+            f"      ├─ Get interviews             {timing['get_interviews']:.3f}s ({100*timing['get_interviews']/complete_total:.1f}%)"
+        )
+        print(
+            f"      ├─ Create invigilators        {timing['create_invigilators']:.3f}s ({100*timing['create_invigilators']/complete_total:.1f}%)"
+        )
+        print(
             f"      ├─ Process invigilators       {timing['process_invigilators']:.3f}s ({100*timing['process_invigilators']/complete_total:.1f}%)"
         )
 
@@ -453,17 +462,36 @@ class JobsPrompts:
                 f"      │  ├─ get_prompts()            {get_prompts:.3f}s ({100*get_prompts/complete_total:.1f}%)"
             )
 
-            # Show top 3 components within get_prompts
-            components = [
-                ("question_instructions", get_prompts * 0.519),  # 51.9%
-                ("agent_persona", get_prompts * 0.209),  # 20.9%
-                ("agent_instructions", get_prompts * 0.181),  # 18.1%
-            ]
-            for name, time_spent in components:
-                print(
-                    f"      │  │  ├─ {name:21s} {time_spent:.3f}s ({100*time_spent/complete_total:.1f}%)"
-                )
+            # Show all components within get_prompts using actual timing data
+            try:
+                from ..invigilators.prompt_constructor import _get_prompts_timing
 
+                # Get actual timing from the module-level timing dictionary
+                gp_timing = _get_prompts_timing
+
+                # Create list of all components sorted by time (descending)
+                components = [
+                    ("question_instructions", gp_timing["question_instructions_time"]),
+                    ("plan.get_prompts()", gp_timing["plan_get_prompts_time"]),
+                    ("agent_persona", gp_timing["agent_persona_time"]),
+                    ("agent_instructions", gp_timing["agent_instructions_time"]),
+                    ("file_keys", gp_timing["file_keys_time"]),
+                    ("prior_memory", gp_timing["prior_memory_time"]),
+                ]
+                # Sort by time spent (descending)
+                components.sort(key=lambda x: x[1], reverse=True)
+
+                for name, time_spent in components:
+                    print(
+                        f"      │  │  ├─ {name:21s} {time_spent:.3f}s ({100*time_spent/complete_total:.1f}%)"
+                    )
+            except Exception as e:
+                # Fallback to estimated percentages if timing data unavailable
+                print(f"      │  │  (detailed breakdown unavailable: {e})")
+
+            print(
+                f"      │  ├─ extract_prompts         {ct['extract_prompts']:.3f}s ({100*ct['extract_prompts']/complete_total:.1f}%)"
+            )
             print(
                 f"      │  ├─ lookups                 {ct['lookups']:.3f}s ({100*ct['lookups']/complete_total:.1f}%)"
             )
@@ -471,12 +499,21 @@ class JobsPrompts:
                 f"      │  ├─ cost_estimation         {ct['cost_estimation']:.3f}s ({100*ct['cost_estimation']/complete_total:.1f}%)"
             )
             print(
-                f"      │  └─ cache_keys              {ct['cache_keys']:.3f}s ({100*ct['cache_keys']/complete_total:.1f}%)"
+                f"      │  ├─ cache_keys              {ct['cache_keys']:.3f}s ({100*ct['cache_keys']/complete_total:.1f}%)"
+            )
+            print(
+                f"      │  ├─ dict_creation           {ct['dict_creation']:.3f}s ({100*ct['dict_creation']/complete_total:.1f}%)"
+            )
+            # Calculate overhead
+            component_total = sum([ct[k] for k in ct if k != "call_count"])
+            overhead = timing["process_invigilators"] - component_total
+            print(
+                f"      │  └─ overhead                {overhead:.3f}s ({100*overhead/complete_total:.1f}%)"
             )
 
         print(f"      │")
         print(
-            f"      └─ Create invigilators        {timing['create_invigilators']:.3f}s ({100*timing['create_invigilators']/complete_total:.1f}%)"
+            f"      └─ Create dataset             {timing['create_dataset']:.3f}s ({100*timing['create_dataset']/complete_total:.1f}%)"
         )
         print(f"")
 
