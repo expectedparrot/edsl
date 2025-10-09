@@ -253,60 +253,14 @@ class QuestionBase(
             >>> original is copy
             False
         """
-        import time
-
-        # Track timing for this method
-        if not hasattr(QuestionBase, "_duplicate_timing"):
-            QuestionBase._duplicate_timing = {
-                "to_dict": 0.0,
-                "from_dict": 0.0,
-                "preserve_attrs": 0.0,
-                "total": 0.0,
-                "call_count": 0,
-            }
-
-        start = time.time()
-
-        t1 = time.time()
         data = self.to_dict()
-        QuestionBase._duplicate_timing["to_dict"] += time.time() - t1
-
-        t2 = time.time()
         duplicated = self.from_dict(data)
-        QuestionBase._duplicate_timing["from_dict"] += time.time() - t2
 
         # Preserve testing attributes that aren't serialized
-        t3 = time.time()
         if hasattr(self, "exception_to_throw"):
             duplicated.exception_to_throw = self.exception_to_throw
         if hasattr(self, "override_answer"):
             duplicated.override_answer = self.override_answer
-        QuestionBase._duplicate_timing["preserve_attrs"] += time.time() - t3
-
-        QuestionBase._duplicate_timing["total"] += time.time() - start
-        QuestionBase._duplicate_timing["call_count"] += 1
-
-        # Print stats every 10000 calls
-        if QuestionBase._duplicate_timing["call_count"] % 10000 == 0:
-            stats = QuestionBase._duplicate_timing
-            print(f"\n{'='*70}")
-            print(f"[QUESTION.DUPLICATE] Call #{stats['call_count']}")
-            print(f"{'='*70}")
-            print(f"Total time:              {stats['total']:.3f}s")
-            print(f"")
-            print(f"Component breakdown:")
-            print(
-                f"  from_dict         {stats['from_dict']:.3f}s ({100*stats['from_dict']/stats['total']:.1f}%)"
-            )
-            print(
-                f"  to_dict           {stats['to_dict']:.3f}s ({100*stats['to_dict']/stats['total']:.1f}%)"
-            )
-            print(
-                f"  preserve_attrs    {stats['preserve_attrs']:.3f}s ({100*stats['preserve_attrs']/stats['total']:.1f}%)"
-            )
-            print(f"")
-            print(f"Overall avg per call:    {stats['total']/stats['call_count']:.4f}s")
-            print(f"{'='*70}\n")
 
         return duplicated
 

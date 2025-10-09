@@ -1,7 +1,6 @@
 from typing import Dict, Set, Any, Union, TYPE_CHECKING
 from warnings import warn
 import logging
-import time
 
 from .prompt_constructor import PromptConstructor
 
@@ -17,21 +16,6 @@ if TYPE_CHECKING:
 from .question_template_replacements_builder import (
     QuestionTemplateReplacementsBuilder as QTRB,
 )
-
-# Global timing statistics for question instructions
-_timing_stats = {
-    'call_count': 0,
-    'total_time': 0.0,
-    'base_prompt_time': 0.0,
-    'enrich_time': 0.0,
-    'render_time': 0.0,
-    'render_build_dict': 0.0,
-    'render_prompt_render': 0.0,
-    'validate_time': 0.0,
-    'validate_undefined_vars': 0.0,
-    'validate_check_names': 0.0,
-    'append_time': 0.0,
-}
 
 
 class QuestionInstructionPromptBuilder:
@@ -122,61 +106,24 @@ class QuestionInstructionPromptBuilder:
         <BLANKLINE>
         After the answer, you can put a comment explaining why you chose that option on the next line.\""")
         """
-        build_start = time.time()
-
         # Create base prompt
-        t0 = time.time()
         base_prompt = self._create_base_prompt()
-        base_time = time.time() - t0
-        _timing_stats['base_prompt_time'] += base_time
 
         # Enrich with options
-        t1 = time.time()
         enriched_prompt = self._enrich_with_question_options(
             prompt_data=base_prompt,
             scenario=self.scenario,
             prior_answers_dict=self.prior_answers_dict,
         )
-        enrich_time = time.time() - t1
-        _timing_stats['enrich_time'] += enrich_time
 
         # Render prompt
-        t2 = time.time()
         rendered_prompt = self._render_prompt(enriched_prompt)
-        render_time = time.time() - t2
-        _timing_stats['render_time'] += render_time
 
         # Validate template variables
-        t3 = time.time()
         self._validate_template_variables(rendered_prompt)
-        validate_time = time.time() - t3
-        _timing_stats['validate_time'] += validate_time
 
         # Append survey instructions
-        t4 = time.time()
         final_prompt = self._append_survey_instructions(rendered_prompt)
-        append_time = time.time() - t4
-        _timing_stats['append_time'] += append_time
-
-        total_time = time.time() - build_start
-        _timing_stats['total_time'] += total_time
-        _timing_stats['call_count'] += 1
-
-        # Print stats every 100 calls
-        if _timing_stats['call_count'] % 100 == 0:
-            stats = _timing_stats
-            print(f"\n[QUESTION_INSTRUCTIONS] Call #{stats['call_count']}")
-            print(f"  Total time:       {stats['total_time']:.3f}s")
-            print(f"  - Base prompt:    {stats['base_prompt_time']:.3f}s ({100*stats['base_prompt_time']/stats['total_time']:.1f}%)")
-            print(f"  - Enrich options: {stats['enrich_time']:.3f}s ({100*stats['enrich_time']/stats['total_time']:.1f}%)")
-            print(f"  - Render:         {stats['render_time']:.3f}s ({100*stats['render_time']/stats['total_time']:.1f}%)")
-            print(f"    • build_dict:   {stats['render_build_dict']:.3f}s ({100*stats['render_build_dict']/stats['total_time']:.1f}%)")
-            print(f"    • prompt.render:{stats['render_prompt_render']:.3f}s ({100*stats['render_prompt_render']/stats['total_time']:.1f}%)")
-            print(f"  - Validate:       {stats['validate_time']:.3f}s ({100*stats['validate_time']/stats['total_time']:.1f}%)")
-            print(f"    • undefined_vars:{stats['validate_undefined_vars']:.3f}s ({100*stats['validate_undefined_vars']/stats['total_time']:.1f}%)")
-            print(f"    • check_names:  {stats['validate_check_names']:.3f}s ({100*stats['validate_check_names']/stats['total_time']:.1f}%)")
-            print(f"  - Append:         {stats['append_time']:.3f}s ({100*stats['append_time']/stats['total_time']:.1f}%)")
-            print(f"  Avg per call:     {stats['total_time']/stats['call_count']:.4f}s\n")
 
         return final_prompt
 
@@ -276,14 +223,10 @@ class QuestionInstructionPromptBuilder:
             Prompt: Rendered instructions
         """
         # Build replacement dict
-        t0 = time.time()
         replacement_dict = self.qtrb.build_replacement_dict(prompt_data["data"])
-        _timing_stats['render_build_dict'] += (time.time() - t0)
 
         # Render with dict
-        t1 = time.time()
         rendered_prompt = prompt_data["prompt"].render(replacement_dict)
-        _timing_stats['render_prompt_render'] += (time.time() - t1)
 
         # Handle captured variables
         if rendered_prompt.captured_variables:
@@ -300,14 +243,10 @@ class QuestionInstructionPromptBuilder:
         Warns:
             If any template variables remain undefined
         """
-        t0 = time.time()
         undefined_vars = rendered_prompt.undefined_template_variables({})
-        _timing_stats['validate_undefined_vars'] += (time.time() - t0)
 
         # Check for question names in undefined variables
-        t1 = time.time()
         self._check_question_names_in_undefined_vars(undefined_vars)
-        _timing_stats['validate_check_names'] += (time.time() - t1)
 
         # Warn about any remaining undefined variables
         if undefined_vars:
