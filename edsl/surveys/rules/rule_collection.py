@@ -85,62 +85,12 @@ class RuleCollection(UserList):
         >>> repr(new_rule_collection) == repr(rule_collection)
         True
         """
-        import time
-
-        # Track timing for this method
-        if not hasattr(RuleCollection, "_from_dict_timing"):
-            RuleCollection._from_dict_timing = {
-                "rule_from_dict": 0.0,
-                "init_collection": 0.0,
-                "total": 0.0,
-                "call_count": 0,
-                "num_rules": 0,
-            }
-
-        start = time.time()
-
-        # Deserialize each rule
-        t1 = time.time()
         rules = [
             Rule.from_dict(rule_dict) for rule_dict in rule_collection_dict["rules"]
         ]
-        RuleCollection._from_dict_timing["rule_from_dict"] += time.time() - t1
-        RuleCollection._from_dict_timing["num_rules"] += len(rules)
-
-        # Create collection
-        t2 = time.time()
         num_questions = rule_collection_dict["num_questions"]
         new_rc = cls(rules=rules)
         new_rc.num_questions = num_questions
-        RuleCollection._from_dict_timing["init_collection"] += time.time() - t2
-
-        RuleCollection._from_dict_timing["total"] += time.time() - start
-        RuleCollection._from_dict_timing["call_count"] += 1
-
-        # Print stats every 1000 calls
-        if RuleCollection._from_dict_timing["call_count"] % 1000 == 0:
-            stats = RuleCollection._from_dict_timing
-            print(f"\n{'='*70}")
-            print(f"[RULE_COLLECTION.FROM_DICT] Call #{stats['call_count']}")
-            print(f"{'='*70}")
-            print(f"Total time:              {stats['total']:.3f}s")
-            print(f"Total rules processed:   {stats['num_rules']}")
-            print(f"")
-            print(f"Component breakdown:")
-            print(
-                f"  rule.from_dict()  {stats['rule_from_dict']:.3f}s ({100*stats['rule_from_dict']/stats['total']:.1f}%)"
-            )
-            print(
-                f"  init_collection   {stats['init_collection']:.3f}s ({100*stats['init_collection']/stats['total']:.1f}%)"
-            )
-            print(f"")
-            print(f"Overall avg per call:    {stats['total']/stats['call_count']:.4f}s")
-            if stats["num_rules"] > 0:
-                print(
-                    f"Avg per rule:            {stats['rule_from_dict']/stats['num_rules']:.6f}s"
-                )
-            print(f"{'='*70}\n")
-
         return new_rc
 
     def add_rule(self, rule: Rule) -> None:
@@ -161,72 +111,11 @@ class RuleCollection(UserList):
         >>> len(rule_collection.applicable_rules(1, before_rule=False))
         0
         """
-        import time
-
-        # Track timing for this method
-        if not hasattr(RuleCollection, "_add_rule_timing"):
-            RuleCollection._add_rule_timing = {
-                "append": 0.0,
-                "cache_clear": 0.0,
-                "hasattr_check": 0.0,
-                "total": 0.0,
-                "call_count": 0,
-                "cache_clear_count": 0,
-                "total_cache_entries_cleared": 0,
-            }
-
-        start = time.time()
-
-        t1 = time.time()
         self.append(rule)
-        RuleCollection._add_rule_timing["append"] += time.time() - t1
 
         # Clear the rules cache when new rules are added
-        t2 = time.time()
-        has_cache = hasattr(self, "_rules_cache")
-        RuleCollection._add_rule_timing["hasattr_check"] += time.time() - t2
-
-        if has_cache:
-            t3 = time.time()
-            cache_size = len(self._rules_cache)
+        if hasattr(self, "_rules_cache"):
             self._rules_cache.clear()
-            RuleCollection._add_rule_timing["cache_clear"] += time.time() - t3
-            RuleCollection._add_rule_timing["cache_clear_count"] += 1
-            RuleCollection._add_rule_timing["total_cache_entries_cleared"] += cache_size
-
-        RuleCollection._add_rule_timing["total"] += time.time() - start
-        RuleCollection._add_rule_timing["call_count"] += 1
-
-        # Print stats every 5000 calls
-        if RuleCollection._add_rule_timing["call_count"] % 5000 == 0:
-            stats = RuleCollection._add_rule_timing
-            print(f"\n{'='*70}")
-            print(f"[RULE_COLLECTION.ADD_RULE] Call #{stats['call_count']}")
-            print(f"{'='*70}")
-            print(f"Total time:              {stats['total']:.3f}s")
-            print(f"Cache clears:            {stats['cache_clear_count']}")
-            print(f"Total cache entries:     {stats['total_cache_entries_cleared']}")
-            print(f"")
-            print(f"Component breakdown:")
-            print(
-                f"  append            {stats['append']:.3f}s ({100*stats['append']/stats['total']:.1f}%)"
-            )
-            print(
-                f"  cache_clear       {stats['cache_clear']:.3f}s ({100*stats['cache_clear']/stats['total']:.1f}%)"
-            )
-            print(
-                f"  hasattr_check     {stats['hasattr_check']:.3f}s ({100*stats['hasattr_check']/stats['total']:.1f}%)"
-            )
-            print(f"")
-            print(f"Avg per call:            {stats['total']/stats['call_count']:.6f}s")
-            if stats["cache_clear_count"] > 0:
-                print(
-                    f"Avg cache clear time:    {stats['cache_clear']/stats['cache_clear_count']:.6f}s"
-                )
-                print(
-                    f"Avg cache entries/clear: {stats['total_cache_entries_cleared']/stats['cache_clear_count']:.1f}"
-                )
-            print(f"{'='*70}\n")
 
     def show_rules(self) -> None:
         """Print the rules in a table."""
