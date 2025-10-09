@@ -133,6 +133,9 @@ class AgentSerialization:
             if k.startswith("_")
         }
 
+        # Remove internal cache attributes that should not be serialized
+        raw_data.pop("cached_hash", None)
+
         if hasattr(agent, "set_instructions"):
             if not agent.set_instructions:
                 raw_data.pop("instruction")
@@ -152,9 +155,9 @@ class AgentSerialization:
             if dynamic_traits_func:
                 func = inspect.getsource(dynamic_traits_func)
                 raw_data["dynamic_traits_function_source_code"] = func
-                raw_data["dynamic_traits_function_name"] = (
-                    agent.dynamic_traits_function_name
-                )
+                raw_data[
+                    "dynamic_traits_function_name"
+                ] = agent.dynamic_traits_function_name
         if hasattr(agent, "answer_question_directly"):
             raw_data.pop(
                 "answer_question_directly", None
@@ -169,9 +172,9 @@ class AgentSerialization:
                 raw_data["answer_question_directly_source_code"] = inspect.getsource(
                     answer_question_directly_func
                 )
-                raw_data["answer_question_directly_function_name"] = (
-                    agent.answer_question_directly_function_name
-                )
+                raw_data[
+                    "answer_question_directly_function_name"
+                ] = agent.answer_question_directly_function_name
         raw_data["traits"] = dict(raw_data["traits"])
 
         if hasattr(agent, "trait_categories"):
