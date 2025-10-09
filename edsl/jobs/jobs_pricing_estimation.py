@@ -429,13 +429,230 @@ class JobsPrompts:
         print(f"📊 Complete Time Accounting:")
         print(f"")
 
-        # Show from_jobs time if available
+        # Show from_jobs time if available with detailed breakdown
         if from_jobs_time > 0:
             print(
                 f"   ┌─ JobsPrompts.from_jobs()       {from_jobs_time:.3f}s ({100*from_jobs_time/complete_total:.1f}%)"
             )
             print(f"   │  └─ jobs.interviews()          {from_jobs_time:.3f}s")
             print(f"   │     Creating {timing['total_interviews']:,} Interview objects")
+
+            # Try to get detailed timing from create_interviews
+            try:
+                from ..jobs.jobs_interview_constructor import (
+                    _create_interviews_timing as ci_timing,
+                )
+
+                if ci_timing["call_count"] > 0:
+                    print(f"   │")
+                    print(f"   │     └─ create_interviews() breakdown:")
+                    print(
+                        f"   │        ├─ survey.draw()           {ci_timing['survey_draw']:.3f}s ({100*ci_timing['survey_draw']/from_jobs_time:.1f}%)"
+                    )
+
+                    # Get survey.draw() breakdown
+                    try:
+                        from ..surveys.survey import Survey
+
+                        if hasattr(Survey, "_draw_timing"):
+                            sd_timing = Survey._draw_timing
+                            if sd_timing["call_count"] > 0:
+                                print(
+                                    f"   │        │  ├─ survey.from_dict()      {sd_timing['survey_from_dict']:.3f}s ({100*sd_timing['survey_from_dict']/from_jobs_time:.1f}%)"
+                                )
+
+                                # Get survey.from_dict() breakdown
+                                if hasattr(Survey, "_from_dict_timing"):
+                                    sfd_timing = Survey._from_dict_timing
+                                    if sfd_timing["call_count"] > 0:
+                                        print(
+                                            f"   │        │  │  ├─ survey.__init__()       {sfd_timing['survey_init']:.3f}s ({100*sfd_timing['survey_init']/from_jobs_time:.1f}%)"
+                                        )
+
+                                        # Get survey.__init__() breakdown
+                                        if hasattr(Survey, "_init_timing"):
+                                            si_timing = Survey._init_timing
+                                            if si_timing["call_count"] > 0:
+                                                print(
+                                                    f"   │        │  │  │  ├─ questions_setter        {si_timing['questions_setter']:.3f}s ({100*si_timing['questions_setter']/from_jobs_time:.1f}%)"
+                                                )
+
+                                                # Get QuestionsDescriptor breakdown
+                                                try:
+                                                    from ..surveys.descriptors import (
+                                                        QuestionsDescriptor,
+                                                    )
+
+                                                    if hasattr(
+                                                        QuestionsDescriptor,
+                                                        "_set_timing",
+                                                    ):
+                                                        qd_timing = (
+                                                            QuestionsDescriptor._set_timing
+                                                        )
+                                                        if qd_timing["call_count"] > 0:
+                                                            print(
+                                                                f"   │        │  │  │  │  ├─ add_question loop       {qd_timing['add_question']:.3f}s ({100*qd_timing['add_question']/from_jobs_time:.1f}%)"
+                                                            )
+
+                                                            # Get EditSurvey.add_question breakdown
+                                                            try:
+                                                                from ..surveys.edit_survey import (
+                                                                    EditSurvey,
+                                                                )
+
+                                                                if hasattr(
+                                                                    EditSurvey,
+                                                                    "_add_question_timing",
+                                                                ):
+                                                                    eq_timing = (
+                                                                        EditSurvey._add_question_timing
+                                                                    )
+                                                                    if (
+                                                                        eq_timing[
+                                                                            "call_count"
+                                                                        ]
+                                                                        > 0
+                                                                    ):
+                                                                        print(
+                                                                            f"   │        │  │  │  │  │  ├─ add_new_rule           {eq_timing['add_new_rule']:.3f}s ({100*eq_timing['add_new_rule']/from_jobs_time:.1f}%)"
+                                                                        )
+
+                                                                        # Get RuleCollection.add_rule breakdown
+                                                                        try:
+                                                                            from ..surveys.rules.rule_collection import (
+                                                                                RuleCollection,
+                                                                            )
+
+                                                                            if hasattr(
+                                                                                RuleCollection,
+                                                                                "_add_rule_timing",
+                                                                            ):
+                                                                                ar_timing = (
+                                                                                    RuleCollection._add_rule_timing
+                                                                                )
+                                                                                if (
+                                                                                    ar_timing[
+                                                                                        "call_count"
+                                                                                    ]
+                                                                                    > 0
+                                                                                ):
+                                                                                    print(
+                                                                                        f"   │        │  │  │  │  │  │  ├─ append               {ar_timing['append']:.3f}s ({100*ar_timing['append']/from_jobs_time:.1f}%)"
+                                                                                    )
+                                                                                    print(
+                                                                                        f"   │        │  │  │  │  │  │  ├─ cache_clear          {ar_timing['cache_clear']:.3f}s ({100*ar_timing['cache_clear']/from_jobs_time:.1f}%)"
+                                                                                    )
+                                                                                    print(
+                                                                                        f"   │        │  │  │  │  │  │  └─ other                {ar_timing['hasattr_check']:.3f}s ({100*ar_timing['hasattr_check']/from_jobs_time:.1f}%)"
+                                                                                    )
+                                                                        except:
+                                                                            pass
+
+                                                                        print(
+                                                                            f"   │        │  │  │  │  │  ├─ name_check           {eq_timing['name_check']:.3f}s ({100*eq_timing['name_check']/from_jobs_time:.1f}%)"
+                                                                        )
+                                                                        other_eq = (
+                                                                            eq_timing[
+                                                                                "total"
+                                                                            ]
+                                                                            - eq_timing[
+                                                                                "add_new_rule"
+                                                                            ]
+                                                                            - eq_timing[
+                                                                                "name_check"
+                                                                            ]
+                                                                        )
+                                                                        print(
+                                                                            f"   │        │  │  │  │  │  └─ other                {other_eq:.3f}s ({100*other_eq/from_jobs_time:.1f}%)"
+                                                                        )
+                                                            except:
+                                                                pass
+
+                                                            print(
+                                                                f"   │        │  │  │  │  └─ validate              {qd_timing['validate']:.3f}s ({100*qd_timing['validate']/from_jobs_time:.1f}%)"
+                                                            )
+                                                except:
+                                                    pass
+
+                                                print(
+                                                    f"   │        │  │  │  ├─ process_raw_questions   {si_timing['process_raw_questions']:.3f}s ({100*si_timing['process_raw_questions']/from_jobs_time:.1f}%)"
+                                                )
+                                                print(
+                                                    f"   │        │  │  │  ├─ memory_plan_create     {si_timing['memory_plan_create']:.3f}s ({100*si_timing['memory_plan_create']/from_jobs_time:.1f}%)"
+                                                )
+                                                other_si = (
+                                                    si_timing["total"]
+                                                    - si_timing["questions_setter"]
+                                                    - si_timing["process_raw_questions"]
+                                                    - si_timing["memory_plan_create"]
+                                                )
+                                                print(
+                                                    f"   │        │  │  │  └─ other                  {other_si:.3f}s ({100*other_si/from_jobs_time:.1f}%)"
+                                                )
+
+                                        print(
+                                            f"   │        │  │  ├─ rule_collection.from_dict() {sfd_timing['rule_collection_from_dict']:.3f}s ({100*sfd_timing['rule_collection_from_dict']/from_jobs_time:.1f}%)"
+                                        )
+
+                                        # Get RuleCollection.from_dict() breakdown
+                                        try:
+                                            from ..surveys.rules.rule_collection import (
+                                                RuleCollection,
+                                            )
+
+                                            if hasattr(
+                                                RuleCollection, "_from_dict_timing"
+                                            ):
+                                                rc_timing = (
+                                                    RuleCollection._from_dict_timing
+                                                )
+                                                if rc_timing["call_count"] > 0:
+                                                    print(
+                                                        f"   │        │  │  │  ├─ rule.from_dict()         {rc_timing['rule_from_dict']:.3f}s ({100*rc_timing['rule_from_dict']/from_jobs_time:.1f}%)"
+                                                    )
+                                                    print(
+                                                        f"   │        │  │  │  └─ init_collection          {rc_timing['init_collection']:.3f}s ({100*rc_timing['init_collection']/from_jobs_time:.1f}%)"
+                                                    )
+                                        except:
+                                            pass
+
+                                        print(
+                                            f"   │        │  │  ├─ question.from_dict()        {sfd_timing['question_from_dict']:.3f}s ({100*sfd_timing['question_from_dict']/from_jobs_time:.1f}%)"
+                                        )
+                                        print(
+                                            f"   │        │  │  └─ memory_plan.from_dict()     {sfd_timing['memory_plan_from_dict']:.3f}s ({100*sfd_timing['memory_plan_from_dict']/from_jobs_time:.1f}%)"
+                                        )
+
+                                print(
+                                    f"   │        │  ├─ question.duplicate()   {sd_timing['question_duplicate']:.3f}s ({100*sd_timing['question_duplicate']/from_jobs_time:.1f}%)"
+                                )
+                                print(
+                                    f"   │        │  └─ survey.to_dict()       {sd_timing['survey_to_dict']:.3f}s ({100*sd_timing['survey_to_dict']/from_jobs_time:.1f}%)"
+                                )
+                    except Exception:
+                        # Silently ignore if timing data not available
+                        pass
+
+                    print(
+                        f"   │        ├─ interview_creation      {ci_timing['interview_creation']:.3f}s ({100*ci_timing['interview_creation']/from_jobs_time:.1f}%)"
+                    )
+                    print(
+                        f"   │        ├─ hash_lookups            {ci_timing['hash_lookups']:.3f}s ({100*ci_timing['hash_lookups']/from_jobs_time:.1f}%)"
+                    )
+                    other_ci = (
+                        from_jobs_time
+                        - ci_timing["survey_draw"]
+                        - ci_timing["interview_creation"]
+                        - ci_timing["hash_lookups"]
+                    )
+                    print(
+                        f"   │        └─ other                   {other_ci:.3f}s ({100*other_ci/from_jobs_time:.1f}%)"
+                    )
+            except Exception:
+                # Silently ignore if timing data not available
+                pass
+
             print(f"   │")
 
         print(

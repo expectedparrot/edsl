@@ -200,30 +200,57 @@ class Survey(Base):
 
             >>> s = Survey([q1, q2, q3], question_groups={"demographics": (0, 1), "food_questions": (2, 2)})
         """
+        import time
+
+        # Track timing for this method
+        if not hasattr(Survey, "_init_timing"):
+            Survey._init_timing = {
+                "process_raw_questions": 0.0,
+                "rule_collection_create": 0.0,
+                "questions_setter": 0.0,
+                "memory_plan_create": 0.0,
+                "rule_collection_override": 0.0,
+                "other": 0.0,
+                "total": 0.0,
+                "call_count": 0,
+            }
+
+        start = time.time()
 
         self.raw_passed_questions = questions
 
+        t1 = time.time()
         true_questions = self._process_raw_questions(self.raw_passed_questions)
+        Survey._init_timing["process_raw_questions"] += time.time() - t1
 
+        t2 = time.time()
         self.rule_collection = RuleCollection(
             num_questions=len(true_questions) if true_questions else None
         )
+        Survey._init_timing["rule_collection_create"] += time.time() - t2
         # the RuleCollection needs to be present while we add the questions; we might override this later
         # if a rule_collection is provided. This allows us to serialize the survey with the rule_collection.
 
         # this is where the Questions constructor is called.
+        t3 = time.time()
         self.questions = true_questions
+        Survey._init_timing["questions_setter"] += time.time() - t3
         # self.instruction_names_to_instructions = instruction_names_to_instructions
 
+        t4 = time.time()
         self.memory_plan = memory_plan or MemoryPlan(self)
+        Survey._init_timing["memory_plan_create"] += time.time() - t4
+
         if question_groups is not None:
             self.question_groups = question_groups
         else:
             self.question_groups = {}
 
         # if a rule collection is provided, use it instead of the constructed one
+        t5 = time.time()
         if rule_collection is not None:
             self.rule_collection = rule_collection
+        Survey._init_timing["rule_collection_override"] += time.time() - t5
 
         # if name is not None:
         #     import warnings
@@ -240,6 +267,37 @@ class Survey(Base):
 
         # Cache the InstructionCollection
         self._cached_instruction_collection: Optional[InstructionCollection] = None
+
+        Survey._init_timing["total"] += time.time() - start
+        Survey._init_timing["call_count"] += 1
+
+        # Print stats every 1000 calls
+        if Survey._init_timing["call_count"] % 1000 == 0:
+            stats = Survey._init_timing
+            print(f"\n{'='*70}")
+            print(f"[SURVEY.__INIT__] Call #{stats['call_count']}")
+            print(f"{'='*70}")
+            print(f"Total time:              {stats['total']:.3f}s")
+            print(f"")
+            print(f"Component breakdown:")
+            print(
+                f"  rule_collection_override {stats['rule_collection_override']:.3f}s ({100*stats['rule_collection_override']/stats['total']:.1f}%)"
+            )
+            print(
+                f"  questions_setter         {stats['questions_setter']:.3f}s ({100*stats['questions_setter']/stats['total']:.1f}%)"
+            )
+            print(
+                f"  process_raw_questions    {stats['process_raw_questions']:.3f}s ({100*stats['process_raw_questions']/stats['total']:.1f}%)"
+            )
+            print(
+                f"  rule_collection_create   {stats['rule_collection_create']:.3f}s ({100*stats['rule_collection_create']/stats['total']:.1f}%)"
+            )
+            print(
+                f"  memory_plan_create       {stats['memory_plan_create']:.3f}s ({100*stats['memory_plan_create']/stats['total']:.1f}%)"
+            )
+            print(f"")
+            print(f"Overall avg per call:    {stats['total']/stats['call_count']:.4f}s")
+            print(f"{'='*70}\n")
 
         self._exporter = SurveyExport(self)
 
@@ -300,28 +358,69 @@ class Survey(Base):
 
     def draw(self) -> "Survey":
         """Return a new survey with a randomly selected permutation of the options."""
+        import time
+
+        # Initialize module-level timing dict if needed
+        if not hasattr(Survey, "_draw_timing"):
+            Survey._draw_timing = {
+                "seed_setup": 0.0,
+                "question_draw": 0.0,
+                "question_duplicate": 0.0,
+                "survey_to_dict": 0.0,
+                "questions_to_dict": 0.0,
+                "survey_from_dict": 0.0,
+                "preserve_attrs": 0.0,
+                "total": 0.0,
+                "call_count": 0,
+                "has_randomization": False,
+            }
+
+        method_start = time.time()
+        Survey._draw_timing["call_count"] += 1
+
+        t0 = time.time()
         if self._seed is None:  # only set once
             self._seed = hash(self)
             random.seed(self._seed)  # type: ignore
+        Survey._draw_timing["seed_setup"] += time.time() - t0
 
         # Always create new questions to avoid sharing state between interviews
         new_questions = []
         for question in self.questions:
             if question.question_name in self.questions_to_randomize:
+                t1 = time.time()
                 new_questions.append(question.draw())
+                Survey._draw_timing["question_draw"] += time.time() - t1
+                Survey._draw_timing["has_randomization"] = True
             else:
+                t2 = time.time()
                 new_questions.append(question.duplicate())
+                Survey._draw_timing["question_duplicate"] += time.time() - t2
 
+        t3 = time.time()
         d = self.to_dict()
+        Survey._draw_timing["survey_to_dict"] += time.time() - t3
+
+        t4 = time.time()
         d["questions"] = [q.to_dict() for q in new_questions]
+        Survey._draw_timing["questions_to_dict"] += time.time() - t4
+
+        t5 = time.time()
         new_survey = Survey.from_dict(d)
+        Survey._draw_timing["survey_from_dict"] += time.time() - t5
+
         # Preserve any non-serialized attributes from the new_questions
+        t6 = time.time()
         for i, new_question in enumerate(new_questions):
             survey_question = new_survey.questions[i]
             if hasattr(new_question, "exception_to_throw"):
                 survey_question.exception_to_throw = new_question.exception_to_throw
             if hasattr(new_question, "override_answer"):
                 survey_question.override_answer = new_question.override_answer
+        Survey._draw_timing["preserve_attrs"] += time.time() - t6
+
+        Survey._draw_timing["total"] += time.time() - method_start
+
         return new_survey
 
     def _process_raw_questions(self, questions: Optional[List["QuestionType"]]) -> list:
@@ -588,6 +687,21 @@ class Survey(Base):
             >>> news == s
             True
         """
+        import time
+
+        # Track timing for this method
+        if not hasattr(Survey, "_from_dict_timing"):
+            Survey._from_dict_timing = {
+                "get_class": 0.0,
+                "question_from_dict": 0.0,
+                "memory_plan_from_dict": 0.0,
+                "rule_collection_from_dict": 0.0,
+                "survey_init": 0.0,
+                "total": 0.0,
+                "call_count": 0,
+            }
+
+        start = time.time()
 
         # Helper function to determine the correct class for each serialized component
         def get_class(pass_dict):
@@ -611,12 +725,21 @@ class Survey(Base):
                 return QuestionBase
 
         # Deserialize each question and instruction
-        questions = [
-            get_class(q_dict).from_dict(q_dict) for q_dict in data["questions"]
-        ]
+        t1 = time.time()
+        questions = []
+        for q_dict in data["questions"]:
+            t_gc = time.time()
+            cls_type = get_class(q_dict)
+            Survey._from_dict_timing["get_class"] += time.time() - t_gc
+
+            t_qfd = time.time()
+            questions.append(cls_type.from_dict(q_dict))
+            Survey._from_dict_timing["question_from_dict"] += time.time() - t_qfd
 
         # Deserialize the memory plan
+        t2 = time.time()
         memory_plan = MemoryPlan.from_dict(data["memory_plan"])
+        Survey._from_dict_timing["memory_plan_from_dict"] += time.time() - t2
 
         # Get the list of questions to randomize if present
         if "questions_to_randomize" in data:
@@ -630,14 +753,52 @@ class Survey(Base):
             name = None
 
         # Create and return the reconstructed survey
+        t3 = time.time()
+        rule_collection = RuleCollection.from_dict(data["rule_collection"])
+        Survey._from_dict_timing["rule_collection_from_dict"] += time.time() - t3
+
+        t4 = time.time()
         survey = cls(
             questions=questions,
             memory_plan=memory_plan,
-            rule_collection=RuleCollection.from_dict(data["rule_collection"]),
+            rule_collection=rule_collection,
             question_groups=data["question_groups"],
             questions_to_randomize=questions_to_randomize,
             name=name,
         )
+        Survey._from_dict_timing["survey_init"] += time.time() - t4
+
+        Survey._from_dict_timing["total"] += time.time() - start
+        Survey._from_dict_timing["call_count"] += 1
+
+        # Print stats every 1000 calls
+        if Survey._from_dict_timing["call_count"] % 1000 == 0:
+            stats = Survey._from_dict_timing
+            print(f"\n{'='*70}")
+            print(f"[SURVEY.FROM_DICT] Call #{stats['call_count']}")
+            print(f"{'='*70}")
+            print(f"Total time:              {stats['total']:.3f}s")
+            print(f"")
+            print(f"Component breakdown:")
+            print(
+                f"  question.from_dict()  {stats['question_from_dict']:.3f}s ({100*stats['question_from_dict']/stats['total']:.1f}%)"
+            )
+            print(
+                f"  survey.__init__()     {stats['survey_init']:.3f}s ({100*stats['survey_init']/stats['total']:.1f}%)"
+            )
+            print(
+                f"  rule_collection       {stats['rule_collection_from_dict']:.3f}s ({100*stats['rule_collection_from_dict']/stats['total']:.1f}%)"
+            )
+            print(
+                f"  memory_plan           {stats['memory_plan_from_dict']:.3f}s ({100*stats['memory_plan_from_dict']/stats['total']:.1f}%)"
+            )
+            print(
+                f"  get_class             {stats['get_class']:.3f}s ({100*stats['get_class']/stats['total']:.1f}%)"
+            )
+            print(f"")
+            print(f"Overall avg per call:    {stats['total']/stats['call_count']:.4f}s")
+            print(f"{'='*70}\n")
+
         return survey
 
     @property
@@ -2064,7 +2225,9 @@ class Survey(Base):
         if self.raw_passed_questions is None:
             questions_string = ", ".join([repr(q) for q in self.questions])
         else:
-            questions_string = ", ".join([repr(q) for q in self.raw_passed_questions or []])
+            questions_string = ", ".join(
+                [repr(q) for q in self.raw_passed_questions or []]
+            )
         # question_names_string = ", ".join([repr(name) for name in self.question_names])
         return f"Survey(questions=[{questions_string}], memory_plan={self.memory_plan}, rule_collection={self.rule_collection}, question_groups={self.question_groups}, questions_to_randomize={self.questions_to_randomize})"
 
