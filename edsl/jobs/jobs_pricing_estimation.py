@@ -611,6 +611,71 @@ class JobsPrompts:
                                                     print(
                                                         f"   │        │  │  │  ├─ rule.from_dict()         {rc_timing['rule_from_dict']:.3f}s ({100*rc_timing['rule_from_dict']/from_jobs_time:.1f}%)"
                                                     )
+
+                                                    # Get Rule.__init__() breakdown
+                                                    try:
+                                                        from ..surveys.rules.rule import (
+                                                            Rule,
+                                                        )
+
+                                                        if hasattr(
+                                                            Rule, "_init_timing"
+                                                        ):
+                                                            r_timing = Rule._init_timing
+                                                            if (
+                                                                r_timing["call_count"]
+                                                                > 0
+                                                            ):
+                                                                # Show top 3 components
+                                                                components = [
+                                                                    (
+                                                                        "ast_parse",
+                                                                        r_timing[
+                                                                            "ast_parse"
+                                                                        ],
+                                                                    ),
+                                                                    (
+                                                                        "extract_variables",
+                                                                        r_timing[
+                                                                            "extract_variables"
+                                                                        ],
+                                                                    ),
+                                                                    (
+                                                                        "syntax_conversion",
+                                                                        r_timing[
+                                                                            "syntax_conversion"
+                                                                        ],
+                                                                    ),
+                                                                ]
+                                                                components.sort(
+                                                                    key=lambda x: x[1],
+                                                                    reverse=True,
+                                                                )
+
+                                                                for (
+                                                                    name,
+                                                                    time_val,
+                                                                ) in components[:3]:
+                                                                    print(
+                                                                        f"   │        │  │  │  │  ├─ {name:20s} {time_val:.3f}s ({100*time_val/from_jobs_time:.1f}%)"
+                                                                    )
+
+                                                                other_r = r_timing[
+                                                                    "total"
+                                                                ] - sum(
+                                                                    [
+                                                                        t
+                                                                        for _, t in components[
+                                                                            :3
+                                                                        ]
+                                                                    ]
+                                                                )
+                                                                print(
+                                                                    f"   │        │  │  │  │  └─ other               {other_r:.3f}s ({100*other_r/from_jobs_time:.1f}%)"
+                                                                )
+                                                    except:
+                                                        pass
+
                                                     print(
                                                         f"   │        │  │  │  └─ init_collection          {rc_timing['init_collection']:.3f}s ({100*rc_timing['init_collection']/from_jobs_time:.1f}%)"
                                                     )

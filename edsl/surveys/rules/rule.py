@@ -80,13 +80,36 @@ class Rule:
         :param question_name_to_index: A dictionary mapping question names to indices.
         :param priority: An integer that determines which rule is applied, if multiple rules apply.
         """
+        import time
+
+        # Initialize module-level timing dict if needed
+        if not hasattr(Rule, "_init_timing"):
+            Rule._init_timing = {
+                "assign_attrs": 0.0,
+                "validation": 0.0,
+                "ast_parse": 0.0,
+                "extract_variables": 0.0,
+                "validate_variables": 0.0,
+                "get_indices": 0.0,
+                "check_future_refs": 0.0,
+                "syntax_conversion": 0.0,
+                "total": 0.0,
+                "call_count": 0,
+            }
+
+        method_start = time.time()
+        Rule._init_timing["call_count"] += 1
+
+        t0 = time.time()
         self.current_q = current_q
         self.expression = expression
         self.next_q = next_q
         self.question_name_to_index = question_name_to_index
         self.priority = priority
         self.before_rule = before_rule
+        Rule._init_timing["assign_attrs"] += time.time() - t0
 
+        t1 = time.time()
         if not self.next_q == EndOfSurvey:
             if self.next_q <= self.current_q:
                 raise SurveyRuleSendsYouBackwardsError
@@ -95,39 +118,71 @@ class Rule:
             raise SurveyRuleSendsYouBackwardsError(
                 f"current_q: {self.current_q}, next_q: {self.next_q}"
             )
+        Rule._init_timing["validation"] += time.time() - t1
 
         # get the AST for the expression - used to extract the variables referenced in the expression
-        try:
-            self.ast_tree = ast.parse(self.expression)
-        except SyntaxError:
-            raise SurveyRuleSkipLogicSyntaxError(
-                f"The expression {self.expression} is not valid Python syntax."
+        t2 = time.time()
+
+        # Cache AST trees and extracted variables by expression string
+        if not hasattr(Rule, "_expression_cache"):
+            Rule._expression_cache = {}
+
+        if self.expression in Rule._expression_cache:
+            # Use cached AST and extracted names
+            self.ast_tree, extracted_question_names = Rule._expression_cache[
+                self.expression
+            ]
+            Rule._init_timing["ast_parse"] += time.time() - t2
+            # No time for extract_variables since it's cached
+        else:
+            # Parse and extract for the first time
+            try:
+                self.ast_tree = ast.parse(self.expression)
+            except SyntaxError:
+                raise SurveyRuleSkipLogicSyntaxError(
+                    f"The expression {self.expression} is not valid Python syntax."
+                )
+            Rule._init_timing["ast_parse"] += time.time() - t2
+
+            t3 = time.time()
+            extracted_question_names = extract_variable_names(self.ast_tree)
+            Rule._init_timing["extract_variables"] += time.time() - t3
+
+            # Cache for future use
+            Rule._expression_cache[self.expression] = (
+                self.ast_tree,
+                extracted_question_names,
             )
 
-        extracted_question_names = extract_variable_names(self.ast_tree)
-
         # make sure all the variables in the expression are known questions
+        t4 = time.time()
         try:
             assert all([q in question_name_to_index for q in extracted_question_names])
         except AssertionError:
             pass
+        Rule._init_timing["validate_variables"] += time.time() - t4
 
         # get the indices of the questions mentioned in the expression
+        t5 = time.time()
         self.named_questions_by_index = [
             question_name_to_index[q]
             for q in extracted_question_names
             if q in question_name_to_index
         ]
+        Rule._init_timing["get_indices"] += time.time() - t5
 
         # A rule should only refer to questions that have already been asked.
         # so the named questions in the expression should not be higher than the current question
+        t6 = time.time()
         if self.named_questions_by_index:
             if max(self.named_questions_by_index) > self.current_q:
                 print(
                     "A rule refers to a future question, the answer to which would not be available here."
                 )
                 raise SurveyRuleRefersToFutureStateError
+        Rule._init_timing["check_future_refs"] += time.time() - t6
 
+        t7 = time.time()
         if (
             referenced_questions := self._prior_question_is_in_expression()
         ) and not self._is_jinja2_expression():  # raise ValueError("This uses the old syntax!")
@@ -146,6 +201,57 @@ class Rule:
             warnings.warn(
                 f"This uses the old syntax! Converting to Jinja2 style with {{ }}.\nOld expression: {old_expression}\nNew expression: {self.expression}"
             )
+        Rule._init_timing["syntax_conversion"] += time.time() - t7
+
+        Rule._init_timing["total"] += time.time() - method_start
+
+        # Print stats every 10000 calls
+        if Rule._init_timing["call_count"] % 10000 == 0:
+            stats = Rule._init_timing
+            cache_size = (
+                len(Rule._expression_cache) if hasattr(Rule, "_expression_cache") else 0
+            )
+            cache_hit_rate = (
+                100 * (1 - cache_size / stats["call_count"])
+                if stats["call_count"] > 0
+                else 0
+            )
+
+            print(f"\n{'='*70}")
+            print(f"[RULE.__INIT__] Call #{stats['call_count']}")
+            print(f"{'='*70}")
+            print(f"Total time:              {stats['total']:.3f}s")
+            print(f"Expression cache size:   {cache_size}")
+            print(f"Cache hit rate:          {cache_hit_rate:.1f}%")
+            print(f"")
+            print(f"Component breakdown:")
+            print(
+                f"  ast_parse             {stats['ast_parse']:.3f}s ({100*stats['ast_parse']/stats['total']:.1f}%)"
+            )
+            print(
+                f"  extract_variables     {stats['extract_variables']:.3f}s ({100*stats['extract_variables']/stats['total']:.1f}%)"
+            )
+            print(
+                f"  syntax_conversion     {stats['syntax_conversion']:.3f}s ({100*stats['syntax_conversion']/stats['total']:.1f}%)"
+            )
+            print(
+                f"  get_indices           {stats['get_indices']:.3f}s ({100*stats['get_indices']/stats['total']:.1f}%)"
+            )
+            print(
+                f"  validate_variables    {stats['validate_variables']:.3f}s ({100*stats['validate_variables']/stats['total']:.1f}%)"
+            )
+            print(
+                f"  validation            {stats['validation']:.3f}s ({100*stats['validation']/stats['total']:.1f}%)"
+            )
+            print(
+                f"  check_future_refs     {stats['check_future_refs']:.3f}s ({100*stats['check_future_refs']/stats['total']:.1f}%)"
+            )
+            print(
+                f"  assign_attrs          {stats['assign_attrs']:.3f}s ({100*stats['assign_attrs']/stats['total']:.1f}%)"
+            )
+            print(f"")
+            print(f"Avg per call:            {stats['total']/stats['call_count']:.6f}s")
+            print(f"{'='*70}\n")
 
     def _checks(self):
         pass
