@@ -767,6 +767,49 @@ class JobsPrompts:
                     print(
                         f"      │  │  ├─ {name:21s} {time_spent:.3f}s ({100*time_spent/complete_total:.1f}%)"
                     )
+
+                    # Add detailed breakdown for question_instructions
+                    if name == "question_instructions":
+                        try:
+                            from ..invigilators.question_instructions_prompt_builder import (
+                                _timing_stats as qi_timing,
+                            )
+
+                            if qi_timing["call_count"] > 0:
+                                # Show all sub-components
+                                qi_components = [
+                                    ("base_prompt", qi_timing["base_prompt_time"]),
+                                    ("enrich_options", qi_timing["enrich_time"]),
+                                    ("render", qi_timing["render_time"]),
+                                    ("validate", qi_timing["validate_time"]),
+                                    ("append", qi_timing["append_time"]),
+                                ]
+                                qi_components.sort(key=lambda x: x[1], reverse=True)
+
+                                for qi_name, qi_time in qi_components:
+                                    print(
+                                        f"      │  │  │  ├─ {qi_name:19s} {qi_time:.3f}s ({100*qi_time/complete_total:.1f}%)"
+                                    )
+
+                                    # Add deeper breakdown for render component
+                                    if qi_name == "render" and qi_time > 0:
+                                        print(
+                                            f"      │  │  │  │  ├─ build_dict        {qi_timing['render_build_dict']:.3f}s ({100*qi_timing['render_build_dict']/complete_total:.1f}%)"
+                                        )
+                                        print(
+                                            f"      │  │  │  │  └─ prompt.render     {qi_timing['render_prompt_render']:.3f}s ({100*qi_timing['render_prompt_render']/complete_total:.1f}%)"
+                                        )
+
+                                    # Add deeper breakdown for validate component
+                                    if qi_name == "validate" and qi_time > 0:
+                                        print(
+                                            f"      │  │  │  │  ├─ undefined_vars   {qi_timing['validate_undefined_vars']:.3f}s ({100*qi_timing['validate_undefined_vars']/complete_total:.1f}%)"
+                                        )
+                                        print(
+                                            f"      │  │  │  │  └─ check_names      {qi_timing['validate_check_names']:.3f}s ({100*qi_timing['validate_check_names']/complete_total:.1f}%)"
+                                        )
+                        except:
+                            pass
             except Exception as e:
                 # Fallback to estimated percentages if timing data unavailable
                 print(f"      │  │  (detailed breakdown unavailable: {e})")
