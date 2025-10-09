@@ -174,6 +174,10 @@ class JobsPrompts:
                 "get_prompts": 0.0,
                 "extract_prompts": 0.0,
                 "lookups": 0.0,
+                "lookup_agent": 0.0,
+                "lookup_scenario": 0.0,
+                "lookup_model": 0.0,
+                "lookup_question_name": 0.0,
                 "cost_estimation": 0.0,
                 "cache_keys": 0.0,
                 "dict_creation": 0.0,
@@ -190,10 +194,22 @@ class JobsPrompts:
         self._component_timing["extract_prompts"] += time.time() - t1
 
         t2 = time.time()
+        t2a = time.time()
         agent_index = self._agent_lookup[invigilator.agent]
+        self._component_timing["lookup_agent"] += time.time() - t2a
+
+        t2b = time.time()
         scenario_index = self._scenario_lookup[invigilator.scenario]
+        self._component_timing["lookup_scenario"] += time.time() - t2b
+
+        t2c = time.time()
         model = invigilator.model.model
+        self._component_timing["lookup_model"] += time.time() - t2c
+
+        t2d = time.time()
         question_name = invigilator.question.question_name
+        self._component_timing["lookup_question_name"] += time.time() - t2d
+
         self._component_timing["lookups"] += time.time() - t2
 
         # Calculate prompt cost
@@ -820,6 +836,20 @@ class JobsPrompts:
             print(
                 f"      │  ├─ lookups                 {ct['lookups']:.3f}s ({100*ct['lookups']/complete_total:.1f}%)"
             )
+            # Add lookup breakdown
+            if ct["lookups"] > 0:
+                print(
+                    f"      │  │  ├─ agent_hash          {ct['lookup_agent']:.3f}s ({100*ct['lookup_agent']/complete_total:.1f}%)"
+                )
+                print(
+                    f"      │  │  ├─ scenario_hash       {ct['lookup_scenario']:.3f}s ({100*ct['lookup_scenario']/complete_total:.1f}%)"
+                )
+                print(
+                    f"      │  │  ├─ model_attr          {ct['lookup_model']:.3f}s ({100*ct['lookup_model']/complete_total:.1f}%)"
+                )
+                print(
+                    f"      │  │  └─ question_name       {ct['lookup_question_name']:.3f}s ({100*ct['lookup_question_name']/complete_total:.1f}%)"
+                )
             print(
                 f"      │  ├─ cost_estimation         {ct['cost_estimation']:.3f}s ({100*ct['cost_estimation']/complete_total:.1f}%)"
             )
