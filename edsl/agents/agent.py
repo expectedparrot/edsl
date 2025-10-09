@@ -1177,7 +1177,7 @@ class Agent(Base):
         items = [
             f'{k} = """{v}"""' if isinstance(v, str) else f"{k} = {v}"
             for k, v in self.data.items()
-            if k not in ("question_type", "invigilator")
+            if k not in ("question_type", "invigilator") and not k.startswith("_")
         ]
         return f"{class_name}({', '.join(items)})"
 
