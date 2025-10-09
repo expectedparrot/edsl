@@ -386,22 +386,15 @@ class Survey(Base):
             random.seed(self._seed)  # type: ignore
         Survey._draw_timing["seed_setup"] += time.time() - t0
 
-        # Fast path: if no randomization needed, just return self
-        if not self.questions_to_randomize:
-            t_fast = time.time()
-            Survey._draw_timing["fast_path"] += time.time() - t_fast
-            Survey._draw_timing["fast_path_count"] += 1
-            Survey._draw_timing["total"] += time.time() - method_start
-            return self
-
-        # Slow path: randomization needed
-        Survey._draw_timing["has_randomization"] = True
-
         # Always create new questions to avoid sharing state between interviews
+        # This is necessary even when there's no randomization because:
+        # 1. Piping might require each interview to have its own survey instance
+        # 2. Different agents/scenarios need independent survey instances
         new_questions = []
         for question in self.questions:
             if question.question_name in self.questions_to_randomize:
                 t1 = time.time()
+                Survey._draw_timing["has_randomization"] = True
                 new_questions.append(question.draw())
                 Survey._draw_timing["question_draw"] += time.time() - t1
             else:
