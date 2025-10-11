@@ -253,14 +253,15 @@ class QuestionBase(
             >>> original is copy
             False
         """
-        duplicated = self.from_dict(self.to_dict())
-        
+        data = self.to_dict()
+        duplicated = self.from_dict(data)
+
         # Preserve testing attributes that aren't serialized
-        if hasattr(self, 'exception_to_throw'):
+        if hasattr(self, "exception_to_throw"):
             duplicated.exception_to_throw = self.exception_to_throw
-        if hasattr(self, 'override_answer'):
+        if hasattr(self, "override_answer"):
             duplicated.override_answer = self.override_answer
-            
+
         return duplicated
 
     @property
@@ -569,8 +570,8 @@ class QuestionBase(
             question_class = get_question_class(question_type)
         except ValueError:
             raise QuestionSerializationError(
-                f"No question registered with question_type {question_type}", 
-                "The passed in dictionary was: " + str(data)
+                f"No question registered with question_type {question_type}",
+                "The passed in dictionary was: " + str(data),
             )
         except Exception as e:
             raise QuestionSerializationError(
@@ -906,7 +907,7 @@ class QuestionBase(
     def example_results(cls):
         m = cls.example_model()
         q = cls.example()
-        return q.by(m).run(cache=False, disable_remote_inference = True)
+        return q.by(m).run(cache=False, disable_remote_inference=True)
 
     def rich_print(self):
         """Print the question in a rich format."""

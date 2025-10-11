@@ -112,9 +112,8 @@ class DirectAnswerMethod(Protocol):
         The answer to the question
     """
 
-    def __call__(
-        self, self_: A, question: "QuestionBase", scenario: "Scenario"
-    ) -> Any: ...
+    def __call__(self, self_: A, question: "QuestionBase", scenario: "Scenario") -> Any:
+        ...
 
 
 class Agent(Base):
@@ -486,20 +485,21 @@ class Agent(Base):
         self.traits_manager.transfer_to(new_agent)
 
         return new_agent
-    
+
     def add_canned_response(self, question_name, response):
         """Add a canned response to the agent."""
         if not hasattr(self, "_canned_responses"):
             self._canned_responses = {}
         self._canned_responses[question_name] = response
+
         def f(self, question, scenario):
             if question.question_name in self._canned_responses:
                 return self._canned_responses[question.question_name]
             else:
                 return None
+
         self.remove_direct_question_answering_method()
         self.add_direct_question_answering_method(f)
-
 
     def copy(self) -> "Agent":
         """Create a deep copy of this agent using serialization/deserialization.
@@ -1012,7 +1012,7 @@ class Agent(Base):
         >>> a1 == a3
         False
         """
-        #return self.data == other.data
+        # return self.data == other.data
         return hash(self) == hash(other)
 
     # Backward compatibility properties for dynamic traits
@@ -1177,7 +1177,7 @@ class Agent(Base):
         items = [
             f'{k} = """{v}"""' if isinstance(v, str) else f"{k} = {v}"
             for k, v in self.data.items()
-            if k not in ("question_type", "invigilator")
+            if k not in ("question_type", "invigilator") and not k.startswith("_")
         ]
         return f"{class_name}({', '.join(items)})"
 
@@ -1212,7 +1212,11 @@ class Agent(Base):
             >>> hash(Agent.example())
             2067581884874391607
         """
-        return dict_hash(self.to_dict(add_edsl_version=False))
+        # Cache the hash to avoid expensive to_dict() calls on every hash lookup
+        # This is safe because agents should be immutable after creation
+        if not hasattr(self, "_cached_hash"):
+            self._cached_hash = dict_hash(self.to_dict(add_edsl_version=False))
+        return self._cached_hash
 
     def to_dict(
         self, add_edsl_version: bool = True, full_dict: bool = False
@@ -1467,4 +1471,3 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-

@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Any, List, Union, Dict, Optional
 from pathlib import Path
-import time
 import logging
 from functools import lru_cache
 
@@ -49,20 +48,22 @@ def make_env() -> Environment:
     return Environment(undefined=PreserveUndefined)
 
 
-@lru_cache(maxsize=1024)
+@lru_cache(maxsize=100000)
 def _find_template_variables(template_text: str) -> List[str]:
     env = make_env()
     ast = env.parse(template_text)
     return list(meta.find_undeclared_variables(ast))
 
 
-@lru_cache(maxsize=2048)
+@lru_cache(maxsize=100000)
 def _get_compiled_template(template_text: str):
     """Cache compiled Jinja2 templates for reuse.
-    
+
     This is the main performance optimization - instead of recompiling
     templates for every render, we cache compiled templates by their text.
     """
+    # print("#################")
+    # print(template_text)
     env = make_env()
     return env.from_string(template_text)
 
@@ -76,22 +77,16 @@ def _make_hashable(value):
     return value
 
 
-@lru_cache(maxsize=1024)
+@lru_cache(maxsize=100000)
 def _compile_template(text: str):
     """Compile a Jinja template with caching."""
     env = make_env()
     return env.from_string(text)
 
 
-@lru_cache(maxsize=1024)
+@lru_cache(maxsize=100000)
 def _cached_render(text: str, frozen_replacements: frozenset) -> str:
     """Cached version of template rendering with frozen replacements."""
-    # Print cache info on every call
-    cache_info = _cached_render.cache_info()
-    print(
-        f"\t\t\t\t\t Cache status - hits: {cache_info.hits}, misses: {cache_info.misses}, current size: {cache_info.currsize}"
-    )
-
     # Convert back to dict with original types for rendering
     replacements = {k: v for k, v in frozen_replacements}
 
@@ -216,7 +211,11 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
 
     def template_variables(self) -> list[str]:
         """Return the variables in the template."""
-        return _find_template_variables(str(self))
+        # Fast path: if no template syntax, return empty list
+        text = str(self)
+        if "{{" not in text and "{%" not in text:
+            return []
+        return _find_template_variables(text)
 
     def undefined_template_variables(self, replacement_dict: dict) -> list[str]:
         """Return the variables in the template that are not in the replacement_dict.
@@ -233,7 +232,8 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
         >>> p.undefined_template_variables({"person": "John"})
         ['title']
         """
-        return [var for var in self.template_variables() if var not in replacement_dict]
+        template_vars = self.template_variables()
+        return [var for var in template_vars if var not in replacement_dict]
 
     def unused_traits(self, traits: dict) -> list[str]:
         """Return the traits that are not used in the template."""
@@ -282,6 +282,7 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
         >>> result.captured_variables['x']
         5
         """
+
         try:
             template_vars = TemplateVars()
             new_text, captured_vars = self._render(
@@ -319,8 +320,10 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
             **additional_replacements,
             **additional,
         }
+
         # If no replacements and no Jinja variables, just return the text.
-        if not all_replacements and not _find_template_variables(text):
+        has_vars = _find_template_variables(text)
+        if not all_replacements and not has_vars:
             return text, template_vars.get_all()
 
         env = make_env()
@@ -331,8 +334,16 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
         current_text = text
 
         for _ in range(MAX_NESTING):
-            template = env.from_string(current_text)
-            rendered_text = template.render(**all_replacements)
+            if "{{" in current_text or "{%" in current_text:
+                template = _get_compiled_template(current_text)
+
+                # Re-inject the vars object since cached template doesn't have it
+                template.globals["vars"] = template_vars
+
+                rendered_text = template.render(**all_replacements)
+            else:
+                # No template syntax, use text as-is
+                rendered_text = current_text
 
             if rendered_text == current_text:
                 # No more changes, return final text with captured variables.
