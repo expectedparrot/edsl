@@ -3443,6 +3443,129 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def _process_filestores_for_push(self, object_dict: dict) -> dict:
+        """
+        Detect FileStore objects in the serialized object, upload them to GCS,
+        and offload them by replacing base64_string with "offloaded" marker.
+
+        This method:
+        1. Recursively searches for FileStore objects in the object_dict
+        2. For each FileStore, requests upload URL from backend
+        3. Uploads file content to GCS
+        4. Adds file_uuid to external_locations["gcs"]
+        5. Replaces base64_string with "offloaded"
+
+        Args:
+            object_dict: The serialized object dictionary
+
+        Returns:
+            dict: The modified object_dict with offloaded FileStores
+        """
+        import base64
+        from copy import deepcopy
+
+        # Create a deep copy to avoid modifying the original
+        modified_dict = deepcopy(object_dict)
+
+        def process_dict_recursive(d: dict, path: str = ""):
+            """Recursively process dictionaries looking for FileStore objects."""
+            if self._scenario_is_file_store(d):
+                # This is a FileStore object
+                base64_string = d.get("base64_string", "")
+
+                # Skip if already offloaded
+                if base64_string == "offloaded":
+                    return d
+
+                # Skip if no content to upload
+                if not base64_string or not isinstance(base64_string, str):
+                    return d
+
+                # Get FileStore metadata
+                file_name = d.get("path", "unknown")
+                mime_type = d.get("mime_type", "application/octet-stream")
+                suffix = d.get("suffix", "bin")
+
+                # Get user UUID from Coop instance
+                try:
+                    user_info = self.remote_cache_get("user")
+                    user_uuid = user_info.get("uuid")
+                except Exception:
+                    # If we can't get user info, skip FileStore upload
+                    return d
+
+                # Request upload URL from backend
+                try:
+                    response = self._send_server_request(
+                        uri="api/v0/filestore/upload-url",
+                        method="POST",
+                        payload={
+                            "file_name": file_name,
+                            "mime_type": mime_type,
+                            "suffix": suffix,
+                            "user_uuid": user_uuid,
+                        },
+                    )
+                    response_data = response.json()
+                    file_uuid = response_data.get("file_uuid")
+                    upload_url = response_data.get("upload_url")
+
+                    if not file_uuid or not upload_url:
+                        # If backend didn't return proper response, skip upload
+                        return d
+
+                    # Decode base64 content
+                    file_content = base64.b64decode(base64_string)
+
+                    # Upload to GCS
+                    upload_response = requests.put(
+                        upload_url,
+                        data=file_content,
+                        headers={
+                            "Content-Type": mime_type,
+                            "Content-Length": str(len(file_content)),
+                        },
+                    )
+
+                    # Check if upload was successful
+                    if upload_response.status_code in (200, 201):
+                        # Upload successful, offload the FileStore
+                        d["base64_string"] = "offloaded"
+
+                        # Add file_uuid to external_locations
+                        if "external_locations" not in d:
+                            d["external_locations"] = {}
+
+                        d["external_locations"]["gcs"] = {
+                            "file_uuid": file_uuid,
+                            "uploaded": True,
+                            "offloaded": True,
+                        }
+
+                except Exception as e:
+                    # If upload fails, keep the FileStore as-is (with full base64)
+                    # This ensures backward compatibility
+                    pass
+
+            else:
+                # Not a FileStore, recursively process nested dicts
+                for key, value in d.items():
+                    if isinstance(value, dict):
+                        d[key] = process_dict_recursive(
+                            value, f"{path}.{key}" if path else key
+                        )
+                    elif isinstance(value, list):
+                        d[key] = [
+                            process_dict_recursive(item, f"{path}.{key}[{i}]")
+                            if isinstance(item, dict)
+                            else item
+                            for i, item in enumerate(value)
+                        ]
+
+            return d
+
+        return process_dict_recursive(modified_dict)
+
     def push(
         self,
         object: EDSLObject,
@@ -3475,6 +3598,9 @@ class Coop(CoopFunctionsMixin):
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
         object_dict = object.to_dict()
         object_hash = object.get_hash() if hasattr(object, "get_hash") else None
+
+        # Process FileStore objects: upload to GCS and offload
+        object_dict = self._process_filestores_for_push(object_dict)
 
         # Send the request to the API endpoint
         response = self._send_server_request(
