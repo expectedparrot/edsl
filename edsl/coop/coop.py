@@ -1842,6 +1842,7 @@ class Coop(CoopFunctionsMixin):
             payload={
                 "job_uuid": job_uuid,
                 "message": "Job uploaded successfully",
+                "nr_questions": job.nr_questions,
             },
         )
         response_json = response.json()
@@ -3492,9 +3493,6 @@ class Coop(CoopFunctionsMixin):
 
                 # Request upload URL from backend
                 try:
-                    print(
-                        f"DEBUG: Requesting upload URL for suffix={suffix}, mime_type={mime_type}"
-                    )
                     response = self._send_server_request(
                         uri="api/v0/filestore/upload-url",
                         method="POST",
@@ -3507,13 +3505,9 @@ class Coop(CoopFunctionsMixin):
                     response_data = response.json()
                     file_uuid = response_data.get("file_uuid")
                     upload_url = response_data.get("upload_url")
-                    print(
-                        f"DEBUG: Got file_uuid={file_uuid[:20] if file_uuid else None}..."
-                    )
 
                     if not file_uuid or not upload_url:
                         # If backend didn't return proper response, skip upload
-                        print(f"DEBUG: Missing file_uuid or upload_url in response")
                         return d
 
                     # Decode base64 content
@@ -3532,9 +3526,6 @@ class Coop(CoopFunctionsMixin):
                     # Check if upload was successful
                     if upload_response.status_code in (200, 201):
                         # Upload successful, offload the FileStore
-                        print(
-                            f"DEBUG: FileStore upload successful! file_uuid={file_uuid[:20]}..."
-                        )
                         d["base64_string"] = "offloaded"
 
                         # Add file_uuid to external_locations
@@ -3558,18 +3549,23 @@ class Coop(CoopFunctionsMixin):
 
                                 # Navigate through nested structures
                                 for key in keys:
-                                    if "[" in key:  # Handle list indexing
+                                    if (
+                                        "[" in key
+                                    ):  # Handle bracket-style list indexing: "items[0]"
                                         key_name, idx = key.split("[")
                                         idx = int(idx.rstrip("]"))
                                         current_obj = current_obj[key_name][idx]
+                                    elif (
+                                        key.isdigit()
+                                    ):  # Handle numeric string keys for list access: "0", "1", etc.
+                                        # Convert string index to integer for list-like objects
+                                        current_obj = current_obj[int(key)]
                                     else:
+                                        # Regular dictionary-style key access
                                         current_obj = current_obj[key]
 
                                 # Update the FileStore object directly
                                 if isinstance(current_obj, FileStore):
-                                    print(
-                                        f"DEBUG: Updating original FileStore at path '{path}'"
-                                    )
                                     current_obj.base64_string = "offloaded"
                                     current_obj["base64_string"] = "offloaded"
 
@@ -3588,22 +3584,16 @@ class Coop(CoopFunctionsMixin):
                                 # If we can't update the original object, that's okay
                                 # The serialized dict is still correctly offloaded
                                 print(
-                                    f"DEBUG: Could not update original FileStore: {update_error}"
+                                    f"Warning: Could not update original FileStore at path '{path}': {update_error}"
                                 )
-                                pass
                     else:
-                        print(
-                            f"DEBUG: Upload failed with status code: {upload_response.status_code}"
-                        )
+                        # Upload failed, keep FileStore as-is with full base64
+                        pass
 
                 except Exception as e:
                     # If upload fails, keep the FileStore as-is (with full base64)
                     # This ensures backward compatibility
-                    print(f"DEBUG: FileStore upload failed: {e}")
-                    import traceback
-
-                    traceback.print_exc()
-                    pass
+                    print(f"Warning: FileStore upload failed: {e}")
 
             else:
                 # Not a FileStore, recursively process nested dicts
