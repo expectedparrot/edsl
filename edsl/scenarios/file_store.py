@@ -168,16 +168,6 @@ class FileStore(Scenario):
 
         file_uuid = gcs_info["file_uuid"]
 
-        # Get user UUID from Coop
-        try:
-            from ..coop import Coop
-
-            coop = Coop()
-            user_info = coop.remote_cache_get("user")
-            user_uuid = user_info.get("uuid")
-        except Exception as e:
-            raise Exception(f"Failed to get user information: {e}")
-
         # Request download URL from backend
         try:
             from ..coop import Coop
@@ -189,7 +179,6 @@ class FileStore(Scenario):
                 payload={
                     "file_uuid": file_uuid,
                     "suffix": self.suffix,
-                    "user_uuid": user_uuid,
                 },
             )
             response_data = response.json()

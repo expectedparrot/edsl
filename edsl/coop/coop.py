@@ -3443,7 +3443,9 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
-    def _process_filestores_for_push(self, object_dict: dict) -> dict:
+    def _process_filestores_for_push(
+        self, object_dict: dict, original_object=None
+    ) -> dict:
         """
         Detect FileStore objects in the serialized object, upload them to GCS,
         and offload them by replacing base64_string with "offloaded" marker.
@@ -3454,9 +3456,11 @@ class Coop(CoopFunctionsMixin):
         3. Uploads file content to GCS
         4. Adds file_uuid to external_locations["gcs"]
         5. Replaces base64_string with "offloaded"
+        6. Updates the original FileStore objects in the original_object
 
         Args:
             object_dict: The serialized object dictionary
+            original_object: The original EDSLObject (optional, for updating FileStores)
 
         Returns:
             dict: The modified object_dict with offloaded FileStores
@@ -3464,7 +3468,7 @@ class Coop(CoopFunctionsMixin):
         import base64
         from copy import deepcopy
 
-        # Create a deep copy to avoid modifying the original
+        # Create a deep copy to avoid modifying the original dict structure
         modified_dict = deepcopy(object_dict)
 
         def process_dict_recursive(d: dict, path: str = ""):
@@ -3486,16 +3490,11 @@ class Coop(CoopFunctionsMixin):
                 mime_type = d.get("mime_type", "application/octet-stream")
                 suffix = d.get("suffix", "bin")
 
-                # Get user UUID from Coop instance
-                try:
-                    user_info = self.remote_cache_get("user")
-                    user_uuid = user_info.get("uuid")
-                except Exception:
-                    # If we can't get user info, skip FileStore upload
-                    return d
-
                 # Request upload URL from backend
                 try:
+                    print(
+                        f"DEBUG: Requesting upload URL for suffix={suffix}, mime_type={mime_type}"
+                    )
                     response = self._send_server_request(
                         uri="api/v0/filestore/upload-url",
                         method="POST",
@@ -3503,15 +3502,18 @@ class Coop(CoopFunctionsMixin):
                             "file_name": file_name,
                             "mime_type": mime_type,
                             "suffix": suffix,
-                            "user_uuid": user_uuid,
                         },
                     )
                     response_data = response.json()
                     file_uuid = response_data.get("file_uuid")
                     upload_url = response_data.get("upload_url")
+                    print(
+                        f"DEBUG: Got file_uuid={file_uuid[:20] if file_uuid else None}..."
+                    )
 
                     if not file_uuid or not upload_url:
                         # If backend didn't return proper response, skip upload
+                        print(f"DEBUG: Missing file_uuid or upload_url in response")
                         return d
 
                     # Decode base64 content
@@ -3530,6 +3532,9 @@ class Coop(CoopFunctionsMixin):
                     # Check if upload was successful
                     if upload_response.status_code in (200, 201):
                         # Upload successful, offload the FileStore
+                        print(
+                            f"DEBUG: FileStore upload successful! file_uuid={file_uuid[:20]}..."
+                        )
                         d["base64_string"] = "offloaded"
 
                         # Add file_uuid to external_locations
@@ -3542,9 +3547,62 @@ class Coop(CoopFunctionsMixin):
                             "offloaded": True,
                         }
 
+                        # Also update the original FileStore object if we have access to it
+                        if original_object is not None and path:
+                            try:
+                                # Navigate to the FileStore in the original object
+                                from ..scenarios.file_store import FileStore
+
+                                keys = path.split(".") if "." in path else [path]
+                                current_obj = original_object
+
+                                # Navigate through nested structures
+                                for key in keys:
+                                    if "[" in key:  # Handle list indexing
+                                        key_name, idx = key.split("[")
+                                        idx = int(idx.rstrip("]"))
+                                        current_obj = current_obj[key_name][idx]
+                                    else:
+                                        current_obj = current_obj[key]
+
+                                # Update the FileStore object directly
+                                if isinstance(current_obj, FileStore):
+                                    print(
+                                        f"DEBUG: Updating original FileStore at path '{path}'"
+                                    )
+                                    current_obj.base64_string = "offloaded"
+                                    current_obj["base64_string"] = "offloaded"
+
+                                    if "external_locations" not in current_obj:
+                                        current_obj["external_locations"] = {}
+
+                                    current_obj["external_locations"]["gcs"] = {
+                                        "file_uuid": file_uuid,
+                                        "uploaded": True,
+                                        "offloaded": True,
+                                    }
+                                    current_obj.external_locations = current_obj[
+                                        "external_locations"
+                                    ]
+                            except Exception as update_error:
+                                # If we can't update the original object, that's okay
+                                # The serialized dict is still correctly offloaded
+                                print(
+                                    f"DEBUG: Could not update original FileStore: {update_error}"
+                                )
+                                pass
+                    else:
+                        print(
+                            f"DEBUG: Upload failed with status code: {upload_response.status_code}"
+                        )
+
                 except Exception as e:
                     # If upload fails, keep the FileStore as-is (with full base64)
                     # This ensures backward compatibility
+                    print(f"DEBUG: FileStore upload failed: {e}")
+                    import traceback
+
+                    traceback.print_exc()
                     pass
 
             else:
@@ -3600,7 +3658,9 @@ class Coop(CoopFunctionsMixin):
         object_hash = object.get_hash() if hasattr(object, "get_hash") else None
 
         # Process FileStore objects: upload to GCS and offload
-        object_dict = self._process_filestores_for_push(object_dict)
+        object_dict = self._process_filestores_for_push(
+            object_dict, original_object=object
+        )
 
         # Send the request to the API endpoint
         response = self._send_server_request(
