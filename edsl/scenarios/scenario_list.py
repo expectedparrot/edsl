@@ -1468,7 +1468,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         new_sl = ScenarioList(data=[], codebook=self.codebook)
         for scenario in self:
-            new_sl.append(scenario.select(*fields))
+            try:
+                new_sl.append(scenario.select(*fields))
+            except KeyError:
+                from .exceptions import KeyScenarioError
+                raise KeyScenarioError(f"Key {fields} not found in scenario {scenario.keys()}")
         return new_sl
 
     def drop(self, *fields: str) -> ScenarioList:
@@ -1874,6 +1878,18 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
 
         """
+        # Collect all keys present across all scenarios
+        all_keys = set()
+        for scenario in self:
+            all_keys.update(scenario.keys())
+
+        # Check for keys in replacement_dict that are not present in any scenario
+        missing_keys = [key for key in replacement_dict.keys() if key not in all_keys]
+        if missing_keys:
+            warnings.warn(
+                f"The following keys in replacement_dict are not present in any scenario: {', '.join(missing_keys)}"
+            )
+
         new_sl = ScenarioList(data=[], codebook=self.codebook)
         for scenario in self:
             new_scenario = scenario.rename(replacement_dict)

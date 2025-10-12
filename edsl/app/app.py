@@ -767,7 +767,7 @@ class App(AppMixin, Base):
         # Prepare head attachments - these are what will get attached to the jobs object
         head_attachments = self._prepare_head_attachments(params)
         modified_jobs_object = head_attachments.attach_to_head(
-            self.jobs_object
+            self.jobs_object.duplicate()
         )  # attach them
 
         results = self._generate_results(
@@ -1119,12 +1119,14 @@ class App(AppMixin, Base):
         )
 
     @property
-    def parameters(self) -> list[tuple[str, str, str]]:
-        """Return list of (name, type, text) derived from the initial survey."""
-        return [
-            (q.question_name, q.question_type, q.question_text)
-            for q in self.initial_survey
-        ]
+    def parameters(self):
+        """Return ScenarioList of parameter info derived from the initial survey."""
+        from ..scenarios.scenario_list import ScenarioList
+        return ScenarioList([Scenario({
+            'question_name': q.question_name,
+            'question_type': q.question_type,
+            'question_text': q.question_text
+        }) for q in self.initial_survey])
 
     def __repr__(self) -> str:
         return self._repr_summary()
@@ -1159,11 +1161,15 @@ class App(AppMixin, Base):
             "..." if len(attach_names_list) > 8 else ""
         )
         app_type = self.application_type
+        
+        # Get parameter names for compact repr
+        param_names = [p['question_name'] for p in self.parameters]
+        params_str = f"[{', '.join(repr(name) for name in param_names)}]"
 
         return (
             f"{cls_name}(application_name='{self.application_name}', display_name='{self.display_name}', "
             f"short_description='{self.short_description}', "
-            f"application_type='{app_type}', parameters={self.parameters}, job='{job_cls}', "
+            f"application_type='{app_type}', parameters={params_str}, job='{job_cls}', "
             f"survey_questions={num_questions}, head_params={head_param_count}, "
             f"formatters=[{fmt_names}], default_formatter='{default_fmt}', attachments=[{attach_names}])"
         )

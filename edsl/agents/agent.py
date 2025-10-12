@@ -1342,6 +1342,48 @@ class Agent(Base):
         """
         return self.traits_manager.remove_trait(trait)
 
+    def update_trait(self, trait_name: str, value: Any) -> "Agent":
+        """Update an existing trait value.
+
+        This method modifies the value of an existing trait. If the trait
+        doesn't exist, it raises an AgentErrors exception. To add a new trait,
+        use add_trait() instead.
+
+        Args:
+            trait_name: The name of the trait to update
+            value: The new value for the trait
+
+        Returns:
+            A new Agent instance with the updated trait value
+
+        Raises:
+            AgentErrors: If the trait doesn't exist
+
+        Examples:
+            Update an existing trait value:
+
+            >>> a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
+            >>> a_updated = a.update_trait("age", 11)
+            >>> a_updated.traits
+            {'age': 11, 'hair': 'brown', 'height': 5.5}
+
+            Update with a different type:
+
+            >>> a = Agent(traits={"age": 10, "hair": "brown"})
+            >>> a_updated = a.update_trait("hair", "black")
+            >>> a_updated.traits
+            {'age': 10, 'hair': 'black'}
+
+            Error when trying to update a non-existent trait:
+
+            >>> a = Agent(traits={"age": 10})
+            >>> a.update_trait("weight", 150)  # doctest: +ELLIPSIS
+            Traceback (most recent call last):
+            ...
+            edsl.agents.exceptions.AgentErrors: ...
+        """
+        return self.traits_manager.update_trait(trait_name, value)
+
     def translate_traits(self, values_codebook: dict[str, dict[Any, Any]]) -> "Agent":
         """Translate traits to a new codebook.
 
@@ -1357,6 +1399,49 @@ class Agent(Base):
             Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})
         """
         return self.traits_manager.translate_traits(values_codebook)
+
+    def apply_delta(self, delta: "AgentDelta") -> "Agent":
+        """Apply an AgentDelta to create a new agent with updated trait values.
+
+        This is a convenience method that delegates to AgentDelta.apply().
+
+        Args:
+            delta: The AgentDelta to apply
+
+        Returns:
+            A new Agent instance with the updated trait values
+
+        Raises:
+            AgentErrors: If any trait in the delta doesn't exist in this agent
+
+        Examples:
+            Apply a delta to update agent traits:
+
+            >>> from edsl.agents import AgentDelta
+            >>> a = Agent(traits={'age': 30, 'height': 5.5})
+            >>> delta = AgentDelta({'age': 31})
+            >>> updated = a.apply_delta(delta)
+            >>> updated.traits
+            {'age': 31, 'height': 5.5}
+
+            Multiple trait updates:
+
+            >>> delta = AgentDelta({'age': 35, 'height': 5.8})
+            >>> updated = a.apply_delta(delta)
+            >>> updated.traits
+            {'age': 35, 'height': 5.8}
+
+            Error when trait doesn't exist:
+
+            >>> bad_delta = AgentDelta({'weight': 150})
+            >>> a.apply_delta(bad_delta)  # doctest: +ELLIPSIS
+            Traceback (most recent call last):
+            ...
+            edsl.agents.exceptions.AgentErrors: ...
+        """
+        from .agent_delta import AgentDelta
+        
+        return delta.apply(self)
 
     @classmethod
     def example(cls, randomize: bool = False) -> "Agent":

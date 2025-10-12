@@ -8,7 +8,8 @@ from ..base import RegisterSubclassesMeta
 class AppValidator:
     @staticmethod
     def validate_parameters(app: Any) -> None:
-        input_survey_params = [x[0] for x in app.parameters]
+        # app.parameters returns a ScenarioList, iterate over it to get question_name
+        input_survey_params = [param['question_name'] for param in app.parameters]
         head_params = app.jobs_object.head_parameters
 
         # If the initial survey declares an EDSL object that supplies scenarios or a survey,

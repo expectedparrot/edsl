@@ -34,14 +34,10 @@ jobs_object = Survey([]).to_jobs()
 
 app = App(
     initial_survey=initial_survey,
-    description={
-        "short": "A data labeling application.",
-        "long": "This application enables efficient data labeling by allowing users to provide a ScenarioList of items and a labeling Survey, then automatically applies the survey to each item and returns structured results."
-    },
-    application_name={
-        "name": "Data Labeling",
-        "alias": "data_labeling"
-    },
+    short_description="A data labeling application.",
+    long_description="This application enables efficient data labeling by allowing users to provide a ScenarioList of items and a labeling Survey, then automatically applies the survey to each item and returns structured results.",
+    application_name="data_labeling",
+    display_name="Data Labeling",
     jobs_object=jobs_object,
     output_formatters={"labeling": of},
     default_formatter_name="labeling"

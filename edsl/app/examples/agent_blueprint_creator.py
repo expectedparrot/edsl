@@ -106,18 +106,19 @@ output_formatter = (
     )
 )
 
+agent_blueprint_table = (output_formatter.copy()
+    .set_output_type("markdown")
+    .table(tablefmt = "github").to_string()
+)
+
 app = App(
-    description={
-        "short": "Create agent blueprints with defined traits.",
-        "long": "This application helps create detailed agent blueprints by defining dimensions, traits, and characteristics for synthetic agents used in surveys and research studies."
-    },
-    application_name={
-        "name": "Agent Blueprint Creator",
-        "alias": "agent_blueprint_creator"
-    },
+    application_name="agent_blueprint_creator_from_population",
+    display_name="Agent Blueprint Creator from Population",
+    short_description="Create agent blueprints with defined traits.",
+    long_description="This application helps create detailed agent blueprints by defining dimensions, traits, and characteristics for synthetic agents used in surveys and research studies.",
     initial_survey=initial_survey,
     jobs_object=jobs_object,
-    output_formatters={"agent_blueprint": output_formatter},
+    output_formatters={"agent_blueprint": output_formatter, "markdown_table": agent_blueprint_table},
     default_formatter_name="agent_blueprint",
 )
 

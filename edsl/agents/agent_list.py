@@ -289,6 +289,48 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             random.seed(seed)
         return AgentList(random.sample(self.data, n))
 
+    def apply_deltas(self, deltas: "AgentListDeltas") -> AgentList:
+        """Apply an AgentListDeltas to create a new agent list with updated agents.
+
+        This is a convenience method that delegates to AgentListDeltas.apply().
+        All agent names in the deltas must match the names in this agent list.
+
+        Args:
+            deltas: The AgentListDeltas to apply
+
+        Returns:
+            A new AgentList with updated agents
+
+        Raises:
+            AgentListError: If agent names in deltas don't match the agent list
+
+        Examples:
+            Apply deltas to an agent list:
+
+            >>> from edsl import Agent, AgentList, AgentDelta, AgentListDeltas
+            >>> agent1 = Agent(name='Alice', traits={'age': 30})
+            >>> agent2 = Agent(name='Bob', traits={'age': 25})
+            >>> agent_list = AgentList([agent1, agent2])
+            >>> deltas = AgentListDeltas({
+            ...     'Alice': AgentDelta({'age': 31}),
+            ...     'Bob': AgentDelta({'age': 26})
+            ... })
+            >>> updated_list = agent_list.apply_deltas(deltas)
+            >>> [agent.traits['age'] for agent in updated_list]
+            [31, 26]
+
+            Error when names don't match:
+
+            >>> bad_deltas = AgentListDeltas({'Charlie': AgentDelta({'age': 40})})
+            >>> agent_list.apply_deltas(bad_deltas)  # doctest: +ELLIPSIS
+            Traceback (most recent call last):
+            ...
+            edsl.agents.exceptions.AgentListError: ...
+        """
+        from .agent_list_deltas import AgentListDeltas
+        
+        return deltas.apply(self)
+
     def drop(self, *field_names: Union[str, List[str]]) -> AgentList:
         """Drop field(s) from all agents in the AgentList.
 
@@ -500,6 +542,13 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         assert len(new_names) == len(
             agent_list_data
         ), "The number of new names does not match the number of agents."
+
+    def give_uuid_names(self) -> None:
+        """Give the agents uuid names."""
+        import uuid
+        for agent in self:
+            agent.name = str(uuid.uuid4())
+        return None
 
     def give_names(
         self,

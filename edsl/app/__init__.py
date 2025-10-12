@@ -5,7 +5,7 @@ from .app_registry import AppRegistry
 
 # Common app types
 from .ranking_app import create_ranking_app
-from .true_skill_app import TrueSkillApp
+from .true_skill_app import create_true_skill_app
 from .person_simulator import PersonSimulator
 
 # Output formatting

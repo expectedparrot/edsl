@@ -53,12 +53,12 @@ class AppRegistry:
     def as_scenario_list(cls) -> ScenarioList:
         """Return a ScenarioList of apps with fields `name`, `description`, `parameters`.
 
-        - `parameters` is a list of triples: (question_name, question_type, question_text)
+        - `parameters` is a ScenarioList with fields: question_name, question_type, question_text
         """
         scenarios = []
         for name, app in cls._apps_by_name.items():
             description = getattr(app, "description", None)
-            # App.parameters returns a list of (name, type, prompt)
+            # App.parameters returns a ScenarioList
             parameters = getattr(app, "parameters", [])
             scenarios.append(
                 Scenario({

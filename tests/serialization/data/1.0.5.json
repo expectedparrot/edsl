@@ -5691,5 +5691,275 @@
       "edsl_version": "1.0.5.dev1",
       "edsl_class_name": "QuestionBase"
     }
+  },
+  {
+    "class_name": "AgentBlueprint",
+    "dict": {
+      "scenario_list": {
+        "scenarios": [
+          {
+            "dimension": "politics",
+            "dimension_values": [
+              [
+                "left",
+                "right",
+                "center"
+              ]
+            ],
+            "dimension_description": "Political leaning"
+          },
+          {
+            "dimension": "age",
+            "dimension_values": [
+              [
+                "18-25",
+                "26-35",
+                "36-45"
+              ]
+            ],
+            "dimension_description": "Age bracket"
+          }
+        ]
+      },
+      "seed": 42,
+      "cycle": true,
+      "dimension_name_field": "dimension",
+      "dimension_values_field": "dimension_values",
+      "dimension_description_field": null,
+      "dimension_probs_field": null,
+      "edsl_version": "1.0.5.dev1",
+      "edsl_class_name": "AgentBlueprint"
+    }
+  },
+  {
+    "class_name": "App",
+    "dict": {
+      "initial_survey": {
+        "questions": [
+          {
+            "question_name": "text",
+            "question_text": "Provide a short text",
+            "question_type": "free_text",
+            "edsl_version": "1.0.5.dev1",
+            "edsl_class_name": "QuestionBase"
+          }
+        ],
+        "memory_plan": {
+          "survey_question_names": [
+            "text"
+          ],
+          "survey_question_texts": [
+            "Provide a short text"
+          ],
+          "data": {}
+        },
+        "rule_collection": {
+          "rules": [
+            {
+              "current_q": 0,
+              "expression": "True",
+              "next_q": 1,
+              "priority": -1,
+              "question_name_to_index": {
+                "text": 0
+              },
+              "before_rule": false
+            }
+          ],
+          "num_questions": 1
+        },
+        "question_groups": {},
+        "edsl_version": "1.0.5.dev1",
+        "edsl_class_name": "Survey"
+      },
+      "jobs_object": {
+        "survey": {
+          "questions": [
+            {
+              "question_name": "echo",
+              "question_text": "Echo this back: {{ scenario.text }}",
+              "question_type": "free_text",
+              "edsl_version": "1.0.5.dev1",
+              "edsl_class_name": "QuestionBase"
+            }
+          ],
+          "memory_plan": {
+            "survey_question_names": [
+              "echo"
+            ],
+            "survey_question_texts": [
+              "Echo this back: {{ scenario.text }}"
+            ],
+            "data": {}
+          },
+          "rule_collection": {
+            "rules": [
+              {
+                "current_q": 0,
+                "expression": "True",
+                "next_q": 1,
+                "priority": -1,
+                "question_name_to_index": {
+                  "echo": 0
+                },
+                "before_rule": false
+              }
+            ],
+            "num_questions": 1
+          },
+          "question_groups": {},
+          "edsl_version": "1.0.5.dev1",
+          "edsl_class_name": "Survey"
+        },
+        "agents": [],
+        "models": [
+          {
+            "model": "test",
+            "parameters": {
+              "temperature": 0.5
+            },
+            "inference_service": "test",
+            "edsl_version": "1.0.5.dev1",
+            "edsl_class_name": "TestServiceLanguageModel"
+          }
+        ],
+        "scenarios": [],
+        "edsl_version": "1.0.5.dev1",
+        "edsl_class_name": "Jobs"
+      },
+      "application_type": "base",
+      "application_name": "example_app",
+      "display_name": "Example App",
+      "short_description": "A minimal example app that echoes user input.",
+      "long_description": "A minimal example app that echoes user input using the test model.",
+      "output_formatters": {
+        "formatters": {
+          "echo": {
+            "description": "Echo",
+            "name": "Echo",
+            "allowed_commands": [
+              "to_scenario_list",
+              "select",
+              "table",
+              "report_from_template",
+              "long_view",
+              "table",
+              "expand",
+              "to_markdown",
+              "to_list",
+              "flip",
+              "to_string",
+              "view",
+              "to_docx",
+              "save",
+              "to_scenario_list",
+              "table",
+              "add_weighted_linear_scale_sum",
+              "slice",
+              "to_survey",
+              "rename",
+              "zip",
+              "string_cat",
+              "string_cat_if",
+              "when",
+              "add_value",
+              "to_ranked_scenario_list",
+              "to_true_skill_ranked_list",
+              "to_agent_blueprint",
+              "__getitem__",
+              "add_scenario_reference",
+              "choose_k",
+              "full_replace",
+              "then",
+              "else_",
+              "otherwise",
+              "end",
+              "chunk_text",
+              "replace_value",
+              "to_scenario_list",
+              "to_agent_list",
+              "__getitem__",
+              "create_agent_list"
+            ],
+            "target": "results",
+            "params": null,
+            "output_type": "auto",
+            "stored_commands": [
+              {
+                "name": "select",
+                "args": [
+                  "answer.echo"
+                ],
+                "kwargs": {}
+              },
+              {
+                "name": "to_scenario_list",
+                "args": [],
+                "kwargs": {}
+              },
+              {
+                "name": "table",
+                "args": [],
+                "kwargs": {}
+              }
+            ]
+          },
+          "raw_results": {
+            "description": "Raw results",
+            "name": "Raw results",
+            "allowed_commands": [
+              "to_scenario_list",
+              "select",
+              "table",
+              "report_from_template",
+              "long_view",
+              "table",
+              "expand",
+              "to_markdown",
+              "to_list",
+              "flip",
+              "to_string",
+              "view",
+              "to_docx",
+              "save",
+              "to_scenario_list",
+              "table",
+              "add_weighted_linear_scale_sum",
+              "slice",
+              "to_survey",
+              "rename",
+              "zip",
+              "string_cat",
+              "string_cat_if",
+              "when",
+              "add_value",
+              "to_ranked_scenario_list",
+              "to_true_skill_ranked_list",
+              "to_agent_blueprint",
+              "__getitem__",
+              "add_scenario_reference",
+              "choose_k",
+              "full_replace",
+              "then",
+              "else_",
+              "otherwise",
+              "end",
+              "chunk_text",
+              "replace_value",
+              "to_scenario_list",
+              "to_agent_list",
+              "__getitem__",
+              "create_agent_list"
+            ],
+            "target": "results",
+            "params": null,
+            "output_type": "auto",
+            "stored_commands": []
+          }
+        },
+        "default": "echo"
+      },
+      "attachment_formatters": null
+    }
   }
 ]

@@ -95,14 +95,10 @@ output_formatter = (OutputFormatter(description = "Report From Template", output
 )
 
 app = App(
-    description={
-        "short": "Generate academic referee reports.",
-        "long": "This application assists in generating structured academic referee reports for paper reviews, providing evaluation criteria and constructive feedback across multiple dimensions."
-    },
-    application_name={
-        "name": "Referee Report Generator",
-        "alias": "referee_report"
-    },
+    short_description="Generate academic referee reports.",
+    long_description="This application assists in generating structured academic referee reports for paper reviews, providing evaluation criteria and constructive feedback across multiple dimensions.",
+    application_name="referee_report",
+    display_name="Referee Report Generator",
     initial_survey = initial_survey,
     jobs_object = survey.by(referees).by(models),
     output_formatters = {"report": output_formatter},

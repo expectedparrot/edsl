@@ -104,8 +104,8 @@ results = q.by(scenario).by(a).run(progress_bar = False)
 
 results.select('answer.*').to_scenario_list().expand('two_sentences').table()
 
-from edsl import login
-login()
+#from edsl import login
+#login()
 
 candidates = results.select('answer.*').to_scenario_list().expand('two_sentences').select('two_sentences').to_scenario_list()
 

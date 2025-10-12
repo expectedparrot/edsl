@@ -141,14 +141,10 @@ markdown_viewer = (
 )
 
 app = App(
-    description={
-        "short": "Generate packing lists for trips.",
-        "long": "This application creates customized packing lists for trips based on destination, duration, activities, weather conditions, and traveler preferences."
-    },
-    application_name={
-        "name": "Packing List Generator",
-        "alias": "packing_list"
-    },
+    short_description="Generate packing lists for trips.",
+    long_description="This application creates customized packing lists for trips based on destination, duration, activities, weather conditions, and traveler preferences.",
+    application_name="packing_list",
+    display_name="Packing List Generator",
     initial_survey=initial_survey,
     jobs_object=jobs,
     output_formatters={"markdown": markdown_viewer},

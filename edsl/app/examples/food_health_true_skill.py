@@ -1,5 +1,5 @@
 from edsl import ScenarioList, QuestionMultipleChoice
-from edsl.app import TrueSkillApp
+from edsl.app import create_true_skill_app
 
 """Construct a TrueSkillApp configured to rank foods by healthiness using TrueSkill algorithm.
 
@@ -17,13 +17,11 @@ q = QuestionMultipleChoice(
     ],
 )
 
-app = TrueSkillApp(
+app = create_true_skill_app(
     ranking_question=q,
     option_fields=['food_1', 'food_2'],
     application_name="food_health_trueskill",
-    display_name="Food Health TrueSkill Ranking",
-    short_description="Ranks foods from healthiest to least healthy using TrueSkill algorithm.",
-    long_description="Ranks foods from healthiest to least healthy using TrueSkill algorithm with pairwise comparisons.",
+    description="Ranks foods from healthiest to least healthy using TrueSkill algorithm with pairwise comparisons.",
     option_base="food",
     rank_field="health_rank",
     batch_size=2,

@@ -116,14 +116,10 @@ markdown_table_formatter = (
 
 app = App(
     initial_survey=initial_survey,
-    application_name={
-        "name": "Robot VC",
-        "alias": "robot_vc"
-    },
-    description={
-        "short": "AI venture capital evaluation.",
-        "long": "This application simulates venture capital evaluation by analyzing startup pitches and business plans, providing investment recommendations based on multiple criteria and market factors."
-    },
+    application_name="robot_vc",
+    display_name="Robot VC",
+    short_description="AI venture capital evaluation.",
+    long_description="This application simulates venture capital evaluation by analyzing startup pitches and business plans, providing investment recommendations based on multiple criteria and market factors.",
     jobs_object=survey.to_jobs(),
     output_formatters={
         "scorecard": of1,

@@ -1644,13 +1644,10 @@ class Jobs(Base):
         )
 
         if self._depends_on is not None:
-            print("🔗 Resolving job dependencies...")
             self._logger.info("Checking job dependencies")
             prior_results = self._depends_on.run(config=config)
             self = self.by(prior_results)
             self._logger.info("Job dependencies resolved successfully")
-            print("✅ Job dependencies resolved")
-            print()
 
         self._logger.info("Starting pre-run setup and configuration")
         potentially_completed_results, reason = self._run(config)

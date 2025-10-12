@@ -46,7 +46,7 @@ class AppHTMLRenderer:
         desc_html = self._convert_markdown_to_html(app_desc)
 
         rows_html: list[str] = []
-        for name, qtype, prompt in self.app.parameters:
+        for param in self.app.parameters:
             rows_html.append(
                 """
                 <tr>
@@ -55,9 +55,9 @@ class AppHTMLRenderer:
                   <td>{prompt}</td>
                 </tr>
                 """.format(
-                    name=escape(str(name)),
-                    qtype=escape(str(qtype)),
-                    prompt=escape(str(prompt)),
+                    name=escape(str(param['question_name'])),
+                    qtype=escape(str(param['question_type'])),
+                    prompt=escape(str(param['question_text'])),
                 )
             )
 
@@ -95,9 +95,9 @@ class AppHTMLRenderer:
             return "\"...\""
 
         example_kv_lines: list[str] = []
-        for name, qtype, _prompt in self.app.parameters:
-            value_literal = _example_value_for_type(str(qtype))
-            example_kv_lines.append(f"    {repr(str(name))}: {value_literal}")
+        for param in self.app.parameters:
+            value_literal = _example_value_for_type(str(param['question_type']))
+            example_kv_lines.append(f"    {repr(str(param['question_name']))}: {value_literal}")
         params_body = ",\n".join(example_kv_lines) if example_kv_lines else "    # no parameters"
         usage_code = f"app.output(params={{\n{params_body}\n}})"
         usage_block = f"<pre style=\"background:#f6f8fa; padding:10px; border-radius:6px; overflow:auto;\"><code class=\"language-python\">{escape(usage_code)}</code></pre>"

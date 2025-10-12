@@ -13,7 +13,7 @@ from ..scenarios.agent_blueprint import AgentBlueprint
 from ..surveys import Survey
 
 relevant_classes = {
-    Results: ["to_scenario_list", "select", "table", "report_from_template", "long_view"],
+    Results: ["to_scenario_list", "select", "table", "report_from_template", "long_view", "augment_agents"],
     Dataset: ["table", "expand", "to_markdown", "to_list"],
     TableDisplay: ["flip", "to_string"],
     FileStore: ["view", "to_docx", "save"],
@@ -42,7 +42,7 @@ relevant_classes = {
     ],
     Scenario: ["chunk_text", "replace_value", "to_scenario_list", "to_agent_list"],
     list: ["__getitem__"],
-    AgentBlueprint: ["create_agent_list"],
+    AgentBlueprint: ["create_agent_list", "table"],
 }
 
 white_list_methods = []

@@ -62,6 +62,7 @@ q_scales = QuestionList(
 )
 
 s = Scenario({"artifact_description": "a technical blog post"})
+
 jobs_object = (
     Survey([dimensions_question, weight_question]).by(s)
 .select('scenario.artifact_description', 'answer.dimensions', 'answer.weights')
@@ -77,7 +78,6 @@ base_formatter = (OutputFormatter(description="Rubric Survey", output_type="edsl
     'answer.scales': 'option_labels', 
     'scenario.weights': 'weight'}
 ).to_scenario_list().string_cat("question_text", ": {{ scenario.item}}")
-.to_scenario_list()
 .add_value('question_type', 'linear_scale')
 .add_value('question_options', [1,2,3,4,5])
 .zip('question_options', 'option_labels', 'option_labels')
@@ -111,3 +111,11 @@ if __name__ == "__main__":
     rubric_survey = app.output({'artifact_description':"coffee beans"}, formatter_name="survey_with_weights")
     print(rubric_survey)
 
+
+#
+#app.run(artifact_description = """Promotional offer from a wealth management platform, evaluated from perspective of a current client.""") 
+    #output = app.output(params = {'artifact_description':"Promotional offer from a wealth management platform, evaluated from perspective of a current client."}) 
+    #output2 = app.output(params = {'artifact_description':"Promotional offer from a wealth management platform, evaluated from perspective of a current client."}) 
+
+    #print(len(output.survey))
+    #print(len(output2.survey))
