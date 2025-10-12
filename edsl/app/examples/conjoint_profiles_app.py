@@ -65,11 +65,10 @@ summary_formatter = (
 
 # 5. Create the standard EDSL app
 app = App(
-    application_name={
-        "name": "Conjoint Profiles Generator",
-        "alias": "conjoint_profiles_app"
-    },
-    description="Generates random product profiles for conjoint analysis from attribute definitions (designed for app chaining with >>)",
+    application_name="conjoint_profiles_app",
+    display_name="Conjoint Profiles Generator",
+    short_description="Generates random product profiles for conjoint analysis from attribute definitions.",
+    long_description="Generates random product profiles for conjoint analysis from attribute definitions (designed for app chaining with >>)",
     initial_survey=initial_survey,
     jobs_object=jobs_object,
     output_formatters={

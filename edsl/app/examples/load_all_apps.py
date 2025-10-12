@@ -15,6 +15,7 @@ SERVER_URL = "http://localhost:8000"
 APP_FILES = [
     "advice_to_checklist",
     "agent_blueprint_creator",
+    "agent_blueprint_from_persona",
     "auto_survey",
     "cognitive_testing",
     "color_survey",

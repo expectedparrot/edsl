@@ -1,5 +1,5 @@
 from edsl import ScenarioList, QuestionMultipleChoice
-from edsl.app import App
+from edsl.app.app import App
 
 """Construct a ranking app configured to rank foods by healthiness.
 

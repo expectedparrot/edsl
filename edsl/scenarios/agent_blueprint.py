@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from .scenario_list import ScenarioList
 from .dimension import Dimension
+from ..base.base_class import Base
 import math
 
 
-class AgentBlueprint:
+class AgentBlueprint(Base):
 
     def __init__(
         self,
@@ -163,6 +164,85 @@ class AgentBlueprint:
                 values_repr = ", ".join(repr(v) for v in dim.to_plain_list())
             lines.append(f"  - {dim_name} [{len(dim)}]: {values_repr}")
 
+        return "\n".join(lines)
+
+    def table(self, *args, **kwargs) -> str:
+        return self.scenario_list.table(*args, **kwargs)
+
+    def to_dict(self, add_edsl_version=False) -> dict:
+        """Serialize the AgentBlueprint to a dictionary.
+        
+        Args:
+            add_edsl_version: If True, include EDSL version information
+            
+        Returns:
+            dict: Dictionary representation of the AgentBlueprint
+        """
+        d = {
+            "scenario_list": self.scenario_list.to_dict(add_edsl_version=False),
+            "seed": self.seed,
+            "cycle": self.cycle,
+            "dimension_name_field": self._dimension_name_field,
+            "dimension_values_field": self._dimension_values_field,
+            "dimension_description_field": self._dimension_description_field,
+            "dimension_probs_field": self._dimension_probs_field,
+        }
+        
+        if add_edsl_version:
+            from edsl import __version__
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = self.__class__.__name__
+            
+        return d
+    
+    @classmethod
+    def from_dict(cls, d: dict) -> "AgentBlueprint":
+        """Create an AgentBlueprint from a dictionary.
+        
+        Args:
+            d: Dictionary representation of an AgentBlueprint
+            
+        Returns:
+            AgentBlueprint: A new AgentBlueprint instance
+        """
+        from .scenario_list import ScenarioList
+        
+        scenario_list = ScenarioList.from_dict(d["scenario_list"])
+        
+        return cls(
+            scenario_list=scenario_list,
+            seed=d.get("seed"),
+            cycle=d.get("cycle", True),
+            dimension_name_field=d.get("dimension_name_field", "dimension"),
+            dimension_values_field=d.get("dimension_values_field", "dimension_values"),
+            dimension_description_field=d.get("dimension_description_field"),
+            dimension_probs_field=d.get("dimension_probs_field"),
+        )
+    
+    def code(self) -> str:
+        """Generate Python code that recreates this AgentBlueprint.
+        
+        Returns:
+            str: Python code that recreates this object
+        """
+        lines = ["from edsl.scenarios import AgentBlueprint, Dimension", ""]
+        
+        # Generate dimension code
+        for dim_name in self.dimensions:
+            dim = self._dimension_map[dim_name]
+            dim_code = dim.code()
+            lines.append(dim_code)
+        
+        # Generate AgentBlueprint instantiation
+        dim_names = ", ".join(self.dimensions)
+        lines.append("")
+        lines.append(f"blueprint = AgentBlueprint.from_dimensions(")
+        lines.append(f"    {dim_names},")
+        if self.seed is not None:
+            lines.append(f"    seed={self.seed},")
+        lines.append(f"    cycle={self.cycle}")
+        lines.append(")")
+        
         return "\n".join(lines)
 
     # ---------------------------------------------------------------------
@@ -403,7 +483,7 @@ class AgentBlueprint:
         )
 
     @classmethod
-    def from_dict(
+    def from_dimensions_dict(
         cls,
         dimensions_dict: dict[str, list],
         seed: int | None = None,
@@ -424,7 +504,7 @@ class AgentBlueprint:
 
         Examples
         --------
-        >>> blueprint = AgentBlueprint.from_dict({
+        >>> blueprint = AgentBlueprint.from_dimensions_dict({
         ...     "politics": ["left", "right", "center"],
         ...     "age": ["young", "old"]
         ... })

@@ -60,6 +60,8 @@ def build_telephone_app() -> CompositeApp:
         fixed={"app1": {}, "app2": {}},
     )
 
+app = build_telephone_app()
+
 
 if __name__ == "__main__":
 

@@ -22,11 +22,13 @@ class TestBaseModels:
 
         for key, value in RegisterSubclassesMeta.get_registry().items():
             assert key in [
+                "App",
                 "Result",
                 "Results",
                 "Survey",
                 "Agent",
                 "AgentList",
+                "AgentBlueprint",
                 "Scenario",
                 "ScenarioList",
                 "AgentList",

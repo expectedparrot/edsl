@@ -45,7 +45,8 @@ _LAZY_MODULES = {
     "base",
     "conversation",
     "extensions",
-    'app',
+    "app",
+    "comparisons",
 }
 
 # Cache for lazy-loaded modules

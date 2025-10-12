@@ -1229,7 +1229,11 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
         # Validate that the field contains lists
         if not all(isinstance(v, list) for v in field_data):
-            raise DatasetTypeError(f"Field '{field}' must contain lists in all entries")
+            # find the first entry that does not contain a list
+            for i, entry in enumerate(self.data):
+                key, values = list(entry.items())[0]
+                if not isinstance(values, list):
+                    raise DatasetTypeError(f"Field '{field}' must contain lists in all entries. Entry {i} contains {type(values)}")
 
         # Create new expanded data structure
         new_data = []

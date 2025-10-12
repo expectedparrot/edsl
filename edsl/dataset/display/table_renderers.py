@@ -107,6 +107,9 @@ class PandasStyleRenderer(DataTablesRendererABC):
                     return "<p>Empty table</p>"
                 df = pd.DataFrame(self.table_data.data, columns=self.table_data.headers)
 
+            # Escape dollar signs to prevent MathJax rendering
+            df = df.map(lambda x: x.replace('$', '\\$') if isinstance(x, str) else x)
+
             styled_df = df.style.set_properties(
                 **{
                     "text-align": "left",

@@ -1,4 +1,4 @@
-from edsl.app import App
+from edsl import App
 from edsl.app.output_formatter import OutputFormatter, ObjectFormatter, ScenarioAttachmentFormatter
 from edsl.questions import QuestionFreeText, QuestionList
 from edsl.surveys import Survey
@@ -64,6 +64,12 @@ output_formatter = (
     .to_scenario_list()
 )
 
+markdown_table = (output_formatter
+.copy()
+.set_output_type("markdown")
+.table(tablefmt = "github").to_string()
+)
+
 from edsl.scenarios import ScenarioList, Scenario 
 
 
@@ -75,17 +81,13 @@ attachment_formatter = (
 )
 
 app = App(
-    description={
-        "short": "Create variations of content.",
-        "long": "This application generates variations of text, questions, or content for A/B testing, survey randomization, or creative exploration of different phrasings and approaches."
-    },
-    application_name={
-        "name": "Variant Creator",
-        "alias": "variant_creator"
-    },
+    short_description="Create variations of content.",
+    long_description="This application generates variations of text, questions, or content for A/B testing, survey randomization, or creative exploration of different phrasings and approaches.",
+    application_name="variant_creator",
+    display_name="Variant Creator",
     initial_survey=initial_survey,
     jobs_object=jobs_object,
-    output_formatters={"variant_list": output_formatter},
+    output_formatters={"variant_list": output_formatter, "markdown_table": markdown_table},
     default_formatter_name="variant_list",
     attachment_formatters=[attachment_formatter],
 )

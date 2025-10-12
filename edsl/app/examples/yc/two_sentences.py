@@ -1,5 +1,5 @@
 import textwrap
-from edsl.app import App
+from edsl.app.app import App
 from edsl.app.output_formatter import OutputFormatter
 from edsl import (
     Survey,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from edsl.app.composite_app import CompositeApp
 from edsl.app.output_formatter import OutputFormatter, ScenarioAttachmentFormatter
-from edsl.app.app import App
+from edsl.app import App, CompositeApp
 from edsl.questions import QuestionEDSLObject, QuestionFreeText, QuestionNumerical, QuestionList
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
@@ -53,8 +53,10 @@ sa = (
 
 jeopardy_app = App(
     initial_survey=input_survey,
-    description="A jeopardy question generator.",
     application_name="jeopardy",
+    display_name="Jeopardy",
+    short_description="A jeopardy question generator.",
+    long_description="A jeopardy question generator that creates questions from source text.",
     jobs_object=jobs_object,
     output_formatters={'survey': of_survey},
     default_formatter_name='survey',
@@ -91,7 +93,9 @@ answering_app = App(
     output_formatters={"results": answering_of},
     default_formatter_name="results",
     application_name="answer_with_context",
-    description="Run generated survey with agent that has expert knowledge of the context."
+    display_name="Answer with Context",
+    short_description="Run generated survey with agent that has expert knowledge of the context.",
+    long_description="Run generated survey with agent that has expert knowledge of the context."
 )
 
 # Composite app
@@ -104,7 +108,9 @@ app = CompositeApp(
     },
     fixed={"app1": {}, "app2": {}},
     application_name="create_eval_from_text",
-    description="Generate questions from text and answer them with an expert agent."
+    display_name="Create Eval from Text",
+    short_description="Generate questions from text and answer them with an expert agent.",
+    long_description="Generate questions from text and answer them with an expert agent."
 )
 
 
