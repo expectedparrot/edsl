@@ -132,7 +132,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     __documentation__ = (
         "https://docs.expectedparrot.com/en/latest/scenarios.html#scenariolist"
     )
-    
+
     firecrawl = FirecrawlRequest()
 
     def __init__(
@@ -196,7 +196,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         Scenario({'a': 3})
         """
         return self.data[index]
-    
+
     def sum(self, field: str) -> int:
         """Sum the values of a field across all scenarios."""
         return sum(scenario[field] for scenario in self)
@@ -390,8 +390,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         from .scenario_list_transformer import ScenarioListTransformer
 
         return ScenarioListTransformer.unpivot(self, id_vars, value_vars)
-    
-    def apply(self, func: Callable, field: str, new_name: Optional[str], replace:bool = False) -> ScenarioList:
+
+    def apply(
+        self, func: Callable, field: str, new_name: Optional[str], replace: bool = False
+    ) -> ScenarioList:
         """Apply a function to a field across all scenarios.
 
         Evaluates ``func(scenario[field])`` for each Scenario and stores the result
@@ -496,18 +498,18 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
     def transform_by_key(self, key_field: str) -> Scenario:
         """Transform the ScenarioList into a single Scenario with key/value pairs.
-        
+
         This method transforms the ScenarioList by:
         1. Using the value of the specified key_field from each Scenario as a new key
         2. Automatically formatting the remaining values as "key: value, key: value"
         3. Creating a single Scenario containing all the transformed key/value pairs
-        
+
         Args:
             key_field: The field name whose value will become the new key
-            
+
         Returns:
             A single Scenario with all the transformed key/value pairs
-            
+
         Examples:
             >>> # Original scenarios: [{'topic': 'party', 'location': 'offsite', 'time': 'evening'}]
             >>> scenarios = ScenarioList([
@@ -518,20 +520,22 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         # Create a single dictionary to hold all key/value pairs
         combined_dict = {}
-        
+
         for scenario in self:
             # Get the new key from the specified field
             new_key = scenario[key_field]
-            
+
             # Get remaining values (excluding the key field)
             remaining_values = {k: v for k, v in scenario.items() if k != key_field}
-            
+
             # Format the remaining values as "key: value, key: value"
-            formatted_value = ", ".join([f"{k}: {v}" for k, v in remaining_values.items()])
-            
+            formatted_value = ", ".join(
+                [f"{k}: {v}" for k, v in remaining_values.items()]
+            )
+
             # Add to the combined dictionary
             combined_dict[new_key] = formatted_value
-        
+
         # Return a single Scenario with all the key/value pairs
         return Scenario(combined_dict)
 
@@ -677,7 +681,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
 
-
     def to_scenario_list(self) -> "ScenarioList":
         """Convert the ScenarioList to a ScenarioList.
 
@@ -769,8 +772,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return sl
 
     def full_replace(self, other: ScenarioList, inplace: bool = False) -> ScenarioList:
-        """Replace the ScenarioList with another ScenarioList.
-        """
+        """Replace the ScenarioList with another ScenarioList."""
         if inplace:
             self.data = other.data
             self.codebook = other.codebook
@@ -1165,7 +1167,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """Select only specified fields from all scenarios in the list.
 
         This method applies the select operation to each scenario in the list,
-        returning a new ScenarioList where each scenario contains only the 
+        returning a new ScenarioList where each scenario contains only the
         specified fields.
 
         Args:
@@ -1378,19 +1380,18 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         from ..questions import QuestionBase
         from ..surveys import Survey
 
-
         s = Survey()
         for index, scenario in enumerate(self):
             d = scenario.to_dict(add_edsl_version=False)
             if d["question_type"] == "free_text":
                 if "question_options" in d:
                     _ = d.pop("question_options")
-            if 'question_name' not in d or d['question_name'] == None:
-                d['question_name'] = f"question_{index}"
+            if "question_name" not in d or d["question_name"] == None:
+                d["question_name"] = f"question_{index}"
 
-            if d['question_type'] == None:
-                d['question_type'] = "free_text"
-                d['question_options'] = None
+            if d["question_type"] == None:
+                d["question_type"] = "free_text"
+                d["question_options"] = None
             new_d = d
             question = QuestionBase.from_dict(new_d)
             s.add_question(question)
@@ -1614,7 +1615,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         replacement_dict = dict(zip(old_names, new_names))
         return self.rename(replacement_dict)
 
-
     def to_key_value(self, field: str, value=None) -> Union[dict, set]:
         """Return the set of values in the field.
 
@@ -1650,7 +1650,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         sj = ScenarioJoin(self, other)
         return sj.left_join(by)
 
-    def inner_join(self, other: ScenarioList, by: Union[str, list[str]]) -> ScenarioList:
+    def inner_join(
+        self, other: ScenarioList, by: Union[str, list[str]]
+    ) -> ScenarioList:
         """Perform an inner join with another ScenarioList, following SQL join semantics.
 
         Args:
@@ -1671,7 +1673,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         sj = ScenarioJoin(self, other)
         return sj.inner_join(by)
 
-    def right_join(self, other: ScenarioList, by: Union[str, list[str]]) -> ScenarioList:
+    def right_join(
+        self, other: ScenarioList, by: Union[str, list[str]]
+    ) -> ScenarioList:
         """Perform a right join with another ScenarioList, following SQL join semantics.
 
         Args:
@@ -1692,11 +1696,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         sj = ScenarioJoin(self, other)
         return sj.right_join(by)
 
-    def to_dict(self, sort: bool = False, add_edsl_version: bool = False) -> dict:
+    def to_dict(self, sort: bool = False, add_edsl_version: bool = True) -> dict:
         """
         >>> s = ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood-fired pizza'})])
-        >>> s.to_dict()
-        {'scenarios': [{'food': 'wood chips'}, {'food': 'wood-fired pizza'}]}
+        >>> s.to_dict()  # doctest: +ELLIPSIS
+        {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}, {'food': 'wood-fired pizza', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
 
         >>> s = ScenarioList([Scenario({'food': 'wood chips'})], codebook={'food': 'description'})
         >>> d = s.to_dict()
@@ -1704,10 +1708,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         True
         >>> d['codebook'] == {'food': 'description'}
         True
-        
-        >>> # To include edsl_version and edsl_class_name, explicitly set add_edsl_version=True
-        >>> s.to_dict(add_edsl_version=True)  # doctest: +ELLIPSIS
-        {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'codebook': {'food': 'description'}, 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
+
+        >>> # To exclude edsl_version and edsl_class_name, explicitly set add_edsl_version=False
+        >>> s.to_dict(add_edsl_version=False)
+        {'scenarios': [{'food': 'wood chips'}], 'codebook': {'food': 'description'}}
         """
         if sort:
             data = sorted(self, key=lambda x: hash(x))
@@ -1995,7 +1999,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         answer_field: str,
         include_rank: bool = True,
         rank_field: str = "rank",
-        item_field: str = "item"
+        item_field: str = "item",
     ) -> "ScenarioList":
         """Convert the ScenarioList to a ranked ScenarioList based on pairwise comparisons.
 
@@ -2010,13 +2014,14 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             ScenarioList ordered best-to-worst according to pairwise ranking.
         """
         from .ranking_algorithm import results_to_ranked_scenario_list
+
         return results_to_ranked_scenario_list(
             self,
             option_fields=option_fields,
             answer_field=answer_field,
             include_rank=include_rank,
             rank_field=rank_field,
-            item_field=item_field
+            item_field=item_field,
         )
 
     def to_true_skill_ranked_list(
@@ -2032,7 +2037,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         initial_mu: float = 25.0,
         initial_sigma: float = 8.333,
         beta: float = None,
-        tau: float = None
+        tau: float = None,
     ) -> "ScenarioList":
         """Convert the ScenarioList to a ranked ScenarioList using TrueSkill algorithm.
         Args:
@@ -2052,6 +2057,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             ScenarioList ordered best-to-worst according to TrueSkill ranking.
         """
         from .true_skill_algorithm import results_to_true_skill_ranked_list
+
         return results_to_true_skill_ranked_list(
             self,
             option_fields=option_fields,
@@ -2065,7 +2071,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             initial_mu=initial_mu,
             initial_sigma=initial_sigma,
             beta=beta,
-            tau=tau
+            tau=tau,
         )
 
     def chunk(
@@ -2125,6 +2131,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         Returns a generator yielding `Scenario` instances.
         """
         from importlib import import_module
+
         ScenarioCombinator = import_module(
             "edsl.scenarios.scenario_combinator"
         ).ScenarioCombinator
@@ -2272,18 +2279,18 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def fillna(self, value: Any = "", inplace: bool = False) -> "ScenarioList":
         """
         Fill None/NaN values in all scenarios with a specified value.
-        
+
         This method is equivalent to pandas' df.fillna() functionality, allowing you to
         replace None, NaN, or other null-like values across all scenarios in the list.
-        
+
         Args:
             value: The value to use for filling None/NaN values. Defaults to empty string "".
-            inplace: If True, modify the original ScenarioList. If False (default), 
+            inplace: If True, modify the original ScenarioList. If False (default),
                     return a new ScenarioList with filled values.
-        
+
         Returns:
             ScenarioList: A new ScenarioList with filled values, or self if inplace=True
-        
+
         Examples:
             >>> scenarios = ScenarioList([
             ...     Scenario({'a': None, 'b': 1, 'c': 'hello'}),
@@ -2306,10 +2313,14 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             >>> print(scenarios)
             ScenarioList([Scenario({'a': 'MISSING', 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': 'MISSING', 'c': 'MISSING'}), Scenario({'a': 'MISSING', 'b': 3, 'c': 'world'})])
         """
+
         def is_null(val):
             """Check if a value is considered null/None."""
-            return val is None or (hasattr(val, '__str__') and str(val).lower() in ['nan', 'none', 'null', ''])
-        
+            return val is None or (
+                hasattr(val, "__str__")
+                and str(val).lower() in ["nan", "none", "null", ""]
+            )
+
         if inplace:
             # Modify the original scenarios
             for scenario in self:
@@ -2330,13 +2341,12 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 new_sl.append(Scenario(new_scenario))
             return new_sl
 
-
     def create_conjoint_comparisons(
         self,
-        attribute_field: str = 'attribute',
-        levels_field: str = 'levels',
+        attribute_field: str = "attribute",
+        levels_field: str = "levels",
         count: int = 1,
-        random_seed: Optional[int] = None
+        random_seed: Optional[int] = None,
     ) -> "ScenarioList":
         """
         Generate random product profiles for conjoint analysis from attribute definitions.
@@ -2382,7 +2392,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             self,
             attribute_field=attribute_field,
             levels_field=levels_field,
-            random_seed=random_seed
+            random_seed=random_seed,
         )
 
         # Generate the requested number of profiles
@@ -2417,6 +2427,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         from .scenario_source import ScenarioSource
 
         return ScenarioSource.from_source(source_type, *args, **kwargs)
+
 
 if __name__ == "__main__":
     import doctest
