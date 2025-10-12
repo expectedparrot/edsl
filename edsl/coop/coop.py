@@ -3544,8 +3544,32 @@ class Coop(CoopFunctionsMixin):
                                 # Navigate to the FileStore in the original object
                                 from ..scenarios.file_store import FileStore
 
-                                keys = path.split(".") if "." in path else [path]
+                                # Clean up the path: remove leading dots and split
+                                clean_path = path.lstrip(".")
+                                keys = (
+                                    clean_path.split(".")
+                                    if "." in clean_path
+                                    else [clean_path]
+                                )
+                                # Filter out empty strings that might result from splitting
+                                keys = [k for k in keys if k]
                                 current_obj = original_object
+
+                                # For list-like objects (ScenarioList, AgentList), the first key in the path
+                                # might be the serialization wrapper (e.g., 'scenarios', 'agents')
+                                # which doesn't exist as an attribute on the object itself.
+                                # We need to transform 'scenarios[0]' to just '[0]' for list-like objects.
+                                if keys and "[" in keys[0]:
+                                    first_key_name = keys[0].split("[")[0]
+                                    if (
+                                        first_key_name
+                                        and hasattr(original_object, "__iter__")
+                                        and not hasattr(original_object, first_key_name)
+                                    ):
+                                        # Remove the key name but keep the bracket part
+                                        # e.g., 'scenarios[0]' becomes '[0]'
+                                        bracket_part = "[" + keys[0].split("[", 1)[1]
+                                        keys[0] = bracket_part
 
                                 # Navigate through nested structures
                                 for key in keys:
@@ -3554,7 +3578,11 @@ class Coop(CoopFunctionsMixin):
                                     ):  # Handle bracket-style list indexing: "items[0]"
                                         key_name, idx = key.split("[")
                                         idx = int(idx.rstrip("]"))
-                                        current_obj = current_obj[key_name][idx]
+                                        # Handle empty key_name (means root object is a list)
+                                        if key_name:
+                                            current_obj = current_obj[key_name][idx]
+                                        else:
+                                            current_obj = current_obj[idx]
                                     elif (
                                         key.isdigit()
                                     ):  # Handle numeric string keys for list access: "0", "1", etc.
