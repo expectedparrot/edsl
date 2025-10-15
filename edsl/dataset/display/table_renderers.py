@@ -211,7 +211,22 @@ class RichRenderer(DataTablesRendererABC):
         This is primarily useful for non-interactive contexts where the Rich
         colour codes are still desirable (e.g. writing to a log file) or when
         :pymeth:`TableDisplay.__repr__` needs a value to return.
+        
+        In Jupyter notebooks, returns a minimal string since _repr_html_ handles display.
         """
+        # In Jupyter notebook environments, return minimal string
+        # since _repr_html_ will handle the actual display
+        # Check specifically for Jupyter notebook (not just IPython terminal)
+        try:
+            ipy = get_ipython()
+            if ipy is not None and 'IPKernelApp' in ipy.config:
+                # We're in a Jupyter notebook/kernel, not IPython terminal
+                rows = len(self.table_data.data)
+                cols = len(self.table_data.headers)
+                return f"TableDisplay({rows} rows x {cols} columns)"
+        except NameError:
+            pass
+        
         try:
             from rich.console import Console
             import io

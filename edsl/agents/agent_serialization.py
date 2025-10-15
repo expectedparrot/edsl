@@ -49,6 +49,7 @@ class AgentSerialization:
             'Agent'
         """
         d = {}
+        import json
         d["traits"] = copy.deepcopy(dict(agent._traits))
         if agent.name:
             d["name"] = agent.name

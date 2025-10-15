@@ -83,6 +83,7 @@ class Scenario(Base, UserDict):
         self,
         data: Optional[Union[Dict[str, Any], Mapping[str, Any]]] = None,
         name: Optional[str] = None,
+        **kwargs: Any,
     ):
         """
         Initialize a new Scenario.
@@ -91,6 +92,9 @@ class Scenario(Base, UserDict):
             data: A dictionary of key-value pairs for parameterizing questions.
                   Any dictionary-like object that can be converted to a dict is accepted.
             name: An optional name for the scenario to aid in identification.
+            **kwargs: Additional keyword arguments that will be added to the scenario data.
+                     If both data and kwargs are provided, they will be merged with kwargs
+                     taking precedence for overlapping keys.
 
         Raises:
             ScenarioError: If the data cannot be converted to a dictionary.
@@ -98,6 +102,20 @@ class Scenario(Base, UserDict):
         Examples:
             >>> s = Scenario({"product": "coffee", "price": 4.99})
             >>> s = Scenario({"question": "What is your favorite color?"}, name="color_question")
+            
+            Using keyword arguments:
+            >>> s = Scenario(product="coffee", price=4.99)
+            >>> s
+            Scenario({'product': 'coffee', 'price': 4.99})
+            
+            >>> s = Scenario(a="b")
+            >>> s
+            Scenario({'a': 'b'})
+            
+            Mixing data and kwargs (kwargs take precedence):
+            >>> s = Scenario({"a": 1, "b": 2}, a=10, c=3)
+            >>> s
+            Scenario({'a': 10, 'b': 2, 'c': 3})
         """
         if not isinstance(data, dict) and data is not None:
             try:
@@ -111,6 +129,8 @@ class Scenario(Base, UserDict):
 
         super().__init__()
         self.data = data if data is not None else {}
+        # Merge kwargs into data, with kwargs taking precedence
+        self.data.update(kwargs)
         self.name = name
 
     def __mul__(
@@ -611,6 +631,33 @@ class Scenario(Base, UserDict):
 
     def __repr__(self):
         return "Scenario(" + repr(self.data) + ")"
+
+    def __getattr__(self, name: str) -> Any:
+        """Allow accessing scenario values using dot notation.
+        
+        This enables accessing scenario dictionary values as attributes.
+        For example, if s = Scenario({'a': 'b'}), then s.a returns 'b'.
+        
+        Args:
+            name: The attribute name to look up in the scenario data.
+            
+        Returns:
+            The value associated with the key in the scenario data.
+            
+        Raises:
+            AttributeError: If the key doesn't exist in the scenario data.
+            
+        Examples:
+            >>> s = Scenario({'product': 'coffee', 'price': 4.99})
+            >>> s.product
+            'coffee'
+            >>> s.price
+            4.99
+        """
+        try:
+            return self.data[name]
+        except KeyError:
+            raise AttributeError(f"'Scenario' object has no attribute '{name}'")
 
     def to_dataset(self) -> "Dataset":
         """Convert a scenario to a dataset.

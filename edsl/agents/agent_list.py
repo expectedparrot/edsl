@@ -70,7 +70,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
     def __init__(
         self,
-        data: Optional[list["Agent"]] = None,
+        data: Optional[list["Agent"] | str] = None,
         codebook: Optional[dict[str, str]] = None,
     ):
         """Initialize a new AgentList.
@@ -89,6 +89,11 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             codebook: Optional dictionary mapping trait names to descriptions.
                       If provided, will be applied to all agents in the list.
         """
+        if data is not None and isinstance(data, str):
+            al = AgentList.pull(data)
+            self.__dict__.update(al.__dict__)
+            return
+
         if data is not None:
             super().__init__(data)
         else:
