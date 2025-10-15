@@ -1,1 +1,1 @@
-"""Test package for edsl.app module."""
+"""Test package for edsl.macros module."""

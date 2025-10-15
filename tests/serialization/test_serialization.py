@@ -127,6 +127,11 @@ def test_serialization_coverage():
             "CoopProlificFilters",
             "QuestionMultipleChoiceWithOther",
             "Service",
+            "AgentDelta",
+            "AgentListDeltas",
+            "CompareResultsToGold",
+            "PerformanceDelta",
+            "ResultPairComparison",
         ]
     )
 

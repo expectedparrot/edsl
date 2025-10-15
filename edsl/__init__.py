@@ -45,7 +45,7 @@ _LAZY_MODULES = {
     "base",
     "conversation",
     "extensions",
-    "app",
+    "macros",
     "comparisons",
 }
 
