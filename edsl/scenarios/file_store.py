@@ -173,12 +173,7 @@ class FileStore(Scenario):
             from ..coop import Coop
 
             coop = Coop()
-            print(
-                "[DEBUG_key]",
-                coop.api_key,
-                coop.api_url,
-                os.environ["EXPECTED_PARROT_API_KEY"],
-            )
+
             response = coop._send_server_request(
                 uri="api/v0/filestore/download-url",
                 method="POST",
