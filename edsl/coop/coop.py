@@ -149,6 +149,9 @@ class Coop(CoopFunctionsMixin):
     # Class-level error cache shared across all instances
     _class_error_cache = {}  # {error_signature: last_reported_time}
 
+    # Class-level API key - if set, this will be used as default for all instances
+    _class_api_key: Optional[str] = None
+
     def __init__(
         self, api_key: Optional[str] = None, url: Optional[str] = None
     ) -> None:
@@ -156,12 +159,15 @@ class Coop(CoopFunctionsMixin):
         Initialize the Expected Parrot API client.
 
         This constructor sets up the connection to Expected Parrot's cloud services.
-        If not provided explicitly, it will attempt to obtain an API key from
-        environment variables or from a stored location in the user's config directory.
+        If not provided explicitly, it will attempt to obtain an API key from:
+        1. The api_key parameter
+        2. The class-level _class_api_key (if set via Coop._class_api_key = "key")
+        3. Environment variables or stored location in user's config directory
 
         Parameters:
             api_key (str, optional): API key for authentication with Expected Parrot.
-                If not provided, will attempt to obtain from environment or stored location.
+                If not provided, will attempt to obtain from class-level setting,
+                environment, or stored location.
             url (str, optional): Base URL for the Expected Parrot service.
                 If not provided, uses the default from configuration.
 
@@ -175,9 +181,14 @@ class Coop(CoopFunctionsMixin):
         Example:
             >>> coop = Coop()  # Uses API key from environment or stored location
             >>> coop = Coop(api_key="your-api-key")  # Explicitly provide API key
+            >>> Coop._class_api_key = "my-key"  # Set class-level default
+            >>> coop = Coop()  # Will use "my-key"
         """
         self.ep_key_handler = ExpectedParrotKeyHandler()
-        self.api_key = api_key or self.ep_key_handler.get_ep_api_key()
+        # Priority: instance parameter > class-level setting > environment/stored
+        self.api_key = (
+            api_key or self._class_api_key or self.ep_key_handler.get_ep_api_key()
+        )
 
         self.url = url or CONFIG.EXPECTED_PARROT_URL
         if self.url.endswith("/"):
