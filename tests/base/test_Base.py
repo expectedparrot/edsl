@@ -29,6 +29,8 @@ class TestBaseModels:
                 "Agent",
                 "AgentList",
                 "AgentBlueprint",
+                "AgentDelta",
+                "AgentListDeltas",
                 "Scenario",
                 "ScenarioList",
                 "AgentList",
@@ -50,7 +52,10 @@ class TestBaseModels:
                 "CoopRegularObjects",
                 "CoopProlificFilters",
                 "Service",
-                "FileStoreList"
+                "FileStoreList",
+                "CompareResultsToGold",
+                "PerformanceDelta",
+                "ResultPairComparison"
             ]
 
         from edsl.base.exceptions import BaseNotImplementedError

@@ -103,7 +103,7 @@ I need you to create a complete, working EDSL app. Here's what I need:
    - Create proper initial survey with appropriate question types
    - Design the jobs pipeline logic
    - Implement output formatters
-   - Include proper imports from edsl.app, edsl.surveys, edsl.questions, etc.
+   - Include proper imports from edsl.macros, edsl.surveys, edsl.questions, etc.
    - Add a test example in the if __name__ == "__main__": block
    - Include clear docstrings
 
