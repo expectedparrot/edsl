@@ -1,5 +1,5 @@
 """
-Lenny module for EDSL visualization and reporting.
+Reports module for EDSL visualization and reporting.
 
 This module requires optional dependencies. Install with:
     pip install edsl[viz]
@@ -29,7 +29,7 @@ except ImportError:
 
 if _missing_deps:
     raise ImportError(
-        f"The edsl.lenny module requires optional dependencies that are not installed: {', '.join(_missing_deps)}\n"
+        f"The edsl.reports module requires optional dependencies that are not installed: {', '.join(_missing_deps)}\n"
         f"Please install them with: pip install edsl[viz]"
     )
 
