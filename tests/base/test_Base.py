@@ -22,7 +22,7 @@ class TestBaseModels:
 
         for key, value in RegisterSubclassesMeta.get_registry().items():
             assert key in [
-                "App",
+                "Macro",
                 "Result",
                 "Results",
                 "Survey",
