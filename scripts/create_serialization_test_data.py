@@ -3,6 +3,10 @@ import logging
 import json
 import os
 import sys
+
+# Add project root to sys.path to enable tests imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from edsl import __version__ as edsl_version
 from edsl.base import RegisterSubclassesMeta
 from edsl.coop.utils import ObjectRegistry
