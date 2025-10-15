@@ -396,8 +396,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
 
     def analyze(self, *question_names: str) -> 'QuestionAnalysis':
-        try: 
-            from edsl.lenny import Report 
+        try:
+            from edsl.reports import Report
         except ImportError:
             raise ValueError("Please install edsl as edsl[viz] to use the analyze method.")
         
