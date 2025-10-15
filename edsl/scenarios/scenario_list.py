@@ -164,15 +164,24 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
     def __init__(
         self,
-        data: Optional[list] = None,
+        data: Optional[list | str] = None,
         codebook: Optional[dict[str, str]] = None,
         data_class: Optional[type] = data_class,
     ):
         """Initialize a new ScenarioList with optional data and codebook."""
         self._data_class = data_class
         self.data = self._data_class([])
-        for item in data or []:
-            self.data.append(item)
+        if data is not None and isinstance(data, str):
+            sl = ScenarioList.pull(data)
+            if codebook is not None:
+                raise ValueError("Codebook cannot be provided when pulling from a remote source")
+            codebook = sl.codebook
+            super().__init__()
+            for item in sl.data:
+                self.data.append(item)
+        else:
+            for item in data or []:
+                self.data.append(item)
         self.codebook = codebook or {}
         # Conditional builder state (ephemeral)
         self._cond_active: bool = False

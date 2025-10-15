@@ -162,7 +162,7 @@ class Survey(Base):
 
     def __init__(
         self,
-        questions: Optional[List["QuestionType"]] = None,
+        questions: Optional[List["QuestionType"] | str] = None,
         memory_plan: Optional["MemoryPlan"] = None,
         rule_collection: Optional["RuleCollection"] = None,
         question_groups: Optional["QuestionGroupType"] = None,
@@ -200,6 +200,10 @@ class Survey(Base):
 
             >>> s = Survey([q1, q2, q3], question_groups={"demographics": (0, 1), "food_questions": (2, 2)})
         """
+        if questions is not None and isinstance(questions, str):
+            pulled_survey = Survey.pull(questions)
+            self.__dict__.update(pulled_survey.__dict__)
+            return 
 
         self.raw_passed_questions = questions
 

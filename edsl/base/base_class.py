@@ -328,6 +328,7 @@ class PersistenceMixin:
                 - UUID string (e.g., "123e4567-e89b-12d3-a456-426614174000")
                 - Full URL (e.g., "https://expectedparrot.com/content/123e4567...")
                 - Alias URL (e.g., "https://expectedparrot.com/content/username/my-survey")
+                - Shorthand alias (e.g., "username/my-survey")
             expected_parrot_url (str, optional): Optional custom URL for the coop service
 
         Returns:
@@ -336,12 +337,21 @@ class PersistenceMixin:
         Example:
             >>> response = SurveyClass.pull("123e4567-e89b-12d3-a456-426614174000")
             >>> response = SurveyClass.pull("https://expectedparrot.com/content/username/my-survey")
+            >>> response = SurveyClass.pull("username/my-survey")
             >>> print(f"Download URL: {response['signed_url']}")
             >>> # Use the signed_url to download the object directly
         """
         from edsl.coop import Coop
         from edsl.coop import ObjectRegistry
         from edsl.jobs import Jobs
+
+        # Convert shorthand syntax to full URL if needed
+        if isinstance(url_or_uuid, str) and not url_or_uuid.startswith(('http://', 'https://')):
+            # Check if it looks like a UUID (basic check for UUID format)
+            is_uuid = len(url_or_uuid) == 36 and url_or_uuid.count('-') == 4
+            if not is_uuid and '/' in url_or_uuid:
+                # Looks like shorthand format "username/alias"
+                url_or_uuid = f"http://www.expectedparrot.com/content/{url_or_uuid}"
 
         coop = Coop(url=expected_parrot_url)
 

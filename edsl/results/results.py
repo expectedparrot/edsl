@@ -172,7 +172,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     def __init__(
         self,
-        survey: Optional["Survey"] = None,
+        survey: Optional["Survey" | str] = None,
         data: Optional[list["Result"]] = None,
         name: Optional[str] = None,
         created_columns: Optional[list[str]] = None,
@@ -196,6 +196,11 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             sort_by_iteration: Whether to sort data by iteration before initializing.
             data_class: The class to use for the data container (default: list).
         """
+        if survey is not None and isinstance(survey, str):
+            pulled_results = Results.pull(survey)
+            self.__dict__.update(pulled_results.__dict__)
+            return
+            
         self.completed = True
         self._fetching = False
 
@@ -1137,7 +1142,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
 
     @ensure_ready
-    def augmented_agents(self, *fields: str, include_existing_traits: bool = False) -> "AgentList":
+    def augmented_agents(self, *fields: str, include_existing_traits: bool = False, include_codebook: bool = False) -> "AgentList":
         """Augment the agent list by adding specified fields as new traits.
 
         Takes field names (similar to the select method) and adds them as new traits
@@ -1175,6 +1180,24 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         if not fields:
             raise ResultsError("At least one field must be specified for augmentation.")
 
+        from ..agents import AgentList
+        al = AgentList()
+        for result in self.data:
+            agent = result.get("agent")
+            new_agent = agent.copy()
+            naming_dict = {'name': new_agent.name}
+            if not include_existing_traits:
+                new_agent.traits = {}
+            if not include_codebook:
+                new_agent.codebook = {}
+                new_agent.traits_presentation_template = 'Your traits: {{traits}}'
+            naming_dict['scenario_index'] = result.sub_dicts['scenario']['scenario_index']
+            naming_dict['model_index'] = result.sub_dicts['model']['model_index']
+            new_agent.traits = {k:v for k,v in result.sub_dicts['answer'].items() if k in fields}
+            new_agent.name = repr(naming_dict)
+            al.append(new_agent)
+        return al
+
         # Check for one-to-one mapping between agents and results
         agent_counts = {}
         for result in self.data:
@@ -1194,7 +1217,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         # Get the current agents
         agent_list = self.agents.copy()
         if not include_existing_traits:
-            agent_list.traits = {}
+            for agent in agent_list:
+                agent.traits = {}
 
         # For each field, extract the values and add as a trait
         for field in fields:

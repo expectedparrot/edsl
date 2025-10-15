@@ -23,6 +23,11 @@ class ModelList(Base, UserList):
         # >>> m = ModelList.from_scenario_list(Model.available())
 
         """
+        if data is not None and isinstance(data, str):
+            ml = ModelList.pull(data)
+            self.__dict__.update(ml.__dict__)
+            return
+            
         if data is not None:
             super().__init__(data)
         else:
