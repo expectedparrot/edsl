@@ -242,6 +242,14 @@ class FileStore(Scenario):
         """
         # Check if the FileStore is offloaded and needs to be restored from GCS
         if self.base64_string == "offloaded":
+            # Check if we have GCS info before attempting restore
+            gcs_info = self.external_locations.get("gcs", {})
+            if not gcs_info or "file_uuid" not in gcs_info:
+                raise ValueError(
+                    f"FileStore content has been offloaded but GCS restoration info is missing. "
+                    f"This FileStore cannot be used without the original file content. "
+                    f"external_locations: {self.external_locations}"
+                )
             self._restore_from_gcs()
 
         # Check if original path exists and is accessible
