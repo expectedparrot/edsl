@@ -118,7 +118,7 @@ class QuestionTemplateReplacementsBuilder:
     def _find_file_keys(scenario: "Scenario") -> list:
         """We need to find all the keys in the scenario that refer to FileStore objects.
         These will be used to append to the prompt a list of files that are part of the scenario.
-        Uses module-level caching to avoid re-scanning large scenarios.
+        Uses module-level caching with a robust cache key to avoid re-scanning large scenarios.
 
         >>> from ..scenarios import Scenario
         >>> from ..scenarios import FileStore
@@ -131,23 +131,32 @@ class QuestionTemplateReplacementsBuilder:
         ...     QuestionTemplateReplacementsBuilder._find_file_keys(scenario)
         ['fs_file']
         """
-        # Create a cache key based on scenario content
-        # Using id() is fast but only works within same process
-        scenario_id = id(scenario)
-
-        # Check cache first
-        if scenario_id in _scenario_file_keys_cache:
-            return _scenario_file_keys_cache[scenario_id]
-
-        # Find file keys for the first time
         from ..scenarios import FileStore
 
+        # Create a robust cache key using (id, key, value_id, value_type) for each item
+        # This prevents cache collisions while still allowing caching of the same scenario object
+        try:
+            # Use id() of the scenario object itself along with a hash of its structure
+            # This way, the same scenario object reuses cache, but different objects don't collide
+            cache_key = (id(scenario), tuple(sorted(
+                (k, id(v), type(v).__name__) for k, v in scenario.items()
+            )))
+        except Exception:
+            # If we can't create a cache key, don't cache
+            cache_key = None
+
+        # Check cache first
+        if cache_key and cache_key in _scenario_file_keys_cache:
+            return _scenario_file_keys_cache[cache_key]
+
+        # Find file keys for the first time
         result = [
             key for key, value in scenario.items() if isinstance(value, FileStore)
         ]
 
         # Cache the result
-        _scenario_file_keys_cache[scenario_id] = result
+        if cache_key:
+            _scenario_file_keys_cache[cache_key] = result
 
         return result
 
@@ -227,7 +236,13 @@ class QuestionTemplateReplacementsBuilder:
                     # If there's any issue parsing, just continue with what we have
                     pass
 
-        result = list(set(question_file_keys))  # Remove duplicates
+        # Remove duplicates while preserving order
+        seen = set()
+        result = []
+        for key in question_file_keys:
+            if key not in seen:
+                seen.add(key)
+                result.append(key)
 
         # Cache the result
         _file_keys_extraction_cache[cache_key] = result
@@ -317,7 +332,7 @@ class QuestionTemplateReplacementsBuilder:
         >>> qtrb = QuestionTemplateReplacementsBuilder(scenario = s, question = q, prior_answers_dict = {'q0': 'q0'}, agent = "agent")
         >>> result = qtrb.build_replacement_dict(q.data)
         >>> result['file1']  # doctest: +ELLIPSIS
-        FileStore(...)
+        '<see file file1>'
 
 
         """
