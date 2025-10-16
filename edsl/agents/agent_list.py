@@ -194,6 +194,38 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         return self
 
+    def with_categories(self, *categories: str) -> "AgentList":
+        """Return a new AgentList with agents filtered to only specified categories.
+
+        This method applies the with_categories method to each agent in the list,
+        creating new agents that contain only traits belonging to the specified categories.
+
+        Args:
+            *categories: Variable number of category names to include in the filtered agents.
+
+        Returns:
+            AgentList: A new AgentList with agents containing only traits from the specified categories.
+
+        Raises:
+            AgentErrors: If any category is not found in an agent's trait_categories.
+
+        Examples:
+            >>> from edsl import Agent, AgentList
+            >>> a1 = Agent(traits={'age': 30, 'hometown': 'Boston', 'food': 'beans'})
+            >>> a1.add_category('demographics', ['age', 'hometown'])
+            >>> a1.add_category('preferences', ['food'])
+            >>> a2 = Agent(traits={'age': 25, 'hometown': 'SF', 'food': 'sushi'})
+            >>> a2.add_category('demographics', ['age', 'hometown'])
+            >>> a2.add_category('preferences', ['food'])
+            >>> al = AgentList([a1, a2])
+            >>> demographics_only = al.with_categories('demographics')
+            >>> demographics_only[0].traits
+            {'age': 30, 'hometown': 'Boston'}
+            >>> demographics_only[1].traits
+            {'age': 25, 'hometown': 'SF'}
+        """
+        return AgentList([agent.with_categories(*categories) for agent in self.data])
+
 
 
 
