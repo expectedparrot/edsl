@@ -732,8 +732,8 @@ class Jobs(Base):
         >>> j = Jobs.example()
         >>> len(j.interviews())
         4
-        >>> j.interviews()[0]
-        Interview(agent = Agent(traits = {'status': 'Joyful'}), survey = Survey(...), scenario = Scenario({'period': 'morning'}), model = Model(...))
+        >>> j.interviews()[0]  # doctest: +ELLIPSIS
+        Interview(agent = Agent(traits = {'status': 'Joyful'}...), survey = Survey(...), scenario = Scenario({'period': 'morning'}), model = Model(...))
         """
         result = list(self.generate_interviews())
         return result

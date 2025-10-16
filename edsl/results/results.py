@@ -1169,7 +1169,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> q1 = QuestionFreeText(question_name="color", question_text="What is your favorite color?")
             >>> q2 = QuestionFreeText(question_name="food", question_text="What is your favorite food?")
             >>> survey = Survey([q1, q2])
-            >>> agents = [Agent(traits={"name": "Alice"}), Agent(traits={"name": "Bob"})]
+            >>> agents = [Agent(name="Alice"), Agent(name="Bob")]
             >>> m = LanguageModel.example(test_model=True, canned_response="Blue")
             >>> results = survey.by(agents).by(m).run()
             >>> augmented_agents = results.augment_agents("color", "food")
