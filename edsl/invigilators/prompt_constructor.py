@@ -300,13 +300,16 @@ class PromptConstructor:
             >>> i.prompt_constructor.agent_instructions_prompt
             Prompt(text=\"""You are answering questions as if you were a human. Do not break character.\""")
         """
-        from ..agents import Agent
         from ..prompts import Prompt
 
-        if self.agent == Agent():  # if agent is empty, then return an empty prompt
-            return Prompt(text="")
+        # Check if agent is empty by checking if it has any traits
+        # This is much faster than creating Agent() and comparing hashes
+        is_empty = not self.agent.traits
 
-        return Prompt(text=self.agent.instruction)
+        if is_empty:  # if agent is empty, then return an empty prompt
+            return Prompt(text="")
+        else:
+            return Prompt(text=self.agent.instruction)
 
     @cached_property
     def agent_persona_prompt(self) -> "Prompt":
@@ -322,13 +325,16 @@ class PromptConstructor:
             >>> i.prompt_constructor.agent_persona_prompt
             Prompt(text=\"""Your traits: {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
         """
-        from ..agents import Agent
         from ..prompts import Prompt
 
-        if self.agent == Agent():  # if agent is empty, then return an empty prompt
-            return Prompt(text="")
+        # Check if agent is empty by checking if it has any traits
+        # This is much faster than creating Agent() and comparing hashes
+        is_empty = not self.agent.traits
 
-        return self.agent.prompt()
+        if is_empty:  # if agent is empty, then return an empty prompt
+            return Prompt(text="")
+        else:
+            return self.agent.prompt()  # This calls AgentPrompt.prompt()
 
     def prior_answers_dict(self) -> dict[str, "QuestionBase"]:
         """
@@ -467,7 +473,11 @@ class PromptConstructor:
 
     @cached_property
     def question_instructions_prompt(self) -> "Prompt":
-        """
+        """Get question instructions prompt (cached per PromptConstructor instance).
+
+        Since we changed prompt_constructor to @cached_property in InvigilatorBase,
+        this will only be computed once per invigilator, which is perfect.
+
         >>> from edsl.invigilators.invigilators import InvigilatorBase
         >>> i = InvigilatorBase.example()
         >>> i.prompt_constructor.question_instructions_prompt

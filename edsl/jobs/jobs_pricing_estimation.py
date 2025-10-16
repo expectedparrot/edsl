@@ -216,10 +216,9 @@ class JobsPrompts:
 
         # Initialize dataset
         dataset_of_prompts = {k: [] for k in self.relevant_keys}
-        interviews = self.interviews
 
         # Process interviews
-        for interview_index, interview in enumerate(interviews):
+        for interview_index, interview in enumerate(self.interviews):
             # Create invigilators
             invigilators = [
                 FetchInvigilator(interview)(question)
@@ -236,8 +235,7 @@ class JobsPrompts:
                     dataset_of_prompts[k].append(data[k])
 
         # Create final dataset
-        result = Dataset([{k: dataset_of_prompts[k]} for k in self.relevant_keys])
-        return result
+        return Dataset([{k: dataset_of_prompts[k]} for k in self.relevant_keys])
 
     @staticmethod
     def estimate_prompt_cost(

@@ -44,8 +44,8 @@ def test_coop_remote_inference_cost():
         ]
     )
     cost = coop.remote_inference_cost(survey)
-    assert cost["credits_hold"] == 0.04
-    assert cost["usd"] == pytest.approx(0.0004)
+    assert cost["credits_hold"] == 0.05
+    assert cost["usd"] == pytest.approx(0.0005)
     from edsl.coop.exceptions import CoopTypeError
 
     with pytest.raises(CoopTypeError):

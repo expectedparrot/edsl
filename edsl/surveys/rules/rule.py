@@ -96,15 +96,31 @@ class Rule:
                 f"current_q: {self.current_q}, next_q: {self.next_q}"
             )
 
-        # get the AST for the expression - used to extract the variables referenced in the expression
-        try:
-            self.ast_tree = ast.parse(self.expression)
-        except SyntaxError:
-            raise SurveyRuleSkipLogicSyntaxError(
-                f"The expression {self.expression} is not valid Python syntax."
-            )
+        # Cache AST trees and extracted variables by expression string
+        if not hasattr(Rule, "_expression_cache"):
+            Rule._expression_cache = {}
 
-        extracted_question_names = extract_variable_names(self.ast_tree)
+        if self.expression in Rule._expression_cache:
+            # Use cached AST and extracted names
+            self.ast_tree, extracted_question_names = Rule._expression_cache[
+                self.expression
+            ]
+        else:
+            # Parse and extract for the first time
+            try:
+                self.ast_tree = ast.parse(self.expression)
+            except SyntaxError:
+                raise SurveyRuleSkipLogicSyntaxError(
+                    f"The expression {self.expression} is not valid Python syntax."
+                )
+
+            extracted_question_names = extract_variable_names(self.ast_tree)
+
+            # Cache for future use
+            Rule._expression_cache[self.expression] = (
+                self.ast_tree,
+                extracted_question_names,
+            )
 
         # make sure all the variables in the expression are known questions
         try:

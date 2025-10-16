@@ -112,6 +112,7 @@ class RuleCollection(UserList):
         0
         """
         self.append(rule)
+
         # Clear the rules cache when new rules are added
         if hasattr(self, "_rules_cache"):
             self._rules_cache.clear()

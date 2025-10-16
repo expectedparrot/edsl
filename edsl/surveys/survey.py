@@ -220,6 +220,7 @@ class Survey(Base):
         # self.instruction_names_to_instructions = instruction_names_to_instructions
 
         self.memory_plan = memory_plan or MemoryPlan(self)
+
         if question_groups is not None:
             self.question_groups = question_groups
         else:
@@ -309,6 +310,9 @@ class Survey(Base):
             random.seed(self._seed)  # type: ignore
 
         # Always create new questions to avoid sharing state between interviews
+        # This is necessary even when there's no randomization because:
+        # 1. Piping might require each interview to have its own survey instance
+        # 2. Different agents/scenarios need independent survey instances
         new_questions = []
         for question in self.questions:
             if question.question_name in self.questions_to_randomize:
@@ -319,6 +323,7 @@ class Survey(Base):
         d = self.to_dict()
         d["questions"] = [q.to_dict() for q in new_questions]
         new_survey = Survey.from_dict(d)
+
         # Preserve any non-serialized attributes from the new_questions
         for i, new_question in enumerate(new_questions):
             survey_question = new_survey.questions[i]
@@ -326,6 +331,7 @@ class Survey(Base):
                 survey_question.exception_to_throw = new_question.exception_to_throw
             if hasattr(new_question, "override_answer"):
                 survey_question.override_answer = new_question.override_answer
+
         return new_survey
 
     def _process_raw_questions(self, questions: Optional[List["QuestionType"]]) -> list:
@@ -615,9 +621,10 @@ class Survey(Base):
                 return QuestionBase
 
         # Deserialize each question and instruction
-        questions = [
-            get_class(q_dict).from_dict(q_dict) for q_dict in data["questions"]
-        ]
+        questions = []
+        for q_dict in data["questions"]:
+            cls_type = get_class(q_dict)
+            questions.append(cls_type.from_dict(q_dict))
 
         # Deserialize the memory plan
         memory_plan = MemoryPlan.from_dict(data["memory_plan"])
@@ -634,14 +641,17 @@ class Survey(Base):
             name = None
 
         # Create and return the reconstructed survey
+        rule_collection = RuleCollection.from_dict(data["rule_collection"])
+
         survey = cls(
             questions=questions,
             memory_plan=memory_plan,
-            rule_collection=RuleCollection.from_dict(data["rule_collection"]),
+            rule_collection=rule_collection,
             question_groups=data["question_groups"],
             questions_to_randomize=questions_to_randomize,
             name=name,
         )
+
         return survey
 
     @property
@@ -2166,7 +2176,9 @@ class Survey(Base):
         if self.raw_passed_questions is None:
             questions_string = ", ".join([repr(q) for q in self.questions])
         else:
-            questions_string = ", ".join([repr(q) for q in self.raw_passed_questions or []])
+            questions_string = ", ".join(
+                [repr(q) for q in self.raw_passed_questions or []]
+            )
         # question_names_string = ", ".join([repr(name) for name in self.question_names])
         return f"Survey(questions=[{questions_string}], memory_plan={self.memory_plan}, rule_collection={self.rule_collection}, question_groups={self.question_groups}, questions_to_randomize={self.questions_to_randomize})"
 
