@@ -1,5 +1,9 @@
 from typing import Sequence, Dict, List, Any
-import trueskill
+try:
+    import trueskill
+    TRUESKILL_AVAILABLE = True
+except ImportError:
+    TRUESKILL_AVAILABLE = False
 from .scenario_list import ScenarioList
 from .scenario import Scenario
 
@@ -41,6 +45,12 @@ def results_to_true_skill_ranked_list(
     Returns:
         ScenarioList ordered best-to-worst according to TrueSkill ranking.
     """
+    if not TRUESKILL_AVAILABLE:
+        raise ImportError(
+            "The trueskill library is required for this function. "
+            "Install it with: pip install trueskill"
+        )
+
     if not option_fields or len(option_fields) < 2:
         raise ValueError("option_fields must include at least two scenario columns")
 
