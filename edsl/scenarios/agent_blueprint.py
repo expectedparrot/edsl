@@ -509,6 +509,7 @@ class AgentBlueprint(Base):
         ...     "age": ["young", "old"]
         ... })
         >>> print(blueprint._total_combinations)  # 6 combinations
+        6
         """
         if not dimensions_dict:
             raise ValueError("dimensions_dict cannot be empty")
@@ -535,10 +536,10 @@ class AgentBlueprint(Base):
         --------
         >>> blueprint = AgentBlueprint.example()
         >>> print(blueprint)
-        >>> # Generate a few sample agents
-        >>> agents = blueprint.create_agent_list(n=3)
-        >>> for agent in agents:
-        ...     print(f"Agent: {agent.traits}")
+        AgentBlueprint: 3 dimensions, 27 combinations (seed=42, cycle=True)
+          - politics [3]: 'left', 'right', 'center'
+          - age [3]: '18-25', '26-35', '36-45'
+          - gender [3]: 'male', 'female', 'non-binary'
         """
         politics = Dimension(
             name="politics",
