@@ -517,7 +517,7 @@ class AgentBlueprint(Base):
         for name, values in dimensions_dict.items():
             if not isinstance(values, list) or not values:
                 raise ValueError(f"Dimension '{name}' must have a non-empty list of values")
-            dimensions.append(Dimension(name=name, values=values))
+            dimensions.append(Dimension(name=name, description="", values=values))
 
         return cls.from_dimensions(*dimensions, seed=seed, cycle=cycle)
 

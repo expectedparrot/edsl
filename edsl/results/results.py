@@ -1172,7 +1172,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> agents = [Agent(name="Alice"), Agent(name="Bob")]
             >>> m = LanguageModel.example(test_model=True, canned_response="Blue")
             >>> results = survey.by(agents).by(m).run()
-            >>> augmented_agents = results.augment_agents("color", "food")
+            >>> augmented_agents = results.augmented_agents("color", "food")
             >>> len(augmented_agents) == len(agents)
             True
         """
