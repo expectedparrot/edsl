@@ -641,44 +641,48 @@ class Jobs(Base):
                 "agents": agent_info.to_dict(),
                 "scenarios": scenario_info.to_dict(),
                 "models_info": models_info.to_dict(),
-                "_depends_on": self._depends_on.to_dict(add_edsl_version=False)
-                if self._depends_on is not None
-                else None,
-                "_post_run_methods": self._post_run_methods
-                if self._post_run_methods is not None
-                else None,
+                "_depends_on": (
+                    self._depends_on.to_dict(add_edsl_version=False)
+                    if self._depends_on is not None
+                    else None
+                ),
+                "_post_run_methods": (
+                    self._post_run_methods
+                    if self._post_run_methods is not None
+                    else None
+                ),
             }
         )
         info = jobs_scenario.push()
         return info
 
-    @classmethod
-    def pull(cls, edsl_uuid: str) -> "Jobs":
-        """Pull the job from the remote server."""
-        from ..scenarios import Scenario
-        from ..surveys import Survey
-        from ..agents import AgentList
-        from ..language_models import ModelList
-        from ..scenarios import ScenarioList
+        # @classmethod
+        # def pull(cls, edsl_uuid: str) -> "Jobs":
+        #     """Pull the job from the remote server."""
+        #     from ..scenarios import Scenario
+        #     from ..surveys import Survey
+        #     from ..agents import AgentList
+        #     from ..language_models import ModelList
+        #     from ..scenarios import ScenarioList
 
-        jobs_scenario = Scenario.pull(edsl_uuid)
-        # extract the components
-        survey_info = jobs_scenario.to_dict()["survey"]
-        agent_info = jobs_scenario.to_dict()["agents"]
-        scenario_info = jobs_scenario.to_dict()["scenarios"]
-        models_info = jobs_scenario.to_dict()["models_info"]
-        depends_on = jobs_scenario.to_dict()["_depends_on"]
-        post_run_methods = jobs_scenario.to_dict()["_post_run_methods"]
+        #     jobs_scenario = Scenario.pull(edsl_uuid)
+        #     # extract the components
+        #     survey_info = jobs_scenario.to_dict()["survey"]
+        #     agent_info = jobs_scenario.to_dict()["agents"]
+        #     scenario_info = jobs_scenario.to_dict()["scenarios"]
+        #     models_info = jobs_scenario.to_dict()["models_info"]
+        #     depends_on = jobs_scenario.to_dict()["_depends_on"]
+        #     post_run_methods = jobs_scenario.to_dict()["_post_run_methods"]
 
-        jobs = cls(
-            survey=Survey.pull(survey_info["uuid"]),
-            agents=AgentList.pull(agent_info["uuid"]),
-            scenarios=ScenarioList.pull(scenario_info["uuid"]),
-            models=ModelList.pull(models_info["uuid"]),
-        )
-        jobs._depends_on = depends_on
-        jobs._post_run_methods = post_run_methods
-        return jobs
+        #     jobs = cls(
+        #         survey=Survey.pull(survey_info["uuid"]),
+        #         agents=AgentList.pull(agent_info["uuid"]),
+        #         scenarios=ScenarioList.pull(scenario_info["uuid"]),
+        #         models=ModelList.pull(models_info["uuid"]),
+        #     )
+        #     jobs._depends_on = depends_on
+        #     jobs._post_run_methods = post_run_methods
+        #     return jobs
 
         # This are methods for chaining jobs together
 

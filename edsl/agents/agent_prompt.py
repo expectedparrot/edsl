@@ -138,8 +138,29 @@ class AgentPrompt:
             raise QuestionScenarioRenderError(
                 f"Agent persona still has variables that were not rendered: {undefined}"
             )
+
+        # Cache the rendered result using a hash of the replacement dict
+        # This avoids re-rendering the same agent persona multiple times
+        cache_key = None
+        if hasattr(self, "_render_cache"):
+            # Create a simple cache key from traits (which are typically small)
+            try:
+                cache_key = hash(frozenset(self.agent.traits.items()))
+                if cache_key in self._render_cache:
+                    return self._render_cache[cache_key]
+            except (TypeError, AttributeError):
+                # If traits aren't hashable, skip caching
+                cache_key = None
         else:
-            return agent_persona.render(replacement_dict)
+            self._render_cache = {}
+
+        result = agent_persona.render(replacement_dict)
+
+        # Store in cache if we have a valid key
+        if cache_key is not None:
+            self._render_cache[cache_key] = result
+
+        return result
 
     def initialize_traits_presentation_template(
         self, traits_presentation_template: Optional[str]

@@ -45,6 +45,7 @@ class EditSurvey:
             raise SurveyCreationError(
                 f"""Question name '{question.question_name}' already exists in survey. Existing names are {self.survey.question_names}."""
             )
+
         if index is None:
             index = len(self.survey.questions)
 
