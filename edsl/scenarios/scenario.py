@@ -634,19 +634,19 @@ class Scenario(Base, UserDict):
 
     def __getattr__(self, name: str) -> Any:
         """Allow accessing scenario values using dot notation.
-        
+
         This enables accessing scenario dictionary values as attributes.
         For example, if s = Scenario({'a': 'b'}), then s.a returns 'b'.
-        
+
         Args:
             name: The attribute name to look up in the scenario data.
-            
+
         Returns:
             The value associated with the key in the scenario data.
-            
+
         Raises:
             AttributeError: If the key doesn't exist in the scenario data.
-            
+
         Examples:
             >>> s = Scenario({'product': 'coffee', 'price': 4.99})
             >>> s.product
@@ -654,6 +654,10 @@ class Scenario(Base, UserDict):
             >>> s.price
             4.99
         """
+        # Avoid infinite recursion during copy.deepcopy by checking __dict__ directly
+        # This prevents recursion when deepcopy checks for special methods like __setstate__
+        if 'data' not in self.__dict__:
+            raise AttributeError(f"'Scenario' object has no attribute '{name}'")
         try:
             return self.data[name]
         except KeyError:
