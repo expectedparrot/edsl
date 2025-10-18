@@ -32,3 +32,9 @@ repos:
     hooks:
       - id: nb-clean
         args: [--preserve-cell-outputs, --remove-empty-cells]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.6
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^edsl/.*\.py$

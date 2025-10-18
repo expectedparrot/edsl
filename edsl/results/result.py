@@ -500,7 +500,7 @@ class Result(Base, UserDict):
                     trait_str += f", ... ({len(agent_traits) - 3} more)"
                 output.append(f"    agent: {{{trait_str}}},\n", style="green")
             else:
-                output.append(f"    agent: Agent(),\n", style="green")
+                output.append("    agent: Agent(),\n", style="green")
         
         # Scenario information
         if self.scenario:
@@ -511,7 +511,7 @@ class Result(Base, UserDict):
                     scenario_str += f", ... ({len(scenario_dict) - 3} more)"
                 output.append(f"    scenario: {{{scenario_str}}},\n", style="magenta")
             else:
-                output.append(f"    scenario: Scenario(),\n", style="magenta")
+                output.append("    scenario: Scenario(),\n", style="magenta")
         
         # Model information
         if self.model:
@@ -533,7 +533,7 @@ class Result(Base, UserDict):
                 answer_repr = repr(q_answer)
                 if len(answer_repr) > 50:
                     answer_repr = answer_repr[:47] + "..."
-                output.append(f"            ", style="white")
+                output.append("            ", style="white")
                 output.append(f"'{q_name}'", style="bold yellow")
                 output.append(f": {answer_repr},\n", style="white")
             
@@ -542,7 +542,7 @@ class Result(Base, UserDict):
             
             output.append("        },\n", style="white")
         else:
-            output.append(f"    answers: {{}},\n", style="dim")
+            output.append("    answers: {},\n", style="dim")
         
         output.append(")", style="bold cyan")
         

@@ -1,4 +1,4 @@
-from typing import Sequence, Dict, List, Any
+from typing import Sequence, Dict, Any
 try:
     import trueskill
     TRUESKILL_AVAILABLE = True
@@ -154,7 +154,6 @@ def results_to_true_skill_ranked_list(
 
 if __name__ == "__main__":
     # Example usage with the TrueSkill library
-    import random
 
     # Configure TrueSkill
     trueskill.setup(mu=25.0, sigma=8.333)

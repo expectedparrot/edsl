@@ -8,7 +8,12 @@ implementation details here.
 
 from __future__ import annotations
 
-from typing import List
+from typing import List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .scenario_list import ScenarioList
+    from .scenario import Scenario
+    from ..agents.agent import Agent
 
 
 class ScenarioListTransformer:
@@ -523,7 +528,6 @@ class ScenarioListTransformer:
 
         Mirrors the previous `ScenarioList._concatenate` semantics.
         """
-        from .scenario import Scenario
         # Lazy import to avoid circular import at module import time
         from .scenario_list import ScenarioList  # type: ignore
 
@@ -534,7 +538,7 @@ class ScenarioListTransformer:
                 f"The 'fields' parameter must be a list of field names, not a string. Got '{fields}'."
             )
 
-        new_scenarios: list[Scenario] = []
+        new_scenarios = []
         for scenario in scenario_list:
             new_scenario = scenario.copy()
             values = []

@@ -815,12 +815,12 @@ class QuestionBase(
         # Build the Rich text
         output = Text()
         question_type = self.to_dict().get("question_type", "unknown")
-        output.append(f"Question(", style="bold cyan")
+        output.append("Question(", style="bold cyan")
         output.append(f"'{question_type}'", style="bold yellow")
         output.append(",\n", style="bold cyan")
         
         # Question name
-        output.append(f"    question_name=", style="white")
+        output.append("    question_name=", style="white")
         output.append(f'"{self.question_name}"', style="green")
         output.append(",\n", style="white")
         
@@ -828,7 +828,7 @@ class QuestionBase(
         question_text = self.question_text
         if len(question_text) > max_text_length:
             question_text = question_text[:max_text_length-3] + "..."
-        output.append(f"    question_text=", style="white")
+        output.append("    question_text=", style="white")
         output.append(f'"{question_text}"', style="cyan")
         
         # Question options (if present)
@@ -845,7 +845,7 @@ class QuestionBase(
                     option_str = str(option)
                     if len(option_str) > 40:
                         option_str = option_str[:37] + "..."
-                    output.append(f"        ", style="white")
+                    output.append("        ", style="white")
                     output.append(f'"{option_str}"', style="yellow")
                     output.append(",\n", style="white")
                 
