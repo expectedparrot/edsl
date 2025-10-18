@@ -355,6 +355,9 @@ github-tests-locally: ## Run tests on GitHub Actions (with only committed files)
 	docker image prune -f --filter "label=org.opencontainers.image.source=https://github.com/catthehacker/docker_images"; \
 	docker system prune -f --volumes; \
 	echo "Docker cleanup complete."; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		bash scripts/mark_check_complete.sh GITHUB_ACTIONS; \
+	fi; \
 	exit $$EXIT_CODE
 
 test: ## Run regular tests (no Coop tests). Use 'make test DIR' to run tests from specific directory
