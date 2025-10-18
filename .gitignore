@@ -42,6 +42,7 @@ probable_junk/
 !edsl/utilities/data/*.json
 !.vscode/settings.json
 !tests/serialization/data/*.json
+!performance.yml
 .env*
 docs/notebooks/drafts/*
 test.py

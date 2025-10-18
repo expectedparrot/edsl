@@ -71,41 +71,41 @@ class TableDisplay:
         `tabulate`, wrapped in a <pre> block so at least a readable table is
         shown.
         """
-        try:
-            table_data = TableData(
-                headers=self.headers,
-                data=self.data,
-                parameters=self.printing_parameters,
-                raw_data_set=self.raw_data_set,
-            )
-            return self.renderer_class(table_data).render_html()
-        except Exception as exc:  # pragma: no cover
-            # --- graceful degradation -------------------------------------------------
-            import traceback
+        # try:
+        table_data = TableData(
+            headers=self.headers,
+            data=self.data,
+            parameters=self.printing_parameters,
+            raw_data_set=self.raw_data_set,
+        )
+        return self.renderer_class(table_data).render_html()
+        # except Exception as exc:  # pragma: no cover
+        #     # --- graceful degradation -------------------------------------------------
+        #     import traceback
 
-            full_traceback = traceback.format_exc()
+        #     full_traceback = traceback.format_exc()
 
-            try:
-                from tabulate import tabulate
+        #     try:
+        #         from tabulate import tabulate
 
-                plain = tabulate(
-                    self.data,
-                    headers=self.headers,
-                    tablefmt=self.tablefmt or "simple",
-                )
-            except Exception:
-                # Even `tabulate` failed – resort to the default __repr__.
-                plain = (
-                    super().__repr__()
-                    if hasattr(super(), "__repr__")
-                    else str(self.data)
-                )
+        #         plain = tabulate(
+        #             self.data,
+        #             headers=self.headers,
+        #             tablefmt=self.tablefmt or "simple",
+        #         )
+        #     except Exception:
+        #         # Even `tabulate` failed – resort to the default __repr__.
+        #         plain = (
+        #             super().__repr__()
+        #             if hasattr(super(), "__repr__")
+        #             else str(self.data)
+        #         )
 
-            # Escape HTML-sensitive chars so the browser renders plain text.
-            import html
+        #     # Escape HTML-sensitive chars so the browser renders plain text.
+        #     import html
 
-            safe_plain = html.escape(plain)
-            return f"<pre>{safe_plain}\n\n[TableDisplay fallback – original error: {exc}]\n\nFull traceback:\n{html.escape(full_traceback)}</pre>"
+        #     safe_plain = html.escape(plain)
+        #     return f"<pre>{safe_plain}\n\n[TableDisplay fallback – original error: {exc}]\n\nFull traceback:\n{html.escape(full_traceback)}</pre>"
 
     def __repr__(self):
         # If rich format is requested, use RichRenderer
@@ -131,6 +131,39 @@ class TableDisplay:
             from tabulate import tabulate
 
             return tabulate(self.data, headers=self.headers, tablefmt=self.tablefmt)
+
+    def to_string(self) -> str:
+        """Return a string rendering of the table using the current format/renderer.
+
+        This mirrors the logic used by __repr__: when tablefmt is 'rich' it uses the
+        Rich renderer's string output; otherwise it renders via `tabulate` using the
+        configured `tablefmt`.
+        """
+        return self.__repr__()
+
+    def to_markdown(self) -> str:
+        """Return the table as a Markdown string.
+
+        Uses the 'pipe' table format (GitHub-flavored Markdown compatible).
+        Falls back to a minimal manual renderer if 'tabulate' is unavailable.
+        """
+        try:
+            from tabulate import tabulate
+
+            return tabulate(self.data, headers=self.headers, tablefmt="pipe")
+        except Exception:
+            # Minimal fallback: construct a simple pipe table without alignment
+            headers_line = "| " + " | ".join([str(h) for h in self.headers]) + " |"
+            separator = "| " + " | ".join(["---" for _ in self.headers]) + " |"
+            rows = [
+                "| "
+                + " | ".join(
+                    ["" if v is None else str(v) for v in row]  # ensure printable
+                )
+                + " |"
+                for row in self.data
+            ]
+            return "\n".join([headers_line, separator, *rows])
 
     @classmethod
     def from_dictionary(

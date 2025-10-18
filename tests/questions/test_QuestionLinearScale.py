@@ -23,6 +23,7 @@ valid_question_w_extras = {
     "question_options": [1, 2, 3, 4, 5],
     "option_labels": {1: "Bleh", 2: "Eeh", 3: "OK", 4: "Mm", 5: "Mmmm"},
     "question_name": "pizza",
+    "weight": None,
 }
 
 

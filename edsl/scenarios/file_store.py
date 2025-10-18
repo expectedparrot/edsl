@@ -307,7 +307,6 @@ class FileStore(Scenario):
         from google.genai.types import UploadFileConfig
         import time
 
-
         method_start = time.time()
 
         try:
@@ -317,9 +316,9 @@ class FileStore(Scenario):
             if google_api_key is None:
                 raise Exception("GOOGLE_API_KEY is not set.")
             client = genai.Client(api_key=google_api_key)
-            client_time = time.time() - client_start
+            _client_time = time.time() - client_start
             # print(
-            #     f"Google client creation in FileStore took {client_time:.3f}s",
+            #     f"Google client creation in FileStore took {_client_time:.3f}s",
             #     flush=True,
             # )
 
@@ -329,8 +328,8 @@ class FileStore(Scenario):
             google_file = client.files.upload(
                 file=self.path, config=UploadFileConfig(mime_type=self.mime_type)
             )
-            upload_time = time.time() - upload_start
-            # print(f"File upload completed in {upload_time:.3f}s", flush=True)
+            _upload_time = time.time() - upload_start
+            # print(f"File upload completed in {_upload_time:.3f}s", flush=True)
 
             self.external_locations["google"] = google_file.model_dump(mode="json")
 
@@ -343,17 +342,17 @@ class FileStore(Scenario):
                 status_start = time.time()
                 file_metadata = client.files.get(name=google_file.name)
                 file_state = file_metadata.state
-                status_time = time.time() - status_start
+                _status_time = time.time() - status_start
                 # print(
-                #     f"Attempt {attempt}: File state={file_state} (check took {status_time:.3f}s)",
+                #     f"Attempt {attempt}: File state={file_state} (check took {_status_time:.3f}s)",
                 #     flush=True,
                 # )
 
                 if file_state == "ACTIVE":
-                    polling_time = time.time() - polling_start
-                    total_time = time.time() - method_start
+                    _polling_time = time.time() - polling_start
+                    _total_time = time.time() - method_start
                     # print(
-                    #     f"File {self.name} activated after {attempt} attempts in {polling_time:.3f}s (total: {total_time:.3f}s)",
+                    #     f"File {self.name} activated after {attempt} attempts in {_polling_time:.3f}s (total: {_total_time:.3f}s)",
                     #     flush=True,
                     # )
                     break
@@ -363,8 +362,8 @@ class FileStore(Scenario):
                 # print(f"Waiting 0.5s before next attempt...", flush=True)
                 time.sleep(0.5)
         except Exception:
-            total_time = time.time() - method_start
-            # print(f"Error uploading to Google after {total_time:.3f}s: {e}", flush=True)
+            _total_time = time.time() - method_start
+            # print(f"Error uploading to Google after {_total_time:.3f}s: {e}", flush=True)
             raise
 
     async def async_upload_google(self, refresh: bool = False) -> dict:
@@ -417,16 +416,16 @@ class FileStore(Scenario):
                     creation_start = time.time()
                     FileStore._cached_client = genai.Client(api_key=google_api_key)
                     FileStore._cached_api_key = google_api_key
-                    creation_time = time.time() - creation_start
-                    client_time = time.time() - client_start
+                    _creation_time = time.time() - creation_start
+                    _client_time = time.time() - client_start
                     # print(
-                    #     f"Google client creation took {creation_time:.3f}s (total with lock: {client_time:.3f}s)",
+                    #     f"Google client creation took {_creation_time:.3f}s (total with lock: {_client_time:.3f}s)",
                     #     flush=True,
                     # )
                 else:
-                    client_time = time.time() - client_start
+                    _client_time = time.time() - client_start
                     # print(
-                    #     f"Using cached Google client in FileStore (took {client_time:.3f}s)",
+                    #     f"Using cached Google client in FileStore (took {_client_time:.3f}s)",
                     #     flush=True,
                     # )
 
@@ -438,8 +437,8 @@ class FileStore(Scenario):
             google_file = await client.aio.files.upload(
                 file=self.path, config=UploadFileConfig(mime_type=self.mime_type)
             )
-            upload_time = time.time() - upload_start
-            # print(f"Async file upload completed in {upload_time:.3f}s", flush=True)
+            _upload_time = time.time() - upload_start
+            # print(f"Async file upload completed in {_upload_time:.3f}s", flush=True)
 
             google_file_dict = google_file.model_dump(mode="json")
             # print(f"File {self.name} uploaded, waiting for activation...", flush=True)
@@ -450,18 +449,18 @@ class FileStore(Scenario):
             for attempt in range(max_attempts):
                 status_start = time.time()
                 file_metadata = await client.aio.files.get(name=google_file.name)
-                status_time = time.time() - status_start
+                _status_time = time.time() - status_start
                 file_state = file_metadata.state
                 # print(
-                #     f"Attempt {attempt+1}: File state={file_state} (check took {status_time:.3f}s)",
+                #     f"Attempt {attempt+1}: File state={file_state} (check took {_status_time:.3f}s)",
                 #     flush=True,
                 # )
 
                 if file_state == "ACTIVE":
-                    polling_time = time.time() - polling_start
-                    total_time = time.time() - method_start
+                    _polling_time = time.time() - polling_start
+                    _total_time = time.time() - method_start
                     # print(
-                    #     f"File {self.name} activated after {attempt+1} attempts in {polling_time:.3f}s (total: {total_time:.3f}s)",
+                    #     f"File {self.name} activated after {attempt+1} attempts in {_polling_time:.3f}s (total: {_total_time:.3f}s)",
                     #     flush=True,
                     # )
                     self.external_locations["google"] = google_file_dict
@@ -475,17 +474,17 @@ class FileStore(Scenario):
                 await asyncio.sleep(wait_time)
 
             # If we've exhausted all attempts
-            total_time = time.time() - method_start
+            _total_time = time.time() - method_start
             # print(
-            #     f"File upload timed out after {max_attempts} attempts (total time: {total_time:.3f}s)",
+            #     f"File upload timed out after {max_attempts} attempts (total time: {_total_time:.3f}s)",
             #     flush=True,
             # )
             raise Exception(f"File upload timed out after {max_attempts} attempts")
 
         except Exception:
-            total_time = time.time() - method_start
+            _total_time = time.time() - method_start
             # print(
-            #     f"Error in async_upload_google after {total_time:.3f}s: {e}", flush=True
+            #     f"Error in async_upload_google after {_total_time:.3f}s: {e}", flush=True
             # )
             raise
 
@@ -856,7 +855,9 @@ class FileStore(Scenario):
             base_name = os.path.splitext(os.path.basename(self.path))[0] or "document"
             output_path = os.path.join(temp_dir, f"{base_name}.pdf")
 
-        converter = MarkdownToPDF(self.text, filename=os.path.splitext(os.path.basename(output_path))[0])
+        converter = MarkdownToPDF(
+            self.text, filename=os.path.splitext(os.path.basename(output_path))[0]
+        )
         success = converter.convert(output_path, **options)
         if not success:
             raise RuntimeError("Failed to convert markdown to PDF")
@@ -884,7 +885,9 @@ class FileStore(Scenario):
             RuntimeError: If conversion fails.
         """
         if self.suffix.lower() not in ("md", "markdown"):
-            raise TypeError("to_docx() is only supported for markdown FileStore objects")
+            raise TypeError(
+                "to_docx() is only supported for markdown FileStore objects"
+            )
 
         import os
         import tempfile
@@ -896,7 +899,9 @@ class FileStore(Scenario):
             base_name = os.path.splitext(os.path.basename(self.path))[0] or "document"
             output_path = os.path.join(temp_dir, f"{base_name}.docx")
 
-        converter = MarkdownToDocx(self.text, filename=os.path.splitext(os.path.basename(output_path))[0])
+        converter = MarkdownToDocx(
+            self.text, filename=os.path.splitext(os.path.basename(output_path))[0]
+        )
         success = converter.convert(output_path, **options)
         if not success:
             raise RuntimeError("Failed to convert markdown to DOCX")

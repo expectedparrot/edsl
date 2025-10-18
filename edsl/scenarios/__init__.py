@@ -34,5 +34,20 @@ from .file_store import FileStore
 from .file_store_list import FileStoreList
 from .dimension import Dimension, DimensionValue
 from .conjoint_profile_generator import ConjointProfileGenerator
+from .agent_blueprint import AgentBlueprint
 
-__all__ = ["Scenario", "ScenarioList", "ScenarioSerializer", "ScenarioFactory", "ScenarioGCS", "ScenarioOffloader", "ScenarioSelector", "FileStore", "FileStoreList", "Dimension", "DimensionValue", "ConjointProfileGenerator"]
+__all__ = [
+    "Scenario",
+    "ScenarioList",
+    "ScenarioSerializer",
+    "ScenarioFactory",
+    "ScenarioGCS",
+    "ScenarioOffloader",
+    "ScenarioSelector",
+    "FileStore",
+    "FileStoreList",
+    "Dimension",
+    "DimensionValue",
+    "ConjointProfileGenerator",
+    "AgentBlueprint",
+]

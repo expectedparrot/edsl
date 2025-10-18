@@ -26,9 +26,9 @@ class TemplateManager:
                 resources.files(f"edsl.questions.templates.{question_type}")
                 / template_name
             )
-            self._template_cache[(question_type, template_name)] = (
-                template_file.read_text()
-            )
+            self._template_cache[
+                (question_type, template_name)
+            ] = template_file.read_text()
         return self._template_cache[(question_type, template_name)]
 
 

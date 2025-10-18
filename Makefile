@@ -57,6 +57,12 @@ install: ## Install all project deps and create a venv (local)
 	poetry install --with dev
 	@echo "All deps installed and venv created."
 
+install-hooks: ## Install git hooks (pre-commit and pre-push)
+	@bash scripts/install_git_hooks.sh
+
+check-status: ## Show status of pre-push checks for current commit
+	@bash scripts/check_status.sh
+
 find: ## Search for a pattern. Use `make find term="pattern"`
 	@find . -type d \( -name '.venv' -o -name '__pycache__' \) -prune -o -type f -print | xargs grep -l "$(term)"
 
@@ -135,8 +141,33 @@ endif
 
 
 ###############
-##@Development 🛠️  
+##@Development 🛠️
 ###############
+commit: ## Run all pre-push checks (format, lint, tests, doctests, benchmarks)
+	@echo "========================================="
+	@echo "Running all pre-push verification checks"
+	@echo "========================================="
+	@echo ""
+	@echo "1/5 Running Black formatting..."
+	@make format
+	@echo ""
+	@echo "2/5 Running Ruff linting..."
+	@make ruff-lint
+	@echo ""
+	@echo "3/5 Running unit tests..."
+	@make test
+	@echo ""
+	@echo "4/5 Running doctests..."
+	@make test-doctests
+	@echo ""
+	@echo "5/5 Running performance benchmarks..."
+	@make benchmark-all
+	@echo ""
+	@echo "========================================="
+	@echo "✓ All pre-push checks completed!"
+	@echo "You can now commit and push your changes."
+	@echo "========================================="
+
 backup: ## Backup the code to `edsl/.backups/`
 	TIMESTAMP=$$(date +"%Y%m%d_%H%M%S"); \
 	BACKUP_NAME=$(PROJECT_NAME)_$${TIMESTAMP}.tar.gz; \
@@ -201,11 +232,22 @@ benchmark-all: ## Run all performance benchmarks and generate reports
 	@make benchmark-memory || true
 	@make benchmark-memory-line || true
 	@make test-memory || true
+	@echo "Writing results to performance.yml..."
+	@python scripts/write_performance_yaml.py
+	@echo "Generating performance visualizations..."
+	@python scripts/visualize_performance.py --report
 	@make benchmark-report || true
-	@echo "All benchmarks complete. See benchmark_logs/reports/ for visualizations."
+	@echo "All benchmarks complete. See performance.yml and benchmark_logs/reports/ for results."
+	@bash scripts/mark_check_complete.sh BENCHMARKS
 
 benchmark-test: ## Test that benchmark scripts work properly
 	python scripts/test_benchmarks.py
+
+performance-report: ## Generate performance report from existing performance.yml
+	python scripts/visualize_performance.py --report --open
+
+performance-visualize: ## Create performance visualizations without opening report
+	python scripts/visualize_performance.py --report
 
 bump: ## Bump the version of the package
 	@python scripts/bump_version.py $(filter-out $@,$(MAKECMDGOALS))
@@ -256,8 +298,8 @@ typing-report:
 	open typing_report/index.html
 
 format: ## Run code autoformatters (black).
-	pre-commit install
 	pre-commit run black-jupyter --all-files --all
+	@bash scripts/mark_check_complete.sh BLACK
 
 lint: ## Run ruff linter with --fix --verbose. Use 'make lint DIR' to lint specific directory/file
 	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
@@ -288,6 +330,7 @@ ruff-lint: ## Run ruff linter on all modules in sequence
 	poetry run ruff check edsl/utilities
 	poetry run ruff check edsl/language_models
 	poetry run ruff check edsl/caching
+	@bash scripts/mark_check_complete.sh RUFF
 
 visualize: ## Visualize the repo structure
 	python scripts/visualize_structure.py
@@ -300,8 +343,22 @@ visualize: ## Visualize the repo structure
 ###############
 ##@Testing 🐛
 ###############
-github-tests-locally: ## Run tests on GitHub Actions
-	act
+github-tests-locally: ## Run tests on GitHub Actions (with only committed files)
+	@echo "Stashing uncommitted changes..."
+	@git stash push -u -m "Temporary stash for github-tests-locally"
+	@echo "Running tests with act..."
+	@act; \
+	EXIT_CODE=$$?; \
+	echo "Restoring uncommitted changes..."; \
+	git stash pop; \
+	echo "Cleaning up Docker images created by act..."; \
+	docker image prune -f --filter "label=org.opencontainers.image.source=https://github.com/catthehacker/docker_images"; \
+	docker system prune -f --volumes; \
+	echo "Docker cleanup complete."; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		bash scripts/mark_check_complete.sh GITHUB_ACTIONS; \
+	fi; \
+	exit $$EXIT_CODE
 
 test: ## Run regular tests (no Coop tests). Use 'make test DIR' to run tests from specific directory
 	make clean-test
@@ -313,6 +370,7 @@ test: ## Run regular tests (no Coop tests). Use 'make test DIR' to run tests fro
 		echo "Running all tests"; \
 		pytest -xv tests --nocoop; \
 	fi
+	@bash scripts/mark_check_complete.sh TESTS
 
 test-token-bucket: ## Run token bucket tests
 	make clean-test
@@ -365,32 +423,33 @@ test-doctests: ## Run doctests for a specific directory (e.g., make test-doctest
 		dir="$(filter-out $@,$(MAKECMDGOALS))"; \
 		echo "Running doctests for directory: $$dir"; \
 		if [ "$$dir" = "edsl/buckets" ]; then \
-			pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py $$dir; \
+			EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py $$dir; \
 		else \
-			pytest --doctest-modules $$dir; \
+			EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules $$dir; \
 		fi; \
 	else \
 		echo "Running doctests for all directories"; \
-		pytest --doctest-modules edsl/instructions; \
-		pytest --doctest-modules edsl/key_management; \
-		pytest --doctest-modules edsl/prompts; \
-		pytest --doctest-modules edsl/tasks; \
-		pytest --doctest-modules edsl/results; \
-		pytest --doctest-modules edsl/dataset; \
-		pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets; \
-		pytest --doctest-modules edsl/interviews; \
-		pytest --doctest-modules edsl/tokens; \
-		pytest --doctest-modules edsl/jobs/; \
-		pytest --doctest-modules edsl/surveys; \
-		pytest --doctest-modules edsl/agents; \
-		pytest --doctest-modules edsl/scenarios; \
-		pytest --doctest-modules edsl/questions; \
-		pytest --doctest-modules edsl/utilities; \
-		pytest --doctest-modules edsl/language_models; \
-		pytest --doctest-modules edsl/caching; \
-		pytest --doctest-modules edsl/invigilators; \
-		pytest --doctest-modules edsl/inference_services; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/instructions; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/key_management; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/prompts; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/tasks; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/results; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/dataset; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/interviews; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/tokens; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/jobs/; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/surveys; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/agents; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/scenarios; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/questions; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/utilities; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/language_models; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/caching; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/invigilators; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/inference_services; \
 	fi
+	@bash scripts/mark_check_complete.sh DOCTESTS
 
 test-doctests-parallel: ## Run doctests in parallel
 	make clean-test

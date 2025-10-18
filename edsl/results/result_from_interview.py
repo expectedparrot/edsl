@@ -106,10 +106,11 @@ class ResultFromInterview:
             else {}
         )
 
-        raw_model_results_dictionary, cache_used_dictionary = (
-            self._get_raw_model_results_and_cache_used_dictionary(
-                model_response_objects
-            )
+        (
+            raw_model_results_dictionary,
+            cache_used_dictionary,
+        ) = self._get_raw_model_results_and_cache_used_dictionary(
+            model_response_objects
         )
 
         validated_dictionary = self._get_validated_dictionary(model_response_objects)
@@ -252,12 +253,12 @@ class ResultFromInterview:
         """Create dictionary of prompts for each question."""
         prompt_dictionary = {}
         for answer_key_name in answer_key_names:
-            prompt_dictionary[answer_key_name + "_user_prompt"] = (
-                question_name_to_prompts[answer_key_name]["user_prompt"]
-            )
-            prompt_dictionary[answer_key_name + "_system_prompt"] = (
-                question_name_to_prompts[answer_key_name]["system_prompt"]
-            )
+            prompt_dictionary[
+                answer_key_name + "_user_prompt"
+            ] = question_name_to_prompts[answer_key_name]["user_prompt"]
+            prompt_dictionary[
+                answer_key_name + "_system_prompt"
+            ] = question_name_to_prompts[answer_key_name]["system_prompt"]
         return prompt_dictionary
 
     def _get_raw_model_results_and_cache_used_dictionary(self, model_response_objects):
@@ -266,15 +267,15 @@ class ResultFromInterview:
         cache_used_dictionary = {}
         for result in model_response_objects:
             question_name = result.question_name
-            raw_model_results_dictionary[question_name + "_raw_model_response"] = (
-                result.raw_model_response
-            )
-            raw_model_results_dictionary[question_name + "_input_tokens"] = (
-                result.input_tokens
-            )
-            raw_model_results_dictionary[question_name + "_output_tokens"] = (
-                result.output_tokens
-            )
+            raw_model_results_dictionary[
+                question_name + "_raw_model_response"
+            ] = result.raw_model_response
+            raw_model_results_dictionary[
+                question_name + "_input_tokens"
+            ] = result.input_tokens
+            raw_model_results_dictionary[
+                question_name + "_output_tokens"
+            ] = result.output_tokens
             raw_model_results_dictionary[
                 question_name + "_input_price_per_million_tokens"
             ] = result.input_price_per_million_tokens

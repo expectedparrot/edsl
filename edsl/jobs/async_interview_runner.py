@@ -11,9 +11,11 @@ from dataclasses import dataclass
 import asyncio
 
 from .data_structures import RunConfig
+from .exceptions import JobTerminationError
 
 from ..config import Config
 from ..logger import get_logger
+from ..language_models.exceptions import LanguageModelInsufficientCreditsError
 
 config = Config()
 
@@ -172,11 +174,6 @@ class AsyncInterviewRunner:
             return (result, interview, idx)
         except Exception as e:
             # Check for balance error which should stop the entire job
-            from ...language_models.exceptions import (
-                LanguageModelInsufficientCreditsError,
-            )
-            from ..exceptions import JobTerminationError
-
             if isinstance(e, LanguageModelInsufficientCreditsError):
                 # Balance error should stop entire job
                 self._logger.error(f"Insufficient credits detected: {e}")

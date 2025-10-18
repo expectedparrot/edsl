@@ -93,8 +93,13 @@ class ResultsSerializationCases(SerializationBase):
             for class_name, subclass in RegisterQuestionsMeta.get_registered_classes().items()
             if class_name != "QuestionFunctional"
         ]
-        # Use example questions for each question class
-        questions = [q.example() for q in all_question_types]
+        # Use example questions for each question class with unique names
+        questions = []
+        for i, q_type in enumerate(all_question_types):
+            q = q_type.example()
+            # Make question names unique by appending index
+            q.question_name = f"{q.question_name}_{i}"
+            questions.append(q)
         s = Survey(questions=questions)
         # s = self.configure_agents_and_models(s)
         result = s.run(
