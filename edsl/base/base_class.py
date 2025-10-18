@@ -188,6 +188,7 @@ class PersistenceMixin:
         alias: Optional[str] = None,
         visibility: Optional[str] = "unlisted",
         expected_parrot_url: Optional[str] = None,
+        overwrite: bool = False,
     ) -> dict:
         """
         Get a signed URL for directly uploading an object to Google Cloud Storage.
@@ -211,7 +212,7 @@ class PersistenceMixin:
         from edsl.coop import Coop
 
         c = Coop(url=expected_parrot_url)
-        return c.push(self, description, alias, visibility)
+        return c.push(self, description, alias, visibility, overwrite)
 
     def to_yaml(self, add_edsl_version=False, filename: str = None) -> Union[str, None]:
         """Convert the object to YAML format.
@@ -344,6 +345,7 @@ class PersistenceMixin:
         from edsl.coop import Coop
         from edsl.coop import ObjectRegistry
         from edsl.jobs import Jobs
+        from edsl.config import CONFIG
 
         # Convert shorthand syntax to full URL if needed
         if isinstance(url_or_uuid, str) and not url_or_uuid.startswith(('http://', 'https://')):
@@ -351,7 +353,7 @@ class PersistenceMixin:
             is_uuid = len(url_or_uuid) == 36 and url_or_uuid.count('-') == 4
             if not is_uuid and '/' in url_or_uuid:
                 # Looks like shorthand format "username/alias"
-                url_or_uuid = f"http://www.expectedparrot.com/content/{url_or_uuid}"
+                url_or_uuid = f"{CONFIG.EXPECTED_PARROT_URL}/content/{url_or_uuid}"
 
         coop = Coop(url=expected_parrot_url)
 

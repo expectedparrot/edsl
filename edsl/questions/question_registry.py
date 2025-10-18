@@ -42,11 +42,18 @@ class Question(metaclass=Meta):
 
         subclass = get_question_classes.get(question_type, None)
         if subclass is None:
-            from .exceptions import QuestionValueError
 
-            raise QuestionValueError(
-                f"No question registered with question_type {question_type}"
-            )
+            # they might be trying to pull a question from coop by name
+            try: 
+                q = Question.pull(question_type)
+                return q
+            except Exception as e:
+
+                from .exceptions import QuestionValueError
+
+                raise QuestionValueError(
+                    f"No question registered with question_type {question_type}"
+                )
 
         # Create an instance of the selected subclass
         instance = object.__new__(subclass)
@@ -62,8 +69,29 @@ class Question(metaclass=Meta):
 
     @classmethod
     def pull(cls, url_or_uuid: Union[str, UUID]):
-        """Pull the object from coop."""
+        """Pull the object from coop.
+        
+        Args:
+            url_or_uuid: Identifier for the question to retrieve.
+                Can be one of:
+                - UUID string (e.g., "123e4567-e89b-12d3-a456-426614174000")
+                - Full URL (e.g., "https://expectedparrot.com/content/123e4567...")
+                - Alias URL (e.g., "https://expectedparrot.com/content/username/my-question")
+                - Shorthand alias (e.g., "username/my-question")
+        
+        Returns:
+            The question object retrieved from coop
+        """
         from ..coop import Coop
+        from ..config import CONFIG
+
+        # Convert shorthand syntax to full URL if needed
+        if isinstance(url_or_uuid, str) and not url_or_uuid.startswith(('http://', 'https://')):
+            # Check if it looks like a UUID (basic check for UUID format)
+            is_uuid = len(url_or_uuid) == 36 and url_or_uuid.count('-') == 4
+            if not is_uuid and '/' in url_or_uuid:
+                # Looks like shorthand format "username/alias"
+                url_or_uuid = f"{CONFIG.EXPECTED_PARROT_URL}/content/{url_or_uuid}"
 
         coop = Coop()
         return coop.pull(url_or_uuid, "question")
@@ -130,7 +158,7 @@ class Question(metaclass=Meta):
             ]
             d = RegisterQuestionsMeta.question_types_to_classes()
             question_classes = [d[q] for q in question_list]
-            example_questions = [repr(q.example()) for q in question_classes]
+            example_questions = [q.example()._eval_repr_() for q in question_classes]
 
             return Dataset(
                 [
