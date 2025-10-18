@@ -343,8 +343,19 @@ visualize: ## Visualize the repo structure
 ###############
 ##@Testing 🐛
 ###############
-github-tests-locally: ## Run tests on GitHub Actions
-	act
+github-tests-locally: ## Run tests on GitHub Actions (with only committed files)
+	@echo "Stashing uncommitted changes..."
+	@git stash push -u -m "Temporary stash for github-tests-locally"
+	@echo "Running tests with act..."
+	@act; \
+	EXIT_CODE=$$?; \
+	echo "Restoring uncommitted changes..."; \
+	git stash pop; \
+	echo "Cleaning up Docker images created by act..."; \
+	docker image prune -f --filter "label=org.opencontainers.image.source=https://github.com/catthehacker/docker_images"; \
+	docker system prune -f --volumes; \
+	echo "Docker cleanup complete."; \
+	exit $$EXIT_CODE
 
 test: ## Run regular tests (no Coop tests). Use 'make test DIR' to run tests from specific directory
 	make clean-test
@@ -409,31 +420,31 @@ test-doctests: ## Run doctests for a specific directory (e.g., make test-doctest
 		dir="$(filter-out $@,$(MAKECMDGOALS))"; \
 		echo "Running doctests for directory: $$dir"; \
 		if [ "$$dir" = "edsl/buckets" ]; then \
-			pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py $$dir; \
+			EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py $$dir; \
 		else \
-			pytest --doctest-modules $$dir; \
+			EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules $$dir; \
 		fi; \
 	else \
 		echo "Running doctests for all directories"; \
-		pytest --doctest-modules edsl/instructions; \
-		pytest --doctest-modules edsl/key_management; \
-		pytest --doctest-modules edsl/prompts; \
-		pytest --doctest-modules edsl/tasks; \
-		pytest --doctest-modules edsl/results; \
-		pytest --doctest-modules edsl/dataset; \
-		pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets; \
-		pytest --doctest-modules edsl/interviews; \
-		pytest --doctest-modules edsl/tokens; \
-		pytest --doctest-modules edsl/jobs/; \
-		pytest --doctest-modules edsl/surveys; \
-		pytest --doctest-modules edsl/agents; \
-		pytest --doctest-modules edsl/scenarios; \
-		pytest --doctest-modules edsl/questions; \
-		pytest --doctest-modules edsl/utilities; \
-		pytest --doctest-modules edsl/language_models; \
-		pytest --doctest-modules edsl/caching; \
-		pytest --doctest-modules edsl/invigilators; \
-		pytest --doctest-modules edsl/inference_services; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/instructions; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/key_management; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/prompts; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/tasks; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/results; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/dataset; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/interviews; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/tokens; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/jobs/; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/surveys; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/agents; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/scenarios; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/questions; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/utilities; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/language_models; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/caching; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/invigilators; \
+		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/inference_services; \
 	fi
 	@bash scripts/mark_check_complete.sh DOCTESTS
 
