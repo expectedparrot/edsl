@@ -56,8 +56,6 @@ import warnings
 import csv
 import random
 import os
-import inspect
-from collections import defaultdict
 from collections.abc import Iterable, MutableSequence
 import json
 import pickle
@@ -65,7 +63,6 @@ import pickle
 
 # Import for refactoring to Source classes
 
-from simpleeval import EvalWithCompoundTypes, NameNotDefined  # type: ignore
 from tabulate import tabulate_formats
 
 try:
@@ -200,7 +197,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         # Only intercept when actively recording and the attribute is a public bound method to record
         try:
             is_active = object.__getattribute__(self, "_cond_active")
-            current_branch = object.__getattribute__(self, "_cond_branch")
+            _current_branch = object.__getattribute__(self, "_cond_branch")
         except Exception:
             return attr
 
@@ -1025,7 +1022,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 description = codebook_dict[param]
                 output.append(f"        {param}: ", style="bold yellow")
                 output.append(f"{repr(description)}\n", style="dim")
-                output.append(f"            → ", style="green")
+                output.append("            → ", style="green")
                 output.append(f"[{values_str}]\n", style="white")
             else:
                 output.append(f"        {param}: ", style="bold yellow")
@@ -1765,10 +1762,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             if d["question_type"] == "free_text":
                 if "question_options" in d:
                     _ = d.pop("question_options")
-            if 'question_name' not in d or d['question_name'] == None:
+            if 'question_name' not in d or d['question_name'] is None:
                 d['question_name'] = f"question_{index}"
 
-            if d['question_type'] == None:
+            if d['question_type'] is None:
                 d['question_type'] = "free_text"
                 d['question_options'] = None
 

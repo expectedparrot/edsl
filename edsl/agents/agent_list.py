@@ -13,7 +13,7 @@ from itertools import product
 from ..base.decorators import polly_command
 
 from collections import UserList
-from typing import Any, List, Optional, Union, TYPE_CHECKING
+from typing import Any, Callable, List, Optional, Union, TYPE_CHECKING
 
 # simpleeval imports moved to agent_list_filter.py
 
@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from ..surveys import Survey
     from ..scenarios import ScenarioList
     from ..results import Results
+    from .agent_list_deltas import AgentListDeltas
 
 
 # is_iterable function moved to agent_list_trait_operations.py
@@ -364,8 +365,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             ...
             edsl.agents.exceptions.AgentListError: ...
         """
-        from .agent_list_deltas import AgentListDeltas
-        
         return deltas.apply(self)
 
     def drop(self, *field_names: Union[str, List[str]]) -> AgentList:
@@ -1056,7 +1055,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
                 description = codebook_dict[trait]
                 output.append(f"        {trait}: ", style="bold yellow")
                 output.append(f"{repr(description)}\n", style="dim")
-                output.append(f"            → ", style="green")
+                output.append("            → ", style="green")
                 output.append(f"[{values_str}]\n", style="white")
             else:
                 output.append(f"        {trait}: ", style="bold yellow")

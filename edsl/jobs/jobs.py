@@ -1023,7 +1023,7 @@ class Jobs(Base):
                     self._logger.error(f"Job terminated: {e}")
                     if isinstance(e.cause, LanguageModelInsufficientCreditsError):
                         # Handle insufficient credits termination
-                        print(f"❌ Job terminated due to insufficient credits")
+                        print("❌ Job terminated due to insufficient credits")
                         print(
                             f"💰 Current balance: {getattr(e.cause, 'current_balance', 'Unknown')}"
                         )
@@ -1031,7 +1031,7 @@ class Jobs(Base):
                             f"📊 Completed: {len(results)} interviews before termination"
                         )
                         print(
-                            f"🔗 Add credits at: https://www.expectedparrot.com/home/credits"
+                            "🔗 Add credits at: https://www.expectedparrot.com/home/credits"
                         )
                     return results  # Return partial results
                 raise  # Re-raise other exceptions
@@ -1057,7 +1057,7 @@ class Jobs(Base):
                         self._logger.error(f"Job terminated: {e}")
                         if isinstance(e.cause, LanguageModelInsufficientCreditsError):
                             # Handle insufficient credits termination
-                            print(f"❌ Job terminated due to insufficient credits")
+                            print("❌ Job terminated due to insufficient credits")
                             print(
                                 f"💰 Current balance: {getattr(e.cause, 'current_balance', 'Unknown')}"
                             )
@@ -1065,7 +1065,7 @@ class Jobs(Base):
                                 f"📊 Completed: {len(results)} interviews before termination"
                             )
                             print(
-                                f"🔗 Add credits at: https://www.expectedparrot.com/home/credits"
+                                "🔗 Add credits at: https://www.expectedparrot.com/home/credits"
                             )
                         return results  # Return partial results
 
@@ -1664,9 +1664,9 @@ class Jobs(Base):
 
         if reason and "insufficient funds" in reason:
             self._logger.info(f"Job cancelled due to insufficient funds: {reason}")
-            print(f"❌ Job cancelled before execution")
+            print("❌ Job cancelled before execution")
             print(f"💰 {reason}")
-            print(f"🔗 Add credits at: https://www.expectedparrot.com/home/credits")
+            print("🔗 Add credits at: https://www.expectedparrot.com/home/credits")
             return None
 
         self._logger.info("Starting local execution with remote cache")
@@ -1792,9 +1792,6 @@ class Jobs(Base):
         )
         config = RunConfig(environment=environment, parameters=parameters)
 
-        import time
-
-        start_time = time.time()
         self._logger.info(f"Starting batch execution with {num_batches} batches")
         self._logger.info(
             f"Job configuration: {self.num_interviews} total interviews, "

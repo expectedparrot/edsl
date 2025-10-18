@@ -260,7 +260,7 @@ class AgentBlueprint(Base):
             
             # Show description if available
             if dim.description:
-                output.append(f"            → ", style="green")
+                output.append("            → ", style="green")
                 output.append(f"{repr(dim.description)}\n", style="dim")
 
         output.append(")", style="bold cyan")
@@ -383,7 +383,7 @@ class AgentBlueprint(Base):
         # Generate AgentBlueprint instantiation
         dim_names = ", ".join(self.dimensions)
         lines.append("")
-        lines.append(f"blueprint = AgentBlueprint.from_dimensions(")
+        lines.append("blueprint = AgentBlueprint.from_dimensions(")
         lines.append(f"    {dim_names},")
         if self.seed is not None:
             lines.append(f"    seed={self.seed},")

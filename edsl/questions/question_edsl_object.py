@@ -406,7 +406,7 @@ class QuestionEDSLObject(QuestionBase):
                     "edsl_version": "1.0.5.dev1",
                     "edsl_class_name": "Base"
                 }
-        except Exception as e:
+        except Exception:
             simulated_object = {
                 "object_type": self.expected_object_type,
                 "name": "example",

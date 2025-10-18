@@ -12,7 +12,6 @@ from ..base import Base
 from ..utilities import dict_hash, remove_edsl_version
 
 if TYPE_CHECKING:
-    from .agent import Agent
     from .agent_list import AgentList
     from .agent_delta import AgentDelta
 

@@ -529,7 +529,7 @@ class FirecrawlScenario:
                     environment variable or .env file.
         """
         try:
-            import httpx
+            import httpx  # noqa: F401
         except ImportError:
             raise ImportError(
                 "httpx is required. Install it with: pip install httpx"

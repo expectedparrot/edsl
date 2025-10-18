@@ -48,6 +48,7 @@ if TYPE_CHECKING:
     from ..interviews import Interview
     from ..surveys import Survey
     from ..agents import AgentList
+    from ..reports.report import QuestionAnalysis
     from ..scenarios import ScenarioList
     from ..results import Result
     from ..tasks import TaskHistory
@@ -621,9 +622,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 if len(q_text) > max_text_preview:
                     q_text = q_text[:max_text_preview] + "..."
                 
-                output.append(f"        ", style="white")
+                output.append("        ", style="white")
                 output.append(f"'{q_name}'", style="bold yellow")
-                output.append(f": ", style="white")
+                output.append(": ", style="white")
                 output.append(f'"{q_text}"', style="dim")
                 output.append(",\n", style="white")
             

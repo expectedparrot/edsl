@@ -56,6 +56,14 @@ install: ## Install all project deps and create a venv (local)
 	@echo "Creating a venv from pyproject.toml and installing deps using poetry..."
 	poetry install --with dev
 	@echo "All deps installed and venv created."
+	@echo "Installing git hooks..."
+	@bash scripts/install_git_hooks.sh || true
+
+install-hooks: ## Install git hooks (pre-commit and pre-push)
+	@bash scripts/install_git_hooks.sh
+
+check-status: ## Show status of pre-push checks for current commit
+	@bash scripts/check_status.sh
 
 find: ## Search for a pattern. Use `make find term="pattern"`
 	@find . -type d \( -name '.venv' -o -name '__pycache__' \) -prune -o -type f -print | xargs grep -l "$(term)"
@@ -201,11 +209,22 @@ benchmark-all: ## Run all performance benchmarks and generate reports
 	@make benchmark-memory || true
 	@make benchmark-memory-line || true
 	@make test-memory || true
+	@echo "Writing results to performance.yml..."
+	@python scripts/write_performance_yaml.py
+	@echo "Generating performance visualizations..."
+	@python scripts/visualize_performance.py --report
 	@make benchmark-report || true
-	@echo "All benchmarks complete. See benchmark_logs/reports/ for visualizations."
+	@echo "All benchmarks complete. See performance.yml and benchmark_logs/reports/ for results."
+	@bash scripts/mark_check_complete.sh BENCHMARKS
 
 benchmark-test: ## Test that benchmark scripts work properly
 	python scripts/test_benchmarks.py
+
+performance-report: ## Generate performance report from existing performance.yml
+	python scripts/visualize_performance.py --report --open
+
+performance-visualize: ## Create performance visualizations without opening report
+	python scripts/visualize_performance.py --report
 
 bump: ## Bump the version of the package
 	@python scripts/bump_version.py $(filter-out $@,$(MAKECMDGOALS))
@@ -258,6 +277,7 @@ typing-report:
 format: ## Run code autoformatters (black).
 	pre-commit install
 	pre-commit run black-jupyter --all-files --all
+	@bash scripts/mark_check_complete.sh BLACK
 
 lint: ## Run ruff linter with --fix --verbose. Use 'make lint DIR' to lint specific directory/file
 	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
@@ -288,6 +308,7 @@ ruff-lint: ## Run ruff linter on all modules in sequence
 	poetry run ruff check edsl/utilities
 	poetry run ruff check edsl/language_models
 	poetry run ruff check edsl/caching
+	@bash scripts/mark_check_complete.sh RUFF
 
 visualize: ## Visualize the repo structure
 	python scripts/visualize_structure.py
@@ -313,6 +334,7 @@ test: ## Run regular tests (no Coop tests). Use 'make test DIR' to run tests fro
 		echo "Running all tests"; \
 		pytest -xv tests --nocoop; \
 	fi
+	@bash scripts/mark_check_complete.sh TESTS
 
 test-token-bucket: ## Run token bucket tests
 	make clean-test
@@ -391,6 +413,7 @@ test-doctests: ## Run doctests for a specific directory (e.g., make test-doctest
 		pytest --doctest-modules edsl/invigilators; \
 		pytest --doctest-modules edsl/inference_services; \
 	fi
+	@bash scripts/mark_check_complete.sh DOCTESTS
 
 test-doctests-parallel: ## Run doctests in parallel
 	make clean-test

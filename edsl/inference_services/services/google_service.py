@@ -109,9 +109,9 @@ class GoogleService(InferenceServiceABC):
                     files_list: Optional list of files to include
                     remote_proxy: Optional flag to use remote proxy instead of direct API call
                 """
-                import time
+                # import time
 
-                method_start = time.time()
+                # method_start = time.time()
 
                 if files_list is None:
                     files_list = []
@@ -144,24 +144,24 @@ class GoogleService(InferenceServiceABC):
                     )
 
                 # Get or create cached client (thread-safe)
-                client_start = time.time()
+                # client_start = time.time()
                 async with self._client_lock:
                     if (
                         self._cached_client is None
                         or self._cached_api_token != self.api_token
                     ):
                         # print("Creating new Google client...", flush=True)
-                        creation_start = time.time()
+                        # creation_start = time.time()
                         self._cached_client = genai.Client(api_key=self.api_token)
                         self._cached_api_token = self.api_token
-                        creation_time = time.time() - creation_start
-                        client_time = time.time() - client_start
+                        # creation_time = time.time() - creation_start
+                        # client_time = time.time() - client_start
                         # print(
                         #     f"Google client creation took {creation_time:.3f}s (total with lock: {client_time:.3f}s)",
                         #     flush=True,
                         # )
-                    else:
-                        client_time = time.time() - client_start
+                    # else:
+                        # client_time = time.time() - client_start
                         # print(
                         #     f"Using cached Google client (took {client_time:.3f}s)",
                         #     flush=True,
@@ -170,7 +170,7 @@ class GoogleService(InferenceServiceABC):
                 client = self._cached_client
 
                 # Time prompt processing
-                prompt_start = time.time()
+                # prompt_start = time.time()
                 if system_prompt is not None and system_prompt != "":
                     if self._model_ != "gemini-pro":
                         system_instruction = system_prompt
@@ -186,24 +186,24 @@ class GoogleService(InferenceServiceABC):
                     system_instruction = None
 
                 combined_prompt = [user_prompt]
-                prompt_time = time.time() - prompt_start
+                # prompt_time = time.time() - prompt_start
                 # print(f"Prompt processing took {prompt_time:.3f}s", flush=True)
 
                 # Time file processing
-                file_start = time.time()
+                # file_start = time.time()
                 # print(f"Processing {len(files_list)} files", flush=True)
 
                 # Use the file upload cache to handle uploads efficiently
                 from ...scenarios.file_upload_cache import file_upload_cache
 
                 for i, file in enumerate(files_list):
-                    file_upload_start = time.time()
+                    # file_upload_start = time.time()
                     # Use cache to get or upload the file
                     # This ensures each unique file is only uploaded once
                     google_file_info = await file_upload_cache.get_or_upload(
                         file, service="google"
                     )
-                    file_upload_time = time.time() - file_upload_start
+                    # file_upload_time = time.time() - file_upload_start
                     # print(
                     #     f"File {i+1} upload/cache took {file_upload_time:.3f}s",
                     #     flush=True,
@@ -211,19 +211,19 @@ class GoogleService(InferenceServiceABC):
 
                     # print("gogole file info is",google_file_info)
                     # Create the Google AI file reference using native async API
-                    file_ref_start = time.time()
+                    # file_ref_start = time.time()
                     try:
                         gen_ai_file = await client.aio.files.get(
                             name=google_file_info["name"]
                         )
                         combined_prompt.append(gen_ai_file)
-                        file_ref_time = time.time() - file_ref_start
+                        # file_ref_time = time.time() - file_ref_start
                         # print(
                         #     f"File {i+1} reference creation took {file_ref_time:.3f}s",
                         #     flush=True,
                         # )
                     except Exception as e:
-                        file_ref_time = time.time() - file_ref_start
+                        # file_ref_time = time.time() - file_ref_start
                         # print(
                         #     f"File {i+1} reference creation failed after {file_ref_time:.3f}s: {str(e)}",
                         #     flush=True,
@@ -232,11 +232,11 @@ class GoogleService(InferenceServiceABC):
                             f"Failed to create file reference for {google_file_info['name']}: {str(e)}"
                         )
 
-                file_total_time = time.time() - file_start
+                # file_total_time = time.time() - file_start
                 # print(f"Total file processing took {file_total_time:.3f}s", flush=True)
 
                 # Time config creation
-                config_start = time.time()
+                # config_start = time.time()
                 generation_config = types.GenerateContentConfig(
                     temperature=self.temperature,
                     top_p=self.topP,
@@ -252,11 +252,11 @@ class GoogleService(InferenceServiceABC):
                     ],
                     system_instruction=system_instruction,
                 )
-                config_time = time.time() - config_start
+                # config_time = time.time() - config_start
                 # print(f"Configuration creation took {config_time:.3f}s", flush=True)
 
                 # Time API call
-                api_start = time.time()
+                # api_start = time.time()
                 # print(
                 #     f"Making async API call to {self._model_} with {len(combined_prompt)} prompt parts",
                 #     flush=True,
@@ -266,17 +266,17 @@ class GoogleService(InferenceServiceABC):
                     contents=combined_prompt,
                     config=generation_config,
                 )
-                api_time = time.time() - api_start
+                # api_time = time.time() - api_start
                 # print(f"Async API call completed in {api_time:.3f}s", flush=True)
 
                 # Time response processing
-                response_start = time.time()
+                # response_start = time.time()
                 result = response.model_dump(mode="json")
-                response_time = time.time() - response_start
+                # response_time = time.time() - response_start
                 # print(f"Response processing took {response_time:.3f}s", flush=True)
 
                 # Print total method time
-                total_time = time.time() - method_start
+                # total_time = time.time() - method_start
                 # print(
                 #     f"Total async_execute_model_call took {total_time:.3f}s", flush=True
                 # )

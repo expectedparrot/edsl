@@ -34,7 +34,7 @@ Example:
 
 from __future__ import annotations
 import random
-from typing import TYPE_CHECKING, Optional, Union, List, Dict, Any
+from typing import TYPE_CHECKING, Optional, List, Dict, Any
 from collections.abc import Iterator
 
 from .scenario import Scenario

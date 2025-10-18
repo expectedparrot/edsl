@@ -28,6 +28,7 @@ from .exceptions import ScenarioError
 if TYPE_CHECKING:
     from .scenario_list import ScenarioList
     from ..dataset import Dataset
+    from ..agents.agent_list import AgentList
     from ..jobs import Jobs
     from ..questions import QuestionBase as Question
     from ..surveys import Survey
@@ -684,7 +685,7 @@ class Scenario(Base, UserDict):
                 if len(value_repr) > max_value_length:
                     value_repr = value_repr[:max_value_length-3] + "..."
                 
-                output.append(f"        ", style="white")
+                output.append("        ", style="white")
                 output.append(f"'{key}'", style="bold yellow")
                 output.append(f": {value_repr},\n", style="white")
             

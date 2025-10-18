@@ -1,5 +1,10 @@
 from __future__ import annotations
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .survey import Survey
+    from ..questions.question_base import QuestionBase
+    from ..instructions.instruction import Instruction
 
 
 class InteractiveSurvey:

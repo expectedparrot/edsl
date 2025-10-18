@@ -87,7 +87,6 @@ class TextualInteractiveSurveyApp:  # Thin wrapper to avoid importing textual at
         Vertical = sym["Vertical"]
         Container = sym["Container"]
         Header = sym["Header"]
-        Footer = sym["Footer"]
         Button = sym["Button"]
         Static = sym["Static"]
         Input = sym["Input"]

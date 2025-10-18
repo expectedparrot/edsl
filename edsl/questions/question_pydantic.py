@@ -516,7 +516,6 @@ class QuestionPydantic(QuestionBase):
 
                 # Get constraints if they exist
                 minimum = field_info.get("minimum", field_info.get("exclusiveMinimum", 0))
-                maximum = field_info.get("maximum", field_info.get("exclusiveMaximum", 100))
 
                 if field_type == "string":
                     example_data[field_name] = "example"
@@ -549,7 +548,7 @@ class QuestionPydantic(QuestionBase):
             validated = self.user_pydantic_model.model_validate(example_data)
             result = validated.model_dump()
 
-        except Exception as e:
+        except Exception:
             # Fallback: try to create from model fields directly
             try:
                 # Get model fields and use their defaults or construct minimally
@@ -621,7 +620,7 @@ def main():
     print(f"Question text: {q.question_text}")
     print(f"Question name: {q.question_name}")
     print(f"Pydantic model: {q.user_pydantic_model.__name__}")
-    print(f"\nJSON Schema:")
+    print("\nJSON Schema:")
     print(json.dumps(q.get_response_schema(), indent=2))
 
     # Simulate an answer

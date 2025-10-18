@@ -44,6 +44,7 @@ __all__ = [
     "random_string",
     "shorten_string",
     "is_gzipped",
+    "sanitize_jinja_syntax",
     "sync_wrapper",
     "jupyter_nb_handler",
     "memory_profile",

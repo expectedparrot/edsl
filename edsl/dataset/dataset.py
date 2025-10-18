@@ -396,7 +396,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
                 col_str = str(col)
                 if len(col_str) > 40:
                     col_str = col_str[:37] + "..."
-                output.append(f"        ", style="white")
+                output.append("        ", style="white")
                 output.append(f"'{col_str}'", style="yellow")
                 output.append(",\n", style="white")
             
@@ -422,7 +422,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
                             val_str = val_str[:max_value_length-3] + "..."
                         formatted_values.append(val_str)
                     
-                    output.append(f"        ", style="white")
+                    output.append("        ", style="white")
                     output.append(f"'{col}'", style="bold yellow")
                     output.append(f": [{', '.join(formatted_values)}", style="white")
                     
@@ -1152,7 +1152,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         row_header_text: str = "Row",
         row_header_level: int = 2,
         column_header_level: int = 3,
-    ) -> "FileStore":
+    ):
         """
         Concatenate markdown cells into a single markdown file and return a FileStore.
 

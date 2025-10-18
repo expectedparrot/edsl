@@ -87,6 +87,7 @@ if TYPE_CHECKING:
     from ..invigilators import InvigilatorBase
     from ..prompts import Prompt
     from ..key_management import KeyLookup
+    from .agent_delta import AgentDelta
     from ..jobs import Jobs
     from ..dataset import Dataset
     from ..results import Result
@@ -1215,7 +1216,7 @@ class Agent(Base):
         
         # Name (if present)
         if self.name:
-            output.append(f"    name=", style="white")
+            output.append("    name=", style="white")
             output.append(f'"{self.name}"', style="green")
             output.append(",\n", style="white")
         
@@ -1231,8 +1232,8 @@ class Agent(Base):
                 value_repr = repr(value)
                 if len(value_repr) > 40:
                     value_repr = value_repr[:37] + "..."
-                
-                output.append(f"        ", style="white")
+
+                output.append("        ", style="white")
                 output.append(f"'{key}'", style="bold yellow")
                 output.append(f": {value_repr},\n", style="white")
             
@@ -1536,8 +1537,6 @@ class Agent(Base):
             ...
             edsl.agents.exceptions.AgentErrors: ...
         """
-        from .agent_delta import AgentDelta
-        
         return delta.apply(self)
 
     @classmethod

@@ -1714,7 +1714,7 @@ class Survey(Base):
                                 return EndOfSurvey
                             else:
                                 candidate_next_q = skip_result.next_q
-                        except:
+                        except Exception:
                             # If there's an error finding where to skip to, just go to next question
                             candidate_next_q += 1
                     else:
@@ -2246,10 +2246,10 @@ class Survey(Base):
                 if len(q_text) > max_text_preview:
                     q_text = q_text[:max_text_preview] + "..."
                 
-                output.append(f"        ", style="white")
+                output.append("        ", style="white")
                 output.append(f"'{q_name}'", style="bold yellow")
                 output.append(f" ({q_type})", style="dim")
-                output.append(f": ", style="white")
+                output.append(": ", style="white")
                 output.append(f'"{q_text}"', style="white")
                 output.append(",\n", style="white")
             

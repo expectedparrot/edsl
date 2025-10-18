@@ -44,10 +44,10 @@ class Question(metaclass=Meta):
         if subclass is None:
 
             # they might be trying to pull a question from coop by name
-            try: 
+            try:
                 q = Question.pull(question_type)
                 return q
-            except Exception as e:
+            except Exception:
 
                 from .exceptions import QuestionValueError
 
@@ -70,7 +70,7 @@ class Question(metaclass=Meta):
     @classmethod
     def pull(cls, url_or_uuid: Union[str, UUID]):
         """Pull the object from coop.
-        
+
         Args:
             url_or_uuid: Identifier for the question to retrieve.
                 Can be one of:
@@ -78,7 +78,7 @@ class Question(metaclass=Meta):
                 - Full URL (e.g., "https://expectedparrot.com/content/123e4567...")
                 - Alias URL (e.g., "https://expectedparrot.com/content/username/my-question")
                 - Shorthand alias (e.g., "username/my-question")
-        
+
         Returns:
             The question object retrieved from coop
         """
@@ -86,10 +86,12 @@ class Question(metaclass=Meta):
         from ..config import CONFIG
 
         # Convert shorthand syntax to full URL if needed
-        if isinstance(url_or_uuid, str) and not url_or_uuid.startswith(('http://', 'https://')):
+        if isinstance(url_or_uuid, str) and not url_or_uuid.startswith(
+            ("http://", "https://")
+        ):
             # Check if it looks like a UUID (basic check for UUID format)
-            is_uuid = len(url_or_uuid) == 36 and url_or_uuid.count('-') == 4
-            if not is_uuid and '/' in url_or_uuid:
+            is_uuid = len(url_or_uuid) == 36 and url_or_uuid.count("-") == 4
+            if not is_uuid and "/" in url_or_uuid:
                 # Looks like shorthand format "username/alias"
                 url_or_uuid = f"{CONFIG.EXPECTED_PARROT_URL}/content/{url_or_uuid}"
 
