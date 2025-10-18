@@ -141,8 +141,33 @@ endif
 
 
 ###############
-##@Development 🛠️  
+##@Development 🛠️
 ###############
+commit: ## Run all pre-push checks (format, lint, tests, doctests, benchmarks)
+	@echo "========================================="
+	@echo "Running all pre-push verification checks"
+	@echo "========================================="
+	@echo ""
+	@echo "1/5 Running Black formatting..."
+	@make format
+	@echo ""
+	@echo "2/5 Running Ruff linting..."
+	@make ruff-lint
+	@echo ""
+	@echo "3/5 Running unit tests..."
+	@make test
+	@echo ""
+	@echo "4/5 Running doctests..."
+	@make test-doctests
+	@echo ""
+	@echo "5/5 Running performance benchmarks..."
+	@make benchmark-all
+	@echo ""
+	@echo "========================================="
+	@echo "✓ All pre-push checks completed!"
+	@echo "You can now commit and push your changes."
+	@echo "========================================="
+
 backup: ## Backup the code to `edsl/.backups/`
 	TIMESTAMP=$$(date +"%Y%m%d_%H%M%S"); \
 	BACKUP_NAME=$(PROJECT_NAME)_$${TIMESTAMP}.tar.gz; \
@@ -273,7 +298,6 @@ typing-report:
 	open typing_report/index.html
 
 format: ## Run code autoformatters (black).
-	pre-commit install
 	pre-commit run black-jupyter --all-files --all
 	@bash scripts/mark_check_complete.sh BLACK
 
