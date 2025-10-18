@@ -39,5 +39,3 @@ class AnswersCollector:
             pass
 
         return answers or {}
-
-

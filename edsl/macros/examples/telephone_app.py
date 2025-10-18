@@ -12,10 +12,14 @@ def build_telephone_macro() -> CompositeMacro:
         question_name="input_text", question_text="What is the input text?"
     ).to_survey()
 
-    jobs_de = QuestionFreeText(
-        question_name="translated_text",
-        question_text="Please translate {{ scenario.input_text }} to German. Just return the translated text, no other text.",
-    ).comment("Translating from English to German").to_jobs()
+    jobs_de = (
+        QuestionFreeText(
+            question_name="translated_text",
+            question_text="Please translate {{ scenario.input_text }} to German. Just return the translated text, no other text.",
+        )
+        .comment("Translating from English to German")
+        .to_jobs()
+    )
 
     of = (
         OutputFormatter(description="Output Formatter")
@@ -35,10 +39,14 @@ def build_telephone_macro() -> CompositeMacro:
         default_formatter_name="of",
     )
 
-    jobs_en = QuestionFreeText(
-        question_name="translated_text",
-        question_text="Please translate {{ scenario.input_text }} from German to English. Just return the translated text, no other text.",
-    ).comment("Translating from German to English").to_jobs()
+    jobs_en = (
+        QuestionFreeText(
+            question_name="translated_text",
+            question_text="Please translate {{ scenario.input_text }} from German to English. Just return the translated text, no other text.",
+        )
+        .comment("Translating from German to English")
+        .to_jobs()
+    )
 
     german_to_english = Macro(
         application_name="to_english",
@@ -60,11 +68,11 @@ def build_telephone_macro() -> CompositeMacro:
         fixed={"macro1": {}, "macro2": {}},
     )
 
+
 macro = build_telephone_macro()
 
 
 if __name__ == "__main__":
-
     pirates_of_penzance_line = Macro(
         application_name="pirates_of_penzance_line",
         display_name="Pirates of Penzance Line Generator",
@@ -77,9 +85,17 @@ if __name__ == "__main__":
         jobs_object=QuestionFreeText(
             question_name="example_line",
             question_text="Please return a line from Pirates of Penzance for the character {{ scenario.input_text }}.",
-        ).comment("Getting line from Pirates of Penzance").to_jobs(),
-        output_formatters={"of": OutputFormatter(description="Output Formatter").select("answer.*").to_list().__getitem__(0)},
-        default_formatter_name="of")
+        )
+        .comment("Getting line from Pirates of Penzance")
+        .to_jobs(),
+        output_formatters={
+            "of": OutputFormatter(description="Output Formatter")
+            .select("answer.*")
+            .to_list()
+            .__getitem__(0)
+        },
+        default_formatter_name="of",
+    )
 
     telephone_macro = build_telephone_macro()
     # results = telephone_macro.output(
@@ -101,8 +117,12 @@ if __name__ == "__main__":
     # the system tries to serialize it to JSON which fails.
     # This needs to be fixed in the CompositeMacro binding logic to automatically unwrap MacroRunOutput.
     print("Testing nested composite macro...")
-    print("WARNING: This test is currently disabled due to MacroRunOutput serialization issues.")
-    print("The CompositeMacro binding system needs to be updated to unwrap MacroRunOutput objects.")
+    print(
+        "WARNING: This test is currently disabled due to MacroRunOutput serialization issues."
+    )
+    print(
+        "The CompositeMacro binding system needs to be updated to unwrap MacroRunOutput objects."
+    )
 
     # try:
     #     nested_results = nested_composite.output(params={"input_text": "Mabel"})
@@ -118,5 +138,3 @@ if __name__ == "__main__":
     # nested_results = lazarus_macro.output(params={"input_text": "Mabel"})
     # # Don't try to JSON serialize MacroRunOutput - just print it
     # print(nested_results)
-
-

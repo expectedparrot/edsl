@@ -71,7 +71,9 @@ class OutputFormattersDescriptor:
                 "output_formatters must be a dict[str, OutputFormatter] or OutputFormatters"
             )
         else:
-            raise TypeError("output_formatters must be a dict[str, OutputFormatter] or OutputFormatters")
+            raise TypeError(
+                "output_formatters must be a dict[str, OutputFormatter] or OutputFormatters"
+            )
 
         # OutputFormatters ensures 'raw_results' via _ensure_raw_results in its ctor
         setattr(instance, self.private_name, ofs)
@@ -177,9 +179,9 @@ class ApplicationNameDescriptor:
         # Convert to lowercase
         identifier = name.lower()
         # Replace spaces and hyphens with underscores
-        identifier = re.sub(r'[\s\-]+', '_', identifier)
+        identifier = re.sub(r"[\s\-]+", "_", identifier)
         # Remove any non-alphanumeric characters except underscores
-        identifier = re.sub(r'[^\w]', '', identifier)
+        identifier = re.sub(r"[^\w]", "", identifier)
         # Ensure it doesn't start with a digit
         if identifier and identifier[0].isdigit():
             identifier = f"macro_{identifier}"
@@ -236,19 +238,19 @@ class ShortDescriptionDescriptor:
             value = "No description provided."
         elif not isinstance(value, str):
             raise DescriptionError("short_description must be a string")
-        
+
         # Ensure it ends with a period
         value = value.strip()
-        if not value.endswith('.'):
+        if not value.endswith("."):
             value = f"{value}."
 
         # Validate it's a single sentence (no multiple periods except at end)
-        sentence_count = value[:-1].count('.') + 1
+        sentence_count = value[:-1].count(".") + 1
         if sentence_count > 1:
             raise DescriptionError(
                 f"short_description must be a single sentence. Found {sentence_count} sentences: '{value}'"
             )
-        
+
         setattr(instance, self.private_name, value)
 
 
@@ -270,7 +272,7 @@ class LongDescriptionDescriptor:
             value = "No description provided."
         elif not isinstance(value, str):
             raise DescriptionError("long_description must be a string")
-        
+
         setattr(instance, self.private_name, value.strip())
 
 
@@ -316,4 +318,3 @@ class FixedParamsDescriptor:
                     raise ValueError(
                         f"Failed to prune fixed parameters from initial_survey: {sorted(overlapping)}"
                     )
-

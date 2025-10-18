@@ -1,8 +1,7 @@
 from dataclasses import dataclass, field
-from typing import List, Optional, Union
+from typing import List, Optional
 from edsl.questions import QuestionBase
 from edsl.questions import Question
-import re
 
 from .utilities import convert_value
 
@@ -40,10 +39,10 @@ class RawQuestion:
         """Sanitize question text to remove braces that cause Jinja2 parsing errors."""
         if not text:
             return text
-        
+
         # Replace curly braces with safe placeholders to prevent Jinja2 parsing issues
-        text = text.replace('{', '<left_brace>').replace('}', '<right_brace>')
-        
+        text = text.replace("{", "<left_brace>").replace("}", "<right_brace>")
+
         return text.strip()
 
     def to_question(self) -> QuestionBase:
@@ -74,8 +73,10 @@ class RawQuestion:
         except Exception as e:
             # Provide detailed error information including the offending question text
             original_text = self.question_text
-            sanitized_text = self._sanitize_question_text(original_text) if original_text else ""
-            
+            sanitized_text = (
+                self._sanitize_question_text(original_text) if original_text else ""
+            )
+
             error_msg = (
                 f"Error creating question '{self.question_name}': {str(e)}\n"
                 f"Original question text: {repr(original_text)}\n"

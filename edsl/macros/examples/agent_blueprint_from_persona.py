@@ -113,39 +113,44 @@ Keep it concise.""",
 
 # Build the jobs pipeline
 jobs_object = (
-    Survey([q_dimensions]).to_jobs()
-    .select("scenario.persona_description", "scenario.additional_details", "scenario.num_dimensions", "answer.dimensions")
+    Survey([q_dimensions])
+    .to_jobs()
+    .select(
+        "scenario.persona_description",
+        "scenario.additional_details",
+        "scenario.num_dimensions",
+        "answer.dimensions",
+    )
     .expand("answer.dimensions")
     .to(Survey([q_levels, q_name, q_description]))
 )
 
 # Initial survey to collect user input
-initial_survey = Survey([
-    QuestionFreeText(
-        question_name="persona_description",
-        question_text="Provide an existing persona or agent description (can be a narrative description, bullet points, or any text describing a person or agent type)",
-    ),
-    QuestionNumerical(
-        question_name="num_dimensions",
-        question_text="How many dimensions should be extracted from this persona? (Recommended: 4-8)",
-        min_value=2,
-        max_value=15,
-    ),
-    QuestionFreeText(
-        question_name="additional_details",
-        question_text="(Optional) Any additional guidance on which aspects to focus on when extracting dimensions?",
-    ),
-])
+initial_survey = Survey(
+    [
+        QuestionFreeText(
+            question_name="persona_description",
+            question_text="Provide an existing persona or agent description (can be a narrative description, bullet points, or any text describing a person or agent type)",
+        ),
+        QuestionNumerical(
+            question_name="num_dimensions",
+            question_text="How many dimensions should be extracted from this persona? (Recommended: 4-8)",
+            min_value=2,
+            max_value=15,
+        ),
+        QuestionFreeText(
+            question_name="additional_details",
+            question_text="(Optional) Any additional guidance on which aspects to focus on when extracting dimensions?",
+        ),
+    ]
+)
 
 # Output formatter to create AgentBlueprint
 # Note: to_agent_blueprint() internally uses AgentBlueprint.from_scenario_list()
 # which performs ETL operations to convert scenario data into Dimension objects.
 # For direct construction with Dimension objects, use AgentBlueprint.from_dimensions()
 output_formatter = (
-    OutputFormatter(
-        description="Agent Blueprint",
-        output_type="edsl_object"
-    )
+    OutputFormatter(description="Agent Blueprint", output_type="edsl_object")
     .select("scenario.*", "answer.*")
     .to_scenario_list()
     .to_agent_blueprint(
@@ -155,9 +160,11 @@ output_formatter = (
     )
 )
 
-agent_blueprint_table = (output_formatter.copy()
+agent_blueprint_table = (
+    output_formatter.copy()
     .set_output_type("markdown")
-    .table(tablefmt = "github").to_string()
+    .table(tablefmt="github")
+    .to_string()
 )
 
 
@@ -168,21 +175,25 @@ macro = Macro(
     long_description="This application analyzes an existing persona or agent description and extracts key dimensions to create a reusable agent blueprint. The blueprint can then be used to generate variations of similar personas with different characteristics.",
     initial_survey=initial_survey,
     jobs_object=jobs_object,
-    output_formatters={"agent_blueprint": output_formatter, "markdown_table": agent_blueprint_table},
+    output_formatters={
+        "agent_blueprint": output_formatter,
+        "markdown_table": agent_blueprint_table,
+    },
     default_formatter_name="agent_blueprint",
-    default_params={'num_dimensions': 6, 'additional_details': 'None'}
-    )
+    default_params={"num_dimensions": 6, "additional_details": "None"},
+)
 
 if __name__ == "__main__":
-    output = macro.output(params={
-        'persona_description': '''Sarah is a 32-year-old freelance web developer based in Portland, Oregon.
+    output = macro.output(
+        params={
+            "persona_description": """Sarah is a 32-year-old freelance web developer based in Portland, Oregon.
 She has been working on Upwork for 5 years and specializes in React and Node.js development.
 She prefers long-term contracts (3+ months) with established companies and charges $85-100/hour.
 Sarah values work-life balance and typically works 25-30 hours per week, allowing her to pursue
 her passion for outdoor photography. She's highly responsive to clients and maintains a 99% job
-success score.''',
-        'num_dimensions': 6,
-        'additional_details': 'Focus on professional characteristics that would be useful for creating similar but varied freelancer personas.',
-    })
+success score.""",
+            "num_dimensions": 6,
+            "additional_details": "Focus on professional characteristics that would be useful for creating similar but varied freelancer personas.",
+        }
+    )
     print(output.agent_blueprint)
-

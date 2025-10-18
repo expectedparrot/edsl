@@ -78,7 +78,9 @@ class AgentListFactories:
         return AgentList(agent_list)
 
     @staticmethod
-    def from_results(results: "Results", question_names: Optional[List[str]] = None) -> "AgentList":
+    def from_results(
+        results: "Results", question_names: Optional[List[str]] = None
+    ) -> "AgentList":
         """Create an AgentList from a Results object.
 
         Args:
@@ -106,7 +108,7 @@ class AgentListFactories:
         if len(results) > 0:
             first_result = results[0]
             question_to_attributes = first_result.data.get("question_to_attributes", {})
-            
+
             # Build codebook with question_text for each question
             for q_name, q_attrs in question_to_attributes.items():
                 if question_names is None or q_name in question_names:
@@ -120,39 +122,41 @@ class AgentListFactories:
             traits = {}
             has_name = False
             name = None
-            
+
             for column in df.columns:
                 value = row[column]
-                
+
                 # Replace NaN/inf values with None for JSON serializability
-                if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
+                if isinstance(value, float) and (
+                    math.isnan(value) or math.isinf(value)
+                ):
                     value = None
-        
-                if column.startswith('answer.'):
+
+                if column.startswith("answer."):
                     key = column[7:]  # Remove 'answer.' prefix
                     # Only include this answer if question_names is None or if the key is in question_names
                     if question_names is None or key in question_names:
                         traits[key] = value
-                        
-                elif column.startswith('agent.'):
+
+                elif column.startswith("agent."):
                     # Skip agent.instructions and agent.index
-                    if column == 'agent.agent_name':
+                    if column == "agent.agent_name":
                         name = value  # Store as separate parameter
                         has_name = True
-                    elif column not in ['agent.agent_instruction', 'agent.agent_index']:
+                    elif column not in ["agent.agent_instruction", "agent.agent_index"]:
                         key = column[6:]  # Remove 'agent.' prefix
                         traits[key] = value
-            
+
             # Create Agent with or without name parameter
             if has_name:
                 agent = Agent(name=name, traits=traits, codebook=codebook)
             else:
                 agent = Agent(traits=traits, codebook=codebook)
             agents.append(agent)
-        
+
         # Deduplicate agents list -- in case any models had identical questions/answers for an agent
         unique_agents = list(set(agents))
-        
+
         return AgentList(unique_agents)
 
     @staticmethod

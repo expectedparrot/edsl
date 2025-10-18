@@ -7,7 +7,6 @@ import math
 
 
 class AgentBlueprint(Base):
-
     def __init__(
         self,
         dimension_map: dict[str, Dimension],
@@ -141,10 +140,7 @@ class AgentBlueprint(Base):
 
                 # Extract and align probability weights if provided
                 weighted_values = None
-                if (
-                    dimension_probs_field is not None
-                    and dimension_probs_field in sc
-                ):
+                if dimension_probs_field is not None and dimension_probs_field in sc:
                     probs_field = sc[dimension_probs_field]
                     # Handle nested lists
                     if (
@@ -166,7 +162,7 @@ class AgentBlueprint(Base):
                             f"Length mismatch for dimension '{dim_name}': {len(raw_values)} values but {len(raw_probs)} probabilities. "
                             f"Values: {raw_values}. Probabilities: {raw_probs}"
                         )
-                    
+
                     # Coerce and validate numeric probabilities
                     weighted_values = []
                     for _val, _prob in zip(raw_values, raw_probs):
@@ -197,16 +193,17 @@ class AgentBlueprint(Base):
 
     def __repr__(self) -> str:
         """Return a string representation of the AgentBlueprint.
-        
+
         In doctest mode, returns a simple eval'able representation.
         Otherwise, returns a Rich-formatted version with details.
-        
+
         Examples:
             >>> blueprint = AgentBlueprint.example()
             >>> blueprint  # doctest: +ELLIPSIS
             AgentBlueprint(dimensions=['politics', 'age', 'gender'], total_combinations=27, seed=42, cycle=True)
         """
         import os
+
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return (
                 f"AgentBlueprint(dimensions={self.dimensions!r}, "
@@ -231,11 +228,13 @@ class AgentBlueprint(Base):
         import io
 
         output = Text()
-        
+
         # Header
         output.append("AgentBlueprint(\n", style="bold cyan")
         output.append(f"    num_dimensions={len(self.dimensions)},\n", style="white")
-        output.append(f"    total_combinations={self._total_combinations},\n", style="white")
+        output.append(
+            f"    total_combinations={self._total_combinations},\n", style="white"
+        )
         output.append(f"    seed={self.seed},\n", style="white")
         output.append(f"    cycle={self.cycle},\n", style="white")
         output.append("    dimensions:\n", style="white")
@@ -245,19 +244,19 @@ class AgentBlueprint(Base):
             dim = self._dimension_map[dim_name]
             # Show weights only if any weight differs from the default 1.0
             show_weights = any(dv.weight != 1.0 for dv in dim.values)
-            
+
             output.append(f"        {dim_name}", style="bold yellow")
             output.append(f" [{len(dim)}]: ", style="dim")
-            
+
             if show_weights:
                 values_repr = ", ".join(
                     f"{dv.value!r}:{dv.weight:g}" for dv in dim.values
                 )
             else:
                 values_repr = ", ".join(repr(v) for v in dim.to_plain_list())
-            
+
             output.append(f"{values_repr}\n", style="white")
-            
+
             # Show description if available
             if dim.description:
                 output.append("            → ", style="green")
@@ -272,35 +271,37 @@ class AgentBlueprint(Base):
 
     def table(self, *args, **kwargs) -> str:
         """Return a table representation of the blueprint's dimensions.
-        
+
         Returns:
             A formatted table string showing dimension details.
         """
         from . import ScenarioList, Scenario
-        
+
         # Build scenarios from dimension map
         new_scenarios = []
         for dim_name in self.dimensions:
             dim = self._dimension_map[dim_name]
-            new_scenario = Scenario({
-                'dimension_name': dim_name,
-                'dimension_values': dim.to_plain_list(),
-                'dimension_description': dim.description,
-            })
+            new_scenario = Scenario(
+                {
+                    "dimension_name": dim_name,
+                    "dimension_values": dim.to_plain_list(),
+                    "dimension_description": dim.description,
+                }
+            )
             # Add weights if any are non-default
             if any(dv.weight != 1.0 for dv in dim.values):
-                new_scenario['dimension_probs'] = [dv.weight for dv in dim.values]
+                new_scenario["dimension_probs"] = [dv.weight for dv in dim.values]
             new_scenarios.append(new_scenario)
-        
+
         sl = ScenarioList(new_scenarios)
         return sl.table(*args, **kwargs)
 
     def to_dict(self, add_edsl_version=False) -> dict:
         """Serialize the AgentBlueprint to a dictionary.
-        
+
         Args:
             add_edsl_version: If True, include EDSL version information
-            
+
         Returns:
             dict: Dictionary representation of the AgentBlueprint
         """
@@ -308,30 +309,31 @@ class AgentBlueprint(Base):
         dimensions_data = {}
         for dim_name, dim in self._dimension_map.items():
             dimensions_data[dim_name] = dim.to_dict(add_edsl_version=False)
-        
+
         d = {
             "dimensions": dimensions_data,
             "seed": self.seed,
             "cycle": self.cycle,
         }
-        
+
         if add_edsl_version:
             from edsl import __version__
+
             d["edsl_version"] = __version__
             d["edsl_class_name"] = self.__class__.__name__
-            
+
         return d
-    
+
     @classmethod
     def from_dict(cls, d: dict) -> "AgentBlueprint":
         """Create an AgentBlueprint from a dictionary.
-        
-        Supports both the new format (with "dimensions" key) and legacy format 
+
+        Supports both the new format (with "dimensions" key) and legacy format
         (with "scenario_list" key) for backward compatibility.
-        
+
         Args:
             d: Dictionary representation of an AgentBlueprint
-            
+
         Returns:
             AgentBlueprint: A new AgentBlueprint instance
         """
@@ -340,46 +342,50 @@ class AgentBlueprint(Base):
             dimension_map = {}
             for dim_name, dim_data in d["dimensions"].items():
                 dimension_map[dim_name] = Dimension.from_dict(dim_data)
-            
+
             return cls(
                 dimension_map=dimension_map,
                 seed=d.get("seed"),
                 cycle=d.get("cycle", True),
             )
-        
+
         # Legacy format with scenario_list
         elif "scenario_list" in d:
             from .scenario_list import ScenarioList
-            
+
             scenario_list = ScenarioList.from_dict(d["scenario_list"])
-            
+
             return cls.from_scenario_list(
                 scenario_list=scenario_list,
                 seed=d.get("seed"),
                 cycle=d.get("cycle", True),
                 dimension_name_field=d.get("dimension_name_field", "dimension"),
-                dimension_values_field=d.get("dimension_values_field", "dimension_values"),
+                dimension_values_field=d.get(
+                    "dimension_values_field", "dimension_values"
+                ),
                 dimension_description_field=d.get("dimension_description_field"),
                 dimension_probs_field=d.get("dimension_probs_field"),
             )
-        
+
         else:
-            raise ValueError("Dictionary must contain either 'dimensions' or 'scenario_list' key")
-    
+            raise ValueError(
+                "Dictionary must contain either 'dimensions' or 'scenario_list' key"
+            )
+
     def code(self) -> str:
         """Generate Python code that recreates this AgentBlueprint.
-        
+
         Returns:
             str: Python code that recreates this object
         """
         lines = ["from edsl.scenarios import AgentBlueprint, Dimension", ""]
-        
+
         # Generate dimension code
         for dim_name in self.dimensions:
             dim = self._dimension_map[dim_name]
             dim_code = dim.code()
             lines.append(dim_code)
-        
+
         # Generate AgentBlueprint instantiation
         dim_names = ", ".join(self.dimensions)
         lines.append("")
@@ -389,7 +395,7 @@ class AgentBlueprint(Base):
             lines.append(f"    seed={self.seed},")
         lines.append(f"    cycle={self.cycle}")
         lines.append(")")
-        
+
         return "\n".join(lines)
 
     # ---------------------------------------------------------------------
@@ -465,7 +471,7 @@ class AgentBlueprint(Base):
         dimension values exactly once before repeating (unless ``cycle=False`` was
         passed to the constructor, in which case it will terminate after a single
         full pass).
-        
+
         Each generated agent includes a '_naive_log_probability' trait containing
         the sum of log probabilities for its dimension values.
         """
@@ -493,7 +499,7 @@ class AgentBlueprint(Base):
     ):
         """Create an :class:`edsl.agents.AgentList` using either deterministic permutations or probability sampling.
 
-        Each agent includes a '_naive_log_probability' trait containing the sum of log 
+        Each agent includes a '_naive_log_probability' trait containing the sum of log
         probabilities for its dimension values.
 
         Parameters
@@ -548,9 +554,9 @@ class AgentBlueprint(Base):
 
             # Add the log probability trait (before removing name)
             traits["_naive_log_probability"] = self.naive_log_probability(traits)
-            
+
             agent_name = traits.pop("name", None) if "name" in traits else None
-            
+
             return Agent(traits, name=agent_name)
 
         if not unique:
@@ -668,7 +674,9 @@ class AgentBlueprint(Base):
         dimensions = []
         for name, values in dimensions_dict.items():
             if not isinstance(values, list) or not values:
-                raise ValueError(f"Dimension '{name}' must have a non-empty list of values")
+                raise ValueError(
+                    f"Dimension '{name}' must have a non-empty list of values"
+                )
             dimensions.append(Dimension(name=name, description="", values=values))
 
         return cls.from_dimensions(*dimensions, seed=seed, cycle=cycle)
@@ -698,19 +706,19 @@ class AgentBlueprint(Base):
             description="Political leaning",
             values=["left", "right", "center"],
         )
-        
+
         age = Dimension(
             name="age",
             description="Age bracket",
             values=[("18-25", 2), ("26-35", 3), ("36-45", 1)],  # weighted values
         )
-        
+
         gender = Dimension(
             name="gender",
             description="Gender identity",
             values=["male", "female", "non-binary"],
         )
-        
+
         return cls.from_dimensions(politics, age, gender, seed=42)
 
     # Fluent API --------------------------------------------------------
@@ -775,8 +783,8 @@ class AgentBlueprint(Base):
 
         # Create new dimension map without the dropped dimension
         new_dimension_map = {
-            name: dim 
-            for name, dim in self._dimension_map.items() 
+            name: dim
+            for name, dim in self._dimension_map.items()
             if name != dimension_name
         }
 
@@ -832,8 +840,8 @@ class AgentBlueprint(Base):
     def naive_log_probability(self, agent_or_traits) -> float:
         """Compute the log of the naive joint probability of *agent_or_traits*.
 
-        The log probability is obtained by summing the log of the marginal 
-        probabilities of each dimension value, assuming independence among 
+        The log probability is obtained by summing the log of the marginal
+        probabilities of each dimension value, assuming independence among
         dimensions (i.e., it *ignores* any conditional relationships).
 
         Parameters

@@ -125,5 +125,7 @@ class DuplicateMacroException(MacroError):
 
     relevant_doc = "https://docs.expectedparrot.com/en/latest/macros.html"
 
-    def __init__(self, message: str = "Duplicate macro: owner/alias already exists", **kwargs):
+    def __init__(
+        self, message: str = "Duplicate macro: owner/alias already exists", **kwargs
+    ):
         super().__init__(message, **kwargs)

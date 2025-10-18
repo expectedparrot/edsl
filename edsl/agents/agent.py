@@ -1174,19 +1174,20 @@ class Agent(Base):
 
     def __repr__(self) -> str:
         """Return a string representation of the Agent.
-        
+
         Uses traditional repr format when running doctests, otherwise uses
         rich-based display for better readability.
         """
         import os
+
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
         else:
             return self._summary_repr()
-    
+
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the Agent.
-        
+
         This representation can be used with eval() to recreate the Agent object.
         Used primarily for doctests and debugging.
         """
@@ -1197,37 +1198,37 @@ class Agent(Base):
             if k not in ("question_type", "invigilator") and not k.startswith("_")
         ]
         return f"{class_name}({', '.join(items)})"
-    
+
     def _summary_repr(self, max_traits: int = 5) -> str:
         """Generate a summary representation of the Agent with Rich formatting.
-        
+
         Args:
             max_traits: Maximum number of traits to show before truncating
         """
         from rich.console import Console
         from rich.text import Text
         import io
-        
+
         # Build the Rich text
         output = Text()
         class_name = self.__class__.__name__
-        
+
         output.append(f"{class_name}(\n", style="bold cyan")
-        
+
         # Name (if present)
         if self.name:
             output.append("    name=", style="white")
             output.append(f'"{self.name}"', style="green")
             output.append(",\n", style="white")
-        
+
         # Traits
         traits = self.traits
         num_traits = len(traits)
         output.append(f"    num_traits={num_traits}", style="white")
-        
+
         if num_traits > 0:
             output.append(",\n    traits={\n", style="white")
-            
+
             for i, (key, value) in enumerate(list(traits.items())[:max_traits]):
                 value_repr = repr(value)
                 if len(value_repr) > 40:
@@ -1236,18 +1237,20 @@ class Agent(Base):
                 output.append("        ", style="white")
                 output.append(f"'{key}'", style="bold yellow")
                 output.append(f": {value_repr},\n", style="white")
-            
+
             if num_traits > max_traits:
-                output.append(f"        ... ({num_traits - max_traits} more)\n", style="dim")
-            
+                output.append(
+                    f"        ... ({num_traits - max_traits} more)\n", style="dim"
+                )
+
             output.append("    }", style="white")
-        
+
         # Codebook (if present)
         if self.codebook:
             num_codebook = len(self.codebook)
             output.append(",\n    ", style="white")
             output.append(f"num_codebook_entries={num_codebook}", style="magenta")
-        
+
         # Instruction (if custom)
         if self.instruction != self.default_instruction:
             instruction_text = self.instruction
@@ -1255,21 +1258,23 @@ class Agent(Base):
                 instruction_text = instruction_text[:47] + "..."
             output.append(",\n    instruction=", style="white")
             output.append(f'"{instruction_text}"', style="cyan")
-        
+
         # Dynamic traits function (if present)
         if self.has_dynamic_traits_function:
             func_name = self.dynamic_traits_function_name or "anonymous"
             output.append(",\n    ", style="white")
             output.append(f"dynamic_traits_function='{func_name}'", style="blue")
-        
+
         # Direct answering method (if present)
-        if hasattr(self, 'answer_question_directly'):
-            func_name = getattr(self, 'answer_question_directly_function_name', 'anonymous')
+        if hasattr(self, "answer_question_directly"):
+            func_name = getattr(
+                self, "answer_question_directly_function_name", "anonymous"
+            )
             output.append(",\n    ", style="white")
             output.append(f"direct_answer_method='{func_name}'", style="blue")
-        
+
         output.append("\n)", style="bold cyan")
-        
+
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
         console.print(output, end="")

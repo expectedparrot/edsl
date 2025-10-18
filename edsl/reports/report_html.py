@@ -6,15 +6,15 @@ from .warning_utils import print_info, print_success
 
 class ReportHTML:
     """Helper class for generating HTML reports from Report objects."""
-    
+
     def __init__(self, report):
         """Initialize with a Report instance.
-        
+
         Args:
             report: The Report instance to generate HTML for.
         """
         self.report = report
-    
+
     def generate(self, filename: str, css: str = None):
         """Generate a standalone HTML report.
 
@@ -25,14 +25,14 @@ class ReportHTML:
         print_info("Generating HTML report…")
 
         html_parts: list[str] = []
-        
+
         # Generate HTML structure
         self._add_html_header(html_parts, css)
         self._add_title_and_sections(html_parts, filename)
         self._add_table_of_contents(html_parts)
         self._add_analysis_sections(html_parts)
         self._add_javascript(html_parts, filename)
-        
+
         html_parts.append("</body></html>")
 
         # Write to file
@@ -40,42 +40,45 @@ class ReportHTML:
             f.write("\n".join(html_parts))
 
         print_success(f"HTML report saved to {filename}")
-    
+
     def _add_html_header(self, html_parts: list[str], css: str = None):
         """Add HTML document header with CSS and JavaScript imports."""
-        html_parts.extend([
-            "<!DOCTYPE html>",
-            "<html lang='en'>",
-            "<head>",
-            "  <meta charset='utf-8'>",
-            "  <title>Survey Report</title>",
-            "  <meta name='viewport' content='width=device-width, initial-scale=1'>"
-        ])
-        
+        html_parts.extend(
+            [
+                "<!DOCTYPE html>",
+                "<html lang='en'>",
+                "<head>",
+                "  <meta charset='utf-8'>",
+                "  <title>Survey Report</title>",
+                "  <meta name='viewport' content='width=device-width, initial-scale=1'>",
+            ]
+        )
+
         # Add CSS
         css_content = css if css is not None else self._get_default_css()
         html_parts.append(f"  <style>{css_content}</style>")
-        
+
         # Add JavaScript libraries
-        html_parts.extend([
-            "  <script src='https://cdn.jsdelivr.net/npm/vega@5'></script>",
-            "  <script src='https://cdn.jsdelivr.net/npm/vega-lite@5'></script>",
-            "  <script src='https://cdn.jsdelivr.net/npm/vega-embed@6'></script>",
-            "  <script src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'></script>",
-            "</head>",
-            "<body>"
-        ])
-    
+        html_parts.extend(
+            [
+                "  <script src='https://cdn.jsdelivr.net/npm/vega@5'></script>",
+                "  <script src='https://cdn.jsdelivr.net/npm/vega-lite@5'></script>",
+                "  <script src='https://cdn.jsdelivr.net/npm/vega-embed@6'></script>",
+                "  <script src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'></script>",
+                "</head>",
+                "<body>",
+            ]
+        )
+
     def _add_title_and_sections(self, html_parts: list[str], filename: str):
         """Add title and main overview sections."""
         html_parts.append("<h1>Survey Report</h1>")
 
         # Add question summary table
         if self.report.include_questions_table:
-            html_parts.extend([
-                "<div class='overview-section'>",
-                "<h2>Question Summary</h2>"
-            ])
+            html_parts.extend(
+                ["<div class='overview-section'>", "<h2>Question Summary</h2>"]
+            )
             question_summary_table = self.report._create_question_summary_table()
             html_parts.append(question_summary_table)
             html_parts.append("</div>")
@@ -85,167 +88,195 @@ class ReportHTML:
 
         # Add overview sections
         if self.report.include_overview:
-            html_parts.extend([
-                "<div class='overview-section'>",
-                "<h2>Survey Overview</h2>",
-                f"<p>{self.report.survey_overview}</p>",
-                "</div>"
-            ])
+            html_parts.extend(
+                [
+                    "<div class='overview-section'>",
+                    "<h2>Survey Overview</h2>",
+                    f"<p>{self.report.survey_overview}</p>",
+                    "</div>",
+                ]
+            )
 
         if self.report.include_respondents_section:
-            html_parts.extend([
-                "<div class='overview-section'>",
-                "<h2>Respondent Overview</h2>",
-                f"<p>{self.report.respondent_overview}</p>",
-                "</div>"
-            ])
+            html_parts.extend(
+                [
+                    "<div class='overview-section'>",
+                    "<h2>Respondent Overview</h2>",
+                    f"<p>{self.report.respondent_overview}</p>",
+                    "</div>",
+                ]
+            )
 
         if self.report.include_scenario_section:
-            html_parts.extend([
-                "<div class='overview-section'>",
-                "<h2>Scenario Overview</h2>",
-                f"<p>{self.report.scenario_overview}</p>",
-                "</div>"
-            ])
-    
+            html_parts.extend(
+                [
+                    "<div class='overview-section'>",
+                    "<h2>Scenario Overview</h2>",
+                    f"<p>{self.report.scenario_overview}</p>",
+                    "</div>",
+                ]
+            )
+
     def _add_download_links_section(self, html_parts: list[str], filename: str):
         """Add download links and survey link section."""
-        html_parts.extend([
-            "<div class='download-links-section'>",
-            "<h3>Downloads & Links</h3>",
-            "<div class='download-links'>"
-        ])
-        
+        html_parts.extend(
+            [
+                "<div class='download-links-section'>",
+                "<h3>Downloads & Links</h3>",
+                "<div class='download-links'>",
+            ]
+        )
+
         # Generate filenames based on input filename
-        base_filename = filename.replace('.html', '') if filename.endswith('.html') else filename
+        base_filename = (
+            filename.replace(".html", "") if filename.endswith(".html") else filename
+        )
         docx_filename = f"{base_filename}.docx"
         pdf_filename = f"{base_filename}.pdf"
         notebook_filename = f"{base_filename}.ipynb"
-        
+
         # Check if files exist before adding download links
         if os.path.exists(docx_filename):
-            html_parts.extend([
-                f"<a href='{os.path.basename(docx_filename)}' class='download-link' download>",
-                "📄 Download DOCX",
-                "</a>"
-            ])
-        
+            html_parts.extend(
+                [
+                    f"<a href='{os.path.basename(docx_filename)}' class='download-link' download>",
+                    "📄 Download DOCX",
+                    "</a>",
+                ]
+            )
+
         if os.path.exists(pdf_filename):
-            html_parts.extend([
-                f"<a href='{os.path.basename(pdf_filename)}' class='download-link' download>",
-                "📋 Download PDF",
-                "</a>"
-            ])
-        
+            html_parts.extend(
+                [
+                    f"<a href='{os.path.basename(pdf_filename)}' class='download-link' download>",
+                    "📋 Download PDF",
+                    "</a>",
+                ]
+            )
+
         if os.path.exists(notebook_filename):
-            html_parts.extend([
-                f"<a href='#' class='download-link' onclick='downloadNotebook()'>",
-                "📓 Download Jupyter Notebook",
-                "</a>"
-            ])
-        
+            html_parts.extend(
+                [
+                    "<a href='#' class='download-link' onclick='downloadNotebook()'>",
+                    "📓 Download Jupyter Notebook",
+                    "</a>",
+                ]
+            )
+
         # Add "View original survey" link
         try:
             survey_humanized = self.report.results.survey.humanize()
-            respondent_url = survey_humanized.get('respondent_url', None)
+            respondent_url = survey_humanized.get("respondent_url", None)
             if respondent_url:
-                html_parts.extend([
-                    f"<a href='{respondent_url}' class='download-link' target='_blank'>",
-                    "🔗 View original survey on E[🦜]",
-                    "</a>"
-                ])
+                html_parts.extend(
+                    [
+                        f"<a href='{respondent_url}' class='download-link' target='_blank'>",
+                        "🔗 View original survey on E[🦜]",
+                        "</a>",
+                    ]
+                )
         except Exception:
             # If humanize() fails or respondent_url doesn't exist, skip this link
             pass
-        
-        html_parts.extend([
-            "</div>",
-            "</div>"
-        ])
-    
+
+        html_parts.extend(["</div>", "</div>"])
+
     def _add_table_of_contents(self, html_parts: list[str]):
         """Add table of contents section."""
-        html_parts.extend([
-            "<div class='overview-section'>",
-            "<h2>Table of Contents</h2>",
-            "<ul style='list-style-type: none; padding-left: 0;'>"
-        ])
-        
+        html_parts.extend(
+            [
+                "<div class='overview-section'>",
+                "<h2>Table of Contents</h2>",
+                "<ul style='list-style-type: none; padding-left: 0;'>",
+            ]
+        )
+
         for question_names, _ in self.report.items():
             section_title = self.report._format_question_header(question_names)
             anchor_id = self._create_anchor_id(question_names)
-            
-            html_parts.extend([
-                f"<li style='margin-bottom: 8px;'>",
-                f"<a href='#{anchor_id}' style='color: var(--primary-color); text-decoration: none; font-weight: 500;'>{section_title}</a>",
-                "</li>"
-            ])
-        
-        html_parts.extend([
-            "</ul>",
-            "</div>"
-        ])
-    
+
+            html_parts.extend(
+                [
+                    "<li style='margin-bottom: 8px;'>",
+                    f"<a href='#{anchor_id}' style='color: var(--primary-color); text-decoration: none; font-weight: 500;'>{section_title}</a>",
+                    "</li>",
+                ]
+            )
+
+        html_parts.extend(["</ul>", "</div>"])
+
     def _add_analysis_sections(self, html_parts: list[str]):
         """Add individual analysis sections (collapsible)."""
         for question_names, output_dict in self.report.items():
             section_title = self.report._format_question_header(question_names)
             anchor_id = self._create_anchor_id(question_names)
-            
-            html_parts.extend([
-                f"<div class='section' id='{anchor_id}'>",
-                f"<div class='section-header' onclick='toggleSection(\"{anchor_id}\")'>",
-                f"<h2 class='section-title'>{section_title}</h2>",
-                "<span class='toggle-icon'>▼</span>",
-                "</div>",
-                "<div class='section-content'>"
-            ])
-            
+
+            html_parts.extend(
+                [
+                    f"<div class='section' id='{anchor_id}'>",
+                    f"<div class='section-header' onclick='toggleSection(\"{anchor_id}\")'>",
+                    f"<h2 class='section-title'>{section_title}</h2>",
+                    "<span class='toggle-icon'>▼</span>",
+                    "</div>",
+                    "<div class='section-content'>",
+                ]
+            )
+
             # Add question metadata table
             metadata_table = self.report._create_question_metadata_table(question_names)
             html_parts.append(metadata_table)
 
             # Add output subsections
             self._add_output_subsections(html_parts, question_names, output_dict)
-            
-            html_parts.extend([
-                "</div>",  # Close section-content
-                "</div>"   # Close section
-            ])
-    
-    def _add_output_subsections(self, html_parts: list[str], question_names, output_dict):
+
+            html_parts.extend(
+                ["</div>", "</div>"]  # Close section-content  # Close section
+            )
+
+    def _add_output_subsections(
+        self, html_parts: list[str], question_names, output_dict
+    ):
         """Add output subsections for a question analysis."""
         for output_name, output_obj in output_dict.items():
-            display_name = getattr(output_obj, 'pretty_short_name', output_name)
-            html_parts.extend([
-                "<div class='subsection'>",
-                f"<h3>{display_name}</h3>"
-            ])
+            display_name = getattr(output_obj, "pretty_short_name", output_name)
+            html_parts.extend(["<div class='subsection'>", f"<h3>{display_name}</h3>"])
 
             # Add writeup paragraph
             self._add_writeup(html_parts, question_names, output_name)
-            
+
             # Add visualization/table
             self._embed_output(html_parts, output_obj, output_name, question_names)
-            
+
             html_parts.append("</div>")  # Close subsection
-    
+
     def _add_writeup(self, html_parts: list[str], question_names, output_name):
         """Add writeup text for an output if available and enabled."""
-        if question_names in self.report.writeups and output_name in self.report.writeups[question_names]:
+        if (
+            question_names in self.report.writeups
+            and output_name in self.report.writeups[question_names]
+        ):
             # Check if writeup is enabled for this analysis
-            analysis_key = tuple(question_names) if isinstance(question_names, (list, tuple)) else (question_names,)
-            writeup_enabled = self.report._analysis_writeup_filters.get(analysis_key, True)
+            analysis_key = (
+                tuple(question_names)
+                if isinstance(question_names, (list, tuple))
+                else (question_names,)
+            )
+            writeup_enabled = self.report._analysis_writeup_filters.get(
+                analysis_key, True
+            )
             if writeup_enabled:
                 writeup_text = self.report.writeups[question_names][output_name]
                 html_parts.append(f"<p>{writeup_text}</p>")
-    
-    def _embed_output(self, html_parts: list[str], output_obj, output_name: str, question_names):
+
+    def _embed_output(
+        self, html_parts: list[str], output_obj, output_name: str, question_names
+    ):
         """Embed visualization or table output in HTML."""
         embedded = False
 
         # Check for specialized theme finder output with multiple charts
         from reports.charts.theme_finder_output import ThemeFinderOutput
+
         if isinstance(output_obj, ThemeFinderOutput):
             try:
                 section_id = f"theme-{uuid.uuid4().hex}"
@@ -272,37 +303,46 @@ class ReportHTML:
             embedded = self._try_embed_dataframe(html_parts, output_obj)
 
         if not embedded:
-            raise RuntimeError(f"Failed to embed output '{output_name}' for questions {question_names} in HTML report.")
-    
+            raise RuntimeError(
+                f"Failed to embed output '{output_name}' for questions {question_names} in HTML report."
+            )
+
     def _try_embed_svg(self, html_parts: list[str], output_obj) -> bool:
         """Try to embed output as SVG."""
         try:
             svg_location = getattr(output_obj, "svg", None)
             if svg_location is not None:
-                html_parts.append(f"<div class='chart-container'>{svg_location.html}</div>")
+                html_parts.append(
+                    f"<div class='chart-container'>{svg_location.html}</div>"
+                )
                 return True
         except Exception:
             pass
         return False
-    
+
     def _try_embed_altair_chart(self, html_parts: list[str], output_obj) -> bool:
         """Try to embed Altair chart with Vega/Vega-Lite."""
         try:
             if hasattr(output_obj, "output"):
                 alt_output = output_obj.output()
                 import altair as alt
-                if isinstance(alt_output, (alt.Chart, alt.LayerChart, alt.FacetChart)) or isinstance(alt_output, alt.TopLevelMixin):
+
+                if isinstance(
+                    alt_output, (alt.Chart, alt.LayerChart, alt.FacetChart)
+                ) or isinstance(alt_output, alt.TopLevelMixin):
                     spec_json = json.dumps(alt_output.to_dict())
                     unique_id = f"chart-{uuid.uuid4().hex}"
-                    html_parts.extend([
-                        f"<div class='chart-container'><div id=\"{unique_id}\"></div></div>",
-                        f"<script type=\"text/javascript\">vegaEmbed('#{unique_id}', {spec_json}, {{'renderer': 'svg'}});</script>"
-                    ])
+                    html_parts.extend(
+                        [
+                            f"<div class='chart-container'><div id=\"{unique_id}\"></div></div>",
+                            f"<script type=\"text/javascript\">vegaEmbed('#{unique_id}', {spec_json}, {{'renderer': 'svg'}});</script>",
+                        ]
+                    )
                     return True
         except Exception:
             pass
         return False
-    
+
     def _try_embed_html_property(self, html_parts: list[str], output_obj) -> bool:
         """Try to embed using .html property."""
         try:
@@ -312,25 +352,30 @@ class ReportHTML:
         except Exception:
             pass
         return False
-    
+
     def _try_embed_dataframe(self, html_parts: list[str], output_obj) -> bool:
         """Try to embed DataFrame as HTML table."""
         try:
             if hasattr(output_obj, "output"):
                 generic_output = output_obj.output()
                 import pandas as pd
+
                 if isinstance(generic_output, pd.DataFrame):
-                    html_parts.append(generic_output.to_html(border=0, classes=["styled-table"]))
+                    html_parts.append(
+                        generic_output.to_html(border=0, classes=["styled-table"])
+                    )
                     return True
         except Exception:
             pass
         return False
-    
+
     def _add_javascript(self, html_parts: list[str], filename: str):
         """Add JavaScript for interactivity."""
-        base_filename = filename.replace('.html', '') if filename.endswith('.html') else filename
+        base_filename = (
+            filename.replace(".html", "") if filename.endswith(".html") else filename
+        )
         notebook_filename = f"{base_filename}.ipynb"
-        
+
         javascript = f"""
         <script>
         function toggleSection(sectionId) {{
@@ -441,12 +486,25 @@ class ReportHTML:
         </script>
         """
         html_parts.append(javascript)
-    
+
     def _create_anchor_id(self, question_names) -> str:
         """Create a safe anchor ID from question names."""
         anchor_id = f"section-{'-'.join(question_names)}"
-        return anchor_id.replace(' ', '-').replace("'", "").replace('"', '').replace('(', '').replace(')', '').replace('?', '').replace('!', '').replace('.', '').replace(',', '').replace(':', '').replace(';', '').lower()
-    
+        return (
+            anchor_id.replace(" ", "-")
+            .replace("'", "")
+            .replace('"', "")
+            .replace("(", "")
+            .replace(")", "")
+            .replace("?", "")
+            .replace("!", "")
+            .replace(".", "")
+            .replace(",", "")
+            .replace(":", "")
+            .replace(";", "")
+            .lower()
+        )
+
     def _get_default_css(self) -> str:
         """Return the default CSS styling for HTML reports."""
         return """
@@ -781,4 +839,4 @@ class ReportHTML:
                 padding: 0.75rem;
             }
         }
-        """ 
+        """

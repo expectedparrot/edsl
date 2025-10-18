@@ -18,11 +18,11 @@ def detect_claude_code_environment():
     # Simple heuristic: if we're in a Claude Code session, certain patterns will exist
     indicators = [
         # Check if parent process might be Claude Code
-        lambda: 'claude' in str(os.getppid()),
+        lambda: "claude" in str(os.getppid()),
         # Check current working directory patterns
-        lambda: 'claude' in os.getcwd().lower(),
+        lambda: "claude" in os.getcwd().lower(),
         # Check environment variables
-        lambda: any(var for var in os.environ.keys() if 'claude' in var.lower()),
+        lambda: any(var for var in os.environ.keys() if "claude" in var.lower()),
         # Check if stdout/stderr are being captured (common in CLI tools)
         lambda: not os.isatty(sys.stdout.fileno()),
     ]
@@ -33,7 +33,8 @@ def detect_claude_code_environment():
 
 def show_usage_instructions():
     """Show instructions for using the app creator"""
-    print("""
+    print(
+        """
 🤖 Claude EDSL App Creator
 
 This tool creates EDSL apps using the Claude Code SDK.
@@ -55,7 +56,8 @@ Instead, you can:
 Example request for Claude:
 "Please create an EDSL app that takes AgentList as input and generation instructions,
 then augments each agent's scenario with generated content based on their characteristics."
-""")
+"""
+    )
 
 
 async def create_app_with_sdk(description: str, app_name: str):
@@ -76,7 +78,7 @@ Your task:
 Focus on production-ready code that follows EDSL patterns.""",
             allowed_tools=["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
             permission_mode="acceptEdits",
-            max_turns=20
+            max_turns=20,
         )
 
         # Create comprehensive prompt
@@ -101,7 +103,7 @@ Please analyze the requirements, study existing patterns, create the app, and te
 
         print("🔍 Analyzing requirements and generating app...")
         async for message in query(prompt=prompt, options=options):
-            if hasattr(message, 'content') and message.content:
+            if hasattr(message, "content") and message.content:
                 # Show progress updates
                 content = str(message.content)
                 if len(content) > 100:
@@ -119,7 +121,9 @@ Please analyze the requirements, study existing patterns, create the app, and te
             return False
 
     except ImportError:
-        print("❌ Claude Code SDK not available. Install with: pip install claude-code-sdk")
+        print(
+            "❌ Claude Code SDK not available. Install with: pip install claude-code-sdk"
+        )
         return False
     except Exception as e:
         print(f"❌ Error creating app: {e}")
@@ -136,7 +140,9 @@ def main():
     # Parse command line arguments
     if len(sys.argv) < 3:
         print("Usage: python standalone_app_creator.py '<description>' '<app_name>'")
-        print("Example: python standalone_app_creator.py 'Survey about favorite colors' 'color_survey'")
+        print(
+            "Example: python standalone_app_creator.py 'Survey about favorite colors' 'color_survey'"
+        )
         sys.exit(1)
 
     description = sys.argv[1]

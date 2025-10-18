@@ -25,7 +25,6 @@ import inspect
 from .. import logger
 
 
-
 if TYPE_CHECKING:
     from ..coop.coop_objects import CoopObjects
 
@@ -348,10 +347,12 @@ class PersistenceMixin:
         from edsl.config import CONFIG
 
         # Convert shorthand syntax to full URL if needed
-        if isinstance(url_or_uuid, str) and not url_or_uuid.startswith(('http://', 'https://')):
+        if isinstance(url_or_uuid, str) and not url_or_uuid.startswith(
+            ("http://", "https://")
+        ):
             # Check if it looks like a UUID (basic check for UUID format)
-            is_uuid = len(url_or_uuid) == 36 and url_or_uuid.count('-') == 4
-            if not is_uuid and '/' in url_or_uuid:
+            is_uuid = len(url_or_uuid) == 36 and url_or_uuid.count("-") == 4
+            if not is_uuid and "/" in url_or_uuid:
                 # Looks like shorthand format "username/alias"
                 url_or_uuid = f"{CONFIG.EXPECTED_PARROT_URL}/content/{url_or_uuid}"
 
@@ -1012,7 +1013,6 @@ class Base(
         # Query the cloud service to get the UUID based on the hash
         coop = Coop()
         return coop.get_uuid_from_hash(object_hash)
-    
 
     def apply_command(self, command_name, kwargs):
         if hasattr(self, command_name):
@@ -1022,24 +1022,25 @@ class Base(
             # If method returns an object (like to_A, to_B), return that object
             return result if result is not None else self
         else:
-            raise ValueError(f"Command method {command_name} not found on {type(self).__name__}")
+            raise ValueError(
+                f"Command method {command_name} not found on {type(self).__name__}"
+            )
 
-    
     @property
     def polly_commands(self):
         """Auto-generate commands list from methods decorated with @polly_command"""
         commands = []
         # Use dir() and getattr to avoid recursion issues with inspect.getmembers
         for name in dir(self):
-            if not name.startswith('_'):  # Skip private methods
+            if not name.startswith("_"):  # Skip private methods
                 try:
                     attr = getattr(self, name)
-                    if callable(attr) and hasattr(attr, '_is_polly_command'):
+                    if callable(attr) and hasattr(attr, "_is_polly_command"):
                         # Get method signature to extract kwargs
                         sig = inspect.signature(attr)
                         kwargs = {}
                         for param_name, param in sig.parameters.items():
-                            if param_name != 'self':  # Skip 'self' parameter
+                            if param_name != "self":  # Skip 'self' parameter
                                 # Use default value if available, otherwise use a placeholder
                                 if param.default != inspect.Parameter.empty:
                                     kwargs[param_name] = param.default
@@ -1054,16 +1055,12 @@ class Base(
                                             kwargs[param_name] = None
                                     else:
                                         kwargs[param_name] = None
-                        
-                        commands.append({
-                            'command_name': name,
-                            'kwargs': kwargs
-                        })
+
+                        commands.append({"command_name": name, "kwargs": kwargs})
                 except:
                     # Skip any attributes that cause issues during introspection
                     continue
         return commands
-
 
     def keys(self):
         """Get the key names in the object's dictionary representation.
@@ -1144,7 +1141,12 @@ class Base(
         """
         return json.dumps(self.to_dict())
 
-    def comment(self, comment: str, func: Optional[Callable] = None, log_format: Optional[str] = None):
+    def comment(
+        self,
+        comment: str,
+        func: Optional[Callable] = None,
+        log_format: Optional[str] = None,
+    ):
         """Comment on this object.
 
         Args:

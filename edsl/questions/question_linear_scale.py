@@ -1,7 +1,11 @@
 from __future__ import annotations
 from typing import Optional
 
-from .descriptors import QuestionOptionsDescriptor, OptionLabelDescriptor, WeightDescriptor
+from .descriptors import (
+    QuestionOptionsDescriptor,
+    OptionLabelDescriptor,
+    WeightDescriptor,
+)
 from .question_multiple_choice import (
     QuestionMultipleChoice,
     MultipleChoiceResponseValidator,

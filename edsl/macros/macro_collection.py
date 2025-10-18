@@ -1,7 +1,6 @@
 """MacroCollection class for managing collections of EDSL macros."""
 
 import importlib
-import os
 from pathlib import Path
 from typing import List, Dict, Optional, Any
 from edsl.macros.macro import Macro
@@ -15,7 +14,9 @@ class MacroCollection:
     and manage collections of related macros.
     """
 
-    def __init__(self, macros: Optional[List[Macro]] = None, name: Optional[str] = None):
+    def __init__(
+        self, macros: Optional[List[Macro]] = None, name: Optional[str] = None
+    ):
         """Initialize a MacroCollection.
 
         Args:
@@ -25,7 +26,7 @@ class MacroCollection:
         self.macros = macros or []
         self.name = name or "Unnamed Collection"
         self._macro_index = {macro.application_name: macro for macro in self.macros}
-    
+
     def __len__(self) -> int:
         """Return the number of macros in the collection."""
         return len(self.macros)
@@ -109,10 +110,14 @@ class MacroCollection:
             A new MacroCollection containing only macros of the specified type
         """
         filtered_macros = [
-            macro for macro in self.macros
+            macro
+            for macro in self.macros
             if getattr(macro, "application_type", "base") == application_type
         ]
-        return MacroCollection(macros=filtered_macros, name=f"{self.name} (filtered by type: {application_type})")
+        return MacroCollection(
+            macros=filtered_macros,
+            name=f"{self.name} (filtered by type: {application_type})",
+        )
 
     def filter_by_name_pattern(self, pattern: str) -> "MacroCollection":
         """Filter macros by name pattern.
@@ -124,13 +129,20 @@ class MacroCollection:
             A new MacroCollection containing only macros matching the pattern
         """
         filtered_macros = [
-            macro for macro in self.macros
-            if (pattern.lower() in macro.application_name.lower() or
-                pattern.lower() in macro.display_name.lower())
+            macro
+            for macro in self.macros
+            if (
+                pattern.lower() in macro.application_name.lower()
+                or pattern.lower() in macro.display_name.lower()
+            )
         ]
-        return MacroCollection(macros=filtered_macros, name=f"{self.name} (filtered by pattern: {pattern})")
+        return MacroCollection(
+            macros=filtered_macros, name=f"{self.name} (filtered by pattern: {pattern})"
+        )
 
-    def deploy(self, owner: str, server_url: str = "http://localhost:8000", force: bool = True) -> Dict[str, Any]:
+    def deploy(
+        self, owner: str, server_url: str = "http://localhost:8000", force: bool = True
+    ) -> Dict[str, Any]:
         """Deploy all macros in the collection to a server.
 
         Args:
@@ -141,38 +153,42 @@ class MacroCollection:
         Returns:
             Dictionary with deployment results
         """
-        results = {
-            "successful": [],
-            "failed": [],
-            "skipped": []
-        }
+        results = {"successful": [], "failed": [], "skipped": []}
 
         for macro in self.macros:
             try:
                 result = macro.deploy(owner=owner, server_url=server_url, force=force)
-                results["successful"].append({
-                    "application_name": macro.application_name,
-                    "display_name": macro.display_name,
-                    "result": result
-                })
+                results["successful"].append(
+                    {
+                        "application_name": macro.application_name,
+                        "display_name": macro.display_name,
+                        "result": result,
+                    }
+                )
             except Exception as e:
                 if "already exists" in str(e):
-                    results["skipped"].append({
-                        "application_name": macro.application_name,
-                        "display_name": macro.display_name,
-                        "reason": "Already exists"
-                    })
+                    results["skipped"].append(
+                        {
+                            "application_name": macro.application_name,
+                            "display_name": macro.display_name,
+                            "reason": "Already exists",
+                        }
+                    )
                 else:
-                    results["failed"].append({
-                        "application_name": macro.application_name,
-                        "display_name": macro.display_name,
-                        "error": str(e)
-                    })
+                    results["failed"].append(
+                        {
+                            "application_name": macro.application_name,
+                            "display_name": macro.display_name,
+                            "error": str(e),
+                        }
+                    )
 
         return results
-    
+
     @classmethod
-    def from_examples_directory(cls, examples_dir: Optional[str] = None, recursive: bool = True) -> "MacroCollection":
+    def from_examples_directory(
+        cls, examples_dir: Optional[str] = None, recursive: bool = True
+    ) -> "MacroCollection":
         """Load all macros from the edsl/macros/examples directory.
 
         Args:
@@ -202,10 +218,11 @@ class MacroCollection:
 
         # Filter out utility files and __pycache__
         python_files = [
-            f for f in python_files
-            if not f.name.startswith('__')
-            and f.name not in ['load_all_apps.py', 'load_apps_simple.py']
-            and '__pycache__' not in str(f)
+            f
+            for f in python_files
+            if not f.name.startswith("__")
+            and f.name not in ["load_all_apps.py", "load_apps_simple.py"]
+            and "__pycache__" not in str(f)
         ]
 
         for py_file in python_files:
@@ -226,19 +243,23 @@ class MacroCollection:
                     continue
 
                 # Look for an 'app' variable in the module (kept for backward compatibility)
-                if hasattr(module, 'app'):
-                    macro = getattr(module, 'app')
+                if hasattr(module, "app"):
+                    macro = getattr(module, "app")
                     if isinstance(macro, (Macro, CompositeMacro)):
                         macros.append(macro)
-                        print(f"✓ Loaded macro: {macro.application_name} from {module_name}")
+                        print(
+                            f"✓ Loaded macro: {macro.application_name} from {module_name}"
+                        )
                     else:
-                        print(f"Warning: 'app' in {module_name} is not a Macro instance")
+                        print(
+                            f"Warning: 'app' in {module_name} is not a Macro instance"
+                        )
                 else:
                     # Some modules might have multiple macros or different variable names
                     # Look for any variable that is a Macro instance
                     macro_candidates = []
                     for attr_name in dir(module):
-                        if not attr_name.startswith('_'):
+                        if not attr_name.startswith("_"):
                             attr = getattr(module, attr_name)
                             if isinstance(attr, (Macro, CompositeMacro)):
                                 macro_candidates.append((attr_name, attr))
@@ -246,7 +267,9 @@ class MacroCollection:
                     if macro_candidates:
                         for attr_name, macro in macro_candidates:
                             macros.append(macro)
-                            print(f"✓ Loaded macro: {macro.application_name} (as {attr_name}) from {module_name}")
+                            print(
+                                f"✓ Loaded macro: {macro.application_name} (as {attr_name}) from {module_name}"
+                            )
                     else:
                         print(f"Info: No Macro instances found in {module_name}")
 
@@ -256,9 +279,11 @@ class MacroCollection:
 
         print(f"\nLoaded {len(macros)} macros from {len(loaded_modules)} modules")
         return cls(macros=macros, name="EDSL Examples Collection")
-    
+
     @classmethod
-    def from_server(cls, server_url: str = "http://localhost:8000", owner: Optional[str] = None) -> "MacroCollection":
+    def from_server(
+        cls, server_url: str = "http://localhost:8000", owner: Optional[str] = None
+    ) -> "MacroCollection":
         """Load all macros from a server.
 
         Args:
@@ -283,12 +308,16 @@ class MacroCollection:
                     macros.append(macro)
                     print(f"✓ Loaded macro: {macro.application_name} from server")
             except Exception as e:
-                print(f"Warning: Could not load macro {macro_meta.get('application_name', 'unknown')}: {e}")
+                print(
+                    f"Warning: Could not load macro {macro_meta.get('application_name', 'unknown')}: {e}"
+                )
 
         return cls(macros=macros, name=f"Server Macros Collection ({server_url})")
 
     @classmethod
-    def from_list(cls, macro_identifiers: List[str], server_url: str = "http://localhost:8000") -> "MacroCollection":
+    def from_list(
+        cls, macro_identifiers: List[str], server_url: str = "http://localhost:8000"
+    ) -> "MacroCollection":
         """Load specific macros by their identifiers (qualified names or macro IDs).
 
         Args:
@@ -320,6 +349,7 @@ def load_examples_collection() -> MacroCollection:
         MacroCollection containing all example macros
     """
     return MacroCollection.from_examples_directory()
+
 
 if __name__ == "__main__":
     collection = load_examples_collection()

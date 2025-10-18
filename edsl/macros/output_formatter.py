@@ -13,7 +13,14 @@ from ..scenarios.agent_blueprint import AgentBlueprint
 from ..surveys import Survey
 
 relevant_classes = {
-    Results: ["to_scenario_list", "select", "table", "report_from_template", "long_view", "augment_agents"],
+    Results: [
+        "to_scenario_list",
+        "select",
+        "table",
+        "report_from_template",
+        "long_view",
+        "augment_agents",
+    ],
     Dataset: ["table", "expand", "to_markdown", "to_list"],
     TableDisplay: ["flip", "to_string"],
     FileStore: ["view", "to_docx", "save"],
@@ -32,9 +39,9 @@ relevant_classes = {
         "to_true_skill_ranked_list",
         "to_agent_blueprint",
         "__getitem__",
-        'add_scenario_reference',
-        'choose_k',
-        'full_replace',
+        "add_scenario_reference",
+        "choose_k",
+        "full_replace",
         "then",
         "else_",
         "otherwise",
@@ -91,7 +98,10 @@ _target_to_root_class_name: dict[str, str] = {
     "agent_list": "AgentList",
 }
 
-def _normalize_annotation_to_name(annotation: Any, current_type_name: Optional[str]) -> str:
+
+def _normalize_annotation_to_name(
+    annotation: Any, current_type_name: Optional[str]
+) -> str:
     """Convert a return annotation or class object to a readable type name.
 
     - If annotation is empty or unknown, returns 'Unknown'.
@@ -108,6 +118,7 @@ def _normalize_annotation_to_name(annotation: Any, current_type_name: Optional[s
     # typing.Self may appear as object without __name__
     try:
         from typing import Self as TypingSelf  # type: ignore
+
         if annotation is TypingSelf:
             return current_type_name or "Unknown"
     except Exception:
@@ -120,8 +131,9 @@ def _normalize_annotation_to_name(annotation: Any, current_type_name: Optional[s
     text = str(annotation)
     # Strip typing prefixes if present
     if text.startswith("typing."):
-        text = text[len("typing."):]
+        text = text[len("typing.") :]
     return text
+
 
 class ObjectFormatter(ABC):
     """Declarative, chainable renderer that applies whitelisted methods to a target type.
@@ -145,14 +157,14 @@ class ObjectFormatter(ABC):
 
     def copy(self):
         """Return a copy of the formatter.
-        
+
         This is useful for creating a new formatter with the same configuration but a different target.
         """
         return self.__class__.from_dict(self.to_dict())
 
     def set_description(self, description: str):
         """Set the description of the formatter.
-        
+
         This is useful for creating a new formatter with the same configuration but a different description.
         """
         self.description = description
@@ -170,7 +182,7 @@ class ObjectFormatter(ABC):
 
     def set_output_type(self, output_type: str):
         """Set the output type of the formatter.
-        
+
         This is useful for creating a new formatter with the same configuration but a different output type.
         """
         self.output_type = output_type
@@ -194,14 +206,15 @@ class ObjectFormatter(ABC):
             allowed_commands = white_list_commands
         self.allowed_commands = allowed_commands
 
-        self._stored_commands = list(_stored_commands) if _stored_commands is not None else []
+        self._stored_commands = (
+            list(_stored_commands) if _stored_commands is not None else []
+        )
         # Optional declarative params spec (names or defaults) supplied by user
         self.params = params
         # Output type hint for frontend rendering: "markdown", "html", "file", "json", "auto"
         self.output_type = output_type
 
     def __getattr__(self, name: str) -> Any:
-
         if name in self.allowed_commands:
 
             def method_proxy(*args, **kwargs):
@@ -230,7 +243,9 @@ class ObjectFormatter(ABC):
                     keys = list(ctx.keys())
                 except Exception:
                     keys = []
-                if keys and any(("{{" + k in value) or ("{{ " + k in value) for k in keys):
+                if keys and any(
+                    ("{{" + k in value) or ("{{ " + k in value) for k in keys
+                ):
                     return Template(value, undefined=StrictUndefined).render(**ctx)
             return value
 
@@ -238,10 +253,10 @@ class ObjectFormatter(ABC):
             if isinstance(value, str):
                 return _render_template_string(value, ctx)
             if isinstance(value, (list, tuple)):
-                resolved = [ _resolve_templates(v, ctx) for v in value ]
+                resolved = [_resolve_templates(v, ctx) for v in value]
                 return type(value)(resolved)
             if isinstance(value, dict):
-                return { k: _resolve_templates(v, ctx) for k, v in value.items() }
+                return {k: _resolve_templates(v, ctx) for k, v in value.items()}
             return value
 
         context = params or {}
@@ -266,7 +281,9 @@ class ObjectFormatter(ABC):
         cls._return_type_overrides[(owner_class_name, method_name)] = return_type
 
     @classmethod
-    def clear_return_type_override(cls, owner_class_name: str, method_name: str) -> None:
+    def clear_return_type_override(
+        cls, owner_class_name: str, method_name: str
+    ) -> None:
         cls._return_type_overrides.pop((owner_class_name, method_name), None)
 
     def _starting_type_name(self) -> str:
@@ -294,7 +311,9 @@ class ObjectFormatter(ABC):
         for method_name, _args, _kwargs in self._stored_commands:
             # Prefer the current type as owner if it has this method
             candidate_owner_names = [
-                owner_name for owner_name, methods in owner_to_methods.items() if method_name in methods
+                owner_name
+                for owner_name, methods in owner_to_methods.items()
+                if method_name in methods
             ]
 
             if current_type_name in candidate_owner_names:
@@ -307,7 +326,9 @@ class ObjectFormatter(ABC):
             # Overrides take precedence over inferred annotations
             ann = ObjectFormatter._return_type_overrides.get((owner_name, method_name))
             if ann is None:
-                ann = return_types_by_owner_method.get((owner_name, method_name), inspect._empty)
+                ann = return_types_by_owner_method.get(
+                    (owner_name, method_name), inspect._empty
+                )
             end_type_name = _normalize_annotation_to_name(ann, current_type_name)
             flow.append((current_type_name, method_name, end_type_name))
             current_type_name = end_type_name
@@ -351,7 +372,7 @@ class ObjectFormatter(ABC):
             "allowed_commands": list(self.allowed_commands),
             "target": self.target,
             "params": self.params,
-            "output_type": getattr(self, 'output_type', 'auto'),
+            "output_type": getattr(self, "output_type", "auto"),
             "stored_commands": [
                 {"name": name, "args": list(args), "kwargs": kwargs}
                 for name, args, kwargs in self._stored_commands
@@ -372,7 +393,7 @@ class ObjectFormatter(ABC):
             parts.append(f"allowed_commands={self.allowed_commands!r}")
         if self.params is not None:
             parts.append(f"params={self.params!r}")
-        if getattr(self, 'output_type', 'auto') != 'auto':
+        if getattr(self, "output_type", "auto") != "auto":
             parts.append(f"output_type={self.output_type!r}")
         if self._stored_commands:
             parts.append(f"_stored_commands={self._stored_commands!r}")
@@ -432,9 +453,9 @@ class ObjectFormatter(ABC):
         )
         return instance
 
-class OutputFormatter(ObjectFormatter):
-    target = 'results'
 
+class OutputFormatter(ObjectFormatter):
+    target = "results"
 
 
 class OutputFormatters(UserList):
@@ -444,7 +465,12 @@ class OutputFormatters(UserList):
     instances, or a list of `OutputFormatter` instances (legacy). Ensures a
     pass-through `raw_results` formatter is always present.
     """
-    def __init__(self, data: dict[str, OutputFormatter] | list[OutputFormatter] | None = None, default: Optional[str] = None):
+
+    def __init__(
+        self,
+        data: dict[str, OutputFormatter] | list[OutputFormatter] | None = None,
+        default: Optional[str] = None,
+    ):
         # Support dict-based initialization as the primary API. List remains for legacy paths.
         if isinstance(data, dict):
             mapping: dict[str, OutputFormatter] = dict(data)
@@ -456,7 +482,9 @@ class OutputFormatters(UserList):
             for f in data_list:
                 key = getattr(f, "description", None) or getattr(f, "name", None)
                 if not key:
-                    raise ValueError("Each formatter must have a non-empty description to be keyed.")
+                    raise ValueError(
+                        "Each formatter must have a non-empty description to be keyed."
+                    )
                 if key in mapping:
                     raise ValueError(f"Duplicate formatter key '{key}' detected")
                 mapping[key] = f
@@ -493,7 +521,13 @@ class OutputFormatters(UserList):
             )
         return self.mapping[name]
 
-    def register(self, formatter: OutputFormatter, key: str | None = None, *, set_default: bool = False) -> None:
+    def register(
+        self,
+        formatter: OutputFormatter,
+        key: str | None = None,
+        *,
+        set_default: bool = False,
+    ) -> None:
         """Add a formatter to the collection, updating mapping and optional default.
 
         Args:
@@ -504,7 +538,11 @@ class OutputFormatters(UserList):
         """
         if not isinstance(formatter, OutputFormatter):
             raise TypeError("formatter must be an OutputFormatter")
-        name = key or getattr(formatter, "description", None) or getattr(formatter, "name", None)
+        name = (
+            key
+            or getattr(formatter, "description", None)
+            or getattr(formatter, "name", None)
+        )
         if not name:
             raise ValueError("formatter must have a unique, non-empty description")
         if name in self.mapping:
@@ -534,7 +572,9 @@ class OutputFormatters(UserList):
         """
         # Serialize to a dict keyed by formatter names (descriptions)
         return {
-            "formatters": {name: formatter.to_dict() for name, formatter in self.mapping.items()},
+            "formatters": {
+                name: formatter.to_dict() for name, formatter in self.mapping.items()
+            },
             "default": self.default,
         }
 
@@ -563,15 +603,19 @@ class OutputFormatters(UserList):
         # Accept both new dict-shaped and legacy list-shaped payloads
         mapping: dict[str, OutputFormatter]
         if isinstance(payload, dict):
-            mapping = {name: ObjectFormatter.from_dict(fd) for name, fd in payload.items()}
+            mapping = {
+                name: ObjectFormatter.from_dict(fd) for name, fd in payload.items()
+            }
         else:
             # Legacy: list of formatter dicts; key by description/name
             mapping = {}
-            for fd in (payload or []):
+            for fd in payload or []:
                 of = ObjectFormatter.from_dict(fd)
                 key = getattr(of, "description", None) or getattr(of, "name", None)
                 if not key:
-                    raise ValueError("Formatter entry missing description/name for keying")
+                    raise ValueError(
+                        "Formatter entry missing description/name for keying"
+                    )
                 mapping[key] = of
         default_name = data.get("default")
         instance = cls(mapping, default=default_name)
@@ -588,31 +632,37 @@ class OutputFormatters(UserList):
 
 
 class ScenarioAttachmentFormatter(ObjectFormatter):
-    target = 'scenario'
+    target = "scenario"
+
 
 class SurveyAttachmentFormatter(ObjectFormatter):
-    target = 'survey'
+    target = "survey"
+
 
 class AgentAttachmentFormatter(ObjectFormatter):
-    target = 'agent_list'
+    target = "agent_list"
 
 
 class AttachmentsFormatter(ObjectFormatter):
-    target = 'attachments'
+    target = "attachments"
 
     def render(self, attachments: Any, params: Optional[dict] = None) -> Any:
         # attachments here is a HeadAttachments instance when applied
         # Execute stored named ops via AttachmentOps
         from .attachments_ops import AttachmentOps
+
         if attachments is None:
             # Import here to avoid cycle
             from .head_attachments import HeadAttachments
+
             attachments = HeadAttachments()
         for command, args, kwargs in self._stored_commands:
             # Support either .op(name='...') or .then('op', name='...') shapes
-            if command != 'op':
-                raise ValueError("AttachmentsFormatter only supports op(name=..., **kwargs) steps")
-            op_name = kwargs.pop('name', None)
+            if command != "op":
+                raise ValueError(
+                    "AttachmentsFormatter only supports op(name=..., **kwargs) steps"
+                )
+            op_name = kwargs.pop("name", None)
             if not isinstance(op_name, str) or not op_name:
                 raise ValueError(".op requires a 'name' keyword argument")
             fn = AttachmentOps.get(op_name)
@@ -627,11 +677,10 @@ class AttachmentsFormatter(ObjectFormatter):
 
 
 if __name__ == "__main__":
-
     # Provide a sensible default override for built-in list.__getitem__
     # Without this, inspect.signature fails and leaves Unknown, which is fine,
     # but the override makes intent explicit.
-    ObjectFormatter.set_return_type_override('list', '__getitem__', 'Unknown')
+    ObjectFormatter.set_return_type_override("list", "__getitem__", "Unknown")
 
     of = OutputFormatter().table().flip()
     from edsl.results import Results

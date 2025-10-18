@@ -2,7 +2,7 @@ class QuestionTypeModule:
     def __init__(self, input_data):
         self.input_data = input_data
         self._question_types = None
-    
+
     @property
     def question_types(self):
         if self._question_types is None:
@@ -12,7 +12,9 @@ class QuestionTypeModule:
     @question_types.setter
     def question_types(self, value):
         if value is None:
-            value = [self._infer_question_type(qn) for qn in self.input_data.question_names]
+            value = [
+                self._infer_question_type(qn) for qn in self.input_data.question_names
+            ]
         self._question_types = value
 
     def _infer_question_type(self, question_name) -> str:

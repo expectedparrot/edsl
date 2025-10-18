@@ -62,14 +62,18 @@ class EmbeddingsClustering:
             raise ImportError("scikit-learn is required for DBSCAN clustering.")
         ids, vectors = EmbeddingsClustering._get_vectors(engine)
         if not vectors:
-            return DBSCANClusteringResult(labels=[], clusters={}, noise_indices=[], params={})
+            return DBSCANClusteringResult(
+                labels=[], clusters={}, noise_indices=[], params={}
+            )
 
         if eps is None and target_num_clusters is not None:
             if eps_grid is None:
                 eps_grid = EmbeddingsClustering._default_eps_grid(len(ids))
             best = None
             for candidate in eps_grid:
-                labels = EmbeddingsClustering._fit_dbscan(vectors, candidate, min_samples, metric)
+                labels = EmbeddingsClustering._fit_dbscan(
+                    vectors, candidate, min_samples, metric
+                )
                 num_clusters = EmbeddingsClustering._count_clusters(labels)
                 score = abs(num_clusters - target_num_clusters)
                 if best is None or score < best[0]:
@@ -89,7 +93,9 @@ class EmbeddingsClustering:
             else:
                 clusters.setdefault(label, []).append(idx)
 
-        clusters_doc_ids: Dict[int, List[str]] = {cid: [ids[i] for i in ix] for cid, ix in clusters.items()}
+        clusters_doc_ids: Dict[int, List[str]] = {
+            cid: [ids[i] for i in ix] for cid, ix in clusters.items()
+        }
         noise_doc_ids: List[str] = [ids[i] for i in noise_indices]
 
         return DBSCANClusteringResult(
@@ -108,7 +114,9 @@ class EmbeddingsClustering:
         )
 
     @staticmethod
-    def _fit_dbscan(vectors: List[List[float]], eps: float, min_samples: int, metric: str) -> List[int]:
+    def _fit_dbscan(
+        vectors: List[List[float]], eps: float, min_samples: int, metric: str
+    ) -> List[int]:
         if _np is None:
             raise ImportError("NumPy is required for clustering.")
         X = _np.asarray(vectors, dtype=float)
@@ -138,5 +146,3 @@ class EmbeddingsClustering:
     def _default_eps_grid(n: int) -> List[float]:
         # Reasonable default sweep
         return [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7]
-
-

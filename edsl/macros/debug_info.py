@@ -46,5 +46,3 @@ class DebugInfo:
         snap = self.capture_snapshot()
         self.history.append(snap)
         return snap
-
-

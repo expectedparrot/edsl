@@ -307,7 +307,6 @@ class FileStore(Scenario):
         from google.genai.types import UploadFileConfig
         import time
 
-
         method_start = time.time()
 
         try:
@@ -856,7 +855,9 @@ class FileStore(Scenario):
             base_name = os.path.splitext(os.path.basename(self.path))[0] or "document"
             output_path = os.path.join(temp_dir, f"{base_name}.pdf")
 
-        converter = MarkdownToPDF(self.text, filename=os.path.splitext(os.path.basename(output_path))[0])
+        converter = MarkdownToPDF(
+            self.text, filename=os.path.splitext(os.path.basename(output_path))[0]
+        )
         success = converter.convert(output_path, **options)
         if not success:
             raise RuntimeError("Failed to convert markdown to PDF")
@@ -884,7 +885,9 @@ class FileStore(Scenario):
             RuntimeError: If conversion fails.
         """
         if self.suffix.lower() not in ("md", "markdown"):
-            raise TypeError("to_docx() is only supported for markdown FileStore objects")
+            raise TypeError(
+                "to_docx() is only supported for markdown FileStore objects"
+            )
 
         import os
         import tempfile
@@ -896,7 +899,9 @@ class FileStore(Scenario):
             base_name = os.path.splitext(os.path.basename(self.path))[0] or "document"
             output_path = os.path.join(temp_dir, f"{base_name}.docx")
 
-        converter = MarkdownToDocx(self.text, filename=os.path.splitext(os.path.basename(output_path))[0])
+        converter = MarkdownToDocx(
+            self.text, filename=os.path.splitext(os.path.basename(output_path))[0]
+        )
         success = converter.convert(output_path, **options)
         if not success:
             raise RuntimeError("Failed to convert markdown to DOCX")

@@ -217,7 +217,9 @@ def sanitize_string(input_string, max_length=35):
     words = re.sub(r"\W+", " ", input_string).split()
 
     # Remove stopwords and numbers
-    important_words = [word for word in words if word.lower() not in stop_words and not word.isdigit()]
+    important_words = [
+        word for word in words if word.lower() not in stop_words and not word.isdigit()
+    ]
 
     # Join words with underscores
     sanitized_string = "_".join(important_words)
@@ -260,7 +262,6 @@ def sanitize_string(input_string, max_length=35):
 #         print()
 
 if __name__ == "__main__":
-    from .input_data import InputDataABC
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)

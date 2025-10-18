@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 class ScenarioSerializer:
     """
     Handles serialization and deserialization operations for Scenario objects.
-    
+
     This class provides methods for converting Scenario objects to and from various
     formats including dictionaries and datasets. It also handles hash computation
     and special serialization requirements for embedded objects like FileStore.
@@ -34,7 +34,7 @@ class ScenarioSerializer:
     def __init__(self, scenario: "Scenario"):
         """
         Initialize the serializer with a Scenario instance.
-        
+
         Args:
             scenario: The Scenario instance to serialize.
         """
@@ -189,4 +189,4 @@ class ScenarioSerializer:
             from .scenario import Scenario
         except ImportError:
             from edsl.scenarios import Scenario
-        return Scenario(data_copy) 
+        return Scenario(data_copy)

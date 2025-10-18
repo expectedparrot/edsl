@@ -1,13 +1,11 @@
-
-
 # Length of the prompt
-# Conherence 
+# Conherence
 # Duplication
 
 compress_prompt = "Please compress this narrative to be more concise and coherent. Remove duplicative information."
 
-class PromptAssess:
 
+class PromptAssess:
     def __init__(self, prompt):
         self.prompt = prompt
 
@@ -15,4 +13,4 @@ class PromptAssess:
         return len(self.prompt)
 
     def assess_coherence(self):
-        return 
+        return

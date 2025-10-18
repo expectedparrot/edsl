@@ -3,7 +3,6 @@ from ..dataset import Dataset
 
 
 class Markkdown:
-
     def __init__(self, text: str):
         self.text = text
 

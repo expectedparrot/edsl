@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Container for result pair comparison differences."""
 
-from typing import Sequence, Optional, List, Callable, Dict, Any, TYPE_CHECKING
+from typing import Sequence, Optional, List, Callable, TYPE_CHECKING
 import uuid
 
 if TYPE_CHECKING:
@@ -12,11 +12,11 @@ if TYPE_CHECKING:
 
 class ResultDifferences:
     """Container for differences between two results with interactive display.
-    
+
     Holds a list of formatted question comparison differences and provides
     an interactive HTML view with navigation controls.
     """
-    
+
     def __init__(
         self,
         differences: List[str],
@@ -28,7 +28,7 @@ class ResultDifferences:
         filter_func: Optional[Callable[[str, "AnswerComparison"], bool]] = None,
     ):
         """Initialize ResultDifferences container.
-        
+
         Args:
             differences: List of formatted difference strings for each question
             question_names: List of question names corresponding to differences
@@ -45,27 +45,27 @@ class ResultDifferences:
         self.exclude_exact_match = exclude_exact_match
         self.exclude_answer_values = exclude_answer_values
         self.filter_func = filter_func
-    
+
     def __repr__(self) -> str:
         """Return string representation of ResultDifferences."""
         return f"ResultDifferences(count={len(self.differences)})"
-    
+
     def __len__(self) -> int:
         """Return the number of differences."""
         return len(self.differences)
-    
+
     def __getitem__(self, index: int) -> str:
         """Get a specific difference by index."""
         return self.differences[index]
-    
+
     def __iter__(self):
         """Iterate over differences."""
         return iter(self.differences)
-    
+
     def __str__(self) -> str:
         """Return all differences joined by double newlines."""
         return "\n\n".join(self.differences)
-    
+
     @classmethod
     def from_comparison(
         cls,
@@ -77,7 +77,7 @@ class ResultDifferences:
         filter_func: Optional[Callable[[str, "AnswerComparison"], bool]] = None,
     ) -> "ResultDifferences":
         """Create ResultDifferences from a ResultPairComparison.
-        
+
         Args:
             result_comparison: The ResultPairComparison to extract differences from
             question_names: Optional sequence of question names to include.
@@ -90,10 +90,10 @@ class ResultDifferences:
                                  will be excluded. Default: ["n/a", "none", "missing"]
             filter_func: Optional custom filter function that takes (question_name,
                         AnswerComparison) and returns True to include
-        
+
         Returns:
             ResultDifferences instance with formatted differences
-            
+
         Examples:
             >>> from edsl.comparisons import ResultPairComparison
             >>> from edsl.comparisons.result_differences import ResultDifferences
@@ -103,46 +103,46 @@ class ResultDifferences:
             True
         """
         from .comparison_formatter import ComparisonFormatter
-        
+
         # Set default exclude values if not provided
         if exclude_answer_values is None:
             exclude_answer_values = ["n/a", "none", "missing"]
-        
+
         # Get the scenario list
         sl = result_comparison.to_scenario_list()
-        
+
         # Create formatter
         formatter = ComparisonFormatter(sl, template=template)
-        
+
         # Determine which questions to consider
         if question_names is None:
             candidate_questions = list(result_comparison.comparison.keys())
         else:
             candidate_questions = list(question_names)
-        
+
         # Apply filters and format
         formatted_parts = []
         included_question_names = []
-        
+
         for qname in candidate_questions:
             # Skip if question not found
             if qname not in result_comparison.comparison:
                 continue
-            
+
             # Apply built-in filters
             if not result_comparison.should_include_question(
                 qname,
                 exclude_exact_match=exclude_exact_match,
-                exclude_answer_values=exclude_answer_values
+                exclude_answer_values=exclude_answer_values,
             ):
                 continue
-            
+
             # Apply custom filter if provided
             if filter_func is not None:
                 comparison_data = result_comparison.comparison[qname]
                 if not filter_func(qname, comparison_data):
                     continue
-            
+
             # Format this question
             try:
                 formatted_parts.append(formatter.format_question(qname))
@@ -150,7 +150,7 @@ class ResultDifferences:
             except KeyError:
                 # Question not found in formatter, skip it
                 pass
-        
+
         return cls(
             differences=formatted_parts,
             question_names=included_question_names,
@@ -160,16 +160,16 @@ class ResultDifferences:
             exclude_answer_values=exclude_answer_values,
             filter_func=filter_func,
         )
-    
+
     def show(self) -> str:
         """Generate interactive HTML with navigation controls.
-        
+
         Returns an HTML string with forward/backward buttons to navigate through
         differences one at a time.
-        
+
         Returns:
             HTML string with interactive navigation
-            
+
         Examples:
             >>> from edsl.comparisons import ResultPairComparison
             >>> from edsl.comparisons.result_differences import ResultDifferences
@@ -181,24 +181,24 @@ class ResultDifferences:
         """
         if not self.differences:
             return "<div><p>No differences to display.</p></div>"
-        
+
         # Generate a unique ID for this widget instance
         widget_id = f"result-diff-{uuid.uuid4().hex[:8]}"
         # JavaScript-safe function name (replace hyphens with underscores)
         js_func_name = widget_id.replace("-", "_")
-        
+
         # Escape HTML entities in the content to prevent XSS, but preserve formatting
-        import html as html_module
         import json
-        
+
         # Just use the differences as-is - they'll render with proper angle brackets
         formatted_differences = self.differences
-        
+
         # Build the HTML
         html_parts = []
-        
+
         # Add styles
-        html_parts.append(f"""
+        html_parts.append(
+            f"""
 <style>
     #{widget_id} {{
         font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
@@ -275,10 +275,12 @@ class ResultDifferences:
         font-weight: 500;
     }}
 </style>
-""")
-        
+"""
+        )
+
         # Add the widget structure
-        html_parts.append(f"""
+        html_parts.append(
+            f"""
 <div id="{widget_id}">
     <div class="header">
         <h3>Result Differences</h3>
@@ -301,14 +303,16 @@ class ResultDifferences:
         </button>
     </div>
 </div>
-""")
-        
+"""
+        )
+
         # Add JavaScript for navigation
         # Embed the differences data as a JSON array
         differences_json = json.dumps(formatted_differences)
         questions_json = json.dumps(self.question_names)
-        
-        html_parts.append(f"""
+
+        html_parts.append(
+            f"""
 <script>
 (function() {{
     const differences = {differences_json};
@@ -339,10 +343,11 @@ class ResultDifferences:
     }}
 }})();
 </script>
-""")
-        
+"""
+        )
+
         return "".join(html_parts)
-    
+
     def _repr_html_(self) -> str:
         """Return HTML representation for Jupyter notebooks."""
         return self.show()
@@ -350,5 +355,5 @@ class ResultDifferences:
 
 if __name__ == "__main__":
     import doctest
-    doctest.testmod(verbose=True)
 
+    doctest.testmod(verbose=True)

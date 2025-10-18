@@ -8,6 +8,7 @@ from .answer_comparison import AnswerComparison
 # Optional import for rich functionality
 try:
     from rich.table import Table
+
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -71,95 +72,109 @@ class ComparisonResults:
         >>> by_type['free_text']
         ['q2']
     """
-    
-    def __init__(self, comparisons: Dict[str, AnswerComparison], comparison_fns: List[Any]):
+
+    def __init__(
+        self, comparisons: Dict[str, AnswerComparison], comparison_fns: List[Any]
+    ):
         """Initialize with comparison results and function metadata.
-        
+
         Args:
             comparisons: Dictionary mapping question names to AnswerComparison objects
             comparison_fns: List of ComparisonFunction objects used to generate the results
         """
         self.comparisons = comparisons
         self.comparison_fns = comparison_fns
-    
+
     def __getitem__(self, key: str) -> AnswerComparison:
         """Get AnswerComparison by question name.
-        
+
         Args:
             key: Question name
-            
+
         Returns:
             AnswerComparison object for the specified question
         """
         return self.comparisons[key]
-    
+
     def __iter__(self):
         """Iterate over question names."""
         return iter(self.comparisons)
-    
+
     def items(self):
         """Return (question_name, AnswerComparison) pairs."""
         return self.comparisons.items()
-    
+
     def keys(self):
         """Return question names."""
         return self.comparisons.keys()
-    
+
     def values(self):
         """Return AnswerComparison objects."""
         return self.comparisons.values()
-    
+
     def question_types(self) -> Dict[str, Optional[str]]:
         """Get question types for all questions.
-        
+
         Returns:
             Dict mapping question names to their question types
         """
-        return {qname: getattr(comparison, 'question_type', None) for qname, comparison in self.comparisons.items()}
-    
+        return {
+            qname: getattr(comparison, "question_type", None)
+            for qname, comparison in self.comparisons.items()
+        }
+
     def question_texts(self) -> Dict[str, Optional[str]]:
         """Get question texts for all questions.
-        
+
         Returns:
             Dict mapping question names to their question texts
         """
-        return {qname: getattr(comparison, 'question_text', None) for qname, comparison in self.comparisons.items()}
-    
+        return {
+            qname: getattr(comparison, "question_text", None)
+            for qname, comparison in self.comparisons.items()
+        }
+
     def question_options(self) -> Dict[str, Optional[List]]:
         """Get question options for all questions.
-        
+
         Returns:
             Dict mapping question names to their question options (if any)
         """
-        return {qname: getattr(comparison, 'question_options', None) for qname, comparison in self.comparisons.items()}
-    
+        return {
+            qname: getattr(comparison, "question_options", None)
+            for qname, comparison in self.comparisons.items()
+        }
+
     def get_question_attribute(self, attribute: str) -> Dict[str, Any]:
         """Get a specific question attribute for all questions.
-        
+
         Args:
             attribute: The attribute name to retrieve (e.g., 'question_type', 'question_text', 'question_options')
-            
+
         Returns:
             Dict mapping question names to the requested attribute values
         """
-        return {qname: getattr(comparison, attribute, None) for qname, comparison in self.comparisons.items()}
-    
+        return {
+            qname: getattr(comparison, attribute, None)
+            for qname, comparison in self.comparisons.items()
+        }
+
     @property
     def all_question_types(self) -> List[str]:
         """Get a list of all unique question types in the results."""
         types = set()
         for comparison in self.comparisons.values():
-            qtype = getattr(comparison, 'question_type', None)
+            qtype = getattr(comparison, "question_type", None)
             if qtype:
                 types.add(qtype)
         return sorted(list(types))
-    
-    @property 
+
+    @property
     def questions_by_type(self) -> Dict[str, List[str]]:
         """Group question names by their question type."""
         by_type = {}
         for qname, comparison in self.comparisons.items():
-            qtype = getattr(comparison, 'question_type', 'unknown')
+            qtype = getattr(comparison, "question_type", "unknown")
             if qtype not in by_type:
                 by_type[qtype] = []
             by_type[qtype].append(qname)
@@ -168,18 +183,21 @@ class ComparisonResults:
     def to_scenario_list(self):
         """Convert the comparison results to a ScenarioList."""
         from edsl import ScenarioList, Scenario
+
         scenarios = []
         for q, answer_comparison in self.comparisons.items():
-            combined_dict = {'question_name': q}
+            combined_dict = {"question_name": q}
             combined_dict.update(answer_comparison.to_dict())
             scenarios.append(Scenario(combined_dict))
         return ScenarioList(scenarios)
-    
+
     def render_table(self):
         """Create a rich Table for the comparison results."""
         if not RICH_AVAILABLE:
-            raise ImportError("rich is required for table rendering. Install with: pip install rich")
-            
+            raise ImportError(
+                "rich is required for table rendering. Install with: pip install rich"
+            )
+
         table = Table(title="Answer Comparison", show_lines=True)
         table.add_column("Question", style="bold")
 
@@ -194,7 +212,7 @@ class ComparisonResults:
         for q, metrics in self.comparisons.items():
             # First column: question name plus (question_type) if available
             q_cell = str(q)
-            qtype = getattr(metrics, 'question_type', None)
+            qtype = getattr(metrics, "question_type", None)
             if qtype:
                 q_cell = f"{q}\n({qtype})"
 
@@ -206,10 +224,12 @@ class ComparisonResults:
                 else:
                     row.append(str(val))
 
-            row.extend([
-                AnswerComparison._truncate(metrics.answer_a, 100),
-                AnswerComparison._truncate(metrics.answer_b, 100),
-            ])
+            row.extend(
+                [
+                    AnswerComparison._truncate(metrics.answer_a, 100),
+                    AnswerComparison._truncate(metrics.answer_b, 100),
+                ]
+            )
 
             table.add_row(*row)
 

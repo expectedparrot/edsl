@@ -30,20 +30,20 @@ def local_results_cache(job, cache_dir: str | None = None, verbose: bool = True)
 
     Examples:
         Basic usage with automatic caching:
-        
+
         >>> from edsl import QuestionFreeText, ScenarioList
         >>> job = QuestionFreeText(
         ...     question_name="test",
         ...     question_text="What is 2+2?"
         ... ).by(ScenarioList.from_list("dummy", [1]))
-        >>> 
+        >>>
         >>> # First run executes job and caches result
         >>> with local_results_cache(job, verbose=False) as results:
         ...     len(results) > 0
         True
-        
+
         Custom cache directory:
-        
+
         >>> import tempfile
         >>> with tempfile.TemporaryDirectory() as tmpdir:
         ...     with local_results_cache(job, cache_dir=tmpdir, verbose=False) as results:
@@ -59,7 +59,9 @@ def local_results_cache(job, cache_dir: str | None = None, verbose: bool = True)
     from edsl import Results  # local import to avoid heavy import cost
 
     # Determine cache directory and file locations (single cache per script)
-    root = Path(cache_dir) if cache_dir else Path(tempfile.gettempdir()) / "edsl_job_cache"
+    root = (
+        Path(cache_dir) if cache_dir else Path(tempfile.gettempdir()) / "edsl_job_cache"
+    )
     root.mkdir(parents=True, exist_ok=True)
 
     current_hash = str(hash(job))
@@ -99,7 +101,7 @@ def local_results_cache(job, cache_dir: str | None = None, verbose: bool = True)
     except Exception as e:
         if verbose:
             print("[cache] failed to save cache:", e)
-    
+
     try:
         yield results_obj
     except Exception:

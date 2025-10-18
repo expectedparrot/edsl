@@ -27,6 +27,7 @@ __all__ = [
 # Helper to build a default weighting dictionary (defined early for reuse)
 # ---------------------------------------------------------------------
 
+
 def example_metric_weighting_dict(
     comparison_factory: ComparisonFactory | None = None,
     weight: float = 1.0,
@@ -55,9 +56,11 @@ def example_metric_weighting_dict(
 
     return {str(fn): float(weight) for fn in comparison_factory.comparison_fns}
 
+
 # ---------------------------------------------------------------------
 # Example question weighting helper
 # ---------------------------------------------------------------------
+
 
 def example_question_weighting_dict(
     results_comparison: "ResultPairComparison",
@@ -81,6 +84,7 @@ def example_question_weighting_dict(
 # Helpers for *focused* weighting on a single metric/question
 # ---------------------------------------------------------------------
 
+
 def single_metric_weighting_dict(
     comparison_factory: ComparisonFactory,
     target_metric_name: str,
@@ -99,6 +103,7 @@ def single_metric_weighting_dict(
     if target_metric_name not in names:
         raise ValueError(f"Metric '{target_metric_name}' not found in factory metrics.")
     return {name: (weight if name == target_metric_name else default) for name in names}
+
 
 def single_question_weighting_dict(
     results_comparison: "ResultPairComparison",
@@ -119,11 +124,15 @@ def single_question_weighting_dict(
         raise ValueError(f"Question '{target_question_name}' not found in comparison.")
     return {q: (weight if q == target_question_name else default) for q in qnames}
 
+
 if TYPE_CHECKING:
     from edsl import Results  # pragma: no cover – only for type hints
-    from edsl.scenarios import Scenario, ScenarioList  # pragma: no cover – only for type hints
+    from edsl.scenarios import (
+        ScenarioList,
+    )  # pragma: no cover – only for type hints
 
 from ..base import Base
+
 
 class ResultPairComparison(Base):
     """Pair-wise result comparison and visualisation."""
@@ -133,7 +142,7 @@ class ResultPairComparison(Base):
 
         def get_name(name_field):
             try:
-                extracted_name = ast.literal_eval(name_field)['name'][:4]
+                extracted_name = ast.literal_eval(name_field)["name"][:4]
                 return extracted_name
             except Exception:
                 return name_field[:4]
@@ -147,7 +156,9 @@ class ResultPairComparison(Base):
         else:
             questions = ", ".join(questions)
 
-        return f"ResultPairComparison: '{agent_1}' vs '{agent_2}' on Survey: '{questions}'"
+        return (
+            f"ResultPairComparison: '{agent_1}' vs '{agent_2}' on Survey: '{questions}'"
+        )
 
     def __init__(
         self,
@@ -158,15 +169,17 @@ class ResultPairComparison(Base):
     ) -> None:
         self.result_A = result_A
         self.result_B = result_B
-        self.comparison_factory = comparison_factory or ComparisonFactory.with_defaults()
+        self.comparison_factory = (
+            comparison_factory or ComparisonFactory.with_defaults()
+        )
         self.diff_keys: Sequence[str] = diff_keys or ("scenario", "agent", "model")
 
         # Optional cache for previous weighted score calculations
         self._cached_scores: Dict[tuple[frozenset, frozenset], float] = {}
 
-        #self._comparison: Optional[Dict[str, AnswerComparison]] = None
+        # self._comparison: Optional[Dict[str, AnswerComparison]] = None
         self._diffs: Dict[str, Any] = {}
-        
+
         for key in self.diff_keys:
             try:
                 self._diffs[key] = result_A[key] - result_B[key]
@@ -174,13 +187,15 @@ class ResultPairComparison(Base):
                 self._diffs[key] = None
 
         self.comparison = self.comparison_factory.compare_results(
-                self.result_A, self.result_B
-            ).comparisons
+            self.result_A, self.result_B
+        ).comparisons
 
     def to_table(self, title: Optional[str] = None) -> Table:
         if title is None:
             title = "Answer Comparison"
-        return render_comparison_table(self.comparison, self.comparison_factory.comparison_fns, title=title)
+        return render_comparison_table(
+            self.comparison, self.comparison_factory.comparison_fns, title=title
+        )
 
     def print_table(self, console: Optional[Console] = None) -> None:
         if console is None:
@@ -189,17 +204,17 @@ class ResultPairComparison(Base):
 
     def _repr_html_(self) -> str:
         return self.to_scenario_list()._repr_html_()
-    
+
     def to_scenario_list(self) -> "ScenarioList":
         """Convert comparison results to a ScenarioList with codebook.
-        
+
         Returns a ScenarioList where each row represents a question comparison
         with short column names as keys and a codebook mapping short names to
         descriptive names.
-        
+
         Returns:
             ScenarioList: Collection of scenarios with comparison data and codebook
-            
+
         Examples:
             >>> from edsl.comparisons import ResultPairComparison
             >>> rc = ResultPairComparison.example()
@@ -210,27 +225,27 @@ class ResultPairComparison(Base):
             True
         """
         from edsl.scenarios import Scenario, ScenarioList
-    
+
         metric_names = [str(fn) for fn in self.comparison_factory.comparison_fns]
-        
+
         # Build the data rows and codebook
         scenarios = []
         codebook = {}
-        
+
         # Define column names and their descriptions
         codebook["question"] = "Question"
         codebook["question_text"] = "Question Text"
         codebook["answer_a"] = "Answer A"
         codebook["answer_b"] = "Answer B"
-        
+
         for m in metric_names:
             # Short name is the metric name itself
             # Pretty name is the formatted version
             pretty = m.replace("_", " ").title()
             codebook[m] = pretty
-        
+
         codebook["question_type"] = "Question Type"
-        
+
         # Build rows
         for q, metrics in self.comparison.items():
             row = {}
@@ -238,7 +253,7 @@ class ResultPairComparison(Base):
             row["question_text"] = metrics["question_text"]
             row["answer_a"] = metrics.answer_a
             row["answer_b"] = metrics.answer_b
-            
+
             # Add metric values
             for m in metric_names:
                 val = metrics[m]
@@ -246,11 +261,11 @@ class ResultPairComparison(Base):
                     row[m] = val
                 else:
                     row[m] = str(val) if val is not None else None
-            
+
             row["question_type"] = metrics["question_type"]
-            
+
             scenarios.append(Scenario(row))
-        
+
         return ScenarioList(scenarios, codebook=codebook)
 
     def should_include_question(
@@ -260,16 +275,16 @@ class ResultPairComparison(Base):
         exclude_answer_values: Optional[Sequence[str]] = None,
     ) -> bool:
         """Determine if a question should be included based on filter criteria.
-        
+
         Args:
             question_name: Name of the question to check
             exclude_exact_match: If True, exclude questions where exact_match is True
-            exclude_answer_values: If provided, exclude questions where answer_b 
+            exclude_answer_values: If provided, exclude questions where answer_b
                                   matches any of these values (case-insensitive)
-            
+
         Returns:
             True if the question should be included, False otherwise
-            
+
         Examples:
             >>> from edsl.comparisons import ResultPairComparison
             >>> rc = ResultPairComparison.example()
@@ -280,31 +295,33 @@ class ResultPairComparison(Base):
         """
         if question_name not in self.comparison:
             return False
-        
+
         comparison_data = self.comparison[question_name]
-        
+
         # Check exact match filter
         if exclude_exact_match:
             exact_match = comparison_data["exact_match"]
             if exact_match is True:
                 return False
-        
+
         # Check answer value filter
         if exclude_answer_values:
             answer_b = comparison_data.answer_b
             # Convert to string for comparison
             answer_b_str = str(answer_b).strip().lower() if answer_b is not None else ""
-            
+
             # Normalize the exclude values to lowercase
-            exclude_values_lower = [str(v).strip().lower() for v in exclude_answer_values]
-            
+            exclude_values_lower = [
+                str(v).strip().lower() for v in exclude_answer_values
+            ]
+
             if answer_b_str in exclude_values_lower:
                 return False
-        
+
         return True
 
     def differences(
-        self, 
+        self,
         question_names: Optional[Sequence[str]] = None,
         template: Optional[str] = None,
         exclude_exact_match: bool = True,
@@ -312,14 +329,14 @@ class ResultPairComparison(Base):
         filter_func: Optional[Callable[[str, AnswerComparison], bool]] = None,
     ) -> "ResultDifferences":
         """Create a ResultDifferences object containing formatted differences.
-        
-        Returns a ResultDifferences container with formatted comparison data for 
-        questions. By default, excludes questions with exact matches and common 
-        placeholder answers. The ResultDifferences object can be displayed 
+
+        Returns a ResultDifferences container with formatted comparison data for
+        questions. By default, excludes questions with exact matches and common
+        placeholder answers. The ResultDifferences object can be displayed
         interactively using its show() method or converted to string.
-        
+
         Args:
-            question_names: Optional sequence of question names to include. 
+            question_names: Optional sequence of question names to include.
                           If None, includes all questions (subject to filters).
             template: Optional Jinja2 template string. If None, uses default template.
             exclude_exact_match: If True, exclude questions where exact_match is True.
@@ -327,13 +344,13 @@ class ResultPairComparison(Base):
             exclude_answer_values: Sequence of answer values to exclude. Questions where
                                  answer_b matches any of these values (case-insensitive)
                                  will be excluded. Default: ["n/a", "none", "missing"]
-            filter_func: Optional custom filter function that takes (question_name, 
+            filter_func: Optional custom filter function that takes (question_name,
                         AnswerComparison) and returns True to include. Applied after
                         built-in filters.
-            
+
         Returns:
             ResultDifferences object containing the formatted differences
-            
+
         Examples:
             >>> from edsl.comparisons import ResultPairComparison
             >>> rc = ResultPairComparison.example()
@@ -342,17 +359,17 @@ class ResultPairComparison(Base):
             True
             >>> "<question_text>" in str(rd)
             True
-            
+
             Show specific questions:
             >>> rd = rc.differences(question_names=["how_feeling"])
             >>> len(rd) >= 0
             True
-            
+
             Disable default filters:
             >>> rd = rc.differences(exclude_exact_match=False, exclude_answer_values=None)
             >>> isinstance(rd, object)
             True
-            
+
             Custom filter function:
             >>> def my_filter(qname, comp):
             ...     return len(str(comp.answer_a)) > 5
@@ -361,7 +378,7 @@ class ResultPairComparison(Base):
             True
         """
         from .result_differences import ResultDifferences
-        
+
         return ResultDifferences.from_comparison(
             result_comparison=self,
             question_names=question_names,
@@ -392,31 +409,40 @@ class ResultPairComparison(Base):
     def to_diffs_html(self) -> str:
         """Generate HTML representation of the diffs."""
         import html
+
         html_parts = ['<div style="font-family: monospace;">']
-        
+
         for key in self.diff_keys:
             diff_obj = self._diffs.get(key)
-            html_parts.append(f'<h3 style="color: #333; margin-top: 20px;">{key.title()} Difference:</h3>')
-            
+            html_parts.append(
+                f'<h3 style="color: #333; margin-top: 20px;">{key.title()} Difference:</h3>'
+            )
+
             if diff_obj is None:
-                html_parts.append('<p style="color: #d32f2f;">No diff available for this key</p>')
+                html_parts.append(
+                    '<p style="color: #d32f2f;">No diff available for this key</p>'
+                )
             else:
-                html_parts.append('<div style="background-color: #f5f5f5; padding: 10px; border-left: 4px solid #2196f3; margin: 10px 0;">')
-                
+                html_parts.append(
+                    '<div style="background-color: #f5f5f5; padding: 10px; border-left: 4px solid #2196f3; margin: 10px 0;">'
+                )
+
                 # Check if diff_obj has a string representation we can use
                 if hasattr(diff_obj, "__str__"):
                     diff_str = str(diff_obj)
                     escaped_diff = html.escape(diff_str)
                     # Replace newlines with <br> for HTML display
-                    formatted_diff = escaped_diff.replace('\n', '<br>')
-                    html_parts.append(f'<pre style="margin: 0; white-space: pre-wrap;">{formatted_diff}</pre>')
+                    formatted_diff = escaped_diff.replace("\n", "<br>")
+                    html_parts.append(
+                        f'<pre style="margin: 0; white-space: pre-wrap;">{formatted_diff}</pre>'
+                    )
                 else:
-                    html_parts.append('<p>Unable to display diff</p>')
-                
-                html_parts.append('</div>')
-        
-        html_parts.append('</div>')
-        return '\n'.join(html_parts)
+                    html_parts.append("<p>Unable to display diff</p>")
+
+                html_parts.append("</div>")
+
+        html_parts.append("</div>")
+        return "\n".join(html_parts)
 
     def _validate_metric_weights(self, metric_weights: Dict[str, float]) -> None:
         """Ensure provided *metric_weights* match the metrics produced by the factory.
@@ -442,12 +468,18 @@ class ResultPairComparison(Base):
         if missing or extra:
             messages: List[str] = []
             if missing:
-                messages.append("Missing weights for metrics: " + ", ".join(sorted(missing)))
+                messages.append(
+                    "Missing weights for metrics: " + ", ".join(sorted(missing))
+                )
             if extra:
-                messages.append("Unexpected metrics provided: " + ", ".join(sorted(extra)))
+                messages.append(
+                    "Unexpected metrics provided: " + ", ".join(sorted(extra))
+                )
             raise ValueError("; ".join(messages))
 
-    def _validate_question_weights(self, question_weights: Dict[str, float], questions: Sequence[str]) -> None:
+    def _validate_question_weights(
+        self, question_weights: Dict[str, float], questions: Sequence[str]
+    ) -> None:
         """Validate *question_weights* covers each question exactly once."""
 
         expected = set(questions)
@@ -459,9 +491,13 @@ class ResultPairComparison(Base):
         if missing or extra:
             msgs: List[str] = []
             if missing:
-                msgs.append("Missing weights for questions: " + ", ".join(sorted(missing)))
+                msgs.append(
+                    "Missing weights for questions: " + ", ".join(sorted(missing))
+                )
             if extra:
-                msgs.append("Unexpected questions provided: " + ", ".join(sorted(extra)))
+                msgs.append(
+                    "Unexpected questions provided: " + ", ".join(sorted(extra))
+                )
             raise ValueError("; ".join(msgs))
 
     def weighted_score(
@@ -470,9 +506,9 @@ class ResultPairComparison(Base):
         question_weights: Optional[Dict[str, float]] = None,
     ) -> float:
         """Compute a weighted score using metric and question weights.
-        
-        The score is normalized to be a float between [0, 1] by normalizing the 
-        metric weights to sum to 1. Question weights are used to compute weighted 
+
+        The score is normalized to be a float between [0, 1] by normalizing the
+        metric weights to sum to 1. Question weights are used to compute weighted
         averages within each metric.
 
         Parameters
@@ -484,7 +520,7 @@ class ResultPairComparison(Base):
         question_weights
             Mapping *question_name* -> *weight* used for aggregation.
             The argument is optional; if omitted, all questions are weighted equally (weight of 1).
-        
+
         Returns
         -------
         float
@@ -507,9 +543,9 @@ class ResultPairComparison(Base):
         total_metric_weight = sum(metric_weights.values())
         if total_metric_weight == 0:
             return 0.0
-        
+
         normalized_metric_weights = {
-            name: weight / total_metric_weight 
+            name: weight / total_metric_weight
             for name, weight in metric_weights.items()
         }
 
@@ -527,7 +563,7 @@ class ResultPairComparison(Base):
             weights_q: List[float] = []
             for qname, ac in self.comparison.items():
                 v = ac[metric_name]
-                if v is None:   
+                if v is None:
                     continue
                 # Booleans -> numeric
                 if isinstance(v, bool):
@@ -559,13 +595,13 @@ class ResultPairComparison(Base):
         question_weights: Optional[Dict[str, float]] = None,
     ) -> "WeightedScoreVisualization":
         """Create a detailed visualization of the weighted score calculation.
-        
+
         Returns a WeightedScoreVisualization object that shows a breakdown table
         with each metric, question, their weights, and contribution to the final score.
-        
+
         If no weights are provided, uses default equal weighting for all metrics
         and questions, making this method work out-of-the-box.
-        
+
         Parameters
         ----------
         metric_weights
@@ -575,16 +611,16 @@ class ResultPairComparison(Base):
         question_weights
             Mapping *question_name* -> *weight* used for aggregation.
             If None, all questions are weighted equally (weight of 1.0).
-        
+
         Returns
         -------
         WeightedScoreVisualization
             Visualization object with _repr_html_ for displaying the breakdown table
-            
+
         Examples
         --------
         Default weights (no parameters):
-        
+
         >>> from edsl.comparisons import ResultPairComparison
         >>> rc = ResultPairComparison.example()
         >>> viz = rc.visualize_weighted_score()
@@ -592,9 +628,9 @@ class ResultPairComparison(Base):
         True
         >>> len(viz.breakdown) > 0
         True
-        
+
         Custom weights:
-        
+
         >>> from edsl.comparisons import example_metric_weighting_dict, example_question_weighting_dict
         >>> mw = example_metric_weighting_dict(rc.comparison_factory)
         >>> qw = example_question_weighting_dict(rc)
@@ -603,10 +639,12 @@ class ResultPairComparison(Base):
         True
         """
         from .weighted_score_visualization import WeightedScoreVisualization
-        
+
         # Use default equal weights if none provided
         if metric_weights is None:
-            metric_weights = example_metric_weighting_dict(self.comparison_factory, weight=1.0)
+            metric_weights = example_metric_weighting_dict(
+                self.comparison_factory, weight=1.0
+            )
 
         # Default question weights equal for all questions if not provided
         if question_weights is None:
@@ -628,26 +666,26 @@ class ResultPairComparison(Base):
                 final_score=0.0,
                 breakdown=[],
             )
-        
+
         normalized_metric_weights = {
-            name: weight / total_metric_weight 
+            name: weight / total_metric_weight
             for name, weight in metric_weights.items()
         }
 
         # Build detailed breakdown
         breakdown = []
         total = 0.0
-        
+
         for metric_name, weight in normalized_metric_weights.items():
             # Gather values for this metric across all questions
             questions_data = []
             weighted_vals: List[float] = []
             weights_q: List[float] = []
-            
+
             for qname, ac in self.comparison.items():
                 v = ac[metric_name]
                 wq = question_weights.get(qname, 1.0)
-                
+
                 # Convert value to float if possible
                 numeric_v = None
                 if v is not None:
@@ -658,16 +696,18 @@ class ResultPairComparison(Base):
                             numeric_v = float(v)
                         except (TypeError, ValueError):
                             pass
-                
+
                 # Store question data
                 weighted_score = (numeric_v * wq) if numeric_v is not None else None
-                questions_data.append({
-                    'question': qname,
-                    'score': numeric_v,
-                    'question_weight': wq,
-                    'weighted_score': weighted_score,
-                })
-                
+                questions_data.append(
+                    {
+                        "question": qname,
+                        "score": numeric_v,
+                        "question_weight": wq,
+                        "weighted_score": weighted_score,
+                    }
+                )
+
                 # Accumulate for average
                 if numeric_v is not None:
                     weighted_vals.append(numeric_v * wq)
@@ -678,14 +718,16 @@ class ResultPairComparison(Base):
                 if weights_q and sum(weights_q) != 0
                 else 0.0
             )
-            
-            breakdown.append({
-                'metric_name': metric_name,
-                'metric_weight': weight,
-                'metric_avg': metric_avg,
-                'questions': questions_data,
-            })
-            
+
+            breakdown.append(
+                {
+                    "metric_name": metric_name,
+                    "metric_weight": weight,
+                    "metric_avg": metric_avg,
+                    "questions": questions_data,
+                }
+            )
+
             total += weight * metric_avg
 
         return WeightedScoreVisualization(
@@ -716,60 +758,66 @@ class ResultPairComparison(Base):
 
     def _serialize_value(self, value: Any) -> Any:
         """Recursively serialize a value, handling BaseDiff objects and other complex types.
-        
+
         Args:
             value: The value to serialize
-            
+
         Returns:
             Serialized value that is JSON-compatible
         """
         # Handle None
         if value is None:
             return None
-        
+
         # Handle BaseDiff objects
-        if hasattr(value, 'to_dict') and hasattr(value, '__class__') and 'BaseDiff' in value.__class__.__name__:
+        if (
+            hasattr(value, "to_dict")
+            and hasattr(value, "__class__")
+            and "BaseDiff" in value.__class__.__name__
+        ):
             diff_dict = value.to_dict()
             # Recursively serialize the diff_dict
             return self._serialize_value(diff_dict)
-        
+
         # Handle dictionaries
         if isinstance(value, dict):
             return {k: self._serialize_value(v) for k, v in value.items()}
-        
+
         # Handle lists
         if isinstance(value, list):
             return [self._serialize_value(item) for item in value]
-        
+
         # Handle tuples (convert to list and recursively serialize)
         if isinstance(value, tuple):
             return [self._serialize_value(item) for item in value]
-        
+
         # Handle generators and other non-serializable iterables - convert to string representation
-        if hasattr(value, '__iter__') and not isinstance(value, (str, bytes, dict, list)):
+        if hasattr(value, "__iter__") and not isinstance(
+            value, (str, bytes, dict, list)
+        ):
             try:
                 # Try to convert to list
                 return [self._serialize_value(item) for item in value]
             except:
                 # If that fails, just return string representation
                 return str(value)
-        
+
         # Handle other objects with to_dict
-        if hasattr(value, 'to_dict'):
+        if hasattr(value, "to_dict"):
             return value.to_dict()
-        
+
         # Return simple types as-is
         return value
-    
+
     def to_dict(self, add_edsl_version: bool = True) -> Dict[str, Any]:
         """Serialize to dictionary.
-        
+
         Args:
             add_edsl_version: Whether to include EDSL version
-            
+
         Returns:
             Dictionary representation
-            
+
         Examples:
             >>> from edsl.comparisons import ResultPairComparison
             >>> rc = ResultPairComparison.example()
@@ -781,53 +829,55 @@ class ResultPairComparison(Base):
         """
         # Serialize the comparison dict (which contains AnswerComparison objects)
         comparison_serialized = {
-            qname: ac.to_dict() 
-            for qname, ac in self.comparison.items()
+            qname: ac.to_dict() for qname, ac in self.comparison.items()
         }
-        
+
         # Serialize the diffs dict (which may contain diff objects)
         diffs_serialized = {}
         for key, diff_obj in self._diffs.items():
             diffs_serialized[key] = self._serialize_value(diff_obj)
-        
+
         result = {
-            'result_A': self.result_A.to_dict(),
-            'result_B': self.result_B.to_dict(),
-            'comparison': comparison_serialized,
-            'diff_keys': list(self.diff_keys),
-            'diffs': diffs_serialized,
-            'edsl_class_name': self.__class__.__name__,
+            "result_A": self.result_A.to_dict(),
+            "result_B": self.result_B.to_dict(),
+            "comparison": comparison_serialized,
+            "diff_keys": list(self.diff_keys),
+            "diffs": diffs_serialized,
+            "edsl_class_name": self.__class__.__name__,
         }
-        
+
         # Serialize comparison_factory if it has to_dict, otherwise store class info
-        if hasattr(self.comparison_factory, 'to_dict'):
-            result['comparison_factory'] = self.comparison_factory.to_dict()
+        if hasattr(self.comparison_factory, "to_dict"):
+            result["comparison_factory"] = self.comparison_factory.to_dict()
         else:
             # Store minimal info to reconstruct with defaults
-            result['comparison_factory'] = {
-                'type': 'default',
-                'metric_names': [str(fn) for fn in self.comparison_factory.comparison_fns]
+            result["comparison_factory"] = {
+                "type": "default",
+                "metric_names": [
+                    str(fn) for fn in self.comparison_factory.comparison_fns
+                ],
             }
-        
+
         if add_edsl_version:
             try:
                 from edsl import __version__
-                result['edsl_version'] = __version__
+
+                result["edsl_version"] = __version__
             except ImportError:
                 pass
-        
+
         return result
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "ResultPairComparison":
         """Deserialize from dictionary.
-        
+
         Args:
             data: Dictionary containing ResultPairComparison data
-            
+
         Returns:
             ResultPairComparison instance
-            
+
         Examples:
             >>> from edsl.comparisons import ResultPairComparison
             >>> rc = ResultPairComparison.example()
@@ -843,35 +893,40 @@ class ResultPairComparison(Base):
             raise ImportError(
                 "edsl is required for ResultPairComparison.from_dict(); install edsl to use this method."
             ) from exc
-        
+
         # Remove edsl_version if present
-        data_copy = {k: v for k, v in data.items() if k != 'edsl_version'}
-        
+        data_copy = {k: v for k, v in data.items() if k != "edsl_version"}
+
         # Deserialize results
-        result_A = Result.from_dict(data_copy['result_A'])
-        result_B = Result.from_dict(data_copy['result_B'])
-        
+        result_A = Result.from_dict(data_copy["result_A"])
+        result_B = Result.from_dict(data_copy["result_B"])
+
         # Reconstruct comparison_factory
-        factory_data = data_copy.get('comparison_factory')
-        if factory_data and factory_data.get('type') == 'default':
+        factory_data = data_copy.get("comparison_factory")
+        if factory_data and factory_data.get("type") == "default":
             comparison_factory = ComparisonFactory.with_defaults()
-        elif factory_data and hasattr(ComparisonFactory, 'from_dict'):
+        elif factory_data and hasattr(ComparisonFactory, "from_dict"):
             comparison_factory = ComparisonFactory.from_dict(factory_data)
         else:
             comparison_factory = ComparisonFactory.with_defaults()
-        
+
         # Create instance with the deserialized data
-        diff_keys = tuple(data_copy.get('diff_keys', ('scenario', 'agent', 'model')))
-        instance = cls(result_A, result_B, comparison_factory=comparison_factory, diff_keys=diff_keys)
-        
+        diff_keys = tuple(data_copy.get("diff_keys", ("scenario", "agent", "model")))
+        instance = cls(
+            result_A,
+            result_B,
+            comparison_factory=comparison_factory,
+            diff_keys=diff_keys,
+        )
+
         return instance
-    
+
     def code(self) -> str:
         """Return Python code to recreate this ResultPairComparison.
-        
+
         Returns:
             Python code string
-            
+
         Examples:
             >>> from edsl.comparisons import ResultPairComparison
             >>> rc = ResultPairComparison.example()
@@ -886,10 +941,10 @@ class ResultPairComparison(Base):
             f"# rc = ResultPairComparison(result_A, result_B, comparison_factory=comparison_factory, "
             f"diff_keys={self.diff_keys})"
         )
-    
+
     def __hash__(self) -> int:
         """Return hash of the ResultPairComparison.
-        
+
         Examples:
             >>> from edsl.comparisons import ResultPairComparison
             >>> rc = ResultPairComparison.example()
@@ -897,10 +952,13 @@ class ResultPairComparison(Base):
             True
         """
         from ..utilities import dict_hash
+
         return dict_hash(self.to_dict(add_edsl_version=False))
 
     @classmethod
-    def example(cls, comparison_factory: ComparisonFactory | None = None) -> "ResultPairComparison":
+    def example(
+        cls, comparison_factory: ComparisonFactory | None = None
+    ) -> "ResultPairComparison":
         """Return a *ResultPairComparison* instance based on `edsl.Results.example()`.
 
         The helper uses two example *Result* entries (index 0 and 1) and a
@@ -937,7 +995,11 @@ class ResultPairComparison(Base):
         if len(example_results) < 2:
             raise RuntimeError("Results.example() did not return at least two entries.")
 
-        return cls(example_results[0], example_results[1], comparison_factory=comparison_factory)
+        return cls(
+            example_results[0],
+            example_results[1],
+            comparison_factory=comparison_factory,
+        )
 
     def example_difference(
         self,
@@ -947,80 +1009,81 @@ class ResultPairComparison(Base):
         print_output: bool = True,
     ) -> "ResultDifferences":
         """Display a formatted difference for a randomly selected question.
-        
+
         Randomly samples one question from the available comparisons (subject to filters)
         and returns a ResultDifferences object. Useful for quickly inspecting
         example comparisons.
-        
+
         Args:
             question_name: If provided, shows this specific question. If None, randomly
                           samples from available questions (subject to filters).
             exclude_exact_match: If True, only sample from questions without exact matches.
                                Default: True
-            exclude_answer_values: Answer values to exclude from sampling. 
+            exclude_answer_values: Answer values to exclude from sampling.
                                  Default: ["n/a", "none", "missing"]
             print_output: If True, prints the output using rich Console. Default: True
-            
+
         Returns:
             ResultDifferences object containing the selected question
-            
+
         Raises:
             ValueError: If no questions are available after applying filters
-            
+
         Examples:
             >>> from edsl.comparisons import ResultPairComparison
             >>> rc = ResultPairComparison.example()
             >>> rd = rc.example_difference(print_output=False)
             >>> "<question_text>" in str(rd)
             True
-            
+
             Show specific question:
             >>> rd = rc.example_difference(question_name="how_feeling", print_output=False)
             >>> "<question_text>" in str(rd)
             True
-            
+
             Include questions with exact matches:
             >>> rd = rc.example_difference(exclude_exact_match=False, print_output=False)
             >>> "<question_text>" in str(rd)
             True
         """
         import random
-        
+
         if question_name is None:
             # Get all questions that pass the filters
             if exclude_answer_values is None:
                 exclude_answer_values = ["n/a", "none", "missing"]
-            
+
             available_questions = [
-                qname for qname in self.comparison.keys()
+                qname
+                for qname in self.comparison.keys()
                 if self.should_include_question(
                     qname,
                     exclude_exact_match=exclude_exact_match,
-                    exclude_answer_values=exclude_answer_values
+                    exclude_answer_values=exclude_answer_values,
                 )
             ]
-            
+
             if not available_questions:
                 raise ValueError(
                     "No questions available after applying filters. "
                     "Try setting exclude_exact_match=False or exclude_answer_values=None"
                 )
-            
+
             # Randomly sample one question
             question_name = random.choice(available_questions)
-        
+
         # Get the formatted difference for this question
         result_diffs = self.differences(
             question_names=[question_name],
             exclude_exact_match=False,  # Don't filter since we already selected
             exclude_answer_values=None,
         )
-        
+
         if print_output:
             console = Console()
             console.print(f"[bold]Random question sample:[/bold] {question_name}\n")
             console.print(str(result_diffs))
-        
+
         return result_diffs
 
 
@@ -1031,6 +1094,7 @@ if __name__ == "__main__":  # pragma: no cover
 
     rc = ResultPairComparison.example()
     import rich
+
     c = rich.console.Console()
     c.print(rc.to_table())
 
@@ -1046,4 +1110,3 @@ if __name__ == "__main__":  # pragma: no cover
 
     score_focus = rc.weighted_score(mw_focus, qw_focus)
     c.print(f"\n[bold]Focused Weighted Score:[/bold] {score_focus:.3f}")
- 

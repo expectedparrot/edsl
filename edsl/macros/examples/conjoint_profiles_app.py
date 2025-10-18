@@ -1,4 +1,3 @@
-import textwrap
 from edsl.macros import Macro
 from edsl.macros.output_formatter import OutputFormatter
 from edsl.surveys import Survey
@@ -6,38 +5,40 @@ from edsl.questions import QuestionNumerical, QuestionYesNo, QuestionFreeText
 from edsl.agents import Agent
 
 # 1. Initial Survey - Collect profile generation parameters
-initial_survey = Survey([
-    QuestionNumerical(
-        question_name="profile_count",
-        question_text="How many conjoint profiles would you like to generate?",
-        min_value=1,
-        max_value=1000
-    ),
-    QuestionYesNo(
-        question_name="use_seed",
-        question_text="Would you like to use a random seed for reproducible results?"
-    ),
-    QuestionNumerical(
-        question_name="random_seed",
-        question_text="What random seed would you like to use? (Enter any integer)",
-        min_value=1,
-        max_value=999999
-    )
-]).add_skip_rule("random_seed", "{{ use_seed.answer }} == 'No'")
+initial_survey = Survey(
+    [
+        QuestionNumerical(
+            question_name="profile_count",
+            question_text="How many conjoint profiles would you like to generate?",
+            min_value=1,
+            max_value=1000,
+        ),
+        QuestionYesNo(
+            question_name="use_seed",
+            question_text="Would you like to use a random seed for reproducible results?",
+        ),
+        QuestionNumerical(
+            question_name="random_seed",
+            question_text="What random seed would you like to use? (Enter any integer)",
+            min_value=1,
+            max_value=999999,
+        ),
+    ]
+).add_skip_rule("random_seed", "{{ use_seed.answer }} == 'No'")
 
 # 2. Agent for processing
 conjoint_analyst = Agent(
     name="conjoint_generator",
     traits={
         "expertise": "conjoint analysis, profile generation",
-        "task": "generating random product profiles from attribute definitions"
-    }
+        "task": "generating random product profiles from attribute definitions",
+    },
 )
 
 # 3. Simple confirmation question
 confirmation_question = QuestionFreeText(
     question_name="generation_confirmation",
-    question_text="Conjoint profiles will be generated from the provided attributes. Please confirm: 'Ready to generate profiles'"
+    question_text="Conjoint profiles will be generated from the provided attributes. Please confirm: 'Ready to generate profiles'",
 )
 
 jobs_object = Survey([confirmation_question]).by(conjoint_analyst)
@@ -79,6 +80,7 @@ macro = Macro(
     default_formatter_name="profiles",
 )
 
+
 # 6. Wrapper function that demonstrates the intended >> chaining workflow
 def chain_macros(conjoint_attributes, profile_count=10, random_seed=None):
     """
@@ -110,12 +112,15 @@ def chain_macros(conjoint_attributes, profile_count=10, random_seed=None):
     # )
     # return profiles
 
+
 # 7. Demonstration of the workflow
 def demonstrate_macro_chaining():
     """Demonstrate how the macros would work together with >> notation."""
     print("=== Demonstrating Macro Chaining Workflow ===\n")
     print("NOTE: This feature is not yet fully implemented.")
-    print("The create_conjoint_comparisons method needs to be added to support this workflow.\n")
+    print(
+        "The create_conjoint_comparisons method needs to be added to support this workflow.\n"
+    )
 
     # # Import the first macro
     # from conjoint_analysis import macro as conjoint_analysis_macro
@@ -155,6 +160,7 @@ def demonstrate_macro_chaining():
 
     return None
 
+
 # 8. Test the macro and workflow
 if __name__ == "__main__":
     # Test the basic macro functionality
@@ -162,30 +168,29 @@ if __name__ == "__main__":
 
     print("1. Testing macro parameters collection...")
     macro_result = macro.output(
-        params={
-            'profile_count': 5,
-            'use_seed': 'Yes',
-            'random_seed': 123
-        },
-        formatter_name="summary"
+        params={"profile_count": 5, "use_seed": "Yes", "random_seed": 123},
+        formatter_name="summary",
     )
     print(f"   ✓ Macro collected parameters: {macro_result}")
 
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
 
     # Demonstrate the intended chaining workflow
     profiles = demonstrate_macro_chaining()
 
-    print(f"\n=== Summary ===")
+    print("\n=== Summary ===")
     print("✓ Created standalone EDSL macro for profile generation")
     print("✓ Macro collects generation parameters via survey")
-    print("✓ Designed for >> chaining with conjoint_analysis macro (pending implementation)")
+    print(
+        "✓ Designed for >> chaining with conjoint_analysis macro (pending implementation)"
+    )
     print("✓ Will use ScenarioList.create_conjoint_comparisons() for generation")
 
     print("\nNext steps:")
     print("- Implement create_conjoint_comparisons() method")
     print("- Implement proper >> chaining mechanism in EDSL")
     print("- Chain: conjoint_analysis >> conjoint_profiles >> conjoint_survey")
+
 
 # 9. Convenience function for direct usage (without macro chaining)
 def generate_conjoint_profiles(product_name, profile_count=10, random_seed=None):

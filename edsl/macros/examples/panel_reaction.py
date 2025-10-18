@@ -5,23 +5,31 @@ from edsl.surveys import Survey
 from edsl.questions import QuestionFreeText, QuestionEDSLObject
 from edsl.agents import Agent, AgentList
 
-initial_survey = Survey([
-    QuestionEDSLObject(
-        question_name="input_survey",
-        question_text="Provide the Survey to ask the panel",
-        expected_object_type="Survey",
-    )
-])
+initial_survey = Survey(
+    [
+        QuestionEDSLObject(
+            question_name="input_survey",
+            question_text="Provide the Survey to ask the panel",
+            expected_object_type="Survey",
+        )
+    ]
+)
 
-al = AgentList([
-    Agent(name = "cheese_hater", traits = {'persona': "You hate cheese."}),
-    Agent(name = "cheese_lover", traits = {'persona': "You love cheese."})
-    ])
+al = AgentList(
+    [
+        Agent(name="cheese_hater", traits={"persona": "You hate cheese."}),
+        Agent(name="cheese_lover", traits={"persona": "You love cheese."}),
+    ]
+)
 
 # Minimal jobs survey; will be replaced by the provided survey via head attachment
 jobs_object = Survey([]).to_jobs().by(al)
 
-output_formatter = OutputFormatter(description="Panel Reaction", output_type="table").select('agent_name', 'answer.*').table()
+output_formatter = (
+    OutputFormatter(description="Panel Reaction", output_type="table")
+    .select("agent_name", "answer.*")
+    .table()
+)
 
 macro = Macro(
     application_name="panel_reaction",
@@ -35,10 +43,12 @@ macro = Macro(
 )
 
 if __name__ == "__main__":
-    output = macro.output(params={
-        'input_survey': QuestionFreeText(
-            question_name = "cheese_reaction",
-            question_text = "How do you feel about cheese?"
-        ).to_survey()
-    })
+    output = macro.output(
+        params={
+            "input_survey": QuestionFreeText(
+                question_name="cheese_reaction",
+                question_text="How do you feel about cheese?",
+            ).to_survey()
+        }
+    )
     print(output)

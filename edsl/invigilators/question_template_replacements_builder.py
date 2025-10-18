@@ -138,9 +138,12 @@ class QuestionTemplateReplacementsBuilder:
         try:
             # Use id() of the scenario object itself along with a hash of its structure
             # This way, the same scenario object reuses cache, but different objects don't collide
-            cache_key = (id(scenario), tuple(sorted(
-                (k, id(v), type(v).__name__) for k, v in scenario.items()
-            )))
+            cache_key = (
+                id(scenario),
+                tuple(
+                    sorted((k, id(v), type(v).__name__) for k, v in scenario.items())
+                ),
+            )
         except Exception:
             # If we can't create a cache key, don't cache
             cache_key = None

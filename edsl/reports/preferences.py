@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Optional
 
+
 @dataclass
 class ReportPreferences:
     """User-selected preferences determining what appears in a Reports report."""
@@ -13,7 +14,9 @@ class ReportPreferences:
     analyses: Optional[List[List[str]]] = None
 
     # Mapping from analysis (tuple of question names) to list of allowed output names
-    analysis_output_filters: Dict[Tuple[str, ...], List[str]] = field(default_factory=dict)
+    analysis_output_filters: Dict[Tuple[str, ...], List[str]] = field(
+        default_factory=dict
+    )
 
     # Control whether writeups are generated for each analysis
     analysis_writeup_filters: Dict[Tuple[str, ...], bool] = field(default_factory=dict)
@@ -43,4 +46,4 @@ class ReportPreferences:
             analyses=data.get("analyses"),
             analysis_output_filters=converted,
             analysis_writeup_filters=writeup_converted,
-        ) 
+        )

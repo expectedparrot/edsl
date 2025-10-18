@@ -6,8 +6,11 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Any
 import numpy as np
 
+
 # Elegant defensive import utility
-def optional_import(module_name, package_name=None, install_name=None, description=None):
+def optional_import(
+    module_name, package_name=None, install_name=None, description=None
+):
     """Elegantly handle optional imports with helpful error messages."""
     if package_name is None:
         package_name = module_name
@@ -15,42 +18,44 @@ def optional_import(module_name, package_name=None, install_name=None, descripti
         install_name = package_name
     if description is None:
         description = f"the {package_name} package"
-    
+
     try:
-        return __import__(module_name, fromlist=[''])
+        return __import__(module_name, fromlist=[""])
     except ImportError:
+
         class MissingModule:
             def __init__(self, name, install_name, description):
                 self.name = name
-                self.install_name = install_name  
+                self.install_name = install_name
                 self.description = description
-                
+
             def __getattr__(self, item):
                 raise ImportError(
                     f"{self.description} is required but not installed. "
                     f"Install with: pip install {self.install_name}"
                 )
-                
+
             def __call__(self, *args, **kwargs):
                 raise ImportError(
                     f"{self.description} is required but not installed. "
                     f"Install with: pip install {self.install_name}"
                 )
-                
+
             def __bool__(self):
                 return False
-                
+
         return MissingModule(package_name, install_name, description)
+
 
 # Clean, concise optional imports
 sentence_transformers = optional_import(
-    'sentence_transformers', 
-    install_name='sentence-transformers',
-    description='sentence-transformers (required for semantic similarity)'
+    "sentence_transformers",
+    install_name="sentence-transformers",
+    description="sentence-transformers (required for semantic similarity)",
 )
 
 # Extract what we need with fallbacks
-SentenceTransformer = getattr(sentence_transformers, 'SentenceTransformer', None)
+SentenceTransformer = getattr(sentence_transformers, "SentenceTransformer", None)
 
 # Simple availability checks
 SENTENCE_TRANSFORMERS_AVAILABLE = bool(sentence_transformers)
@@ -83,10 +88,10 @@ class ComparisonFunction(ABC):
 
         >>> class CustomComparison(ComparisonFunction):
         ...     short_name = "custom"
-        ...     
+        ...
         ...     def execute(self, answers_A, answers_B, questions=None):
         ...         return [len(a) - len(b) for a, b in zip(answers_A, answers_B)]
-        >>> 
+        >>>
         >>> comparator = CustomComparison()
         >>> str(comparator)
         'custom'
@@ -107,13 +112,15 @@ class ComparisonFunction(ABC):
 
     def __init_subclass__(cls, **kwargs):
         """Enforce that subclasses have a non-None short_name.
-        
+
         Raises:
             TypeError: If subclass doesn't define short_name or it's None
         """
         super().__init_subclass__(**kwargs)
-        if not hasattr(cls, 'short_name') or cls.short_name is None:
-            raise TypeError(f"{cls.__name__} must define a non-None 'short_name' class attribute")
+        if not hasattr(cls, "short_name") or cls.short_name is None:
+            raise TypeError(
+                f"{cls.__name__} must define a non-None 'short_name' class attribute"
+            )
 
     @abstractmethod
     def execute(
@@ -126,7 +133,7 @@ class ComparisonFunction(ABC):
 
         Args:
             answers_A: First list of answers to compare
-            answers_B: Second list of answers to compare  
+            answers_B: Second list of answers to compare
             questions: Optional list of question objects for context
 
         Returns:
@@ -140,7 +147,7 @@ class ComparisonFunction(ABC):
 
     def __str__(self) -> str:
         """Return human-readable identifier for this comparison function.
-        
+
         Returns:
             The short_name of this comparison function.
             Subclasses can override for more detailed representation.
@@ -151,6 +158,7 @@ class ComparisonFunction(ABC):
 # ---------------------------------------------------------------------------
 # Simple metrics
 # ---------------------------------------------------------------------------
+
 
 class Overlap(ComparisonFunction):
     """Computes normalized overlap between two lists of iterable answers.
@@ -192,6 +200,7 @@ class Overlap(ComparisonFunction):
         >>> overlap.execute([['a', 'b']], [['c', 'd']])
         [0.0]
     """
+
     short_name = "overlap"
 
     def execute(
@@ -291,6 +300,7 @@ class JaccardSimilarity(ComparisonFunction):
         >>> jaccard.execute(correct, answer)
         [0.25]
     """
+
     short_name = "jaccard_similarity"
 
     def execute(
@@ -334,7 +344,7 @@ class JaccardSimilarity(ComparisonFunction):
             if len(set_a) == 0 and len(set_b) == 0:
                 jaccard_scores.append(1.0)  # Two empty sets are identical
                 continue
-            
+
             if len(set_a) == 0 or len(set_b) == 0:
                 jaccard_scores.append(0.0)
                 continue
@@ -347,7 +357,7 @@ class JaccardSimilarity(ComparisonFunction):
 
 
 class SquaredDistance(ComparisonFunction):
-    """*Negative* squared distance  
+    """*Negative* squared distance
 
     Returns ``-((a - b) ** 2)`` for numerical questions so that **higher values
     indicate better similarity**, aligning with other metrics such as cosine
@@ -409,6 +419,7 @@ class ExactMatch(ComparisonFunction):
         >>> exact.execute([], [])
         []
     """
+
     short_name = "exact_match"
 
     def execute(
@@ -421,7 +432,7 @@ class ExactMatch(ComparisonFunction):
 
         Args:
             answers_A: First list of answers
-            answers_B: Second list of answers  
+            answers_B: Second list of answers
             questions: Unused in this implementation
 
         Returns:
@@ -438,6 +449,7 @@ class ExactMatch(ComparisonFunction):
 # ---------------------------------------------------------------------------
 # Embedding-based metric(s)
 # ---------------------------------------------------------------------------
+
 
 class CosineSimilarity(ComparisonFunction):
     """Computes semantic similarity using sentence transformer embeddings and cosine similarity.
@@ -479,11 +491,12 @@ class CosineSimilarity(ComparisonFunction):
         >>> str(cosine_large)
         'cosine_similarity (all-mpnet-base-v2)'
     """
+
     short_name = "cosine_similarity"
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
         """Initialize with specified sentence transformer model.
-        
+
         Args:
             model_name: HuggingFace model name or path. Popular choices:
                        - "all-MiniLM-L6-v2": Fast, 384-dim, good quality
@@ -491,7 +504,9 @@ class CosineSimilarity(ComparisonFunction):
                        - "all-distilroberta-v1": Balanced speed/quality
         """
         self.model_name = model_name
-        self.model = SentenceTransformer(model_name)  # Will raise ImportError with helpful message if missing
+        self.model = SentenceTransformer(
+            model_name
+        )  # Will raise ImportError with helpful message if missing
 
     def __str__(self) -> str:
         """Return string representation including model name."""
@@ -522,15 +537,16 @@ class CosineSimilarity(ComparisonFunction):
             All answers are encoded in a single batch for efficiency,
             then similarity is computed pairwise.
         """
+
         # Convert all answers to strings (handles lists from checkbox questions, etc.)
         def to_string(answer):
             if isinstance(answer, list):
                 return ", ".join(str(item) for item in answer)
             return str(answer)
-        
+
         answers_A_str = [to_string(a) for a in answers_A]
         answers_B_str = [to_string(b) for b in answers_B]
-        
+
         all_sentences = answers_A_str + answers_B_str
         embeddings = self.model.encode(all_sentences)
         n = len(answers_A)
@@ -538,7 +554,9 @@ class CosineSimilarity(ComparisonFunction):
         for i in range(n):
             ea, eb = embeddings[i], embeddings[i + n]
             # Compute raw cosine similarity [-1, 1]
-            raw_similarity = float(np.dot(ea, eb) / (np.linalg.norm(ea) * np.linalg.norm(eb)))
+            raw_similarity = float(
+                np.dot(ea, eb) / (np.linalg.norm(ea) * np.linalg.norm(eb))
+            )
             # Normalize to [0, 1] range
             normalized_similarity = (raw_similarity + 1.0) / 2.0
             sims.append(normalized_similarity)
@@ -576,8 +594,10 @@ class LLMSimilarity(ComparisonFunction):
                 5: "Completely similar",
             },
         )
-        sl = ScenarioList.from_list("answer_A", answers_A).add_list("answer_B", answers_B)
+        sl = ScenarioList.from_list("answer_A", answers_A).add_list(
+            "answer_B", answers_B
+        )
         try:
             return [float(x) for x in q.by(sl).run().select("similarity").to_list()]
         except Exception:
-            return [None] * len(answers_A) 
+            return [None] * len(answers_A)

@@ -44,13 +44,13 @@ class MacroRunOutput:
 
     def __getattr__(self, name: str) -> Any:
         """Lazily evaluate and return the formatted output for the given formatter name.
-        
+
         Args:
             name: The formatter name to use.
-            
+
         Returns:
             The formatted output.
-            
+
         Raises:
             AttributeError: If the formatter name is not found.
         """
@@ -64,7 +64,7 @@ class MacroRunOutput:
                     self._results, params={"params": self._params}
                 )
             return self._cache[name]
-        
+
         # Not a formatter, raise AttributeError
         raise AttributeError(
             f"'{self.__class__.__name__}' object has no attribute '{name}'. "
@@ -75,41 +75,41 @@ class MacroRunOutput:
         """Return a string representation showing available formatters."""
         formatter_names = list(self._formatters.mapping.keys())
         default = self._default_formatter_name or self._formatters.default
-        
+
         lines = [
             f"MacroRunOutput with {len(formatter_names)} available format(s):",
             "",
         ]
-        
+
         for name in formatter_names:
             formatter = self._formatters.mapping[name]
             desc = getattr(formatter, "description", name)
             is_default = " (default)" if name == default else ""
             lines.append(f"  • {name}{is_default}: {desc}")
-        
+
         lines.append("")
-        lines.append(f"Access formats via: output.<format_name>")
-        
+        lines.append("Access formats via: output.<format_name>")
+
         return "\n".join(lines)
 
     def _repr_html_(self) -> str:
         """Return an HTML representation showing available formatters."""
         formatter_names = list(self._formatters.mapping.keys())
         default = self._default_formatter_name or self._formatters.default
-        
+
         rows = []
         for name in formatter_names:
             formatter = self._formatters.mapping[name]
             desc = getattr(formatter, "description", name)
             is_default = " ⭐" if name == default else ""
-            
+
             rows.append(
                 f"<tr>"
                 f"<td><code>output.{name}</code></td>"
                 f"<td>{desc}{is_default}</td>"
                 f"</tr>"
             )
-        
+
         html = f"""
         <div style="font-family: sans-serif; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
             <h3 style="margin-top: 0;">MacroRunOutput</h3>
@@ -136,9 +136,8 @@ class MacroRunOutput:
     def results(self) -> "Results":
         """Direct access to the underlying Results object."""
         return self._results
-    
+
     @property
     def formatters(self) -> "OutputFormatters":
         """Direct access to the OutputFormatters object."""
         return self._formatters
-

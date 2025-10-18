@@ -85,13 +85,14 @@ from .exceptions import (
 @dataclass
 class AgentListSplit:
     """Result of splitting a Results object into train/test AgentLists with corresponding surveys.
-    
+
     Attributes:
         train: AgentList containing agents with training questions as traits
-        test: AgentList containing agents with test questions as traits  
+        test: AgentList containing agents with test questions as traits
         train_survey: Survey object containing only the training questions
         test_survey: Survey object containing only the test questions
     """
+
     train: "AgentList"
     test: "AgentList"
     train_survey: "Survey"
@@ -201,7 +202,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             pulled_results = Results.pull(survey)
             self.__dict__.update(pulled_results.__dict__)
             return
-            
+
         self.completed = True
         self._fetching = False
 
@@ -395,18 +396,18 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         cache_keys = self._cache_keys()
         return cache.subset(cache_keys)
 
-
-    def analyze(self, *question_names: str) -> 'QuestionAnalysis':
+    def analyze(self, *question_names: str) -> "QuestionAnalysis":
         try:
             from edsl.reports import Report
         except ImportError:
-            raise ValueError("Please install edsl as edsl[viz] to use the analyze method.")
-        
+            raise ValueError(
+                "Please install edsl as edsl[viz] to use the analyze method."
+            )
+
         if self._report is None:
             self._report = Report(self)
-        
-        return self._report.analyze(*question_names)
 
+        return self._report.analyze(*question_names)
 
     def agent_answers_by_question(
         self, agent_key_fields: Optional[List[str]] = None, separator: str = ","
@@ -544,19 +545,20 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     @ensure_ready
     def __repr__(self) -> str:
         """Return a string representation of the Results.
-        
+
         Uses traditional repr format when running doctests, otherwise uses
         rich-based display for better readability.
         """
         import os
+
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
         else:
             return self._summary_repr()
-    
+
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the Results.
-        
+
         This representation can be used with eval() to recreate the Results object.
         Used primarily for doctests and debugging.
         """
@@ -564,7 +566,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     def _summary_repr(self, max_text_preview: int = 60, max_items: int = 5) -> str:
         """Generate a summary representation of the Results with Rich formatting.
-        
+
         Args:
             max_text_preview: Maximum characters to show for question text previews
             max_items: Maximum number of items to show in lists before truncating
@@ -572,7 +574,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         from rich.console import Console
         from rich.text import Text
         import io
-        
+
         # Build the Rich text
         output = Text()
         output.append("Results(\n", style="bold cyan")
@@ -580,65 +582,79 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         output.append(f"    num_agents={len(set(self.agents))},\n", style="white")
         output.append(f"    num_models={len(set(self.models))},\n", style="white")
         output.append(f"    num_scenarios={len(set(self.scenarios))},\n", style="white")
-        
+
         # Show agent traits
         if len(self.agents) > 0:
             agent_keys = self.agent_keys
             if agent_keys:
                 output.append("    agent_traits: [", style="white")
                 # Filter out internal fields
-                trait_keys = [k for k in agent_keys if not k.startswith('agent_')]
+                trait_keys = [k for k in agent_keys if not k.startswith("agent_")]
                 if trait_keys:
-                    output.append(f"{', '.join(repr(k) for k in trait_keys[:max_items])}", style="yellow")
+                    output.append(
+                        f"{', '.join(repr(k) for k in trait_keys[:max_items])}",
+                        style="yellow",
+                    )
                     if len(trait_keys) > max_items:
-                        output.append(f", ... ({len(trait_keys) - max_items} more)", style="dim")
+                        output.append(
+                            f", ... ({len(trait_keys) - max_items} more)", style="dim"
+                        )
                 output.append("],\n", style="white")
-        
+
         # Show scenario fields
         if len(self.scenarios) > 0:
             scenario_keys = self.scenario_keys
             if scenario_keys:
                 output.append("    scenario_fields: [", style="white")
                 # Filter out internal fields
-                field_keys = [k for k in scenario_keys if not k.startswith('scenario_')]
+                field_keys = [k for k in scenario_keys if not k.startswith("scenario_")]
                 if field_keys:
-                    output.append(f"{', '.join(repr(k) for k in field_keys[:max_items])}", style="magenta")
+                    output.append(
+                        f"{', '.join(repr(k) for k in field_keys[:max_items])}",
+                        style="magenta",
+                    )
                     if len(field_keys) > max_items:
-                        output.append(f", ... ({len(field_keys) - max_items} more)", style="dim")
+                        output.append(
+                            f", ... ({len(field_keys) - max_items} more)", style="dim"
+                        )
                 output.append("],\n", style="white")
-        
+
         # Show question information with text previews
-        if self.survey and hasattr(self.survey, 'questions'):
+        if self.survey and hasattr(self.survey, "questions"):
             questions = self.survey.questions
             output.append(f"    num_questions={len(questions)},\n", style="white")
             output.append("    questions: [\n", style="white")
-            
+
             # Show up to max_items questions with text previews
             for question in questions[:max_items]:
                 q_name = question.question_name
                 q_text = question.question_text
-                
+
                 # Truncate text if too long
                 if len(q_text) > max_text_preview:
                     q_text = q_text[:max_text_preview] + "..."
-                
+
                 output.append("        ", style="white")
                 output.append(f"'{q_name}'", style="bold yellow")
                 output.append(": ", style="white")
                 output.append(f'"{q_text}"', style="dim")
                 output.append(",\n", style="white")
-            
+
             if len(questions) > max_items:
-                output.append(f"        ... ({len(questions) - max_items} more)\n", style="dim")
-            
+                output.append(
+                    f"        ... ({len(questions) - max_items} more)\n", style="dim"
+                )
+
             output.append("    ],\n", style="white")
-        
+
         # Show created columns if any
         if self.created_columns:
-            output.append(f"    created_columns={self.created_columns}\n", style="green")
-        
+            output.append(
+                f"    created_columns={self.created_columns}\n", style="green"
+            )
+
         output.append(")", style="bold cyan")
-        
+
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
         console.print(output, end="")
@@ -1047,7 +1063,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 agent_data = result.get("agent")
                 for field in agent_fields:
                     # Agent is an object, access attributes with getattr
-                    row_data[f"agent.{field}"] = getattr(agent_data, field, None) if agent_data else None
+                    row_data[f"agent.{field}"] = (
+                        getattr(agent_data, field, None) if agent_data else None
+                    )
             else:
                 row_data["agent_index"] = agent_index
 
@@ -1056,7 +1074,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 model_data = result.get("model")
                 for field in model_fields:
                     # Model is an object, access attributes with getattr
-                    row_data[f"model.{field}"] = getattr(model_data, field, None) if model_data else None
+                    row_data[f"model.{field}"] = (
+                        getattr(model_data, field, None) if model_data else None
+                    )
 
             # Iterate questions present in answers
             answers_dict = result["answer"]
@@ -1068,11 +1088,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
                 # Create a copy of row_data and add question-specific fields
                 question_row = row_data.copy()
-                question_row.update({
-                    "question_name": q_name,
-                    "question_text": q_text,
-                    "answer": q_answer,
-                })
+                question_row.update(
+                    {
+                        "question_name": q_name,
+                        "question_text": q_text,
+                        "answer": q_answer,
+                    }
+                )
                 rows.append(Scenario(question_row))
 
         return ScenarioList(rows)
@@ -1228,7 +1250,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         return self._grouper.bucket_by(*columns)
 
-
     # def augmented_agents(self, *fields) -> "AgentList":
     #     """Convert the results to an agent list."""
     #     if len(self.agents) != len(self.data):
@@ -1240,9 +1261,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     #         new_agent_list = new_agent_list.add_trait(field, self.select(field))
     #     return new_agent_list
 
-
     @ensure_ready
-    def augmented_agents(self, *fields: str, include_existing_traits: bool = False, include_codebook: bool = False) -> "AgentList":
+    def augmented_agents(
+        self,
+        *fields: str,
+        include_existing_traits: bool = False,
+        include_codebook: bool = False,
+    ) -> "AgentList":
         """Augment the agent list by adding specified fields as new traits.
 
         Takes field names (similar to the select method) and adds them as new traits
@@ -1281,19 +1306,24 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             raise ResultsError("At least one field must be specified for augmentation.")
 
         from ..agents import AgentList
+
         al = AgentList()
         for result in self.data:
             agent = result.get("agent")
             new_agent = agent.copy()
-            naming_dict = {'name': new_agent.name}
+            naming_dict = {"name": new_agent.name}
             if not include_existing_traits:
                 new_agent.traits = {}
             if not include_codebook:
                 new_agent.codebook = {}
-                new_agent.traits_presentation_template = 'Your traits: {{traits}}'
-            naming_dict['scenario_index'] = result.sub_dicts['scenario']['scenario_index']
-            naming_dict['model_index'] = result.sub_dicts['model']['model_index']
-            new_agent.traits = {k:v for k,v in result.sub_dicts['answer'].items() if k in fields}
+                new_agent.traits_presentation_template = "Your traits: {{traits}}"
+            naming_dict["scenario_index"] = result.sub_dicts["scenario"][
+                "scenario_index"
+            ]
+            naming_dict["model_index"] = result.sub_dicts["model"]["model_index"]
+            new_agent.traits = {
+                k: v for k, v in result.sub_dicts["answer"].items() if k in fields
+            }
             new_agent.name = repr(naming_dict)
             al.append(new_agent)
         return al
@@ -1324,16 +1354,16 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         for field in fields:
             # Use select to get the field values
             dataset = self.select(field)
-            
+
             # Dataset is a list of dictionaries, each with a single key-value pair
             # We need to extract the values from the first (and only) dictionary
             if len(dataset) == 0:
                 raise ResultsError(f"No data found for field '{field}'.")
-            
+
             # Get the column name (which might be different from the field name)
             column_name = list(dataset[0].keys())[0]
             values = dataset[0][column_name]
-            
+
             # Extract the trait name from the field
             # If it's fully qualified like "answer.how_feeling", use "how_feeling"
             # Otherwise use the field name as-is
@@ -1345,8 +1375,12 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                     trait_name = field
                 else:
                     # Fallback: extract from column_name
-                    trait_name = column_name.split(".", 1)[1] if "." in column_name else column_name
-            
+                    trait_name = (
+                        column_name.split(".", 1)[1]
+                        if "." in column_name
+                        else column_name
+                    )
+
             # Add the trait to the agent list
             agent_list = agent_list.add_trait(trait_name, values)
 
@@ -1508,6 +1542,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def give_agents_uuid_names(self) -> None:
         """Give the agents uuid names."""
         import uuid
+
         for agent in self.agents:
             agent.name = uuid.uuid4()
         return None
@@ -1560,17 +1595,16 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         fetcher = ResultsRemoteFetcher(self)
         return fetcher.fetch(polling_interval)
 
-
     def split(
-        self, 
-        train_questions: Optional[List[str]] = None, 
-        test_questions: Optional[List[str]] = None, 
+        self,
+        train_questions: Optional[List[str]] = None,
+        test_questions: Optional[List[str]] = None,
         exclude_questions: Optional[List[str]] = None,
         num_questions: Optional[int] = None,
-        seed: Optional[int] = None
+        seed: Optional[int] = None,
     ) -> "AgentListSplit":
         """Create an AgentList from the results with a train/test split.
-        
+
         Args:
             train_questions: Questions to use as TRAIN (deterministic, creates split)
             test_questions: Questions to use as TEST (deterministic, creates split)
@@ -1578,46 +1612,46 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             num_questions: Number of questions to randomly select for TRAIN (stochastic, creates split).
                           If None and no other split parameters are provided, defaults to half of available questions.
             seed: Optional random seed for reproducible random selection (only used with num_questions)
-            
+
         Returns:
             AgentListSplit with train/test splits and corresponding surveys.
-            
+
         Raises:
             ResultsError: If survey has skip logic or piping (not supported for splits)
-            
+
         Examples:
             >>> # Deterministic split - specify train questions
             >>> # split = results.split(train_questions=['q1', 'q2'])
             >>> # split.train has q1, q2; split.test has all others
-            >>> 
-            >>> # Deterministic split - specify test questions  
+            >>>
+            >>> # Deterministic split - specify test questions
             >>> # split = results.split(test_questions=['q8', 'q9'])
             >>> # split.train has all others; split.test has q8, q9
-            >>> 
+            >>>
             >>> # Stochastic split - randomly select 3 questions for train
             >>> # split = results.split(num_questions=3, seed=42)
             >>> # split.train has 3 random questions; split.test has remaining
-            >>> 
+            >>>
             >>> # Default 50/50 split - no parameters specified
             >>> # split = results.split(seed=42)
             >>> # split.train has half the questions; split.test has the other half
-            >>> 
+            >>>
             >>> # Exclude certain questions entirely
             >>> # split = results.split(num_questions=3, exclude_questions=['q10'])
         """
         from ..agents import AgentList
         import random
         import re
-        
+
         # Check if survey has skip logic (non-default rules)
         if len(self.survey.rule_collection.non_default_rules) > 0:
             raise ResultsError(
                 "Cannot create agent list splits from surveys with skip logic. "
                 "Skip logic creates dependencies between questions that would be broken by splitting."
             )
-        
+
         # Check if survey has piping ({{ }} syntax in question text or options)
-        piping_pattern = re.compile(r'\{\{.*?\}\}')
+        piping_pattern = re.compile(r"\{\{.*?\}\}")
         for question in self.survey.questions:
             # Check question text
             if piping_pattern.search(question.question_text):
@@ -1626,122 +1660,134 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                     f"Question '{question.question_name}' has piping in its question_text."
                 )
             # Check question options if they exist
-            if hasattr(question, 'question_options') and question.question_options:
+            if hasattr(question, "question_options") and question.question_options:
                 for option in question.question_options:
                     if isinstance(option, str) and piping_pattern.search(option):
                         raise ResultsError(
                             f"Cannot create agent list splits from surveys with piping. "
                             f"Question '{question.question_name}' has piping in its options."
                         )
-        
+
         # Ensure only one splitting method is used
-        split_params = sum([
-            train_questions is not None,
-            test_questions is not None,
-            num_questions is not None
-        ])
+        split_params = sum(
+            [
+                train_questions is not None,
+                test_questions is not None,
+                num_questions is not None,
+            ]
+        )
         if split_params > 1:
             raise ValueError(
                 "Only one of train_questions, test_questions, or num_questions can be specified"
             )
-        
+
         all_questions = list(self.survey.question_names)
-        
+
         # Apply exclusions first
         if exclude_questions is not None:
             for q in exclude_questions:
                 if q not in all_questions:
                     raise ValueError(f"Question {q} not found in survey.")
             all_questions = [q for q in all_questions if q not in exclude_questions]
-        
+
         # Case 1: train_questions - these become TRAIN split
         if train_questions is not None:
             # Validate questions exist
             for q in train_questions:
                 if q not in all_questions:
-                    raise ValueError(f"Question {q} not found in survey (or was excluded).")
-            
+                    raise ValueError(
+                        f"Question {q} not found in survey (or was excluded)."
+                    )
+
             train_questions_list = train_questions
-            test_questions_list = [q for q in all_questions if q not in train_questions_list]
-            
+            test_questions_list = [
+                q for q in all_questions if q not in train_questions_list
+            ]
+
             if not train_questions_list:
                 raise ValueError("train_questions resulted in an empty list")
             if not test_questions_list:
-                raise ValueError("No questions left for test split after selecting train questions")
-            
+                raise ValueError(
+                    "No questions left for test split after selecting train questions"
+                )
+
             train_agent_list = AgentList.from_results(self, train_questions_list)
             test_agent_list = AgentList.from_results(self, test_questions_list)
-            
+
             train_survey = self.survey.select(*train_questions_list)
             test_survey = self.survey.select(*test_questions_list)
-            
+
             return AgentListSplit(
                 train=train_agent_list,
                 test=test_agent_list,
                 train_survey=train_survey,
-                test_survey=test_survey
+                test_survey=test_survey,
             )
-        
+
         # Case 2: test_questions - these become TEST split
         if test_questions is not None:
             # Validate questions exist
             for q in test_questions:
                 if q not in all_questions:
-                    raise ValueError(f"Question {q} not found in survey (or was excluded).")
-            
+                    raise ValueError(
+                        f"Question {q} not found in survey (or was excluded)."
+                    )
+
             test_questions_list = test_questions
             train_questions = [q for q in all_questions if q not in test_questions_list]
-            
+
             if not test_questions_list:
                 raise ValueError("test_questions resulted in an empty list")
             if not train_questions:
-                raise ValueError("No questions left for train split after selecting test questions")
-            
+                raise ValueError(
+                    "No questions left for train split after selecting test questions"
+                )
+
             train_agent_list = AgentList.from_results(self, train_questions)
             test_agent_list = AgentList.from_results(self, test_questions_list)
-            
+
             train_survey = self.survey.select(*train_questions)
             test_survey = self.survey.select(*test_questions_list)
-            
+
             return AgentListSplit(
                 train=train_agent_list,
                 test=test_agent_list,
                 train_survey=train_survey,
-                test_survey=test_survey
+                test_survey=test_survey,
             )
-        
+
         # Case 3: num_questions - randomly select for TRAIN split (stochastic)
         # If num_questions is None, default to half of available questions
         if num_questions is None:
             num_questions = len(all_questions) // 2
-        
+
         if num_questions > len(all_questions):
             raise ValueError(
                 f"num_questions ({num_questions}) cannot exceed available questions ({len(all_questions)})"
             )
-        
+
         # Set seed if provided
         if seed is not None:
             random.seed(seed)
-        
+
         # Randomly select questions for train split
         train_questions = random.sample(all_questions, num_questions)
         test_questions_list = [q for q in all_questions if q not in train_questions]
-        
+
         if not test_questions_list:
             raise ValueError("No questions left for test split after random selection")
-        
+
         train_agent_list = AgentList.from_results(self, train_questions)
         test_agent_list = AgentList.from_results(self, test_questions_list)
-        
+
         train_survey = self.survey.select(*train_questions)
         test_survey = self.survey.select(*test_questions_list)
-        
+
         return AgentListSplit(
             train=train_agent_list,
             test=test_agent_list,
             train_survey=train_survey,
-            test_survey=test_survey
+            test_survey=test_survey,
         )
 
     def spot_issues(self, models: Optional[ModelList] = None) -> Results:

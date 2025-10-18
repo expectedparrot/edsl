@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, List
 
 import pandas as pd
 
@@ -119,7 +119,10 @@ def _render_scalar(value: Any) -> str:
         return str(value)
     text = str(value)
     # Quote strings containing colon, hash, or leading special chars
-    if any(ch in text for ch in [":", "#", "{", "}", ",", "[", "]"]) or text.strip() != text:
+    if (
+        any(ch in text for ch in [":", "#", "{", "}", ",", "[", "]"])
+        or text.strip() != text
+    ):
         escaped = text.replace("'", "''")
         return f"'{escaped}'"
     return text

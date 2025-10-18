@@ -29,7 +29,9 @@ class InputDataNormalized(InputDataABC):
         question_types = [spec.question_type for spec in question_specs]
         question_options = [spec.question_options for spec in question_specs]
 
-        derived_hints = {spec.question_name: spec.derived_hints for spec in question_specs}
+        derived_hints = {
+            spec.question_name: spec.derived_hints for spec in question_specs
+        }
         self.derived_hints_by_question = derived_hints
         self.respondent_ids = respondent_order
 
@@ -39,7 +41,9 @@ class InputDataNormalized(InputDataABC):
             if spec.question_text
         }
 
-        raw_data = self._build_raw_data(question_names, respondent_order, normalized_survey.responses)
+        raw_data = self._build_raw_data(
+            question_names, respondent_order, normalized_survey.responses
+        )
 
         super().__init__(
             datafile_name=datafile_name,
@@ -71,7 +75,9 @@ class InputDataNormalized(InputDataABC):
             respondent_to_response = by_question.get(question_name, {})
             question_responses: List[object] = []
             for respondent_id in respondent_order:
-                question_responses.append(respondent_to_response.get(respondent_id, "missing"))
+                question_responses.append(
+                    respondent_to_response.get(respondent_id, "missing")
+                )
             raw_data.append(question_responses)
         return raw_data
 

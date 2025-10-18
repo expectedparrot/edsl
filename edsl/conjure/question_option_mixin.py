@@ -5,7 +5,7 @@ class QuestionOptionModule:
     def __init__(self, input_data):
         self.input_data = input_data
         self._question_options = None
-    
+
     @property
     def question_options(self):
         if self._question_options is None:
@@ -15,12 +15,18 @@ class QuestionOptionModule:
     @question_options.setter
     def question_options(self, value):
         if value is None:
-            value = [self._get_question_options(qn) for qn in self.input_data.question_names]
+            value = [
+                self._get_question_options(qn) for qn in self.input_data.question_names
+            ]
         else:
             # Clean each option list in the value if it's a list of lists
             if isinstance(value, list):
                 from .input_data import _clean_question_options
-                value = [_clean_question_options(options) if options is not None else None for options in value]
+
+                value = [
+                    _clean_question_options(options) if options is not None else None
+                    for options in value
+                ]
         self._question_options = value
 
     def _get_question_options(self, question_name) -> Union[List[str], None]:
@@ -40,9 +46,11 @@ class QuestionOptionModule:
             return [opt for opt in options if opt]  # Remove empty options
         else:
             if question_type == "multiple_choice_with_other":
-                options = self.input_data.question_stats.unique_responses_more_than_k(2)[
-                    self.input_data.question_names.index(question_name)
-                ] + [self.input_data.OTHER_STRING]
+                options = self.input_data.question_stats.unique_responses_more_than_k(
+                    2
+                )[self.input_data.question_names.index(question_name)] + [
+                    self.input_data.OTHER_STRING
+                ]
                 cleaned_options = [str(o).strip() for o in options]
                 return [opt for opt in cleaned_options if opt]  # Remove empty options
             else:
@@ -55,9 +63,13 @@ class QuestionOptionModule:
         import textwrap
 
         scenarios = (
-            ScenarioList.from_list("example_question_name", self.input_data.question_names)
+            ScenarioList.from_list(
+                "example_question_name", self.input_data.question_names
+            )
             .add_list("example_question_text", self.input_data.question_texts)
-            .add_list("example_question_type", self.input_data.question_type.question_types)
+            .add_list(
+                "example_question_type", self.input_data.question_type.question_types
+            )
             .add_list("example_question_options", self.question_options)
         ).filter(
             'example_question_type == "multiple_choice" or example_question_type == "multiple_choice_with_other"'
@@ -79,7 +91,9 @@ class QuestionOptionModule:
         d = dict(
             proposed_ordering.select("example_question_name", "ordering").to_list()
         )
-        self._question_options = [d.get(qn, None) for qn in self.input_data.question_names]
+        self._question_options = [
+            d.get(qn, None) for qn in self.input_data.question_names
+        ]
 
 
 if __name__ == "__main__":

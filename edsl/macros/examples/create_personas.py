@@ -32,21 +32,27 @@ from edsl.macros.macro import Macro
 from edsl.macros.output_formatter import OutputFormatter, SurveyAttachmentFormatter
 
 from edsl.surveys import Survey
-from edsl.questions import QuestionList, QuestionFreeText, QuestionEDSLObject, QuestionNumerical
+from edsl.questions import (
+    QuestionList,
+    QuestionFreeText,
+    QuestionEDSLObject,
+    QuestionNumerical,
+)
 
 import textwrap
 
 # Prompt the model for dimensions given each survey question
 q = QuestionList(
     question_name="dimensions",
-    question_text=textwrap.dedent("""\
+    question_text=textwrap.dedent(
+        """\
 What dimensions of a person would you need to know to predict how they  would answer this question: 
 {{ scenario.question_text }}?
 These dimensions should be thinks that could have 'levels' or 'values' that someone could have.
 E.g., age, gender, education, income, location, industry, company size, etc.
 Return only the dimensions that are relevant to the question.
 """
-),
+    ),
 )
 
 # For each proposed dimension, ask for possible levels
@@ -75,6 +81,7 @@ For example, if the dimension is "company size", the levels could be "1-10", "11
 )
 
 from edsl.questions import QuestionFreeText
+
 q_description = QuestionFreeText(
     question_name="dimension_description",
     question_text="""We are constructing a persona for someone who answers this question: 
@@ -126,7 +133,8 @@ Provide a short snake_case identifier (e.g., age_range, gender, education). Retu
 
 # Build the jobs pipeline: propose dimensions per question, expand, then ask levels and a name
 jobs_object = (
-    Survey([q]).to_jobs()
+    Survey([q])
+    .to_jobs()
     .select("scenario.question_text", "answer.dimensions")
     .expand("answer.dimensions")
     .to(Survey([q_levels, q_name, q_probs, q_description]))
@@ -138,17 +146,19 @@ Expected inputs (via initial_survey):
 - n: number of personas to generate
 """
 
-initial_survey = Survey([
-    QuestionEDSLObject(
-        question_name="input_survey",
-        question_text="Provide the Survey to analyze",
-        expected_object_type="Survey",
-    ),
-    QuestionNumerical(
-        question_name="n",
-        question_text="How many personas should be generated?",
-    ),
-])
+initial_survey = Survey(
+    [
+        QuestionEDSLObject(
+            question_name="input_survey",
+            question_text="Provide the Survey to analyze",
+            expected_object_type="Survey",
+        ),
+        QuestionNumerical(
+            question_name="n",
+            question_text="How many personas should be generated?",
+        ),
+    ]
+)
 
 # Output an AgentBlueprint using the answers
 # Note: to_agent_blueprint() internally uses AgentBlueprint.from_scenario_list()
@@ -156,18 +166,17 @@ initial_survey = Survey([
 # which are used for weighted sampling when creating agents.
 
 # Debug formatter to see the data before agent_blueprint conversion
-debug_scenario_list = (OutputFormatter(
+debug_scenario_list = (
+    OutputFormatter(
         description="Debug ScenarioList (before agent_blueprint)",
-        output_type="edsl_object"
+        output_type="edsl_object",
     )
     .select("scenario.*", "answer.*")
     .to_scenario_list()
 )
 
-agent_blueprint = (OutputFormatter(
-        description="Agent Blueprint",
-        output_type="edsl_object"
-    )
+agent_blueprint = (
+    OutputFormatter(description="Agent Blueprint", output_type="edsl_object")
     .select("scenario.*", "answer.*")
     .to_scenario_list()
     .to_agent_blueprint(
@@ -175,24 +184,24 @@ agent_blueprint = (OutputFormatter(
         dimension_values_field="levels",
         dimension_description_field="dimension_description",
         dimension_probs_field="probs",
-        seed='1234'
+        seed="1234",
     )
 )
 
-agent_list = (agent_blueprint
-.copy()
-.create_agent_list(n="{{params.n|int}}", strategy="probability", unique=True)
+agent_list = agent_blueprint.copy().create_agent_list(
+    n="{{params.n|int}}", strategy="probability", unique=True
 )
 
-agent_list_markdown = agent_list.copy().set_output_type("markdown").table(tablefmt="github").to_string()
+agent_list_markdown = (
+    agent_list.copy().set_output_type("markdown").table(tablefmt="github").to_string()
+)
 
 agent_list_rich = agent_list.copy().set_output_type("rich").table(tablefmt="rich")
 
 # Markdown formatter that displays the persona dimensions and levels as a table
 markdown_formatter = (
     OutputFormatter(
-        description="Persona Dimensions Preview (Markdown)",
-        output_type="markdown"
+        description="Persona Dimensions Preview (Markdown)", output_type="markdown"
     )
     .select("scenario.*", "answer.*")
     .to_scenario_list()
@@ -205,10 +214,7 @@ raw = OutputFormatter(description="Raw results")
 
 # Debug table to inspect the data
 debug_table = (
-    OutputFormatter(
-        description="Debug Table (dimension data)",
-        output_type="markdown"
-    )
+    OutputFormatter(description="Debug Table (dimension data)", output_type="markdown")
     .select("scenario.*", "answer.*")
     .to_scenario_list()
     .select("dimension_name", "levels", "probs", "dimension_description")
@@ -219,8 +225,7 @@ debug_table = (
 # Debug: show all fields in the scenario list
 debug_fields = (
     OutputFormatter(
-        description="Debug: All fields in ScenarioList",
-        output_type="markdown"
+        description="Debug: All fields in ScenarioList", output_type="markdown"
     )
     .select("scenario.*", "answer.*")
     .to_scenario_list()
@@ -231,8 +236,7 @@ debug_fields = (
 # Debug: Validate probs are numeric
 debug_probs_validation = (
     OutputFormatter(
-        description="Debug: Validate probs field types",
-        output_type="edsl_object"
+        description="Debug: Validate probs field types", output_type="edsl_object"
     )
     .select("scenario.*", "answer.*")
     .to_scenario_list()
@@ -246,52 +250,67 @@ macro = Macro(
     initial_survey=initial_survey,
     jobs_object=jobs_object,
     output_formatters={
-        'agent_list': agent_list,
-        'agent_list_markdown': agent_list_markdown,
-        'agent_blueprint': agent_blueprint,
-        'agent_list_rich': agent_list_rich,
-        'debug_scenario_list': debug_scenario_list,
-        'debug_table': debug_table,
-        'debug_fields': debug_fields,
-        'debug_probs_validation': debug_probs_validation,
-        'raw': raw,
-        },
+        "agent_list": agent_list,
+        "agent_list_markdown": agent_list_markdown,
+        "agent_blueprint": agent_blueprint,
+        "agent_list_rich": agent_list_rich,
+        "debug_scenario_list": debug_scenario_list,
+        "debug_table": debug_table,
+        "debug_fields": debug_fields,
+        "debug_probs_validation": debug_probs_validation,
+        "raw": raw,
+    },
     default_formatter_name="agent_blueprint",
     attachment_formatters=[
         # Convert the passed Survey into a ScenarioList and attach as scenarios
-        SurveyAttachmentFormatter(description="Survey->ScenarioList").to_scenario_list(remove_jinja2_syntax=True)
+        SurveyAttachmentFormatter(description="Survey->ScenarioList").to_scenario_list(
+            remove_jinja2_syntax=True
+        )
     ],
 )
 
 if __name__ == "__main__":
     from edsl import Survey
-    #survey = Survey.pull("7e80e0dd-5d8a-4f91-afef-c06e9756c0a2")
-    survey = Survey.pull('5cde9b3b-3548-418c-9500-074103a13eef')
-    output = macro.output(params={
-        'input_survey': survey,
-        'n': 10,
-    })
-    
+
+    # survey = Survey.pull("7e80e0dd-5d8a-4f91-afef-c06e9756c0a2")
+    survey = Survey.pull("5cde9b3b-3548-418c-9500-074103a13eef")
+    output = macro.output(
+        params={
+            "input_survey": survey,
+            "n": 10,
+        }
+    )
+
     # Validate probs are numeric before trying to create agent_blueprint
     print("\n=== Validating probs field ===")
     sl = output.debug_probs_validation
     for i, scenario in enumerate(sl):
-        dim_name = scenario.get('dimension_name', f'unknown_{i}')
-        probs = scenario.get('probs', [])
-        levels = scenario.get('levels', [])
-        
+        dim_name = scenario.get("dimension_name", f"unknown_{i}")
+        probs = scenario.get("probs", [])
+        levels = scenario.get("levels", [])
+
         print(f"\nDimension: {dim_name}")
-        print(f"  Levels ({len(levels)}): {levels[:3]}..." if len(levels) > 3 else f"  Levels: {levels}")
-        print(f"  Probs ({len(probs)}): {probs[:3]}..." if len(probs) > 3 else f"  Probs: {probs}")
-        
+        print(
+            f"  Levels ({len(levels)}): {levels[:3]}..."
+            if len(levels) > 3
+            else f"  Levels: {levels}"
+        )
+        print(
+            f"  Probs ({len(probs)}): {probs[:3]}..."
+            if len(probs) > 3
+            else f"  Probs: {probs}"
+        )
+
         # Check if all probs are numeric
         non_numeric = [p for p in probs if not isinstance(p, (int, float))]
         if non_numeric:
             print(f"  ⚠️  WARNING: Found non-numeric probs: {non_numeric}")
-        
+
         # Check if lengths match
         if len(probs) != len(levels):
-            print(f"  ⚠️  WARNING: Mismatch - {len(levels)} levels but {len(probs)} probs")
-    
+            print(
+                f"  ⚠️  WARNING: Mismatch - {len(levels)} levels but {len(probs)} probs"
+            )
+
     print("\n=== Creating agent blueprint ===")
     print(output.agent_list_rich)

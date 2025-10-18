@@ -16,7 +16,11 @@ import yaml
 from edsl import Results
 from reports.report import Report
 from reports.research import Research
-from reports.warning_utils import print_info, print_success, print_error, setup_warning_capture
+from reports.warning_utils import (
+    print_info,
+    print_success,
+    setup_warning_capture,
+)
 
 # Optional interactive dependency
 try:
@@ -26,13 +30,33 @@ except ImportError:  # pragma: no cover
 
 app = typer.Typer(help="Generate reports from EDSL Results objects")
 
+
 @app.command()
 def generate(
-    json_gz_file: Optional[str] = typer.Option(None, "--json-gz-file", help="Path to results.json.gz file"),
-    coop_uuid: Optional[str] = typer.Option(None, "--coop-uuid", help="UUID to fetch results using Results.pull()"),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output file path (extension determines format: .html, .docx, .pptx, .pdf, .ipynb)"),
-    format: Optional[str] = typer.Option(None, "--format", "-f", help="Output format: html, docx, pptx, pdf, notebook, or all"),
-    execute: bool = typer.Option(False, "--execute", "-e", help="Execute notebook after generation (only for .ipynb format)"),
+    json_gz_file: Optional[str] = typer.Option(
+        None, "--json-gz-file", help="Path to results.json.gz file"
+    ),
+    coop_uuid: Optional[str] = typer.Option(
+        None, "--coop-uuid", help="UUID to fetch results using Results.pull()"
+    ),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path (extension determines format: .html, .docx, .pptx, .pdf, .ipynb)",
+    ),
+    format: Optional[str] = typer.Option(
+        None,
+        "--format",
+        "-f",
+        help="Output format: html, docx, pptx, pdf, notebook, or all",
+    ),
+    execute: bool = typer.Option(
+        False,
+        "--execute",
+        "-e",
+        help="Execute notebook after generation (only for .ipynb format)",
+    ),
     include_questions: Optional[str] = typer.Option(
         None,
         "--include-questions",
@@ -139,21 +163,23 @@ def generate(
 ):
     """
     Generate a report from a Results object.
-    
+
     Input sources (in order of precedence):
     1. --json-gz-file: Path to a gzipped JSON file
     2. --coop-uuid: UUID to fetch from remote
     3. stdin: JSON piped to the command (automatic if no other options specified)
     """
-    
+
     # Validate input arguments
     if json_gz_file is not None and coop_uuid is not None:
-        typer.echo("Error: Cannot specify both --json-gz-file and --coop-uuid", err=True)
+        typer.echo(
+            "Error: Cannot specify both --json-gz-file and --coop-uuid", err=True
+        )
         raise typer.Exit(1)
-    
+
     # Determine input source
     use_stdin = json_gz_file is None and coop_uuid is None
-    
+
     # Load results
     if json_gz_file is not None:
         print_info(f"Loading results from file: {json_gz_file}")
@@ -161,7 +187,7 @@ def generate(
             typer.echo(f"Error: File not found: {json_gz_file}", err=True)
             raise typer.Exit(1)
         try:
-            with gzip.open(json_gz_file, 'rt') as f:
+            with gzip.open(json_gz_file, "rt") as f:
                 results_data = json.load(f)
             results = Results.from_dict(results_data)
         except Exception as e:
@@ -190,83 +216,112 @@ def generate(
         except Exception as e:
             typer.echo(f"Error loading results from stdin: {e}", err=True)
             raise typer.Exit(1)
-    
+
     # Apply sampling if requested
     if sample is not None:
         if sample <= 0:
             typer.echo("Error: --sample must be a positive integer", err=True)
             raise typer.Exit(1)
-        
+
         total_results = len(results)
         if sample >= total_results:
-            print_info(f"Sample size ({sample}) >= total results ({total_results}). Using all results.")
+            print_info(
+                f"Sample size ({sample}) >= total results ({total_results}). Using all results."
+            )
         else:
-            print_info(f"Sampling {sample} results from {total_results} total results...")
-            
+            print_info(
+                f"Sampling {sample} results from {total_results} total results..."
+            )
+
             # Use Results.sample() method with seed if provided
             seed_str = str(seed) if seed is not None else None
             if seed is not None:
                 print_info(f"Using random seed: {seed}")
-            
+
             # Sample without replacement
             results = results.sample(n=sample, with_replacement=False, seed=seed_str)
             print_info(f"Successfully sampled {len(results)} results.")
-    
+
     # Parse free text sample size configuration
     free_text_sample_config = {}
     if free_text_sample_size is not None:
-        if ',' in free_text_sample_size or ':' in free_text_sample_size:
+        if "," in free_text_sample_size or ":" in free_text_sample_size:
             # Question-specific format: "question1:50,question2:100"
-            for item in free_text_sample_size.split(','):
+            for item in free_text_sample_size.split(","):
                 item = item.strip()
-                if ':' in item:
-                    question_name, size_str = item.split(':', 1)
+                if ":" in item:
+                    question_name, size_str = item.split(":", 1)
                     try:
                         size = int(size_str.strip())
                         if size <= 0:
-                            typer.echo(f"Error: Sample size must be positive for question '{question_name.strip()}'", err=True)
+                            typer.echo(
+                                f"Error: Sample size must be positive for question '{question_name.strip()}'",
+                                err=True,
+                            )
                             raise typer.Exit(1)
                         free_text_sample_config[question_name.strip()] = size
                     except ValueError:
-                        typer.echo(f"Error: Invalid sample size '{size_str}' for question '{question_name.strip()}'", err=True)
+                        typer.echo(
+                            f"Error: Invalid sample size '{size_str}' for question '{question_name.strip()}'",
+                            err=True,
+                        )
                         raise typer.Exit(1)
                 else:
-                    typer.echo(f"Error: Invalid format '{item}'. Expected 'question:size' or global number.", err=True)
+                    typer.echo(
+                        f"Error: Invalid format '{item}'. Expected 'question:size' or global number.",
+                        err=True,
+                    )
                     raise typer.Exit(1)
         else:
             # Global format: "100"
             try:
                 global_size = int(free_text_sample_size.strip())
                 if global_size <= 0:
-                    typer.echo("Error: Global free text sample size must be positive", err=True)
+                    typer.echo(
+                        "Error: Global free text sample size must be positive", err=True
+                    )
                     raise typer.Exit(1)
-                free_text_sample_config['_global'] = global_size
+                free_text_sample_config["_global"] = global_size
                 print_info(f"Using global free text sample size: {global_size}")
             except ValueError:
-                typer.echo(f"Error: Invalid global sample size '{free_text_sample_size}'", err=True)
+                typer.echo(
+                    f"Error: Invalid global sample size '{free_text_sample_size}'",
+                    err=True,
+                )
                 raise typer.Exit(1)
-        
+
         if free_text_sample_config:
             print_info(f"Free text sampling configured: {free_text_sample_config}")
-    
+
     # Parse exclude question types configuration
     exclude_question_types_list = None
     if exclude_question_types is not None and exclude_question_types.strip():
-        valid_types = {'free_text', 'multiple_choice', 'linear_scale', 'checkbox', 'numerical'}
+        valid_types = {
+            "free_text",
+            "multiple_choice",
+            "linear_scale",
+            "checkbox",
+            "numerical",
+        }
         exclude_question_types_list = []
-        for q_type in exclude_question_types.split(','):
+        for q_type in exclude_question_types.split(","):
             q_type = q_type.strip()
             if q_type:
                 if q_type not in valid_types:
-                    typer.echo(f"Error: Invalid question type '{q_type}'. Supported types: {', '.join(sorted(valid_types))}", err=True)
+                    typer.echo(
+                        f"Error: Invalid question type '{q_type}'. Supported types: {', '.join(sorted(valid_types))}",
+                        err=True,
+                    )
                     raise typer.Exit(1)
                 exclude_question_types_list.append(q_type)
-        
+
         if exclude_question_types_list:
-            print_info(f"Excluding question types: {', '.join(exclude_question_types_list)}")
+            print_info(
+                f"Excluding question types: {', '.join(exclude_question_types_list)}"
+            )
         else:
             exclude_question_types_list = None
-    
+
     # Create report
     print_info("Creating report...")
 
@@ -274,7 +329,9 @@ def generate(
     # Determine question filters (interactive overrides CLI parameters)
     # ------------------------------------------------------------------
 
-    def _interactive_select_questions(res: "Results") -> tuple[Optional[List[str]], Optional[List[str]]]:
+    def _interactive_select_questions(
+        res: "Results",
+    ) -> tuple[Optional[List[str]], Optional[List[str]]]:
         """Return include_list, exclude_list chosen interactively."""
 
         question_names = [q.question_name for q in res.survey.questions]
@@ -296,7 +353,9 @@ def generate(
                 typer.echo("Interactive selection aborted.", err=True)
                 raise typer.Exit(1)
 
-            include_lst: Optional[List[str]] = selected if selected else None  # None means all
+            include_lst: Optional[List[str]] = (
+                selected if selected else None
+            )  # None means all
             return include_lst, None  # Exclude list not gathered interactively
 
         # -------------------------------------------------------
@@ -312,17 +371,21 @@ def generate(
                 tty_out.write("Available questions:\n")
                 for idx, name in enumerate(question_names, 1):
                     tty_out.write(f"  {idx}: {name}\n")
-                tty_out.write(textwrap.dedent(
-                    """
+                tty_out.write(
+                    textwrap.dedent(
+                        """
                     Enter comma-separated numbers or names to include (blank for all): """
-                ))
+                    )
+                )
                 tty_out.flush()
 
                 selection_str = tty_in.readline().strip()
 
         except Exception:
             # As a last resort, use a non-interactive default (all questions)
-            typer.echo("Warning: Unable to open a TTY for interactive selection – including all questions by default.")
+            typer.echo(
+                "Warning: Unable to open a TTY for interactive selection – including all questions by default."
+            )
             return None, None
 
         if not selection_str:
@@ -351,7 +414,7 @@ def generate(
     # Use interactive mode if requested
     if interactive:
         include_list, exclude_list = _interactive_select_questions(results)
-        
+
         # Interactive mode doesn't support interaction filtering yet
         include_interactions_list = None
         exclude_interactions_list = None
@@ -362,6 +425,7 @@ def generate(
 
         def _generate_combinations(qs: List[str]) -> List[List[str]]:
             from itertools import combinations
+
             singles = [[q] for q in qs]
             pairs = [list(c) for c in combinations(qs, 2)]
             return singles + pairs
@@ -372,7 +436,9 @@ def generate(
             include_list if include_list is not None else all_question_names
         )
         if exclude_list:
-            filtered_questions = [q for q in filtered_questions if q not in exclude_list]
+            filtered_questions = [
+                q for q in filtered_questions if q not in exclude_list
+            ]
 
         available_combos = _generate_combinations(filtered_questions)
 
@@ -385,6 +451,7 @@ def generate(
         if len(available_combos) <= 1:
             analyses_list = available_combos  # single combo or empty
         else:
+
             def _analysis_label(combo: List[str]) -> str:
                 return " & ".join(combo)
 
@@ -402,7 +469,7 @@ def generate(
                     raise typer.Exit(1)
 
                 if selected_labels:
-                    label_to_combo = { _analysis_label(c): c for c in available_combos }
+                    label_to_combo = {_analysis_label(c): c for c in available_combos}
                     analyses_list = [label_to_combo[l] for l in selected_labels]
                 else:
                     analyses_list = None  # none selected means include all
@@ -411,14 +478,18 @@ def generate(
                 try:
                     tty_path = os.ctermid() if hasattr(os, "ctermid") else "/dev/tty"
                     with open(tty_path, "r") as tty_in, open(tty_path, "w") as tty_out:
-                        tty_out.write("Available analyses (comma-separated numbers to include, blank for all):\n")
+                        tty_out.write(
+                            "Available analyses (comma-separated numbers to include, blank for all):\n"
+                        )
                         for idx, combo in enumerate(available_combos, 1):
                             tty_out.write(f"  {idx}: {_analysis_label(combo)}\n")
                         tty_out.write("Selection: ")
                         tty_out.flush()
                         selection_str = tty_in.readline().strip()
                 except Exception:
-                    typer.echo("Warning: Unable to open TTY for analyses selection – including all analyses.")
+                    typer.echo(
+                        "Warning: Unable to open TTY for analyses selection – including all analyses."
+                    )
                     selection_str = ""
 
                 if not selection_str:
@@ -428,8 +499,12 @@ def generate(
                     selected_indices: List[int] = []
                     for tok in tokens:
                         if tok.isdigit():
-                            selected_indices.append(int(tok)-1)
-                    analyses_list = [available_combos[i] for i in selected_indices if 0 <= i < len(available_combos)]
+                            selected_indices.append(int(tok) - 1)
+                    analyses_list = [
+                        available_combos[i]
+                        for i in selected_indices
+                        if 0 <= i < len(available_combos)
+                    ]
                     if not analyses_list:
                         analyses_list = None  # fallback to all if nothing valid
         # End analyses selection
@@ -438,11 +513,11 @@ def generate(
         # Per-analysis output type prompts
         # -------------------------
 
-        from reports.charts import ChartOutput
-        from reports.tables import TableOutput
 
         # Resolve which analyses we will run (use analyses_list or all combos)
-        analyses_to_iterate = analyses_list if analyses_list is not None else available_combos
+        analyses_to_iterate = (
+            analyses_list if analyses_list is not None else available_combos
+        )
 
         for combo in analyses_to_iterate:
             # Instantiate a temporary Research to know available outputs
@@ -459,7 +534,9 @@ def generate(
             selected_for_combo: List[str] | None = None
 
             if questionary is not None and stdin_is_tty:
-                sel = questionary.checkbox(prompt_title, choices=available_outputs).ask()
+                sel = questionary.checkbox(
+                    prompt_title, choices=available_outputs
+                ).ask()
                 if sel is None:
                     typer.echo("Interactive selection aborted.", err=True)
                     raise typer.Exit(1)
@@ -469,7 +546,9 @@ def generate(
                 try:
                     tty_path = os.ctermid() if hasattr(os, "ctermid") else "/dev/tty"
                     with open(tty_path, "r") as tty_in, open(tty_path, "w") as tty_out:
-                        tty_out.write(f"Available outputs for {' & '.join(combo)} (comma-separated numbers, blank for all):\n")
+                        tty_out.write(
+                            f"Available outputs for {' & '.join(combo)} (comma-separated numbers, blank for all):\n"
+                        )
                         for idx, name in enumerate(available_outputs, 1):
                             tty_out.write(f"  {idx}: {name}\n")
                         tty_out.write("Selection: ")
@@ -480,8 +559,12 @@ def generate(
 
                 if selection_str:
                     tokens = [t.strip() for t in selection_str.split(",") if t.strip()]
-                    selected_indices = [int(tok)-1 for tok in tokens if tok.isdigit()]
-                    selected_for_combo = [available_outputs[i] for i in selected_indices if 0 <= i < len(available_outputs)]
+                    selected_indices = [int(tok) - 1 for tok in tokens if tok.isdigit()]
+                    selected_for_combo = [
+                        available_outputs[i]
+                        for i in selected_indices
+                        if 0 <= i < len(available_outputs)
+                    ]
                     if not selected_for_combo:
                         selected_for_combo = None
 
@@ -500,11 +583,11 @@ def generate(
             if exclude_questions is not None and exclude_questions.strip()
             else None
         )
-        
+
         # Parse include/exclude interaction strings into lists
         include_interactions_list = None
         exclude_interactions_list = None
-        
+
         # If --no-interactions is specified, disable all interactions
         if no_interactions:
             include_interactions_list = []  # Empty list means no interactions
@@ -518,9 +601,12 @@ def generate(
                         if len(parts) == 2:
                             include_interactions_list.append(parts)
                         else:
-                            typer.echo(f"Error: Invalid interaction format '{interaction_str}'. Expected 'question1:question2'", err=True)
+                            typer.echo(
+                                f"Error: Invalid interaction format '{interaction_str}'. Expected 'question1:question2'",
+                                err=True,
+                            )
                             raise typer.Exit(1)
-            
+
             if exclude_interactions is not None and exclude_interactions.strip():
                 exclude_interactions_list = []
                 for interaction_str in exclude_interactions.split(","):
@@ -530,9 +616,12 @@ def generate(
                         if len(parts) == 2:
                             exclude_interactions_list.append(parts)
                         else:
-                            typer.echo(f"Error: Invalid interaction format '{interaction_str}'. Expected 'question1:question2'", err=True)
+                            typer.echo(
+                                f"Error: Invalid interaction format '{interaction_str}'. Expected 'question1:question2'",
+                                err=True,
+                            )
                             raise typer.Exit(1)
-        
+
         analyses_list = None
         analysis_output_filters = {}
 
@@ -552,7 +641,7 @@ def generate(
         include_overview=include_overview,
         free_text_sample_config=free_text_sample_config,
     )
-    
+
     # Determine output format and filename
     if format is None and output is None:
         # Default to HTML format only
@@ -572,7 +661,10 @@ def generate(
         elif ext == ".ipynb":
             output_format = "notebook"
         else:
-            typer.echo(f"Unknown file extension: {ext}. Supported: .html, .docx, .pptx, .pdf, .ipynb", err=True)
+            typer.echo(
+                f"Unknown file extension: {ext}. Supported: .html, .docx, .pptx, .pdf, .ipynb",
+                err=True,
+            )
             raise typer.Exit(1)
         output_file = output
     elif format is not None and output is None:
@@ -592,28 +684,31 @@ def generate(
             output_format = "all"
             output_file = "report"  # Base filename for all formats
         else:
-            typer.echo(f"Unknown format: {format}. Supported: html, docx, pptx, pdf, notebook, all", err=True)
+            typer.echo(
+                f"Unknown format: {format}. Supported: html, docx, pptx, pdf, notebook, all",
+                err=True,
+            )
             raise typer.Exit(1)
     else:
         # Both format and output specified
         output_format = format.lower()
         output_file = output
-    
+
     # Generate report
     try:
         if output_format == "all":
             print_info("Generating all report formats...")
-            
+
             # Generate HTML
             html_file = f"{output_file}.html"
             report.generate_html(html_file)
             print_success(f"HTML report generated: {html_file}")
-            
+
             # Generate DOCX
             docx_file = f"{output_file}.docx"
             report.generate_docx(docx_file)
             print_success(f"DOCX report generated: {docx_file}")
-            
+
             # Generate PPTX
             pptx_file = f"{output_file}.pptx"
             try:
@@ -622,7 +717,7 @@ def generate(
             except Exception as e:
                 typer.echo(f"Warning: PPTX generation failed: {e}", err=True)
                 print_info("PPTX generation requires python-pptx")
-            
+
             # Generate PDF
             pdf_file = f"{output_file}.pdf"
             try:
@@ -631,17 +726,17 @@ def generate(
             except Exception as e:
                 typer.echo(f"Warning: PDF generation failed: {e}", err=True)
                 print_info("PDF generation requires pandoc")
-            
+
             # Generate Notebook
             notebook_file = f"{output_file}.ipynb"
             report.generate_notebook(notebook_file, execute=execute)
             print_success(f"Notebook generated: {notebook_file}")
-            
+
             print_success(f"All reports generated with base name: {output_file}")
-            
+
         else:
             print_info(f"Generating {output_format.upper()} report...")
-            
+
             if output_format == "html":
                 report.generate_html(output_file)
             elif output_format == "docx":
@@ -655,24 +750,32 @@ def generate(
             else:
                 typer.echo(f"Unsupported format: {output_format}", err=True)
                 raise typer.Exit(1)
-            
+
             print_success(f"Report generated successfully: {output_file}")
-        
+
     except Exception as e:
         typer.echo(f"Error generating report: {e}", err=True)
-        
+
         # Show full traceback for debugging
         import traceback
+
         typer.echo("\nFull traceback:", err=True)
         typer.echo(traceback.format_exc(), err=True)
-        
+
         raise typer.Exit(1)
+
 
 @app.command()
 def generate_config(
-    json_gz_file: Optional[str] = typer.Option(None, "--json-gz-file", help="Path to results.json.gz file"),
-    coop_uuid: Optional[str] = typer.Option(None, "--coop-uuid", help="UUID to fetch results using Results.pull()"),
-    output: Optional[str] = typer.Option("report_config.yaml", "--output", "-o", help="Output YAML config file path"),
+    json_gz_file: Optional[str] = typer.Option(
+        None, "--json-gz-file", help="Path to results.json.gz file"
+    ),
+    coop_uuid: Optional[str] = typer.Option(
+        None, "--coop-uuid", help="UUID to fetch results using Results.pull()"
+    ),
+    output: Optional[str] = typer.Option(
+        "report_config.yaml", "--output", "-o", help="Output YAML config file path"
+    ),
     include_questions: Optional[str] = typer.Option(
         None,
         "--include-questions",
@@ -779,21 +882,23 @@ def generate_config(
 ):
     """
     Generate a YAML configuration file for a report instead of generating the report itself.
-    
+
     Input sources (in order of precedence):
     1. --json-gz-file: Path to a gzipped JSON file
     2. --coop-uuid: UUID to fetch from remote
     3. stdin: JSON piped to the command (automatic if no other options specified)
     """
-    
+
     # Validate input arguments
     if json_gz_file is not None and coop_uuid is not None:
-        typer.echo("Error: Cannot specify both --json-gz-file and --coop-uuid", err=True)
+        typer.echo(
+            "Error: Cannot specify both --json-gz-file and --coop-uuid", err=True
+        )
         raise typer.Exit(1)
-    
+
     # Determine input source
     use_stdin = json_gz_file is None and coop_uuid is None
-    
+
     # Load results
     if json_gz_file is not None:
         print_info(f"Loading results from file: {json_gz_file}")
@@ -801,7 +906,7 @@ def generate_config(
             typer.echo(f"Error: File not found: {json_gz_file}", err=True)
             raise typer.Exit(1)
         try:
-            with gzip.open(json_gz_file, 'rt') as f:
+            with gzip.open(json_gz_file, "rt") as f:
                 results_data = json.load(f)
             results = Results.from_dict(results_data)
         except Exception as e:
@@ -830,97 +935,127 @@ def generate_config(
         except Exception as e:
             typer.echo(f"Error loading results from stdin: {e}", err=True)
             raise typer.Exit(1)
-    
+
     # Apply sampling if requested
     if sample is not None:
         if sample <= 0:
             typer.echo("Error: --sample must be a positive integer", err=True)
             raise typer.Exit(1)
-        
+
         total_results = len(results)
         if sample >= total_results:
-            print_info(f"Sample size ({sample}) >= total results ({total_results}). Using all results.")
+            print_info(
+                f"Sample size ({sample}) >= total results ({total_results}). Using all results."
+            )
         else:
-            print_info(f"Sampling {sample} results from {total_results} total results...")
-            
+            print_info(
+                f"Sampling {sample} results from {total_results} total results..."
+            )
+
             # Use Results.sample() method with seed if provided
             seed_str = str(seed) if seed is not None else None
             if seed is not None:
                 print_info(f"Using random seed: {seed}")
-            
+
             # Sample without replacement
             results = results.sample(n=sample, with_replacement=False, seed=seed_str)
             print_info(f"Successfully sampled {len(results)} results.")
-    
+
     # Parse free text sample size configuration (same logic as generate command)
     free_text_sample_config = {}
     if free_text_sample_size is not None:
-        if ',' in free_text_sample_size or ':' in free_text_sample_size:
+        if "," in free_text_sample_size or ":" in free_text_sample_size:
             # Question-specific format: "question1:50,question2:100"
-            for item in free_text_sample_size.split(','):
+            for item in free_text_sample_size.split(","):
                 item = item.strip()
-                if ':' in item:
-                    question_name, size_str = item.split(':', 1)
+                if ":" in item:
+                    question_name, size_str = item.split(":", 1)
                     try:
                         size = int(size_str.strip())
                         if size <= 0:
-                            typer.echo(f"Error: Sample size must be positive for question '{question_name.strip()}'", err=True)
+                            typer.echo(
+                                f"Error: Sample size must be positive for question '{question_name.strip()}'",
+                                err=True,
+                            )
                             raise typer.Exit(1)
                         free_text_sample_config[question_name.strip()] = size
                     except ValueError:
-                        typer.echo(f"Error: Invalid sample size '{size_str}' for question '{question_name.strip()}'", err=True)
+                        typer.echo(
+                            f"Error: Invalid sample size '{size_str}' for question '{question_name.strip()}'",
+                            err=True,
+                        )
                         raise typer.Exit(1)
                 else:
-                    typer.echo(f"Error: Invalid format '{item}'. Expected 'question:size' or global number.", err=True)
+                    typer.echo(
+                        f"Error: Invalid format '{item}'. Expected 'question:size' or global number.",
+                        err=True,
+                    )
                     raise typer.Exit(1)
         else:
             # Global format: "100"
             try:
                 global_size = int(free_text_sample_size.strip())
                 if global_size <= 0:
-                    typer.echo("Error: Global free text sample size must be positive", err=True)
+                    typer.echo(
+                        "Error: Global free text sample size must be positive", err=True
+                    )
                     raise typer.Exit(1)
-                free_text_sample_config['_global'] = global_size
+                free_text_sample_config["_global"] = global_size
                 print_info(f"Using global free text sample size: {global_size}")
             except ValueError:
-                typer.echo(f"Error: Invalid global sample size '{free_text_sample_size}'", err=True)
+                typer.echo(
+                    f"Error: Invalid global sample size '{free_text_sample_size}'",
+                    err=True,
+                )
                 raise typer.Exit(1)
-        
+
         if free_text_sample_config:
             print_info(f"Free text sampling configured: {free_text_sample_config}")
-    
+
     # Parse exclude question types configuration
     exclude_question_types_list = None
     if exclude_question_types is not None and exclude_question_types.strip():
-        valid_types = {'free_text', 'multiple_choice', 'linear_scale', 'checkbox', 'numerical'}
+        valid_types = {
+            "free_text",
+            "multiple_choice",
+            "linear_scale",
+            "checkbox",
+            "numerical",
+        }
         exclude_question_types_list = []
-        for q_type in exclude_question_types.split(','):
+        for q_type in exclude_question_types.split(","):
             q_type = q_type.strip()
             if q_type:
                 if q_type not in valid_types:
-                    typer.echo(f"Error: Invalid question type '{q_type}'. Supported types: {', '.join(sorted(valid_types))}", err=True)
+                    typer.echo(
+                        f"Error: Invalid question type '{q_type}'. Supported types: {', '.join(sorted(valid_types))}",
+                        err=True,
+                    )
                     raise typer.Exit(1)
                 exclude_question_types_list.append(q_type)
-        
+
         if exclude_question_types_list:
-            print_info(f"Excluding question types: {', '.join(exclude_question_types_list)}")
+            print_info(
+                f"Excluding question types: {', '.join(exclude_question_types_list)}"
+            )
         else:
             exclude_question_types_list = None
-    
+
     # Create configuration
     print_info("Creating configuration...")
 
     # Use the same logic as the generate command for determining question filters
     if interactive:
         include_list, exclude_list = _interactive_select_questions(results)
-        
+
         # Interactive mode doesn't support interaction filtering yet
         include_interactions_list = None
         exclude_interactions_list = None
-        
+
         # Generate combinations and get analyses list
         def _generate_combinations(qs: List[str]) -> List[List[str]]:
             from itertools import combinations
+
             singles = [[q] for q in qs]
             pairs = [list(c) for c in combinations(qs, 2)]
             return singles + pairs
@@ -930,7 +1065,9 @@ def generate_config(
             include_list if include_list is not None else all_question_names
         )
         if exclude_list:
-            filtered_questions = [q for q in filtered_questions if q not in exclude_list]
+            filtered_questions = [
+                q for q in filtered_questions if q not in exclude_list
+            ]
 
         available_combos = _generate_combinations(filtered_questions)
         analyses_list: Optional[List[List[str]]]
@@ -940,6 +1077,7 @@ def generate_config(
         if len(available_combos) <= 1:
             analyses_list = available_combos
         else:
+
             def _analysis_label(combo: List[str]) -> str:
                 return " & ".join(combo)
 
@@ -957,7 +1095,7 @@ def generate_config(
                     raise typer.Exit(1)
 
                 if selected_labels:
-                    label_to_combo = { _analysis_label(c): c for c in available_combos }
+                    label_to_combo = {_analysis_label(c): c for c in available_combos}
                     analyses_list = [label_to_combo[l] for l in selected_labels]
                 else:
                     analyses_list = None
@@ -966,14 +1104,18 @@ def generate_config(
                 try:
                     tty_path = os.ctermid() if hasattr(os, "ctermid") else "/dev/tty"
                     with open(tty_path, "r") as tty_in, open(tty_path, "w") as tty_out:
-                        tty_out.write("Available analyses (comma-separated numbers to include, blank for all):\n")
+                        tty_out.write(
+                            "Available analyses (comma-separated numbers to include, blank for all):\n"
+                        )
                         for idx, combo in enumerate(available_combos, 1):
                             tty_out.write(f"  {idx}: {_analysis_label(combo)}\n")
                         tty_out.write("Selection: ")
                         tty_out.flush()
                         selection_str = tty_in.readline().strip()
                 except Exception:
-                    typer.echo("Warning: Unable to open TTY for analyses selection – including all analyses.")
+                    typer.echo(
+                        "Warning: Unable to open TTY for analyses selection – including all analyses."
+                    )
                     selection_str = ""
 
                 if not selection_str:
@@ -983,13 +1125,19 @@ def generate_config(
                     selected_indices: List[int] = []
                     for tok in tokens:
                         if tok.isdigit():
-                            selected_indices.append(int(tok)-1)
-                    analyses_list = [available_combos[i] for i in selected_indices if 0 <= i < len(available_combos)]
+                            selected_indices.append(int(tok) - 1)
+                    analyses_list = [
+                        available_combos[i]
+                        for i in selected_indices
+                        if 0 <= i < len(available_combos)
+                    ]
                     if not analyses_list:
                         analyses_list = None
 
         # Per-analysis output type prompts
-        analyses_to_iterate = analyses_list if analyses_list is not None else available_combos
+        analyses_to_iterate = (
+            analyses_list if analyses_list is not None else available_combos
+        )
 
         for combo in analyses_to_iterate:
             available_outputs = Research.get_possible_output_names(results, combo)
@@ -1002,7 +1150,9 @@ def generate_config(
             selected_for_combo: List[str] | None = None
 
             if questionary is not None and stdin_is_tty:
-                sel = questionary.checkbox(prompt_title, choices=available_outputs).ask()
+                sel = questionary.checkbox(
+                    prompt_title, choices=available_outputs
+                ).ask()
                 if sel is None:
                     typer.echo("Interactive selection aborted.", err=True)
                     raise typer.Exit(1)
@@ -1012,7 +1162,9 @@ def generate_config(
                 try:
                     tty_path = os.ctermid() if hasattr(os, "ctermid") else "/dev/tty"
                     with open(tty_path, "r") as tty_in, open(tty_path, "w") as tty_out:
-                        tty_out.write(f"Available outputs for {' & '.join(combo)} (comma-separated numbers, blank for all):\n")
+                        tty_out.write(
+                            f"Available outputs for {' & '.join(combo)} (comma-separated numbers, blank for all):\n"
+                        )
                         for idx, name in enumerate(available_outputs, 1):
                             tty_out.write(f"  {idx}: {name}\n")
                         tty_out.write("Selection: ")
@@ -1023,8 +1175,12 @@ def generate_config(
 
                 if selection_str:
                     tokens = [t.strip() for t in selection_str.split(",") if t.strip()]
-                    selected_indices = [int(tok)-1 for tok in tokens if tok.isdigit()]
-                    selected_for_combo = [available_outputs[i] for i in selected_indices if 0 <= i < len(available_outputs)]
+                    selected_indices = [int(tok) - 1 for tok in tokens if tok.isdigit()]
+                    selected_for_combo = [
+                        available_outputs[i]
+                        for i in selected_indices
+                        if 0 <= i < len(available_outputs)
+                    ]
                     if not selected_for_combo:
                         selected_for_combo = None
 
@@ -1042,11 +1198,11 @@ def generate_config(
             if exclude_questions is not None and exclude_questions.strip()
             else None
         )
-        
+
         # Parse include/exclude interaction strings into lists
         include_interactions_list = None
         exclude_interactions_list = None
-        
+
         # If --no-interactions is specified, disable all interactions
         if no_interactions:
             include_interactions_list = []  # Empty list means no interactions
@@ -1060,9 +1216,12 @@ def generate_config(
                         if len(parts) == 2:
                             include_interactions_list.append(parts)
                         else:
-                            typer.echo(f"Error: Invalid interaction format '{interaction_str}'. Expected 'question1:question2'", err=True)
+                            typer.echo(
+                                f"Error: Invalid interaction format '{interaction_str}'. Expected 'question1:question2'",
+                                err=True,
+                            )
                             raise typer.Exit(1)
-            
+
             if exclude_interactions is not None and exclude_interactions.strip():
                 exclude_interactions_list = []
                 for interaction_str in exclude_interactions.split(","):
@@ -1072,26 +1231,29 @@ def generate_config(
                         if len(parts) == 2:
                             exclude_interactions_list.append(parts)
                         else:
-                            typer.echo(f"Error: Invalid interaction format '{interaction_str}'. Expected 'question1:question2'", err=True)
+                            typer.echo(
+                                f"Error: Invalid interaction format '{interaction_str}'. Expected 'question1:question2'",
+                                err=True,
+                            )
                             raise typer.Exit(1)
-        
+
         analyses_list = None
         analysis_output_filters = {}
 
     # Generate config dictionary
     config = {
-        'report_settings': {
-            'lorem_ipsum': lorem_ipsum,
-            'include_questions_table': include_questions_table,
-            'include_respondents_section': include_respondents_section,
-            'include_scenario_section': include_scenario_section,
-            'include_overview': include_overview,
+        "report_settings": {
+            "lorem_ipsum": lorem_ipsum,
+            "include_questions_table": include_questions_table,
+            "include_respondents_section": include_respondents_section,
+            "include_scenario_section": include_scenario_section,
+            "include_overview": include_overview,
         },
-        'question_filters': {
-            'include_questions': include_list,
-            'exclude_questions': exclude_list,
+        "question_filters": {
+            "include_questions": include_list,
+            "exclude_questions": exclude_list,
         },
-        'analyses': []
+        "analyses": [],
     }
 
     # Create a temporary report to get the actual analyses and output structure
@@ -1114,29 +1276,25 @@ def generate_config(
 
     # Build the analyses configuration based on the actual report structure
     for question_names, output_dict in temp_report.items():
-        analysis_config = {
-            'questions': list(question_names),
-            'outputs': []
-        }
-        
+        analysis_config = {"questions": list(question_names), "outputs": []}
+
         for output_name, output_obj in output_dict.items():
-            display_name = getattr(output_obj, 'pretty_short_name', output_name)
-            analysis_config['outputs'].append({
-                'name': output_name,
-                'display_name': display_name,
-                'enabled': True
-            })
-        
-        config['analyses'].append(analysis_config)
+            display_name = getattr(output_obj, "pretty_short_name", output_name)
+            analysis_config["outputs"].append(
+                {"name": output_name, "display_name": display_name, "enabled": True}
+            )
+
+        config["analyses"].append(analysis_config)
 
     # Write YAML configuration
     try:
-        with open(output, 'w') as f:
+        with open(output, "w") as f:
             yaml.dump(config, f, default_flow_style=False, sort_keys=False)
         print_success(f"Configuration saved to {output}")
     except Exception as e:
         typer.echo(f"Error writing configuration: {e}", err=True)
         raise typer.Exit(1)
+
 
 if __name__ == "__main__":
     # Setup warning capture before running the app

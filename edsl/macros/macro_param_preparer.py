@@ -87,9 +87,13 @@ class MacroParamPreparer:
                         raise ValueError("Only one Survey attachment is allowed.")
                     survey_attachment = obj_instance
                     dest_assigned["survey"] = True
-                elif isinstance(obj_instance, AgentList) or isinstance(obj_instance, _Agent):
+                elif isinstance(obj_instance, AgentList) or isinstance(
+                    obj_instance, _Agent
+                ):
                     if dest_assigned["agent_list"]:
-                        raise ValueError("Only one AgentList/Agent attachment is allowed.")
+                        raise ValueError(
+                            "Only one AgentList/Agent attachment is allowed."
+                        )
                     agent_list_attachment = (
                         obj_instance
                         if isinstance(obj_instance, AgentList)
@@ -129,5 +133,3 @@ class MacroParamPreparer:
             survey=survey_attachment,
             agent_list=agent_list_attachment,
         )
-
-

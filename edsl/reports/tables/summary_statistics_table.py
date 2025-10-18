@@ -1,19 +1,23 @@
 from .table_output import TableOutput
 import pandas as pd
 
+
 class SummaryStatisticsTable(TableOutput):
     """A table showing summary statistics for a numerical question."""
+
     pretty_name = "Summary Statistics"
     pretty_short_name = "Summary statistics"
     methodology = "Calculates descriptive statistics including count, mean, median, standard deviation, and quartiles for numerical responses"
 
     def __init__(self, results, *question_names):
         if len(question_names) != 1:
-            raise ValueError("SummaryStatisticsTable requires exactly one question name")
+            raise ValueError(
+                "SummaryStatisticsTable requires exactly one question name"
+            )
         super().__init__(results, *question_names)
-        
+
         self.question = self.results.survey.get(self.question_names[0])
-        self.answers = self.results.select(f'answer.{self.question_names[0]}').to_list()
+        self.answers = self.results.select(f"answer.{self.question_names[0]}").to_list()
 
     @property
     def narrative(self):
@@ -22,33 +26,36 @@ class SummaryStatisticsTable(TableOutput):
     @classmethod
     def can_handle(cls, *question_objs):
         """Check if this table type can handle the given questions."""
-        return len(question_objs) == 1 and question_objs[0].question_type in ["numerical", "linear_scale"]
+        return len(question_objs) == 1 and question_objs[0].question_type in [
+            "numerical",
+            "linear_scale",
+        ]
 
     def output(self):
         """
         Generate summary statistics for the numerical question.
-        
+
         Returns:
             A pandas DataFrame containing the summary statistics
         """
         series = pd.Series(self.answers)
         original_count = len(series)
-        series = pd.to_numeric(series, errors='coerce')
+        series = pd.to_numeric(series, errors="coerce")
         coerced_count = series.isna().sum()
         valid_count = len(series) - coerced_count
-        
+
         stats = {
-            'Statistic': [
-                'Count',
-                'Mean',
-                'Median',
-                'Standard Deviation',
-                'Minimum',
-                '25th Percentile',
-                '75th Percentile',
-                'Maximum'
+            "Statistic": [
+                "Count",
+                "Mean",
+                "Median",
+                "Standard Deviation",
+                "Minimum",
+                "25th Percentile",
+                "75th Percentile",
+                "Maximum",
             ],
-            'Value': [
+            "Value": [
                 valid_count,
                 series.mean(),
                 series.median(),
@@ -56,21 +63,27 @@ class SummaryStatisticsTable(TableOutput):
                 series.min(),
                 series.quantile(0.25),
                 series.quantile(0.75),
-                series.max()
-            ]
+                series.max(),
+            ],
         }
-        
+
         df = pd.DataFrame(stats)
-        
+
         # Format numerical values
-        df['Value'] = df['Value'].apply(lambda x: f"{x:,.2f}" if isinstance(x, float) else f"{x:,}")
-        
+        df["Value"] = df["Value"].apply(
+            lambda x: f"{x:,.2f}" if isinstance(x, float) else f"{x:,}"
+        )
+
         # Add note about coercion if any values were coerced
         if coerced_count > 0:
-            note_row = pd.DataFrame({
-                'Statistic': ['Note'],
-                'Value': [f'{coerced_count} non-numeric values were coerced to NaN']
-            })
+            note_row = pd.DataFrame(
+                {
+                    "Statistic": ["Note"],
+                    "Value": [
+                        f"{coerced_count} non-numeric values were coerced to NaN"
+                    ],
+                }
+            )
             df = pd.concat([df, note_row], ignore_index=True)
-        
+
         return df

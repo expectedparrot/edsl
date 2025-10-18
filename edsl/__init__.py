@@ -8,9 +8,7 @@ and interviews with large language models.
 import os
 import time
 import importlib
-import pkgutil
 
-from edsl.language_models import Model
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
@@ -58,11 +56,12 @@ def __getattr__(name):
     # First check if the attribute exists in the current module's globals
     # This handles functions/classes defined directly in __init__.py
     import sys
+
     current_module = sys.modules[__name__]
-    current_module_dict = object.__getattribute__(current_module, '__dict__')
+    current_module_dict = object.__getattribute__(current_module, "__dict__")
     if name in current_module_dict:
         return current_module_dict[name]
-    
+
     # Check if it's a module we should lazy-load
     for module_name in _LAZY_MODULES:
         try:
@@ -121,20 +120,21 @@ def check_for_updates(silent: bool = False) -> dict:
 def _is_notebook_environment() -> bool:
     """
     Detect if we're running in a Jupyter/IPython notebook environment.
-    
+
     Returns:
         bool: True if running in a notebook, False otherwise
     """
     try:
         # Check if IPython is available and we're in a notebook
         from IPython import get_ipython
+
         ipython = get_ipython()
-        
+
         if ipython is None:
             return False
-            
+
         # Check if we're in a notebook (has 'kernel' attribute)
-        return hasattr(ipython, 'kernel')
+        return hasattr(ipython, "kernel")
     except ImportError:
         return False
 
@@ -142,13 +142,13 @@ def _is_notebook_environment() -> bool:
 def _display_notebook_login(login_url: str):
     """
     Display login interface for notebook environments.
-    
+
     Args:
         login_url: The login URL to display
     """
     try:
         from IPython.display import display, HTML
-        
+
         # Display as a styled HTML button interface
         html_content = f"""
         <div id="edsl-login-container" style="border: 2px solid #38bdf8; border-radius: 8px; padding: 20px; margin: 10px 0; background-color: #f8fafc;">
@@ -165,9 +165,9 @@ def _display_notebook_login(login_url: str):
             <div id="edsl-status" style="margin-top: 10px; font-weight: bold; color: #38bdf8;"></div>
         </div>
         """
-        
+
         display(HTML(html_content))
-        
+
     except ImportError:
         # Fallback to regular print if IPython is not available
         print(f"Please visit this URL to log in: {login_url}")
@@ -176,7 +176,7 @@ def _display_notebook_login(login_url: str):
 def _update_notebook_status(message: str, is_success: bool = False):
     """
     Update the status message in the notebook login interface.
-    
+
     Args:
         message: Status message to display
         is_success: Whether this is a success message (changes color)
@@ -184,11 +184,13 @@ def _update_notebook_status(message: str, is_success: bool = False):
     try:
         from IPython import get_ipython
         from IPython.display import display, Javascript
-        
+
         ipython = get_ipython()
-        if ipython and hasattr(ipython, 'kernel'):
-            color = "#10b981" if is_success else "#38bdf8"  # green for success, blue for waiting
-            
+        if ipython and hasattr(ipython, "kernel"):
+            color = (
+                "#10b981" if is_success else "#38bdf8"
+            )  # green for success, blue for waiting
+
             js_code = f"""
             var statusDiv = document.getElementById('edsl-status');
             if (statusDiv) {{
@@ -196,15 +198,15 @@ def _update_notebook_status(message: str, is_success: bool = False):
                 statusDiv.style.color = '{color}';
             }}
             """
-            
-            # Simple approach: just use display(Javascript()) 
+
+            # Simple approach: just use display(Javascript())
             # Accept that this creates a newline but only for final messages
             display(Javascript(js_code))
-            
+
         else:
             # Not in notebook, fallback to print
             print(message)
-        
+
     except (ImportError, AttributeError, Exception):
         # Fallback to regular print
         print(message)
@@ -212,31 +214,31 @@ def _update_notebook_status(message: str, is_success: bool = False):
 
 class _SuppressOutput:
     """Context manager to completely suppress all output."""
+
     def __enter__(self):
         import sys
         import os
         import logging
-        from io import StringIO
-        
+
         self._original_stdout = sys.stdout
         self._original_stderr = sys.stderr
         self._original_log_level = logging.getLogger().level
-        
+
         # Redirect to devnull instead of StringIO to be extra sure
-        devnull = open(os.devnull, 'w')
+        devnull = open(os.devnull, "w")
         sys.stdout = devnull
         sys.stderr = devnull
         logging.getLogger().setLevel(logging.CRITICAL)
-        
+
         return self
-        
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         import sys
         import logging
-        
-        sys.stdout.close() if hasattr(sys.stdout, 'close') else None
-        sys.stderr.close() if hasattr(sys.stderr, 'close') else None
-        
+
+        sys.stdout.close() if hasattr(sys.stdout, "close") else None
+        sys.stderr.close() if hasattr(sys.stderr, "close") else None
+
         sys.stdout = self._original_stdout
         sys.stderr = self._original_stderr
         logging.getLogger().setLevel(self._original_log_level)
@@ -245,36 +247,35 @@ class _SuppressOutput:
 def _poll_for_api_key_notebook(coop, edsl_auth_token: str, timeout: int = 120):
     """
     Poll for API key in notebook environment with HTML status updates instead of stdout spinner.
-    
+
     Args:
         coop: Coop instance
         edsl_auth_token: The auth token to poll with
         timeout: Maximum time to wait
-        
+
     Returns:
         str or None: API key if successful, None if timeout
     """
     import time
-    from datetime import datetime
-    
+
     start_poll_time = time.time()
     frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
     frame_idx = 0
-    
+
     while True:
         elapsed_time = time.time() - start_poll_time
         if elapsed_time > timeout:
             return None
-            
+
         # Check for API key with complete output suppression
         with _SuppressOutput():
             api_key = coop._get_api_key(edsl_auth_token)
             if api_key is not None:
                 return api_key
-            
+
         # Skip dynamic updates to avoid newlines - just poll silently
         frame_idx += 1
-        
+
         # Wait before next check
         time.sleep(1)  # Check every second instead of 5 seconds for better UX
 
@@ -282,23 +283,23 @@ def _poll_for_api_key_notebook(coop, edsl_auth_token: str, timeout: int = 120):
 def login(timeout: int = 120) -> None:
     """
     Start the Expected Parrot login process to obtain and store an API key.
-    
+
     This function creates a Coop instance and initiates the login flow, which will:
     1. Generate a temporary authentication token
     2. Display a login URL for the user to visit (with enhanced notebook UI)
     3. Poll for the API key once the user completes the login
     4. Store the API key locally for future use
-    
+
     In Jupyter/IPython notebooks, this will display a styled HTML interface
     with a clickable button that opens the login page in a new tab.
-    
+
     Args:
         timeout: Maximum time to wait for login completion, in seconds (default: 120)
-        
+
     Raises:
         CoopTimeoutError: If login times out
         CoopServerResponseError: If there are server communication issues
-        
+
     Example:
         >>> from edsl import login
         >>> login()  # Shows styled button interface in notebooks
@@ -306,20 +307,21 @@ def login(timeout: int = 120) -> None:
     from edsl.coop import Coop
     import secrets
     from edsl.config import CONFIG
-    from dotenv import load_dotenv
 
     # If we're in a notebook, handle the UI specially
     if _is_notebook_environment():
         # Generate auth token and URL (mirroring Coop._display_login_url logic)
         edsl_auth_token = secrets.token_urlsafe(16)
-        login_url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
-        
+        login_url = (
+            f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+        )
+
         # Display the enhanced notebook interface
         _display_notebook_login(login_url)
-        
+
         # Show initial status
         _update_notebook_status("⏳ Waiting for login...")
-        
+
         # Create Coop instance and poll for API key (notebook-friendly)
         coop = Coop()
         try:
@@ -330,7 +332,9 @@ def login(timeout: int = 120) -> None:
                 coop.ep_key_handler.store_ep_api_key(api_key)
                 os.environ["EXPECTED_PARROT_API_KEY"] = api_key
 
-                _update_notebook_status("✅ Successfully logged in and stored API key!", is_success=True)
+                _update_notebook_status(
+                    "✅ Successfully logged in and stored API key!", is_success=True
+                )
             else:
                 _update_notebook_status("❌ Login timed out. Please try again.")
         except Exception as e:

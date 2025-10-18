@@ -124,10 +124,9 @@ s = Survey([q_meal_plan, q_meal_plan_table, q_shopping_list, q_recipes])
 jobs = s.by(a)
 
 
-
 markdown_viewer = (
-    OutputFormatter(description = "Markdown Viewer", output_type="markdown")
-    .select('answer.meal_plan_table', 'answer.shopping_list', 'answer.recipes')
+    OutputFormatter(description="Markdown Viewer", output_type="markdown")
+    .select("answer.meal_plan_table", "answer.shopping_list", "answer.recipes")
     .table(tablefmt="github")
     .flip()
     .to_string()
@@ -135,8 +134,8 @@ markdown_viewer = (
 )
 
 docx_writer = (
-    OutputFormatter(description = "Docx Writer", output_type="docx")
-    .select('answer.meal_plan_table', 'answer.shopping_list', 'answer.recipes')
+    OutputFormatter(description="Docx Writer", output_type="docx")
+    .select("answer.meal_plan_table", "answer.shopping_list", "answer.recipes")
     .to_docx()
 )
 
@@ -153,7 +152,8 @@ macro = Macro(
 )
 
 if __name__ == "__main__":
-    plan = macro.output({
+    plan = macro.output(
+        {
             "number_of_people": 1,
             "dietary_preferences_or_restrictions": "None",
             "days_of_the_week": [

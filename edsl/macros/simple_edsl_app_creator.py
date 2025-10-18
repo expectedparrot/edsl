@@ -6,11 +6,10 @@ Creates EDSL apps based on descriptions by analyzing existing patterns
 and generating new apps following established conventions.
 """
 
-import os
 import sys
 import re
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, Optional
 
 
 class SimpleEDSLAppCreator:
@@ -29,29 +28,29 @@ class SimpleEDSLAppCreator:
                     "from edsl.macros.macro import Macro",
                     "from edsl.macros.output_formatter import OutputFormatter",
                     "from edsl.surveys import Survey",
-                    "from edsl.questions import QuestionFreeText, QuestionList, QuestionNumerical, QuestionMultipleChoice"
+                    "from edsl.questions import QuestionFreeText, QuestionList, QuestionNumerical, QuestionMultipleChoice",
                 ],
                 "agent_patterns": [
                     "from edsl.agents import AgentList",
-                    "from edsl.scenarios import ScenarioList"
-                ]
+                    "from edsl.scenarios import ScenarioList",
+                ],
             },
             "question_types": {
                 "text_input": "QuestionFreeText",
                 "list_input": "QuestionList",
                 "number_input": "QuestionNumerical",
-                "choice_input": "QuestionMultipleChoice"
+                "choice_input": "QuestionMultipleChoice",
             },
             "app_templates": {
                 "general": self._get_general_template(),
-                "agent_augmentation": self._get_agent_augmentation_template()
-            }
+                "agent_augmentation": self._get_agent_augmentation_template(),
+            },
         }
         return patterns
 
     def _get_general_template(self) -> str:
         """Template for general purpose apps"""
-        return '''from edsl.macros.macro import Macro
+        return """from edsl.macros.macro import Macro
 from edsl.macros.output_formatter import OutputFormatter
 from edsl.surveys import Survey
 from edsl.questions import QuestionFreeText, QuestionList, QuestionNumerical
@@ -87,7 +86,7 @@ app = App(
 if __name__ == "__main__":
     result = app.output(params={example_params})
     print(result)
-'''
+"""
 
     def _get_agent_augmentation_template(self) -> str:
         """Template for apps that augment agent lists"""
@@ -147,7 +146,9 @@ if __name__ == "__main__":
     print(result)
 '''
 
-    def create_app(self, description: str, app_name: str, output_path: Optional[str] = None) -> Dict[str, Any]:
+    def create_app(
+        self, description: str, app_name: str, output_path: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Create an EDSL app based on description"""
         try:
             if output_path is None:
@@ -163,7 +164,7 @@ if __name__ == "__main__":
                 code = self._create_general_app(description, app_name)
 
             # Write the file
-            with open(output_path, 'w') as f:
+            with open(output_path, "w") as f:
                 f.write(code)
 
             return {
@@ -171,14 +172,11 @@ if __name__ == "__main__":
                 "app_name": app_name,
                 "output_path": str(output_path),
                 "description": description,
-                "app_type": app_type
+                "app_type": app_type,
             }
 
         except Exception as e:
-            return {
-                "status": "error",
-                "error": f"Error creating app: {e}"
-            }
+            return {"status": "error", "error": f"Error creating app: {e}"}
 
     def _determine_app_type(self, description: str) -> str:
         """Determine the type of app based on description"""
@@ -206,7 +204,7 @@ if __name__ == "__main__":
             example_params="""{
         "agent_list_input": "Example agent list or description",
         "generation_instructions": "Example generation instructions"
-    }"""
+    }""",
         )
 
     def _create_general_app(self, description: str, app_name: str) -> str:
@@ -214,7 +212,13 @@ if __name__ == "__main__":
         template = self.patterns["app_templates"]["general"]
 
         # Extract key components from description
-        questions, survey_questions, jobs_logic, output_fields, example_params = self._analyze_description(description)
+        (
+            questions,
+            survey_questions,
+            jobs_logic,
+            output_fields,
+            example_params,
+        ) = self._analyze_description(description)
 
         return template.format(
             questions=questions,
@@ -224,7 +228,7 @@ if __name__ == "__main__":
             example_params=example_params,
             app_title=app_name.replace("_", " ").title(),
             description=description,
-            app_name=app_name
+            app_name=app_name,
         )
 
     def _extract_generation_prompt(self, description: str) -> str:
@@ -232,7 +236,7 @@ if __name__ == "__main__":
         # Look for examples in the description
         if "e.g." in description or "example" in description.lower():
             # Try to extract examples
-            examples_match = re.search(r'e\.g\..*?([^.]+)', description, re.IGNORECASE)
+            examples_match = re.search(r"e\.g\..*?([^.]+)", description, re.IGNORECASE)
             if examples_match:
                 return f"Based on this agent's characteristics, please {examples_match.group(1).strip()}."
 
@@ -290,7 +294,9 @@ Provide a detailed, realistic response that fits this agent's profile."""
                     continue
 
                 # Sanitize app name
-                app_name = "".join(c for c in app_name if c.isalnum() or c in "_-").lower()
+                app_name = "".join(
+                    c for c in app_name if c.isalnum() or c in "_-"
+                ).lower()
 
                 print(f"\n🚀 Creating app: {app_name}")
                 print(f"📋 Description: {description}")
@@ -299,7 +305,7 @@ Provide a detailed, realistic response that fits this agent's profile."""
                 result = self.create_app(description, app_name)
 
                 if result["status"] == "success":
-                    print(f"✅ App created successfully!")
+                    print("✅ App created successfully!")
                     print(f"📄 File: {result['output_path']}")
                     print(f"🏷️  Type: {result['app_type']}")
                 else:
@@ -315,7 +321,9 @@ def main():
     if len(sys.argv) > 1:
         # Command line mode
         if len(sys.argv) < 3:
-            print("Usage: python simple_edsl_app_creator.py '<description>' '<app_name>' [output_path]")
+            print(
+                "Usage: python simple_edsl_app_creator.py '<description>' '<app_name>' [output_path]"
+            )
             sys.exit(1)
 
         description = sys.argv[1]
@@ -329,7 +337,7 @@ def main():
         result = creator.create_app(description, app_name, output_path)
 
         if result["status"] == "success":
-            print(f"✅ App created successfully!")
+            print("✅ App created successfully!")
             print(f"📄 File: {result['output_path']}")
             print(f"🏷️  Type: {result['app_type']}")
         else:

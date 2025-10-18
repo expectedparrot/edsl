@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..base import RegisterSubclassesMeta
 
 
 class MacroValidator:
     @staticmethod
     def validate_parameters(macro: Any) -> None:
         # macro.parameters returns a ScenarioList, iterate over it to get question_name
-        input_survey_params = [param['question_name'] for param in macro.parameters]
+        input_survey_params = [param["question_name"] for param in macro.parameters]
         head_params = macro.jobs_object.head_parameters
 
         # If the initial survey declares an EDSL object that supplies scenarios or a survey,
@@ -79,5 +78,3 @@ class MacroValidator:
                 "Only one EDSL object of each type can be provided by the initial_survey: "
                 + "; ".join(errors)
             )
-
-

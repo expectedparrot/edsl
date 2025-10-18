@@ -7,12 +7,19 @@ from .output_formatter import OutputFormatters
 
 class MacroRemote:
     @staticmethod
-    def push(macro: Any, visibility: Optional[str] = "unlisted", description: Optional[str] = None, alias: Optional[str] = None):
+    def push(
+        macro: Any,
+        visibility: Optional[str] = "unlisted",
+        description: Optional[str] = None,
+        alias: Optional[str] = None,
+    ):
         from ..scenarios import Scenario
 
         job_info = macro.jobs_object.push(visibility=visibility).to_dict()
         if macro.initial_survey is not None:
-            initial_survey_info = macro.initial_survey.push(visibility=visibility).to_dict()
+            initial_survey_info = macro.initial_survey.push(
+                visibility=visibility
+            ).to_dict()
         else:
             initial_survey_info = None
 
@@ -42,7 +49,9 @@ class MacroRemote:
             initial_survey = Survey.pull(macro_info["initial_survey_info"]["uuid"])
         else:
             initial_survey = None
-        output_formatters = OutputFormatters.from_dict(macro_info.get("output_formatters_info"))
+        output_formatters = OutputFormatters.from_dict(
+            macro_info.get("output_formatters_info")
+        )
 
         kwargs = {
             "jobs_object": jobs_object,
@@ -54,7 +63,9 @@ class MacroRemote:
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
 
         if "initial_survey" not in kwargs or kwargs["initial_survey"] is None:
-            raise ValueError("Macro.pull requires the remote Macro to include an initial_survey.")
+            raise ValueError(
+                "Macro.pull requires the remote Macro to include an initial_survey."
+            )
 
         macro_type = macro_info.get("application_type")
         target_cls = macro_cls
@@ -62,5 +73,3 @@ class MacroRemote:
             target_cls = Macro._registry[macro_type]
 
         return target_cls(**kwargs)
-
-

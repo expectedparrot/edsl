@@ -1,10 +1,6 @@
 import requests
-import subprocess
-from io import StringIO
 import os
-import pandas as pd
 import warnings
-import sys
 from collections.abc import Hashable
 from rich.console import Console
 from rich.panel import Panel
@@ -15,15 +11,16 @@ console = Console(stderr=True)
 
 def setup_warning_filter():
     """Set up a custom warning filter to display nice Rich-formatted notices."""
+
     def rich_warning_handler(message, category, filename, lineno, file=None, line=None):
         warning_text = str(message)
-        
+
         # Check if this is the specific EDSL warning we want to format
         if "is already in use. Renaming to" in warning_text:
             # Extract the key name from the warning
             if "Key '" in warning_text:
                 key_part = warning_text.split("Key '")[1].split("' of")[0]
-                title = f"📝 Column Renamed"
+                title = "📝 Column Renamed"
                 content = f"The column '[bold cyan]{key_part}[/bold cyan]' was automatically renamed to avoid conflicts."
                 style = "blue"
             else:
@@ -35,17 +32,17 @@ def setup_warning_filter():
             title = "⚠️  Warning"
             content = warning_text
             style = "yellow"
-        
+
         # Create a rich panel for the warning
         panel = Panel(
             Text(content, style="white"),
             title=title,
             border_style=style,
-            padding=(0, 1)
+            padding=(0, 1),
         )
-        
+
         console.print(panel)
-    
+
     # Set the warning handler
     warnings.showwarning = rich_warning_handler
 
@@ -113,6 +110,7 @@ class Missing:
 # Cache for convert_value to avoid repeated conversions
 _convert_value_cache = {}
 
+
 def convert_value(x):
     """Takes a string and tries to convert it with caching for performance.
 
@@ -139,12 +137,16 @@ def convert_value(x):
     if isinstance(x, list):
         result = [convert_value(item) for item in x]
         return result
-    
+
     # Original conversion logic
     try:
         float_val = float(x)
         # Check for NaN or infinite values which are not JSON serializable
-        if float_val != float_val or float_val == float('inf') or float_val == float('-inf'):
+        if (
+            float_val != float_val
+            or float_val == float("inf")
+            or float_val == float("-inf")
+        ):
             result = Missing().value()
         elif float_val.is_integer():
             result = int(float_val)
@@ -159,11 +161,11 @@ def convert_value(x):
                 result = Missing().value()
             else:
                 # Handle common representations of missing values
-                if x_str.lower() in ['nan', 'null', 'none', 'n/a']:
+                if x_str.lower() in ["nan", "null", "none", "n/a"]:
                     result = Missing().value()
                 else:
                     result = x_str
-    
+
     # Cache the result for future calls
     if cacheable:
         _convert_value_cache[x] = result

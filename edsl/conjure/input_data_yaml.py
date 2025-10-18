@@ -35,10 +35,14 @@ class InputDataYAML(InputDataABC):
         question_options = [spec.question_options for spec in question_specs]
 
         question_names_to_question_text = {
-            spec.question_name.lower(): spec.question_text for spec in question_specs if spec.question_text
+            spec.question_name.lower(): spec.question_text
+            for spec in question_specs
+            if spec.question_text
         }
 
-        raw_data, respondent_ids = self._build_raw_data(question_names, response_records)
+        raw_data, respondent_ids = self._build_raw_data(
+            question_names, response_records
+        )
         self.respondent_ids = respondent_ids
         self.derived_hints_by_question = {
             spec.question_name: spec.derived_hints for spec in question_specs

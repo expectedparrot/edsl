@@ -1,5 +1,4 @@
-from typing import Optional, Sequence, Dict, List, Any
-import random
+from typing import Optional, Sequence
 from .macro import Macro
 from ..questions import QuestionMultipleChoice, QuestionEDSLObject
 from .output_formatter import OutputFormatter, ScenarioAttachmentFormatter
@@ -34,7 +33,7 @@ def create_true_skill_macro(
     initial_mu: float = 25.0,
     initial_sigma: float = 8.333,
     beta: float = 4.166,  # half of initial_sigma
-    tau: float = 0.083,   # additive dynamics factor
+    tau: float = 0.083,  # additive dynamics factor
 ) -> Macro:
     """Create a Macro that ranks items using the TrueSkill algorithm via LLM batch comparisons.
 
@@ -70,7 +69,7 @@ def create_true_skill_macro(
             initial_mu=initial_mu,
             initial_sigma=initial_sigma,
             beta=beta,
-            tau=tau
+            tau=tau,
         )
     )
 
@@ -78,14 +77,17 @@ def create_true_skill_macro(
         application_name=application_name or "true_skill_ranking",
         display_name=description or "TrueSkill Ranking",
         short_description=description or "Ranks items using TrueSkill algorithm.",
-        long_description=description or "Ranks items using the TrueSkill algorithm via LLM batch comparisons.",
-        initial_survey=Survey([
-            QuestionEDSLObject(
-                question_name="input_items",
-                question_text="Provide the items to rank as a ScenarioList",
-                expected_object_type="ScenarioList",
-            )
-        ]),
+        long_description=description
+        or "Ranks items using the TrueSkill algorithm via LLM batch comparisons.",
+        initial_survey=Survey(
+            [
+                QuestionEDSLObject(
+                    question_name="input_items",
+                    question_text="Provide the items to rank as a ScenarioList",
+                    expected_object_type="ScenarioList",
+                )
+            ]
+        ),
         jobs_object=jobs_object,
         output_formatters={"true_skill": output_formatters},
         default_formatter_name="true_skill",

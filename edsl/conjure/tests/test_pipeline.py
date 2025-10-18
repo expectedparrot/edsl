@@ -34,9 +34,7 @@ def pipeline_components(tmp_path, monkeypatch):
 def test_detect_csv_profile_simple(tmp_path, pipeline_components):
     csv_path = tmp_path / "simple.csv"
     csv_path.write_text(
-        "color,shape\n"
-        "blue,circle\n"
-        "green,square\n",
+        "color,shape\n" "blue,circle\n" "green,square\n",
         encoding="utf-8",
     )
 
@@ -67,9 +65,7 @@ def test_normalize_and_roundtrip_simple_csv(tmp_path, pipeline_components):
 
     csv_path = tmp_path / "survey.csv"
     csv_path.write_text(
-        "respondent,preference\n"
-        "r1,apples\n"
-        "r2,oranges\n",
+        "respondent,preference\n" "r1,apples\n" "r2,oranges\n",
         encoding="utf-8",
     )
 
@@ -77,10 +73,16 @@ def test_normalize_and_roundtrip_simple_csv(tmp_path, pipeline_components):
     assert normalized.questions, "expected at least one question"
 
     output_dir = tmp_path / "normalized"
-    questions_yaml = pipeline_components["write_questions_yaml"](normalized, output_dir / "questions.yaml")
-    responses_csv = pipeline_components["write_agent_responses_csv"](normalized, output_dir / "agent_responses.csv")
+    questions_yaml = pipeline_components["write_questions_yaml"](
+        normalized, output_dir / "questions.yaml"
+    )
+    responses_csv = pipeline_components["write_agent_responses_csv"](
+        normalized, output_dir / "agent_responses.csv"
+    )
 
-    input_data = pipeline_components["InputDataYAML"](str(questions_yaml), responses_file=str(responses_csv))
+    input_data = pipeline_components["InputDataYAML"](
+        str(questions_yaml), responses_file=str(responses_csv)
+    )
     assert input_data.num_observations == 2
     assert "preference" in input_data.question_names
 

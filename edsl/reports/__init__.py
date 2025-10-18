@@ -40,7 +40,7 @@ from .analyzer import (
     AnalyzeQuestionMultipleChoice,
     AnalyzeQuestionFreeText,
     create_survey_bar_chart,
-    create_analyzer
+    create_analyzer,
 )
 from .report import Report
 from .charts import (
@@ -54,7 +54,7 @@ from .charts import (
     BoxPlotOutput,
     WeightedCheckboxBarChart,
     ThemeFinderOutput,
-    PNGLocation
+    PNGLocation,
 )
 from .tables import (
     TableOutput,
@@ -64,10 +64,16 @@ from .tables import (
     AllResponsesTable,
     RegressionTable,
     ChiSquareTable,
-    ResponsesWithThemesTable
+    ResponsesWithThemesTable,
 )
 from .research import Research
-from .warning_utils import print_warning, print_info, print_error, print_success, setup_warning_capture
+from .warning_utils import (
+    print_warning,
+    print_info,
+    print_error,
+    print_success,
+    setup_warning_capture,
+)
 
 # Setup warning capture when the package is imported
 setup_warning_capture()
@@ -84,28 +90,28 @@ __all__ = [
     "create_analyzer",
     "Report",
     "PNGLocation",
-    "ChartOutput", 
-    "BarChartOutput", 
-    "ScatterPlotOutput", 
-    "HistogramOutput", 
-    "FacetedBarChartOutput", 
-    "FacetedHistogramOutput", 
-    "HeatmapChartOutput", 
+    "ChartOutput",
+    "BarChartOutput",
+    "ScatterPlotOutput",
+    "HistogramOutput",
+    "FacetedBarChartOutput",
+    "FacetedHistogramOutput",
+    "HeatmapChartOutput",
     "BoxPlotOutput",
     "WeightedCheckboxBarChart",
     "ThemeFinderOutput",
-    "TableOutput", 
-    "SummaryStatisticsTable", 
-    "FacetedSummaryStatsTable", 
-    "CrossTabulationTable", 
-    "AllResponsesTable", 
-    "RegressionTable", 
+    "TableOutput",
+    "SummaryStatisticsTable",
+    "FacetedSummaryStatsTable",
+    "CrossTabulationTable",
+    "AllResponsesTable",
+    "RegressionTable",
     "ChiSquareTable",
     "ResponsesWithThemesTable",
     "Research",
     "print_warning",
-    "print_info", 
+    "print_info",
     "print_error",
     "print_success",
-    "setup_warning_capture"
+    "setup_warning_capture",
 ]

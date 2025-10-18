@@ -8,16 +8,18 @@ from edsl import (
     QuestionCompute,
 )
 
-initial_survey = Survey([
-    QuestionFreeText(
-        question_name="startup_name",
-        question_text="What is the name of the startup you are evaluating?",
-    ),
-    QuestionFreeText(
-        question_name="startup_description",
-        question_text="Please describe the startup you are evaluating.",
-    ),
-])
+initial_survey = Survey(
+    [
+        QuestionFreeText(
+            question_name="startup_name",
+            question_text="What is the name of the startup you are evaluating?",
+        ),
+        QuestionFreeText(
+            question_name="startup_description",
+            question_text="Please describe the startup you are evaluating.",
+        ),
+    ]
+)
 
 q1 = QuestionLinearScale(
     question_name="exceptional_achievement",
@@ -92,22 +94,33 @@ q6 = QuestionCompute(
 survey = Survey([q1, q2, q3, q4, q5, q6])
 
 
-#of1 = OutputFormatter(description="Robot VC - Answers").select('answer.*').table().flip()
+# of1 = OutputFormatter(description="Robot VC - Answers").select('answer.*').table().flip()
 
-of1 = OutputFormatter(description="Robot VC - Answers", output_type="markdown").select('answer.*').table(tablefmt = "github").flip().to_string()
-of2 = OutputFormatter(description="Robot VC - Comments", output_type="table").select('comment.*').table().flip()
+of1 = (
+    OutputFormatter(description="Robot VC - Answers", output_type="markdown")
+    .select("answer.*")
+    .table(tablefmt="github")
+    .flip()
+    .to_string()
+)
+of2 = (
+    OutputFormatter(description="Robot VC - Comments", output_type="table")
+    .select("comment.*")
+    .table()
+    .flip()
+)
 
 # Markdown table formatter that returns a string for web display
 # Use select and table with github format to get the data as markdown
 markdown_table_formatter = (
     OutputFormatter(description="Scorecard", output_type="markdown")
     .select(
-        'answer.exceptional_achievement',
-        'answer.market_timing_and_tailwinds',
-        'answer.revenue_pilots',
-        'answer.technical_moat',
-        'answer.total_score',
-        'answer.have_meeting'
+        "answer.exceptional_achievement",
+        "answer.market_timing_and_tailwinds",
+        "answer.revenue_pilots",
+        "answer.technical_moat",
+        "answer.total_score",
+        "answer.have_meeting",
     )
     .table(tablefmt="github")
     .flip()
@@ -131,9 +144,11 @@ macro = Macro(
 if __name__ == "__main__":
     output = macro.output(
         params={
-            'startup_name': 'Test Startup',
-            'startup_description': """A startup that makes a new kind of dog collar.
+            "startup_name": "Test Startup",
+            "startup_description": """A startup that makes a new kind of dog collar.
             Both founders just graduated from high school (barely).
-            No patents. No revenue. No customers. Pet ownership is declining."""},
-        verbose=True)
+            No patents. No revenue. No customers. Pet ownership is declining.""",
+        },
+        verbose=True,
+    )
     print(output)

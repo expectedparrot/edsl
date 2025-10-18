@@ -14,6 +14,7 @@ class MacroHTMLRenderer:
         safe_text = escape(str(md_text))
         try:
             import markdown as md  # type: ignore
+
             return md.markdown(
                 safe_text,
                 extensions=["extra", "sane_lists", "tables"],
@@ -42,7 +43,7 @@ class MacroHTMLRenderer:
         macro_name = self.macro.display_name
         macro_desc = self.macro.long_description
 
-        title_html = f"<h2 style=\"margin-bottom:0.25rem;\">{escape(macro_name)}</h2>"
+        title_html = f'<h2 style="margin-bottom:0.25rem;">{escape(macro_name)}</h2>'
         desc_html = self._convert_markdown_to_html(macro_desc)
 
         rows_html: list[str] = []
@@ -55,9 +56,9 @@ class MacroHTMLRenderer:
                   <td>{prompt}</td>
                 </tr>
                 """.format(
-                    name=escape(str(param['question_name'])),
-                    qtype=escape(str(param['question_type'])),
-                    prompt=escape(str(param['question_text'])),
+                    name=escape(str(param["question_name"])),
+                    qtype=escape(str(param["question_type"])),
+                    prompt=escape(str(param["question_text"])),
                 )
             )
 
@@ -87,49 +88,59 @@ class MacroHTMLRenderer:
             if "float" in qt or "number" in qt or "numeric" in qt:
                 return "0.0"
             if "list" in qt or "array" in qt:
-                return "[\"item1\", \"item2\"]"
+                return '["item1", "item2"]'
             if "date" in qt:
-                return "\"2025-01-01\""
+                return '"2025-01-01"'
             if "file" in qt or "path" in qt:
-                return "\"/path/to/file.txt\""
-            return "\"...\""
+                return '"/path/to/file.txt"'
+            return '"..."'
 
         example_kv_lines: list[str] = []
         for param in self.macro.parameters:
-            value_literal = _example_value_for_type(str(param['question_type']))
-            example_kv_lines.append(f"    {repr(str(param['question_name']))}: {value_literal}")
-        params_body = ",\n".join(example_kv_lines) if example_kv_lines else "    # no parameters"
+            value_literal = _example_value_for_type(str(param["question_type"]))
+            example_kv_lines.append(
+                f"    {repr(str(param['question_name']))}: {value_literal}"
+            )
+        params_body = (
+            ",\n".join(example_kv_lines) if example_kv_lines else "    # no parameters"
+        )
         usage_code = f"macro.output(params={{\n{params_body}\n}})"
-        usage_block = f"<pre style=\"background:#f6f8fa; padding:10px; border-radius:6px; overflow:auto;\"><code class=\"language-python\">{escape(usage_code)}</code></pre>"
+        usage_block = f'<pre style="background:#f6f8fa; padding:10px; border-radius:6px; overflow:auto;"><code class="language-python">{escape(usage_code)}</code></pre>'
 
         # Build output formatters table
         formatter_rows_html: list[str] = []
         try:
             formatters_mapping = self.macro.output_formatters.mapping
             default_formatter_name = self.macro.output_formatters.default
-            
+
             for formatter_name, formatter in formatters_mapping.items():
                 # Determine if this is the default formatter
                 is_default = formatter_name == default_formatter_name
-                name_display = f"<strong>{escape(str(formatter_name))}</strong>" if is_default else escape(str(formatter_name))
+                name_display = (
+                    f"<strong>{escape(str(formatter_name))}</strong>"
+                    if is_default
+                    else escape(str(formatter_name))
+                )
                 if is_default:
-                    name_display += " <span style=\"background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:600;\">DEFAULT</span>"
-                
+                    name_display += ' <span style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:600;">DEFAULT</span>'
+
                 # Get output type
                 output_type = getattr(formatter, "output_type", "auto")
                 output_type_display = escape(str(output_type))
-                
+
                 # Get command chain summary
                 stored_commands = getattr(formatter, "_stored_commands", [])
                 if stored_commands:
-                    command_names = [cmd[0] for cmd in stored_commands[:5]]  # First 5 commands
+                    command_names = [
+                        cmd[0] for cmd in stored_commands[:5]
+                    ]  # First 5 commands
                     commands_display = " → ".join(command_names)
                     if len(stored_commands) > 5:
                         commands_display += " → ..."
                     commands_display = escape(commands_display)
                 else:
                     commands_display = "<em>pass-through</em>"
-                
+
                 formatter_rows_html.append(
                     """
                     <tr>
@@ -146,7 +157,7 @@ class MacroHTMLRenderer:
         except Exception:
             # If there's any error getting formatters, just skip the section
             formatter_rows_html = []
-        
+
         formatters_table_html = ""
         if formatter_rows_html:
             formatters_table_html = (
@@ -182,10 +193,10 @@ class MacroHTMLRenderer:
             title=title_html,
             desc=desc_html,
             table=table_html,
-            formatters_section=f"<h3 style=\"margin-top:1.25rem;\">Output Formatters</h3>\n{formatters_table_html}" if formatters_table_html else "",
-            usage=usage_block
+            formatters_section=f'<h3 style="margin-top:1.25rem;">Output Formatters</h3>\n{formatters_table_html}'
+            if formatters_table_html
+            else "",
+            usage=usage_block,
         )
 
         return container
-
-

@@ -34,7 +34,7 @@ class EDSLObjectResponse(BaseModel):
     answer: Dict[str, Any]
     generated_tokens: Optional[str] = None
 
-    @field_validator('answer')
+    @field_validator("answer")
     @classmethod
     def validate_answer_is_dict(cls, v):
         """
@@ -75,22 +75,22 @@ class EDSLObjectResponseValidator(ResponseValidatorABC):
                 "answer": {
                     "question_type": "free_text",
                     "question_name": "test",
-                    "question_text": "Test?"
+                    "question_text": "Test?",
                 }
             },
-            {"expected_object_type": "free_text"}
+            {"expected_object_type": "free_text"},
         )
     ]
     invalid_examples = [
         (
             {"answer": "not a dict"},
             {"expected_object_type": "free_text"},
-            "Answer must be a dictionary representing an EDSL object."
+            "Answer must be a dictionary representing an EDSL object.",
         ),
         (
             {"answer": {"invalid": "object"}},
             {"expected_object_type": "free_text"},
-            "Answer dictionary cannot be instantiated as expected EDSL object type."
+            "Answer dictionary cannot be instantiated as expected EDSL object type.",
         ),
     ]
 
@@ -130,7 +130,9 @@ class EDSLObjectResponseValidator(ResponseValidatorABC):
                     print(f"Parsed answer from generated_tokens JSON: {answer}")
             except json.JSONDecodeError:
                 if verbose:
-                    print(f"Could not parse generated_tokens as JSON: {generated_tokens}")
+                    print(
+                        f"Could not parse generated_tokens as JSON: {generated_tokens}"
+                    )
                 pass
 
         # If still not a dict, create empty dict
@@ -139,12 +141,11 @@ class EDSLObjectResponseValidator(ResponseValidatorABC):
             if verbose:
                 print("Created empty dict as fallback answer")
 
-        return {
-            "answer": answer,
-            "generated_tokens": generated_tokens
-        }
+        return {"answer": answer, "generated_tokens": generated_tokens}
 
-    def validate_object_instantiation(self, answer_dict: dict, expected_object_type: str) -> bool:
+    def validate_object_instantiation(
+        self, answer_dict: dict, expected_object_type: str
+    ) -> bool:
         """
         Validate that the answer dictionary can be used to instantiate the expected EDSL object.
 
@@ -157,7 +158,10 @@ class EDSLObjectResponseValidator(ResponseValidatorABC):
         """
         try:
             # For questions, use the question registry
-            if expected_object_type in RegisterQuestionsMeta.question_types_to_classes():
+            if (
+                expected_object_type
+                in RegisterQuestionsMeta.question_types_to_classes()
+            ):
                 question_registry = RegisterQuestionsMeta.question_types_to_classes()
                 object_class = question_registry[expected_object_type]
             else:
@@ -168,7 +172,7 @@ class EDSLObjectResponseValidator(ResponseValidatorABC):
                 object_class = edsl_registry[expected_object_type]
 
             # Try to instantiate the object from the dictionary
-            if hasattr(object_class, 'from_dict'):
+            if hasattr(object_class, "from_dict"):
                 object_class.from_dict(answer_dict)
             else:
                 # Fallback to direct instantiation
@@ -252,7 +256,10 @@ class QuestionEDSLObject(QuestionBase):
         question_registry = RegisterQuestionsMeta.question_types_to_classes()
         edsl_registry = RegisterSubclassesMeta.get_registry()
 
-        if expected_object_type not in question_registry and expected_object_type not in edsl_registry:
+        if (
+            expected_object_type not in question_registry
+            and expected_object_type not in edsl_registry
+        ):
             available_question_types = list(question_registry.keys())
             available_edsl_types = list(edsl_registry.keys())
             raise ValueError(
@@ -292,27 +299,33 @@ class QuestionEDSLObject(QuestionBase):
         if isinstance(answer.get("answer"), dict):
             # Try direct validation of the raw answer dict first
             raw_answer = answer["answer"]
-            if validator.validate_object_instantiation(raw_answer, self.expected_object_type):
+            if validator.validate_object_instantiation(
+                raw_answer, self.expected_object_type
+            ):
                 # This is a valid EDSL object - use it directly
                 return {
                     "answer": raw_answer,
-                    "generated_tokens": answer.get("generated_tokens")
+                    "generated_tokens": answer.get("generated_tokens"),
                 }
 
         # Check if the whole answer dict is actually an EDSL object
         # (when test service returns canned_response directly)
-        if not answer.get("answer") and validator.validate_object_instantiation(answer, self.expected_object_type):
+        if not answer.get("answer") and validator.validate_object_instantiation(
+            answer, self.expected_object_type
+        ):
             # The whole answer is the EDSL object
             return {
                 "answer": answer,
-                "generated_tokens": str(answer)  # Fallback for generated_tokens
+                "generated_tokens": str(answer),  # Fallback for generated_tokens
             }
 
         # Fall back to standard validation
         validated_answer = super()._validate_answer(answer, replacement_dict)
         answer_dict = validated_answer["answer"]
 
-        if not validator.validate_object_instantiation(answer_dict, self.expected_object_type):
+        if not validator.validate_object_instantiation(
+            answer_dict, self.expected_object_type
+        ):
             from .exceptions import QuestionAnswerValidationError
 
             raise QuestionAnswerValidationError(
@@ -344,7 +357,7 @@ class QuestionEDSLObject(QuestionBase):
         """
         ).render(
             question_name=self.question_name,
-            expected_object_type=self.expected_object_type
+            expected_object_type=self.expected_object_type,
         )
         return question_html_content
 
@@ -371,7 +384,7 @@ class QuestionEDSLObject(QuestionBase):
         return cls(
             question_name="create_question",
             question_text=f"Create a free text question about your favorite color.{addition}",
-            expected_object_type="free_text"
+            expected_object_type="free_text",
         )
 
     def _simulate_answer(self, human_readable: bool = False) -> dict:
@@ -394,7 +407,7 @@ class QuestionEDSLObject(QuestionBase):
                 edsl_registry = RegisterSubclassesMeta.get_registry()
                 object_class = edsl_registry.get(self.expected_object_type)
 
-            if object_class and hasattr(object_class, 'example'):
+            if object_class and hasattr(object_class, "example"):
                 # Use the real example from the class
                 real_example = object_class.example()
                 simulated_object = real_example.to_dict()
@@ -404,19 +417,19 @@ class QuestionEDSLObject(QuestionBase):
                     "object_type": self.expected_object_type,
                     "name": "example",
                     "edsl_version": "1.0.5.dev1",
-                    "edsl_class_name": "Base"
+                    "edsl_class_name": "Base",
                 }
         except Exception:
             simulated_object = {
                 "object_type": self.expected_object_type,
                 "name": "example",
                 "edsl_version": "1.0.5.dev1",
-                "edsl_class_name": "Base"
+                "edsl_class_name": "Base",
             }
 
         return {
             "answer": simulated_object,
-            "generated_tokens": json.dumps(simulated_object)
+            "generated_tokens": json.dumps(simulated_object),
         }
 
     @classmethod

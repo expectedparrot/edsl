@@ -16,33 +16,35 @@ from edsl.agents import Agent
 
 
 # 1. Initial Survey - Collect parameters for onboarding analysis
-initial_survey = Survey([
-    QuestionFreeText(
-        question_name="industry_or_product",
-        question_text="What industry or product category should we analyze? (e.g., 'SaaS project management tools', 'mobile banking apps', 'e-commerce platforms')"
-    ),
-    QuestionFreeText(
-        question_name="specific_competitors",
-        question_text="List specific competitors to analyze (comma-separated). Leave blank to let the AI suggest competitors based on your industry."
-    ),
-    QuestionNumerical(
-        question_name="number_of_competitors",
-        question_text="How many competitors should be analyzed?",
-        min_value=2,
-        max_value=5
-    ),
-    QuestionMultipleChoice(
-        question_name="analysis_focus",
-        question_text="What aspect of onboarding should we focus on?",
-        question_options=[
-            "Overall user journey and flow",
-            "Information collection and data gathering",
-            "Feature introduction and education",
-            "Activation and engagement tactics",
-            "All aspects comprehensively"
-        ]
-    )
-])
+initial_survey = Survey(
+    [
+        QuestionFreeText(
+            question_name="industry_or_product",
+            question_text="What industry or product category should we analyze? (e.g., 'SaaS project management tools', 'mobile banking apps', 'e-commerce platforms')",
+        ),
+        QuestionFreeText(
+            question_name="specific_competitors",
+            question_text="List specific competitors to analyze (comma-separated). Leave blank to let the AI suggest competitors based on your industry.",
+        ),
+        QuestionNumerical(
+            question_name="number_of_competitors",
+            question_text="How many competitors should be analyzed?",
+            min_value=2,
+            max_value=5,
+        ),
+        QuestionMultipleChoice(
+            question_name="analysis_focus",
+            question_text="What aspect of onboarding should we focus on?",
+            question_options=[
+                "Overall user journey and flow",
+                "Information collection and data gathering",
+                "Feature introduction and education",
+                "Activation and engagement tactics",
+                "All aspects comprehensively",
+            ],
+        ),
+    ]
+)
 
 
 # 2. Processing Agent - UX Research Expert
@@ -50,20 +52,23 @@ ux_research_agent = Agent(
     name="ux_research_expert",
     traits={
         "expertise": "UX research, competitive analysis, and onboarding optimization",
-        "persona": textwrap.dedent("""
+        "persona": textwrap.dedent(
+            """
             You are a senior UX researcher with deep expertise in competitive analysis and
             user onboarding optimization. You understand user psychology, conversion funnels,
             and can identify friction points and moments of delight in user experiences.
             You provide detailed, actionable insights based on thorough analysis.
-        """)
-    }
+        """
+        ),
+    },
 )
 
 
 # 3. Competitor Research Question
 research_competitors_question = QuestionFreeText(
     question_name="competitor_research",
-    question_text=textwrap.dedent("""
+    question_text=textwrap.dedent(
+        """
         Research {{ scenario.number_of_competitors }} key competitors in {{ scenario.industry_or_product }}.
 
         {% if scenario.specific_competitors %}
@@ -85,14 +90,16 @@ research_competitors_question = QuestionFreeText(
         8. Notable design patterns or techniques used
 
         Structure your analysis clearly with headers for each competitor.
-    """)
+    """
+    ),
 )
 
 
 # 4. Comparative Analysis Question
 comparative_analysis_question = QuestionFreeText(
     question_name="comparative_analysis",
-    question_text=textwrap.dedent("""
+    question_text=textwrap.dedent(
+        """
         Based on your research of competitors' onboarding flows:
         {{ competitor_research.answer }}
 
@@ -105,14 +112,16 @@ comparative_analysis_question = QuestionFreeText(
         5. **Opportunities**: Based on this analysis, what onboarding improvements or innovations could be pursued?
 
         Present this as a strategic analysis that could inform onboarding decisions.
-    """)
+    """
+    ),
 )
 
 
 # 5. Actionable Recommendations Question
 recommendations_question = QuestionFreeText(
     question_name="actionable_recommendations",
-    question_text=textwrap.dedent("""
+    question_text=textwrap.dedent(
+        """
         Based on the competitive analysis:
         {{ comparative_analysis.answer }}
 
@@ -129,28 +138,33 @@ recommendations_question = QuestionFreeText(
         - Provide any relevant metrics to track success
 
         Format as a numbered list with clear, implementable actions.
-    """)
+    """
+    ),
 )
 
 
 # 6. Jobs Pipeline
-onboarding_analysis_pipeline = Survey([
-    research_competitors_question,
-    comparative_analysis_question,
-    recommendations_question
-]).by(ux_research_agent)
+onboarding_analysis_pipeline = Survey(
+    [
+        research_competitors_question,
+        comparative_analysis_question,
+        recommendations_question,
+    ]
+).by(ux_research_agent)
 
 
 # 7. Output Formatters
 
 # Comprehensive markdown report
 comprehensive_report = (
-    OutputFormatter(description="Comprehensive Onboarding Analysis Report", output_type="markdown")
+    OutputFormatter(
+        description="Comprehensive Onboarding Analysis Report", output_type="markdown"
+    )
     .select(
         "scenario.industry_or_product",
         "answer.competitor_research",
         "answer.comparative_analysis",
-        "answer.actionable_recommendations"
+        "answer.actionable_recommendations",
     )
     .table(tablefmt="github")
     .flip()
@@ -163,7 +177,7 @@ executive_summary = (
     .select(
         "scenario.industry_or_product",
         "answer.comparative_analysis",
-        "answer.actionable_recommendations"
+        "answer.actionable_recommendations",
     )
     .table(tablefmt="github")
     .flip()
@@ -205,12 +219,12 @@ if __name__ == "__main__":
             "industry_or_product": "SaaS project management tools",
             "specific_competitors": "Asana, Trello, Monday.com",
             "number_of_competitors": 3,
-            "analysis_focus": "All aspects comprehensively"
+            "analysis_focus": "All aspects comprehensively",
         },
-        verbose=True
+        verbose=True,
     )
 
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("COMPETITOR ONBOARDING ANALYSIS RESULTS")
-    print("="*50)
+    print("=" * 50)
     print(results)

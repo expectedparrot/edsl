@@ -10,15 +10,15 @@ from .weighted_checkbox_bar_chart import WeightedCheckboxBarChart
 from .theme_finder_output import ThemeFinderOutput
 
 __all__ = [
-    'ChartOutput',
-    'PNGLocation',
-    'BarChartOutput',
-    'ScatterPlotOutput',
-    'HistogramOutput',
-    'FacetedBarChartOutput',
-    'FacetedHistogramOutput',
-    'HeatmapChartOutput',
-    'BoxPlotOutput',
-    'WeightedCheckboxBarChart',
-    'ThemeFinderOutput'
+    "ChartOutput",
+    "PNGLocation",
+    "BarChartOutput",
+    "ScatterPlotOutput",
+    "HistogramOutput",
+    "FacetedBarChartOutput",
+    "FacetedHistogramOutput",
+    "HeatmapChartOutput",
+    "BoxPlotOutput",
+    "WeightedCheckboxBarChart",
+    "ThemeFinderOutput",
 ]

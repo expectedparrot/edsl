@@ -10,14 +10,19 @@ if TYPE_CHECKING:
 
 class AgentListSerializer:
     """Handles serialization and deserialization operations for AgentList objects.
-    
+
     This class provides functionality for converting AgentList objects to and from
     dictionary representations, supporting various serialization options like sorting,
     version information, and codebook handling.
     """
 
     @staticmethod
-    def to_dict(agent_list: "AgentList", sorted: bool = False, add_edsl_version: bool = True, full_dict: bool = False) -> dict:
+    def to_dict(
+        agent_list: "AgentList",
+        sorted: bool = False,
+        add_edsl_version: bool = True,
+        full_dict: bool = False,
+    ) -> dict:
         """Serialize the AgentList to a dictionary.
 
         Args:
@@ -47,7 +52,8 @@ class AgentListSerializer:
 
         d = {
             "agent_list": [
-                agent.to_dict(add_edsl_version=add_edsl_version, full_dict=full_dict) for agent in data
+                agent.to_dict(add_edsl_version=add_edsl_version, full_dict=full_dict)
+                for agent in data
             ]
         }
 
@@ -57,7 +63,9 @@ class AgentListSerializer:
             first_codebook = agent_list.data[0].codebook
 
             # Check if all agents have the same codebook
-            all_same = all(agent.codebook == first_codebook for agent in agent_list.data)
+            all_same = all(
+                agent.codebook == first_codebook for agent in agent_list.data
+            )
 
             # Only include codebook if it's non-empty and consistent across all agents
             if all_same and first_codebook:
@@ -93,7 +101,6 @@ class AgentListSerializer:
         from .agent import Agent
         from .agent_list import AgentList
 
-        
         agent_data = data.get("agent_list", None)
         if agent_data is None:
             print("Current data is", data)
@@ -106,7 +113,7 @@ class AgentListSerializer:
         if "codebook" in data and data["codebook"]:
             agent_list.set_codebook(data["codebook"])
 
-        return agent_list 
+        return agent_list
         # except KeyError:
         #     print("Current data is", data)
         #     raise ValueError("agent_list key not found in data")
@@ -118,4 +125,4 @@ class AgentListSerializer:
         # if "codebook" in data and data["codebook"]:
         #     agent_list.set_codebook(data["codebook"])
 
-        # return agent_list 
+        # return agent_list

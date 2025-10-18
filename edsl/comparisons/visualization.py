@@ -19,6 +19,7 @@ __all__ = ["render_comparison_table", "render_metric_heatmap"]
 # Rich table
 # ---------------------------------------------------------------------------
 
+
 def render_comparison_table(
     comparison: dict[str, AnswerComparison],
     comparison_fns: Sequence[ComparisonFunction],
@@ -48,10 +49,12 @@ def render_comparison_table(
                 row.append(f"{val:.3f}")
             else:
                 row.append(str(val))
-        row.extend([
-            AnswerComparison._truncate(metrics.answer_a, 100),
-            AnswerComparison._truncate(metrics.answer_b, 100),
-        ])
+        row.extend(
+            [
+                AnswerComparison._truncate(metrics.answer_a, 100),
+                AnswerComparison._truncate(metrics.answer_b, 100),
+            ]
+        )
         table.add_row(*row)
     return table
 
@@ -59,6 +62,7 @@ def render_comparison_table(
 # ---------------------------------------------------------------------------
 # Heat-map
 # ---------------------------------------------------------------------------
+
 
 def render_metric_heatmap(
     results: Sequence,
@@ -72,6 +76,7 @@ def render_metric_heatmap(
         comparison_factory = ComparisonFactory()
 
     if agg_func is None:
+
         def agg_func(vals: List[float]):
             arr = np.array([v for v in vals if v is not None], dtype=float)
             return float(np.nan) if arr.size == 0 else float(np.mean(arr))
@@ -85,15 +90,29 @@ def render_metric_heatmap(
             if i == j:
                 matrix[i, j] = 0.0
             else:
-                comp = comparison_factory.compare_results(results[i], results[j]).comparisons
-                vals: List[float] = [float(ac[metric_name]) for ac in comp.values() if ac[metric_name] is not None]
+                comp = comparison_factory.compare_results(
+                    results[i], results[j]
+                ).comparisons
+                vals: List[float] = [
+                    float(ac[metric_name])
+                    for ac in comp.values()
+                    if ac[metric_name] is not None
+                ]
                 matrix[i, j] = matrix[j, i] = agg_func(vals)
 
     if ax is None:
         _, ax = plt.subplots(figsize=(1 + n, 0.8 + n))
 
-    sns.heatmap(matrix, annot=True, fmt=".2f", cmap="viridis", square=True,
-                xticklabels=labels, yticklabels=labels, ax=ax)
+    sns.heatmap(
+        matrix,
+        annot=True,
+        fmt=".2f",
+        cmap="viridis",
+        square=True,
+        xticklabels=labels,
+        yticklabels=labels,
+        ax=ax,
+    )
     ax.set_title(title or metric_name.replace("_", " ").title())
     plt.tight_layout()
-    return ax 
+    return ax

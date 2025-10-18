@@ -7,55 +7,60 @@ from edsl import Survey
 from edsl.macros.output_formatter import ScenarioAttachmentFormatter
 
 
-input_survey = Survey([
-    QuestionFreeText(
-    question_name = "input_text",
-    question_text = """What is source text?"""), 
-    QuestionNumerical(
-        question_name = "words_per_chunk",
-        question_text = """How many words should be in each chunk?""")
-    ])
+input_survey = Survey(
+    [
+        QuestionFreeText(
+            question_name="input_text", question_text="""What is source text?"""
+        ),
+        QuestionNumerical(
+            question_name="words_per_chunk",
+            question_text="""How many words should be in each chunk?""",
+        ),
+    ]
+)
 
 q_questions = QuestionList(
-    question_name = "generated_questions",
-    question_text = """
+    question_name="generated_questions",
+    question_text="""
     Your job is to generate a list of questions that could be answered with the following text:
     <text>
     {{ scenario.input_text }}.
     </text>
-    """)
+    """,
+)
 
-jobs_object = (q_questions.by(Scenario.example()))
+jobs_object = q_questions.by(Scenario.example())
 
-of = (OutputFormatter(description="Topics", output_type="edsl_object")
-.select('answer.generated_questions', 'scenario.input_text')
-.expand('answer.generated_questions')
-.select('answer.generated_questions')
-.to_scenario_list()
-.select('generated_questions')
-.rename({'generated_questions':'question_text'})
-.add_value('question_type', 'free_text')
-.to_survey()
+of = (
+    OutputFormatter(description="Topics", output_type="edsl_object")
+    .select("answer.generated_questions", "scenario.input_text")
+    .expand("answer.generated_questions")
+    .select("answer.generated_questions")
+    .to_scenario_list()
+    .select("generated_questions")
+    .rename({"generated_questions": "question_text"})
+    .add_value("question_type", "free_text")
+    .to_survey()
 )
 
 # Markdown formatter that displays the generated questions as a table
 markdown_formatter = (
     OutputFormatter(description="Questions Preview (Markdown)", output_type="markdown")
-    .select('answer.generated_questions', 'scenario.input_text')
-    .expand('answer.generated_questions')
-    .select('answer.generated_questions')
+    .select("answer.generated_questions", "scenario.input_text")
+    .expand("answer.generated_questions")
+    .select("answer.generated_questions")
     .to_scenario_list()
-    .select('generated_questions')
-    .rename({'generated_questions':'question_text'})
-    .add_value('question_type', 'free_text')
+    .select("generated_questions")
+    .rename({"generated_questions": "question_text"})
+    .add_value("question_type", "free_text")
     .table(tablefmt="github")
     .to_string()
 )
 
 # This modifies the scenario by chunking the text
 # before attaching it to the jobs object.
-sa = (ScenarioAttachmentFormatter(name="Scenario Attachment Formatter")
-    .chunk_text(field = 'input_text', chunk_size_field = 'words_per_chunk', unit='word')
+sa = ScenarioAttachmentFormatter(name="Scenario Attachment Formatter").chunk_text(
+    field="input_text", chunk_size_field="words_per_chunk", unit="word"
 )
 
 macro = Macro(
@@ -65,9 +70,9 @@ macro = Macro(
     long_description="This application creates Jeopardy-style trivia questions with clues and answers based on provided topics or knowledge domains.",
     initial_survey=input_survey,
     jobs_object=jobs_object,
-    output_formatters={'survey': of, 'markdown': markdown_formatter},
-    default_formatter_name='survey',
-    attachment_formatters=[sa]
+    output_formatters={"survey": of, "markdown": markdown_formatter},
+    default_formatter_name="survey",
+    attachment_formatters=[sa],
 )
 
 text = """
@@ -95,7 +100,10 @@ if __name__ == "__main__":
 
     # Test with markdown formatter instead
     try:
-        result = macro.output(params = {'input_text': text, 'words_per_chunk': 100}, formatter_name = 'markdown')
+        result = macro.output(
+            params={"input_text": text, "words_per_chunk": 100},
+            formatter_name="markdown",
+        )
         print("Markdown formatter test successful:")
         print(result)
     except Exception as e:
@@ -108,4 +116,3 @@ if __name__ == "__main__":
     #
     # gold_results = gold_standard_survey.by(a).run()
     # print(gold_results.long_view())
-

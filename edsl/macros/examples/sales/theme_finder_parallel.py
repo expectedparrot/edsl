@@ -14,12 +14,13 @@ from edsl.macros.output_formatter import OutputFormatter
 from edsl.surveys import Survey
 from edsl.questions import QuestionList, QuestionFreeText, QuestionEDSLObject
 from edsl.agents import Agent
-from edsl import Scenario, ScenarioList
+from edsl import ScenarioList
 
 
 # =============================================================================
 # Helper: Create Theme Analyst Agent
 # =============================================================================
+
 
 def create_theme_analyst():
     """Creates an agent specialized in thematic analysis."""
@@ -29,14 +30,15 @@ def create_theme_analyst():
             "role": "Expert qualitative researcher",
             "expertise": "Thematic analysis, content coding, semantic clustering",
             "approach": "Systematic, data-driven, iterative refinement",
-            "skills": "Pattern recognition, categorization, theme consolidation"
-        }
+            "skills": "Pattern recognition, categorization, theme consolidation",
+        },
     )
 
 
 # =============================================================================
 # App 1: Parallel Theme Generation from Chunks
 # =============================================================================
+
 
 def create_parallel_theme_generator():
     """
@@ -46,23 +48,26 @@ def create_parallel_theme_generator():
     Output: List of all generated themes (with duplicates/overlaps)
     """
 
-    initial_survey = Survey([
-        QuestionEDSLObject(
-            question_name="responses",
-            question_text="Responses to analyze (ScenarioList with 'response_text')",
-            expected_object_type="ScenarioList",
-        ),
-        QuestionFreeText(
-            question_name="chunk_size",
-            question_text="Number of responses per chunk for parallel processing",
-        )
-    ])
+    initial_survey = Survey(
+        [
+            QuestionEDSLObject(
+                question_name="responses",
+                question_text="Responses to analyze (ScenarioList with 'response_text')",
+                expected_object_type="ScenarioList",
+            ),
+            QuestionFreeText(
+                question_name="chunk_size",
+                question_text="Number of responses per chunk for parallel processing",
+            ),
+        ]
+    )
 
     # Question 1: Combine responses into text chunks
     # This would be done via preprocessing - for now we'll generate from individual responses
     theme_gen_question = QuestionList(
         question_name="themes",
-        question_text=textwrap.dedent("""
+        question_text=textwrap.dedent(
+            """
         Analyze this response and identify 2-3 potential themes it relates to.
 
         Response: "{{ scenario.response_text }}"
@@ -78,17 +83,14 @@ def create_parallel_theme_generator():
         Think broadly - we'll consolidate similar themes later.
 
         Return as a list of dictionaries.
-        """)
+        """
+        ),
     )
 
     analyst = create_theme_analyst()
 
     # Process all responses in parallel
-    jobs_object = (
-        Survey([theme_gen_question])
-        .to_jobs()
-        .by(analyst)
-    )
+    jobs_object = Survey([theme_gen_question]).to_jobs().by(analyst)
 
     # Collect all generated themes into a flat list
     all_themes_formatter = (
@@ -107,13 +109,14 @@ def create_parallel_theme_generator():
         jobs_object=jobs_object,
         output_formatters={"all_themes": all_themes_formatter},
         default_formatter_name="all_themes",
-        default_params={"chunk_size": "50"}
+        default_params={"chunk_size": "50"},
     )
 
 
 # =============================================================================
 # App 2: Theme Consolidation
 # =============================================================================
+
 
 def create_theme_consolidator():
     """
@@ -123,21 +126,24 @@ def create_theme_consolidator():
     Output: Consolidated list of distinct themes
     """
 
-    initial_survey = Survey([
-        QuestionEDSLObject(
-            question_name="generated_themes",
-            question_text="Generated themes to consolidate (ScenarioList)",
-            expected_object_type="ScenarioList",
-        ),
-        QuestionFreeText(
-            question_name="target_count",
-            question_text="Target number of final themes",
-        )
-    ])
+    initial_survey = Survey(
+        [
+            QuestionEDSLObject(
+                question_name="generated_themes",
+                question_text="Generated themes to consolidate (ScenarioList)",
+                expected_object_type="ScenarioList",
+            ),
+            QuestionFreeText(
+                question_name="target_count",
+                question_text="Target number of final themes",
+            ),
+        ]
+    )
 
     consolidation_question = QuestionList(
         question_name="consolidated_themes",
-        question_text=textwrap.dedent("""
+        question_text=textwrap.dedent(
+            """
         You have many candidate themes that need consolidation.
 
         Generated themes:
@@ -163,16 +169,13 @@ def create_theme_consolidator():
             },
             ...
         ]
-        """)
+        """
+        ),
     )
 
     analyst = create_theme_analyst()
 
-    jobs_object = (
-        Survey([consolidation_question])
-        .to_jobs()
-        .by(analyst)
-    )
+    jobs_object = Survey([consolidation_question]).to_jobs().by(analyst)
 
     consolidated_formatter = (
         OutputFormatter(description="Consolidated Themes")
@@ -190,13 +193,14 @@ def create_theme_consolidator():
         jobs_object=jobs_object,
         output_formatters={"consolidated": consolidated_formatter},
         default_formatter_name="consolidated",
-        default_params={"target_count": "10"}
+        default_params={"target_count": "10"},
     )
 
 
 # =============================================================================
 # App 3: Parallel Response Labeling
 # =============================================================================
+
 
 def create_parallel_labeler():
     """
@@ -208,21 +212,24 @@ def create_parallel_labeler():
     Output: Original ScenarioList with 'identified_themes' field added
     """
 
-    initial_survey = Survey([
-        QuestionEDSLObject(
-            question_name="responses",
-            question_text="Responses to label (ScenarioList with 'response_text')",
-            expected_object_type="ScenarioList",
-        ),
-        QuestionFreeText(
-            question_name="themes_guide",
-            question_text="Formatted theme guide for labeling",
-        )
-    ])
+    initial_survey = Survey(
+        [
+            QuestionEDSLObject(
+                question_name="responses",
+                question_text="Responses to label (ScenarioList with 'response_text')",
+                expected_object_type="ScenarioList",
+            ),
+            QuestionFreeText(
+                question_name="themes_guide",
+                question_text="Formatted theme guide for labeling",
+            ),
+        ]
+    )
 
     labeling_question = QuestionList(
         question_name="identified_themes",
-        question_text=textwrap.dedent("""
+        question_text=textwrap.dedent(
+            """
         Apply theme labels to this response.
 
         Response: "{{ scenario.response_text }}"
@@ -243,17 +250,14 @@ def create_parallel_labeler():
         - No clear themes: []
 
         Return format: ["label1", "label2", ...]
-        """)
+        """
+        ),
     )
 
     analyst = create_theme_analyst()
 
     # Process all responses in parallel
-    jobs_object = (
-        Survey([labeling_question])
-        .to_jobs()
-        .by(analyst)
-    )
+    jobs_object = Survey([labeling_question]).to_jobs().by(analyst)
 
     # Return original data with new field
     labeled_formatter = (
@@ -278,6 +282,7 @@ def create_parallel_labeler():
 # App 4: Theme Validation and Usage Analysis
 # =============================================================================
 
+
 def create_theme_validator():
     """
     Analyzes theme usage patterns and identifies refinement needs.
@@ -286,21 +291,24 @@ def create_theme_validator():
     Output: Analysis report with refinement recommendations
     """
 
-    initial_survey = Survey([
-        QuestionEDSLObject(
-            question_name="labeled_responses",
-            question_text="Labeled responses to analyze",
-            expected_object_type="ScenarioList",
-        ),
-        QuestionFreeText(
-            question_name="theme_count",
-            question_text="Number of themes in the set",
-        )
-    ])
+    initial_survey = Survey(
+        [
+            QuestionEDSLObject(
+                question_name="labeled_responses",
+                question_text="Labeled responses to analyze",
+                expected_object_type="ScenarioList",
+            ),
+            QuestionFreeText(
+                question_name="theme_count",
+                question_text="Number of themes in the set",
+            ),
+        ]
+    )
 
     validation_question = QuestionFreeText(
         question_name="validation_analysis",
-        question_text=textwrap.dedent("""
+        question_text=textwrap.dedent(
+            """
         Analyze the theme usage and provide refinement recommendations.
 
         Theme usage statistics:
@@ -338,16 +346,13 @@ def create_theme_validator():
         - Priority order for changes
 
         Be specific with theme names and actions.
-        """)
+        """
+        ),
     )
 
     analyst = create_theme_analyst()
 
-    jobs_object = (
-        Survey([validation_question])
-        .to_jobs()
-        .by(analyst)
-    )
+    jobs_object = Survey([validation_question]).to_jobs().by(analyst)
 
     report_formatter = (
         OutputFormatter(description="Validation Report")
@@ -372,6 +377,7 @@ def create_theme_validator():
 # App 5: Theme Refinement Executor
 # =============================================================================
 
+
 def create_theme_refiner():
     """
     Executes refinements on themes based on validation analysis.
@@ -383,24 +389,27 @@ def create_theme_refiner():
     Output: Refined list of themes
     """
 
-    initial_survey = Survey([
-        QuestionFreeText(
-            question_name="current_themes_json",
-            question_text="Current themes as JSON string",
-        ),
-        QuestionFreeText(
-            question_name="refinement_recommendations",
-            question_text="Refinement recommendations from validation",
-        ),
-        QuestionFreeText(
-            question_name="target_count",
-            question_text="Target number of themes",
-        )
-    ])
+    initial_survey = Survey(
+        [
+            QuestionFreeText(
+                question_name="current_themes_json",
+                question_text="Current themes as JSON string",
+            ),
+            QuestionFreeText(
+                question_name="refinement_recommendations",
+                question_text="Refinement recommendations from validation",
+            ),
+            QuestionFreeText(
+                question_name="target_count",
+                question_text="Target number of themes",
+            ),
+        ]
+    )
 
     refinement_question = QuestionList(
         question_name="refined_themes",
-        question_text=textwrap.dedent("""
+        question_text=textwrap.dedent(
+            """
         Refine the themes based on the validation analysis.
 
         Current themes:
@@ -430,16 +439,13 @@ def create_theme_refiner():
 
         Aim for approximately {{ scenario.target_count }} themes.
         Ensure each theme is distinct and adds value.
-        """)
+        """
+        ),
     )
 
     analyst = create_theme_analyst()
 
-    jobs_object = (
-        Survey([refinement_question])
-        .to_jobs()
-        .by(analyst)
-    )
+    jobs_object = Survey([refinement_question]).to_jobs().by(analyst)
 
     refined_formatter = (
         OutputFormatter(description="Refined Themes")
@@ -464,6 +470,7 @@ def create_theme_refiner():
 # Main: Integrated Theme Finder Pipeline
 # =============================================================================
 
+
 def create_integrated_theme_finder():
     """
     Single integrated app that does generation -> consolidation -> labeling
@@ -473,37 +480,42 @@ def create_integrated_theme_finder():
     Output: ScenarioList with 'identified_themes' field added
     """
 
-    initial_survey = Survey([
-        QuestionEDSLObject(
-            question_name="responses",
-            question_text="Responses to analyze (ScenarioList with 'response_text' field)",
-            expected_object_type="ScenarioList",
-        ),
-        QuestionFreeText(
-            question_name="target_themes",
-            question_text="Target number of themes to generate",
-        )
-    ])
+    initial_survey = Survey(
+        [
+            QuestionEDSLObject(
+                question_name="responses",
+                question_text="Responses to analyze (ScenarioList with 'response_text' field)",
+                expected_object_type="ScenarioList",
+            ),
+            QuestionFreeText(
+                question_name="target_themes",
+                question_text="Target number of themes to generate",
+            ),
+        ]
+    )
 
     analyst = create_theme_analyst()
 
     # Stage 1: Generate candidate themes (parallel per response)
     generate_themes = QuestionList(
         question_name="candidate_themes",
-        question_text=textwrap.dedent("""
+        question_text=textwrap.dedent(
+            """
         Identify 2-3 themes this response relates to.
 
         Response: "{{ scenario.response_text }}"
 
         Return themes as list of dicts with label, description, indicators.
         Think broadly - similar themes will be consolidated later.
-        """)
+        """
+        ),
     )
 
     # Stage 2: Consolidate themes (single job after collecting all)
     consolidate_themes = QuestionList(
         question_name="final_themes",
-        question_text=textwrap.dedent("""
+        question_text=textwrap.dedent(
+            """
         Consolidate these candidate themes into {{ scenario.target_themes }} distinct themes.
 
         Candidate themes:
@@ -511,13 +523,15 @@ def create_integrated_theme_finder():
 
         Group similar themes and create {{ scenario.target_themes }} consolidated themes.
         Return as list of dicts with label, description, indicators.
-        """)
+        """
+        ),
     )
 
     # Stage 3: Label each response with final themes (parallel per response)
     label_response = QuestionList(
         question_name="identified_themes",
-        question_text=textwrap.dedent("""
+        question_text=textwrap.dedent(
+            """
         Label this response with applicable theme labels.
 
         Response: "{{ scenario.response_text }}"
@@ -526,7 +540,8 @@ def create_integrated_theme_finder():
         {{ scenario.theme_guide }}
 
         Return list of applicable theme label strings: ["label1", "label2"]
-        """)
+        """
+        ),
     )
 
     # Build chained pipeline
@@ -556,13 +571,14 @@ def create_integrated_theme_finder():
         jobs_object=jobs_object,
         output_formatters={"labeled": labeled_formatter},
         default_formatter_name="labeled",
-        default_params={"target_themes": "10"}
+        default_params={"target_themes": "10"},
     )
 
 
 # =============================================================================
 # Simplified Production-Ready Theme Finder
 # =============================================================================
+
 
 def create_simple_theme_finder():
     """
@@ -577,17 +593,19 @@ def create_simple_theme_finder():
     Output: ScenarioList with 'identified_themes' field
     """
 
-    initial_survey = Survey([
-        QuestionEDSLObject(
-            question_name="responses",
-            question_text="Responses to analyze (ScenarioList with 'response_text' field)",
-            expected_object_type="ScenarioList",
-        ),
-        QuestionFreeText(
-            question_name="num_themes",
-            question_text="Number of themes to identify",
-        )
-    ])
+    initial_survey = Survey(
+        [
+            QuestionEDSLObject(
+                question_name="responses",
+                question_text="Responses to analyze (ScenarioList with 'response_text' field)",
+                expected_object_type="ScenarioList",
+            ),
+            QuestionFreeText(
+                question_name="num_themes",
+                question_text="Number of themes to identify",
+            ),
+        ]
+    )
 
     analyst = create_theme_analyst()
 
@@ -598,7 +616,8 @@ def create_simple_theme_finder():
     # Question 1: Generate themes from all responses
     theme_generation = QuestionList(
         question_name="generated_themes",
-        question_text=textwrap.dedent("""
+        question_text=textwrap.dedent(
+            """
         Analyze ALL these responses and generate {{ scenario.num_themes }} distinct themes.
 
         Responses:
@@ -615,13 +634,15 @@ def create_simple_theme_finder():
 
         Return as a list of {{ scenario.num_themes }} theme dictionaries.
         Make themes specific enough to be useful but broad enough to cover multiple responses.
-        """)
+        """
+        ),
     )
 
     # Question 2: Apply themes to each response
     labeling = QuestionList(
         question_name="identified_themes",
-        question_text=textwrap.dedent("""
+        question_text=textwrap.dedent(
+            """
         Apply themes to this response.
 
         Response: "{{ scenario.response_text }}"
@@ -631,16 +652,13 @@ def create_simple_theme_finder():
 
         Return a list of theme label strings that apply: ["label1", "label2"]
         Return empty list [] if no themes apply.
-        """)
+        """
+        ),
     )
 
     # Multi-stage job: first generate themes, then label each response
     # This requires two separate survey runs in practice
-    jobs_object = (
-        Survey([theme_generation])
-        .to_jobs()
-        .by(analyst)
-    )
+    jobs_object = Survey([theme_generation]).to_jobs().by(analyst)
 
     themes_formatter = (
         OutputFormatter(description="Generated Themes")
@@ -658,7 +676,7 @@ def create_simple_theme_finder():
         jobs_object=jobs_object,
         output_formatters={"themes": themes_formatter},
         default_formatter_name="themes",
-        default_params={"num_themes": "10"}
+        default_params={"num_themes": "10"},
     )
 
 

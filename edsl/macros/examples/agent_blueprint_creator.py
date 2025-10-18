@@ -102,39 +102,44 @@ Keep it concise but informative.""",
 
 # Build the jobs pipeline
 jobs_object = (
-    Survey([q_dimensions]).to_jobs()
-    .select("scenario.population_description", "scenario.additional_details", "scenario.num_dimensions", "answer.dimensions")
+    Survey([q_dimensions])
+    .to_jobs()
+    .select(
+        "scenario.population_description",
+        "scenario.additional_details",
+        "scenario.num_dimensions",
+        "answer.dimensions",
+    )
     .expand("answer.dimensions")
     .to(Survey([q_levels, q_name, q_description]))
 )
 
 # Initial survey to collect user input
-initial_survey = Survey([
-    QuestionFreeText(
-        question_name="population_description",
-        question_text="Describe the population you want to create personas for (e.g., 'Experienced Upwork freelancers', 'Small business owners in tech', 'College students interested in sustainability')",
-    ),
-    QuestionNumerical(
-        question_name="num_dimensions",
-        question_text="How many dimensions should be used to characterize this population? (Recommended: 4-8)",
-        min_value=2,
-        max_value=15,
-    ),
-    QuestionFreeText(
-        question_name="additional_details",
-        question_text="(Optional) Any additional details about dimension focus, specific examples, or constraints you want to consider?",
-    ),
-])
+initial_survey = Survey(
+    [
+        QuestionFreeText(
+            question_name="population_description",
+            question_text="Describe the population you want to create personas for (e.g., 'Experienced Upwork freelancers', 'Small business owners in tech', 'College students interested in sustainability')",
+        ),
+        QuestionNumerical(
+            question_name="num_dimensions",
+            question_text="How many dimensions should be used to characterize this population? (Recommended: 4-8)",
+            min_value=2,
+            max_value=15,
+        ),
+        QuestionFreeText(
+            question_name="additional_details",
+            question_text="(Optional) Any additional details about dimension focus, specific examples, or constraints you want to consider?",
+        ),
+    ]
+)
 
 # Output formatter to create AgentBlueprint
 # Note: to_agent_blueprint() internally uses AgentBlueprint.from_scenario_list()
 # which performs ETL operations to convert scenario data into Dimension objects.
 # This is the appropriate method when dimensions are generated dynamically by LLMs.
 output_formatter = (
-    OutputFormatter(
-        description="Agent Blueprint",
-        output_type="edsl_object"
-    )
+    OutputFormatter(description="Agent Blueprint", output_type="edsl_object")
     .select("scenario.*", "answer.*")
     .to_scenario_list()
     .to_agent_blueprint(
@@ -144,9 +149,11 @@ output_formatter = (
     )
 )
 
-agent_blueprint_table = (output_formatter.copy()
+agent_blueprint_table = (
+    output_formatter.copy()
     .set_output_type("markdown")
-    .table(tablefmt = "github").to_string()
+    .table(tablefmt="github")
+    .to_string()
 )
 
 macro = Macro(
@@ -156,16 +163,21 @@ macro = Macro(
     long_description="This application helps create detailed agent blueprints by defining dimensions, traits, and characteristics for synthetic agents used in surveys and research studies.",
     initial_survey=initial_survey,
     jobs_object=jobs_object,
-    output_formatters={"agent_blueprint": output_formatter, "markdown_table": agent_blueprint_table},
+    output_formatters={
+        "agent_blueprint": output_formatter,
+        "markdown_table": agent_blueprint_table,
+    },
     default_formatter_name="agent_blueprint",
 )
 
 if __name__ == "__main__":
-    output = macro.output(params={
-        'population_description': 'Experienced Upwork freelancers',
-        'num_dimensions': 8,
-        'additional_details': """Focus on work preferences, skill specialization, and experience with different client types
+    output = macro.output(
+        params={
+            "population_description": "Experienced Upwork freelancers",
+            "num_dimensions": 8,
+            "additional_details": """Focus on work preferences, skill specialization, and experience with different client types
         Should include details on country of residence and language proficiency and attitudes towards freelancing/Upwork.
         """,
-    })
+        }
+    )
     print(output)

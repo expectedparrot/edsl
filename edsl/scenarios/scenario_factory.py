@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 class ScenarioFactory:
     """
     Factory class for creating Scenario instances from various sources.
-    
+
     This class provides static and class methods for creating Scenario objects
     from files, URLs, documents, and other data sources. It handles the complex
     logic of extracting content, processing different file formats, and creating
@@ -117,7 +117,7 @@ class ScenarioFactory:
             from .scenario import Scenario
         except ImportError:
             from edsl.scenarios import Scenario
-        
+
         return Scenario({"url": url, field_name: text})
 
     @classmethod
@@ -156,13 +156,13 @@ class ScenarioFactory:
         from edsl.scenarios import FileStore
 
         fs = FileStore(file_path)
-        
+
         # Import here to avoid circular imports
         try:
             from .scenario import Scenario
         except ImportError:
             from edsl.scenarios import Scenario
-        
+
         return Scenario({field_name: fs})
 
     @classmethod
@@ -242,13 +242,13 @@ class ScenarioFactory:
             from edsl.scenarios.PdfExtractor import PdfExtractor
 
             extractor = PdfExtractor(pdf_path)
-            
+
             # Import here to avoid circular imports
             try:
                 from .scenario import Scenario
             except ImportError:
                 from edsl.scenarios import Scenario
-                
+
             return Scenario(extractor.get_pdf_dict())
         except ImportError as e:
             raise ImportError(
@@ -296,13 +296,13 @@ class ScenarioFactory:
         text = cls.extract_text(html)
         if not field_name:
             field_name = "text"
-            
+
         # Import here to avoid circular imports
         try:
             from .scenario import Scenario
         except ImportError:
             from edsl.scenarios import Scenario
-            
+
         return Scenario({"url": url, "html": html, field_name: text})
 
     @staticmethod
@@ -507,22 +507,22 @@ class ScenarioFactory:
             >>> s = ScenarioFactory.example()
             >>> 'persona' in s
             True
-            
+
             >>> s1 = ScenarioFactory.example(randomize=True)
             >>> s2 = ScenarioFactory.example(randomize=True)
             >>> s1['persona'] != s2['persona']  # Should be different due to randomization
             True
         """
         addition = "" if not randomize else str(uuid4())
-        
+
         # Import here to avoid circular imports
         try:
             from .scenario import Scenario
         except ImportError:
             from edsl.scenarios import Scenario
-            
+
         return Scenario(
             {
                 "persona": f"A reseacher studying whether LLMs can be used to generate surveys.{addition}",
             }
-        ) 
+        )

@@ -103,16 +103,16 @@ class Scenario(Base, UserDict):
         Examples:
             >>> s = Scenario({"product": "coffee", "price": 4.99})
             >>> s = Scenario({"question": "What is your favorite color?"}, name="color_question")
-            
+
             Using keyword arguments:
             >>> s = Scenario(product="coffee", price=4.99)
             >>> s
             Scenario({'product': 'coffee', 'price': 4.99})
-            
+
             >>> s = Scenario(a="b")
             >>> s
             Scenario({'a': 'b'})
-            
+
             Mixing data and kwargs (kwargs take precedence):
             >>> s = Scenario({"a": 1, "b": 2}, a=10, c=3)
             >>> s
@@ -538,9 +538,9 @@ class Scenario(Base, UserDict):
         return ScenarioGCS(self).get_filestore_info()
 
     def to_agent_list(self) -> "AgentList":
-        """Convert the scenario to an agent list.
-        """
+        """Convert the scenario to an agent list."""
         from .scenario_list import ScenarioList
+
         return ScenarioList([self]).to_agent_list()
 
     def to(self, question_or_survey: Union["Question", "Survey"]) -> "Jobs":
@@ -632,27 +632,30 @@ class Scenario(Base, UserDict):
 
     def __repr__(self):
         """Return a string representation of the Scenario.
-        
+
         Uses traditional repr format when running doctests, otherwise uses
         rich-based display for better readability.
         """
         import os
+
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
         else:
             return self._summary_repr()
-    
+
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the Scenario.
-        
+
         This representation can be used with eval() to recreate the Scenario object.
         Used primarily for doctests and debugging.
         """
         return "Scenario(" + repr(self.data) + ")"
-    
-    def _summary_repr(self, max_items: int = 100, max_value_length: Optional[int] = None) -> str:
+
+    def _summary_repr(
+        self, max_items: int = 100, max_value_length: Optional[int] = None
+    ) -> str:
         """Generate a summary representation of the Scenario with Rich formatting.
-        
+
         Args:
             max_items: Maximum number of key-value pairs to show before truncating
             max_value_length: Maximum length of a value before truncating. If None, uses terminal width.
@@ -661,43 +664,45 @@ class Scenario(Base, UserDict):
         from rich.text import Text
         import io
         import shutil
-        
+
         # Get terminal width
         terminal_width = shutil.get_terminal_size().columns
-        
+
         # Use terminal width for max_value_length if not specified
         # Reserve some space for the key name and formatting (about 20 chars)
         if max_value_length is None:
             max_value_length = max(terminal_width - 20, 50)
-        
+
         # Build the Rich text
         output = Text()
         output.append("Scenario(\n", style="bold cyan")
-        
+
         num_keys = len(self.data)
         if num_keys > 0:
             output.append(f"    num_keys={num_keys},\n", style="white")
             output.append("    data={\n", style="white")
-            
+
             for i, (key, value) in enumerate(list(self.data.items())[:max_items]):
                 # Format the value with truncation if needed
                 value_repr = repr(value)
                 if len(value_repr) > max_value_length:
-                    value_repr = value_repr[:max_value_length-3] + "..."
-                
+                    value_repr = value_repr[: max_value_length - 3] + "..."
+
                 output.append("        ", style="white")
                 output.append(f"'{key}'", style="bold yellow")
                 output.append(f": {value_repr},\n", style="white")
-            
+
             if num_keys > max_items:
-                output.append(f"        ... ({num_keys - max_items} more)\n", style="dim")
-            
+                output.append(
+                    f"        ... ({num_keys - max_items} more)\n", style="dim"
+                )
+
             output.append("    }\n", style="white")
         else:
             output.append("    data={}\n", style="dim")
-        
+
         output.append(")", style="bold cyan")
-        
+
         # Render to string using actual terminal width
         console = Console(file=io.StringIO(), force_terminal=True, width=terminal_width)
         console.print(output, end="")
@@ -727,7 +732,7 @@ class Scenario(Base, UserDict):
         """
         # Avoid infinite recursion during copy.deepcopy by checking __dict__ directly
         # This prevents recursion when deepcopy checks for special methods like __setstate__
-        if 'data' not in self.__dict__:
+        if "data" not in self.__dict__:
             raise AttributeError(f"'Scenario' object has no attribute '{name}'")
         try:
             return self.data[name]
@@ -1087,11 +1092,11 @@ class Scenario(Base, UserDict):
         Convert the Scenario to a ScenarioList.
         """
         from .scenario_list import ScenarioList
+
         return ScenarioList([self])
 
     def replace_value(self, key: str, value: Any) -> "Scenario":
-        """Replace the value of a key in the Scenario.
-        """
+        """Replace the value of a key in the Scenario."""
         self[key] = value
         return self
 
@@ -1134,12 +1139,13 @@ class Scenario(Base, UserDict):
 
         return ScenarioFactory.from_docx(docx_path)
 
-    def chunk_text(self, 
-    field: str,
-    chunk_size_field: str, 
-    unit: str = "word",
-    include_original: bool = False,
-    hash_original: bool = False,
+    def chunk_text(
+        self,
+        field: str,
+        chunk_size_field: str,
+        unit: str = "word",
+        include_original: bool = False,
+        hash_original: bool = False,
     ) -> "ScenarioList":
         """
         Chunks a text field into smaller chunks of a specified size, creating a ScenarioList.
@@ -1150,6 +1156,7 @@ class Scenario(Base, UserDict):
         or when working with models that have token limits.
         """
         from .document_chunker import DocumentChunker
+
         if unit == "word":
             num_words = self[chunk_size_field]
             num_lines = None
@@ -1158,10 +1165,10 @@ class Scenario(Base, UserDict):
             num_words = None
         else:
             raise Exception(f"Invalid unit: {unit}. Must be 'word' or 'line'.")
-        return  DocumentChunker(self).chunk(
+        return DocumentChunker(self).chunk(
             field, num_words, num_lines, include_original, hash_original
         )
-        
+
     def chunk(
         self,
         field: str,

@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Optional
 
 from .profiles import CsvFormat, CsvProfile
 
@@ -36,7 +35,7 @@ def refine_profile_with_llm(path: Path, profile: CsvProfile) -> CsvProfile:
         "with multiple header rows or a simple single-header CSV.\n\n"
         "Respond ONLY with a compact JSON object like:\n"
         '{"format": "qualtrics_three_row", "header_rows": 4}\n'
-        'or\n'
+        "or\n"
         '{"format": "simple", "header_rows": 1}\n\n'
         "Choose header_rows 3 or 4 for Qualtrics exports depending on whether the first row "
         "contains generic placeholders (Column1, Column2, ...). When uncertain, prefer 3.\n"

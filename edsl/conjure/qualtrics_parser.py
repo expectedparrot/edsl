@@ -79,27 +79,31 @@ def _to_python_identifier(s: str) -> str:
     s = s.lower()
 
     # Replace spaces and hyphens with underscores
-    s = re.sub(r'[\s\-]+', '_', s)
+    s = re.sub(r"[\s\-]+", "_", s)
 
     # Remove invalid characters (keep only alphanumeric and underscore)
-    s = re.sub(r'[^a-z0-9_]', '', s)
+    s = re.sub(r"[^a-z0-9_]", "", s)
 
     # Ensure doesn't start with a digit
     if s and s[0].isdigit():
-        s = '_' + s
+        s = "_" + s
 
     # Remove multiple consecutive underscores
-    s = re.sub(r'_+', '_', s)
+    s = re.sub(r"_+", "_", s)
 
     # Strip leading/trailing underscores
-    s = s.strip('_')
+    s = s.strip("_")
 
-    return s or 'unnamed'
+    return s or "unnamed"
 
 
 DEFAULT_ID_CANDIDATES: List[str] = [
-    "PERSON_ID", "ResponseId", "ResponseID", "RecipientEmail",
-    "ExternalReference", "IPAddress"
+    "PERSON_ID",
+    "ResponseId",
+    "ResponseID",
+    "RecipientEmail",
+    "ExternalReference",
+    "IPAddress",
 ]
 
 
@@ -154,7 +158,9 @@ def tidy_qualtrics_three_header_csv(
 
     min_rows = header_rows + 1
     if df_raw.shape[0] < min_rows:
-        raise ValueError(f"Expected at least {min_rows} rows: {header_rows} header rows + ≥1 data row.")
+        raise ValueError(
+            f"Expected at least {min_rows} rows: {header_rows} header rows + ≥1 data row."
+        )
 
     if header_rows == 3:
         short_labels = df_raw.iloc[0].tolist()
@@ -237,10 +243,18 @@ def tidy_qualtrics_three_header_csv(
             long.to_sql("responses_long", con, if_exists="replace", index=False)
             columns_meta.to_sql("columns_meta", con, if_exists="replace", index=False)
             with con:
-                con.execute("CREATE INDEX IF NOT EXISTS idx_resp ON responses_long(respondent_id)")
-                con.execute("CREATE INDEX IF NOT EXISTS idx_q ON responses_long(question_name)")
-                con.execute("CREATE INDEX IF NOT EXISTS idx_qid ON responses_long(import_id)")
-                con.execute("CREATE INDEX IF NOT EXISTS idx_q_sub ON responses_long(question_name, subpart)")
+                con.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_resp ON responses_long(respondent_id)"
+                )
+                con.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_q ON responses_long(question_name)"
+                )
+                con.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_qid ON responses_long(import_id)"
+                )
+                con.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_q_sub ON responses_long(question_name, subpart)"
+                )
         finally:
             con.close()
 
@@ -278,7 +292,8 @@ def generate_question_list(
     """
     questions = []
     meta_by_question: Dict[str, pd.DataFrame] = {
-        q: columns_meta[columns_meta["question_name"] == q] for q in columns_meta["question_name"].unique()
+        q: columns_meta[columns_meta["question_name"] == q]
+        for q in columns_meta["question_name"].unique()
     }
 
     # Group by question_name
@@ -298,16 +313,13 @@ def generate_question_list(
 
         # Count responses per respondent
         responses_per_respondent = group.groupby("respondent_id").size()
-        max_responses = responses_per_respondent.max() if len(responses_per_respondent) > 0 else 0
+        max_responses = (
+            responses_per_respondent.max() if len(responses_per_respondent) > 0 else 0
+        )
 
         # Infer question type
         qtype, options, option_order_hint = _infer_question_type(
-            values,
-            n_subparts,
-            subparts,
-            max_responses,
-            group,
-            min_option_frequency
+            values, n_subparts, subparts, max_responses, group, min_option_frequency
         )
 
         derived_hints = {
@@ -320,7 +332,11 @@ def generate_question_list(
 
         question_meta = meta_by_question.get(qname)
         if question_meta is not None:
-            import_ids = [imp for imp in question_meta["import_id"].dropna().unique().tolist() if imp]
+            import_ids = [
+                imp
+                for imp in question_meta["import_id"].dropna().unique().tolist()
+                if imp
+            ]
             if import_ids:
                 derived_hints["import_ids"] = import_ids
             subpart_labels = question_meta["subpart"].dropna().tolist()
@@ -387,16 +403,19 @@ def _infer_question_type(
     if is_other_text and len(values) > 20:
         return "free_text", [], "no_options"
 
-    select_all_pattern = any(phrase in qtext for phrase in [
-        "select all that apply",
-        "check all that apply",
-        "choose all that apply",
-        "mark all that apply",
-        "select up to",
-        "choose up to",
-        "check up to",
-        "mark up to"
-    ])
+    select_all_pattern = any(
+        phrase in qtext
+        for phrase in [
+            "select all that apply",
+            "check all that apply",
+            "choose all that apply",
+            "mark all that apply",
+            "select up to",
+            "choose up to",
+            "check up to",
+            "mark up to",
+        ]
+    )
 
     # If "select all that apply" is detected, parse comma-separated values as checkbox options
     if select_all_pattern:
@@ -407,13 +426,14 @@ def _infer_question_type(
             val_str = str(val).strip()
             if val_str:
                 # Split by comma and clean up each option
-                options = [opt.strip() for opt in val_str.split(',') if opt.strip()]
+                options = [opt.strip() for opt in val_str.split(",") if opt.strip()]
                 for opt in options:
                     option_counts[opt] = option_counts.get(opt, 0) + 1
 
         # Filter options by minimum frequency
-        filtered_options = [opt for opt, count in option_counts.items()
-                          if count >= min_option_frequency]
+        filtered_options = [
+            opt for opt, count in option_counts.items() if count >= min_option_frequency
+        ]
 
         if filtered_options:
             # Checkbox questions don't have a separate "_with_other" type in EDSL
@@ -423,7 +443,9 @@ def _infer_question_type(
     if n_subparts > 1:
         # Check if responses are binary (checked/unchecked pattern)
         unique_vals = set(str(v).lower() for v in values)
-        is_binary = unique_vals.issubset({'1', '0', 'true', 'false', 'yes', 'no', 'checked', ''})
+        is_binary = unique_vals.issubset(
+            {"1", "0", "true", "false", "yes", "no", "checked", ""}
+        )
 
         if is_binary or len(values) <= 3:
             # Checkbox question - use subpart names as options
@@ -436,7 +458,9 @@ def _infer_question_type(
                     subpart_rows = group_df[group_df["subpart"] == subpart]
                     if len(subpart_rows) > 0:
                         # Get first actual checked value as the option label
-                        checked_vals = subpart_rows[subpart_rows["value"].notna()]["value"].unique()
+                        checked_vals = subpart_rows[subpart_rows["value"].notna()][
+                            "value"
+                        ].unique()
                         if len(checked_vals) > 0 and str(checked_vals[0]).strip():
                             options.append(str(checked_vals[0]))
                         else:
@@ -464,10 +488,16 @@ def _infer_question_type(
             unique_nums = sorted(set(numeric_vals))
 
             # Linear scale if: small range, integers, relatively few unique values
-            if (max_val - min_val <= 20 and
-                all(v == int(v) for v in numeric_vals) and
-                len(unique_nums) <= 11):
-                return "linear_scale", [str(int(v)) for v in unique_nums], "numeric_ascending"
+            if (
+                max_val - min_val <= 20
+                and all(v == int(v) for v in numeric_vals)
+                and len(unique_nums) <= 11
+            ):
+                return (
+                    "linear_scale",
+                    [str(int(v)) for v in unique_nums],
+                    "numeric_ascending",
+                )
     except Exception:
         pass
 
@@ -501,8 +531,9 @@ def _infer_question_type(
     if max_responses_per_respondent > 1:
         value_counts = group_df["value"].value_counts()
         # Filter by minimum frequency
-        filtered_values = [val for val, count in value_counts.items()
-                          if count >= min_option_frequency]
+        filtered_values = [
+            val for val, count in value_counts.items() if count >= min_option_frequency
+        ]
 
         if filtered_values:
             return "multiple_response", filtered_values, "frequency_desc"
@@ -513,8 +544,9 @@ def _infer_question_type(
     # Default to categorical with all unique values
     # Apply frequency filter for categorical as well
     value_counts = group_df["value"].value_counts()
-    filtered_values = [val for val, count in value_counts.items()
-                      if count >= min_option_frequency]
+    filtered_values = [
+        val for val, count in value_counts.items() if count >= min_option_frequency
+    ]
 
     if filtered_values and len(filtered_values) < len(values):
         # If we filtered some out, use the filtered list
@@ -553,9 +585,9 @@ def generate_respondent_answers(
     question_types = {}
 
     for q in questions:
-        raw_qname = q.get('raw_question_name')
-        py_qname = q.get('question_name')
-        qtype = q.get('question_type', 'unknown')
+        raw_qname = q.get("raw_question_name")
+        py_qname = q.get("question_name")
+        qtype = q.get("question_type", "unknown")
 
         # Store type using both keys in case one was popped
         if raw_qname:
@@ -572,7 +604,9 @@ def generate_respondent_answers(
         for raw_qname, q_group in resp_group.groupby("question_name"):
             # Convert raw name to Python identifier
             py_qname = _to_python_identifier(raw_qname)
-            qtype = question_types.get(raw_qname, question_types.get(py_qname, "unknown"))
+            qtype = question_types.get(
+                raw_qname, question_types.get(py_qname, "unknown")
+            )
 
             # Handle checkbox questions (comma-separated values or multiple selections)
             if qtype == "checkbox":
@@ -582,7 +616,9 @@ def generate_respondent_answers(
                     val_str = str(val).strip()
                     if val_str:
                         # Split by comma and collect all options
-                        selections = [opt.strip() for opt in val_str.split(',') if opt.strip()]
+                        selections = [
+                            opt.strip() for opt in val_str.split(",") if opt.strip()
+                        ]
                         all_selections.extend(selections)
                 # Deduplicate while preserving order
                 seen = set()
@@ -594,7 +630,10 @@ def generate_respondent_answers(
                 answers[py_qname] = unique_selections
 
             # Handle questions with multiple subparts
-            elif q_group["subpart"].notna().any() and len(q_group["subpart"].dropna().unique()) > 1:
+            elif (
+                q_group["subpart"].notna().any()
+                and len(q_group["subpart"].dropna().unique()) > 1
+            ):
                 # Create a dict with subpart keys
                 subpart_dict = {}
                 for _, row in q_group.iterrows():
@@ -609,9 +648,6 @@ def generate_respondent_answers(
                 if len(values) > 0:
                     answers[py_qname] = str(values.iloc[0])
 
-        respondents.append({
-            "respondent_id": str(respondent_id),
-            "answers": answers
-        })
+        respondents.append({"respondent_id": str(respondent_id), "answers": answers})
 
     return respondents

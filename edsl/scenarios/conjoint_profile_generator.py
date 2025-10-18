@@ -78,9 +78,9 @@ class ConjointProfileGenerator:
     def __init__(
         self,
         attribute_scenarios: ScenarioList,
-        attribute_field: str = 'attribute',
-        levels_field: str = 'levels',
-        random_seed: Optional[int] = None
+        attribute_field: str = "attribute",
+        levels_field: str = "levels",
+        random_seed: Optional[int] = None,
     ):
         """
         Initialize the ConjointProfileGenerator.
@@ -291,4 +291,5 @@ class ConjointProfileGenerator:
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

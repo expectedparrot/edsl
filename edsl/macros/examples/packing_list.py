@@ -133,8 +133,10 @@ from edsl.macros import Macro
 from edsl.macros import OutputFormatter
 
 markdown_viewer = (
-    OutputFormatter(description = "Markdown Viewer", output_type="markdown")
-    .select('answer.packing_checklist', 'answer.packing_tips', 'answer.weight_estimates')
+    OutputFormatter(description="Markdown Viewer", output_type="markdown")
+    .select(
+        "answer.packing_checklist", "answer.packing_tips", "answer.weight_estimates"
+    )
     .table(tablefmt="github")
     .flip()
     .to_string()
@@ -153,12 +155,13 @@ macro = Macro(
 
 if __name__ == "__main__":
     plan = macro.output(
-        params = {
-            'trip_duration': '1 week',
-            'destination': 'Paris',
-            'weather_conditions': 'sunny',
-            'planned_activities': 'sightseeing',
-            'travel_style': 'luxury',
-            'special_considerations': 'none',
+        params={
+            "trip_duration": "1 week",
+            "destination": "Paris",
+            "weather_conditions": "sunny",
+            "planned_activities": "sightseeing",
+            "travel_style": "luxury",
+            "special_considerations": "none",
         },
-        verbose=True)
+        verbose=True,
+    )
