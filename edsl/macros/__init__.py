@@ -1,4 +1,3 @@
-
 # Registry export
 
 # Backwards-compat shim: export removed classes as aliases to Macro

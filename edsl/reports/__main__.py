@@ -513,7 +513,6 @@ def generate(
         # Per-analysis output type prompts
         # -------------------------
 
-
         # Resolve which analyses we will run (use analyses_list or all combos)
         analyses_to_iterate = (
             analyses_list if analyses_list is not None else available_combos
