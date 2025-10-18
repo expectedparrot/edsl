@@ -983,8 +983,98 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             sorted=True, add_edsl_version=False
         )
 
-    def __repr__(self):
+    def __repr__(self, max_length: int = 100):
+        """Return a string representation of the AgentList.
+        
+        If the full representation would exceed max_length characters, returns a summary
+        showing the class name, number of agents, trait names, and preview values.
+        
+        Args:
+            max_length: Maximum length before switching to summary format (default: 100)
+        """
+        # Efficient check: estimate length without building full string
+        # If we have many agents or even one agent's repr is long, use summary
+        import os 
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+        else:
+            return self._summary_repr()
+    
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the AgentList.
+        
+        This representation can be used with eval() to recreate the AgentList object.
+        Used primarily for doctests and debugging.
+        """
         return f"AgentList({self.data})"
+
+    
+    def _summary_repr(self, max_preview_values: int = 3) -> str:
+        """Generate a summary representation of the AgentList with Rich formatting.
+        
+        Args:
+            max_preview_values: Maximum number of values to show per trait (default: 3)
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+        
+        trait_names = self.trait_keys
+        
+        # Check for codebook
+        codebook_dict = None
+        try:
+            codebook_dict = self.codebook
+            if codebook_dict is not None and len(codebook_dict) == 0:
+                codebook_dict = None
+        except (IndexError, AgentListError):
+            pass
+        
+        # Build the Rich text
+        output = Text()
+        output.append("AgentList(\n", style="bold cyan")
+        output.append(f"    num_agents={len(self)},\n", style="white")
+        output.append("    traits:\n", style="white")
+        
+        # Build unified trait lines with codebook and preview
+        for trait in trait_names[:20]:  # Show up to 20 traits
+            # Get example values
+            values = []
+            for agent in self.data[:max_preview_values]:
+                if trait in agent.traits:
+                    val = agent.traits[trait]
+                    values.append(repr(val))
+            
+            # Add ellipsis if there are more values
+            if len(self) > max_preview_values:
+                values.append("...")
+            
+            values_str = ", ".join(values)
+            
+            # Build the line with codebook description if available
+            if codebook_dict and trait in codebook_dict:
+                description = codebook_dict[trait]
+                output.append(f"        {trait}: ", style="bold yellow")
+                output.append(f"{repr(description)}\n", style="dim")
+                output.append(f"            → ", style="green")
+                output.append(f"[{values_str}]\n", style="white")
+            else:
+                output.append(f"        {trait}: ", style="bold yellow")
+                output.append(f"[{values_str}]\n", style="white")
+        
+        # Add ellipsis if there are more traits
+        if len(trait_names) > 20:
+            output.append(f"        ... ({len(trait_names) - 20} more traits)\n", style="dim")
+        
+        if len(trait_names) == 0:
+            output.append("        (no traits)\n", style="dim")
+        
+        output.append(")", style="bold cyan")
+        
+        # Render to string
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
 
     def _summary(self) -> dict:
         return {

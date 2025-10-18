@@ -2026,8 +2026,99 @@ class Jobs(Base):
         return await self._execute_with_remote_cache(run_job_async=True)
 
     def __repr__(self) -> str:
-        """Return an eval-able string representation of the Jobs instance."""
-        return f"Jobs(survey={repr(self.survey)}, agents={repr(self.agents)}, models={repr(self.models)}, scenarios={repr(self.scenarios)})"
+        """Return a string representation of the Jobs instance.
+        
+        Uses traditional repr format when running doctests, otherwise uses
+        rich-based display for better readability.
+        """
+        import os
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+        else:
+            return self._summary_repr()
+    
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the Jobs instance.
+        
+        This representation can be used with eval() to recreate the Jobs object.
+        Used primarily for doctests and debugging.
+        """
+        # Use _eval_repr_() on components to ensure eval-able representation
+        survey_repr = self.survey._eval_repr_() if hasattr(self.survey, '_eval_repr_') else repr(self.survey)
+        agents_repr = self.agents._eval_repr_() if hasattr(self.agents, '_eval_repr_') else repr(self.agents)
+        models_repr = self.models._eval_repr_() if hasattr(self.models, '_eval_repr_') else repr(self.models)
+        scenarios_repr = self.scenarios._eval_repr_() if hasattr(self.scenarios, '_eval_repr_') else repr(self.scenarios)
+        
+        return f"Jobs(survey={survey_repr}, agents={agents_repr}, models={models_repr}, scenarios={scenarios_repr})"
+    
+    def _summary_repr(self, max_items: int = 3) -> str:
+        """Generate a summary representation of the Jobs with Rich formatting.
+        
+        Args:
+            max_items: Maximum number of items to show in lists before truncating
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+        
+        # Build the Rich text
+        output = Text()
+        output.append("Jobs(\n", style="bold cyan")
+        output.append(f"    num_interviews={self.num_interviews},\n", style="white")
+        
+        # Survey information
+        if self.survey:
+            num_questions = len(self.survey.questions)
+            output.append(f"    survey: {num_questions} question{'s' if num_questions != 1 else ''},\n", style="yellow")
+            
+            # Show first few question names
+            if num_questions > 0:
+                question_names = [q.question_name for q in self.survey.questions[:max_items]]
+                if num_questions > max_items:
+                    question_names.append(f"... ({num_questions - max_items} more)")
+                output.append(f"        questions: {question_names},\n", style="dim")
+        
+        # Agents information
+        num_agents = len(self.agents) if self.agents else 0
+        output.append(f"    agents: {num_agents} agent{'s' if num_agents != 1 else ''},\n", style="green")
+        
+        if num_agents > 0 and hasattr(self.agents, 'trait_keys'):
+            trait_keys = self.agents.trait_keys[:max_items]
+            if len(self.agents.trait_keys) > max_items:
+                trait_keys.append(f"... ({len(self.agents.trait_keys) - max_items} more)")
+            if trait_keys:
+                output.append(f"        traits: {trait_keys},\n", style="dim")
+        
+        # Models information
+        num_models = len(self.models) if self.models else 0
+        output.append(f"    models: {num_models} model{'s' if num_models != 1 else ''},\n", style="magenta")
+        
+        if num_models > 0:
+            model_names = []
+            for model in list(self.models)[:max_items]:
+                model_name = getattr(model, 'model', getattr(model, '_model_', 'unknown'))
+                model_names.append(model_name)
+            if num_models > max_items:
+                model_names.append(f"... ({num_models - max_items} more)")
+            output.append(f"        models: {model_names},\n", style="dim")
+        
+        # Scenarios information
+        num_scenarios = len(self.scenarios) if self.scenarios else 0
+        output.append(f"    scenarios: {num_scenarios} scenario{'s' if num_scenarios != 1 else ''},\n", style="blue")
+        
+        if num_scenarios > 0 and hasattr(self.scenarios, 'parameters'):
+            params = list(self.scenarios.parameters)[:max_items]
+            if len(self.scenarios.parameters) > max_items:
+                params.append(f"... ({len(self.scenarios.parameters) - max_items} more)")
+            if params:
+                output.append(f"        parameters: {params},\n", style="dim")
+        
+        output.append(")", style="bold cyan")
+        
+        # Render to string
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
 
     def _summary(self):
         return {

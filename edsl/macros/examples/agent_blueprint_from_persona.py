@@ -1,3 +1,32 @@
+"""
+Agent Blueprint Creator from Persona
+
+This macro extracts dimensions from an existing persona description and creates
+an AgentBlueprint that can generate variations of similar personas.
+
+The AgentBlueprint is created using the to_agent_blueprint() method, which internally
+uses AgentBlueprint.from_scenario_list() to perform ETL operations on the LLM-generated
+dimension data.
+
+Alternative approaches for creating AgentBlueprints directly:
+    
+    # From explicit Dimension objects (cleanest)
+    from edsl.scenarios import AgentBlueprint, Dimension
+    
+    politics = Dimension(name="politics", description="Political leaning", 
+                        values=["left", "right", "center"])
+    age = Dimension(name="age", description="Age group", 
+                   values=["young", "old"])
+    
+    blueprint = AgentBlueprint.from_dimensions(politics, age, seed=42)
+    
+    # From a simple dictionary (quick)
+    blueprint = AgentBlueprint.from_dimensions_dict({
+        "politics": ["left", "right", "center"],
+        "age": ["young", "old"]
+    }, seed=42)
+"""
+
 from edsl.macros.macro import Macro
 from edsl.macros.output_formatter import OutputFormatter
 from edsl.surveys import Survey
@@ -8,7 +37,7 @@ from edsl.questions import QuestionList, QuestionFreeText, QuestionNumerical
 q_dimensions = QuestionList(
     question_name="dimensions",
     question_text="""
-Analyze the following persona or agent description and identify
+Analyze the following persona/agent description and identify
 the key dimensions that characterize this person:
 
 <persona_description>
@@ -19,7 +48,7 @@ the key dimensions that characterize this person:
 Additional context: {{ scenario.additional_details }}
 {% endif %}
 
-We will be getting more personas that are similarly rich. 
+We will be generating more personas that are similarly rich. 
 We want to extract dimensions that are generalizable to a wider range of personas.
 
 Extract dimensions like demographics (age, gender, location),
@@ -47,7 +76,16 @@ For example:
 - If dimension is "work preference": "Full-time contracts", "Part-time projects", "Hourly gigs"
 - If dimension is "specialization": "Web development", "Mobile apps", "Data analysis", "Design"
 
-Make the levels specific and realistic for creating a population with variation around this persona.""",
+Make the levels specific and realistic for creating a population with variation around this persona.
+
+{% if scenario.additional_details %}
+Please use the additional context to guide the level selection.
+Additional context: 
+<additional_context>
+{{ scenario.additional_details }}
+</additional_context>
+{% endif %}
+""",
 )
 
 # Ask for a concise machine-friendly dimension name
@@ -66,13 +104,11 @@ q_description = QuestionFreeText(
     question_name="dimension_description",
     question_text="""For this dimension: {{ scenario.dimensions }}
 
-Provide a brief 1-2 sentence description explaining what this dimension represents
-and why it's important for characterizing personas similar to the one provided.
-
+Provide a brief 1 sentence phrase explaining what this dimension represents.
 Example: "Represents the freelancer's preferred working arrangement and commitment level,
 which affects project selection and client relationships."
 
-Keep it concise but informative.""",
+Keep it concise.""",
 )
 
 # Build the jobs pipeline
@@ -102,6 +138,9 @@ initial_survey = Survey([
 ])
 
 # Output formatter to create AgentBlueprint
+# Note: to_agent_blueprint() internally uses AgentBlueprint.from_scenario_list()
+# which performs ETL operations to convert scenario data into Dimension objects.
+# For direct construction with Dimension objects, use AgentBlueprint.from_dimensions()
 output_formatter = (
     OutputFormatter(
         description="Agent Blueprint",

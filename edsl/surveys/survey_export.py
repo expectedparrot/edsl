@@ -103,8 +103,9 @@ class SurveyExport:
         self.to_scenario_list(questions_only=False, rename=True).print(format="rich")
 
     def to_scenario_list(
-        self, questions_only: bool = True, rename=False
+        self, questions_only: bool = True, rename=False, remove_jinja2_syntax: bool = False
     ) -> "ScenarioList":
+        import re
         from ..scenarios import ScenarioList, Scenario
 
         if questions_only:
@@ -127,6 +128,14 @@ class SurveyExport:
             d = item.to_dict()
             if item.__class__.__name__ == "Instruction":
                 d["question_type"] = "NA / instruction"
+            
+            # Remove Jinja2 syntax from question_text if requested
+            if remove_jinja2_syntax and "question_text" in d:
+                # Remove {{ }} brackets and their contents, preserving spacing
+                d["question_text"] = re.sub(r'\s*\{\{.*?\}\}\s*', ' ', d["question_text"])
+                # Clean up extra whitespace that may result from removal
+                d["question_text"] = ' '.join(d["question_text"].split()).strip()
+            
             for key in renaming_dict:
                 if key in d:
                     d[renaming_dict[key]] = d.pop(key)

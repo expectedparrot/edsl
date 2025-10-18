@@ -1,3 +1,38 @@
+"""
+Agent Blueprint Creator from Population Description
+
+This macro creates an AgentBlueprint by identifying relevant dimensions for a
+specified population (e.g., "Experienced Upwork freelancers").
+
+The AgentBlueprint is created using the to_agent_blueprint() method, which internally
+uses AgentBlueprint.from_scenario_list() to perform ETL operations on the LLM-generated
+dimension data.
+
+Alternative approaches for creating AgentBlueprints directly:
+    
+    # From explicit Dimension objects (cleanest, most control)
+    from edsl.scenarios import AgentBlueprint, Dimension
+    
+    experience = Dimension(
+        name="experience_level",
+        description="Years of freelancing experience",
+        values=["Beginner (0-1 years)", "Intermediate (2-5 years)", "Expert (5+ years)"]
+    )
+    specialization = Dimension(
+        name="specialization", 
+        description="Primary skill area",
+        values=["Web development", "Mobile apps", "Data analysis", "Design"]
+    )
+    
+    blueprint = AgentBlueprint.from_dimensions(experience, specialization, seed=42)
+    
+    # From a simple dictionary (quick prototyping)
+    blueprint = AgentBlueprint.from_dimensions_dict({
+        "experience_level": ["Beginner", "Intermediate", "Expert"],
+        "specialization": ["Web dev", "Mobile", "Data", "Design"]
+    }, seed=42)
+"""
+
 from edsl.macros.macro import Macro
 from edsl.macros.output_formatter import OutputFormatter
 from edsl.surveys import Survey
@@ -92,6 +127,9 @@ initial_survey = Survey([
 ])
 
 # Output formatter to create AgentBlueprint
+# Note: to_agent_blueprint() internally uses AgentBlueprint.from_scenario_list()
+# which performs ETL operations to convert scenario data into Dimension objects.
+# This is the appropriate method when dimensions are generated dynamically by LLMs.
 output_formatter = (
     OutputFormatter(
         description="Agent Blueprint",

@@ -1,3 +1,33 @@
+"""
+Persona Generator
+
+This macro generates synthetic personas by analyzing survey questions and
+creating an AgentBlueprint with appropriate dimensions and trait levels.
+
+The AgentBlueprint is created using the to_agent_blueprint() method, which internally
+uses AgentBlueprint.from_scenario_list() to perform ETL operations on the LLM-generated
+dimension data, including probability weights for each level.
+
+Alternative approaches for creating AgentBlueprints directly:
+    
+    # From explicit Dimension objects with weights
+    from edsl.scenarios import AgentBlueprint, Dimension
+    
+    age = Dimension(
+        name="age_range",
+        description="Age bracket of respondent",
+        values=[
+            ("18-24", 0.15),    # (value, weight)
+            ("25-34", 0.25),
+            ("35-44", 0.25),
+            ("45-54", 0.20),
+            ("55+", 0.15)
+        ]
+    )
+    
+    blueprint = AgentBlueprint.from_dimensions(age, seed=42)
+"""
+
 from edsl.macros.macro import Macro
 from edsl.macros.output_formatter import OutputFormatter, SurveyAttachmentFormatter
 
@@ -10,7 +40,8 @@ import textwrap
 q = QuestionList(
     question_name="dimensions",
     question_text=textwrap.dedent("""\
-What dimensions of a person would you need to know to predict how they  would answer this question: {{ scenario.question_text }}?
+What dimensions of a person would you need to know to predict how they  would answer this question: 
+{{ scenario.question_text }}?
 These dimensions should be thinks that could have 'levels' or 'values' that someone could have.
 E.g., age, gender, education, income, location, industry, company size, etc.
 Return only the dimensions that are relevant to the question.
@@ -66,10 +97,19 @@ q_probs = QuestionList(
 <dimension>
 {{ scenario.dimensions }}.
 </dimension>
-The associated levels were: {{ levels.answer }}.
-Estimate, as best you can, the probability that a random person would have that value for this dimension.
-E.g., if dimensions were 'sex' and levels were 'male' and 'female', 
-the probabilities to return would be [0.5, 0.5] as males and females are equally likely.
+The associated levels are: {{ levels.answer }}.
+
+You MUST estimate the probability (as a decimal number between 0 and 1) that a random person would have each level for this dimension.
+
+CRITICAL: Return ONLY numeric decimal values (like 0.5, 0.25, 0.1), NOT letters or categories.
+The probabilities should roughly sum to 1.0 and be in the SAME ORDER as the levels listed above.
+
+Examples of CORRECT responses:
+- If levels are ['male', 'female'], return [0.5, 0.5]
+- If levels are ['18-24', '25-34', '35-44', '45-54', '55+'], return [0.15, 0.25, 0.25, 0.20, 0.15]
+- If levels are ['high school', 'bachelor', 'master', 'doctorate'], return [0.30, 0.45, 0.20, 0.05]
+
+Return a list of NUMERIC decimals only, no text explanations.
 """,
 )
 
@@ -111,6 +151,18 @@ initial_survey = Survey([
 ])
 
 # Output an AgentBlueprint using the answers
+# Note: to_agent_blueprint() internally uses AgentBlueprint.from_scenario_list()
+# This method handles the ETL process including probability weights (dimension_probs_field)
+# which are used for weighted sampling when creating agents.
+
+# Debug formatter to see the data before agent_blueprint conversion
+debug_scenario_list = (OutputFormatter(
+        description="Debug ScenarioList (before agent_blueprint)",
+        output_type="edsl_object"
+    )
+    .select("scenario.*", "answer.*")
+    .to_scenario_list()
+)
 
 agent_blueprint = (OutputFormatter(
         description="Agent Blueprint",
@@ -118,7 +170,6 @@ agent_blueprint = (OutputFormatter(
     )
     .select("scenario.*", "answer.*")
     .to_scenario_list()
-    .slice('1:')
     .to_agent_blueprint(
         dimension_name_field="dimension_name",
         dimension_values_field="levels",
@@ -152,6 +203,41 @@ markdown_formatter = (
 
 raw = OutputFormatter(description="Raw results")
 
+# Debug table to inspect the data
+debug_table = (
+    OutputFormatter(
+        description="Debug Table (dimension data)",
+        output_type="markdown"
+    )
+    .select("scenario.*", "answer.*")
+    .to_scenario_list()
+    .select("dimension_name", "levels", "probs", "dimension_description")
+    .table(tablefmt="github")
+    .to_string()
+)
+
+# Debug: show all fields in the scenario list
+debug_fields = (
+    OutputFormatter(
+        description="Debug: All fields in ScenarioList",
+        output_type="markdown"
+    )
+    .select("scenario.*", "answer.*")
+    .to_scenario_list()
+    .table(tablefmt="github")
+    .to_string()
+)
+
+# Debug: Validate probs are numeric
+debug_probs_validation = (
+    OutputFormatter(
+        description="Debug: Validate probs field types",
+        output_type="edsl_object"
+    )
+    .select("scenario.*", "answer.*")
+    .to_scenario_list()
+)
+
 macro = Macro(
     application_name="create_personas",
     display_name="Persona Generator",
@@ -164,11 +250,16 @@ macro = Macro(
         'agent_list_markdown': agent_list_markdown,
         'agent_blueprint': agent_blueprint,
         'agent_list_rich': agent_list_rich,
+        'debug_scenario_list': debug_scenario_list,
+        'debug_table': debug_table,
+        'debug_fields': debug_fields,
+        'debug_probs_validation': debug_probs_validation,
+        'raw': raw,
         },
     default_formatter_name="agent_blueprint",
     attachment_formatters=[
         # Convert the passed Survey into a ScenarioList and attach as scenarios
-        SurveyAttachmentFormatter(description="Survey->ScenarioList").to_scenario_list()
+        SurveyAttachmentFormatter(description="Survey->ScenarioList").to_scenario_list(remove_jinja2_syntax=True)
     ],
 )
 
@@ -180,4 +271,27 @@ if __name__ == "__main__":
         'input_survey': survey,
         'n': 10,
     })
+    
+    # Validate probs are numeric before trying to create agent_blueprint
+    print("\n=== Validating probs field ===")
+    sl = output.debug_probs_validation
+    for i, scenario in enumerate(sl):
+        dim_name = scenario.get('dimension_name', f'unknown_{i}')
+        probs = scenario.get('probs', [])
+        levels = scenario.get('levels', [])
+        
+        print(f"\nDimension: {dim_name}")
+        print(f"  Levels ({len(levels)}): {levels[:3]}..." if len(levels) > 3 else f"  Levels: {levels}")
+        print(f"  Probs ({len(probs)}): {probs[:3]}..." if len(probs) > 3 else f"  Probs: {probs}")
+        
+        # Check if all probs are numeric
+        non_numeric = [p for p in probs if not isinstance(p, (int, float))]
+        if non_numeric:
+            print(f"  ⚠️  WARNING: Found non-numeric probs: {non_numeric}")
+        
+        # Check if lengths match
+        if len(probs) != len(levels):
+            print(f"  ⚠️  WARNING: Mismatch - {len(levels)} levels but {len(probs)} probs")
+    
+    print("\n=== Creating agent blueprint ===")
     print(output.agent_list_rich)

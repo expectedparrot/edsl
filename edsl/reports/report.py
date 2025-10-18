@@ -46,6 +46,42 @@ class WriteupResult:
         self._report = report
         self._output_obj = output_obj
     
+    def _repr_mimebundle_(self, include=None, exclude=None):
+        """
+        Return a MIME bundle with multiple representations.
+        
+        This allows Jupyter and other platforms to choose the best representation.
+        For Altair charts, this includes the Vega-Lite spec.
+        """
+        bundle = {}
+        
+        # Try to get the Vega-Lite spec if this is an Altair chart
+        if hasattr(self.chart, 'to_dict'):
+            try:
+                vega_spec = self.chart.to_dict()
+                # Determine the schema version
+                schema = vega_spec.get('$schema', '')
+                if 'v5' in schema:
+                    mime_type = 'application/vnd.vegalite.v5+json'
+                elif 'v4' in schema:
+                    mime_type = 'application/vnd.vegalite.v4+json'
+                elif 'v3' in schema:
+                    mime_type = 'application/vnd.vegalite.v3+json'
+                else:
+                    mime_type = 'application/vnd.vegalite.v2+json'
+                
+                bundle[mime_type] = vega_spec
+            except:
+                pass
+        
+        # Always include HTML as fallback
+        bundle['text/html'] = self._repr_html_()
+        
+        # Include plain text representation
+        bundle['text/plain'] = repr(self)
+        
+        return bundle
+    
     def _repr_html_(self):
         """Return HTML representation showing chart and analysis."""
         html_parts = []
@@ -173,6 +209,44 @@ class OutputWrapper:
         if self._chart is None:
             self._chart = self._output_obj.output()
         return self._chart
+    
+    def _repr_mimebundle_(self, include=None, exclude=None):
+        """
+        Return a MIME bundle with multiple representations of the chart.
+        
+        This allows Jupyter and other platforms (like Coop) to choose the best
+        representation. For Altair charts, this includes the Vega-Lite spec which
+        can be rendered without JavaScript.
+        """
+        chart = self.chart
+        bundle = {}
+        
+        # Try to get the Vega-Lite spec if this is an Altair chart
+        if hasattr(chart, 'to_dict'):
+            try:
+                vega_spec = chart.to_dict()
+                # Determine the schema version
+                schema = vega_spec.get('$schema', '')
+                if 'v5' in schema:
+                    mime_type = 'application/vnd.vegalite.v5+json'
+                elif 'v4' in schema:
+                    mime_type = 'application/vnd.vegalite.v4+json'
+                elif 'v3' in schema:
+                    mime_type = 'application/vnd.vegalite.v3+json'
+                else:
+                    mime_type = 'application/vnd.vegalite.v2+json'
+                
+                bundle[mime_type] = vega_spec
+            except:
+                pass
+        
+        # Always include HTML as fallback
+        bundle['text/html'] = self._repr_html_()
+        
+        # Include plain text representation
+        bundle['text/plain'] = repr(self)
+        
+        return bundle
     
     def _repr_html_(self):
         """Return HTML representation for Jupyter display."""
