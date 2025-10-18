@@ -649,16 +649,25 @@ class Scenario(Base, UserDict):
         """
         return "Scenario(" + repr(self.data) + ")"
     
-    def _summary_repr(self, max_items: int = 5, max_value_length: int = 50) -> str:
+    def _summary_repr(self, max_items: int = 100, max_value_length: Optional[int] = None) -> str:
         """Generate a summary representation of the Scenario with Rich formatting.
         
         Args:
             max_items: Maximum number of key-value pairs to show before truncating
-            max_value_length: Maximum length of a value before truncating
+            max_value_length: Maximum length of a value before truncating. If None, uses terminal width.
         """
         from rich.console import Console
         from rich.text import Text
         import io
+        import shutil
+        
+        # Get terminal width
+        terminal_width = shutil.get_terminal_size().columns
+        
+        # Use terminal width for max_value_length if not specified
+        # Reserve some space for the key name and formatting (about 20 chars)
+        if max_value_length is None:
+            max_value_length = max(terminal_width - 20, 50)
         
         # Build the Rich text
         output = Text()
@@ -688,8 +697,8 @@ class Scenario(Base, UserDict):
         
         output.append(")", style="bold cyan")
         
-        # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        # Render to string using actual terminal width
+        console = Console(file=io.StringIO(), force_terminal=True, width=terminal_width)
         console.print(output, end="")
         return console.file.getvalue()
 
