@@ -80,16 +80,26 @@ class Notebook(Base):
 
         :param data: A dictionary representing the notebook data.
         This dictionary must conform to the official Jupyter Notebook format, as defined by nbformat.
+        Cell outputs (including Altair charts, plots, and other visualizations) are preserved.
         :param path: A filepath from which to load the notebook.
         If no path is provided, assume this code is run in a notebook and try to load the current notebook from file.
         :param name: A name for the Notebook.
         :param lint: Whether to lint Python code cells using ruff. Defaults to True.
+        
+        Note: When loading from a file, make sure the notebook has been saved after executing cells
+        to ensure all outputs (especially graphics) are captured. Jupyter only saves cell outputs
+        to the .ipynb file when you save the notebook.
         """
         import nbformat
 
         # Load current notebook path as fallback (VS Code only)
         current_notebook_path = globals().get("__vsc_ipynb_file__")
+        
+        # Store the source path for potential reloading
+        self._source_path = None
+        
         if path is not None:
+            self._source_path = path
             with open(path, mode="r", encoding="utf-8") as f:
                 data = nbformat.read(f, as_version=4)
             self.data = json.loads(json.dumps(data))
@@ -97,6 +107,7 @@ class Notebook(Base):
             nbformat.validate(data)
             self.data = data
         elif current_notebook_path is not None:
+            self._source_path = current_notebook_path
             with open(current_notebook_path, mode="r", encoding="utf-8") as f:
                 data = nbformat.read(f, as_version=4)
             self.data = json.loads(json.dumps(data))
@@ -190,6 +201,91 @@ class Notebook(Base):
 
         return dict_hash(self.data["cells"])
 
+    def reload(self) -> None:
+        """
+        Reload the notebook data from the source file.
+        
+        This is useful when you've executed cells and saved the notebook,
+        and want to pick up the new outputs (like Altair charts) without
+        creating a new Notebook object.
+        
+        :raises ValueError: If the notebook was not loaded from a file
+        
+        Example:
+            >>> nb = Notebook()  # Load current notebook
+            >>> # ... execute cells and save notebook ...
+            >>> nb.reload()  # Pick up new outputs
+            >>> nb.push()  # Now push with outputs included
+        """
+        import nbformat
+        
+        if self._source_path is None:
+            raise ValueError(
+                "Cannot reload: this notebook was not loaded from a file. "
+                "Only notebooks created with a path or from the current notebook can be reloaded."
+            )
+        
+        # Reload from the source file
+        with open(self._source_path, mode="r", encoding="utf-8") as f:
+            data = nbformat.read(f, as_version=4)
+        self.data = json.loads(json.dumps(data))
+        
+        # Re-apply linting if enabled
+        if self.lint and self.data and "cells" in self.data:
+            for cell in self.data["cells"]:
+                if cell.get("cell_type") == "code" and "source" in cell:
+                    cell["source"] = self._lint_code(cell["source"])
+    
+    def has_outputs(self) -> bool:
+        """
+        Check if the notebook has any cell outputs.
+        
+        :return: True if at least one code cell has outputs, False otherwise
+        """
+        if not self.data or "cells" not in self.data:
+            return False
+        
+        for cell in self.data["cells"]:
+            if cell.get("cell_type") == "code" and cell.get("outputs"):
+                return True
+        return False
+    
+    def push(
+        self,
+        description: Optional[str] = None,
+        alias: Optional[str] = None,
+        visibility: Optional[str] = "unlisted",
+        expected_parrot_url: Optional[str] = None,
+    ) -> dict:
+        """
+        Push the notebook to Coop.
+        
+        Note: Make sure to save your notebook before pushing to ensure all cell outputs 
+        (including Altair charts and other visualizations) are included. If the notebook
+        hasn't been saved after executing cells, the outputs won't be captured.
+        
+        :param description: Optional description for the notebook
+        :param alias: Optional alias for the notebook
+        :param visibility: Visibility setting (default: "unlisted")
+        :param expected_parrot_url: Optional custom URL for the coop service
+        :return: Response dictionary from the push operation
+        """
+        import warnings
+        
+        # Warn if notebook appears to have no outputs
+        if not self.has_outputs():
+            warnings.warn(
+                "This notebook does not appear to have any cell outputs. "
+                "If you have executed cells with outputs (like Altair charts), "
+                "make sure to save the notebook file before creating the Notebook object. "
+                "Cell outputs are only captured when the notebook file is saved.",
+                UserWarning,
+                stacklevel=2
+            )
+        
+        # Call the parent class push method
+        return super().push(description, alias, visibility, expected_parrot_url)
+    
     def to_dict(self, add_edsl_version=False) -> dict:
         """
         Serialize to a dictionary.

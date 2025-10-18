@@ -630,7 +630,68 @@ class Scenario(Base, UserDict):
         return self._cached_hash
 
     def __repr__(self):
+        """Return a string representation of the Scenario.
+        
+        Uses traditional repr format when running doctests, otherwise uses
+        rich-based display for better readability.
+        """
+        import os
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+        else:
+            return self._summary_repr()
+    
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the Scenario.
+        
+        This representation can be used with eval() to recreate the Scenario object.
+        Used primarily for doctests and debugging.
+        """
         return "Scenario(" + repr(self.data) + ")"
+    
+    def _summary_repr(self, max_items: int = 5, max_value_length: int = 50) -> str:
+        """Generate a summary representation of the Scenario with Rich formatting.
+        
+        Args:
+            max_items: Maximum number of key-value pairs to show before truncating
+            max_value_length: Maximum length of a value before truncating
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+        
+        # Build the Rich text
+        output = Text()
+        output.append("Scenario(\n", style="bold cyan")
+        
+        num_keys = len(self.data)
+        if num_keys > 0:
+            output.append(f"    num_keys={num_keys},\n", style="white")
+            output.append("    data={\n", style="white")
+            
+            for i, (key, value) in enumerate(list(self.data.items())[:max_items]):
+                # Format the value with truncation if needed
+                value_repr = repr(value)
+                if len(value_repr) > max_value_length:
+                    value_repr = value_repr[:max_value_length-3] + "..."
+                
+                output.append(f"        ", style="white")
+                output.append(f"'{key}'", style="bold yellow")
+                output.append(f": {value_repr},\n", style="white")
+            
+            if num_keys > max_items:
+                output.append(f"        ... ({num_keys - max_items} more)\n", style="dim")
+            
+            output.append("    }\n", style="white")
+        else:
+            output.append("    data={}\n", style="dim")
+        
+        output.append(")", style="bold cyan")
+        
+        # Render to string
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
 
     def __getattr__(self, name: str) -> Any:
         """Allow accessing scenario values using dot notation.

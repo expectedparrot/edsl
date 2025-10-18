@@ -959,8 +959,91 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __repr__(self):
+    def __repr__(self, max_length: int = 100):
+        """Return a string representation of the ScenarioList.
+        
+        If the full representation would exceed max_length characters, returns a summary
+        showing the class name, number of scenarios, parameter names, and preview values.
+        
+        Args:
+            max_length: Maximum length before switching to summary format (default: 100)
+        """
+        import os 
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+        else:
+            return self._summary_repr()
+    
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the ScenarioList.
+        
+        This representation can be used with eval() to recreate the ScenarioList object.
+        Used primarily for doctests and debugging.
+        """
         return f"ScenarioList({list(self.data)})"
+
+    def _summary_repr(self, max_preview_values: int = 3) -> str:
+        """Generate a summary representation of the ScenarioList with Rich formatting.
+        
+        Args:
+            max_preview_values: Maximum number of values to show per parameter (default: 3)
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+        
+        param_names = list(self.parameters)
+        
+        # Check for codebook
+        codebook_dict = None
+        if hasattr(self, 'codebook') and self.codebook:
+            codebook_dict = self.codebook
+        
+        # Build the Rich text
+        output = Text()
+        output.append("ScenarioList(\n", style="bold cyan")
+        output.append(f"    num_scenarios={len(self)},\n", style="white")
+        output.append("    parameters:\n", style="white")
+        
+        # Build unified parameter lines with codebook and preview
+        for param in param_names[:20]:  # Show up to 20 parameters
+            # Get example values
+            values = []
+            for scenario in self.data[:max_preview_values]:
+                if param in scenario:
+                    val = scenario[param]
+                    values.append(repr(val))
+            
+            # Add ellipsis if there are more values
+            if len(self) > max_preview_values:
+                values.append("...")
+            
+            values_str = ", ".join(values)
+            
+            # Build the line with codebook description if available
+            if codebook_dict and param in codebook_dict:
+                description = codebook_dict[param]
+                output.append(f"        {param}: ", style="bold yellow")
+                output.append(f"{repr(description)}\n", style="dim")
+                output.append(f"            → ", style="green")
+                output.append(f"[{values_str}]\n", style="white")
+            else:
+                output.append(f"        {param}: ", style="bold yellow")
+                output.append(f"[{values_str}]\n", style="white")
+        
+        # Add ellipsis if there are more parameters
+        if len(param_names) > 20:
+            output.append(f"        ... ({len(param_names) - 20} more parameters)\n", style="dim")
+        
+        if len(param_names) == 0:
+            output.append("        (no parameters)\n", style="dim")
+        
+        output.append(")", style="bold cyan")
+        
+        # Render to string
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
 
     def __mul__(self, other: ScenarioList) -> ScenarioList:
         """Takes the cross product of two ScenarioLists.
@@ -2462,10 +2545,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             dimension_name_field: Field name to read the dimension name from.
             dimension_values_field: Field name to read the dimension values from.
             dimension_description_field: Optional field name for the dimension description.
+            dimension_probs_field: Optional field name for probability weights.
         """
         from .agent_blueprint import AgentBlueprint
 
-        return AgentBlueprint(
+        return AgentBlueprint.from_scenario_list(
             self,
             seed=seed,
             cycle=cycle,

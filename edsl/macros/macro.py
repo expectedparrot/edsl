@@ -1129,17 +1129,112 @@ class Macro(MacroMixin, Base):
         }) for q in self.initial_survey])
 
     def __repr__(self) -> str:
-        return self._repr_summary()
-
-    def _repr_summary(self) -> str:
+        """Return a string representation of the Macro.
+        
+        Uses traditional repr format when running doctests, otherwise uses
+        rich-based display for better readability.
+        """
+        import os
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+        else:
+            return self._summary_repr()
+    
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the Macro.
+        
+        This representation provides a simplified view suitable for doctests.
+        Used primarily for doctests and debugging.
+        """
         cls_name = self.__class__.__name__
-        job_cls = getattr(self.jobs_object, "__class__").__name__
-        num_questions = len(list(self.initial_survey))
-        head_param_count = len(getattr(self.jobs_object, "head_parameters", []) or [])
-        fmt_names_list = list(getattr(self.output_formatters, "mapping", {}).keys())
-        fmt_names = ", ".join(fmt_names_list[:8]) + (
-            "..." if len(fmt_names_list) > 8 else ""
+        return (
+            f"{cls_name}(application_name='{self.application_name}', "
+            f"display_name='{self.display_name}', "
+            f"short_description='{self.short_description[:50]}...', "
+            f"...)"
         )
+    
+    def _summary_repr(self, max_formatters: int = 5, max_params: int = 5) -> str:
+        """Generate a summary representation of the Macro with Rich formatting.
+        
+        Args:
+            max_formatters: Maximum number of formatters to show before truncating
+            max_params: Maximum number of parameters to show before truncating
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+        
+        # Build the Rich text
+        output = Text()
+        cls_name = self.__class__.__name__
+        
+        output.append(f"{cls_name}(\n", style="bold cyan")
+        
+        # Application info
+        output.append(f"    application_name=", style="white")
+        output.append(f"'{self.application_name}'", style="yellow")
+        output.append(",\n", style="white")
+        
+        output.append(f"    display_name=", style="white")
+        output.append(f"'{self.display_name}'", style="green")
+        output.append(",\n", style="white")
+        
+        # Short description (truncate if too long)
+        desc = self.short_description
+        if len(desc) > 60:
+            desc = desc[:57] + "..."
+        output.append(f"    short_description=", style="white")
+        output.append(f"'{desc}'", style="cyan")
+        output.append(",\n", style="white")
+        
+        # Application type - use getattr to get the actual class attribute value
+        app_type = getattr(self.__class__, "application_type", "base")
+        if not isinstance(app_type, str):
+            app_type = self.__class__.__name__
+        output.append(f"    application_type=", style="white")
+        output.append(f"'{app_type}'", style="magenta")
+        output.append(",\n", style="white")
+        
+        # Parameters
+        param_names = [p['question_name'] for p in self.parameters]
+        num_params = len(param_names)
+        output.append(f"    num_parameters={num_params}", style="white")
+        
+        if num_params > 0:
+            output.append(",\n    parameters=[", style="white")
+            for i, name in enumerate(param_names[:max_params]):
+                output.append(f"'{name}'", style="bold yellow")
+                if i < min(num_params, max_params) - 1:
+                    output.append(", ", style="white")
+            if num_params > max_params:
+                output.append(f", ... ({num_params - max_params} more)", style="dim")
+            output.append("]", style="white")
+        
+        output.append(",\n", style="white")
+        
+        # Jobs info
+        job_cls = getattr(self.jobs_object, "__class__").__name__ if self.jobs_object else "None"
+        output.append(f"    job_type=", style="white")
+        output.append(f"'{job_cls}'", style="blue")
+        output.append(",\n", style="white")
+        
+        # Formatters
+        fmt_names_list = list(getattr(self.output_formatters, "mapping", {}).keys())
+        num_formatters = len(fmt_names_list)
+        output.append(f"    num_formatters={num_formatters}", style="white")
+        
+        if num_formatters > 0:
+            output.append(",\n    formatters=[", style="white")
+            for i, name in enumerate(fmt_names_list[:max_formatters]):
+                output.append(f"'{name}'", style="yellow")
+                if i < min(num_formatters, max_formatters) - 1:
+                    output.append(", ", style="white")
+            if num_formatters > max_formatters:
+                output.append(f", ... ({num_formatters - max_formatters} more)", style="dim")
+            output.append("]", style="white")
+        
+        # Default formatter
         try:
             default_fmt_obj = (
                 getattr(self.output_formatters, "default", None)
@@ -1153,26 +1248,17 @@ class Macro(MacroMixin, Base):
             )
         except Exception:
             default_fmt = "<none>"
-        attach_names_list = [
-            getattr(f, "name", f.__class__.__name__)
-            for f in (self.attachment_formatters or [])
-        ]
-        attach_names = ", ".join(attach_names_list[:8]) + (
-            "..." if len(attach_names_list) > 8 else ""
-        )
-        app_type = self.application_type
         
-        # Get parameter names for compact repr
-        param_names = [p['question_name'] for p in self.parameters]
-        params_str = f"[{', '.join(repr(name) for name in param_names)}]"
-
-        return (
-            f"{cls_name}(application_name='{self.application_name}', display_name='{self.display_name}', "
-            f"short_description='{self.short_description}', "
-            f"application_type='{app_type}', parameters={params_str}, job='{job_cls}', "
-            f"survey_questions={num_questions}, head_params={head_param_count}, "
-            f"formatters=[{fmt_names}], default_formatter='{default_fmt}', attachments=[{attach_names}])"
-        )
+        if default_fmt != "<none>":
+            output.append(",\n    default_formatter=", style="white")
+            output.append(f"'{default_fmt}'", style="bold green")
+        
+        output.append("\n)", style="bold cyan")
+        
+        # Render to string
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
 
     @staticmethod
     def _convert_markdown_to_html(md_text: str) -> str:

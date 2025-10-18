@@ -542,7 +542,106 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     @ensure_ready
     def __repr__(self) -> str:
+        """Return a string representation of the Results.
+        
+        Uses traditional repr format when running doctests, otherwise uses
+        rich-based display for better readability.
+        """
+        import os
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+        else:
+            return self._summary_repr()
+    
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the Results.
+        
+        This representation can be used with eval() to recreate the Results object.
+        Used primarily for doctests and debugging.
+        """
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
+
+    def _summary_repr(self, max_text_preview: int = 60, max_items: int = 5) -> str:
+        """Generate a summary representation of the Results with Rich formatting.
+        
+        Args:
+            max_text_preview: Maximum characters to show for question text previews
+            max_items: Maximum number of items to show in lists before truncating
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+        
+        # Build the Rich text
+        output = Text()
+        output.append("Results(\n", style="bold cyan")
+        output.append(f"    num_observations={len(self)},\n", style="white")
+        output.append(f"    num_agents={len(set(self.agents))},\n", style="white")
+        output.append(f"    num_models={len(set(self.models))},\n", style="white")
+        output.append(f"    num_scenarios={len(set(self.scenarios))},\n", style="white")
+        
+        # Show agent traits
+        if len(self.agents) > 0:
+            agent_keys = self.agent_keys
+            if agent_keys:
+                output.append("    agent_traits: [", style="white")
+                # Filter out internal fields
+                trait_keys = [k for k in agent_keys if not k.startswith('agent_')]
+                if trait_keys:
+                    output.append(f"{', '.join(repr(k) for k in trait_keys[:max_items])}", style="yellow")
+                    if len(trait_keys) > max_items:
+                        output.append(f", ... ({len(trait_keys) - max_items} more)", style="dim")
+                output.append("],\n", style="white")
+        
+        # Show scenario fields
+        if len(self.scenarios) > 0:
+            scenario_keys = self.scenario_keys
+            if scenario_keys:
+                output.append("    scenario_fields: [", style="white")
+                # Filter out internal fields
+                field_keys = [k for k in scenario_keys if not k.startswith('scenario_')]
+                if field_keys:
+                    output.append(f"{', '.join(repr(k) for k in field_keys[:max_items])}", style="magenta")
+                    if len(field_keys) > max_items:
+                        output.append(f", ... ({len(field_keys) - max_items} more)", style="dim")
+                output.append("],\n", style="white")
+        
+        # Show question information with text previews
+        if self.survey and hasattr(self.survey, 'questions'):
+            questions = self.survey.questions
+            output.append(f"    num_questions={len(questions)},\n", style="white")
+            output.append("    questions: [\n", style="white")
+            
+            # Show up to max_items questions with text previews
+            for question in questions[:max_items]:
+                q_name = question.question_name
+                q_text = question.question_text
+                
+                # Truncate text if too long
+                if len(q_text) > max_text_preview:
+                    q_text = q_text[:max_text_preview] + "..."
+                
+                output.append(f"        ", style="white")
+                output.append(f"'{q_name}'", style="bold yellow")
+                output.append(f": ", style="white")
+                output.append(f'"{q_text}"', style="dim")
+                output.append(",\n", style="white")
+            
+            if len(questions) > max_items:
+                output.append(f"        ... ({len(questions) - max_items} more)\n", style="dim")
+            
+            output.append("    ],\n", style="white")
+        
+        # Show created columns if any
+        if self.created_columns:
+            output.append(f"    created_columns={self.created_columns}\n", style="green")
+        
+        output.append(")", style="bold cyan")
+        
+        # Render to string
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
 
     def table(
         self,
