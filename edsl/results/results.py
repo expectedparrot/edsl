@@ -1250,17 +1250,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         return self._grouper.bucket_by(*columns)
 
-    # def augmented_agents(self, *fields) -> "AgentList":
-    #     """Convert the results to an agent list."""
-    #     if len(self.agents) != len(self.data):
-    #         raise ResultsError("Cannot convert results to agent list when there are multiple observations per agent.")
-
-    #     new_agent_list = self.agents.copy()
-    #     for field in fields:
-    #         breakpoint()
-    #         new_agent_list = new_agent_list.add_trait(field, self.select(field))
-    #     return new_agent_list
-
     @ensure_ready
     def augmented_agents(
         self,
@@ -1296,7 +1285,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> survey = Survey([q1, q2])
             >>> agents = [Agent(name="Alice"), Agent(name="Bob")]
             >>> m = LanguageModel.example(test_model=True, canned_response="Blue")
-            >>> results = survey.by(agents).by(m).run()
+            >>> results = survey.by(agents).by(m).run(disable_remote_inference=True)
             >>> augmented_agents = results.augmented_agents("color", "food")
             >>> len(augmented_agents) == len(agents)
             True
