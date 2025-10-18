@@ -7,10 +7,14 @@ from pathlib import Path
 def run_doctest(module_path):
     """Run doctest on a single module and return the result."""
     try:
+        import os
+        env = os.environ.copy()
+        env["EDSL_RUNNING_DOCTESTS"] = "True"
         result = subprocess.run(
             ["pytest", "--doctest-modules", str(module_path)],
             capture_output=True,
-            text=True
+            text=True,
+            env=env
         )
         return {
             "module": module_path,
