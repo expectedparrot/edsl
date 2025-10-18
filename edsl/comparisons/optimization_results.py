@@ -6,7 +6,6 @@ results from the AgentOptimizer optimization process.
 """
 
 
-
 class OptimizationResults:
     """Container for AgentOptimizer results with convenient access methods.
 
