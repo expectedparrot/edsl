@@ -61,11 +61,13 @@ class MacroRegistry:
             # Macro.parameters returns a ScenarioList
             parameters = getattr(macro, "parameters", [])
             scenarios.append(
-                Scenario({
-                    "name": name,
-                    "description": description,
-                    "parameters": parameters,
-                })
+                Scenario(
+                    {
+                        "name": name,
+                        "description": description,
+                        "parameters": parameters,
+                    }
+                )
             )
         return ScenarioList(scenarios)
 
@@ -145,12 +147,12 @@ class MacroRegistry:
         if hasattr(mod, "__path__"):
             # Walk packages and modules under this package
             prefix = mod.__name__ + "."
-            for finder, name, ispkg in pkgutil.walk_packages(getattr(mod, "__path__"), prefix=prefix):
+            for finder, name, ispkg in pkgutil.walk_packages(
+                getattr(mod, "__path__"), prefix=prefix
+            ):
                 submodule = importlib.import_module(name)
                 _load_module(submodule)
         else:
             _load_module(mod)
 
-        #return loaded_names
-
-
+        # return loaded_names

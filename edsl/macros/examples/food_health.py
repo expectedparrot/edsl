@@ -16,7 +16,7 @@ q = QuestionMultipleChoice(
 
 macro = Macro.create_ranking_macro(
     ranking_question=q,
-    option_fields=['food_1', 'food_2'],
+    option_fields=["food_1", "food_2"],
     application_name="food_health_ranking",
     display_name="Food Health Ranking",
     short_description="Ranks foods from healthiest to least healthy using pairwise comparisons.",
@@ -47,5 +47,3 @@ sl = ScenarioList.from_list(
 if __name__ == "__main__":
     ranked = macro.output({"input_items": sl})
     print(ranked)
-
-

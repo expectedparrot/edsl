@@ -1,28 +1,22 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional, Any, TypedDict, Union, List, Mapping
+from typing import TYPE_CHECKING, Optional, Any, TypedDict, Mapping
 import re
 from html import escape
-from pathlib import Path
-from abc import ABC
 
 from functools import wraps
 
-from ..scenarios import Scenario, ScenarioList
+from ..scenarios import Scenario
 from ..surveys import Survey
-from ..agents import AgentList
 from ..base import Base
 
 if TYPE_CHECKING:
-    from ..scenarios import ScenarioList
     from ..surveys import Survey
     from ..jobs import Jobs
     from ..results import Results
-    from ..agents import AgentList
     from .head_attachments import HeadAttachments
 
 from .output_formatter import OutputFormatter, OutputFormatters
 from .api_payload import build_api_payload, reconstitute_from_api_payload
-from .macro_param_preparer import MacroParamPreparer
 from .answers_collector import AnswersCollector
 from .macro_html_renderer import MacroHTMLRenderer
 from .macro_run_output import MacroRunOutput
@@ -64,7 +58,6 @@ def disabled_in_client_mode(method):
 
 
 class MacroMixin:
-
     @staticmethod
     def _resolve_macro_identifier(
         macro_id_or_qualified_name: str, server_url: str = "http://localhost:8000"
@@ -78,12 +71,18 @@ class MacroMixin:
         Returns:
             The resolved macro_id.
         """
-        if isinstance(macro_id_or_qualified_name, str) and "/" in macro_id_or_qualified_name:
+        if (
+            isinstance(macro_id_or_qualified_name, str)
+            and "/" in macro_id_or_qualified_name
+        ):
             parts = macro_id_or_qualified_name.split("/", 1)
             if len(parts) == 2:
                 try:
                     from .macro_server_client import MacroServerClient
-                    return MacroServerClient.resolve_macro_id(macro_id_or_qualified_name, server_url=server_url)
+
+                    return MacroServerClient.resolve_macro_id(
+                        macro_id_or_qualified_name, server_url=server_url
+                    )
                 except Exception:
                     # Fall back to treating input as a macro_id if resolution fails
                     pass
@@ -91,7 +90,10 @@ class MacroMixin:
 
     @classmethod
     def list(
-        cls, server_url: str = "http://localhost:8000", search: Optional[str] = None, owner: Optional[str] = None
+        cls,
+        server_url: str = "http://localhost:8000",
+        search: Optional[str] = None,
+        owner: Optional[str] = None,
     ) -> list[dict]:
         """List all macros from a FastAPI server.
 
@@ -110,68 +112,90 @@ class MacroMixin:
         from ..scenarios import ScenarioList
 
         class AvailableMacros(ScenarioList):
-
             def fetch(self, id: int):
                 macro_id = self[id].get("macro_id")
                 return Macro.from_id(macro_id)
 
-        macros_data = MacroServerClient.list_macros(server_url=server_url, search=search, owner=owner)
+        macros_data = MacroServerClient.list_macros(
+            server_url=server_url, search=search, owner=owner
+        )
 
         # Handle both old and new field structures
         normalized_macros = []
         for macro_data in macros_data:
             # Convert old structure to new structure if needed
-            if 'name' in macro_data and 'description' in macro_data:
+            if "name" in macro_data and "description" in macro_data:
                 # Old structure - convert to new
-                name_data = macro_data['name']
-                desc_data = macro_data['description']
+                name_data = macro_data["name"]
+                desc_data = macro_data["description"]
 
                 if isinstance(name_data, dict):
-                    macro_data['application_name'] = name_data.get('alias', 'unknown_macro')
-                    macro_data['display_name'] = name_data.get('name', 'Unknown Macro')
+                    macro_data["application_name"] = name_data.get(
+                        "alias", "unknown_macro"
+                    )
+                    macro_data["display_name"] = name_data.get("name", "Unknown Macro")
                 else:
-                    macro_data['application_name'] = str(name_data).lower().replace(' ', '_')
-                    macro_data['display_name'] = str(name_data)
+                    macro_data["application_name"] = (
+                        str(name_data).lower().replace(" ", "_")
+                    )
+                    macro_data["display_name"] = str(name_data)
 
                 if isinstance(desc_data, dict):
-                    macro_data['short_description'] = desc_data.get('short', 'No description available.')
-                    macro_data['long_description'] = desc_data.get('long', desc_data.get('short', 'No description available.'))
+                    macro_data["short_description"] = desc_data.get(
+                        "short", "No description available."
+                    )
+                    macro_data["long_description"] = desc_data.get(
+                        "long", desc_data.get("short", "No description available.")
+                    )
                 else:
                     desc_str = str(desc_data)
-                    macro_data['short_description'] = desc_str
-                    macro_data['long_description'] = desc_str
+                    macro_data["short_description"] = desc_str
+                    macro_data["long_description"] = desc_str
 
                 # Remove old fields
-                macro_data.pop('name', None)
-                macro_data.pop('description', None)
+                macro_data.pop("name", None)
+                macro_data.pop("description", None)
             # If it's already the new structure, ensure all required fields exist
-            elif 'application_name' in macro_data:
+            elif "application_name" in macro_data:
                 # New structure - ensure all fields exist
-                if 'display_name' not in macro_data:
-                    macro_data['display_name'] = macro_data.get('application_name', 'Unknown Macro')
-                if 'short_description' not in macro_data:
-                    macro_data['short_description'] = 'No description available.'
-                if 'long_description' not in macro_data:
-                    macro_data['long_description'] = macro_data.get('short_description', 'No description available.')
+                if "display_name" not in macro_data:
+                    macro_data["display_name"] = macro_data.get(
+                        "application_name", "Unknown Macro"
+                    )
+                if "short_description" not in macro_data:
+                    macro_data["short_description"] = "No description available."
+                if "long_description" not in macro_data:
+                    macro_data["long_description"] = macro_data.get(
+                        "short_description", "No description available."
+                    )
 
             normalized_macros.append(macro_data)
 
-        sl = AvailableMacros(
-            Scenario.from_dict(s) for s in normalized_macros
+        sl = AvailableMacros(Scenario.from_dict(s) for s in normalized_macros)
+        return sl.select(
+            "qualified_name",
+            "application_name",
+            "display_name",
+            "short_description",
+            "long_description",
         )
-        return sl.select('qualified_name', 'application_name', 'display_name', 'short_description', 'long_description')
 
     @classmethod
-    def full_info(cls, macro_id_or_qualified_name: str, server_url: str = "http://localhost:8000") -> dict:
+    def full_info(
+        cls, macro_id_or_qualified_name: str, server_url: str = "http://localhost:8000"
+    ) -> dict:
         """Get full information about a macro."""
-        resolved_macro_id = cls._resolve_macro_identifier(macro_id_or_qualified_name, server_url)
+        resolved_macro_id = cls._resolve_macro_identifier(
+            macro_id_or_qualified_name, server_url
+        )
         d = Macro.from_id(resolved_macro_id, server_url).to_dict()
-        d.pop('jobs_object')
-        d.pop('output_formatters')
-        d.pop('attachment_formatters')
-        survey = Survey.from_dict(d.pop('initial_survey'))
-        d['params'] = {q.question_name: q.question_text for q in survey.questions}
+        d.pop("jobs_object")
+        d.pop("output_formatters")
+        d.pop("attachment_formatters")
+        survey = Survey.from_dict(d.pop("initial_survey"))
+        d["params"] = {q.question_name: q.question_text for q in survey.questions}
         from ..scenarios import Scenario
+
         return Scenario(d)
 
     @classmethod
@@ -196,7 +220,7 @@ class MacroMixin:
         """
         # Import locally to avoid cycles
         from ..surveys import Survey
-        from ..questions import QuestionFreeText, QuestionList
+        from ..questions import QuestionFreeText
         from ..language_models.model import Model
         from .output_formatter import OutputFormatter
 
@@ -236,7 +260,7 @@ class MacroMixin:
             output_formatters={"echo": echo_formatter},
             default_formatter_name="echo",
         )
-    
+
     @classmethod
     def delete(
         cls,
@@ -262,24 +286,36 @@ class MacroMixin:
         from .macro_server_client import MacroServerClient
 
         # Extract owner from qualified name if not explicitly provided
-        if owner is None and isinstance(macro_id_or_qualified_name, str) and "/" in macro_id_or_qualified_name:
+        if (
+            owner is None
+            and isinstance(macro_id_or_qualified_name, str)
+            and "/" in macro_id_or_qualified_name
+        ):
             parts = macro_id_or_qualified_name.split("/", 1)
             if len(parts) == 2:
                 owner = parts[0]
 
-        resolved_macro_id = cls._resolve_macro_identifier(macro_id_or_qualified_name, server_url)
+        resolved_macro_id = cls._resolve_macro_identifier(
+            macro_id_or_qualified_name, server_url
+        )
         try:
-            return MacroServerClient.delete_macro(resolved_macro_id, server_url=server_url, owner=owner)
+            return MacroServerClient.delete_macro(
+                resolved_macro_id, server_url=server_url, owner=owner
+            )
         except Exception as e:
             from .exceptions import FailedToDeleteMacroError
-            raise FailedToDeleteMacroError(f"Failed to delete macro {macro_id_or_qualified_name}: {e}") from e
+
+            raise FailedToDeleteMacroError(
+                f"Failed to delete macro {macro_id_or_qualified_name}: {e}"
+            ) from e
 
 
 class ClientFacingMacro(MacroMixin):
-
     def __new__(cls, macro_id_or_qualified_name: Optional[str] = None, **config):
         if macro_id_or_qualified_name:
-            resolved_macro_id = cls._resolve_macro_identifier(macro_id_or_qualified_name)
+            resolved_macro_id = cls._resolve_macro_identifier(
+                macro_id_or_qualified_name
+            )
             return Macro.from_id(resolved_macro_id)
         else:
             return Macro(**config)
@@ -291,7 +327,6 @@ class ClientFacingMacro(MacroMixin):
 
 
 class Macro(MacroMixin, Base):
-
     # Subclass registry managed via descriptor
     _registry = MacroTypeRegistryDescriptor()
 
@@ -392,12 +427,12 @@ class Macro(MacroMixin, Base):
         self.client_mode = client_mode
 
     @classmethod
-    def from_id(cls, macro_id: str, server_url: str = "http://localhost:8000") -> "Macro":
+    def from_id(
+        cls, macro_id: str, server_url: str = "http://localhost:8000"
+    ) -> "Macro":
         """Create a macro from a given macro_id or qualified name 'owner/alias'."""
         # Lazy imports to avoid cycles
         from .macro_server_client import MacroServerClient
-        from .output_formatter import OutputFormatters, ObjectFormatter
-        from .stub_job import StubJob
 
         resolved_macro_id = cls._resolve_macro_identifier(macro_id, server_url)
 
@@ -407,7 +442,7 @@ class Macro(MacroMixin, Base):
         # Inject a minimal StubJob dict so from_dict can deserialize it
         if not data.get("jobs_object"):
             data["jobs_object"] = {"return_type": "survey"}
-        data['client_mode'] = True
+        data["client_mode"] = True
         macro = cls.from_dict(data)
         macro.macro_id = resolved_macro_id
         return macro
@@ -420,7 +455,13 @@ class Macro(MacroMixin, Base):
         return d
 
     @disabled_in_client_mode
-    def deploy(self, server_url: str = "http://localhost:8000", owner: str = "johnjhorton", source_available: bool = False, force: bool = False) -> str:
+    def deploy(
+        self,
+        server_url: str = "http://localhost:8000",
+        owner: str = "johnjhorton",
+        source_available: bool = False,
+        force: bool = False,
+    ) -> str:
         """Deploy this macro to a FastAPI server.
 
         Args:
@@ -438,7 +479,13 @@ class Macro(MacroMixin, Base):
         """
         from .macro_server_client import MacroServerClient
 
-        return MacroServerClient.deploy(self, server_url=server_url, owner=owner, source_available=source_available, force=force)
+        return MacroServerClient.deploy(
+            self,
+            server_url=server_url,
+            owner=owner,
+            source_available=source_available,
+            force=force,
+        )
 
     def __call__(self, **kwargs: Any) -> Any:
         """Call the macro with the given parameters."""
@@ -486,11 +533,10 @@ class Macro(MacroMixin, Base):
 
     def by(self, params: Scenario | dict) -> Any:
         """
-        Use 
+        Use
         """
         self._set_params = dict(params)
         return self
-
 
     def run(self, **kwargs: Any) -> Any:
         """
@@ -534,11 +580,11 @@ class Macro(MacroMixin, Base):
 
     def _serialize_params(self, params: ParamsDict | None) -> dict:
         """Serialize params by calling to_dict on objects that have that attribute.
-        
-        This method handles the serialization of EDSL objects (Scenario, ScenarioList, 
-        Survey, Agent, etc.) for transmission to remote servers. Objects with a 'to_dict' 
+
+        This method handles the serialization of EDSL objects (Scenario, ScenarioList,
+        Survey, Agent, etc.) for transmission to remote servers. Objects with a 'to_dict'
         method are wrapped with metadata to enable reconstruction on the server side.
-        
+
         Server-side usage:
             On the server, use _deserialize_params to reconstruct the original objects
             before calling the macro's output method:
@@ -548,10 +594,10 @@ class Macro(MacroMixin, Base):
             deserialized_params = macro._deserialize_params(serialized_params)
             result = macro.output(params=deserialized_params, ...)
             ```
-        
+
         Args:
             params: The parameters to serialize
-            
+
         Returns:
             Dictionary with serialized parameters. EDSL objects are wrapped with:
             - '__edsl_object__': True (marker)
@@ -561,72 +607,73 @@ class Macro(MacroMixin, Base):
         """
         if params is None:
             return {}
-        
+
         serialized = {}
         for key, value in params.items():
-            if hasattr(value, 'to_dict'):
+            if hasattr(value, "to_dict"):
                 # Serialize EDSL objects (Scenario, ScenarioList, Survey, Agent, etc.)
                 serialized[key] = {
-                    '__edsl_object__': True,
-                    '__edsl_type__': value.__class__.__name__,
-                    '__edsl_module__': value.__class__.__module__,
-                    'data': value.to_dict()
+                    "__edsl_object__": True,
+                    "__edsl_type__": value.__class__.__name__,
+                    "__edsl_module__": value.__class__.__module__,
+                    "data": value.to_dict(),
                 }
             else:
                 # Keep primitive types as-is
                 serialized[key] = value
-        
+
         return serialized
 
     def _deserialize_params(self, serialized_params: dict) -> ParamsDict:
         """Deserialize params by reconstructing EDSL objects from their serialized form.
-        
+
         Args:
             serialized_params: The serialized parameters
-            
+
         Returns:
             Dictionary with deserialized parameters
         """
         if not serialized_params:
             return {}
-        
+
         deserialized = {}
         for key, value in serialized_params.items():
-            if isinstance(value, dict) and value.get('__edsl_object__'):
+            if isinstance(value, dict) and value.get("__edsl_object__"):
                 # Reconstruct EDSL object
-                obj_type = value['__edsl_type__']
-                obj_module = value['__edsl_module__']
-                obj_data = value['data']
-                
+                obj_type = value["__edsl_type__"]
+                obj_module = value["__edsl_module__"]
+                obj_data = value["data"]
+
                 try:
                     # Import the module and get the class
                     import importlib
+
                     module = importlib.import_module(obj_module)
                     obj_class = getattr(module, obj_type)
-                    
+
                     # Reconstruct the object
                     deserialized[key] = obj_class.from_dict(obj_data)
-                except (ImportError, AttributeError, TypeError) as e:
+                except (ImportError, AttributeError, TypeError):
                     # If reconstruction fails, keep the serialized data
                     # This provides graceful degradation
                     deserialized[key] = value
             else:
                 # Keep primitive types as-is
                 deserialized[key] = value
-        
+
         return deserialized
 
     def _test_serialization_roundtrip(self, params: ParamsDict | None) -> bool:
         """Test that serialization and deserialization preserves the original params.
-        
+
         This method is useful for debugging and ensuring the round trip works correctly.
-        
+
         Args:
             params: The parameters to test
-            
+
         Returns:
             True if the round trip preserves the original params, False otherwise
-            
+
         Example:
             >>> macro = Macro.example()
             >>> test_params = {"text": "hello", "number": 42}
@@ -635,20 +682,20 @@ class Macro(MacroMixin, Base):
         """
         if params is None:
             return True
-            
+
         try:
             # Serialize and then deserialize
             serialized = self._serialize_params(params)
             deserialized = self._deserialize_params(serialized)
-            
+
             # Compare the results
             # For EDSL objects, we need to compare their dict representations
             # since object identity won't be preserved
             for key in params:
                 original = params[key]
                 restored = deserialized[key]
-                
-                if hasattr(original, 'to_dict') and hasattr(restored, 'to_dict'):
+
+                if hasattr(original, "to_dict") and hasattr(restored, "to_dict"):
                     # Compare EDSL objects by their dict representation
                     if original.to_dict() != restored.to_dict():
                         return False
@@ -656,7 +703,7 @@ class Macro(MacroMixin, Base):
                     # Compare primitive types directly
                     if original != restored:
                         return False
-            
+
             return True
         except Exception:
             return False
@@ -681,7 +728,9 @@ class Macro(MacroMixin, Base):
         # before calling the macro's output method
         serialized_params = self._serialize_params(params)
 
-        target_macro_id = macro_id or MacroServerClient.deploy(self, server_url=server_url, owner="johnjhorton")
+        target_macro_id = macro_id or MacroServerClient.deploy(
+            self, server_url=server_url, owner="johnjhorton"
+        )
         exec_resp = MacroServerClient.execute_macro(
             target_macro_id,
             serialized_params,
@@ -1122,27 +1171,36 @@ class Macro(MacroMixin, Base):
     def parameters(self):
         """Return ScenarioList of parameter info derived from the initial survey."""
         from ..scenarios.scenario_list import ScenarioList
-        return ScenarioList([Scenario({
-            'question_name': q.question_name,
-            'question_type': q.question_type,
-            'question_text': q.question_text
-        }) for q in self.initial_survey])
+
+        return ScenarioList(
+            [
+                Scenario(
+                    {
+                        "question_name": q.question_name,
+                        "question_type": q.question_type,
+                        "question_text": q.question_text,
+                    }
+                )
+                for q in self.initial_survey
+            ]
+        )
 
     def __repr__(self) -> str:
         """Return a string representation of the Macro.
-        
+
         Uses traditional repr format when running doctests, otherwise uses
         rich-based display for better readability.
         """
         import os
+
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
         else:
             return self._summary_repr()
-    
+
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the Macro.
-        
+
         This representation provides a simplified view suitable for doctests.
         Used primarily for doctests and debugging.
         """
@@ -1153,10 +1211,10 @@ class Macro(MacroMixin, Base):
             f"short_description='{self.short_description[:50]}...', "
             f"...)"
         )
-    
+
     def _summary_repr(self, max_formatters: int = 5, max_params: int = 5) -> str:
         """Generate a summary representation of the Macro with Rich formatting.
-        
+
         Args:
             max_formatters: Maximum number of formatters to show before truncating
             max_params: Maximum number of parameters to show before truncating
@@ -1164,43 +1222,43 @@ class Macro(MacroMixin, Base):
         from rich.console import Console
         from rich.text import Text
         import io
-        
+
         # Build the Rich text
         output = Text()
         cls_name = self.__class__.__name__
-        
+
         output.append(f"{cls_name}(\n", style="bold cyan")
-        
+
         # Application info
-        output.append(f"    application_name=", style="white")
+        output.append("    application_name=", style="white")
         output.append(f"'{self.application_name}'", style="yellow")
         output.append(",\n", style="white")
-        
-        output.append(f"    display_name=", style="white")
+
+        output.append("    display_name=", style="white")
         output.append(f"'{self.display_name}'", style="green")
         output.append(",\n", style="white")
-        
+
         # Short description (truncate if too long)
         desc = self.short_description
         if len(desc) > 60:
             desc = desc[:57] + "..."
-        output.append(f"    short_description=", style="white")
+        output.append("    short_description=", style="white")
         output.append(f"'{desc}'", style="cyan")
         output.append(",\n", style="white")
-        
+
         # Application type - use getattr to get the actual class attribute value
         app_type = getattr(self.__class__, "application_type", "base")
         if not isinstance(app_type, str):
             app_type = self.__class__.__name__
-        output.append(f"    application_type=", style="white")
+        output.append("    application_type=", style="white")
         output.append(f"'{app_type}'", style="magenta")
         output.append(",\n", style="white")
-        
+
         # Parameters
-        param_names = [p['question_name'] for p in self.parameters]
+        param_names = [p["question_name"] for p in self.parameters]
         num_params = len(param_names)
         output.append(f"    num_parameters={num_params}", style="white")
-        
+
         if num_params > 0:
             output.append(",\n    parameters=[", style="white")
             for i, name in enumerate(param_names[:max_params]):
@@ -1210,20 +1268,24 @@ class Macro(MacroMixin, Base):
             if num_params > max_params:
                 output.append(f", ... ({num_params - max_params} more)", style="dim")
             output.append("]", style="white")
-        
+
         output.append(",\n", style="white")
-        
+
         # Jobs info
-        job_cls = getattr(self.jobs_object, "__class__").__name__ if self.jobs_object else "None"
-        output.append(f"    job_type=", style="white")
+        job_cls = (
+            getattr(self.jobs_object, "__class__").__name__
+            if self.jobs_object
+            else "None"
+        )
+        output.append("    job_type=", style="white")
         output.append(f"'{job_cls}'", style="blue")
         output.append(",\n", style="white")
-        
+
         # Formatters
         fmt_names_list = list(getattr(self.output_formatters, "mapping", {}).keys())
         num_formatters = len(fmt_names_list)
         output.append(f"    num_formatters={num_formatters}", style="white")
-        
+
         if num_formatters > 0:
             output.append(",\n    formatters=[", style="white")
             for i, name in enumerate(fmt_names_list[:max_formatters]):
@@ -1231,9 +1293,11 @@ class Macro(MacroMixin, Base):
                 if i < min(num_formatters, max_formatters) - 1:
                     output.append(", ", style="white")
             if num_formatters > max_formatters:
-                output.append(f", ... ({num_formatters - max_formatters} more)", style="dim")
+                output.append(
+                    f", ... ({num_formatters - max_formatters} more)", style="dim"
+                )
             output.append("]", style="white")
-        
+
         # Default formatter
         try:
             default_fmt_obj = (
@@ -1248,13 +1312,13 @@ class Macro(MacroMixin, Base):
             )
         except Exception:
             default_fmt = "<none>"
-        
+
         if default_fmt != "<none>":
             output.append(",\n    default_formatter=", style="white")
             output.append(f"'{default_fmt}'", style="bold green")
-        
+
         output.append("\n)", style="bold cyan")
-        
+
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
         console.print(output, end="")
@@ -1389,9 +1453,6 @@ class Macro(MacroMixin, Base):
             pass
 
         # Local imports to avoid any potential import cycles
-        from typing import (
-            Sequence as _Sequence,
-        )  # noqa: F401  (type hints only via annotations)
         from ..surveys import Survey
         from ..questions import QuestionEDSLObject  # for initial input
         from .output_formatter import OutputFormatter, ScenarioAttachmentFormatter
@@ -1411,8 +1472,10 @@ class Macro(MacroMixin, Base):
         return cls(
             application_name=application_name or "ranking_macro",
             display_name=display_name or "Ranking Macro",
-            short_description=short_description or "A macro that ranks items via pairwise comparisons.",
-            long_description=long_description or "A macro that ranks items via pairwise comparisons using a survey-based approach.",
+            short_description=short_description
+            or "A macro that ranks items via pairwise comparisons.",
+            long_description=long_description
+            or "A macro that ranks items via pairwise comparisons using a survey-based approach.",
             initial_survey=Survey(
                 [
                     QuestionEDSLObject(
@@ -1444,7 +1507,6 @@ class Macro(MacroMixin, Base):
         return MacroRemote.push(
             self, visibility=visibility, description=description, alias=alias
         )
-
 
 
 if __name__ == "__main__":

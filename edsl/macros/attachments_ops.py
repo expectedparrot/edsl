@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Callable, Any
+from typing import Callable
 
 from .head_attachments import HeadAttachments
 
@@ -30,7 +30,10 @@ class AttachmentOps:
 
 # ---- Built-in ops ----
 
-def op_clear(attachments: HeadAttachments, params: dict, *, dest: str) -> HeadAttachments:
+
+def op_clear(
+    attachments: HeadAttachments, params: dict, *, dest: str
+) -> HeadAttachments:
     if dest == "scenario":
         attachments.scenario = None
     elif dest == "survey":
@@ -42,7 +45,9 @@ def op_clear(attachments: HeadAttachments, params: dict, *, dest: str) -> HeadAt
     return attachments
 
 
-def op_move(attachments: HeadAttachments, params: dict, *, src: str, dest: str) -> HeadAttachments:
+def op_move(
+    attachments: HeadAttachments, params: dict, *, src: str, dest: str
+) -> HeadAttachments:
     value = None
     if src == "scenario":
         value = attachments.scenario
@@ -67,7 +72,9 @@ def op_move(attachments: HeadAttachments, params: dict, *, src: str, dest: str) 
     return attachments
 
 
-def op_set_from_param(attachments: HeadAttachments, params: dict, *, dest: str, param: str) -> HeadAttachments:
+def op_set_from_param(
+    attachments: HeadAttachments, params: dict, *, dest: str, param: str
+) -> HeadAttachments:
     if param not in params:
         raise ValueError(f"Param '{param}' not found for set_from_param")
     value = params[param]
@@ -82,17 +89,23 @@ def op_set_from_param(attachments: HeadAttachments, params: dict, *, dest: str, 
     return attachments
 
 
-def op_filestore_to_scenario_list(attachments: HeadAttachments, params: dict, *, path_param: str) -> HeadAttachments:
+def op_filestore_to_scenario_list(
+    attachments: HeadAttachments, params: dict, *, path_param: str
+) -> HeadAttachments:
     from ..scenarios import FileStore
 
     if path_param not in params:
-        raise ValueError(f"Param '{path_param}' not found for filestore_to_scenario_list")
+        raise ValueError(
+            f"Param '{path_param}' not found for filestore_to_scenario_list"
+        )
     fs = FileStore(path=params[path_param])
     attachments.scenario = fs.to_scenario_list()
     return attachments
 
 
-def op_question_to_survey(attachments: HeadAttachments, params: dict, *, param: str) -> HeadAttachments:
+def op_question_to_survey(
+    attachments: HeadAttachments, params: dict, *, param: str
+) -> HeadAttachments:
     if param not in params:
         raise ValueError(f"Param '{param}' not found for question_to_survey")
     q = params[param]
@@ -106,5 +119,3 @@ AttachmentOps.register("move", op_move)
 AttachmentOps.register("set_from_param", op_set_from_param)
 AttachmentOps.register("filestore_to_scenario_list", op_filestore_to_scenario_list)
 AttachmentOps.register("question_to_survey", op_question_to_survey)
-
-

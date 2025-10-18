@@ -42,6 +42,7 @@ APP_FILES = [
     "variant_creator",
 ]
 
+
 def delete_existing_app(app_name):
     """Delete an app from the server if it exists."""
     try:
@@ -54,13 +55,16 @@ def delete_existing_app(app_name):
 
                 if stored_name == app_name:
                     print(f"  Deleting existing app with ID: {app_meta['app_id']}")
-                    delete_response = requests.delete(f"{SERVER_URL}/apps/{app_meta['app_id']}")
+                    delete_response = requests.delete(
+                        f"{SERVER_URL}/apps/{app_meta['app_id']}"
+                    )
                     if delete_response.status_code == 200:
-                        print(f"  ✓ Deleted successfully")
+                        print("  ✓ Deleted successfully")
                     return True
     except Exception as e:
         print(f"  Error checking/deleting existing app: {e}")
     return False
+
 
 def load_app(module_name):
     """Load an app module and push it to the server."""
@@ -74,12 +78,12 @@ def load_app(module_name):
         module = importlib.import_module(full_module_name)
 
         # Get the app object
-        if not hasattr(module, 'app'):
+        if not hasattr(module, "app"):
             print(f"  ⚠ No 'app' object found in {module_name}, skipping")
             return False
 
         app = module.app
-        
+
         # Use new simple string fields
         display_name = app.display_name
         display_desc = app.short_description
@@ -89,8 +93,10 @@ def load_app(module_name):
         print(f"  Short description: {display_desc}")
         print(f"  Output formatters: {list(app.output_formatters.mapping.keys())}")
         # CompositeApp doesn't have attachment_formatters
-        if hasattr(app, 'attachment_formatters'):
-            print(f"  Attachment formatters: {len(list(app.attachment_formatters or []))}")
+        if hasattr(app, "attachment_formatters"):
+            print(
+                f"  Attachment formatters: {len(list(app.attachment_formatters or []))}"
+            )
         else:
             print(f"  App type: {getattr(app, 'application_type', 'unknown')}")
 
@@ -98,18 +104,19 @@ def load_app(module_name):
         delete_existing_app(app.application_name)
 
         # Push the app
-        print(f"  Pushing to server...")
+        print("  Pushing to server...")
 
         # First, convert to dict
         try:
             app_dict = app.to_dict()
-            print(f"  ✓ Serialized app to dict")
+            print("  ✓ Serialized app to dict")
         except Exception as e:
             print(f"  ✗ Failed to serialize: {e}")
             raise
 
         # Then, post to server
         import json
+
         try:
             # Test JSON serialization before sending
             json_str = json.dumps(app_dict)
@@ -132,6 +139,7 @@ def load_app(module_name):
         print(f"  ✗ Error loading {module_name}: {e}")
         return False
 
+
 def main():
     """Load all apps."""
     print(f"Loading {len(APP_FILES)} apps to {SERVER_URL}")
@@ -147,12 +155,13 @@ def main():
             fail_count += 1
 
     print(f"\n{'='*60}")
-    print(f"SUMMARY")
+    print("SUMMARY")
     print(f"{'='*60}")
     print(f"Total apps: {len(APP_FILES)}")
     print(f"Successfully loaded: {success_count}")
     print(f"Failed: {fail_count}")
     print(f"{'='*60}\n")
+
 
 if __name__ == "__main__":
     main()

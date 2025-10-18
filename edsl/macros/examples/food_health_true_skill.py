@@ -11,15 +11,12 @@ with TrueSkill ratings and ranks.
 q = QuestionMultipleChoice(
     question_name="rank_food_batch",
     question_text="Please rank these foods from healthiest to least healthy:",
-    question_options=[
-        "{{ scenario.food_1 }}",
-        "{{ scenario.food_2 }}"
-    ],
+    question_options=["{{ scenario.food_1 }}", "{{ scenario.food_2 }}"],
 )
 
 macro = create_true_skill_macro(
     ranking_question=q,
-    option_fields=['food_1', 'food_2'],
+    option_fields=["food_1", "food_2"],
     application_name="food_health_trueskill",
     description="Ranks foods from healthiest to least healthy using TrueSkill algorithm with pairwise comparisons.",
     option_base="food",

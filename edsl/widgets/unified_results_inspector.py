@@ -42,12 +42,12 @@ class UnifiedResultsInspectorWidget(InspectorWidget):
         self.results_data = {}
         self.paginated_results = {}
         self.analysis_data = {}
-        
+
         super().__init__(obj, **kwargs)
 
         # Set up observers for frontend requests
         self.observe(self._on_pagination_change, names=["current_page", "page_size"])
-        
+
         # If object was provided, ensure data processing happens
         if obj is not None:
             print(f"🚀 Widget initialized with {type(obj)} object")
@@ -69,10 +69,10 @@ class UnifiedResultsInspectorWidget(InspectorWidget):
             return
 
         results = self.object
-        
+
         # Get data - try self.data first (from base class), fall back to to_dict
         results_dict = self.data
-        if not results_dict and hasattr(results, 'to_dict'):
+        if not results_dict and hasattr(results, "to_dict"):
             try:
                 print("   - Trying to get data via to_dict(full_dict=True)...")
                 results_dict = results.to_dict(full_dict=True)
@@ -80,7 +80,7 @@ class UnifiedResultsInspectorWidget(InspectorWidget):
                 print(f"   - Got data with keys: {list(results_dict.keys())}")
             except Exception as e:
                 print(f"   - Error getting data via to_dict: {e}")
-                
+
         if not results_dict:
             print("❌ No data available for processing")
             return
@@ -89,7 +89,7 @@ class UnifiedResultsInspectorWidget(InspectorWidget):
             # Process main results data (same as original results_inspector)
             print("   - Processing main results data...")
             formatted_results = self._process_results_data(results, results_dict)
-            
+
             # Process analysis data for the analysis tab
             print("   - Processing analysis data...")
             analysis_data = self._process_analysis_data(results)
@@ -98,26 +98,36 @@ class UnifiedResultsInspectorWidget(InspectorWidget):
             self.analysis_data = analysis_data
 
             print("✅ Data processing complete!")
-            print(f"   - Results data: {len(formatted_results.get('data', [])) if formatted_results else 0} items")
-            print(f"   - Analysis data: {analysis_data.get('status', 'unknown')} status")
+            print(
+                f"   - Results data: {len(formatted_results.get('data', [])) if formatted_results else 0} items"
+            )
+            print(
+                f"   - Analysis data: {analysis_data.get('status', 'unknown')} status"
+            )
 
             self._on_pagination_change()
 
             return formatted_results
-            
+
         except Exception as e:
             print(f"❌ Error in data processing: {e}")
             import traceback
+
             traceback.print_exc()
-            
+
             # Set error state
             self.results_data = {"error": str(e)}
-            self.analysis_data = {"status": "error", "error_message": str(e), "dataset": [], "columns": []}
+            self.analysis_data = {
+                "status": "error",
+                "error_message": str(e),
+                "dataset": [],
+                "columns": [],
+            }
             return None
 
     def _process_results_data(self, results, results_dict):
         """Process the main Results data (existing logic from results_inspector)."""
-        
+
         formatted_results = {}
 
         # Summary information
@@ -149,7 +159,7 @@ class UnifiedResultsInspectorWidget(InspectorWidget):
         for result in results_dict["data"]:
             formatted_result = {}
             formatted_result["num_questions"] = len(result["answer"])
-            
+
             # Transcript (question-answer pairs)
             transcript = []
             for question_name, question_data in result[
@@ -249,34 +259,36 @@ class UnifiedResultsInspectorWidget(InspectorWidget):
 
     def _process_analysis_data(self, results):
         """Process data for the statistical analysis tab."""
-        
+
         try:
             # Convert Results to dataset format for analysis
             dataset = results.to_dataset()
-            
+
             # Prepare data in the format expected by our analysis components
             analysis_data = {
                 "dataset": dataset.to_dicts(remove_prefix=False),
                 "columns": list(dataset.relevant_columns()),
-                "status": "ready"
+                "status": "ready",
             }
-            
+
             return analysis_data
-            
+
         except Exception as e:
             # If conversion fails, return error state
             return {
                 "dataset": [],
                 "columns": [],
                 "status": "error",
-                "error_message": str(e)
+                "error_message": str(e),
             }
 
     def _on_pagination_change(self, change=None):
         """Get a paginated subset of results for the results table."""
-        
-        print(f"🔄 Pagination change - Page: {self.current_page}, Size: {self.page_size}")
-        
+
+        print(
+            f"🔄 Pagination change - Page: {self.current_page}, Size: {self.page_size}"
+        )
+
         if not self.object:
             print("❌ No object for pagination")
             self.paginated_results = {"columns": [], "records": []}
@@ -285,7 +297,7 @@ class UnifiedResultsInspectorWidget(InspectorWidget):
         try:
             start = self.current_page * self.page_size
             end = start + self.page_size
-            
+
             object_len = len(self.object)
             print(f"   - Object length: {object_len}, Start: {start}, End: {end}")
 
@@ -312,20 +324,23 @@ class UnifiedResultsInspectorWidget(InspectorWidget):
 
             tabular_data = {
                 "columns": columns,
-                "records": dataset.to_dicts(remove_prefix=False)
+                "records": dataset.to_dicts(remove_prefix=False),
             }
-            
-            print(f"   - Tabular data: {len(columns)} columns, {len(tabular_data['records'])} records")
+
+            print(
+                f"   - Tabular data: {len(columns)} columns, {len(tabular_data['records'])} records"
+            )
 
             self.paginated_results = tabular_data
             print("✅ Pagination update complete")
             return tabular_data
-            
+
         except Exception as e:
             print(f"❌ Error in pagination: {e}")
             import traceback
+
             traceback.print_exc()
-            
+
             # Set empty but valid data structure
             self.paginated_results = {"columns": [], "records": []}
             return self.paginated_results

@@ -325,6 +325,7 @@ class AgentDelta(Base):
 
         if add_edsl_version:
             from edsl import __version__
+
             d["edsl_version"] = __version__
 
         return d
@@ -374,9 +375,12 @@ class AgentDelta(Base):
             >>> 'age' in delta.traits
             True
         """
-        return cls(traits={"age": 35, "occupation": "manager", "risk_tolerance": "medium"})
+        return cls(
+            traits={"age": 35, "occupation": "manager", "risk_tolerance": "medium"}
+        )
 
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

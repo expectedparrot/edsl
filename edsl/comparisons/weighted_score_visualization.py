@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Visualization for weighted score calculations."""
 
-from typing import Dict, List, Any, Optional, TYPE_CHECKING
+from typing import Dict, List, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .result_pair_comparison import ResultPairComparison
@@ -10,11 +10,11 @@ if TYPE_CHECKING:
 
 class WeightedScoreVisualization:
     """Visualizes the breakdown of a weighted score calculation.
-    
+
     Shows a detailed table with metrics, questions, weights, and contributions
     to the final weighted score.
     """
-    
+
     def __init__(
         self,
         result_comparison: "ResultPairComparison",
@@ -24,7 +24,7 @@ class WeightedScoreVisualization:
         breakdown: List[Dict[str, Any]],
     ):
         """Initialize the visualization.
-        
+
         Args:
             result_comparison: The ResultPairComparison object
             metric_weights: Normalized metric weights used in calculation
@@ -37,21 +37,22 @@ class WeightedScoreVisualization:
         self.question_weights = question_weights
         self.final_score = final_score
         self.breakdown = breakdown
-    
+
     def __repr__(self) -> str:
         """Return string representation."""
         return f"WeightedScoreVisualization(final_score={self.final_score:.4f}, metrics={len(self.breakdown)})"
-    
+
     def to_html(self) -> str:
         """Generate HTML table showing the weighted score breakdown.
-        
+
         Returns:
             HTML string with formatted table
         """
         html_parts = []
-        
+
         # Add styles
-        html_parts.append("""
+        html_parts.append(
+            """
 <style>
     .weighted-score-viz {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
@@ -140,96 +141,125 @@ class WeightedScoreVisualization:
         padding-left: 32px;
     }
 </style>
-""")
-        
+"""
+        )
+
         # Start the container
         html_parts.append('<div class="weighted-score-viz">')
-        html_parts.append('<h3>Weighted Score Breakdown</h3>')
-        
+        html_parts.append("<h3>Weighted Score Breakdown</h3>")
+
         # Start table
-        html_parts.append('<table>')
-        html_parts.append('<thead>')
-        html_parts.append('<tr>')
-        html_parts.append('<th>Metric</th>')
-        html_parts.append('<th>Question</th>')
+        html_parts.append("<table>")
+        html_parts.append("<thead>")
+        html_parts.append("<tr>")
+        html_parts.append("<th>Metric</th>")
+        html_parts.append("<th>Question</th>")
         html_parts.append('<th style="text-align: right;">Score</th>')
         html_parts.append('<th style="text-align: right;">Question Weight</th>')
         html_parts.append('<th style="text-align: right;">Metric Weight</th>')
         html_parts.append('<th style="text-align: right;">Contribution</th>')
-        html_parts.append('</tr>')
-        html_parts.append('</thead>')
-        html_parts.append('<tbody>')
-        
+        html_parts.append("</tr>")
+        html_parts.append("</thead>")
+        html_parts.append("<tbody>")
+
         # Add rows for each metric
         for metric_info in self.breakdown:
-            metric_name = metric_info['metric_name']
-            metric_weight = metric_info['metric_weight']
-            metric_avg = metric_info['metric_avg']
-            questions_data = metric_info['questions']
-            
+            metric_name = metric_info["metric_name"]
+            metric_weight = metric_info["metric_weight"]
+            metric_avg = metric_info["metric_avg"]
+            questions_data = metric_info["questions"]
+
             # Metric header row
             if questions_data:
                 html_parts.append('<tr class="section-header">')
-                html_parts.append(f'<td colspan="6" class="metric-name">{metric_name}</td>')
-                html_parts.append('</tr>')
-                
+                html_parts.append(
+                    f'<td colspan="6" class="metric-name">{metric_name}</td>'
+                )
+                html_parts.append("</tr>")
+
                 # Question rows
                 for q_data in questions_data:
-                    qname = q_data['question']
-                    score = q_data['score']
-                    q_weight = q_data['question_weight']
-                    weighted_score = q_data['weighted_score']
-                    
-                    html_parts.append('<tr>')
+                    qname = q_data["question"]
+                    score = q_data["score"]
+                    q_weight = q_data["question_weight"]
+                    weighted_score = q_data["weighted_score"]
+
+                    html_parts.append("<tr>")
                     html_parts.append('<td class="indent"></td>')
                     html_parts.append(f'<td class="question-name">{qname}</td>')
-                    
+
                     if score is not None:
                         html_parts.append(f'<td class="numeric">{score:.4f}</td>')
-                        html_parts.append(f'<td class="numeric weight-col">{q_weight:.4f}</td>')
-                        html_parts.append(f'<td class="numeric weight-col">{metric_weight:.4f}</td>')
-                        html_parts.append(f'<td class="numeric contribution-col">{weighted_score:.4f}</td>')
+                        html_parts.append(
+                            f'<td class="numeric weight-col">{q_weight:.4f}</td>'
+                        )
+                        html_parts.append(
+                            f'<td class="numeric weight-col">{metric_weight:.4f}</td>'
+                        )
+                        html_parts.append(
+                            f'<td class="numeric contribution-col">{weighted_score:.4f}</td>'
+                        )
                     else:
-                        html_parts.append('<td class="numeric" style="color: #9ca3af;">N/A</td>')
-                        html_parts.append(f'<td class="numeric weight-col">{q_weight:.4f}</td>')
-                        html_parts.append(f'<td class="numeric weight-col">{metric_weight:.4f}</td>')
-                        html_parts.append('<td class="numeric" style="color: #9ca3af;">—</td>')
-                    
-                    html_parts.append('</tr>')
-                
+                        html_parts.append(
+                            '<td class="numeric" style="color: #9ca3af;">N/A</td>'
+                        )
+                        html_parts.append(
+                            f'<td class="numeric weight-col">{q_weight:.4f}</td>'
+                        )
+                        html_parts.append(
+                            f'<td class="numeric weight-col">{metric_weight:.4f}</td>'
+                        )
+                        html_parts.append(
+                            '<td class="numeric" style="color: #9ca3af;">—</td>'
+                        )
+
+                    html_parts.append("</tr>")
+
                 # Metric subtotal
                 contribution = metric_weight * metric_avg
                 html_parts.append('<tr style="background: #fafafa;">')
-                html_parts.append(f'<td colspan="2" style="text-align: right; font-weight: 600; color: #6b7280;">{metric_name} Average:</td>')
-                html_parts.append(f'<td class="numeric" style="font-weight: 600;">{metric_avg:.4f}</td>')
-                html_parts.append('<td></td>')
-                html_parts.append(f'<td class="numeric weight-col">{metric_weight:.4f}</td>')
-                html_parts.append(f'<td class="numeric contribution-col" style="font-weight: 600;">{contribution:.4f}</td>')
-                html_parts.append('</tr>')
-        
+                html_parts.append(
+                    f'<td colspan="2" style="text-align: right; font-weight: 600; color: #6b7280;">{metric_name} Average:</td>'
+                )
+                html_parts.append(
+                    f'<td class="numeric" style="font-weight: 600;">{metric_avg:.4f}</td>'
+                )
+                html_parts.append("<td></td>")
+                html_parts.append(
+                    f'<td class="numeric weight-col">{metric_weight:.4f}</td>'
+                )
+                html_parts.append(
+                    f'<td class="numeric contribution-col" style="font-weight: 600;">{contribution:.4f}</td>'
+                )
+                html_parts.append("</tr>")
+
         # Total row
         html_parts.append('<tr class="total-row">')
-        html_parts.append('<td colspan="5" style="text-align: right;">FINAL WEIGHTED SCORE:</td>')
-        html_parts.append(f'<td class="numeric final-score">{self.final_score:.4f}</td>')
-        html_parts.append('</tr>')
-        
-        html_parts.append('</tbody>')
-        html_parts.append('</table>')
-        html_parts.append('</div>')
-        
-        return '\n'.join(html_parts)
-    
+        html_parts.append(
+            '<td colspan="5" style="text-align: right;">FINAL WEIGHTED SCORE:</td>'
+        )
+        html_parts.append(
+            f'<td class="numeric final-score">{self.final_score:.4f}</td>'
+        )
+        html_parts.append("</tr>")
+
+        html_parts.append("</tbody>")
+        html_parts.append("</table>")
+        html_parts.append("</div>")
+
+        return "\n".join(html_parts)
+
     def _repr_html_(self) -> str:
         """Return HTML representation for Jupyter notebooks."""
         return self.to_html()
-    
+
     @classmethod
     def example(cls) -> "WeightedScoreVisualization":
         """Create an example visualization.
-        
+
         Returns:
             WeightedScoreVisualization instance
-            
+
         Examples:
             >>> from edsl.comparisons.weighted_score_visualization import WeightedScoreVisualization
             >>> viz = WeightedScoreVisualization.example()
@@ -241,15 +271,15 @@ class WeightedScoreVisualization:
             example_metric_weighting_dict,
             example_question_weighting_dict,
         )
-        
+
         rc = ResultPairComparison.example()
         mw = example_metric_weighting_dict(rc.comparison_factory)
         qw = example_question_weighting_dict(rc)
-        
+
         return rc.visualize_weighted_score(mw, qw)
 
 
 if __name__ == "__main__":
     import doctest
-    doctest.testmod(verbose=True)
 
+    doctest.testmod(verbose=True)

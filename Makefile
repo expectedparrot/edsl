@@ -56,8 +56,6 @@ install: ## Install all project deps and create a venv (local)
 	@echo "Creating a venv from pyproject.toml and installing deps using poetry..."
 	poetry install --with dev
 	@echo "All deps installed and venv created."
-	@echo "Installing git hooks..."
-	@bash scripts/install_git_hooks.sh || true
 
 install-hooks: ## Install git hooks (pre-commit and pre-push)
 	@bash scripts/install_git_hooks.sh

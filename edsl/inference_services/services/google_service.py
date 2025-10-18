@@ -161,11 +161,11 @@ class GoogleService(InferenceServiceABC):
                         #     flush=True,
                         # )
                     # else:
-                        # client_time = time.time() - client_start
-                        # print(
-                        #     f"Using cached Google client (took {client_time:.3f}s)",
-                        #     flush=True,
-                        # )
+                    # client_time = time.time() - client_start
+                    # print(
+                    #     f"Using cached Google client (took {client_time:.3f}s)",
+                    #     flush=True,
+                    # )
 
                 client = self._cached_client
 

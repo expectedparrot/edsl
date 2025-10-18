@@ -8,12 +8,12 @@ from .chi_square_table import ChiSquareTable
 from .responses_with_themes_table import ResponsesWithThemesTable
 
 __all__ = [
-    'TableOutput',
-    'SummaryStatisticsTable',
-    'FacetedSummaryStatsTable',
-    'CrossTabulationTable',
-    'AllResponsesTable',
-    'RegressionTable',
-    'ChiSquareTable',
-    'ResponsesWithThemesTable'
+    "TableOutput",
+    "SummaryStatisticsTable",
+    "FacetedSummaryStatsTable",
+    "CrossTabulationTable",
+    "AllResponsesTable",
+    "RegressionTable",
+    "ChiSquareTable",
+    "ResponsesWithThemesTable",
 ]

@@ -196,7 +196,9 @@ class ScenarioListTransformer:
         """Apply a function to a field and return a new ScenarioList (original semantics)."""
         from .scenario_list import ScenarioList  # type: ignore
 
-        new_list = ScenarioList(data=[], codebook=getattr(scenario_list, "codebook", {}))
+        new_list = ScenarioList(
+            data=[], codebook=getattr(scenario_list, "codebook", {})
+        )
         if new_name is None:
             new_name = field
         for scenario in scenario_list:
@@ -239,7 +241,9 @@ class ScenarioListTransformer:
         """Unpack a field (list-like) into multiple fields across the list."""
         from .scenario_list import ScenarioList  # type: ignore
 
-        new_names = new_names or [f"{field}_{i}" for i in range(len(scenario_list[0][field]))]
+        new_names = new_names or [
+            f"{field}_{i}" for i in range(len(scenario_list[0][field]))
+        ]
         new_sl = ScenarioList(data=[], codebook=getattr(scenario_list, "codebook", {}))
         for scenario in scenario_list:
             new_scenario = scenario.copy()
@@ -308,7 +312,9 @@ class ScenarioListTransformer:
         if id_vars is None:
             id_vars = []
         if value_vars is None:
-            value_vars = [field for field in scenario_list[0].keys() if field not in id_vars]
+            value_vars = [
+                field for field in scenario_list[0].keys() if field not in id_vars
+            ]
 
         new_scenarios = ScenarioList(data=[], codebook={})
         for scenario in scenario_list:
@@ -403,7 +409,9 @@ class ScenarioListTransformer:
         def get_sort_key(scenario: object) -> tuple:
             return tuple(scenario[field] for field in fields)
 
-        return ScenarioList(sorted(scenario_list.data, key=get_sort_key, reverse=reverse))
+        return ScenarioList(
+            sorted(scenario_list.data, key=get_sort_key, reverse=reverse)
+        )
 
     @staticmethod
     def reorder_keys(
@@ -548,7 +556,9 @@ class ScenarioListTransformer:
                     del new_scenario[field]
 
             field_name = (
-                new_field_name if new_field_name is not None else f"concat_{'_'.join(fields)}"
+                new_field_name
+                if new_field_name is not None
+                else f"concat_{'_'.join(fields)}"
             )
 
             if output_type == "string":
@@ -629,5 +639,3 @@ class ScenarioListTransformer:
             postfix=postfix,
             new_field_name=new_field_name,
         )
-
-

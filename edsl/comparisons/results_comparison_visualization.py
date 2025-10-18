@@ -18,7 +18,6 @@ or exported with ``chart.save("chart.html")``.
 """
 
 from typing import List, Dict, Any
-import math
 
 from .candidate_agent import ResultPairComparisonList  # type: ignore
 
@@ -46,19 +45,24 @@ import altair as alt  # type: ignore
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _metric_names(comparisons: ResultPairComparisonList) -> List[str]:
     comp0 = comparisons[0]
     return [str(fn) for fn in comp0.comparison_factory.comparison_fns]  # type: ignore[attr-defined]
 
 
-def _aggregated_metrics(comparisons: ResultPairComparisonList) -> List[Dict[str, float]]:
+def _aggregated_metrics(
+    comparisons: ResultPairComparisonList,
+) -> List[Dict[str, float]]:
     """Mirror the aggregation logic used in `ResultPairComparisonList._aggregated_metrics`."""
 
     metric_names = _metric_names(comparisons)
 
     def mean(vals):
         numeric_vals = [float(v) for v in vals if isinstance(v, (int, float))]
-        return float("nan") if not numeric_vals else sum(numeric_vals) / len(numeric_vals)
+        return (
+            float("nan") if not numeric_vals else sum(numeric_vals) / len(numeric_vals)
+        )
 
     rows: List[Dict[str, float]] = []
     for comp in comparisons:
@@ -117,9 +121,11 @@ def to_dataframe(comparisons: ResultPairComparisonList):
 
     return pd.DataFrame.from_records(records)
 
+
 # ---------------------------------------------------------------------------
 # Charts
 # ---------------------------------------------------------------------------
+
 
 def pareto_scatter(
     comparisons: ResultPairComparisonList,
@@ -176,16 +182,20 @@ def metric_bar(
         .encode(
             x=alt.X(metric_name, title=title),
             y=alt.Y("label", sort="-x"),
-            color=alt.condition("datum.pareto", alt.value("red"), alt.value("steelblue")),
+            color=alt.condition(
+                "datum.pareto", alt.value("red"), alt.value("steelblue")
+            ),
             tooltip=["label", metric_name, "pareto"],
         )
         .properties(height=max(200, 20 * len(df)), width=500)
     )
     return chart
 
+
 # ---------------------------------------------------------------------------
 # Question-specific chart
 # ---------------------------------------------------------------------------
+
 
 def question_metric_bar(
     comparisons: ResultPairComparisonList,
@@ -234,7 +244,9 @@ def question_metric_bar(
     for comp in comparisons:
         comp_dict = comp.compare()
         if question_name not in comp_dict:
-            raise ValueError(f"Question '{question_name}' not found in comparison results.")
+            raise ValueError(
+                f"Question '{question_name}' not found in comparison results."
+            )
 
         ac = comp_dict[question_name]
         val = ac[metric_name]
@@ -251,12 +263,14 @@ def question_metric_bar(
     pareto_flags = [idx in frontier_indices for idx in range(len(comparisons))]
 
     # Build DataFrame ---------------------------------------------------------
-    df = pd.DataFrame({
-        "label": labels,
-        "full_label": full_labels,
-        "pareto": pareto_flags,
-        metric_name: values,
-    })
+    df = pd.DataFrame(
+        {
+            "label": labels,
+            "full_label": full_labels,
+            "pareto": pareto_flags,
+            metric_name: values,
+        }
+    )
 
     # Ensure numeric axis
     df[metric_name] = pd.to_numeric(df[metric_name], errors="coerce")
@@ -269,7 +283,9 @@ def question_metric_bar(
         .encode(
             x=alt.X(metric_name, title=metric_name.replace("_", " ").title()),
             y=alt.Y("label", sort="-x"),
-            color=alt.condition("datum.pareto", alt.value("red"), alt.value("steelblue")),
+            color=alt.condition(
+                "datum.pareto", alt.value("red"), alt.value("steelblue")
+            ),
             tooltip=["full_label", metric_name, "pareto"],
         )
         .properties(height=max(200, 20 * len(df)), width=500, title=title)
@@ -277,9 +293,11 @@ def question_metric_bar(
 
     return chart
 
+
 # ---------------------------------------------------------------------------
 # Facet grid: all questions × metrics
 # ---------------------------------------------------------------------------
+
 
 def all_question_metric_bars(
     comparisons: ResultPairComparisonList,
@@ -333,14 +351,16 @@ def all_question_metric_bars(
             ac = comp_dict[q]
             for m in metric_names:
                 val = ac[m]
-                records.append({
-                    "label": labels[comp_idx],
-                    "full_label": full_labels[comp_idx],
-                    "pareto": comp_idx in frontier_indices,
-                    "question": q,
-                    "metric": m,
-                    "value": val,
-                })
+                records.append(
+                    {
+                        "label": labels[comp_idx],
+                        "full_label": full_labels[comp_idx],
+                        "pareto": comp_idx in frontier_indices,
+                        "question": q,
+                        "metric": m,
+                        "value": val,
+                    }
+                )
 
     df = pd.DataFrame.from_records(records)
 
@@ -353,7 +373,9 @@ def all_question_metric_bars(
         .encode(
             x=alt.X("value:Q", title="Value"),
             y=alt.Y("label", sort="-x"),
-            color=alt.condition("datum.pareto", alt.value("red"), alt.value("steelblue")),
+            color=alt.condition(
+                "datum.pareto", alt.value("red"), alt.value("steelblue")
+            ),
             tooltip=["full_label", "value", "pareto"],
         )
         .properties(width=200, height=max(200, 20 * len(comparisons)))
@@ -366,9 +388,11 @@ def all_question_metric_bars(
 
     return chart
 
+
 # ---------------------------------------------------------------------------
 # Helper: full HTML with traits table
 # ---------------------------------------------------------------------------
+
 
 def _agent_traits_dataframe(comparisons: ResultPairComparisonList) -> pd.DataFrame:
     """Return a pandas DataFrame with one row per agent and each trait in its own column."""
@@ -391,6 +415,7 @@ def _agent_traits_dataframe(comparisons: ResultPairComparisonList) -> pd.DataFra
     columns = ["Agent"] + sorted(all_keys)
     return pd.DataFrame(rows, columns=columns).fillna("")
 
+
 def all_question_metric_bars_html(
     comparisons: ResultPairComparisonList,
     title: str | None = None,
@@ -403,4 +428,4 @@ def all_question_metric_bars_html(
     df_traits = _agent_traits_dataframe(comparisons)
     table_html = df_traits.to_html(index=False, escape=True)
 
-    return grid_html + "<hr><h2>Agent Traits</h2>" + table_html 
+    return grid_html + "<hr><h2>Agent Traits</h2>" + table_html

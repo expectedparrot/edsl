@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional, Type
+from typing import Any, Type
 
 from .output_formatter import OutputFormatters
 
@@ -9,17 +9,17 @@ class MacroSerialization:
     @staticmethod
     def to_dict(macro: Any, add_edsl_version: bool = True) -> dict:
         # Get application_type - handle both class attribute and property
-        macro_type = getattr(macro.__class__, 'application_type', 'base')
+        macro_type = getattr(macro.__class__, "application_type", "base")
         if isinstance(macro_type, property):
             # If it's a property, get it from the instance
-            macro_type = getattr(macro, '_application_type', 'base')
+            macro_type = getattr(macro, "_application_type", "base")
 
         # Serialize attachment_formatters
         attachment_formatters_data = None
-        if hasattr(macro, 'attachment_formatters') and macro.attachment_formatters:
+        if hasattr(macro, "attachment_formatters") and macro.attachment_formatters:
             attachment_formatters_data = [
                 formatter.to_dict()
-                if hasattr(formatter, 'to_dict')
+                if hasattr(formatter, "to_dict")
                 else formatter.__dict__
                 for formatter in macro.attachment_formatters
             ]
@@ -59,6 +59,7 @@ class MacroSerialization:
         attachment_formatters = None
         if data.get("attachment_formatters"):
             from .output_formatter import ObjectFormatter
+
             attachment_formatters = []
             for formatter_data in data["attachment_formatters"]:
                 if isinstance(formatter_data, dict):
@@ -89,5 +90,3 @@ class MacroSerialization:
             target_cls = Macro._registry[macro_type]
 
         return target_cls(**kwargs)
-
-

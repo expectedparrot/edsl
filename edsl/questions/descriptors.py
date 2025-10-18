@@ -400,11 +400,10 @@ class QuestionTextDescriptor(BaseDescriptor):
         # if len(value) > Settings.MAX_QUESTION_LENGTH:
         #     raise Exception("Question is too long!")
         if len(value) < 1:
-
             raise QuestionCreationValidationError("Question is too short!")
         if not isinstance(value, str):
-            raise QuestionCreationValidationError("Question must be a string!"
-            f"Received: {value}"
+            raise QuestionCreationValidationError(
+                "Question must be a string!" f"Received: {value}"
             )
 
         return None

@@ -119,9 +119,13 @@ class AgentListDeltas(Base):
             missing_in_agents = delta_names - agent_names
             error_parts = ["Agent names in deltas do not match agent names in list."]
             if missing_in_deltas:
-                error_parts.append(f"Agents without deltas: {sorted(missing_in_deltas)}")
+                error_parts.append(
+                    f"Agents without deltas: {sorted(missing_in_deltas)}"
+                )
             if missing_in_agents:
-                error_parts.append(f"Deltas without matching agents: {sorted(missing_in_agents)}")
+                error_parts.append(
+                    f"Deltas without matching agents: {sorted(missing_in_agents)}"
+                )
             raise AgentListError(" ".join(error_parts))
 
         # Apply deltas to each agent
@@ -332,6 +336,7 @@ class AgentListDeltas(Base):
 
         if add_edsl_version:
             from edsl import __version__
+
             d["edsl_version"] = __version__
 
         return d
@@ -404,12 +409,15 @@ class AgentListDeltas(Base):
         """
         from .agent_delta import AgentDelta
 
-        return cls(deltas={
-            'Alice': AgentDelta({'age': 31, 'score': 88}),
-            'Bob': AgentDelta({'age': 26, 'score': 92})
-        })
+        return cls(
+            deltas={
+                "Alice": AgentDelta({"age": 31, "score": 88}),
+                "Bob": AgentDelta({"age": 26, "score": 92}),
+            }
+        )
 
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

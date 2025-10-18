@@ -11,12 +11,15 @@ from pathlib import Path
 current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir.parent.parent))
 
+
 def start_server():
     """Start the server in a thread."""
+
     def run_server():
         try:
             import uvicorn
             from edsl.macros.server import app
+
             print("🚀 Starting EDSL App Server with Dashboard...")
             print("📊 Dashboard: http://localhost:8000")
             print("📚 API Docs: http://localhost:8000/docs")
@@ -29,6 +32,7 @@ def start_server():
 
     # Wait for server to start
     import requests
+
     for _ in range(30):
         try:
             requests.get("http://localhost:8000/health", timeout=2)
@@ -36,6 +40,7 @@ def start_server():
         except:
             time.sleep(1)
     return False
+
 
 def push_sample_apps():
     """Push some sample apps to demonstrate the dashboard."""
@@ -52,21 +57,22 @@ def push_sample_apps():
 
         # Create and push a simple test app
         try:
-            from edsl.macros.macro import Macro
             from edsl.macros.output_formatter import OutputFormatter
             from edsl.surveys import Survey
             from edsl.questions import QuestionFreeText
 
-            simple_survey = Survey([
-                QuestionFreeText(
-                    question_name="user_input",
-                    question_text="What would you like to know about?"
-                )
-            ])
+            simple_survey = Survey(
+                [
+                    QuestionFreeText(
+                        question_name="user_input",
+                        question_text="What would you like to know about?",
+                    )
+                ]
+            )
 
             simple_formatter = (
                 OutputFormatter(description="Simple Response")
-                .select('answer.user_input')
+                .select("answer.user_input")
                 .table()
             )
 
@@ -91,9 +97,10 @@ def push_sample_apps():
         print(f"❌ Failed to push sample apps: {e}")
         return False
 
+
 def main():
     print("🎛️  EDSL App Server Dashboard Demo")
-    print("="*50)
+    print("=" * 50)
 
     if start_server():
         print("✅ Server started successfully!")
@@ -110,7 +117,7 @@ def main():
         except:
             print("Could not auto-open browser. Please visit http://localhost:8000")
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🎉 Dashboard is ready!")
         print("🔗 Dashboard: http://localhost:8000")
         print("📚 API Documentation: http://localhost:8000/docs")
@@ -125,7 +132,7 @@ def main():
         print("   • Delete apps")
         print("   • Monitor server status")
         print("\n🛑 Press Ctrl+C to stop the server")
-        print("="*60)
+        print("=" * 60)
 
         try:
             while True:
@@ -136,6 +143,7 @@ def main():
     else:
         print("❌ Failed to start server")
         return False
+
 
 if __name__ == "__main__":
     main()

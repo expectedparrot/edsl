@@ -7,10 +7,12 @@ from collections import Counter
 class QuestionStatsModule:
     def __init__(self, input_data):
         self.input_data = input_data
-    
+
     def question_statistics(self, question_name: str) -> "QuestionStats":
         """Return statistics for a question."""
-        return self.input_data.QuestionStats(**self._compute_question_statistics(question_name))
+        return self.input_data.QuestionStats(
+            **self._compute_question_statistics(question_name)
+        )
 
     def _compute_question_statistics(self, question_name: str) -> dict:
         """
@@ -22,7 +24,10 @@ class QuestionStatsModule:
         {'num_responses': 2, 'num_unique_responses': 2, 'missing': 0, 'unique_responses': ..., 'frac_numerical': 0.0, 'top_5': [('1', 1), ('4', 1)], 'frac_obs_from_top_5': 1.0}
         """
         idx = self.input_data.question_names.index(question_name)
-        return {attr: getattr(self, attr)[idx] for attr in self.input_data.question_attributes}
+        return {
+            attr: getattr(self, attr)[idx]
+            for attr in self.input_data.question_attributes
+        }
 
     @property
     def num_responses(self) -> List[int]:
@@ -70,7 +75,10 @@ class QuestionStatsModule:
 
     @functools.lru_cache(maxsize=1)
     def compute_missing(self):
-        return [sum([1 for x in v if x == Missing().value()]) for v in self.input_data.raw_data]
+        return [
+            sum([1 for x in v if x == Missing().value()])
+            for v in self.input_data.raw_data
+        ]
 
     @property
     def frac_numerical(self) -> List[float]:
@@ -146,7 +154,8 @@ class QuestionStatsModule:
     @functools.lru_cache(maxsize=1)
     def compute_unique_responses(self):
         return [
-            list(set(self.filter_missing(responses))) for responses in self.input_data.raw_data
+            list(set(self.filter_missing(responses)))
+            for responses in self.input_data.raw_data
         ]
 
     @staticmethod
@@ -179,7 +188,6 @@ class QuestionStatsModule:
 
 
 if __name__ == "__main__":
-    from .input_data import InputDataABC
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)

@@ -26,5 +26,6 @@ def create_ranking_macro(
         max_pairwise_count=max_pairwise_count,
     )
 
+
 if __name__ == "__main__":
     pass

@@ -6,14 +6,20 @@ from edsl.macros.macro import Macro
 from edsl.macros.output_formatter import OutputFormatter, OutputFormatters
 from edsl.surveys import Survey
 from edsl import QuestionFreeText
-from edsl.jobs import Jobs
 
 
 class SimpleOutputFormatter(OutputFormatter):
     """Simple concrete output formatter for testing."""
 
-    def __init__(self, description: str = "test_formatter", allowed_commands: list = None, params=None):
-        super().__init__(description=description, allowed_commands=allowed_commands, params=params)
+    def __init__(
+        self,
+        description: str = "test_formatter",
+        allowed_commands: list = None,
+        params=None,
+    ):
+        super().__init__(
+            description=description, allowed_commands=allowed_commands, params=params
+        )
 
     def render(self, results, params=None):
         return f"formatted_output_from_{self.description}"
@@ -21,32 +27,36 @@ class SimpleOutputFormatter(OutputFormatter):
 
 class MacroForTesting(Macro):
     """Concrete Macro subclass for testing."""
+
     application_type = "testable_macro"
 
     @classmethod
     def example(cls):
         """Create an example macro for testing."""
-        initial_survey = Survey([
-            QuestionFreeText(
-                question_name="test_param",
-                question_text="Test parameter question?"
-            )
-        ])
+        initial_survey = Survey(
+            [
+                QuestionFreeText(
+                    question_name="test_param", question_text="Test parameter question?"
+                )
+            ]
+        )
 
         # Create a simple jobs object
-        jobs_survey = Survey([
-            QuestionFreeText(
-                question_name="output_question",
-                question_text="Process the input: {{scenario.test_param}}"
-            )
-        ])
+        jobs_survey = Survey(
+            [
+                QuestionFreeText(
+                    question_name="output_question",
+                    question_text="Process the input: {{scenario.test_param}}",
+                )
+            ]
+        )
         jobs_object = jobs_survey.to_jobs()
 
         return cls(
             jobs_object=jobs_object,
             description="Test macro description",
             application_name="Test Macro",
-            initial_survey=initial_survey
+            initial_survey=initial_survey,
         )
 
 
@@ -59,20 +69,23 @@ class TestMacro:
         Macro._registry.clear()
 
         # Create real survey
-        self.survey = Survey([
-            QuestionFreeText(
-                question_name="test_param",
-                question_text="Test question?"
-            )
-        ])
+        self.survey = Survey(
+            [
+                QuestionFreeText(
+                    question_name="test_param", question_text="Test question?"
+                )
+            ]
+        )
 
         # Create real jobs object
-        jobs_survey = Survey([
-            QuestionFreeText(
-                question_name="output_question",
-                question_text="Process the input: {{scenario.test_param}}"
-            )
-        ])
+        jobs_survey = Survey(
+            [
+                QuestionFreeText(
+                    question_name="output_question",
+                    question_text="Process the input: {{scenario.test_param}}",
+                )
+            ]
+        )
         self.jobs = jobs_survey.to_jobs()
 
         # Create test formatter
@@ -80,6 +93,7 @@ class TestMacro:
 
     def test_init_subclass_registration(self):
         """Test that subclasses are properly registered."""
+
         class TestMacro1(Macro):
             application_type = "test_macro_1"
 
@@ -88,22 +102,31 @@ class TestMacro:
 
     def test_init_subclass_requires_application_type(self):
         """Test that subclasses must define application_type."""
-        with pytest.raises(TypeError, match="must define a non-empty 'application_type'"):
+        with pytest.raises(
+            TypeError, match="must define a non-empty 'application_type'"
+        ):
+
             class BadMacro(Macro):
                 pass
 
     def test_init_subclass_no_default_formatter_ok(self):
         """Subclasses need not define a class-level default formatter anymore."""
+
         class NoDefault(Macro):
             application_type = "no_default_ok"
+
         assert "no_default_ok" in Macro._registry
 
     def test_init_subclass_prevents_duplicate_types(self):
         """Test that duplicate application_type values are not allowed."""
+
         class TestMacro1(Macro):
             application_type = "duplicate_type"
 
-        with pytest.raises(ValueError, match="Duplicate application_type 'duplicate_type'"):
+        with pytest.raises(
+            ValueError, match="Duplicate application_type 'duplicate_type'"
+        ):
+
             class TestMacro2(Macro):
                 application_type = "duplicate_type"
 
@@ -113,7 +136,7 @@ class TestMacro:
             jobs_object=self.jobs,
             description="Test description",
             application_name="Test App",
-            initial_survey=self.survey
+            initial_survey=self.survey,
         )
 
         assert macro.jobs_object is self.jobs
@@ -129,7 +152,7 @@ class TestMacro:
                 jobs_object=self.jobs,
                 description="Test description",
                 application_name="Test Macro",
-                initial_survey=None
+                initial_survey=None,
             )
 
     def test_macro_initialization_validates_application_name(self):
@@ -139,7 +162,7 @@ class TestMacro:
                 jobs_object=self.jobs,
                 description="Test description",
                 application_name=123,  # Invalid type
-                initial_survey=self.survey
+                initial_survey=self.survey,
             )
 
     def test_macro_initialization_defaults_application_name(self):
@@ -148,7 +171,7 @@ class TestMacro:
             jobs_object=self.jobs,
             description="Test description",
             application_name=None,
-            initial_survey=self.survey
+            initial_survey=self.survey,
         )
 
         assert macro.application_name == "MacroForTesting"
@@ -198,7 +221,9 @@ class TestMacro:
         bad_formatter = SimpleOutputFormatter()
         bad_formatter.name = None
         bad_formatter.description = None
-        with pytest.raises(ValueError, match="formatter must have a unique, non-empty description"):
+        with pytest.raises(
+            ValueError, match="formatter must have a unique, non-empty description"
+        ):
             macro.add_output_formatter(bad_formatter)
 
         # Test duplicate formatter name
@@ -206,7 +231,9 @@ class TestMacro:
         formatter2 = SimpleOutputFormatter("duplicate_name")
         macro.add_output_formatter(formatter1)
 
-        with pytest.raises(ValueError, match="Formatter with name 'duplicate_name' already exists"):
+        with pytest.raises(
+            ValueError, match="Formatter with name 'duplicate_name' already exists"
+        ):
             macro.add_output_formatter(formatter2)
 
     def test_with_output_formatter(self):
@@ -257,7 +284,7 @@ class TestMacro:
         # This is a real test that calls the actual method
         # We can't easily test the full pipeline without running expensive operations,
         # so we just test that the method exists and has the right signature
-        assert hasattr(macro, '_generate_results')
+        assert hasattr(macro, "_generate_results")
         assert callable(macro._generate_results)
 
     def test_debug_properties(self):

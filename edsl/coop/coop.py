@@ -3500,10 +3500,14 @@ class Coop(CoopFunctionsMixin):
             error_message = response.text
 
             # Check if this is an alias conflict error and overwrite is enabled
-            if overwrite and alias and "already have an object with the alias" in error_message:
+            if (
+                overwrite
+                and alias
+                and "already have an object with the alias" in error_message
+            ):
                 # Get username to construct the alias URL
                 profile = self.get_profile()
-                username = profile['username']
+                username = profile["username"]
 
                 # Construct the alias URL and use patch instead
                 alias_url = f"{self.url}/content/{username}/{alias}"

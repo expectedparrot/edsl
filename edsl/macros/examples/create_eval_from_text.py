@@ -3,22 +3,26 @@ from __future__ import annotations
 from edsl.macros.composite_macro import CompositeMacro
 from edsl.macros.output_formatter import OutputFormatter, ScenarioAttachmentFormatter
 from edsl.macros import Macro, CompositeMacro
-from edsl.questions import QuestionEDSLObject, QuestionFreeText, QuestionNumerical, QuestionList
-from edsl.scenarios import Scenario
+from edsl.questions import (
+    QuestionEDSLObject,
+    QuestionFreeText,
+    QuestionNumerical,
+    QuestionList,
+)
 from edsl.surveys import Survey
-from edsl.agents import Agent
 
 # First app: Jeopardy question generator
-input_survey = Survey([
-    QuestionFreeText(
-        question_name="input_text",
-        question_text="What is the source text?"
-    ),
-    QuestionNumerical(
-        question_name="words_per_chunk",
-        question_text="How many words should be in each chunk?"
-    )
-])
+input_survey = Survey(
+    [
+        QuestionFreeText(
+            question_name="input_text", question_text="What is the source text?"
+        ),
+        QuestionNumerical(
+            question_name="words_per_chunk",
+            question_text="How many words should be in each chunk?",
+        ),
+    ]
+)
 
 q_questions = QuestionList(
     question_name="generated_questions",
@@ -27,7 +31,7 @@ q_questions = QuestionList(
     <text>
     {{ scenario.input_text }}.
     </text>
-    """
+    """,
 )
 
 jobs_object = Survey([q_questions]).to_jobs()
@@ -35,20 +39,19 @@ jobs_object = Survey([q_questions]).to_jobs()
 # Output formatter that creates a Survey from the generated questions
 of_survey = (
     OutputFormatter(description="Topics", output_type="edsl_object")
-    .select('answer.generated_questions', 'scenario.input_text')
-    .expand('answer.generated_questions')
-    .select('answer.generated_questions')
+    .select("answer.generated_questions", "scenario.input_text")
+    .expand("answer.generated_questions")
+    .select("answer.generated_questions")
     .to_scenario_list()
-    .select('generated_questions')
-    .rename({'generated_questions':'question_text'})
-    .add_value('question_type', 'free_text')
+    .select("generated_questions")
+    .rename({"generated_questions": "question_text"})
+    .add_value("question_type", "free_text")
     .to_survey()
 )
 
 # Scenario attachment formatter for chunking text
-sa = (
-    ScenarioAttachmentFormatter(name="Scenario Attachment Formatter")
-    .chunk_text(field='input_text', chunk_size_field='words_per_chunk', unit='word')
+sa = ScenarioAttachmentFormatter(name="Scenario Attachment Formatter").chunk_text(
+    field="input_text", chunk_size_field="words_per_chunk", unit="word"
 )
 
 jeopardy_macro = Macro(
@@ -58,33 +61,38 @@ jeopardy_macro = Macro(
     short_description="A jeopardy question generator.",
     long_description="A jeopardy question generator that creates questions from source text.",
     jobs_object=jobs_object,
-    output_formatters={'survey': of_survey},
-    default_formatter_name='survey',
-    attachment_formatters=[sa]
+    output_formatters={"survey": of_survey},
+    default_formatter_name="survey",
+    attachment_formatters=[sa],
 )
 
 # Second app: Run the generated survey with an agent that has expert knowledge
-answering_survey = Survey([
-    QuestionEDSLObject(
-        question_name="survey",
-        question_text="What is the survey object?",
-        expected_object_type="Survey",
-    ),
-    QuestionFreeText(
-        question_name="input_text",
-        question_text="What is the context text?"
-    )
-])
+answering_survey = Survey(
+    [
+        QuestionEDSLObject(
+            question_name="survey",
+            question_text="What is the survey object?",
+            expected_object_type="Survey",
+        ),
+        QuestionFreeText(
+            question_name="input_text", question_text="What is the context text?"
+        ),
+    ]
+)
 
 from edsl.macros.output_formatter import ScenarioAttachmentFormatter
+
 to_agent = ScenarioAttachmentFormatter(name="To Agent").to_agent_list()
 
 # FIXME: This should be dynamically constructed from the survey output of the first macro
 # For now, use a simple placeholder
-jobs_object = Survey.example().to_jobs() 
+jobs_object = Survey.example().to_jobs()
 
 answering_of = (
-    OutputFormatter(description="Run survey with expert agent", output_type="markdown").long_view().table(tablefmt='github').to_string()
+    OutputFormatter(description="Run survey with expert agent", output_type="markdown")
+    .long_view()
+    .table(tablefmt="github")
+    .to_string()
 )
 
 answering_macro = Macro(
@@ -96,7 +104,7 @@ answering_macro = Macro(
     application_name="answer_with_context",
     display_name="Answer with Context",
     short_description="Run generated survey with agent that has expert knowledge of the context.",
-    long_description="Run generated survey with agent that has expert knowledge of the context."
+    long_description="Run generated survey with agent that has expert knowledge of the context.",
 )
 
 # Composite macro
@@ -105,13 +113,13 @@ macro = CompositeMacro(
     second_macro=answering_macro,
     bindings={
         "survey": "survey",  # jeopardy output -> answering input
-        "param:input_text": "input_text"  # jeopardy input -> answering input
+        "param:input_text": "input_text",  # jeopardy input -> answering input
     },
     fixed={"app1": {}, "app2": {}},
     application_name="create_eval_from_text",
     display_name="Create Eval from Text",
     short_description="Generate questions from text and answer them with an expert agent.",
-    long_description="Generate questions from text and answer them with an expert agent."
+    long_description="Generate questions from text and answer them with an expert agent.",
 )
 
 
@@ -134,8 +142,12 @@ As of 14 August 2025, Python 3.13 is the latest stable release and Python 3.9 is
 
     # FIXME: This composite macro has issues with circular references causing RecursionError
     # Commenting out to prevent crashes during testing
-    print("WARNING: This composite macro is currently disabled due to RecursionError issues.")
-    print("The problem appears to be in the macro serialization or the binding structure.")
+    print(
+        "WARNING: This composite macro is currently disabled due to RecursionError issues."
+    )
+    print(
+        "The problem appears to be in the macro serialization or the binding structure."
+    )
 
     # # Run the composite macro - it generates questions and answers them with an expert agent
     # results = macro.output(params={'input_text': text, 'words_per_chunk': 100})

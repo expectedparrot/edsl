@@ -27,7 +27,7 @@ class ModelList(Base, UserList):
             ml = ModelList.pull(data)
             self.__dict__.update(ml.__dict__)
             return
-            
+
         if data is not None:
             super().__init__(data)
         else:
@@ -44,62 +44,67 @@ class ModelList(Base, UserList):
 
     def __repr__(self):
         """Return a string representation of the ModelList.
-        
+
         Uses traditional repr format when running doctests, otherwise uses
         rich-based display for better readability.
         """
         import os
+
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
         else:
             return self._summary_repr()
-    
+
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the ModelList.
-        
+
         This representation can be used with eval() to recreate the ModelList object.
         Used primarily for doctests and debugging.
         """
         return f"ModelList({super().__repr__()})"
-    
+
     def _summary_repr(self, max_items: int = 5) -> str:
         """Generate a summary representation of the ModelList with Rich formatting.
-        
+
         Args:
             max_items: Maximum number of items to show in lists before truncating
         """
         from rich.console import Console
         from rich.text import Text
         import io
-        
+
         # Build the Rich text
         output = Text()
         output.append("ModelList(\n", style="bold cyan")
         output.append(f"    num_models={len(self)},\n", style="white")
-        
+
         if len(self) > 0:
             # Collect model information
             model_info = []
             for model in list(self)[:max_items]:
-                model_name = getattr(model, 'model', getattr(model, '_model_', 'unknown'))
-                service_name = getattr(model, '_inference_service_', 'unknown')
+                model_name = getattr(
+                    model, "model", getattr(model, "_model_", "unknown")
+                )
+                service_name = getattr(model, "_inference_service_", "unknown")
                 model_info.append(f"{model_name} ({service_name})")
-            
+
             output.append("    models: [\n", style="white")
             for info in model_info:
-                output.append(f"        ", style="white")
+                output.append("        ", style="white")
                 output.append(f"{info}", style="yellow")
                 output.append(",\n", style="white")
-            
+
             if len(self) > max_items:
-                output.append(f"        ... ({len(self) - max_items} more)\n", style="dim")
-            
+                output.append(
+                    f"        ... ({len(self) - max_items} more)\n", style="dim"
+                )
+
             output.append("    ]\n", style="white")
         else:
             output.append("    models: []\n", style="dim")
-        
+
         output.append(")", style="bold cyan")
-        
+
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
         console.print(output, end="")

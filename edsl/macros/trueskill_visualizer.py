@@ -15,12 +15,14 @@ from typing import List, Dict, Any, Union
 from edsl import ScenarioList
 
 
-def trueskill_to_json(scenario_list: ScenarioList,
-                      item_field: str = 'item',
-                      rank_field: str = 'rank',
-                      mu_field: str = 'mu',
-                      sigma_field: str = 'sigma',
-                      conservative_field: str = 'conservative_rating') -> str:
+def trueskill_to_json(
+    scenario_list: ScenarioList,
+    item_field: str = "item",
+    rank_field: str = "rank",
+    mu_field: str = "mu",
+    sigma_field: str = "sigma",
+    conservative_field: str = "conservative_rating",
+) -> str:
     """
     Convert a TrueSkill-ranked ScenarioList to JSON format for visualization.
 
@@ -38,20 +40,22 @@ def trueskill_to_json(scenario_list: ScenarioList,
     data = []
     for scenario in scenario_list:
         item_data = {
-            'item': scenario.get(item_field, ''),
-            'rank': scenario.get(rank_field, 0),
-            'mu': scenario.get(mu_field, 0.0),
-            'sigma': scenario.get(sigma_field, 0.0),
-            'conservative_rating': scenario.get(conservative_field, 0.0)
+            "item": scenario.get(item_field, ""),
+            "rank": scenario.get(rank_field, 0),
+            "mu": scenario.get(mu_field, 0.0),
+            "sigma": scenario.get(sigma_field, 0.0),
+            "conservative_rating": scenario.get(conservative_field, 0.0),
         }
         data.append(item_data)
 
     return json.dumps(data, indent=2)
 
 
-def create_visualization_html(data: Union[str, List[Dict[str, Any]]],
-                              title: str = "TrueSkill Rankings Visualization",
-                              output_file: str = None) -> str:
+def create_visualization_html(
+    data: Union[str, List[Dict[str, Any]]],
+    title: str = "TrueSkill Rankings Visualization",
+    output_file: str = None,
+) -> str:
     """
     Create an HTML visualization with the provided TrueSkill data.
 
@@ -72,44 +76,42 @@ def create_visualization_html(data: Union[str, List[Dict[str, Any]]],
     current_dir = Path(__file__).parent
     template_path = current_dir / "trueskill_visualization.html"
 
-    with open(template_path, 'r') as f:
+    with open(template_path, "r") as f:
         html_content = f.read()
 
     # Replace the sample data with actual data
     html_content = html_content.replace(
-        'const sampleData = [',
-        f'const sampleData = {json_data.split("[", 1)[1] if json_data.startswith("[") else json_data}'
+        "const sampleData = [",
+        f'const sampleData = {json_data.split("[", 1)[1] if json_data.startswith("[") else json_data}',
     )
 
     # Replace the title
     html_content = html_content.replace(
-        '<title>TrueSkill Rankings Visualization</title>',
-        f'<title>{title}</title>'
-    ).replace(
-        '<h1>TrueSkill Rankings Visualization</h1>',
-        f'<h1>{title}</h1>'
-    )
+        "<title>TrueSkill Rankings Visualization</title>", f"<title>{title}</title>"
+    ).replace("<h1>TrueSkill Rankings Visualization</h1>", f"<h1>{title}</h1>")
 
     # Determine output file
     if output_file is None:
-        fd, output_file = tempfile.mkstemp(suffix='.html', prefix='trueskill_viz_')
+        fd, output_file = tempfile.mkstemp(suffix=".html", prefix="trueskill_viz_")
         os.close(fd)
 
     # Write the HTML file
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         f.write(html_content)
 
     return output_file
 
 
-def visualize_trueskill(scenario_list: ScenarioList,
-                        title: str = "TrueSkill Rankings Visualization",
-                        open_browser: bool = True,
-                        item_field: str = 'item',
-                        rank_field: str = 'rank',
-                        mu_field: str = 'mu',
-                        sigma_field: str = 'sigma',
-                        conservative_field: str = 'conservative_rating') -> str:
+def visualize_trueskill(
+    scenario_list: ScenarioList,
+    title: str = "TrueSkill Rankings Visualization",
+    open_browser: bool = True,
+    item_field: str = "item",
+    rank_field: str = "rank",
+    mu_field: str = "mu",
+    sigma_field: str = "sigma",
+    conservative_field: str = "conservative_rating",
+) -> str:
     """
     Create and optionally open a TrueSkill visualization in the browser.
 
@@ -136,7 +138,7 @@ def visualize_trueskill(scenario_list: ScenarioList,
 
     # Open in browser if requested
     if open_browser:
-        webbrowser.open(f'file://{os.path.abspath(html_file)}')
+        webbrowser.open(f"file://{os.path.abspath(html_file)}")
         print(f"Visualization opened in browser: {html_file}")
     else:
         print(f"Visualization saved to: {html_file}")
@@ -154,9 +156,7 @@ if __name__ == "__main__":
 
     print("Creating visualization...")
     html_file = visualize_trueskill(
-        ranked,
-        title="Food Health Rankings - TrueSkill",
-        open_browser=True
+        ranked, title="Food Health Rankings - TrueSkill", open_browser=True
     )
 
     print(f"Visualization created: {html_file}")

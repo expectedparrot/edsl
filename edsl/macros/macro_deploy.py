@@ -8,6 +8,7 @@ from enum import Enum
 
 class ExecutionMode(str, Enum):
     """Where and how the macro can be executed."""
+
     COOP_ONLINE = "coop_online"  # Run on Coop servers only
     DOWNLOADABLE = "downloadable"  # User can download source and run locally
     HYBRID = "hybrid"  # Both options available
@@ -15,6 +16,7 @@ class ExecutionMode(str, Enum):
 
 class PricingModel(str, Enum):
     """How the macro is priced."""
+
     FREE = "free"
     PER_CALL = "per_call"
     TOKEN_MARKUP = "token_markup"
@@ -25,6 +27,7 @@ class PricingModel(str, Enum):
 @dataclass
 class PricingConfig:
     """Pricing configuration details."""
+
     model: PricingModel = PricingModel.FREE
     per_call_price: Optional[float] = None  # Price per macro execution
     token_markup_percent: Optional[float] = None  # Markup % on LLM token costs
@@ -37,6 +40,7 @@ class PricingConfig:
 @dataclass
 class AuthorInfo:
     """Information about the macro creator."""
+
     name: Optional[str] = None
     email: Optional[str] = None
     organization: Optional[str] = None
@@ -103,7 +107,9 @@ class MacroDeploy:
     def to_dict(self) -> dict:
         """Convert to JSON-serializable dictionary."""
         return {
-            "execution_mode": self.execution_mode.value if isinstance(self.execution_mode, ExecutionMode) else self.execution_mode,
+            "execution_mode": self.execution_mode.value
+            if isinstance(self.execution_mode, ExecutionMode)
+            else self.execution_mode,
             "source_available": self.source_available,
             "requires_coop": self.requires_coop,
             "requires_api_keys": self.requires_api_keys,
@@ -115,9 +121,13 @@ class MacroDeploy:
                 "email": self.author.email,
                 "organization": self.author.organization,
                 "website": self.author.website,
-            } if self.author else None,
+            }
+            if self.author
+            else None,
             "pricing": {
-                "model": self.pricing.model.value if isinstance(self.pricing.model, PricingModel) else self.pricing.model,
+                "model": self.pricing.model.value
+                if isinstance(self.pricing.model, PricingModel)
+                else self.pricing.model,
                 "per_call_price": self.pricing.per_call_price,
                 "token_markup_percent": self.pricing.token_markup_percent,
                 "subscription_price": self.pricing.subscription_price,
@@ -221,18 +231,18 @@ if __name__ == "__main__":
     print("\nSerialized:")
     print(deploy1.to_dict())
 
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("Example 2: Commercial Hosted")
     deploy2 = MacroDeploy.example_commercial_hosted()
     print(deploy2)
 
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("Example 3: Token Markup")
     deploy3 = MacroDeploy.example_token_markup()
     print(deploy3)
 
     # Test round-trip serialization
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("Testing round-trip serialization...")
     data = deploy1.to_dict()
     restored = MacroDeploy.from_dict(data)

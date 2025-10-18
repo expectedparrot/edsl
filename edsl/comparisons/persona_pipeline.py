@@ -26,7 +26,7 @@ You can remove traits explicitly::
     pipeline = PersonaPipeline(result, survey, num_traits_to_remove=2)
 """
 
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
 
 from edsl import Agent, AgentList, QuestionFreeText
 from edsl.utilities import local_results_cache
@@ -107,11 +107,12 @@ personality_survey = (
     )
 )
 
+
 @dataclass
 class CandidateAgent:
     """Container holding all artefacts related to a single candidate persona."""
 
-    seed_agent: Agent                       # Agent after trait removal
+    seed_agent: Agent  # Agent after trait removal
     traits_removed: list[str] = field(default_factory=list)
     info: str | None = None
 
@@ -262,6 +263,7 @@ class CandidateAgentList(list):
         console.print(table)
         return table
 
+
 class PersonaPipeline:
     """End-to-end helper to derive a persona from an existing *Result* and compare.
 
@@ -338,7 +340,10 @@ class PersonaPipeline:
         # ------------------------------------------------------------------
         self.base_agent: Agent = Agent.from_result(original_result)
 
-        self._log("[bold]Original traits:[/bold] " + ", ".join(map(str, self.base_agent.traits.keys())))
+        self._log(
+            "[bold]Original traits:[/bold] "
+            + ", ".join(map(str, self.base_agent.traits.keys()))
+        )
 
         # ------------------------------------------------------------------
         # Step 2 – create *candidate* agents that will each be turned into a
@@ -348,6 +353,7 @@ class PersonaPipeline:
         # ------------------------------------------------------------------
 
         import random as _random_module
+
         self._rng = _random_module.Random(random_seed)
 
         # ---------------- Candidate generator ------------------------------
@@ -438,7 +444,9 @@ class PersonaPipeline:
         if new_results_collected:
             self.new_results = new_results_collected[0]
 
-        self._log("[bold]Survey completed – obtained new results for all persona agents.[/bold]")
+        self._log(
+            "[bold]Survey completed – obtained new results for all persona agents.[/bold]"
+        )
 
         return new_results_collected[0] if self.n_agents == 1 else new_results_collected
 
@@ -514,7 +522,9 @@ class PersonaPipeline:
         if metric_weights is None:
             metric_names = [str(fn) for fn in self.comparison_factory.comparison_fns]
             metric_weights = {
-                name: 1.0 if (name == "exact_match" or name.startswith("cosine_similarity")) else 0.0
+                name: 1.0
+                if (name == "exact_match" or name.startswith("cosine_similarity"))
+                else 0.0
                 for name in metric_names
             }
 
@@ -548,7 +558,9 @@ class PersonaPipeline:
         if console is None:
             console = self.console or Console()
 
-        matrix = self.score_matrix(metric_weights=metric_weights, include_original=include_original)
+        matrix = self.score_matrix(
+            metric_weights=metric_weights, include_original=include_original
+        )
         n = len(matrix)
 
         # Build header ----------------------------------------------------
@@ -591,11 +603,14 @@ class PersonaPipeline:
         if self._comparisons is None:
             self.generate_persona()
             self.persona_agents = self.candidates.create_persona_agents()
-            self._log(f"[bold]Created {len(self.persona_agents)} persona agent(s).[/bold]")
+            self._log(
+                f"[bold]Created {len(self.persona_agents)} persona agent(s).[/bold]"
+            )
             self.run_survey()
             self.compare_results()
 
         return self._comparisons[0] if self.n_agents == 1 else self._comparisons
+
 
 # --------------------------------------------------------------------------------------
 # Minimal demonstration – executed when the module is run as a script
@@ -609,7 +624,11 @@ if __name__ == "__main__":
     # Run the personality_survey once with a generic agent to obtain an original result
     # ------------------------------------------------------------------
 
-    seed_agent = Agent(traits={"persona": "I am a 25 year old male who likes to play video games and watch movies."})
+    seed_agent = Agent(
+        traits={
+            "persona": "I am a 25 year old male who likes to play video games and watch movies."
+        }
+    )
     survey_job = personality_survey.by(seed_agent)  # type: ignore[attr-defined]
 
     with local_results_cache(survey_job) as results:
@@ -636,8 +655,12 @@ if __name__ == "__main__":
         console.print(f"[{idx}] {txt}\n")
 
     console.print("[bold]Comparison Tables:[/bold]")
-    for idx, (cand, agent, comp) in enumerate(zip(pipeline.candidates, pipeline.persona_agents, comparisons), start=1):
-        console.print(f"\n[underline]Candidate Agent {idx} Traits:[/underline] {cand.kept_traits}")
+    for idx, (cand, agent, comp) in enumerate(
+        zip(pipeline.candidates, pipeline.persona_agents, comparisons), start=1
+    ):
+        console.print(
+            f"\n[underline]Candidate Agent {idx} Traits:[/underline] {cand.kept_traits}"
+        )
         console.print(f"[italic]Persona Agent {idx}:[/italic] {agent}")
         comp.print_table(console)
 

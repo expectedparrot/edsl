@@ -206,7 +206,6 @@ class URLSource(Source):
         from .scenario_list import ScenarioList
         import requests
 
-
         result = ScenarioList()
         for url in self.urls:
             try:
@@ -305,7 +304,6 @@ class DirectorySource(Source):
     def to_scenario_list(self):
         """Create a ScenarioList from files in a directory."""
         import glob
-
 
         # Set default recursive value
         recursive = self.recursive
@@ -1962,8 +1960,6 @@ class ScenarioSource:
         )
         source = WikipediaSource(url, table_index, header)
         return source.to_scenario_list()
-
-
 
     @staticmethod
     def _from_excel(file_path: str, sheet_name: Optional[str] = None, **kwargs):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from ..scenarios import Scenario, ScenarioList
+from ..scenarios import ScenarioList
 from ..surveys import Survey
 from ..agents import AgentList
 
@@ -54,5 +54,3 @@ class StubJob:
     @classmethod
     def from_dict(cls, data: dict) -> "StubJob":
         return cls(return_type=data["return_type"])
-
-

@@ -43,13 +43,15 @@ def create_person_simulator(
     persona_agent = Agent(name=agent_name or "Persona", instruction=instruction)
 
     # Initial survey accepts a Survey of questions to answer
-    initial_survey = Survey([
-        QuestionEDSLObject(
-            question_name="survey",
-            question_text="Provide the survey questions to answer in character",
-            expected_object_type="Survey",
-        )
-    ])
+    initial_survey = Survey(
+        [
+            QuestionEDSLObject(
+                question_name="survey",
+                question_text="Provide the survey questions to answer in character",
+                expected_object_type="Survey",
+            )
+        ]
+    )
 
     # Jobs object: empty survey bound to the persona agent
     # Will be populated via params when macro runs
@@ -57,9 +59,7 @@ def create_person_simulator(
 
     # Default output formatter
     default_formatter = (
-        OutputFormatter(description="Persona Answers")
-        .select("answer.*")
-        .to_list()
+        OutputFormatter(description="Persona Answers").select("answer.*").to_list()
     )
 
     # Prepare output formatters
@@ -76,8 +76,10 @@ def create_person_simulator(
     return Macro(
         application_name=application_name or "person_simulator",
         display_name=display_name or "Person Simulator",
-        short_description=short_description or "Answer questions in character as a persona.",
-        long_description=long_description or "Answer questions fully in character using a provided persona context. The app maintains character consistency throughout all responses.",
+        short_description=short_description
+        or "Answer questions in character as a persona.",
+        long_description=long_description
+        or "Answer questions fully in character using a provided persona context. The app maintains character consistency throughout all responses.",
         initial_survey=initial_survey,
         jobs_object=jobs_object,
         output_formatters=output_formatters,
@@ -121,9 +123,7 @@ def create_person_simulator_from_directory(
 
     base = _Path(directory_path)
     if not base.exists() or not base.is_dir():
-        raise ValueError(
-            f"Directory not found or not a directory: {directory_path}"
-        )
+        raise ValueError(f"Directory not found or not a directory: {directory_path}")
 
     if glob_pattern is not None:
         paths = sorted(base.glob(glob_pattern))
@@ -219,9 +219,7 @@ def create_person_simulator_from_firecrawl(
                 limit=max_pages,
             )
             scraped = (
-                scrape_result[0]
-                if isinstance(scrape_result, tuple)
-                else scrape_result
+                scrape_result[0] if isinstance(scrape_result, tuple) else scrape_result
             )
 
             text_chunks: list[str] = []
@@ -254,7 +252,8 @@ def create_person_simulator_from_firecrawl(
     return create_person_simulator(
         persona_context=persona_context,
         agent_name=agent_name or person_name,
-        application_name=application_name or f"person_simulator_{person_name.lower().replace(' ', '_')}",
+        application_name=application_name
+        or f"person_simulator_{person_name.lower().replace(' ', '_')}",
         display_name=display_name or f"Person Simulator: {person_name}",
         short_description=short_description,
         long_description=long_description,
@@ -303,7 +302,7 @@ class PersonSimulator:
             agent_name=agent_name,
             output_formatters=output_formatters,
         )
-    
+
     @staticmethod
     def from_directory(
         directory_path: Union[str, Path],
@@ -344,7 +343,7 @@ class PersonSimulator:
             recursive=recursive,
             glob_pattern=glob_pattern,
         )
-    
+
     @staticmethod
     def from_firecrawl(
         person_name: str,

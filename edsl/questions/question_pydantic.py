@@ -49,7 +49,7 @@ class PydanticResponse(BaseModel):
     answer: Dict[str, Any]
     generated_tokens: Optional[str] = None
 
-    @field_validator('answer')
+    @field_validator("answer")
     @classmethod
     def validate_answer_is_dict(cls, v):
         """
@@ -121,7 +121,9 @@ class PydanticResponseValidator(ResponseValidatorABC):
                     print(f"Parsed answer from generated_tokens JSON: {answer}")
             except json.JSONDecodeError:
                 if verbose:
-                    print(f"Could not parse generated_tokens as JSON: {generated_tokens}")
+                    print(
+                        f"Could not parse generated_tokens as JSON: {generated_tokens}"
+                    )
 
         # If still not a dict, create empty dict
         if not isinstance(answer, dict):
@@ -129,12 +131,11 @@ class PydanticResponseValidator(ResponseValidatorABC):
             if verbose:
                 print("Created empty dict as fallback answer")
 
-        return {
-            "answer": answer,
-            "generated_tokens": generated_tokens
-        }
+        return {"answer": answer, "generated_tokens": generated_tokens}
 
-    def validate_pydantic_model(self, answer_dict: dict, user_pydantic_model: Type[BaseModel]) -> bool:
+    def validate_pydantic_model(
+        self, answer_dict: dict, user_pydantic_model: Type[BaseModel]
+    ) -> bool:
         """
         Validate that the answer dictionary conforms to the user's Pydantic model.
 
@@ -240,16 +241,23 @@ class QuestionPydantic(QuestionBase):
         if pydantic_model is not None:
             self._user_pydantic_model = pydantic_model
             # Validate that pydantic_model is actually a Pydantic model
-            if not (isinstance(pydantic_model, type) and issubclass(pydantic_model, BaseModel)):
+            if not (
+                isinstance(pydantic_model, type)
+                and issubclass(pydantic_model, BaseModel)
+            ):
                 raise TypeError(
                     f"pydantic_model must be a Pydantic BaseModel subclass, "
                     f"got {type(pydantic_model)}"
                 )
         elif pydantic_model_schema is not None:
             # Reconstruct model from schema (deserialization path)
-            self._user_pydantic_model = self._create_model_from_schema(pydantic_model_schema)
+            self._user_pydantic_model = self._create_model_from_schema(
+                pydantic_model_schema
+            )
         else:
-            raise ValueError("Either pydantic_model or pydantic_model_schema must be provided")
+            raise ValueError(
+                "Either pydantic_model or pydantic_model_schema must be provided"
+            )
 
     @staticmethod
     def _create_model_from_schema(schema: Dict[str, Any]) -> Type[BaseModel]:
@@ -339,7 +347,6 @@ class QuestionPydantic(QuestionBase):
         d.pop("pydantic_schema", None)  # Remove template-only field
         d.pop("pydantic_model_name", None)  # Remove template-only field
         return d
-
 
     def get_response_schema(self) -> Dict[str, Any]:
         """
@@ -437,7 +444,7 @@ class QuestionPydantic(QuestionBase):
             field_type = field_info.get("type", "string")
             field_desc = field_info.get("description", "")
             fields_html.append(
-                f'<label>{field_name} ({field_type}): {field_desc}</label>'
+                f"<label>{field_name} ({field_type}): {field_desc}</label>"
             )
 
         question_html_content = Template(
@@ -455,7 +462,7 @@ class QuestionPydantic(QuestionBase):
         ).render(
             question_name=self.question_name,
             model_name=self.user_pydantic_model.__name__,
-            fields=fields_html
+            fields=fields_html,
         )
         return question_html_content
 
@@ -482,6 +489,7 @@ class QuestionPydantic(QuestionBase):
 
         class Person(BaseModel):
             """Example Pydantic model for a person."""
+
             name: str = Field(description="Full name of the person")
             age: int = Field(description="Age in years", ge=0, le=150)
             occupation: str = Field(description="Job title or profession")
@@ -490,7 +498,7 @@ class QuestionPydantic(QuestionBase):
         return cls(
             question_name="extract_person",
             question_text=f"Extract information about the person: Alice Johnson is a 28-year-old software engineer.{addition}",
-            pydantic_model=Person
+            pydantic_model=Person,
         )
 
     def _simulate_answer(self, human_readable: bool = False) -> dict:
@@ -515,7 +523,9 @@ class QuestionPydantic(QuestionBase):
                 field_type = field_info.get("type", "string")
 
                 # Get constraints if they exist
-                minimum = field_info.get("minimum", field_info.get("exclusiveMinimum", 0))
+                minimum = field_info.get(
+                    "minimum", field_info.get("exclusiveMinimum", 0)
+                )
 
                 if field_type == "string":
                     example_data[field_name] = "example"
@@ -530,7 +540,9 @@ class QuestionPydantic(QuestionBase):
                     if "minimum" in field_info or "exclusiveMinimum" in field_info:
                         example_data[field_name] = float(minimum) + 0.1
                     elif "exclusiveMinimum" in field_info:
-                        example_data[field_name] = float(field_info["exclusiveMinimum"]) + 0.1
+                        example_data[field_name] = (
+                            float(field_info["exclusiveMinimum"]) + 0.1
+                        )
                     else:
                         example_data[field_name] = 1.0
                 elif field_type == "boolean":
@@ -574,10 +586,7 @@ class QuestionPydantic(QuestionBase):
                 # Last resort fallback
                 result = {}
 
-        return {
-            "answer": result,
-            "generated_tokens": json.dumps(result)
-        }
+        return {"answer": result, "generated_tokens": json.dumps(result)}
 
     @classmethod
     def example_model(cls):
@@ -605,6 +614,7 @@ def main():
 
     class Book(BaseModel):
         """Example Pydantic model for a book."""
+
         title: str = Field(description="Title of the book")
         author: str = Field(description="Author's name")
         year: int = Field(description="Publication year", ge=1000, le=2100)
@@ -614,7 +624,7 @@ def main():
     q = QuestionPydantic(
         question_name="extract_book",
         question_text="Extract book information: '1984' by George Orwell, published in 1949, ISBN: 978-0451524935",
-        pydantic_model=Book
+        pydantic_model=Book,
     )
 
     print(f"Question text: {q.question_text}")

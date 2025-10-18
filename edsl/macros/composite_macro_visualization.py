@@ -29,7 +29,9 @@ class CompositeMacroVisualization:
         try:
             import pydot
         except ImportError:
-            print("pydot is required for visualization. Install with: pip install pydot")
+            print(
+                "pydot is required for visualization. Install with: pip install pydot"
+            )
             return
 
         FONT_SIZE = "10"
@@ -68,7 +70,9 @@ class CompositeMacroVisualization:
                 "fontsize": FONT_SIZE,
             }
             if is_fixed:
-                node_attrs["label"] = f"{param_name}\n(fixed: {self.composite_macro.fixed['macro1'][param_name]})"
+                node_attrs[
+                    "label"
+                ] = f"{param_name}\n(fixed: {self.composite_macro.fixed['macro1'][param_name]})"
 
             node = pydot.Node(f"macro1_input_{param_name}", **node_attrs)
             cluster_macro1.add_node(node)
@@ -87,11 +91,18 @@ class CompositeMacroVisualization:
         # Connect inputs to core
         for param in self.composite_macro.first_macro.initial_survey.questions:
             param_name = param.question_name
-            edge = pydot.Edge(f"macro1_input_{param_name}", "macro1_core", style="solid", fontsize=FONT_SIZE)
+            edge = pydot.Edge(
+                f"macro1_input_{param_name}",
+                "macro1_core",
+                style="solid",
+                fontsize=FONT_SIZE,
+            )
             cluster_macro1.add_edge(edge)
 
         # Add Macro1 output formatters
-        for formatter_name in self.composite_macro.first_macro.output_formatters.mapping.keys():
+        for (
+            formatter_name
+        ) in self.composite_macro.first_macro.output_formatters.mapping.keys():
             node = pydot.Node(
                 f"macro1_output_{formatter_name}",
                 label=f"{formatter_name}",
@@ -101,7 +112,12 @@ class CompositeMacroVisualization:
                 fontsize=FONT_SIZE,
             )
             cluster_macro1.add_node(node)
-            edge = pydot.Edge("macro1_core", f"macro1_output_{formatter_name}", style="solid", fontsize=FONT_SIZE)
+            edge = pydot.Edge(
+                "macro1_core",
+                f"macro1_output_{formatter_name}",
+                style="solid",
+                fontsize=FONT_SIZE,
+            )
             cluster_macro1.add_edge(edge)
 
         graph.add_subgraph(cluster_macro1)
@@ -117,11 +133,15 @@ class CompositeMacroVisualization:
                     "label": f"{param_name}",
                     "shape": "box",
                     "style": "filled",
-                    "fillcolor": "yellow" if is_fixed else ("lightgreen" if is_bound else "white"),
+                    "fillcolor": "yellow"
+                    if is_fixed
+                    else ("lightgreen" if is_bound else "white"),
                     "fontsize": FONT_SIZE,
                 }
                 if is_fixed:
-                    node_attrs["label"] = f"{param_name}\n(fixed: {self.composite_macro.fixed['macro2'][param_name]})"
+                    node_attrs[
+                        "label"
+                    ] = f"{param_name}\n(fixed: {self.composite_macro.fixed['macro2'][param_name]})"
 
                 node = pydot.Node(f"macro2_input_{param_name}", **node_attrs)
                 cluster_macro2.add_node(node)
@@ -140,11 +160,18 @@ class CompositeMacroVisualization:
             # Connect inputs to core
             for param in self.composite_macro.second_macro.initial_survey.questions:
                 param_name = param.question_name
-                edge = pydot.Edge(f"macro2_input_{param_name}", "macro2_core", style="solid", fontsize=FONT_SIZE)
+                edge = pydot.Edge(
+                    f"macro2_input_{param_name}",
+                    "macro2_core",
+                    style="solid",
+                    fontsize=FONT_SIZE,
+                )
                 cluster_macro2.add_edge(edge)
 
             # Add Macro2 output formatters
-            for formatter_name in self.composite_macro.second_macro.output_formatters.mapping.keys():
+            for (
+                formatter_name
+            ) in self.composite_macro.second_macro.output_formatters.mapping.keys():
                 node = pydot.Node(
                     f"macro2_output_{formatter_name}",
                     label=f"{formatter_name}",
@@ -154,7 +181,12 @@ class CompositeMacroVisualization:
                     fontsize=FONT_SIZE,
                 )
                 cluster_macro2.add_node(node)
-                edge = pydot.Edge("macro2_core", f"macro2_output_{formatter_name}", style="solid", fontsize=FONT_SIZE)
+                edge = pydot.Edge(
+                    "macro2_core",
+                    f"macro2_output_{formatter_name}",
+                    style="solid",
+                    fontsize=FONT_SIZE,
+                )
                 cluster_macro2.add_edge(edge)
 
             graph.add_subgraph(cluster_macro2)
@@ -229,5 +261,7 @@ class CompositeMacroVisualization:
                     os.system(f"start {tmp_file.name}")
                 elif os.name == "posix":  # macOS, Linux, Unix, etc.
                     os.system(
-                        f"open {tmp_file.name}" if sys.platform == "darwin" else f"xdg-open {tmp_file.name}"
+                        f"open {tmp_file.name}"
+                        if sys.platform == "darwin"
+                        else f"xdg-open {tmp_file.name}"
                     )

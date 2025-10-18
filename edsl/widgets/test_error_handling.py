@@ -121,9 +121,9 @@ def create_problematic_widget():
 
         # Agent with circular-reference-like data (as much as possible)
         recursive_data = {"self_ref": "points to self"}
-        recursive_data["nested"] = (
-            recursive_data.copy()
-        )  # Avoid actual circular reference
+        recursive_data[
+            "nested"
+        ] = recursive_data.copy()  # Avoid actual circular reference
 
         problematic_agents.append(
             Agent(

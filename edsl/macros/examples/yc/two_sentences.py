@@ -10,7 +10,8 @@ from edsl import (
     Agent,
 )
 
-yc_advice = textwrap.dedent("""\
+yc_advice = textwrap.dedent(
+    """\
 Your two sentence description is a concise explanation of your company for investors.
 You'll practice using it during YC to introduce your company to other founders in the batch.
 
@@ -43,30 +44,30 @@ Think of your two sentence description like the trailer to a movie. It's goal is
 Use plain English
 
 Sometimes founders try and impress investors by stringing together popular buzzwords they think investors want to hear. It usually sounds something like this: “QuantumAI is an AI-powered platform revolutionizing the future of business by streamlining complex workflows to drive efficiency for our customers.” Don’t do this. Instead use informal, simple language your mother would understand.
-""").strip()
+"""
+).strip()
 
 # Initial survey to gather startup information
-initial_survey = Survey([
-    QuestionFreeText(
-        question_name="startup_name",
-        question_text="What is your startup's name?"
-    ),
-    QuestionFreeText(
-        question_name="startup_does",
-        question_text="What does your startup do?"
-    ),
-    QuestionFreeText(
-        question_name="traction",
-        question_text="What traction do you have?"
-    ),
-    QuestionFreeText(
-        question_name="bio",
-        question_text="Tell me your bio (or your founding team's bio)"
-    ),
-    QuestionNumerical(
-        question_name = "n", 
-        question_text= "How many samples do you want to generate?")
-])
+initial_survey = Survey(
+    [
+        QuestionFreeText(
+            question_name="startup_name", question_text="What is your startup's name?"
+        ),
+        QuestionFreeText(
+            question_name="startup_does", question_text="What does your startup do?"
+        ),
+        QuestionFreeText(
+            question_name="traction", question_text="What traction do you have?"
+        ),
+        QuestionFreeText(
+            question_name="bio",
+            question_text="Tell me your bio (or your founding team's bio)",
+        ),
+        QuestionNumerical(
+            question_name="n", question_text="How many samples do you want to generate?"
+        ),
+    ]
+)
 
 
 criteria = """
@@ -109,17 +110,22 @@ Things that get investors excited:
 yc_partner = Agent(
     name="yc_partner",
     traits={
-        'persona': textwrap.dedent("""\
+        "persona": textwrap.dedent(
+            """\
 You are a seasoned partner at Y Combinator very skilled at helping startups
 come up with a 2 sentence description.
-""" + yc_advice + criteria)
-    }
+"""
+            + yc_advice
+            + criteria
+        )
+    },
 )
 
 # Question to generate candidate 2-sentence descriptions
 q_generate_candidates = QuestionList(
     question_name="two_sentences",
-    question_text=textwrap.dedent("""
+    question_text=textwrap.dedent(
+        """
 Based on this information:
 
 Name: {{ scenario.startup_name }},
@@ -131,38 +137,42 @@ Come up with at least {{ scenario.n }} candidate variations for the YC 2 sentenc
 It is fine to omit aspects of the startup that you know - it's meant to be a short pitch.
 Make them different from each other to create a diverse set of candidates.
 Variation can be induced by highlighting different aspects of the startup, or using a different tone/style/wording.
-""")
+"""
+    ),
 )
 
 # Question to shorten the candidates
 q_shorten = QuestionFreeText(
     question_name="shorten",
-    question_text="Please make this even more concise and sharper, aiming for 1/2 the length: {{ scenario.two_sentences }}"
+    question_text="Please make this even more concise and sharper, aiming for 1/2 the length: {{ scenario.two_sentences }}",
 )
 
 # Stage 1: Generate and shorten candidates
 generate_job = (
     Survey([q_generate_candidates])
     .by(yc_partner)
-    .select('answer.two_sentences', 'scenario.*')
+    .select("answer.two_sentences", "scenario.*")
     .to_scenario_list()
-    .expand('two_sentences')
+    .expand("two_sentences")
     .to(Survey([q_shorten]).by(yc_partner))
 )
 
 # Output formatter for Stage 1
 candidates_formatter = (
-    OutputFormatter(description="Create a ScenarioList of 2-sentence startup descriptions", output_type="edsl_object")
-    .select('answer.shorten')
-    .rename({'answer.shorten': 'two_sentences'})
+    OutputFormatter(
+        description="Create a ScenarioList of 2-sentence startup descriptions",
+        output_type="edsl_object",
+    )
+    .select("answer.shorten")
+    .rename({"answer.shorten": "two_sentences"})
     .to_scenario_list()
 )
 
 # Markdown formatter to preview the candidates
 markdown_formatter = (
     OutputFormatter(description="Candidates Preview (Markdown)", output_type="markdown")
-    .select('answer.shorten')
-    .rename({'answer.shorten': 'two_sentences'})
+    .select("answer.shorten")
+    .rename({"answer.shorten": "two_sentences"})
     .table(tablefmt="github")
     .to_string()
 )
@@ -175,34 +185,43 @@ app = Macro(
     long_description="This application helps startups create compelling 2-sentence descriptions following Y Combinator best practices. It generates multiple variations highlighting different aspects of the startup, then shortens them to be crisp and impactful for investors.",
     initial_survey=initial_survey,
     jobs_object=generate_job,
-    output_formatters={'scenario_list': candidates_formatter, 'markdown': markdown_formatter},
-    default_formatter_name='scenario_list'
+    output_formatters={
+        "scenario_list": candidates_formatter,
+        "markdown": markdown_formatter,
+    },
+    default_formatter_name="scenario_list",
 )
 
 # Stage 2: Ranking App
 # Question for pairwise comparison
 q_rank = QuestionMultipleChoice(
     question_name="better_pitch",
-    question_text="Which of these two startup pitches is more compelling and effective for investors?" + criteria,
-    question_options=["{{ scenario.two_sentences_1 }}", "{{ scenario.two_sentences_2 }}"], 
-    use_code = False
+    question_text="Which of these two startup pitches is more compelling and effective for investors?"
+    + criteria,
+    question_options=[
+        "{{ scenario.two_sentences_1 }}",
+        "{{ scenario.two_sentences_2 }}",
+    ],
+    use_code=False,
 )
 
 ranking_app = Macro.create_ranking_macro(
     ranking_question=q_rank,
-    option_fields=['two_sentences_1', 'two_sentences_2'],
+    option_fields=["two_sentences_1", "two_sentences_2"],
     application_name="yc_two_sentence_ranker",
     display_name="YC Two Sentence Ranker",
     short_description="Ranks 2-sentence startup descriptions by effectiveness.",
     long_description="This application ranks different variations of 2-sentence startup descriptions by their effectiveness for investors using pairwise comparisons.",
     option_base="two_sentences",
-    rank_field="pitch_rank"
+    rank_field="pitch_rank",
 )
 
 if __name__ == "__main__":
     # Example: Run generation first
     print("=== Stage 1: Generating candidates ===")
-    print("Note: The ranking stage requires diverse candidates to avoid duplicate options.")
+    print(
+        "Note: The ranking stage requires diverse candidates to avoid duplicate options."
+    )
     print("Macros defined successfully!")
     print(f"- Generation macro: {app.application_name}")
     print(f"- Ranking macro: {ranking_app.application_name}")

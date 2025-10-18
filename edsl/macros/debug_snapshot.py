@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -32,5 +32,3 @@ class DebugSnapshot:
             results=getattr(app, "_debug_results_last", None),
             formatted_output=getattr(app, "_debug_output_last", None),
         )
-
-

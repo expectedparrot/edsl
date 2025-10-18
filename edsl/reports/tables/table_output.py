@@ -1,62 +1,64 @@
 import sys
 import os
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # from output import Output  # TODO: Fix this import
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 import pandas as pd
-import tempfile
 import uuid
 import base64
 import io
 
+
 class TableOutput:  # TODO: Should inherit from Output when available
     """Base class for table outputs"""
+
     pretty_name = "Table"
     pretty_short_name = "Table"
     methodology = "Base class for table-based analysis outputs"
-    
+
     # Registry to store all table output types
     _registry = {}
-    
+
     def __init__(self, results, *question_names):
         """Initialize table output with results and question names"""
         self.results = results
         self.question_names = question_names
         self.questions = [self.results.survey.get(name) for name in self.question_names]
-    
+
     def __init_subclass__(cls, **kwargs):
         """Automatically register all subclasses"""
         super().__init_subclass__(**kwargs)
         cls._registry[cls.__name__] = cls
-    
+
     @property
     def scenario_output(self):
         """Returns the table as HTML."""
         df = self.output()
         if not isinstance(df, pd.DataFrame):
             raise ValueError("output() must return a pandas DataFrame")
-        
+
         # Start with basic table HTML
         html_parts = ['<table class="styled-table">']
-        
+
         # Add header
-        html_parts.append('<thead>')
-        html_parts.append('<tr>')
+        html_parts.append("<thead>")
+        html_parts.append("<tr>")
         for col in df.columns:
-            html_parts.append(f'<th>{col}</th>')
-        html_parts.append('</tr>')
-        html_parts.append('</thead>')
-        
+            html_parts.append(f"<th>{col}</th>")
+        html_parts.append("</tr>")
+        html_parts.append("</thead>")
+
         # Add body
-        html_parts.append('<tbody>')
+        html_parts.append("<tbody>")
         for _, row in df.iterrows():
-            html_parts.append('<tr>')
+            html_parts.append("<tr>")
             for val in row:
-                html_parts.append(f'<td>{val}</td>')
-            html_parts.append('</tr>')
-        html_parts.append('</tbody>')
-        html_parts.append('</table>')
-        
+                html_parts.append(f"<td>{val}</td>")
+            html_parts.append("</tr>")
+        html_parts.append("</tbody>")
+        html_parts.append("</table>")
+
         # Add CSS styling
         style = """
         <style>
@@ -89,55 +91,59 @@ class TableOutput:  # TODO: Should inherit from Output when available
         }
         </style>
         """
-        
-        return style + '\n'.join(html_parts)
+
+        return style + "\n".join(html_parts)
 
     @property
     @abstractmethod
     def narrative(self):
         """Returns a description of what this table shows. Must be implemented by subclasses."""
         pass
-    
+
     @property
     def html(self):
         """Returns the HTML representation of the table"""
         df = self.output()
         if not isinstance(df, pd.DataFrame):
             raise ValueError("output() must return a pandas DataFrame")
-        
+
         # Generate unique ID for this table
         table_id = f"table_{uuid.uuid4().hex[:8]}"
         filename_base = self.get_download_filename_base()
-        
+
         # Start with download buttons
         html_parts = [f'<div class="table-with-downloads" id="{table_id}">']
         html_parts.append('<div class="table-download-buttons">')
-        html_parts.append(f'<button class="table-download-btn" onclick="downloadTableAsCSV(\'{table_id}\', \'{filename_base}\')">📊 Download CSV</button>')
-        html_parts.append(f'<button class="table-download-btn" onclick="downloadTableAsExcel(\'{table_id}\', \'{filename_base}\')">📈 Download Excel</button>')
-        html_parts.append('</div>')
-        
+        html_parts.append(
+            f"<button class=\"table-download-btn\" onclick=\"downloadTableAsCSV('{table_id}', '{filename_base}')\">📊 Download CSV</button>"
+        )
+        html_parts.append(
+            f"<button class=\"table-download-btn\" onclick=\"downloadTableAsExcel('{table_id}', '{filename_base}')\">📈 Download Excel</button>"
+        )
+        html_parts.append("</div>")
+
         # Add table HTML
         html_parts.append('<table class="styled-table">')
-        
+
         # Add header
-        html_parts.append('<thead>')
-        html_parts.append('<tr>')
+        html_parts.append("<thead>")
+        html_parts.append("<tr>")
         for col in df.columns:
-            html_parts.append(f'<th>{col}</th>')
-        html_parts.append('</tr>')
-        html_parts.append('</thead>')
-        
+            html_parts.append(f"<th>{col}</th>")
+        html_parts.append("</tr>")
+        html_parts.append("</thead>")
+
         # Add body
-        html_parts.append('<tbody>')
+        html_parts.append("<tbody>")
         for _, row in df.iterrows():
-            html_parts.append('<tr>')
+            html_parts.append("<tr>")
             for val in row:
-                html_parts.append(f'<td>{val}</td>')
-            html_parts.append('</tr>')
-        html_parts.append('</tbody>')
-        html_parts.append('</table>')
-        html_parts.append('</div>')
-        
+                html_parts.append(f"<td>{val}</td>")
+            html_parts.append("</tr>")
+        html_parts.append("</tbody>")
+        html_parts.append("</table>")
+        html_parts.append("</div>")
+
         # Add CSS styling
         style = """
         <style>
@@ -190,19 +196,21 @@ class TableOutput:  # TODO: Should inherit from Output when available
         }
         </style>
         """
-        
-        return style + '\n'.join(html_parts)
-    
+
+        return style + "\n".join(html_parts)
+
     @classmethod
     def get_available_outputs(cls):
         """Returns a dictionary of all registered table types"""
         return cls._registry
-    
+
     @classmethod
     def create(cls, table_type, *args, **kwargs):
         """Factory method to create a table by name"""
         if table_type not in cls._registry:
-            raise ValueError(f"Unknown table type: {table_type}. Available types: {list(cls._registry.keys())}")
+            raise ValueError(
+                f"Unknown table type: {table_type}. Available types: {list(cls._registry.keys())}"
+            )
         return cls._registry[table_type](*args, **kwargs)
 
     @classmethod
@@ -211,10 +219,10 @@ class TableOutput:  # TODO: Should inherit from Output when available
         """
         Abstract method that determines if this table type can handle the given questions.
         Must be implemented by all child classes.
-        
+
         Args:
             *question_objs: Variable number of question objects to check
-            
+
         Returns:
             bool: True if this table type can handle these questions, False otherwise
         """
@@ -223,11 +231,11 @@ class TableOutput:  # TODO: Should inherit from Output when available
     def output(self):
         """Must return a pandas DataFrame"""
         pass
-        
+
     def _get_container_class(self):
         """Return the appropriate container class for table outputs."""
         return "table-container"
-    
+
     def _get_content_html(self):
         """Generate HTML specifically for table output."""
         try:
@@ -235,39 +243,39 @@ class TableOutput:  # TODO: Should inherit from Output when available
             return self.html
         except Exception as e:
             return f'<div class="error-message">Error generating table: {str(e)}</div>'
-    
+
     def get_csv_download_url(self):
         """Generate a data URL for CSV download."""
         df = self.output()
         if not isinstance(df, pd.DataFrame):
             raise ValueError("output() must return a pandas DataFrame")
-        
+
         # Convert DataFrame to CSV
         csv_buffer = io.StringIO()
         df.to_csv(csv_buffer, index=True)
         csv_content = csv_buffer.getvalue()
-        
+
         # Encode as base64 for data URL
-        csv_base64 = base64.b64encode(csv_content.encode('utf-8')).decode('utf-8')
-        
+        csv_base64 = base64.b64encode(csv_content.encode("utf-8")).decode("utf-8")
+
         return f"data:text/csv;base64,{csv_base64}"
-    
+
     def get_excel_download_url(self):
         """Generate a data URL for Excel download."""
         df = self.output()
         if not isinstance(df, pd.DataFrame):
             raise ValueError("output() must return a pandas DataFrame")
-        
+
         # Convert DataFrame to Excel
         excel_buffer = io.BytesIO()
-        df.to_excel(excel_buffer, index=True, engine='xlsxwriter')
+        df.to_excel(excel_buffer, index=True, engine="xlsxwriter")
         excel_content = excel_buffer.getvalue()
-        
+
         # Encode as base64 for data URL
-        excel_base64 = base64.b64encode(excel_content).decode('utf-8')
-        
+        excel_base64 = base64.b64encode(excel_content).decode("utf-8")
+
         return f"data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{excel_base64}"
-    
+
     def get_download_filename_base(self):
         """Generate a base filename for downloads based on question names."""
         if len(self.question_names) == 1:

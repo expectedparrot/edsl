@@ -1,8 +1,11 @@
 from edsl.macros import Macro
-from edsl.macros.output_formatter import OutputFormatter, ObjectFormatter, ScenarioAttachmentFormatter
+from edsl.macros.output_formatter import (
+    OutputFormatter,
+    ScenarioAttachmentFormatter,
+)
 from edsl.questions import QuestionFreeText, QuestionList
 from edsl.surveys import Survey
-from edsl import Scenario, ScenarioList
+from edsl import Scenario
 
 # Default modification instructions
 DEFAULT_MODIFICATIONS = [
@@ -30,16 +33,18 @@ DEFAULT_MODIFICATIONS = [
     "Make it more interesting",
 ]
 
-initial_survey = Survey([
-    QuestionFreeText(
-        question_name="original_text",
-        question_text="What is the text you want to create variants of?",
-    ),
-    QuestionList(
-        question_name="modifications",
-        question_text="What modification instructions do you want to apply? (Leave empty to use default set)",
-    ),
-])
+initial_survey = Survey(
+    [
+        QuestionFreeText(
+            question_name="original_text",
+            question_text="What is the text you want to create variants of?",
+        ),
+        QuestionList(
+            question_name="modifications",
+            question_text="What modification instructions do you want to apply? (Leave empty to use default set)",
+        ),
+    ]
+)
 
 q_variant = QuestionFreeText(
     question_name="variant_text",
@@ -64,20 +69,21 @@ output_formatter = (
     .to_scenario_list()
 )
 
-markdown_table = (output_formatter
-.copy()
-.set_output_type("markdown")
-.table(tablefmt = "github").to_string()
+markdown_table = (
+    output_formatter.copy()
+    .set_output_type("markdown")
+    .table(tablefmt="github")
+    .to_string()
 )
 
-from edsl.scenarios import ScenarioList, Scenario 
+from edsl.scenarios import Scenario
 
 
 attachment_formatter = (
     ScenarioAttachmentFormatter()
-    .replace_value('modifications', DEFAULT_MODIFICATIONS)
+    .replace_value("modifications", DEFAULT_MODIFICATIONS)
     .to_scenario_list()
-    .expand('modifications')
+    .expand("modifications")
 )
 
 macro = Macro(
@@ -87,17 +93,23 @@ macro = Macro(
     display_name="Variant Creator",
     initial_survey=initial_survey,
     jobs_object=jobs_object,
-    output_formatters={"variant_list": output_formatter, "markdown_table": markdown_table},
+    output_formatters={
+        "variant_list": output_formatter,
+        "markdown_table": markdown_table,
+    },
     default_formatter_name="variant_list",
     attachment_formatters=[attachment_formatter],
 )
 
 if __name__ == "__main__":
     # Example with custom modifications
-    output = macro.output(params={
-        'original_text': 'Expected Parrot is making Open Source tools for AI Simulation.',
-        'modifications': [],
-    }, formatter_name='markdown_table')
+    output = macro.output(
+        params={
+            "original_text": "Expected Parrot is making Open Source tools for AI Simulation.",
+            "modifications": [],
+        },
+        formatter_name="markdown_table",
+    )
     print(output)
 
     # Example with default modifications

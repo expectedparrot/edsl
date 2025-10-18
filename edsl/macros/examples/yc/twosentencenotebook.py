@@ -11,25 +11,27 @@ Original file is located at
 
 from edsl import Survey, QuestionFreeText
 
-q_name = QuestionFreeText(question_text = "What is your startup's name?",
-                          question_name = "startup_name")
-q_do = QuestionFreeText(question_name = "startup_does",
-                     question_text = "What does your startup do?")
-
-
-q_traction = QuestionFreeText(question_name = "traction",
-                     question_text = "What does your startup do?")
-
-
-q_bio = QuestionFreeText(question_name = "bio",
-                         question_text = "Tell me your bio"
+q_name = QuestionFreeText(
+    question_text="What is your startup's name?", question_name="startup_name"
 )
+q_do = QuestionFreeText(
+    question_name="startup_does", question_text="What does your startup do?"
+)
+
+
+q_traction = QuestionFreeText(
+    question_name="traction", question_text="What does your startup do?"
+)
+
+
+q_bio = QuestionFreeText(question_name="bio", question_text="Tell me your bio")
 s = Survey([q_do, q_traction, q_bio])
 
 from edsl import Scenario
+
 answers = {
-    'startup_name': "Expected Parrot",
-    'startup_does': """Builds open-source tools for using AI for generating AI personas that users can then
+    "startup_name": "Expected Parrot",
+    "startup_does": """Builds open-source tools for using AI for generating AI personas that users can then
 user to exploring scenarios. There is a Python library, EDSL, where users can specify Agents, Scenarios and Survey Questions.
 It works with lots of different models.
 Customers have used it for pricing, and scenario planning. They ask questions that are otherwise hard to ask regular customers.
@@ -37,14 +39,16 @@ They are mostly simulating their customers and running experiments on those digi
 Academics are seeing if they can replicate existing social science experiments.
 Some customers are using it as a kind of data labeling tool, using features like piping and skip-logic to ask follow-up questions based on answers.
 """,
-           'traction':"Fast growing usage among academics; $120K in enterprise contracts",
-           'bio': "Ex-Uber; MIT Professor who pioneered this approach."
-           }
+    "traction": "Fast growing usage among academics; $120K in enterprise contracts",
+    "bio": "Ex-Uber; MIT Professor who pioneered this approach.",
+}
 scenario = Scenario(answers)
 
 from edsl import Agent
-a = Agent(traits = {
-    'persona': """
+
+a = Agent(
+    traits={
+        "persona": """
 You are a seasoned parter at Y Combinator very skilled at helping startups
 come up with a 2 sentence description.
 
@@ -81,13 +85,14 @@ Things that get investors excited:
 - Signs there is a large market
 - Great founder-market fit
 - Signals of traction"""
-
-})
+    }
+)
 
 from edsl import QuestionList
 
-q = QuestionList(question_name = "two_sentences",
-                 question_text = """Based on this information:
+q = QuestionList(
+    question_name="two_sentences",
+    question_text="""Based on this information:
 
                  Name: {{ scenario.startup_name }},
                  What they do: {{ scenario.startup_does}},
@@ -98,41 +103,59 @@ q = QuestionList(question_name = "two_sentences",
                  It is fine to omit aspects of the startup that you know - it's meant to be a short pitch.
                  Variations should be very different from each other, taking different approaches and highlighting
                  different aspects of the startup.
-                  """)
+                  """,
+)
 
-results = q.by(scenario).by(a).run(progress_bar = False)
+results = q.by(scenario).by(a).run(progress_bar=False)
 
-results.select('answer.*').to_scenario_list().expand('two_sentences').table()
+results.select("answer.*").to_scenario_list().expand("two_sentences").table()
 
-#from edsl import login
-#login()
+# from edsl import login
+# login()
 
-candidates = results.select('answer.*').to_scenario_list().expand('two_sentences').select('two_sentences').to_scenario_list()
+candidates = (
+    results.select("answer.*")
+    .to_scenario_list()
+    .expand("two_sentences")
+    .select("two_sentences")
+    .to_scenario_list()
+)
 
 candidates
 
 from edsl import QuestionFreeText
-q = QuestionFreeText(question_name = "shorten",
-                     question_text = "Please make this even more concise and sharper, aiming for 1/2 the length: {{ scenario.two_sentences }}")
 
-new_results = q.by(candidates).by(a).run(progress_bar = False)
+q = QuestionFreeText(
+    question_name="shorten",
+    question_text="Please make this even more concise and sharper, aiming for 1/2 the length: {{ scenario.two_sentences }}",
+)
 
-new_results.select('two_sentences', 'answer.*').table()
+new_results = q.by(candidates).by(a).run(progress_bar=False)
 
-pithy_list = new_results.select('answer.shorten').rename({'answer.shorten': 'two_sentences'}).to_scenario_list()
+new_results.select("two_sentences", "answer.*").table()
+
+pithy_list = (
+    new_results.select("answer.shorten")
+    .rename({"answer.shorten": "two_sentences"})
+    .to_scenario_list()
+)
 
 pithy_list
 
 from edsl import QuestionLinearScale
-investor_agent = Agent(traits = {'persona': "You are a VC attending demo day."})
+
+investor_agent = Agent(traits={"persona": "You are a VC attending demo day."})
 
 q_invest = QuestionLinearScale(
-    question_name = "invest",
-    question_text = """How intersted are you in this company: {{ scenario.two_sentences}}?""",
-    question_options = [1,2,3,4,5],
-    option_labels = {1: "Not interested", 3: "Interesting, but but have reservations", 5: "Sounds interesting and exciting!"}
+    question_name="invest",
+    question_text="""How intersted are you in this company: {{ scenario.two_sentences}}?""",
+    question_options=[1, 2, 3, 4, 5],
+    option_labels={
+        1: "Not interested",
+        3: "Interesting, but but have reservations",
+        5: "Sounds interesting and exciting!",
+    },
 )
 invest_results = q_invest.by(pithy_list).by(investor_agent).run()
 
-invest_results.select('scenario.*', 'answer.*', "comment.*")
-
+invest_results.select("scenario.*", "answer.*", "comment.*")

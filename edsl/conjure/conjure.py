@@ -6,13 +6,12 @@ from edsl import FileStore
 
 class Conjure:
     def __new__(cls, datafile_name: Union[str, FileStore], *args, **kwargs):
-
         from .input_data_csv import InputDataCSV
         from .input_data_spss import InputDataSPSS
         from .input_data_stata import InputDataStata
         from .input_data_yaml import InputDataYAML
         from .input_data_normalized import InputDataNormalized
-        from .pipelines.profiles import detect_csv_profile, CsvFormat
+        from .pipelines.profiles import detect_csv_profile
         from .pipelines.pipeline import normalize_survey_file
         from .pipelines.format_inference import refine_profile_with_llm
 
@@ -111,6 +110,3 @@ class Conjure:
         from InputData import InputDataABC
 
         return InputDataABC.example()
-
-
-    

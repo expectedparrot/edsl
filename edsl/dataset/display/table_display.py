@@ -157,10 +157,9 @@ class TableDisplay:
             separator = "| " + " | ".join(["---" for _ in self.headers]) + " |"
             rows = [
                 "| "
-                + " | ".join([
-                    "" if v is None else str(v)  # ensure printable
-                    for v in row
-                ])
+                + " | ".join(
+                    ["" if v is None else str(v) for v in row]  # ensure printable
+                )
                 + " |"
                 for row in self.data
             ]

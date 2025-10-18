@@ -15,26 +15,31 @@ class ResultsProtocol(Protocol):
     """Protocol defining the required interface for Results objects."""
 
     @property
-    def has_unfixed_exceptions(self) -> bool: ...
+    def has_unfixed_exceptions(self) -> bool:
+        ...
 
     @property
-    def task_history(self) -> "TaskHistoryProtocol": ...
+    def task_history(self) -> "TaskHistoryProtocol":
+        ...
 
 
 class TaskHistoryProtocol(Protocol):
     """Protocol defining the required interface for TaskHistory objects."""
 
     @property
-    def indices(self) -> list: ...
+    def indices(self) -> list:
+        ...
 
-    def html(self, cta: str, open_in_browser: bool, return_link: bool) -> str: ...
+    def html(self, cta: str, open_in_browser: bool, return_link: bool) -> str:
+        ...
 
 
 class RunParametersProtocol(Protocol):
     """Protocol defining the required interface for RunParameters objects."""
 
     @property
-    def print_exceptions(self) -> bool: ...
+    def print_exceptions(self) -> bool:
+        ...
 
 
 class ResultsExceptionsHandler:

@@ -25,7 +25,9 @@ class HeadAttachmentsBuilder:
         survey_question_names = {q.question_name for q in macro.initial_survey}
         fixed_names = set(getattr(macro, "fixed_params", {}).keys())
         unknown_keys = [
-            k for k in params.keys() if k not in survey_question_names and k not in fixed_names
+            k
+            for k in params.keys()
+            if k not in survey_question_names and k not in fixed_names
         ]
         if unknown_keys:
             raise ValueError(
@@ -59,6 +61,7 @@ class HeadAttachmentsBuilder:
         # Registries
         from ..base import RegisterSubclassesMeta
         from ..questions.register_questions_meta import RegisterQuestionsMeta
+
         question_registry = RegisterQuestionsMeta.question_types_to_classes()
         edsl_registry = RegisterSubclassesMeta.get_registry()
 
@@ -153,5 +156,3 @@ class HeadAttachmentsBuilder:
             survey=survey_attachment,
             agent_list=agent_list_attachment,
         )
-
-

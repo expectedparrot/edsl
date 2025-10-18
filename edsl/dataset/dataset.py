@@ -330,7 +330,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
     def __repr__(self) -> str:
         """Return a string representation of the dataset.
-        
+
         Uses traditional repr format when running doctests, otherwise uses
         rich-based display for better readability.
 
@@ -344,22 +344,25 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             "Dataset([{'x': ['a', 'b']}])"
         """
         import os
+
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
         else:
             return self._summary_repr()
-    
+
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the dataset.
-        
+
         This representation can be used with eval() to recreate the Dataset object.
         Used primarily for doctests and debugging.
         """
         return f"Dataset({self.data})"
-    
-    def _summary_repr(self, max_rows: int = 5, max_cols: int = 10, max_value_length: int = 30) -> str:
+
+    def _summary_repr(
+        self, max_rows: int = 5, max_cols: int = 10, max_value_length: int = 30
+    ) -> str:
         """Generate a summary representation of the Dataset with Rich formatting.
-        
+
         Args:
             max_rows: Maximum number of rows to show before truncating
             max_cols: Maximum number of columns to show before truncating
@@ -368,11 +371,11 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         from rich.console import Console
         from rich.text import Text
         import io
-        
+
         # Build the Rich text
         output = Text()
         output.append("Dataset(\n", style="bold cyan")
-        
+
         # Handle empty dataset
         if not self.data:
             output.append("    data=[]\n", style="dim")
@@ -380,18 +383,18 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             console = Console(file=io.StringIO(), force_terminal=True, width=120)
             console.print(output, end="")
             return console.file.getvalue()
-        
+
         num_obs = len(self)
         num_cols = len(self.keys())
-        
+
         output.append(f"    num_observations={num_obs},\n", style="white")
         output.append(f"    num_columns={num_cols},\n", style="white")
-        
+
         # Show column names
         if num_cols > 0:
             cols = self.keys()
             output.append("    columns=[\n", style="white")
-            
+
             for i, col in enumerate(cols[:max_cols]):
                 col_str = str(col)
                 if len(col_str) > 40:
@@ -399,45 +402,50 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
                 output.append("        ", style="white")
                 output.append(f"'{col_str}'", style="yellow")
                 output.append(",\n", style="white")
-            
+
             if num_cols > max_cols:
-                output.append(f"        ... ({num_cols - max_cols} more)\n", style="dim")
-            
+                output.append(
+                    f"        ... ({num_cols - max_cols} more)\n", style="dim"
+                )
+
             output.append("    ],\n", style="white")
-            
+
             # Show preview of data
             if num_obs > 0:
                 output.append("    preview={\n", style="white")
                 headers, rows = self._tabular()
-                
+
                 # Show column headers and first few values
                 for i, col in enumerate(headers[:max_cols]):
                     col_values = [row[i] for row in rows[:max_rows]]
-                    
+
                     # Format values with truncation
                     formatted_values = []
                     for val in col_values:
                         val_str = repr(val)
                         if len(val_str) > max_value_length:
-                            val_str = val_str[:max_value_length-3] + "..."
+                            val_str = val_str[: max_value_length - 3] + "..."
                         formatted_values.append(val_str)
-                    
+
                     output.append("        ", style="white")
                     output.append(f"'{col}'", style="bold yellow")
                     output.append(f": [{', '.join(formatted_values)}", style="white")
-                    
+
                     if num_obs > max_rows:
                         output.append(", ...", style="dim")
-                    
+
                     output.append("],\n", style="white")
-                
+
                 if num_cols > max_cols:
-                    output.append(f"        ... ({num_cols - max_cols} more columns)\n", style="dim")
-                
+                    output.append(
+                        f"        ... ({num_cols - max_cols} more columns)\n",
+                        style="dim",
+                    )
+
                 output.append("    }\n", style="white")
-        
+
         output.append(")", style="bold cyan")
-        
+
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
         console.print(output, end="")
@@ -1196,10 +1204,10 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             # Only remove fences when explicitly marked as ```markdown
             if s.startswith("```markdown"):
                 # Remove opening line
-                s = s[len("```markdown"):].lstrip("\n")
+                s = s[len("```markdown") :].lstrip("\n")
                 # Remove the last closing fence if present
                 if s.endswith("```"):
-                    s = s[: -3]
+                    s = s[:-3]
                 else:
                     fence_idx = s.rfind("```")
                     if fence_idx != -1:
@@ -1334,7 +1342,9 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             for i, entry in enumerate(self.data):
                 key, values = list(entry.items())[0]
                 if not isinstance(values, list):
-                    raise DatasetTypeError(f"Field '{field}' must contain lists in all entries. Entry {i} contains {type(values)}")
+                    raise DatasetTypeError(
+                        f"Field '{field}' must contain lists in all entries. Entry {i} contains {type(values)}"
+                    )
 
         # Create new expanded data structure
         new_data = []

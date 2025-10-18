@@ -17,14 +17,16 @@ def is_iterable(obj):
 
 class AgentListTraitOperations:
     """Handles trait manipulation operations for AgentList objects.
-    
+
     This class provides functionality for modifying, selecting, and managing
     traits across collections of Agent objects, including operations like
     dropping, keeping, selecting, renaming, adding, removing, and translating traits.
     """
 
     @staticmethod
-    def drop(agent_list: "AgentList", *field_names: Union[str, List[str]]) -> "AgentList":
+    def drop(
+        agent_list: "AgentList", *field_names: Union[str, List[str]]
+    ) -> "AgentList":
         """Drop field(s) from all agents in the AgentList.
 
         Args:
@@ -46,10 +48,13 @@ class AgentListTraitOperations:
             {'hair': 'brown', 'height': 5.5}
         """
         from .agent_list import AgentList
+
         return AgentList([a.drop(*field_names) for a in agent_list.data])
 
     @staticmethod
-    def keep(agent_list: "AgentList", *field_names: Union[str, List[str]]) -> "AgentList":
+    def keep(
+        agent_list: "AgentList", *field_names: Union[str, List[str]]
+    ) -> "AgentList":
         """Keep only the specified fields from all agents in the AgentList.
 
         Args:
@@ -71,6 +76,7 @@ class AgentListTraitOperations:
             {'age': 30}
         """
         from .agent_list import AgentList
+
         return AgentList([a.keep(*field_names) for a in agent_list.data])
 
     @staticmethod
@@ -94,6 +100,7 @@ class AgentListTraitOperations:
             {'c': 1, 'b': 1}
         """
         from .agent_list import AgentList
+
         newagents = []
         for agent in agent_list:
             newagents.append(agent.rename(old_name, new_name))
@@ -119,6 +126,7 @@ class AgentListTraitOperations:
             {'a': 1}
         """
         from .agent_list import AgentList
+
         if len(traits) == 1:
             traits_to_select = [list(traits)[0]]
         else:
@@ -129,13 +137,13 @@ class AgentListTraitOperations:
     @staticmethod
     def get_all_traits(agent_list: "AgentList") -> list[str]:
         """Return all traits in the AgentList.
-        
+
         Args:
             agent_list: The AgentList to get traits from
-            
+
         Returns:
             list[str]: List of all unique trait names across all agents
-            
+
         Examples:
             >>> from edsl import Agent, AgentList
             >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
@@ -151,7 +159,9 @@ class AgentListTraitOperations:
         return list(d.keys())
 
     @staticmethod
-    def translate_traits(agent_list: "AgentList", codebook: dict[str, str]) -> "AgentList":
+    def translate_traits(
+        agent_list: "AgentList", codebook: dict[str, str]
+    ) -> "AgentList":
         """Translate traits to a new codebook.
 
         Args:
@@ -171,6 +181,7 @@ class AgentListTraitOperations:
             2
         """
         from .agent_list import AgentList
+
         new_agents = []
         for agent in agent_list.data:
             new_agents.append(agent.translate_traits(codebook))
@@ -196,6 +207,7 @@ class AgentListTraitOperations:
             {'hair': 'brown', 'height': 5.5}
         """
         from .agent_list import AgentList
+
         agents = []
         new_al = agent_list.duplicate()
         for agent in new_al.data:
@@ -203,7 +215,9 @@ class AgentListTraitOperations:
         return AgentList(agents)
 
     @staticmethod
-    def add_trait(agent_list: "AgentList", trait: str, values: List[Any]) -> "AgentList":
+    def add_trait(
+        agent_list: "AgentList", trait: str, values: List[Any]
+    ) -> "AgentList":
         """Adds a new trait to every agent, with values taken from values.
 
         Args:
@@ -224,7 +238,7 @@ class AgentListTraitOperations:
         """
         from .agent_list import AgentList
         from .exceptions import AgentListError
-        
+
         if not is_iterable(values):
             new_agents = []
             value = values
@@ -243,4 +257,4 @@ class AgentListTraitOperations:
         new_agents = []
         for agent, value in zip(agent_list.data, values):
             new_agents.append(agent.add_trait(trait, value))
-        return AgentList(new_agents) 
+        return AgentList(new_agents)

@@ -203,7 +203,7 @@ class Survey(Base):
         if questions is not None and isinstance(questions, str):
             pulled_survey = Survey.pull(questions)
             self.__dict__.update(pulled_survey.__dict__)
-            return 
+            return
 
         self.raw_passed_questions = questions
 
@@ -624,7 +624,9 @@ class Survey(Base):
         questions = []
         question_dicts = data.get("questions", None)
         if question_dicts is None:
-            raise SurveyError(f"No questions found in the survey dictionary. The keys are {data.keys()}")
+            raise SurveyError(
+                f"No questions found in the survey dictionary. The keys are {data.keys()}"
+            )
         for q_dict in data["questions"]:
             cls_type = get_class(q_dict)
             questions.append(cls_type.from_dict(q_dict))
@@ -2174,19 +2176,20 @@ class Survey(Base):
 
     def __repr__(self) -> str:
         """Return a string representation of the survey.
-        
+
         Uses traditional repr format when running doctests, otherwise uses
         rich-based display for better readability.
         """
         import os
+
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
         else:
             return self._summary_repr()
-    
+
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the survey.
-        
+
         This representation can be used with eval() to recreate the Survey object.
         Used primarily for doctests and debugging.
         """
@@ -2200,7 +2203,7 @@ class Survey(Base):
 
     def _summary_repr(self, max_text_preview: int = 60, max_items: int = 5) -> str:
         """Generate a summary representation of the Survey with Rich formatting.
-        
+
         Args:
             max_text_preview: Maximum characters to show for question text previews
             max_items: Maximum number of items to show in lists before truncating
@@ -2208,58 +2211,73 @@ class Survey(Base):
         from rich.console import Console
         from rich.text import Text
         import io
-        
+
         # Build the Rich text
         output = Text()
         output.append("Survey(\n", style="bold cyan")
         output.append(f"    num_questions={len(self.questions)},\n", style="white")
-        
+
         # Show if survey has non-default rules (skip logic)
         has_rules = len(self.rule_collection.non_default_rules) > 0
         if has_rules:
-            output.append(f"    has_skip_logic=True ({len(self.rule_collection.non_default_rules)} rules),\n", style="yellow")
-        
+            output.append(
+                f"    has_skip_logic=True ({len(self.rule_collection.non_default_rules)} rules),\n",
+                style="yellow",
+            )
+
         # Show if survey has instructions
         has_instructions = len(self._instruction_names_to_instructions) > 0
         if has_instructions:
-            output.append(f"    has_instructions=True ({len(self._instruction_names_to_instructions)} instructions),\n", style="cyan")
-        
+            output.append(
+                f"    has_instructions=True ({len(self._instruction_names_to_instructions)} instructions),\n",
+                style="cyan",
+            )
+
         # Show question groups if any
         if self.question_groups:
-            output.append(f"    question_groups={list(self.question_groups.keys())},\n", style="magenta")
-        
+            output.append(
+                f"    question_groups={list(self.question_groups.keys())},\n",
+                style="magenta",
+            )
+
         # Show questions to randomize if any
         if self.questions_to_randomize:
-            output.append(f"    questions_to_randomize={self.questions_to_randomize},\n", style="green")
-        
+            output.append(
+                f"    questions_to_randomize={self.questions_to_randomize},\n",
+                style="green",
+            )
+
         # Show question information with text previews
         if self.questions:
             output.append("    questions: [\n", style="white")
-            
+
             # Show up to max_items questions with text previews
             for question in self.questions[:max_items]:
                 q_name = question.question_name
                 q_text = question.question_text
                 q_type = question.question_type
-                
+
                 # Truncate text if too long
                 if len(q_text) > max_text_preview:
                     q_text = q_text[:max_text_preview] + "..."
-                
+
                 output.append("        ", style="white")
                 output.append(f"'{q_name}'", style="bold yellow")
                 output.append(f" ({q_type})", style="dim")
                 output.append(": ", style="white")
                 output.append(f'"{q_text}"', style="white")
                 output.append(",\n", style="white")
-            
+
             if len(self.questions) > max_items:
-                output.append(f"        ... ({len(self.questions) - max_items} more)\n", style="dim")
-            
+                output.append(
+                    f"        ... ({len(self.questions) - max_items} more)\n",
+                    style="dim",
+                )
+
             output.append("    ]\n", style="white")
-        
+
         output.append(")", style="bold cyan")
-        
+
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
         console.print(output, end="")
@@ -2514,16 +2532,16 @@ class Survey(Base):
 
     def to_markdown(self) -> str:
         """Generate a markdown string representation of the survey.
-        
+
         Converts Jinja2 braces ({{ }}) to << >> to indicate piping.
-        
+
         Returns:
             str: Markdown formatted string representation of the survey.
         """
         text = self.table(tablefmt="github").to_string()
         # Replace Jinja2 braces with << >> to indicate piping
-        text = re.sub(r'\{\{', '<<', text)
-        text = re.sub(r'\}\}', '>>', text)
+        text = re.sub(r"\{\{", "<<", text)
+        text = re.sub(r"\}\}", ">>", text)
         return text
 
     # Deprecated aliases – keep for backward compatibility
@@ -2546,19 +2564,24 @@ class Survey(Base):
         return self._exporter.show()
 
     def to_scenario_list(
-        self, questions_only: bool = True, rename=False, remove_jinja2_syntax: bool = False
+        self,
+        questions_only: bool = True,
+        rename=False,
+        remove_jinja2_syntax: bool = False,
     ) -> "ScenarioList":
         """Convert the survey to a scenario list.
-        
+
         Args:
             questions_only: If True, only include questions (not instructions).
             rename: If True, rename keys for display (e.g., 'question_name' to 'identifier').
             remove_jinja2_syntax: If True, remove Jinja2 template syntax ({{ }}) from question text.
-        
+
         Returns:
             ScenarioList: A scenario list containing survey data.
         """
-        return self._exporter.to_scenario_list(questions_only, rename, remove_jinja2_syntax)
+        return self._exporter.to_scenario_list(
+            questions_only, rename, remove_jinja2_syntax
+        )
 
     def code(self, filename: str = "", survey_var_name: str = "survey") -> list[str]:
         """Create the Python code representation of a survey."""

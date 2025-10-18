@@ -458,77 +458,87 @@ class Result(Base, UserDict):
 
     def __repr__(self):
         """Return a string representation of the Result object.
-        
+
         Uses traditional repr format when running doctests, otherwise uses
         rich-based display for better readability.
         """
         import os
+
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
         else:
             return self._summary_repr()
-    
+
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the Result object.
-        
+
         This representation can be used with eval() to recreate the Result object.
         Used primarily for doctests and debugging.
         """
         params = ", ".join(f"{key}={repr(value)}" for key, value in self.data.items())
         return f"{self.__class__.__name__}({params})"
-    
+
     def _summary_repr(self, max_answers: int = 5) -> str:
         """Generate a summary representation of the Result with Rich formatting.
-        
+
         Args:
             max_answers: Maximum number of answers to show before truncating
         """
         from rich.console import Console
         from rich.text import Text
         import io
-        
+
         # Build the Rich text
         output = Text()
         output.append("Result(\n", style="bold cyan")
-        
+
         # Agent information
         if self.agent:
-            agent_traits = getattr(self.agent, 'traits', {})
+            agent_traits = getattr(self.agent, "traits", {})
             if agent_traits:
-                trait_str = ", ".join(f"{k}={repr(v)}" for k, v in list(agent_traits.items())[:3])
+                trait_str = ", ".join(
+                    f"{k}={repr(v)}" for k, v in list(agent_traits.items())[:3]
+                )
                 if len(agent_traits) > 3:
                     trait_str += f", ... ({len(agent_traits) - 3} more)"
                 output.append(f"    agent: {{{trait_str}}},\n", style="green")
             else:
                 output.append("    agent: Agent(),\n", style="green")
-        
+
         # Scenario information
         if self.scenario:
             scenario_dict = dict(self.scenario)
             if scenario_dict:
-                scenario_str = ", ".join(f"{k}={repr(v)}" for k, v in list(scenario_dict.items())[:3])
+                scenario_str = ", ".join(
+                    f"{k}={repr(v)}" for k, v in list(scenario_dict.items())[:3]
+                )
                 if len(scenario_dict) > 3:
                     scenario_str += f", ... ({len(scenario_dict) - 3} more)"
                 output.append(f"    scenario: {{{scenario_str}}},\n", style="magenta")
             else:
                 output.append("    scenario: Scenario(),\n", style="magenta")
-        
+
         # Model information
         if self.model:
-            model_name = getattr(self.model, 'model', getattr(self.model, '_model_', 'unknown'))
-            service_name = getattr(self.model, '_inference_service_', 'unknown')
+            model_name = getattr(
+                self.model, "model", getattr(self.model, "_model_", "unknown")
+            )
+            service_name = getattr(self.model, "_inference_service_", "unknown")
             output.append(f"    model: {model_name} ({service_name}),\n", style="blue")
-        
+
         # Iteration
-        iteration = self.data.get('iteration', 0)
+        iteration = self.data.get("iteration", 0)
         output.append(f"    iteration: {iteration},\n", style="white")
-        
+
         # Answers
         answers = self.answer
         if answers:
-            output.append(f"    answers: {len(answers)} question{'s' if len(answers) != 1 else ''},\n", style="yellow")
+            output.append(
+                f"    answers: {len(answers)} question{'s' if len(answers) != 1 else ''},\n",
+                style="yellow",
+            )
             output.append("        {\n", style="white")
-            
+
             for i, (q_name, q_answer) in enumerate(list(answers.items())[:max_answers]):
                 answer_repr = repr(q_answer)
                 if len(answer_repr) > 50:
@@ -536,16 +546,19 @@ class Result(Base, UserDict):
                 output.append("            ", style="white")
                 output.append(f"'{q_name}'", style="bold yellow")
                 output.append(f": {answer_repr},\n", style="white")
-            
+
             if len(answers) > max_answers:
-                output.append(f"            ... ({len(answers) - max_answers} more)\n", style="dim")
-            
+                output.append(
+                    f"            ... ({len(answers) - max_answers} more)\n",
+                    style="dim",
+                )
+
             output.append("        },\n", style="white")
         else:
             output.append("    answers: {},\n", style="dim")
-        
+
         output.append(")", style="bold cyan")
-        
+
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
         console.print(output, end="")

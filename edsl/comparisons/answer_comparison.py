@@ -28,7 +28,7 @@ class AnswerComparison:
 
         >>> comparison = AnswerComparison(
         ...     answer_a="yes",
-        ...     answer_b="no", 
+        ...     answer_b="no",
         ...     exact_match=False,
         ...     similarity=0.2,
         ...     question_type="yes_no"
@@ -64,12 +64,12 @@ class AnswerComparison:
 
     def __init__(self, answer_a: Any, answer_b: Any, **metrics: Any):
         """Initialize with answer pair and arbitrary metrics.
-        
+
         Args:
             answer_a: First answer in the comparison
             answer_b: Second answer in the comparison
             **metrics: Arbitrary keyword arguments for comparison metrics
-                      and question metadata (e.g., exact_match=True, 
+                      and question metadata (e.g., exact_match=True,
                       question_type='multiple_choice')
         """
         self.answer_a = answer_a
@@ -107,10 +107,10 @@ class AnswerComparison:
 
     def to_dict(self) -> Dict[str, Any]:
         """Return all comparison data as a dictionary.
-        
+
         Returns:
             Dictionary containing answer_a, answer_b, and all metrics
-            
+
         Examples:
             >>> comp = AnswerComparison("yes", "no", exact_match=False)
             >>> data = comp.to_dict()
@@ -118,8 +118,8 @@ class AnswerComparison:
             ['answer_a', 'answer_b', 'exact_match']
         """
         result = {
-            'answer_a': self.answer_a,
-            'answer_b': self.answer_b,
+            "answer_a": self.answer_a,
+            "answer_b": self.answer_b,
         }
         result.update(self._metrics)
         return result
@@ -132,4 +132,4 @@ class AnswerComparison:
         metric_parts = []
         for k, v in self._metrics.items():
             metric_parts.append(f"{k}={v:.3f}" if isinstance(v, float) else f"{k}={v}")
-        return f"AnswerComparison(answer_a='{a}', answer_b='{b}', {', '.join(metric_parts)})" 
+        return f"AnswerComparison(answer_a='{a}', answer_b='{b}', {', '.join(metric_parts)})"

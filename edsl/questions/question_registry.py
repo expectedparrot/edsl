@@ -42,13 +42,11 @@ class Question(metaclass=Meta):
 
         subclass = get_question_classes.get(question_type, None)
         if subclass is None:
-
             # they might be trying to pull a question from coop by name
             try:
                 q = Question.pull(question_type)
                 return q
             except Exception:
-
                 from .exceptions import QuestionValueError
 
                 raise QuestionValueError(
