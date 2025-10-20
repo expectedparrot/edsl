@@ -400,11 +400,10 @@ class QuestionTextDescriptor(BaseDescriptor):
         # if len(value) > Settings.MAX_QUESTION_LENGTH:
         #     raise Exception("Question is too long!")
         if len(value) < 1:
-
             raise QuestionCreationValidationError("Question is too short!")
         if not isinstance(value, str):
-            raise QuestionCreationValidationError("Question must be a string!"
-            f"Received: {value}"
+            raise QuestionCreationValidationError(
+                "Question must be a string!" f"Received: {value}"
             )
 
         return None
@@ -452,6 +451,24 @@ class AnswerKeysDescriptor(BaseDescriptor):
             raise QuestionCreationValidationError(
                 f"`answer_keys` must be a list of strings or integers (got {value})."
             )
+
+
+class WeightDescriptor(BaseDescriptor):
+    """Validate that the `weight` attribute is a non-negative number or None."""
+
+    def validate(self, value, instance):
+        """Validate the value is a non-negative number or None."""
+        if value is None:
+            return None
+        if not isinstance(value, (int, float)):
+            raise QuestionCreationValidationError(
+                f"`weight` must be a number or None (got {value})."
+            )
+        if value < 0:
+            raise QuestionCreationValidationError(
+                f"`weight` must be non-negative (got {value})."
+            )
+        return value
 
 
 if __name__ == "__main__":

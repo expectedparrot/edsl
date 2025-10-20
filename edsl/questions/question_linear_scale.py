@@ -1,7 +1,11 @@
 from __future__ import annotations
 from typing import Optional
 
-from .descriptors import QuestionOptionsDescriptor, OptionLabelDescriptor
+from .descriptors import (
+    QuestionOptionsDescriptor,
+    OptionLabelDescriptor,
+    WeightDescriptor,
+)
 from .question_multiple_choice import (
     QuestionMultipleChoice,
     MultipleChoiceResponseValidator,
@@ -214,6 +218,7 @@ class QuestionLinearScale(QuestionMultipleChoice):
     question_type = "linear_scale"
     option_labels: Optional[dict[int, str]] = OptionLabelDescriptor()
     question_options = QuestionOptionsDescriptor(linear_scale=True)
+    weight: Optional[float] = WeightDescriptor()
     response_validator_class = LinearScaleResponseValidator
 
     def __init__(
@@ -225,6 +230,7 @@ class QuestionLinearScale(QuestionMultipleChoice):
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
         include_comment: Optional[bool] = True,
+        weight: Optional[float] = None,
     ):
         """Instantiate a new QuestionLinearScale.
 
@@ -233,6 +239,7 @@ class QuestionLinearScale(QuestionMultipleChoice):
         :param question_options: The options the respondent should select from.
         :param option_labels: Maps question_options to labels.
         :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionLinearScale.default_instructions`.
+        :param weight: Optional non-negative weight for the question.
         """
         super().__init__(
             question_name=question_name,
@@ -250,6 +257,7 @@ class QuestionLinearScale(QuestionMultipleChoice):
             )
         self.answering_instructions = answering_instructions
         self.question_presentation = question_presentation
+        self.weight = weight
 
     ################
     # Helpful
