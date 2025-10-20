@@ -399,6 +399,17 @@ class ObjectFormatter(ABC):
             parts.append(f"_stored_commands={self._stored_commands!r}")
         return f"{cls_name}({', '.join(parts)})"
 
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the ObjectFormatter.
+
+        This representation can be used with eval() to recreate the ObjectFormatter object.
+        Used primarily for doctests and debugging.
+
+        The __repr__ method already returns an eval-able representation, so we just
+        delegate to it.
+        """
+        return self.__repr__()
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "OutputFormatter":
         """Create a formatter from a dict produced by to_dict.
@@ -499,6 +510,27 @@ class OutputFormatters(UserList):
 
     def __repr__(self) -> str:
         return f"OutputFormatters({self.data})"
+
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the OutputFormatters object.
+
+        This representation can be used with eval() to recreate the OutputFormatters object.
+        Used primarily for doctests and debugging.
+        """
+        # Build a dictionary representation for eval
+        mapping_repr = "{"
+        items = []
+        for name, formatter in self.mapping.items():
+            # Use the formatter's _eval_repr_ if available, otherwise repr()
+            if hasattr(formatter, "_eval_repr_"):
+                formatter_repr = formatter._eval_repr_()
+            else:
+                formatter_repr = repr(formatter)
+            items.append(f"{repr(name)}: {formatter_repr}")
+        mapping_repr += ", ".join(items) + "}"
+
+        default_repr = repr(self.default)
+        return f"OutputFormatters(data={mapping_repr}, default={default_repr})"
 
     def set_default(self, name: str) -> None:
         if name not in self.mapping:

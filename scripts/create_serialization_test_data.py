@@ -11,6 +11,7 @@ from edsl import __version__ as edsl_version
 from edsl.base import RegisterSubclassesMeta
 from edsl.coop.utils import ObjectRegistry
 from edsl.questions import *
+from edsl.jobs import Jobs  # Import Jobs to ensure it's registered
 from tests.serialization.cases.RegisterSerializationCasesMeta import (
     RegisterSerializationCasesMeta,
 )

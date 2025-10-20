@@ -132,6 +132,7 @@ def test_serialization_coverage():
             "CompareResultsToGold",
             "PerformanceDelta",
             "ResultPairComparison",
+            "BaseMacro",  # Abstract base class for Macro and CompositeMacro
             "CompositeMacro",
         ]
     )
