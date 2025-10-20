@@ -666,5 +666,50 @@ class PerformanceDelta(Base):
 
         return cls(baseline_comparison, updated_comparison)
 
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the PerformanceDelta.
+
+        Returns:
+            str: A string that can be evaluated to recreate the PerformanceDelta
+        """
+        summary = self.summary()
+        return (
+            f"PerformanceDelta("
+            f"improvements={summary['improvements']}, "
+            f"worsenings={summary['worsenings']})"
+        )
+
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the PerformanceDelta with Rich formatting.
+
+        Returns:
+            str: A formatted summary representation of the PerformanceDelta
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+
+        summary = self.summary()
+
+        output = Text()
+        output.append("PerformanceDelta(", style="bold cyan")
+        output.append(f"improvements={summary['improvements']}", style="green")
+        output.append(", ", style="white")
+        output.append(f"unchanged={summary['unchanged']}", style="white")
+        output.append(", ", style="white")
+        output.append(f"worsenings={summary['worsenings']}", style="red")
+        output.append(", ", style="white")
+
+        if summary["is_pareto"]:
+            output.append("✓ Pareto", style="bold green")
+        else:
+            output.append("✗ Not Pareto", style="dim")
+
+        output.append(")", style="bold cyan")
+
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
+
 
 __all__ = ["PerformanceDelta"]

@@ -870,6 +870,36 @@ class AgentBlueprint(Base):
 
         return log_prob
 
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the AgentBlueprint.
+
+        Returns:
+            str: A string that can be evaluated to recreate the AgentBlueprint
+        """
+        dims = ", ".join(self.dimensions)
+        return f"AgentBlueprint(dimensions=[{dims}])"
+
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the AgentBlueprint with Rich formatting.
+
+        Returns:
+            str: A formatted summary representation of the AgentBlueprint
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+
+        output = Text()
+        output.append("AgentBlueprint(", style="bold cyan")
+        output.append(f"dimensions={len(self.dimensions)}", style="white")
+        output.append(", ", style="white")
+        output.append(f"combinations={self._total_combinations}", style="yellow")
+        output.append(")", style="bold cyan")
+
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
+
 
 # ------------------------------------------------------------------
 # Usage examples (run "python agent_blueprint.py" to see output)

@@ -42,26 +42,15 @@ class ModelList(Base, UserList):
         """
         return set([model.model for model in self])
 
-    def __repr__(self):
-        """Return a string representation of the ModelList.
-
-        Uses traditional repr format when running doctests, otherwise uses
-        rich-based display for better readability.
-        """
-        import os
-
-        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
-            return self._eval_repr_()
-        else:
-            return self._summary_repr()
-
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the ModelList.
 
         This representation can be used with eval() to recreate the ModelList object.
         Used primarily for doctests and debugging.
         """
-        return f"ModelList({super().__repr__()})"
+        from collections import UserList
+
+        return f"ModelList({UserList.__repr__(self)})"
 
     def _summary_repr(self, max_items: int = 5) -> str:
         """Generate a summary representation of the ModelList with Rich formatting.

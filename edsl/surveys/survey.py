@@ -2174,19 +2174,6 @@ class Survey(Base):
 
         return self._create_subsurvey(kept_questions)
 
-    def __repr__(self) -> str:
-        """Return a string representation of the survey.
-
-        Uses traditional repr format when running doctests, otherwise uses
-        rich-based display for better readability.
-        """
-        import os
-
-        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
-            return self._eval_repr_()
-        else:
-            return self._summary_repr()
-
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the survey.
 
@@ -2201,7 +2188,7 @@ class Survey(Base):
             )
         return f"Survey(questions=[{questions_string}], memory_plan={self.memory_plan}, rule_collection={self.rule_collection}, question_groups={self.question_groups}, questions_to_randomize={self.questions_to_randomize})"
 
-    def _summary_repr(self, max_text_preview: int = 60, max_items: int = 5) -> str:
+    def _summary_repr(self, max_text_preview: int = 60, max_items: int = 50) -> str:
         """Generate a summary representation of the Survey with Rich formatting.
 
         Args:
@@ -2247,25 +2234,22 @@ class Survey(Base):
                 style="green",
             )
 
-        # Show question information with text previews
+        # Show question information using each question's _summary_repr
         if self.questions:
             output.append("    questions: [\n", style="white")
 
-            # Show up to max_items questions with text previews
+            # Show up to max_items questions using their own _summary_repr
             for question in self.questions[:max_items]:
-                q_name = question.question_name
-                q_text = question.question_text
-                q_type = question.question_type
+                # Get the question's own summary representation
+                question_repr = (
+                    question._summary_repr()
+                    if hasattr(question, "_summary_repr")
+                    else repr(question)
+                )
 
-                # Truncate text if too long
-                if len(q_text) > max_text_preview:
-                    q_text = q_text[:max_text_preview] + "..."
-
-                output.append("        ", style="white")
-                output.append(f"'{q_name}'", style="bold yellow")
-                output.append(f" ({q_type})", style="dim")
-                output.append(": ", style="white")
-                output.append(f'"{q_text}"', style="white")
+                # Add indentation to each line of the question's repr
+                indented_repr = "        " + question_repr.replace("\n", "\n        ")
+                output.append(indented_repr, style="white")
                 output.append(",\n", style="white")
 
             if len(self.questions) > max_items:

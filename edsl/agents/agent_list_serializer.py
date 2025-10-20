@@ -114,15 +114,9 @@ class AgentListSerializer:
             agent_list.set_codebook(data["codebook"])
 
         return agent_list
-        # except KeyError:
-        #     print("Current data is", data)
-        #     raise ValueError("agent_list key not found in data")
 
-        # agents = [Agent.from_dict(agent_dict) for agent_dict in agent_data]
-        # agent_list = AgentList(agents)
 
-        # # Apply codebook if present in the dictionary
-        # if "codebook" in data and data["codebook"]:
-        #     agent_list.set_codebook(data["codebook"])
+if __name__ == "__main__":
+    import doctest
 
-        # return agent_list
+    doctest.testmod()

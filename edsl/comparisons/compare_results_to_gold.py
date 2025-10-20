@@ -2056,3 +2056,37 @@ class CompareResultsToGold(Base):
         scenario_names = {0: "Candidate 1"}
 
         return cls(candidate_results, gold_results, scenario_names=scenario_names)
+
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the CompareResultsToGold.
+
+        Returns:
+            str: A string that can be evaluated to recreate the CompareResultsToGold
+        """
+        return f"CompareResultsToGold(candidate_results, gold_results)"
+
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the CompareResultsToGold with Rich formatting.
+
+        Returns:
+            str: A formatted summary representation of the CompareResultsToGold
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+
+        output = Text()
+        output.append("CompareResultsToGold(", style="bold cyan")
+        output.append(f"agents={len(self.comparisons)}", style="white")
+        output.append(", ", style="white")
+
+        total_comparisons = sum(
+            len(comp_list) for comp_list in self.comparisons.values()
+        )
+        output.append(f"comparisons={total_comparisons}", style="yellow")
+
+        output.append(")", style="bold cyan")
+
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()

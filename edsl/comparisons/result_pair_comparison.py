@@ -1086,6 +1086,59 @@ class ResultPairComparison(Base):
 
         return result_diffs
 
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the ResultPairComparison.
+
+        Returns:
+            str: A string that can be evaluated to recreate the ResultPairComparison
+        """
+        return f"ResultPairComparison(result_A, result_B)"
+
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the ResultPairComparison with Rich formatting.
+
+        Returns:
+            str: A formatted summary representation of the ResultPairComparison
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+        import ast
+
+        def get_name(name_field):
+            try:
+                extracted_name = ast.literal_eval(name_field)["name"][:15]
+                return extracted_name
+            except Exception:
+                return str(name_field)[:15]
+
+        output = Text()
+        output.append("ResultPairComparison(", style="bold cyan")
+
+        # Get agent names
+        agent_1 = (
+            get_name(self.result_A.agent.name)
+            if hasattr(self.result_A.agent, "name")
+            else "Agent1"
+        )
+        agent_2 = (
+            get_name(self.result_B.agent.name)
+            if hasattr(self.result_B.agent, "name")
+            else "Agent2"
+        )
+
+        output.append(f"'{agent_1}'", style="green")
+        output.append(" vs ", style="white")
+        output.append(f"'{agent_2}'", style="green")
+        output.append(", ", style="white")
+        output.append(f"questions={len(self.comparison)}", style="yellow")
+
+        output.append(")", style="bold cyan")
+
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
+
 
 if __name__ == "__main__":  # pragma: no cover
     import doctest

@@ -869,6 +869,59 @@ class QuestionBase(
 
                 output.append("    ]", style="white")
 
+        # Numerical constraints (for QuestionNumerical)
+        if hasattr(self, "min_value") and self.min_value is not None:
+            output.append(",\n", style="white")
+            output.append(f"    min_value={self.min_value}", style="white")
+
+        if hasattr(self, "max_value") and self.max_value is not None:
+            output.append(",\n", style="white")
+            output.append(f"    max_value={self.max_value}", style="white")
+
+        # Selection constraints (for QuestionCheckBox, QuestionRank)
+        if hasattr(self, "min_selections") and self.min_selections is not None:
+            output.append(",\n", style="white")
+            output.append(f"    min_selections={self.min_selections}", style="white")
+
+        if hasattr(self, "max_selections") and self.max_selections is not None:
+            output.append(",\n", style="white")
+            output.append(f"    max_selections={self.max_selections}", style="white")
+
+        if hasattr(self, "num_selections") and self.num_selections is not None:
+            output.append(",\n", style="white")
+            output.append(f"    num_selections={self.num_selections}", style="white")
+
+        # Option labels (for QuestionLinearScale)
+        if hasattr(self, "option_labels") and self.option_labels:
+            output.append(",\n", style="white")
+            output.append("    option_labels={", style="white")
+            labels_str = ", ".join(f"{k}: '{v}'" for k, v in self.option_labels.items())
+            if len(labels_str) > 50:
+                labels_str = labels_str[:47] + "..."
+            output.append(labels_str, style="magenta")
+            output.append("}", style="white")
+
+        # Weight (for QuestionLinearScale)
+        if hasattr(self, "weight") and self.weight is not None:
+            output.append(",\n", style="white")
+            output.append(f"    weight={self.weight}", style="white")
+
+        # Boolean flags - check both .data and direct attributes
+        data_dict = self.data
+
+        if "use_code" in data_dict and data_dict["use_code"]:
+            output.append(",\n", style="white")
+            output.append("    use_code=True", style="white")
+
+        # permissive is stored without underscore, so check attribute directly
+        if hasattr(self, "permissive") and self.permissive:
+            output.append(",\n", style="white")
+            output.append("    permissive=True", style="white")
+
+        if "include_comment" in data_dict and not data_dict["include_comment"]:
+            output.append(",\n", style="white")
+            output.append("    include_comment=False", style="white")
+
         output.append("\n)", style="bold cyan")
 
         # Render to string

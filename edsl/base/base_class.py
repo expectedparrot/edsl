@@ -915,6 +915,35 @@ class RepresentationMixin:
                 + TableDisplay.from_dictionary_wide(display_dict)._repr_html_()
             )
 
+    def __repr__(self):
+        """Return a string representation of the object.
+
+        Uses traditional repr format when running doctests, otherwise uses
+        rich-based display for better readability. In Jupyter notebooks,
+        returns a minimal string since _repr_html_ handles the display.
+
+        Returns:
+            str: String representation of the object
+        """
+        import os
+
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+
+        # Check if we're in a Jupyter notebook environment
+        # If so, return minimal representation since _repr_html_ will handle display
+        try:
+            from IPython import get_ipython
+
+            ipy = get_ipython()
+            if ipy is not None and "IPKernelApp" in ipy.config:
+                # We're in a Jupyter notebook/kernel, not IPython terminal
+                return f"{self.__class__.__name__}(...)"
+        except (NameError, ImportError):
+            pass
+
+        return self._summary_repr()
+
     def __str__(self):
         """Return the string representation of the object.
 
@@ -1201,6 +1230,36 @@ class Base(
 
         Returns:
             str: Python code that, when executed, creates an equivalent object
+        """
+        from edsl.base.exceptions import BaseNotImplementedError
+
+        raise BaseNotImplementedError("This method is not implemented yet.")
+
+    @abstractmethod
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the object.
+
+        This method must be implemented by all subclasses to provide a
+        representation that can be used with eval() to recreate the object.
+        Used primarily for doctests and debugging.
+
+        Returns:
+            str: An eval-able string representation of the object
+        """
+        from edsl.base.exceptions import BaseNotImplementedError
+
+        raise BaseNotImplementedError("This method is not implemented yet.")
+
+    @abstractmethod
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the object with Rich formatting.
+
+        This method must be implemented by all subclasses to provide a
+        human-readable summary representation suitable for display in terminals
+        and notebooks. Should use Rich formatting for better readability.
+
+        Returns:
+            str: A formatted summary representation of the object
         """
         from edsl.base.exceptions import BaseNotImplementedError
 

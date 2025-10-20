@@ -447,6 +447,22 @@ class Notebook(Base):
 
         NotebookToLaTeX(self).convert(filename)
 
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the Notebook."""
+        return f'Notebook(data={self.data}, name="""{self.name}""", lint={self.lint})'
+
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the Notebook with Rich formatting."""
+        notebook_preview = ""
+        for cell in self.data["cells"]:
+            if "source" in cell:
+                notebook_preview += f"{cell['source']}\n"
+            if len(notebook_preview) > 200:
+                notebook_preview = f"{notebook_preview[:200]} [...]"
+                break
+        notebook_preview = notebook_preview.rstrip()
+        return f"Notebook(name={self.name!r}, cells={len(self.data.get('cells', []))}, preview={notebook_preview!r})"
+
 
 if __name__ == "__main__":
     from .. import Notebook

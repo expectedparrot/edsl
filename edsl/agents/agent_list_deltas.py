@@ -416,6 +416,41 @@ class AgentListDeltas(Base):
             }
         )
 
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the AgentListDeltas.
+
+        Returns:
+            str: A string that can be evaluated to recreate the AgentListDeltas
+        """
+        return f"AgentListDeltas({self.deltas!r})"
+
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the AgentListDeltas with Rich formatting.
+
+        Returns:
+            str: A formatted summary representation of the AgentListDeltas
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+
+        output = Text()
+        output.append("AgentListDeltas(", style="bold cyan")
+        output.append(f"num_agents={len(self.deltas)}", style="white")
+
+        if self.deltas:
+            output.append(", ", style="white")
+            agents_str = ", ".join(list(self.deltas.keys())[:3])
+            if len(self.deltas) > 3:
+                agents_str += f", ... ({len(self.deltas) - 3} more)"
+            output.append(f"agents=[{agents_str}]", style="yellow")
+
+        output.append(")", style="bold cyan")
+
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
+
 
 if __name__ == "__main__":
     import doctest

@@ -980,22 +980,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __repr__(self, max_length: int = 100):
-        """Return a string representation of the ScenarioList.
-
-        If the full representation would exceed max_length characters, returns a summary
-        showing the class name, number of scenarios, parameter names, and preview values.
-
-        Args:
-            max_length: Maximum length before switching to summary format (default: 100)
-        """
-        import os
-
-        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
-            return self._eval_repr_()
-        else:
-            return self._summary_repr()
-
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the ScenarioList.
 
@@ -2297,6 +2281,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return cls(
             [Scenario.from_dict(s) for s in data["scenarios"]], codebook=codebook
         )
+
+    @classmethod
+    def from_list_of_dicts(cls, data: list[dict]) -> ScenarioList:
+        """Create a `ScenarioList` from a list of dictionaries.
+
+        >>> data = [{'name': 'Alice'}, {'name': 'Bob'}]
+        >>> ScenarioList.from_list_of_dicts(data)
+        ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
+        """
+        return cls([Scenario(s) for s in data])
 
     @classmethod
     def from_nested_dict(cls, data: dict) -> ScenarioList:

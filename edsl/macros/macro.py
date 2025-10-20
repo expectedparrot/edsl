@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional, Any, TypedDict, Mapping
+from typing import TYPE_CHECKING, Optional, Any, TypedDict, Mapping, Callable
 import re
 from html import escape
 
@@ -10,6 +10,7 @@ from ..surveys import Survey
 from ..base import Base
 
 if TYPE_CHECKING:
+    from ..scenarios import ScenarioList
     from ..surveys import Survey
     from ..jobs import Jobs
     from ..results import Results
@@ -39,7 +40,7 @@ class ParamsDict(TypedDict, total=False):
     pass
 
 
-def disabled_in_client_mode(method):
+def disabled_in_client_mode(method) -> Callable:
     """Decorator to disable instance methods when `self.client_mode` is True.
 
     When applied to an instance method, calling the method will raise a RuntimeError
@@ -49,8 +50,10 @@ def disabled_in_client_mode(method):
     @wraps(method)
     def wrapper(self, *args, **kwargs):
         if getattr(self, "client_mode", False):
-            raise RuntimeError(
-                f"{self.__class__.__name__}.{method.__name__} is disabled in client mode"
+            from .exceptions import ClientModeError
+
+            raise ClientModeError(
+                message=f"{self.__class__.__name__}.{method.__name__} is disabled in client mode. If it's a macro you created, you can 'pull' it to get the full macro object."
             )
         return method(self, *args, **kwargs)
 
@@ -58,155 +61,142 @@ def disabled_in_client_mode(method):
 
 
 class MacroMixin:
-    @staticmethod
-    def _resolve_macro_identifier(
-        macro_id_or_qualified_name: str, server_url: str = "http://localhost:8000"
-    ) -> str:
-        """Resolve a qualified name 'owner/alias' to a macro_id, or return the macro_id unchanged.
+    """Mixin for Macro class.
 
-        Args:
-            macro_id_or_qualified_name: Either a macro_id UUID or a qualified name 'owner/alias'.
-            server_url: URL of the FastAPI server.
-
-        Returns:
-            The resolved macro_id.
-        """
-        if (
-            isinstance(macro_id_or_qualified_name, str)
-            and "/" in macro_id_or_qualified_name
-        ):
-            parts = macro_id_or_qualified_name.split("/", 1)
-            if len(parts) == 2:
-                try:
-                    from .macro_server_client import MacroServerClient
-
-                    return MacroServerClient.resolve_macro_id(
-                        macro_id_or_qualified_name, server_url=server_url
-                    )
-                except Exception:
-                    # Fall back to treating input as a macro_id if resolution fails
-                    pass
-        return macro_id_or_qualified_name
+    This provides methods that are available to both the Macro and ClientFacingMacro classes.
+    """
 
     @classmethod
-    def list(
-        cls,
-        server_url: str = "http://localhost:8000",
-        search: Optional[str] = None,
-        owner: Optional[str] = None,
-    ) -> list[dict]:
-        """List all macros from a FastAPI server.
-
-        Args:
-            server_url: URL of the FastAPI server (default: http://localhost:8000)
-            search: Optional search string to filter macros.
-            owner: Optional owner string to filter macros by owner.
+    def public_macros(cls) -> "ScenarioList":
+        """List all deployed macros.
 
         Returns:
-            List of macro metadata dictionaries.
-
-        Example:
-            >>> macros = Macro.list()  # doctest: +SKIP
+            List of deployed macro information.
         """
-        from .macro_server_client import MacroServerClient
+        import requests
+        from ..coop import Coop
+
+        coop = Coop()
+        BASE_URL = coop.api_url
+        API_KEY = coop.api_key
+
+        # Fetch list of deployed macros
+        response = requests.get(
+            f"{BASE_URL}/api/v0/macros/deployed",
+            headers={
+                "Authorization": f"Bearer {API_KEY}",
+                "Content-Type": "application/json",
+            },
+        )
+
+        response.raise_for_status()
+        macros_list = response.json()
         from ..scenarios import ScenarioList
 
-        class AvailableMacros(ScenarioList):
-            def fetch(self, id: int):
-                macro_id = self[id].get("macro_id")
-                return Macro.from_id(macro_id)
-
-        macros_data = MacroServerClient.list_macros(
-            server_url=server_url, search=search, owner=owner
-        )
-
-        # Handle both old and new field structures
-        normalized_macros = []
-        for macro_data in macros_data:
-            # Convert old structure to new structure if needed
-            if "name" in macro_data and "description" in macro_data:
-                # Old structure - convert to new
-                name_data = macro_data["name"]
-                desc_data = macro_data["description"]
-
-                if isinstance(name_data, dict):
-                    macro_data["application_name"] = name_data.get(
-                        "alias", "unknown_macro"
-                    )
-                    macro_data["display_name"] = name_data.get("name", "Unknown Macro")
-                else:
-                    macro_data["application_name"] = (
-                        str(name_data).lower().replace(" ", "_")
-                    )
-                    macro_data["display_name"] = str(name_data)
-
-                if isinstance(desc_data, dict):
-                    macro_data["short_description"] = desc_data.get(
-                        "short", "No description available."
-                    )
-                    macro_data["long_description"] = desc_data.get(
-                        "long", desc_data.get("short", "No description available.")
-                    )
-                else:
-                    desc_str = str(desc_data)
-                    macro_data["short_description"] = desc_str
-                    macro_data["long_description"] = desc_str
-
-                # Remove old fields
-                macro_data.pop("name", None)
-                macro_data.pop("description", None)
-            # If it's already the new structure, ensure all required fields exist
-            elif "application_name" in macro_data:
-                # New structure - ensure all fields exist
-                if "display_name" not in macro_data:
-                    macro_data["display_name"] = macro_data.get(
-                        "application_name", "Unknown Macro"
-                    )
-                if "short_description" not in macro_data:
-                    macro_data["short_description"] = "No description available."
-                if "long_description" not in macro_data:
-                    macro_data["long_description"] = macro_data.get(
-                        "short_description", "No description available."
-                    )
-
-            normalized_macros.append(macro_data)
-
-        sl = AvailableMacros(Scenario.from_dict(s) for s in normalized_macros)
-        return sl.select(
-            "qualified_name",
-            "application_name",
-            "display_name",
-            "short_description",
-            "long_description",
-        )
+        return ScenarioList.from_list_of_dicts(macros_list["deployed_macros"])
 
     @classmethod
-    def full_info(
-        cls, macro_id_or_qualified_name: str, server_url: str = "http://localhost:8000"
-    ) -> dict:
-        """Get full information about a macro."""
-        resolved_macro_id = cls._resolve_macro_identifier(
-            macro_id_or_qualified_name, server_url
-        )
-        d = Macro.from_id(resolved_macro_id, server_url).to_dict()
-        d.pop("jobs_object")
-        d.pop("output_formatters")
-        d.pop("attachment_formatters")
-        survey = Survey.from_dict(d.pop("initial_survey"))
-        d["params"] = {q.question_name: q.question_text for q in survey.questions}
-        from ..scenarios import Scenario
+    def instantiate_public_macro(cls, qualified_name: str) -> "Macro":
+        """Instantiate a public macro by fully qualified name.
 
-        return Scenario(d)
+        This is used to instantiate a macro from a fully qualified name.
+        The macro lacks the jobs_object, which means to execute, the params are sent to the server.
+        This is controlled by the client_mode flag.
 
-    @classmethod
-    def pull(cls, edsl_uuid: str) -> "Macro":
-        """Pull a macro by UUID from the remote registry/service.
+        Args:
+            qualified_name: The fully qualified name of the macro.
 
-        This gets the full macro definition from the remote registry/service.
+        Returns:
+            The instantiated macro.
         """
-        from .macro_remote import MacroRemote
+        import requests
+        from ..coop import Coop
 
-        return MacroRemote.pull(cls, edsl_uuid)
+        coop = Coop()
+        BASE_URL = coop.api_url
+        API_KEY = coop.api_key
+
+        alias = qualified_name.split("/")[-1]
+        owner = qualified_name.split("/")[-2]
+
+        # Fetch macro dictionary
+        response = requests.get(
+            f"{BASE_URL}/api/v0/macros/deployed/{owner}/{alias}/instantiate_macro_client",
+            headers={
+                "Authorization": f"Bearer {API_KEY}",
+                "Content-Type": "application/json",
+            },
+        )
+
+        response.raise_for_status()
+        macro_dict = response.json()
+
+        m = Macro.from_dict(macro_dict)
+        m.macro_id = cls.get_public_macro_uuid(owner, alias)
+        m.client_mode = True
+        return m
+
+    @classmethod
+    def get_public_macro_uuid(cls, owner: str, alias: str) -> str:
+        """Get macro UUID from fully qualified name.
+
+        GET /api/v0/macros/deployed/{owner}/{alias}/uuid
+
+        Args:
+            owner: The owner of the macro.
+            alias: The alias of the macro.
+
+        Returns:
+            The macro UUID.
+        """
+        import requests
+        from ..coop import Coop
+
+        coop = Coop()
+        BASE_URL = coop.api_url
+        API_KEY = coop.api_key
+
+        response = requests.get(
+            f"{BASE_URL}/api/v0/macros/deployed/{owner}/{alias}/uuid",
+            headers={
+                "Authorization": f"Bearer {API_KEY}",
+                "Content-Type": "application/json",
+            },
+        )
+
+        response.raise_for_status()
+        return response.json()["macro_uuid"]
+
+    @classmethod
+    def create_client_macro(
+        cls, macro_id_or_qualified_name: Optional[str] = None
+    ) -> Macro:
+        """Create a client-facing macro from a macro_id or qualified name."""
+        import requests
+        from uuid import UUID
+
+        from ..coop import Coop
+
+        coop = Coop()
+        BASE_URL = coop.api_url
+        API_KEY = coop.api_key
+
+        MACRO_UUID = macro_id_or_qualified_name
+        # Fetch macro dictionary
+        response = requests.get(
+            f"{BASE_URL}/api/v0/macros/{MACRO_UUID}/instantiate_macro_client",
+            headers={
+                "Authorization": f"Bearer {API_KEY}",
+                "Content-Type": "application/json",
+            },
+        )
+        response.raise_for_status()
+        macro_dict = response.json()
+
+        m = Macro.from_dict(macro_dict)
+        m.client_mode = True
+        m.macro_id = MACRO_UUID
+        return m
 
     @classmethod
     def example(cls) -> "Macro":
@@ -261,69 +251,67 @@ class MacroMixin:
             default_formatter_name="echo",
         )
 
-    @classmethod
-    def delete(
-        cls,
-        macro_id_or_qualified_name: str,
-        *,
-        server_url: str = "http://localhost:8000",
-        owner: str | None = None,
-    ) -> dict:
-        """Delete a macro from the server.
-
-        Args:
-            macro_id_or_qualified_name: The macro ID or qualified name 'owner/alias' to delete.
-                If a qualified name is provided and no explicit owner is given, the owner
-                will be extracted from the qualified name.
-            server_url: URL of the FastAPI server.
-            owner: Optional owner string; required if the server stored an owner.
-                If not provided and macro_id_or_qualified_name is a qualified name,
-                the owner will be extracted automatically.
-
-        Returns:
-            Server response dictionary.
-        """
-        from .macro_server_client import MacroServerClient
-
-        # Extract owner from qualified name if not explicitly provided
-        if (
-            owner is None
-            and isinstance(macro_id_or_qualified_name, str)
-            and "/" in macro_id_or_qualified_name
-        ):
-            parts = macro_id_or_qualified_name.split("/", 1)
-            if len(parts) == 2:
-                owner = parts[0]
-
-        resolved_macro_id = cls._resolve_macro_identifier(
-            macro_id_or_qualified_name, server_url
-        )
-        try:
-            return MacroServerClient.delete_macro(
-                resolved_macro_id, server_url=server_url, owner=owner
-            )
-        except Exception as e:
-            from .exceptions import FailedToDeleteMacroError
-
-            raise FailedToDeleteMacroError(
-                f"Failed to delete macro {macro_id_or_qualified_name}: {e}"
-            ) from e
-
 
 class ClientFacingMacro(MacroMixin):
+    """Facade for creating Macro instances with simplified interface.
+
+    The key reason for doing this is so that the macro can be instantiated from a fully qualified name if
+    it's deployed. If it's not deployed, the macro is not depoyed but it's one belonging to the user, it gets pulled.
+    If none of the above, a new macro is created using the provided config.
+
+    Usage:
+        macro = ClientFacingMacro("owner/alias")  # Pull from server
+        macro = ClientFacingMacro(application_name="...", ...)  # Create new
+    """
+
     def __new__(cls, macro_id_or_qualified_name: Optional[str] = None, **config):
         if macro_id_or_qualified_name:
-            resolved_macro_id = cls._resolve_macro_identifier(
-                macro_id_or_qualified_name
-            )
-            return Macro.from_id(resolved_macro_id)
+            try:
+                deployed_macro = Macro.instantiate_public_macro(
+                    macro_id_or_qualified_name
+                )
+                return deployed_macro
+            except Exception as e:
+                print(f"Error instantiating public macro: {e}")
+                return Macro.pull(macro_id_or_qualified_name)
+            # Use inherited pull method from Base
+            # Need to handle client macro case.
+            return Macro.pull(macro_id_or_qualified_name)
         else:
             return Macro(**config)
 
     @classmethod
-    def from_dict(cls, data: dict):
-        """Delegate to the actual Macro class."""
+    def pull(cls, macro_id_or_qualified_name: str) -> "Macro":
+        """Pull a macro from the server.
+
+        Automatically detects and returns the correct type (Macro or CompositeMacro).
+
+        Args:
+            macro_id_or_qualified_name: Either a macro_id UUID or qualified name 'owner/alias'.
+
+        Returns:
+            Macro or CompositeMacro instance depending on the stored object type.
+        """
+        return Macro.pull(macro_id_or_qualified_name)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Macro":
+        """Deserialize a macro from a dictionary.
+
+        Automatically detects and returns the correct type (Macro or CompositeMacro).
+
+        Args:
+            data: Dictionary representation of a macro.
+
+        Returns:
+            Macro or CompositeMacro instance depending on the application_type.
+        """
         return Macro.from_dict(data)
+
+    @classmethod
+    def list(self, *args, **kwargs) -> "ScenarioList":
+        """Delegate to the actual Macro class."""
+        return Macro.list(*args, **kwargs)
 
 
 class Macro(MacroMixin, Base):
@@ -426,26 +414,22 @@ class Macro(MacroMixin, Base):
 
         self.client_mode = client_mode
 
-    @classmethod
-    def from_id(
-        cls, macro_id: str, server_url: str = "http://localhost:8000"
-    ) -> "Macro":
-        """Create a macro from a given macro_id or qualified name 'owner/alias'."""
-        # Lazy imports to avoid cycles
-        from .macro_server_client import MacroServerClient
+    def alias(self) -> str:
+        """Return the alias of the macro.
 
-        resolved_macro_id = cls._resolve_macro_identifier(macro_id, server_url)
+        >>> macro = Macro.example()
+        >>> macro.alias()
+        'example-macro'
+        """
+        return self.application_name.replace("_", "-")
 
-        # Fetch client-safe macro dict from server
-        data = MacroServerClient.instantiate_remote_macro_client(resolved_macro_id)
-
-        # Inject a minimal StubJob dict so from_dict can deserialize it
-        if not data.get("jobs_object"):
-            data["jobs_object"] = {"return_type": "survey"}
-        data["client_mode"] = True
-        macro = cls.from_dict(data)
-        macro.macro_id = resolved_macro_id
-        return macro
+    def push(self, *args, **kwargs) -> dict:
+        """Push the macro to the server."""
+        if "alias" not in kwargs:
+            kwargs["alias"] = self.alias()
+        if "description" not in kwargs:
+            kwargs["description"] = self.short_description
+        return super().push(*args, **kwargs)
 
     @disabled_in_client_mode
     def to_dict_for_client(self) -> dict:
@@ -453,39 +437,6 @@ class Macro(MacroMixin, Base):
         d = self.to_dict()
         _ = d.pop("jobs_object")
         return d
-
-    @disabled_in_client_mode
-    def deploy(
-        self,
-        server_url: str = "http://localhost:8000",
-        owner: str = "johnjhorton",
-        source_available: bool = False,
-        force: bool = False,
-    ) -> str:
-        """Deploy this macro to a FastAPI server.
-
-        Args:
-            server_url: URL of the FastAPI server (default: http://localhost:8000)
-            owner: Required owner string used for global uniqueness (default: 'johnjhorton').
-            source_available: If True, the source code is available to future users.
-            force: If True, overwrite any existing macro with the same owner/alias.
-
-        Returns:
-            The macro_id assigned by the server.
-
-        Example:
-            >>> macro = Macro.example()
-            >>> macro_id = macro.deploy()  # doctest: +SKIP
-        """
-        from .macro_server_client import MacroServerClient
-
-        return MacroServerClient.deploy(
-            self,
-            server_url=server_url,
-            owner=owner,
-            source_available=source_available,
-            force=force,
-        )
 
     def __call__(self, **kwargs: Any) -> Any:
         """Call the macro with the given parameters."""
@@ -504,8 +455,9 @@ class Macro(MacroMixin, Base):
         >>> macro = Macro.example()
         >>> macro._generated_results
         {}
-        >>> macro._generate_results(macro.jobs_object)  # doctest: +ELLIPSIS
-        Results(...)
+        >>> results = macro._generate_results(macro.jobs_object, disable_remote_inference=True)
+        >>> type(results).__name__
+        'Results'
         >>> len(macro._generated_results)
         1
 
@@ -557,16 +509,16 @@ class Macro(MacroMixin, Base):
         disable_remote_inference: bool = False,
         verbose: bool = False,
         api_payload: bool = False,
-        server_url: str = "http://localhost:8000",
-        macro_id: Optional[str] = None,
+        # server_url: str = "http://localhost:8000",
+        # macro_id: Optional[str] = None,
     ) -> Any:
         """Run the macro and return formatted output or a JSON API payload."""
         if self.client_mode:
             return self._remote_output(
                 params=params,
-                formatter_name=formatter_name,
-                server_url=server_url,
-                macro_id=macro_id,
+                # formatter_name=formatter_name,
+                # server_url=server_url,
+                # macro_id=macro_id,
             )
         else:
             return self._local_output(
@@ -712,49 +664,81 @@ class Macro(MacroMixin, Base):
         self,
         *,
         params: ParamsDict | None,
-        formatter_name: Optional[str] = None,
-        server_url: str = "http://localhost:8000",
-        macro_id: Optional[str] = None,
     ) -> Any:
         """Run output remotely and return the locally rendered result using server-returned Results + formatters."""
-        # Lazy import to avoid cycles
-        from .macro_server_client import MacroServerClient
+        import requests
+        from uuid import UUID
 
-        if macro_id is None:
-            macro_id = self.macro_id
+        # Configuration
+        from ..coop import Coop
 
-        # Serialize params before sending to server
-        # The server should use _deserialize_params to reconstruct the original objects
-        # before calling the macro's output method
-        serialized_params = self._serialize_params(params)
-
-        target_macro_id = macro_id or MacroServerClient.deploy(
-            self, server_url=server_url, owner="johnjhorton"
+        coop = Coop()
+        BASE_URL = coop.api_url
+        API_KEY = coop.api_key
+        MACRO_UUID = self.macro_id
+        # Execute macro with parameters
+        response = requests.post(
+            f"{BASE_URL}/api/v0/macros/execute",
+            headers={
+                "Authorization": f"Bearer {API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={"macro_uuid": MACRO_UUID, "params": self._serialize_params(params)},
         )
-        exec_resp = MacroServerClient.execute_macro(
-            target_macro_id,
-            serialized_params,
-            formatter_name=formatter_name,
-            server_url=server_url,
-            api_payload=True,
-            return_results=True,
-        )
-        # Expect standardized payload strictly: result -> results/formatters/selected_formatter
-        packet = exec_resp["result"]
-        from .output_formatter import OutputFormatters
+        response.raise_for_status()
+        result = response.json()
+
+        # Get the results UUID
+        results_uuid = result["results_uuid"]
+        print(f"Macro executed successfully! Results UUID: {results_uuid}")
+
+        # Now you can pull the results object
         from ..results import Results
 
-        reconstructed_results = Results.from_dict(packet["results"])
-        ofs = OutputFormatters.from_dict(packet["formatters"])
-        selected = packet.get("selected_formatter")
+        reconstructed_results = Results.pull(results_uuid)
 
-        # Return MacroRunOutput for consistent interface
+        from .output_formatter import OutputFormatters
+
+        ofs = self.output_formatters
         return MacroRunOutput(
             results=reconstructed_results,
             formatters=ofs,
             params=params or {},
-            default_formatter_name=selected or ofs.default,
+            # default_formatter_name=ofs.default,
         )
+
+    @disabled_in_client_mode
+    def deploy(self, macro_uuid: Optional[str] = None, overwrite: bool = False) -> None:
+        import requests
+        from ..coop import Coop
+
+        coop = Coop()
+        BASE_URL = coop.api_url
+        API_KEY = coop.api_key
+
+        if macro_uuid is None:
+            print("Deploying macro with no UUID, pushing to server...")
+            info = self.push(overwrite=overwrite)
+            macro_uuid = info["uuid"]
+            print(f"Deployed macro with UUID: {macro_uuid}")
+
+        MACRO_UUID = macro_uuid
+
+        print(f"Deploying macro with UUID: {MACRO_UUID}")
+        response = requests.post(
+            f"{BASE_URL}/api/v0/macros/{MACRO_UUID}/deploy",
+            headers={
+                "Authorization": f"Bearer {API_KEY}",
+                "Content-Type": "application/json",
+            },
+        )
+
+        response.raise_for_status()
+        result = response.json()
+
+        print(f"Status: {result['status']}")
+        print(f"Fully qualified name: {result['fully_qualified_name']}")
+        print(f"Deployed: {result['deployed']}")
 
     def inject_results(self, results: Results, params: ParamsDict | None = None) -> Any:
         """Inject results into the macro.
@@ -872,10 +856,10 @@ class Macro(MacroMixin, Base):
             The output formatter.
 
         >>> macro = Macro.example()
-        >>> macro._select_formatter(None)
-        OutputFormatter(...)
-        >>> macro._select_formatter("echo")
-        OutputFormatter(...)
+        >>> macro._select_formatter(None)  # doctest: +ELLIPSIS
+        OutputFormatter(description='Echo', ...)
+        >>> macro._select_formatter("echo")  # doctest: +ELLIPSIS
+        OutputFormatter(description='Echo', ...)
         >>> macro._select_formatter("fake")
         Traceback (most recent call last):
         ...
@@ -1168,7 +1152,7 @@ class Macro(MacroMixin, Base):
         )
 
     @property
-    def parameters(self):
+    def parameters(self) -> "ScenarioList":
         """Return ScenarioList of parameter info derived from the initial survey."""
         from ..scenarios.scenario_list import ScenarioList
 
@@ -1184,19 +1168,6 @@ class Macro(MacroMixin, Base):
                 for q in self.initial_survey
             ]
         )
-
-    def __repr__(self) -> str:
-        """Return a string representation of the Macro.
-
-        Uses traditional repr format when running doctests, otherwise uses
-        rich-based display for better readability.
-        """
-        import os
-
-        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
-            return self._eval_repr_()
-        else:
-            return self._summary_repr()
 
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the Macro.
@@ -1494,90 +1465,8 @@ class Macro(MacroMixin, Base):
             ],
         )
 
-    @disabled_in_client_mode
-    def push(
-        self,
-        visibility: Optional[str] = "unlisted",
-        description: Optional[str] = None,
-        alias: Optional[str] = None,
-    ):
-        """Push this macro to a remote registry/service and return the remote handle."""
-        from .macro_remote import MacroRemote
-
-        return MacroRemote.push(
-            self, visibility=visibility, description=description, alias=alias
-        )
-
 
 if __name__ == "__main__":
-    # import doctest
-    # doctest.testmod(optionflags=doctest.ELLIPSIS)
-    from edsl import QuestionFreeText, QuestionList
+    import doctest
 
-    initial_survey = Survey(
-        [
-            QuestionFreeText(
-                question_name="raw_text",
-                question_text="What is the text to split into a twitter thread?",
-            )
-        ]
-    )
-    jobs_survey = Survey(
-        [
-            QuestionList(
-                question_name="twitter_thread",
-                question_text="Please take this text: {{scenario.raw_text}} and split into a twitter thread, if necessary.",
-            )
-        ]
-    )
-
-    twitter_output_formatter = (
-        OutputFormatter(description="Twitter Thread Splitter")
-        .select("answer.twitter_thread")
-        .expand("answer.twitter_thread")
-        .to_markdown()
-    )
-
-    macro = ClientFacingMacro(
-        application_name="twitter_thread_splitter",
-        display_name="Twitter Thread Splitter",
-        short_description="This macro splits text into a twitter thread.",
-        long_description="This macro takes long-form text and splits it into tweet-sized chunks suitable for posting as a Twitter thread.",
-        initial_survey=initial_survey,
-        jobs_object=jobs_survey.to_jobs(),
-        output_formatters={"splitter": twitter_output_formatter},
-        default_formatter_name="splitter",
-    )
-
-    raw_text = """
-    The Senate of the United States shall be composed of two Senators from each State, chosen by the Legislature thereof, for six Years; and each Senator shall have one Vote.
-    Immediately after they shall be assembled in Consequence of the first Election, they shall be divided as equally as may be into three Classes. The Seats of the Senators of the first Class shall be vacated at the Expiration of the second Year, of the second Class at the Expiration of the fourth Year, and of the third Class at the Expiration of the sixth Year, so that one third may be chosen every second Year; and if Vacancies happen by Resignation, or otherwise, during the Recess of the Legislature, the Executive thereof may make temporary Appointments until the next Meeting of the Legislature, which shall then fill such Vacancies.
-    No Person shall be a Senator who shall not have attained to the Age of thirty Years, and been nine Years a Citizen of the United States, and who shall not, when elected, be an Inhabitant of that State for which he shall be chosen.
-    The Vice President of the United States shall be President of the Senate, but shall have no Vote, unless they be equally divided.
-    The Senate shall chuse their other Officers, and also a President pro tempore, in the Absence of the Vice President, or when he shall exercise the Office of President of the United States.
-    The Senate shall have the sole Power to try all Impeachments. When sitting for that Purpose, they shall be on Oath or Affirmation. When the President of the United States is tried, the Chief Justice shall preside: And no Person shall be convicted without the Concurrence of two thirds of the Members present.
-    Judgment in Cases of Impeachment shall not extend further than to removal from Office, and disqualification to hold and enjoy any Office of honor, Trust or Profit under the United States: but the Party convicted shall nevertheless be liable and subject to Indictment, Trial, Judgment and Punishment, according to Law.
-    """
-
-    # Deploy and run remotely (standardized path)
-    macro_id = macro.deploy()
-
-    # Local output
-    local_out = macro.output(
-        params={"raw_text": raw_text},
-        formatter_name="splitter",
-        disable_remote_inference=False,
-    )
-
-    # Remote output
-    remote_macro = ClientFacingMacro(macro_id=macro_id)
-
-    remote_out = remote_macro._remote_output(
-        params={"raw_text": raw_text},
-        formatter_name="splitter",
-        server_url="http://localhost:8000",
-        #      macro_id=macro_id,
-    )
-
-    print("Local equals Remote:", str(local_out) == str(remote_out))
-    print(remote_out)
+    doctest.testmod()
