@@ -35,7 +35,7 @@ class TestSurvey(unittest.TestCase):
     def test_simple_skip(self):
         s = self.gen_survey()
         q1, q2, q3 = s._questions
-        s.add_rule(q1, "like_school == 'no'", q3)
+        s.add_rule(q1, "{{ like_school.answer }} == 'no'", q3)
         self.assertEqual(q3, s.next_question("like_school", {"like_school.answer": "no"}))
 
     def test_skip_question(self):
@@ -83,19 +83,19 @@ class TestSurvey(unittest.TestCase):
     def test_dag(self):
         survey = self.gen_survey()
         survey.add_rule(
-            survey._questions[0], "like_school == 'no'", survey._questions[2]
+            survey._questions[0], "{{ like_school.answer }} == 'no'", survey._questions[2]
         )
         survey.add_rule(
-            survey._questions[1], "favorite_subject == 'math'", survey._questions[2]
+            survey._questions[1], "{{ favorite_subject.answer }} == 'math'", survey._questions[2]
         )
         survey.add_rule(
-            survey._questions[1], "favorite_subject == 'science'", survey._questions[2]
+            survey._questions[1], "{{ favorite_subject.answer }} == 'science'", survey._questions[2]
         )
         survey.add_rule(
-            survey._questions[1], "favorite_subject == 'english'", survey._questions[2]
+            survey._questions[1], "{{ favorite_subject.answer }} == 'english'", survey._questions[2]
         )
         survey.add_rule(
-            survey._questions[1], "favorite_subject == 'history'", survey._questions[2]
+            survey._questions[1], "{{ favorite_subject.answer }} == 'history'", survey._questions[2]
         )
         survey.add_targeted_memory("favorite_subject", "like_school")
         # breakpoint()
@@ -122,7 +122,7 @@ class TestSurvey(unittest.TestCase):
         d.add_direct_question_answering_method(answer_question_directly)
 
         survey = q1.add_question(q2).add_stop_rule(
-            "snow_shoveling", "snow_shoveling.answer == 'No'"
+            "snow_shoveling", "{{ snow_shoveling.answer }} == 'No'"
         )
         dag = survey.dag()
         # breakpoint()
@@ -181,7 +181,7 @@ class TestSurvey(unittest.TestCase):
     def test_insertion(self):
         survey = self.gen_survey()
         q1, q2, q3 = survey._questions
-        survey.add_rule(q1, "like_school == 'no'", q3)
+        survey.add_rule(q1, "{{ like_school.answer }} == 'no'", q3)
 
         original_length = len(survey._questions)
         from edsl.questions import QuestionFreeText
@@ -201,7 +201,7 @@ class TestSurvey(unittest.TestCase):
     def test_deletion(self):
         survey = self.gen_survey()
         q1, q2, q3 = survey._questions
-        survey.add_rule(q1, "like_school == 'no'", q3)
+        survey.add_rule(q1, "{{ like_school.answer }} == 'no'", q3)
 
         original_length = len(survey._questions)
 

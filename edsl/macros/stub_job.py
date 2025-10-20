@@ -53,4 +53,9 @@ class StubJob:
 
     @classmethod
     def from_dict(cls, data: dict) -> "StubJob":
-        return cls(return_type=data["return_type"])
+        if data is None:
+            return cls(return_type="survey")
+        return_type = data.get("return_type", None)
+        if return_type is None:
+            return_type = "survey"
+        return cls(return_type="survey")

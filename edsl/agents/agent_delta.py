@@ -379,6 +379,44 @@ class AgentDelta(Base):
             traits={"age": 35, "occupation": "manager", "risk_tolerance": "medium"}
         )
 
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the AgentDelta.
+
+        Returns:
+            str: A string that can be evaluated to recreate the AgentDelta
+        """
+        return f"AgentDelta({self.traits!r})"
+
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the AgentDelta with Rich formatting.
+
+        Returns:
+            str: A formatted summary representation of the AgentDelta
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+
+        output = Text()
+        output.append("AgentDelta(", style="bold cyan")
+
+        if self.traits:
+            output.append("traits=", style="white")
+            traits_str = ", ".join(
+                f"{k}={v!r}" for k, v in list(self.traits.items())[:3]
+            )
+            if len(self.traits) > 3:
+                traits_str += f", ... ({len(self.traits) - 3} more)"
+            output.append(f"{{{traits_str}}}", style="yellow")
+        else:
+            output.append("empty", style="dim")
+
+        output.append(")", style="bold cyan")
+
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
+
 
 if __name__ == "__main__":
     import doctest

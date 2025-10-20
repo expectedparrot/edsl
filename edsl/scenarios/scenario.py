@@ -630,19 +630,6 @@ class Scenario(Base, UserDict):
         self._cached_hash = serializer.compute_hash()
         return self._cached_hash
 
-    def __repr__(self):
-        """Return a string representation of the Scenario.
-
-        Uses traditional repr format when running doctests, otherwise uses
-        rich-based display for better readability.
-        """
-        import os
-
-        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
-            return self._eval_repr_()
-        else:
-            return self._summary_repr()
-
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the Scenario.
 

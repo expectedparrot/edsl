@@ -311,25 +311,26 @@ lint: ## Run ruff linter with --fix --verbose. Use 'make lint DIR' to lint speci
 		poetry run ruff check --fix edsl; \
 	fi
 
-ruff-lint: ## Run ruff linter on all modules in sequence
-	poetry run ruff check edsl/instructions
-	poetry run ruff check edsl/key_management
-	poetry run ruff check edsl/prompts
-	poetry run ruff check edsl/tasks
-	poetry run ruff check edsl/inference_services
-	poetry run ruff check edsl/results
-	poetry run ruff check edsl/dataset
-	poetry run ruff check edsl/buckets
-	poetry run ruff check edsl/interviews
-	poetry run ruff check edsl/tokens
-	poetry run ruff check edsl/jobs
-	poetry run ruff check edsl/surveys
-	poetry run ruff check edsl/agents
-	poetry run ruff check edsl/scenarios
-	poetry run ruff check edsl/questions
-	poetry run ruff check edsl/utilities
-	poetry run ruff check edsl/language_models
-	poetry run ruff check edsl/caching
+ruff-lint: ## Run ruff linter on all modules in parallel
+	@poetry run ruff check edsl/instructions & \
+	poetry run ruff check edsl/key_management & \
+	poetry run ruff check edsl/prompts & \
+	poetry run ruff check edsl/tasks & \
+	poetry run ruff check edsl/inference_services & \
+	poetry run ruff check edsl/results & \
+	poetry run ruff check edsl/dataset & \
+	poetry run ruff check edsl/buckets & \
+	poetry run ruff check edsl/interviews & \
+	poetry run ruff check edsl/tokens & \
+	poetry run ruff check edsl/jobs & \
+	poetry run ruff check edsl/surveys & \
+	poetry run ruff check edsl/agents & \
+	poetry run ruff check edsl/scenarios & \
+	poetry run ruff check edsl/questions & \
+	poetry run ruff check edsl/utilities & \
+	poetry run ruff check edsl/language_models & \
+	poetry run ruff check edsl/caching & \
+	wait
 	@bash scripts/mark_check_complete.sh RUFF
 
 visualize: ## Visualize the repo structure
@@ -423,31 +424,31 @@ test-doctests: ## Run doctests for a specific directory (e.g., make test-doctest
 		dir="$(filter-out $@,$(MAKECMDGOALS))"; \
 		echo "Running doctests for directory: $$dir"; \
 		if [ "$$dir" = "edsl/buckets" ]; then \
-			EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py $$dir; \
+			EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py $$dir; \
 		else \
-			EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules $$dir; \
+			EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules $$dir; \
 		fi; \
 	else \
 		echo "Running doctests for all directories"; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/instructions; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/key_management; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/prompts; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/tasks; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/results; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/dataset; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/interviews; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/tokens; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/jobs/; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/surveys; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/agents; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/scenarios; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/questions; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/utilities; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/language_models; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/caching; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/invigilators; \
-		EDSL_RUNNING_DOCTESTS=True pytest --doctest-modules edsl/inference_services; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/instructions; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/key_management; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/prompts; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/tasks; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/results; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/dataset; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/interviews; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/tokens; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/jobs/; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/surveys; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/agents; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/scenarios; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/questions; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/utilities; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/language_models; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/caching; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/invigilators; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/inference_services; \
 	fi
 	@bash scripts/mark_check_complete.sh DOCTESTS
 

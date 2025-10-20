@@ -19,9 +19,10 @@ from typing import Any, Optional
 
 from .macro import Macro
 from ..surveys import Survey
+from ..base import Base
 
 
-class CompositeMacro:
+class CompositeMacro(Base):
     """Compose two `Macro` instances with explicit param wiring.
 
     Users explicitly specify how macro2 input params are obtained, either from
@@ -101,6 +102,39 @@ class CompositeMacro:
         from .composite_macro_visualization import CompositeMacroVisualization
 
         CompositeMacroVisualization(self).show(filename=filename)
+
+    #        @disabled_in_client_mode
+    def deploy(self, macro_uuid: Optional[str] = None, overwrite: bool = False) -> None:
+        import requests
+        from ..coop import Coop
+
+        coop = Coop()
+        BASE_URL = coop.api_url
+        API_KEY = coop.api_key
+
+        if macro_uuid is None:
+            print("Deploying macro with no UUID, pushing to server...")
+            info = self.push(overwrite=overwrite)
+            macro_uuid = info["uuid"]
+            print(f"Deployed macro with UUID: {macro_uuid}")
+
+        MACRO_UUID = macro_uuid
+
+        print(f"Deploying macro with UUID: {MACRO_UUID}")
+        response = requests.post(
+            f"{BASE_URL}/api/v0/macros/{MACRO_UUID}/deploy",
+            headers={
+                "Authorization": f"Bearer {API_KEY}",
+                "Content-Type": "application/json",
+            },
+        )
+
+        response.raise_for_status()
+        result = response.json()
+
+        print(f"Status: {result['status']}")
+        print(f"Fully qualified name: {result['fully_qualified_name']}")
+        print(f"Deployed: {result['deployed']}")
 
     # --- Public API -------------------------------------------------------
 
@@ -214,44 +248,46 @@ class CompositeMacro:
             params=macro2_params, formatter_name=formatter_name, **kwargs
         )
 
-    def deploy(
-        self,
-        server_url: str = "http://localhost:8000",
-        owner: str = "johnjhorton",
-        source_available: bool = False,
-        force: bool = False,
-    ) -> str:
-        """Deploy this composite macro to a FastAPI server.
-
-        Args:
-            server_url: URL of the FastAPI server (default: http://localhost:8000)
-            owner: Required owner string used for global uniqueness (default: 'johnjhorton').
-            source_available: If True, the source code is available to future users.
-            force: If True, overwrite any existing macro with the same owner/alias.
+    @classmethod
+    def example(cls) -> "CompositeMacro":
+        """Create an example CompositeMacro instance.
 
         Returns:
-            The macro_id assigned by the server.
-
-        Example:
-            >>> composite = CompositeMacro(first_macro=macro1, second_macro=macro2)
-            >>> macro_id = composite.deploy()  # doctest: +SKIP
+            A simple CompositeMacro with two example macros chained together.
         """
-        from .macro_server_client import MacroServerClient
+        # Use the Macro.example() to create two simple macros
+        first_macro = Macro.example()
+        second_macro = Macro.example()
 
-        return MacroServerClient.deploy(
-            self,
-            server_url=server_url,
-            owner=owner,
-            source_available=source_available,
-            force=force,
+        return cls(
+            first_macro=first_macro,
+            second_macro=second_macro,
+            application_name="example_composite",
+            display_name="Example Composite Macro",
+            short_description="An example composite macro for testing.",
+            long_description="An example composite macro that chains two example macros together.",
+        )
+
+    def code(self) -> str:
+        """Generate Python code that recreates this CompositeMacro.
+
+        Returns:
+            str: Python code that, when executed, creates an equivalent object
+        """
+        raise NotImplementedError(
+            "code() method is not yet implemented for CompositeMacro"
         )
 
     # --- Serialization ----------------------------------------------------
 
-    def to_dict(self):
+    def to_dict(self, add_edsl_version: bool = False):
         """Serialize this composite macro to a dictionary.
 
-        Includes first_macro, second_macro, bindings, and fixed values.
+        Args:
+            add_edsl_version: Whether to include EDSL version information
+
+        Returns:
+            dict: Dictionary representation including first_macro, second_macro, bindings, and fixed values.
         """
         data = {
             "application_type": self.application_type,
@@ -259,8 +295,8 @@ class CompositeMacro:
             "display_name": self.display_name,
             "short_description": self.short_description,
             "long_description": self.long_description,
-            "first_macro": self.first_macro.to_dict(),
-            "second_macro": self.second_macro.to_dict()
+            "first_macro": self.first_macro.to_dict(add_edsl_version=add_edsl_version),
+            "second_macro": self.second_macro.to_dict(add_edsl_version=add_edsl_version)
             if self.second_macro is not None
             else None,
         }
@@ -268,6 +304,14 @@ class CompositeMacro:
             data["bindings"] = self.bindings
         if any(self.fixed.values()):
             data["fixed"] = self.fixed
+
+        # Add EDSL version information if requested
+        if add_edsl_version:
+            from edsl import __version__
+
+            data["edsl_version"] = __version__
+            data["edsl_class_name"] = self.__class__.__name__
+
         return data
 
     @classmethod
@@ -401,6 +445,178 @@ class CompositeMacro:
         if not alias:
             alias = "macro"
         return alias
+
+    def __repr__(self) -> str:
+        """Return a string representation of the CompositeMacro.
+
+        Uses traditional repr format when running doctests, otherwise uses
+        rich-based display for better readability.
+        """
+        import os
+
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+        else:
+            return self._summary_repr()
+
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the CompositeMacro.
+
+        This representation provides a simplified view suitable for doctests.
+        Used primarily for doctests and debugging.
+        """
+        cls_name = self.__class__.__name__
+        return (
+            f"{cls_name}(application_name='{self.application_name}', "
+            f"display_name='{self.display_name}', "
+            f"short_description='{self.short_description[:50]}...', "
+            f"...)"
+        )
+
+    def _summary_repr(self, max_formatters: int = 5, max_params: int = 5) -> str:
+        """Generate a summary representation of the CompositeMacro with Rich formatting.
+
+        Args:
+            max_formatters: Maximum number of formatters to show before truncating
+            max_params: Maximum number of parameters to show before truncating
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+
+        # Build the Rich text
+        output = Text()
+        cls_name = self.__class__.__name__
+
+        output.append(f"{cls_name}(\n", style="bold cyan")
+
+        # Application info
+        output.append("    application_name=", style="white")
+        output.append(f"'{self.application_name}'", style="yellow")
+        output.append(",\n", style="white")
+
+        output.append("    display_name=", style="white")
+        output.append(f"'{self.display_name}'", style="green")
+        output.append(",\n", style="white")
+
+        # Short description (truncate if too long)
+        desc = self.short_description
+        if len(desc) > 60:
+            desc = desc[:57] + "..."
+        output.append("    short_description=", style="white")
+        output.append(f"'{desc}'", style="cyan")
+        output.append(",\n", style="white")
+
+        # Application type
+        output.append("    application_type=", style="white")
+        output.append(f"'{self.application_type}'", style="magenta")
+        output.append(",\n", style="white")
+
+        # First macro info
+        first_name = getattr(self.first_macro, "display_name", "Unknown")
+        output.append("    first_macro=", style="white")
+        output.append(f"'{first_name}'", style="blue")
+        output.append(",\n", style="white")
+
+        # Second macro info
+        if self.second_macro is not None:
+            second_name = getattr(self.second_macro, "display_name", "Unknown")
+            output.append("    second_macro=", style="white")
+            output.append(f"'{second_name}'", style="blue")
+            output.append(",\n", style="white")
+        else:
+            output.append("    second_macro=", style="white")
+            output.append("None", style="dim")
+            output.append(",\n", style="white")
+
+        # Parameters
+        try:
+            param_names = [q.question_name for q in self.initial_survey]
+            num_params = len(param_names)
+        except Exception:
+            param_names = []
+            num_params = 0
+
+        output.append(f"    num_parameters={num_params}", style="white")
+
+        if num_params > 0:
+            output.append(",\n    parameters=[", style="white")
+            for i, name in enumerate(param_names[:max_params]):
+                output.append(f"'{name}'", style="bold yellow")
+                if i < min(num_params, max_params) - 1:
+                    output.append(", ", style="white")
+            if num_params > max_params:
+                output.append(f", ... ({num_params - max_params} more)", style="dim")
+            output.append("]", style="white")
+
+        output.append(",\n", style="white")
+
+        # Bindings info
+        num_bindings = len(self.bindings)
+        output.append(f"    num_bindings={num_bindings}", style="white")
+
+        if num_bindings > 0:
+            output.append(",\n    bindings={", style="white")
+            binding_items = list(self.bindings.items())
+            for i, (source, target) in enumerate(binding_items[:3]):  # Show first 3
+                src_repr = repr(source) if isinstance(source, dict) else f"'{source}'"
+                output.append(f"{src_repr}: ", style="yellow")
+                output.append(f"'{target}'", style="green")
+                if i < min(num_bindings, 3) - 1:
+                    output.append(", ", style="white")
+            if num_bindings > 3:
+                output.append(f", ... ({num_bindings - 3} more)", style="dim")
+            output.append("}", style="white")
+
+        output.append(",\n", style="white")
+
+        # Formatters (from second macro or empty)
+        try:
+            fmt_names_list = list(getattr(self.output_formatters, "mapping", {}).keys())
+            num_formatters = len(fmt_names_list)
+        except Exception:
+            fmt_names_list = []
+            num_formatters = 0
+
+        output.append(f"    num_formatters={num_formatters}", style="white")
+
+        if num_formatters > 0:
+            output.append(",\n    formatters=[", style="white")
+            for i, name in enumerate(fmt_names_list[:max_formatters]):
+                output.append(f"'{name}'", style="yellow")
+                if i < min(num_formatters, max_formatters) - 1:
+                    output.append(", ", style="white")
+            if num_formatters > max_formatters:
+                output.append(
+                    f", ... ({num_formatters - max_formatters} more)", style="dim"
+                )
+            output.append("]", style="white")
+
+        # Default formatter
+        try:
+            default_fmt_obj = (
+                getattr(self.output_formatters, "default", None)
+                or self.output_formatters.get_default()
+            )
+            default_fmt = (
+                default_fmt_obj
+                if isinstance(default_fmt_obj, str)
+                else getattr(default_fmt_obj, "description", None)
+                or getattr(default_fmt_obj, "name", "<none>")
+            )
+        except Exception:
+            default_fmt = "<none>"
+
+        if default_fmt != "<none>":
+            output.append(",\n    default_formatter=", style="white")
+            output.append(f"'{default_fmt}'", style="bold green")
+
+        output.append("\n)", style="bold cyan")
+
+        # Render to string
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
 
 
 if __name__ == "__main__":

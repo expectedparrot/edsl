@@ -48,6 +48,13 @@ class MacroSerialization:
         from ..surveys import Survey
         from .macro import Macro  # for registry
 
+        # Check if this is a composite macro and dispatch accordingly
+        macro_type = data.get("application_type")
+        if macro_type == "composite":
+            from .composite_macro import CompositeMacro
+
+            return CompositeMacro.from_dict(data)
+
         try:
             jobs_object = Jobs.from_dict(data.get("jobs_object"))
         except Exception:
@@ -84,7 +91,6 @@ class MacroSerialization:
         if "initial_survey" not in kwargs or kwargs["initial_survey"] is None:
             raise ValueError("Macro.from_dict requires 'initial_survey' in data.")
 
-        macro_type = data.get("application_type")
         target_cls = macro_cls
         if isinstance(macro_type, str) and macro_type in Macro._registry:
             target_cls = Macro._registry[macro_type]

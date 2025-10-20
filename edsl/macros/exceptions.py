@@ -8,6 +8,17 @@ class to provide consistent error handling throughout the EDSL framework.
 from ..base.base_exception import BaseException
 
 
+class ClientModeError(BaseException):
+    """
+    Exception raised when a method is called in client mode.
+    """
+
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/macros.html"
+
+    def __init__(self, message="Method called in client mode", **kwargs):
+        super().__init__(message, **kwargs)
+
+
 class FailedToDeleteMacroError(BaseException):
     """
     Exception raised when a failed to delete a macro.

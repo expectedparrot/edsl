@@ -189,9 +189,9 @@ class ResultsSerializationCases(SerializationBase):
         questions = [q_color_mc, q_day_mc, q_winter_ls, q_birds_tk]
         s = Survey(questions=questions)
         # Add skip logic
-        s = s.add_skip_rule(q_birds_tk, "color == 'Blue'")
-        s = s.add_stop_rule(q_color_mc, "color == 'Blue'")
-        s = s.add_rule(q_color_mc, "color == 'Red'", q_winter_ls)
+        s = s.add_skip_rule(q_birds_tk, "{{ color.answer }} == 'Blue'")
+        s = s.add_stop_rule(q_color_mc, "{{ color.answer }} == 'Blue'")
+        s = s.add_rule(q_color_mc, "{{ color.answer }} == 'Red'", q_winter_ls)
         # Use memory
         s = s.set_lagged_memory(2)
         s = s.add_memory_collection(q_birds_tk, [q_color_mc])

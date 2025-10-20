@@ -91,7 +91,7 @@ if TYPE_CHECKING:
     from ..jobs import Jobs
     from ..dataset import Dataset
     from ..results import Result
-    from ..utilities.similarity_rank import RankableItems
+    from ..utilities.similarity_rank import RankableItems  # type: ignore[import-untyped]
 
 # Type alias for trait categories
 OrganizedTraits = dict[str, list[str]]
@@ -439,12 +439,15 @@ class Agent(Base):
 
         return AgentOperations.keep(self, *field_names)
 
-    def duplicate(self) -> "Agent":
+    def duplicate(self, add_edsl_version: bool = False) -> "Agent":
         """Create a deep copy of this agent with all its traits and capabilities.
 
         This method creates a completely independent copy of the agent, including
         all its traits, codebook, instructions, and special functions like dynamic
         traits and direct answering methods.
+
+        Args:
+            add_edsl_version: Whether to include EDSL version information (ignored for agents)
 
         Returns:
             Agent: A new agent instance that is functionally identical to this one
@@ -477,7 +480,7 @@ class Agent(Base):
             >>> a2.instruction
             'Have fun!'
         """
-        new_agent = Agent.from_dict(self.to_dict())
+        new_agent = Agent.from_dict(self.to_dict(add_edsl_version=add_edsl_version))
 
         # Transfer direct answering method if present
         self.direct_answering.transfer_to(new_agent)
@@ -1001,7 +1004,7 @@ class Agent(Base):
 
         return AgentCombination.add_with_plus_operator(self, other_agent)
 
-    def __eq__(self, other: "Agent") -> bool:
+    def __eq__(self, other: object) -> bool:
         """Check if two agents are equal.
 
         This only checks the traits.
@@ -1013,6 +1016,8 @@ class Agent(Base):
         >>> a1 == a3
         False
         """
+        if not isinstance(other, Agent):
+            return NotImplemented
         # return self.data == other.data
         return hash(self) == hash(other)
 
@@ -1084,7 +1089,7 @@ class Agent(Base):
             False
         """
         if function is None:
-            self.traits_manager.remove_dynamic_function()
+            self.traits_manager.remove_function()
         else:
             self.traits_manager.initialize_dynamic_function(function)
 
@@ -1171,19 +1176,6 @@ class Agent(Base):
         # Ensure _traits is initialized if it's missing
         if "_traits" not in self.__dict__:
             self._traits = {}
-
-    def __repr__(self) -> str:
-        """Return a string representation of the Agent.
-
-        Uses traditional repr format when running doctests, otherwise uses
-        rich-based display for better readability.
-        """
-        import os
-
-        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
-            return self._eval_repr_()
-        else:
-            return self._summary_repr()
 
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the Agent.
@@ -1276,9 +1268,10 @@ class Agent(Base):
         output.append("\n)", style="bold cyan")
 
         # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        string_io = io.StringIO()
+        console = Console(file=string_io, force_terminal=True, width=120)
         console.print(output, end="")
-        return console.file.getvalue()
+        return string_io.getvalue()
 
     @property
     def data(self) -> dict:

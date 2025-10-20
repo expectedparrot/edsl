@@ -1,5 +1,12 @@
 # Registry export
 
+from .macro import ClientFacingMacro as Macro
+
+# from .output_formatter import AttachmentFormatter
+from .output_formatter import OutputFormatter
+from .composite_macro import CompositeMacro as CompositeMacro
+
+
 # Backwards-compat shim: export removed classes as aliases to Macro
 
 # Common macro types

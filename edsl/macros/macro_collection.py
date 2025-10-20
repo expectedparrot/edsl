@@ -140,50 +140,50 @@ class MacroCollection:
             macros=filtered_macros, name=f"{self.name} (filtered by pattern: {pattern})"
         )
 
-    def deploy(
-        self, owner: str, server_url: str = "http://localhost:8000", force: bool = True
-    ) -> Dict[str, Any]:
-        """Deploy all macros in the collection to a server.
+    # def deploy(
+    #     self, owner: str, server_url: str = "http://localhost:8000", force: bool = True
+    # ) -> Dict[str, Any]:
+    #     """Deploy all macros in the collection to a server.
 
-        Args:
-            owner: The owner for the deployed macros
-            server_url: The server URL to deploy to
-            force: Whether to force deployment if macros already exist
+    #     Args:
+    #         owner: The owner for the deployed macros
+    #         server_url: The server URL to deploy to
+    #         force: Whether to force deployment if macros already exist
 
-        Returns:
-            Dictionary with deployment results
-        """
-        results = {"successful": [], "failed": [], "skipped": []}
+    #     Returns:
+    #         Dictionary with deployment results
+    #     """
+    #     results = {"successful": [], "failed": [], "skipped": []}
 
-        for macro in self.macros:
-            try:
-                result = macro.deploy(owner=owner, server_url=server_url, force=force)
-                results["successful"].append(
-                    {
-                        "application_name": macro.application_name,
-                        "display_name": macro.display_name,
-                        "result": result,
-                    }
-                )
-            except Exception as e:
-                if "already exists" in str(e):
-                    results["skipped"].append(
-                        {
-                            "application_name": macro.application_name,
-                            "display_name": macro.display_name,
-                            "reason": "Already exists",
-                        }
-                    )
-                else:
-                    results["failed"].append(
-                        {
-                            "application_name": macro.application_name,
-                            "display_name": macro.display_name,
-                            "error": str(e),
-                        }
-                    )
+    #     for macro in self.macros:
+    #         try:
+    #             result = macro.deploy(owner=owner, server_url=server_url, force=force)
+    #             results["successful"].append(
+    #                 {
+    #                     "application_name": macro.application_name,
+    #                     "display_name": macro.display_name,
+    #                     "result": result,
+    #                 }
+    #             )
+    #         except Exception as e:
+    #             if "already exists" in str(e):
+    #                 results["skipped"].append(
+    #                     {
+    #                         "application_name": macro.application_name,
+    #                         "display_name": macro.display_name,
+    #                         "reason": "Already exists",
+    #                     }
+    #                 )
+    #             else:
+    #                 results["failed"].append(
+    #                     {
+    #                         "application_name": macro.application_name,
+    #                         "display_name": macro.display_name,
+    #                         "error": str(e),
+    #                     }
+    #                 )
 
-        return results
+    #     return results
 
     @classmethod
     def from_examples_directory(
@@ -281,40 +281,6 @@ class MacroCollection:
         return cls(macros=macros, name="EDSL Examples Collection")
 
     @classmethod
-    def from_server(
-        cls, server_url: str = "http://localhost:8000", owner: Optional[str] = None
-    ) -> "MacroCollection":
-        """Load all macros from a server.
-
-        Args:
-            server_url: The server URL to load macros from
-            owner: Optional owner to filter macros by
-
-        Returns:
-            MacroCollection containing all macros from the server
-        """
-        from edsl.macros import Macro
-
-        # Get macro metadata from server
-        macro_metadata_list = Macro.list(server_url=server_url, owner=owner)
-
-        # Load each macro by ID
-        macros = []
-        for macro_meta in macro_metadata_list:
-            try:
-                macro_id = macro_meta.get("app_id")
-                if macro_id:
-                    macro = Macro.from_id(macro_id, server_url=server_url)
-                    macros.append(macro)
-                    print(f"✓ Loaded macro: {macro.application_name} from server")
-            except Exception as e:
-                print(
-                    f"Warning: Could not load macro {macro_meta.get('application_name', 'unknown')}: {e}"
-                )
-
-        return cls(macros=macros, name=f"Server Macros Collection ({server_url})")
-
-    @classmethod
     def from_list(
         cls, macro_identifiers: List[str], server_url: str = "http://localhost:8000"
     ) -> "MacroCollection":
@@ -353,4 +319,7 @@ def load_examples_collection() -> MacroCollection:
 
 if __name__ == "__main__":
     collection = load_examples_collection()
-    collection.deploy(owner="johnhorton", force=True)
+    for macro in collection:
+        # macro.push(visibility="public", description=macro.short_description, alias=macro.alias())
+        macro.deploy(overwrite=True)
+    # collection.deploy(owner="johnhorton", force=True)

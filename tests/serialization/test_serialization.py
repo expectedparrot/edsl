@@ -132,6 +132,7 @@ def test_serialization_coverage():
             "CompareResultsToGold",
             "PerformanceDelta",
             "ResultPairComparison",
+            "CompositeMacro",
         ]
     )
 
