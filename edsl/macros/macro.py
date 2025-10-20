@@ -1,13 +1,19 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional, Any, TypedDict, Mapping, Callable
-import re
-from html import escape
-
+from typing import (
+    TYPE_CHECKING,
+    Optional,
+    Any,
+    TypedDict,
+    Mapping,
+    Callable,
+    Union,
+    Set,
+)
 from functools import wraps
 
 from ..scenarios import Scenario
 from ..surveys import Survey
-from ..base import Base
+from .base_macro import BaseMacro
 
 if TYPE_CHECKING:
     from ..scenarios import ScenarioList
@@ -16,10 +22,19 @@ if TYPE_CHECKING:
     from ..results import Results
     from .head_attachments import HeadAttachments
 
+    try:
+        from typing import Self
+    except ImportError:
+        from typing import TypeVar
+
+        Self = TypeVar("Self", bound="Macro")
+
+else:
+    # At runtime, we can use a simple string annotation
+    Self = "MyClass"  # Adjust to your class name
 from .output_formatter import OutputFormatter, OutputFormatters
 from .api_payload import build_api_payload, reconstitute_from_api_payload
 from .answers_collector import AnswersCollector
-from .macro_html_renderer import MacroHTMLRenderer
 from .macro_run_output import MacroRunOutput
 from .descriptors import (
     InitialSurveyDescriptor,
@@ -60,143 +75,18 @@ def disabled_in_client_mode(method) -> Callable:
     return wrapper
 
 
-class MacroMixin:
-    """Mixin for Macro class.
+class Macro(BaseMacro):
+    # Subclass registry managed via descriptor
+    _registry = MacroTypeRegistryDescriptor()
 
-    This provides methods that are available to both the Macro and ClientFacingMacro classes.
-    """
+    # Each subclass should set a unique application_type
+    application_type: str = "base"
 
-    @classmethod
-    def public_macros(cls) -> "ScenarioList":
-        """List all deployed macros.
-
-        Returns:
-            List of deployed macro information.
-        """
-        import requests
-        from ..coop import Coop
-
-        coop = Coop()
-        BASE_URL = coop.api_url
-        API_KEY = coop.api_key
-
-        # Fetch list of deployed macros
-        response = requests.get(
-            f"{BASE_URL}/api/v0/macros/deployed",
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json",
-            },
-        )
-
-        response.raise_for_status()
-        macros_list = response.json()
-        from ..scenarios import ScenarioList
-
-        return ScenarioList.from_list_of_dicts(macros_list["deployed_macros"])
-
-    @classmethod
-    def instantiate_public_macro(cls, qualified_name: str) -> "Macro":
-        """Instantiate a public macro by fully qualified name.
-
-        This is used to instantiate a macro from a fully qualified name.
-        The macro lacks the jobs_object, which means to execute, the params are sent to the server.
-        This is controlled by the client_mode flag.
-
-        Args:
-            qualified_name: The fully qualified name of the macro.
-
-        Returns:
-            The instantiated macro.
-        """
-        import requests
-        from ..coop import Coop
-
-        coop = Coop()
-        BASE_URL = coop.api_url
-        API_KEY = coop.api_key
-
-        alias = qualified_name.split("/")[-1]
-        owner = qualified_name.split("/")[-2]
-
-        # Fetch macro dictionary
-        response = requests.get(
-            f"{BASE_URL}/api/v0/macros/deployed/{owner}/{alias}/instantiate_macro_client",
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json",
-            },
-        )
-
-        response.raise_for_status()
-        macro_dict = response.json()
-
-        m = Macro.from_dict(macro_dict)
-        m.macro_id = cls.get_public_macro_uuid(owner, alias)
-        m.client_mode = True
-        return m
-
-    @classmethod
-    def get_public_macro_uuid(cls, owner: str, alias: str) -> str:
-        """Get macro UUID from fully qualified name.
-
-        GET /api/v0/macros/deployed/{owner}/{alias}/uuid
-
-        Args:
-            owner: The owner of the macro.
-            alias: The alias of the macro.
-
-        Returns:
-            The macro UUID.
-        """
-        import requests
-        from ..coop import Coop
-
-        coop = Coop()
-        BASE_URL = coop.api_url
-        API_KEY = coop.api_key
-
-        response = requests.get(
-            f"{BASE_URL}/api/v0/macros/deployed/{owner}/{alias}/uuid",
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json",
-            },
-        )
-
-        response.raise_for_status()
-        return response.json()["macro_uuid"]
-
-    @classmethod
-    def create_client_macro(
-        cls, macro_id_or_qualified_name: Optional[str] = None
-    ) -> Macro:
-        """Create a client-facing macro from a macro_id or qualified name."""
-        import requests
-        from uuid import UUID
-
-        from ..coop import Coop
-
-        coop = Coop()
-        BASE_URL = coop.api_url
-        API_KEY = coop.api_key
-
-        MACRO_UUID = macro_id_or_qualified_name
-        # Fetch macro dictionary
-        response = requests.get(
-            f"{BASE_URL}/api/v0/macros/{MACRO_UUID}/instantiate_macro_client",
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json",
-            },
-        )
-        response.raise_for_status()
-        macro_dict = response.json()
-
-        m = Macro.from_dict(macro_dict)
-        m.client_mode = True
-        m.macro_id = MACRO_UUID
-        return m
+    def __init_subclass__(cls, **kwargs):
+        if cls is Macro:
+            return
+        # Delegate validation and registration to descriptor (access the descriptor itself)
+        Macro.__dict__["_registry"].register(cls)
 
     @classmethod
     def example(cls) -> "Macro":
@@ -250,82 +140,6 @@ class MacroMixin:
             output_formatters={"echo": echo_formatter},
             default_formatter_name="echo",
         )
-
-
-class ClientFacingMacro(MacroMixin):
-    """Facade for creating Macro instances with simplified interface.
-
-    The key reason for doing this is so that the macro can be instantiated from a fully qualified name if
-    it's deployed. If it's not deployed, the macro is not depoyed but it's one belonging to the user, it gets pulled.
-    If none of the above, a new macro is created using the provided config.
-
-    Usage:
-        macro = ClientFacingMacro("owner/alias")  # Pull from server
-        macro = ClientFacingMacro(application_name="...", ...)  # Create new
-    """
-
-    def __new__(cls, macro_id_or_qualified_name: Optional[str] = None, **config):
-        if macro_id_or_qualified_name:
-            try:
-                deployed_macro = Macro.instantiate_public_macro(
-                    macro_id_or_qualified_name
-                )
-                return deployed_macro
-            except Exception as e:
-                print(f"Error instantiating public macro: {e}")
-                return Macro.pull(macro_id_or_qualified_name)
-            # Use inherited pull method from Base
-            # Need to handle client macro case.
-            return Macro.pull(macro_id_or_qualified_name)
-        else:
-            return Macro(**config)
-
-    @classmethod
-    def pull(cls, macro_id_or_qualified_name: str) -> "Macro":
-        """Pull a macro from the server.
-
-        Automatically detects and returns the correct type (Macro or CompositeMacro).
-
-        Args:
-            macro_id_or_qualified_name: Either a macro_id UUID or qualified name 'owner/alias'.
-
-        Returns:
-            Macro or CompositeMacro instance depending on the stored object type.
-        """
-        return Macro.pull(macro_id_or_qualified_name)
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "Macro":
-        """Deserialize a macro from a dictionary.
-
-        Automatically detects and returns the correct type (Macro or CompositeMacro).
-
-        Args:
-            data: Dictionary representation of a macro.
-
-        Returns:
-            Macro or CompositeMacro instance depending on the application_type.
-        """
-        return Macro.from_dict(data)
-
-    @classmethod
-    def list(self, *args, **kwargs) -> "ScenarioList":
-        """Delegate to the actual Macro class."""
-        return Macro.list(*args, **kwargs)
-
-
-class Macro(MacroMixin, Base):
-    # Subclass registry managed via descriptor
-    _registry = MacroTypeRegistryDescriptor()
-
-    # Each subclass should set a unique application_type
-    application_type: str = "base"
-
-    def __init_subclass__(cls, **kwargs):
-        if cls is Macro:
-            return
-        # Delegate validation and registration to descriptor (access the descriptor itself)
-        Macro.__dict__["_registry"].register(cls)
 
     # Descriptors
     initial_survey = InitialSurveyDescriptor()
@@ -404,27 +218,18 @@ class Macro(MacroMixin, Base):
         self._generated_results: dict[int, "Results"] = {}
 
         # Register this macro instance in the global registry
-        try:
-            from .macro_registry import MacroRegistry
+        from .macro_registry import MacroRegistry
 
-            MacroRegistry.register(self)
-        except Exception:
-            # Registration failures should not prevent macro initialization
-            pass
+        MacroRegistry.register(self)
 
         self.client_mode = client_mode
 
-    def alias(self) -> str:
-        """Return the alias of the macro.
-
-        >>> macro = Macro.example()
-        >>> macro.alias()
-        'example-macro'
-        """
-        return self.application_name.replace("_", "-")
-
+    @disabled_in_client_mode
     def push(self, *args, **kwargs) -> dict:
-        """Push the macro to the server."""
+        """Push the macro to the server.
+
+        Uses the Base class 'push' method.
+        """
         if "alias" not in kwargs:
             kwargs["alias"] = self.alias()
         if "description" not in kwargs:
@@ -437,10 +242,6 @@ class Macro(MacroMixin, Base):
         d = self.to_dict()
         _ = d.pop("jobs_object")
         return d
-
-    def __call__(self, **kwargs: Any) -> Any:
-        """Call the macro with the given parameters."""
-        return self.output(params=kwargs)
 
     @disabled_in_client_mode
     def _generate_results(
@@ -485,17 +286,34 @@ class Macro(MacroMixin, Base):
 
     def by(self, params: Scenario | dict) -> Any:
         """
-        Use
+        Use this method to set the parameters for the macro.
+
+        This is used to set the parameters for the macro when it is run.
         """
         self._set_params = dict(params)
         return self
 
-    def run(self, **kwargs: Any) -> Any:
+    def __call__(self, **kwargs: Any) -> Any:
+        """Call the macro with the given parameters.
+
+        >>> macro = Macro.example()
+        >>> macro(text="hello", disable_remote_inference=True)
+        MacroRunOutput(...)
+        """
+        if "disable_remote_inference" in kwargs:
+            disable_remote_inference = kwargs.pop("disable_remote_inference")
+        else:
+            disable_remote_inference = False
+        return self.output(
+            params=kwargs, disable_remote_inference=disable_remote_inference
+        )
+
+    def run(self, **kwargs: Any) -> "MacroRunOutput":
         """
         Run the macro and return formatted output or a JSON API payload.
         """
         if kwargs == {}:
-            if self._set_params is not None:
+            if self._set_params is not None:  # the macro might have parameters set
                 kwargs = self._set_params
             else:
                 raise ValueError("params must be provided, got empty dict")
@@ -509,9 +327,7 @@ class Macro(MacroMixin, Base):
         disable_remote_inference: bool = False,
         verbose: bool = False,
         api_payload: bool = False,
-        # server_url: str = "http://localhost:8000",
-        # macro_id: Optional[str] = None,
-    ) -> Any:
+    ) -> Union[Results, dict]:
         """Run the macro and return formatted output or a JSON API payload."""
         if self.client_mode:
             return self._remote_output(
@@ -707,39 +523,6 @@ class Macro(MacroMixin, Base):
             # default_formatter_name=ofs.default,
         )
 
-    @disabled_in_client_mode
-    def deploy(self, macro_uuid: Optional[str] = None, overwrite: bool = False) -> None:
-        import requests
-        from ..coop import Coop
-
-        coop = Coop()
-        BASE_URL = coop.api_url
-        API_KEY = coop.api_key
-
-        if macro_uuid is None:
-            print("Deploying macro with no UUID, pushing to server...")
-            info = self.push(overwrite=overwrite)
-            macro_uuid = info["uuid"]
-            print(f"Deployed macro with UUID: {macro_uuid}")
-
-        MACRO_UUID = macro_uuid
-
-        print(f"Deploying macro with UUID: {MACRO_UUID}")
-        response = requests.post(
-            f"{BASE_URL}/api/v0/macros/{MACRO_UUID}/deploy",
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json",
-            },
-        )
-
-        response.raise_for_status()
-        result = response.json()
-
-        print(f"Status: {result['status']}")
-        print(f"Fully qualified name: {result['fully_qualified_name']}")
-        print(f"Deployed: {result['deployed']}")
-
     def inject_results(self, results: Results, params: ParamsDict | None = None) -> Any:
         """Inject results into the macro.
 
@@ -765,7 +548,7 @@ class Macro(MacroMixin, Base):
         disable_remote_inference: bool = False,
         verbose: bool = False,
         api_payload: bool = False,
-    ) -> Any:
+    ) -> Union[MacroRunOutput, dict]:
         """Run the macro and return formatted output or a JSON API payload.
 
         Args:
@@ -787,7 +570,7 @@ class Macro(MacroMixin, Base):
             True
         """
 
-        if params is None:
+        if params is None:  # collect params from the terminal
             params = AnswersCollector.collect_interactively(self)
 
         params = self._apply_default_params(
@@ -800,8 +583,8 @@ class Macro(MacroMixin, Base):
         # Prepare head attachments - these are what will get attached to the jobs object
         head_attachments = self._prepare_head_attachments(params)
         modified_jobs_object = head_attachments.attach_to_head(
-            self.jobs_object.duplicate()
-        )  # attach them
+            self.jobs_object.duplicate()  # duplicate, as it modifies the jobs object
+        )
 
         results = self._generate_results(
             modified_jobs_object,
@@ -903,7 +686,11 @@ class Macro(MacroMixin, Base):
         return reconstitute_from_api_payload(payload)
 
     def _apply_default_params(
-        self, params: ParamsDict, *, survey_names=None, default_params=None
+        self,
+        params: ParamsDict,
+        *,
+        survey_names: Optional[Set[str]] = None,
+        default_params: Optional[ParamsDict] = None,
     ) -> ParamsDict:
         """Merge provided params with defaults declared on the Macro.
 
@@ -985,7 +772,6 @@ class Macro(MacroMixin, Base):
     def _prepare_from_params(self, params: ParamsDict) -> HeadAttachments:
         """Translate initial_survey answers (params) into head attachments.
 
-        This method is the canonical, single place where we:
         - Verify that the provided params align with the initial survey
         - Instantiate any declared EDSL objects (Scenario/ScenarioList, Survey, Agent/AgentList)
 
@@ -1151,97 +937,8 @@ class Macro(MacroMixin, Base):
             fixed_params=merged_fixed,
         )
 
-    @property
-    def parameters(self) -> "ScenarioList":
-        """Return ScenarioList of parameter info derived from the initial survey."""
-        from ..scenarios.scenario_list import ScenarioList
-
-        return ScenarioList(
-            [
-                Scenario(
-                    {
-                        "question_name": q.question_name,
-                        "question_type": q.question_type,
-                        "question_text": q.question_text,
-                    }
-                )
-                for q in self.initial_survey
-            ]
-        )
-
-    def _eval_repr_(self) -> str:
-        """Return an eval-able string representation of the Macro.
-
-        This representation provides a simplified view suitable for doctests.
-        Used primarily for doctests and debugging.
-        """
-        cls_name = self.__class__.__name__
-        return (
-            f"{cls_name}(application_name='{self.application_name}', "
-            f"display_name='{self.display_name}', "
-            f"short_description='{self.short_description[:50]}...', "
-            f"...)"
-        )
-
-    def _summary_repr(self, max_formatters: int = 5, max_params: int = 5) -> str:
-        """Generate a summary representation of the Macro with Rich formatting.
-
-        Args:
-            max_formatters: Maximum number of formatters to show before truncating
-            max_params: Maximum number of parameters to show before truncating
-        """
-        from rich.console import Console
-        from rich.text import Text
-        import io
-
-        # Build the Rich text
-        output = Text()
-        cls_name = self.__class__.__name__
-
-        output.append(f"{cls_name}(\n", style="bold cyan")
-
-        # Application info
-        output.append("    application_name=", style="white")
-        output.append(f"'{self.application_name}'", style="yellow")
-        output.append(",\n", style="white")
-
-        output.append("    display_name=", style="white")
-        output.append(f"'{self.display_name}'", style="green")
-        output.append(",\n", style="white")
-
-        # Short description (truncate if too long)
-        desc = self.short_description
-        if len(desc) > 60:
-            desc = desc[:57] + "..."
-        output.append("    short_description=", style="white")
-        output.append(f"'{desc}'", style="cyan")
-        output.append(",\n", style="white")
-
-        # Application type - use getattr to get the actual class attribute value
-        app_type = getattr(self.__class__, "application_type", "base")
-        if not isinstance(app_type, str):
-            app_type = self.__class__.__name__
-        output.append("    application_type=", style="white")
-        output.append(f"'{app_type}'", style="magenta")
-        output.append(",\n", style="white")
-
-        # Parameters
-        param_names = [p["question_name"] for p in self.parameters]
-        num_params = len(param_names)
-        output.append(f"    num_parameters={num_params}", style="white")
-
-        if num_params > 0:
-            output.append(",\n    parameters=[", style="white")
-            for i, name in enumerate(param_names[:max_params]):
-                output.append(f"'{name}'", style="bold yellow")
-                if i < min(num_params, max_params) - 1:
-                    output.append(", ", style="white")
-            if num_params > max_params:
-                output.append(f", ... ({num_params - max_params} more)", style="dim")
-            output.append("]", style="white")
-
-        output.append(",\n", style="white")
-
+    def _add_summary_details(self, output, max_formatters: int):
+        """Add Macro-specific details to summary repr."""
         # Jobs info
         job_cls = (
             getattr(self.jobs_object, "__class__").__name__
@@ -1252,93 +949,8 @@ class Macro(MacroMixin, Base):
         output.append(f"'{job_cls}'", style="blue")
         output.append(",\n", style="white")
 
-        # Formatters
-        fmt_names_list = list(getattr(self.output_formatters, "mapping", {}).keys())
-        num_formatters = len(fmt_names_list)
-        output.append(f"    num_formatters={num_formatters}", style="white")
-
-        if num_formatters > 0:
-            output.append(",\n    formatters=[", style="white")
-            for i, name in enumerate(fmt_names_list[:max_formatters]):
-                output.append(f"'{name}'", style="yellow")
-                if i < min(num_formatters, max_formatters) - 1:
-                    output.append(", ", style="white")
-            if num_formatters > max_formatters:
-                output.append(
-                    f", ... ({num_formatters - max_formatters} more)", style="dim"
-                )
-            output.append("]", style="white")
-
-        # Default formatter
-        try:
-            default_fmt_obj = (
-                getattr(self.output_formatters, "default", None)
-                or self.output_formatters.get_default()
-            )
-            default_fmt = (
-                default_fmt_obj
-                if isinstance(default_fmt_obj, str)
-                else getattr(default_fmt_obj, "description", None)
-                or getattr(default_fmt_obj, "name", "<none>")
-            )
-        except Exception:
-            default_fmt = "<none>"
-
-        if default_fmt != "<none>":
-            output.append(",\n    default_formatter=", style="white")
-            output.append(f"'{default_fmt}'", style="bold green")
-
-        output.append("\n)", style="bold cyan")
-
-        # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
-        console.print(output, end="")
-        return console.file.getvalue()
-
-    @staticmethod
-    def _convert_markdown_to_html(md_text: str) -> str:
-        """Convert markdown to HTML.
-
-        Prefers the 'markdown' package if available. Falls back to a minimal
-        regex-based converter that supports headings (#, ##, ###), bold, italics,
-        and inline code, plus paragraph wrapping. Always escapes raw HTML first.
-        """
-        if md_text is None:
-            return ""
-        safe_text = escape(str(md_text))
-        try:
-            import markdown as md  # type: ignore
-
-            return md.markdown(
-                safe_text,
-                extensions=["extra", "sane_lists", "tables"],
-            )
-        except Exception:
-            pass
-
-        text = safe_text
-        # Headings
-        text = re.sub(r"(?m)^######\s+(.+)$", r"<h6>\\1</h6>", text)
-        text = re.sub(r"(?m)^#####\s+(.+)$", r"<h5>\\1</h5>", text)
-        text = re.sub(r"(?m)^####\s+(.+)$", r"<h4>\\1</h4>", text)
-        text = re.sub(r"(?m)^###\s+(.+)$", r"<h3>\\1</h3>", text)
-        text = re.sub(r"(?m)^##\s+(.+)$", r"<h2>\\1</h2>", text)
-        text = re.sub(r"(?m)^#\s+(.+)$", r"<h1>\\1</h1>", text)
-        # Inline code
-        text = re.sub(r"`([^`]+)`", r"<code>\\1</code>", text)
-        # Bold and italics (simple forms)
-        text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\\1</strong>", text)
-        text = re.sub(r"__(.+?)__", r"<strong>\\1</strong>", text)
-        text = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"<em>\\1</em>", text)
-        text = re.sub(r"_(.+?)_", r"<em>\\1</em>", text)
-        # Paragraphs: split on blank lines
-        parts = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
-        wrapped = [p if p.startswith("<h") else f"<p>{p}</p>" for p in parts]
-        return "\n".join(wrapped)
-
-    def _repr_html_(self) -> str:
-        """Rich HTML representation used in notebooks and rich console renderers."""
-        return MacroHTMLRenderer(self).render()
+        # Call parent to add formatters
+        super()._add_summary_details(output, max_formatters)
 
     def to_dict(self, add_edsl_version: bool = True) -> dict:
         """Serialize this macro to a JSON-serializable dict."""

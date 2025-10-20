@@ -19,10 +19,10 @@ from typing import Any, Optional
 
 from .macro import Macro
 from ..surveys import Survey
-from ..base import Base
+from .base_macro import BaseMacro
 
 
-class CompositeMacro(Base):
+class CompositeMacro(BaseMacro):
     """Compose two `Macro` instances with explicit param wiring.
 
     Users explicitly specify how macro2 input params are obtained, either from
@@ -56,8 +56,8 @@ class CompositeMacro(Base):
                   - Key dict {"formatter": "name", "path": "a.b"} maps the resolved value to the target param name (value)
             fixed: Optional fixed/pre-filled values for surveys:
                 {"macro1": {name: value}, "macro2": {name: value}}
-            application_name: Python identifier for the composite macro.
-            display_name: Human-readable name for the composite macro.
+            application_name: Optional Python identifier (auto-generated if not provided).
+            display_name: Optional human-readable name (auto-generated if not provided).
             short_description: One sentence description.
             long_description: Longer description.
         """
@@ -102,39 +102,6 @@ class CompositeMacro(Base):
         from .composite_macro_visualization import CompositeMacroVisualization
 
         CompositeMacroVisualization(self).show(filename=filename)
-
-    #        @disabled_in_client_mode
-    def deploy(self, macro_uuid: Optional[str] = None, overwrite: bool = False) -> None:
-        import requests
-        from ..coop import Coop
-
-        coop = Coop()
-        BASE_URL = coop.api_url
-        API_KEY = coop.api_key
-
-        if macro_uuid is None:
-            print("Deploying macro with no UUID, pushing to server...")
-            info = self.push(overwrite=overwrite)
-            macro_uuid = info["uuid"]
-            print(f"Deployed macro with UUID: {macro_uuid}")
-
-        MACRO_UUID = macro_uuid
-
-        print(f"Deploying macro with UUID: {MACRO_UUID}")
-        response = requests.post(
-            f"{BASE_URL}/api/v0/macros/{MACRO_UUID}/deploy",
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json",
-            },
-        )
-
-        response.raise_for_status()
-        result = response.json()
-
-        print(f"Status: {result['status']}")
-        print(f"Fully qualified name: {result['fully_qualified_name']}")
-        print(f"Deployed: {result['deployed']}")
 
     # --- Public API -------------------------------------------------------
 
@@ -432,86 +399,8 @@ class CompositeMacro(Base):
         """Extract the display name from a Macro."""
         return macro.display_name
 
-    @staticmethod
-    def _name_to_alias(name: str) -> str:
-        """Convert a pretty name to a valid Python identifier alias."""
-        import re
-
-        alias = name.lower()
-        alias = re.sub(r"[\s\-]+", "_", alias)
-        alias = re.sub(r"[^\w]", "", alias)
-        if alias and alias[0].isdigit():
-            alias = f"macro_{alias}"
-        if not alias:
-            alias = "macro"
-        return alias
-
-    def __repr__(self) -> str:
-        """Return a string representation of the CompositeMacro.
-
-        Uses traditional repr format when running doctests, otherwise uses
-        rich-based display for better readability.
-        """
-        import os
-
-        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
-            return self._eval_repr_()
-        else:
-            return self._summary_repr()
-
-    def _eval_repr_(self) -> str:
-        """Return an eval-able string representation of the CompositeMacro.
-
-        This representation provides a simplified view suitable for doctests.
-        Used primarily for doctests and debugging.
-        """
-        cls_name = self.__class__.__name__
-        return (
-            f"{cls_name}(application_name='{self.application_name}', "
-            f"display_name='{self.display_name}', "
-            f"short_description='{self.short_description[:50]}...', "
-            f"...)"
-        )
-
-    def _summary_repr(self, max_formatters: int = 5, max_params: int = 5) -> str:
-        """Generate a summary representation of the CompositeMacro with Rich formatting.
-
-        Args:
-            max_formatters: Maximum number of formatters to show before truncating
-            max_params: Maximum number of parameters to show before truncating
-        """
-        from rich.console import Console
-        from rich.text import Text
-        import io
-
-        # Build the Rich text
-        output = Text()
-        cls_name = self.__class__.__name__
-
-        output.append(f"{cls_name}(\n", style="bold cyan")
-
-        # Application info
-        output.append("    application_name=", style="white")
-        output.append(f"'{self.application_name}'", style="yellow")
-        output.append(",\n", style="white")
-
-        output.append("    display_name=", style="white")
-        output.append(f"'{self.display_name}'", style="green")
-        output.append(",\n", style="white")
-
-        # Short description (truncate if too long)
-        desc = self.short_description
-        if len(desc) > 60:
-            desc = desc[:57] + "..."
-        output.append("    short_description=", style="white")
-        output.append(f"'{desc}'", style="cyan")
-        output.append(",\n", style="white")
-
-        # Application type
-        output.append("    application_type=", style="white")
-        output.append(f"'{self.application_type}'", style="magenta")
-        output.append(",\n", style="white")
-
+    def _add_summary_details(self, output, max_formatters: int):
+        """Add CompositeMacro-specific details to summary repr."""
         # First macro info
         first_name = getattr(self.first_macro, "display_name", "Unknown")
         output.append("    first_macro=", style="white")
@@ -528,28 +417,6 @@ class CompositeMacro(Base):
             output.append("    second_macro=", style="white")
             output.append("None", style="dim")
             output.append(",\n", style="white")
-
-        # Parameters
-        try:
-            param_names = [q.question_name for q in self.initial_survey]
-            num_params = len(param_names)
-        except Exception:
-            param_names = []
-            num_params = 0
-
-        output.append(f"    num_parameters={num_params}", style="white")
-
-        if num_params > 0:
-            output.append(",\n    parameters=[", style="white")
-            for i, name in enumerate(param_names[:max_params]):
-                output.append(f"'{name}'", style="bold yellow")
-                if i < min(num_params, max_params) - 1:
-                    output.append(", ", style="white")
-            if num_params > max_params:
-                output.append(f", ... ({num_params - max_params} more)", style="dim")
-            output.append("]", style="white")
-
-        output.append(",\n", style="white")
 
         # Bindings info
         num_bindings = len(self.bindings)
@@ -570,53 +437,8 @@ class CompositeMacro(Base):
 
         output.append(",\n", style="white")
 
-        # Formatters (from second macro or empty)
-        try:
-            fmt_names_list = list(getattr(self.output_formatters, "mapping", {}).keys())
-            num_formatters = len(fmt_names_list)
-        except Exception:
-            fmt_names_list = []
-            num_formatters = 0
-
-        output.append(f"    num_formatters={num_formatters}", style="white")
-
-        if num_formatters > 0:
-            output.append(",\n    formatters=[", style="white")
-            for i, name in enumerate(fmt_names_list[:max_formatters]):
-                output.append(f"'{name}'", style="yellow")
-                if i < min(num_formatters, max_formatters) - 1:
-                    output.append(", ", style="white")
-            if num_formatters > max_formatters:
-                output.append(
-                    f", ... ({num_formatters - max_formatters} more)", style="dim"
-                )
-            output.append("]", style="white")
-
-        # Default formatter
-        try:
-            default_fmt_obj = (
-                getattr(self.output_formatters, "default", None)
-                or self.output_formatters.get_default()
-            )
-            default_fmt = (
-                default_fmt_obj
-                if isinstance(default_fmt_obj, str)
-                else getattr(default_fmt_obj, "description", None)
-                or getattr(default_fmt_obj, "name", "<none>")
-            )
-        except Exception:
-            default_fmt = "<none>"
-
-        if default_fmt != "<none>":
-            output.append(",\n    default_formatter=", style="white")
-            output.append(f"'{default_fmt}'", style="bold green")
-
-        output.append("\n)", style="bold cyan")
-
-        # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
-        console.print(output, end="")
-        return console.file.getvalue()
+        # Call parent to add formatters
+        super()._add_summary_details(output, max_formatters)
 
 
 if __name__ == "__main__":
