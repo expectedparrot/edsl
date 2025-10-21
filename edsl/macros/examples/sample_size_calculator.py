@@ -166,7 +166,7 @@ survey = Survey([q_sample_size, q_margin_of_error, q_number_to_invite])
 
 # Output formatter
 output_formatter = OutputFormatter(
-    description="Sample Size Calculator Results"
+    description="Sample Size Calculator Results", output_type="docx"
 ).to_docx("sample_size_results.docx")
 
 # Create the macro

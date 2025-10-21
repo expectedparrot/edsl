@@ -988,68 +988,81 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         return f"ScenarioList({list(self.data)})"
 
-    def _summary_repr(self, max_preview_values: int = 3) -> str:
+    def _summary_repr(self, MAX_SCENARIOS: int = 10, MAX_FIELDS: int = 10) -> str:
         """Generate a summary representation of the ScenarioList with Rich formatting.
 
         Args:
-            max_preview_values: Maximum number of values to show per parameter (default: 3)
+            MAX_SCENARIOS: Maximum number of scenarios to show (default: 10)
+            MAX_FIELDS: Maximum number of fields to show per scenario (default: 10)
         """
         from rich.console import Console
         from rich.text import Text
         import io
+        import shutil
 
-        param_names = list(self.parameters)
-
-        # Check for codebook
-        codebook_dict = None
-        if hasattr(self, "codebook") and self.codebook:
-            codebook_dict = self.codebook
+        # Get terminal width
+        terminal_width = shutil.get_terminal_size().columns
 
         # Build the Rich text
         output = Text()
         output.append("ScenarioList(\n", style="bold cyan")
         output.append(f"    num_scenarios={len(self)},\n", style="white")
-        output.append("    parameters:\n", style="white")
+        output.append("    scenarios=[\n", style="white")
 
-        # Build unified parameter lines with codebook and preview
-        for param in param_names[:20]:  # Show up to 20 parameters
-            # Get example values
-            values = []
-            for scenario in self.data[:max_preview_values]:
-                if param in scenario:
-                    val = scenario[param]
-                    values.append(repr(val))
+        # Show the first MAX_SCENARIOS scenarios
+        num_to_show = min(MAX_SCENARIOS, len(self))
+        for i, scenario in enumerate(self.data[:num_to_show]):
+            # Get scenario representation with limited fields
+            scenario_data = dict(list(scenario.items())[:MAX_FIELDS])
 
-            # Add ellipsis if there are more values
-            if len(self) > max_preview_values:
-                values.append("...")
+            # Check if we need to indicate truncation
+            num_fields = len(scenario)
+            was_truncated = num_fields > MAX_FIELDS
 
-            values_str = ", ".join(values)
+            # Build scenario repr with indentation
+            output.append("        Scenario(\n", style="bold cyan")
+            output.append(f"            num_keys={num_fields},\n", style="white")
+            output.append("            data={\n", style="white")
 
-            # Build the line with codebook description if available
-            if codebook_dict and param in codebook_dict:
-                description = codebook_dict[param]
-                output.append(f"        {param}: ", style="bold yellow")
-                output.append(f"{repr(description)}\n", style="dim")
-                output.append("            → ", style="green")
-                output.append(f"[{values_str}]\n", style="white")
+            # Show fields
+            for key, value in scenario_data.items():
+                # Format the value with truncation if needed
+                max_value_length = max(terminal_width - 30, 50)
+                value_repr = repr(value)
+                if len(value_repr) > max_value_length:
+                    value_repr = value_repr[:max_value_length - 3] + "..."
+
+                output.append("                ", style="white")
+                output.append(f"'{key}'", style="bold yellow")
+                output.append(f": {value_repr},\n", style="white")
+
+            if was_truncated:
+                output.append(
+                    f"                ... ({num_fields - MAX_FIELDS} more fields)\n",
+                    style="dim"
+                )
+
+            output.append("            }\n", style="white")
+            output.append("        )", style="bold cyan")
+
+            # Add comma and newline unless it's the last one
+            if i < num_to_show - 1:
+                output.append(",\n", style="white")
             else:
-                output.append(f"        {param}: ", style="bold yellow")
-                output.append(f"[{values_str}]\n", style="white")
+                output.append("\n", style="white")
 
-        # Add ellipsis if there are more parameters
-        if len(param_names) > 20:
+        # Add ellipsis if there are more scenarios
+        if len(self) > MAX_SCENARIOS:
             output.append(
-                f"        ... ({len(param_names) - 20} more parameters)\n", style="dim"
+                f"        ... ({len(self) - MAX_SCENARIOS} more scenarios)\n",
+                style="dim"
             )
 
-        if len(param_names) == 0:
-            output.append("        (no parameters)\n", style="dim")
-
+        output.append("    ]\n", style="white")
         output.append(")", style="bold cyan")
 
         # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console = Console(file=io.StringIO(), force_terminal=True, width=terminal_width)
         console.print(output, end="")
         return console.file.getvalue()
 

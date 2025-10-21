@@ -41,7 +41,9 @@ macro = Macro(
     default_formatter_name="table",
     attachment_formatters=[
         # Convert the provided Survey into scenarios at the head
-        SurveyAttachmentFormatter(name="Survey->ScenarioList").to_scenario_list()
+        SurveyAttachmentFormatter(
+            name="Survey->ScenarioList", output_type="ScenarioList"
+        ).to_scenario_list()
     ],
 )
 

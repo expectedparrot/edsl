@@ -38,7 +38,7 @@ jobs_object = Survey([q_questions]).to_jobs()
 
 # Output formatter that creates a Survey from the generated questions
 of_survey = (
-    OutputFormatter(description="Topics", output_type="edsl_object")
+    OutputFormatter(description="Topics", output_type="Survey")
     .select("answer.generated_questions", "scenario.input_text")
     .expand("answer.generated_questions")
     .select("answer.generated_questions")
@@ -50,7 +50,9 @@ of_survey = (
 )
 
 # Scenario attachment formatter for chunking text
-sa = ScenarioAttachmentFormatter(name="Scenario Attachment Formatter").chunk_text(
+sa = ScenarioAttachmentFormatter(
+    name="Scenario Attachment Formatter", output_type="ScenarioList"
+).chunk_text(
     field="input_text", chunk_size_field="words_per_chunk", unit="word"
 )
 
@@ -82,7 +84,9 @@ answering_survey = Survey(
 
 from edsl.macros.output_formatter import ScenarioAttachmentFormatter
 
-to_agent = ScenarioAttachmentFormatter(name="To Agent").to_agent_list()
+to_agent = ScenarioAttachmentFormatter(
+    name="To Agent", output_type="AgentList"
+).to_agent_list()
 
 # FIXME: This should be dynamically constructed from the survey output of the first macro
 # For now, use a simple placeholder

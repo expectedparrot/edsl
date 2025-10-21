@@ -61,7 +61,7 @@ def create_true_skill_macro(
 
     # Use TrueSkill ranking algorithm
     output_formatters = (
-        OutputFormatter(description="TrueSkill Ranked List")
+        OutputFormatter(description="TrueSkill Ranked List", output_type="ScenarioList")
         .to_scenario_list()
         .to_true_skill_ranked_list(
             option_fields=option_fields,
@@ -93,7 +93,9 @@ def create_true_skill_macro(
         default_formatter_name="true_skill",
         attachment_formatters=[
             # Use the same pairwise comparison as RankingMacro for now
-            ScenarioAttachmentFormatter(description="TrueSkill Pairwise").choose_k(2)
+            ScenarioAttachmentFormatter(
+                description="TrueSkill Pairwise", output_type="ScenarioList"
+            ).choose_k(2)
         ],
     )
 

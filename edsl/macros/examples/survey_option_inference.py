@@ -109,7 +109,7 @@ jobs_object = (
 
 # Output formatter for the clean option list
 clean_options_formatter = (
-    OutputFormatter(description="Clean Survey Options", output_type="edsl_object")
+    OutputFormatter(description="Clean Survey Options", output_type="ScenarioList")
     .select("answer.ordered_complete_options", "answer.ordering_explanation")
     .to_scenario_list()
     .rename(
@@ -137,7 +137,7 @@ analysis_formatter = (
 
 # Output formatter that creates a survey-ready format
 survey_ready_formatter = (
-    OutputFormatter(description="Survey Ready Options", output_type="edsl_object")
+    OutputFormatter(description="Survey Ready Options", output_type="ScenarioList")
     .select("answer.ordered_complete_options")
     .expand("answer.ordered_complete_options")
     .select("answer.ordered_complete_options")

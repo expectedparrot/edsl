@@ -81,6 +81,29 @@ parent_class = {f.__name__: f.__qualname__.split(".")[0] for f in white_list_met
 
 from abc import ABC
 
+from ..agents import AgentList
+
+
+# Dictionary of allowed output types with their descriptions
+ALLOWED_OUTPUT_TYPES = {
+    "markdown": str,
+    "html": str,
+    "docx": FileStore,
+    "xlsx": FileStore,
+    "json": dict,
+    "table": "Tabular data output",
+    "rich": "Rich terminal-formatted output",
+    "Survey": Survey,
+    "ScenarioList": ScenarioList,
+    "Scenario": Scenario,
+    "AgentList": AgentList,
+    "AgentBlueprint": AgentBlueprint,
+    "Results": Results,
+    "Dataset": Dataset,
+    "TableDisplay": TableDisplay,
+    "FileStore": FileStore,
+}
+
 # Build disambiguated maps keyed by (owner_class_name, method_name)
 # This avoids collisions for methods that share the same name across classes
 owner_to_methods: dict[str, set[str]] = {}
@@ -188,6 +211,10 @@ class ObjectFormatter(ABC):
 
         This is useful for creating a new formatter with the same configuration but a different output type.
         """
+        if output_type not in ALLOWED_OUTPUT_TYPES:
+            raise ValueError(
+                f"output_type must be one of {list(ALLOWED_OUTPUT_TYPES.keys())}, got: {output_type!r}"
+            )
         self.output_type = output_type
         return self
 
@@ -197,9 +224,19 @@ class ObjectFormatter(ABC):
         description: Optional[str] = None,
         allowed_commands: Optional[list[str]] = None,
         params: Optional[Any] = None,
-        output_type: str = "auto",
+        output_type: Optional[str] = None,
         _stored_commands: Optional[list[tuple[str, tuple, dict]]] = None,
     ) -> None:
+        # Validate output_type is mandatory and must be from ALLOWED_OUTPUT_TYPES
+        if output_type is None:
+            raise ValueError(
+                f"output_type is required. Must be one of: {list(ALLOWED_OUTPUT_TYPES.keys())}"
+            )
+        if output_type not in ALLOWED_OUTPUT_TYPES:
+            raise ValueError(
+                f"output_type must be one of {list(ALLOWED_OUTPUT_TYPES.keys())}, got: {output_type!r}"
+            )
+
         # Treat "name" as a legacy alias for description. If only name is provided,
         # store it in description; keep a .name attribute for backwards references.
         final_description = description if description is not None else name
@@ -214,7 +251,7 @@ class ObjectFormatter(ABC):
         )
         # Optional declarative params spec (names or defaults) supplied by user
         self.params = params
-        # Output type hint for frontend rendering: "markdown", "html", "file", "json", "auto"
+        # Output type hint for frontend rendering: must be from ALLOWED_OUTPUT_TYPES
         self.output_type = output_type
 
     def __getattr__(self, name: str) -> Any:
@@ -661,7 +698,9 @@ class OutputFormatters(UserList):
 
     def _ensure_raw_results(self) -> None:
         if "raw_results" not in self.mapping:
-            self.mapping["raw_results"] = OutputFormatter(description="Raw results")
+            self.mapping["raw_results"] = OutputFormatter(
+                description="Raw results", output_type="Results"
+            )
             # Keep underlying list in sync for any legacy accesses
             self.data.append(self.mapping["raw_results"])
 

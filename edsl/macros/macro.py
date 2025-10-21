@@ -124,7 +124,7 @@ class Macro(BaseMacro):
         ).by(Model("test"))
 
         echo_formatter = (
-            OutputFormatter(description="Echo")
+            OutputFormatter(description="Echo", output_type="ScenarioList")
             .select("answer.echo")
             .to_scenario_list()
             .table()
@@ -153,11 +153,13 @@ class Macro(BaseMacro):
 
     def __init__(
         self,
-        application_name: str,
-        display_name: str,
-        short_description: str,
-        long_description: str,
-        initial_survey: Survey,  # type: ignore[assignment]
+        __macro_identifier: Optional[str] = None,
+        *,
+        application_name: Optional[str] = None,
+        display_name: Optional[str] = None,
+        short_description: Optional[str] = None,
+        long_description: Optional[str] = None,
+        initial_survey: Optional[Survey] = None,  # type: ignore[assignment]
         jobs_object: Optional["Jobs"] = None,
         output_formatters: Optional[
             Mapping[str, OutputFormatter] | list[OutputFormatter] | OutputFormatters
@@ -183,7 +185,28 @@ class Macro(BaseMacro):
             default_params: Default parameter values for the initial survey.
             fixed_params: Fixed parameter values that cannot be overridden by the caller.
             client_mode: Whether the macro is in client mode (remote execution).
+            __macro_identifier: Internal parameter used by __new__ to signal server loading.
         """
+        # If instance was already initialized by __new__ (from server), skip initialization
+        if hasattr(self, "_initialized") and self._initialized:
+            return
+
+        # Check required arguments when creating new instance
+        if __macro_identifier is None:
+            if application_name is None:
+                raise TypeError(
+                    "Macro.__init__() missing required argument: 'application_name'. "
+                    "To load from server, use: Macro('owner/alias')"
+                )
+            if display_name is None:
+                raise TypeError("Macro.__init__() missing required argument: 'display_name'")
+            if short_description is None:
+                raise TypeError("Macro.__init__() missing required argument: 'short_description'")
+            if long_description is None:
+                raise TypeError("Macro.__init__() missing required argument: 'long_description'")
+            if initial_survey is None:
+                raise TypeError("Macro.__init__() missing required argument: 'initial_survey'")
+
         self.jobs_object = jobs_object
         # Set via descriptors (handles validation)
         self.application_name = application_name
@@ -223,6 +246,9 @@ class Macro(BaseMacro):
         MacroRegistry.register(self)
 
         self.client_mode = client_mode
+
+        # Mark as initialized to prevent re-initialization
+        self._initialized = True
 
     @disabled_in_client_mode
     def push(self, *args, **kwargs) -> dict:
@@ -1044,7 +1070,7 @@ class Macro(BaseMacro):
         jobs_object = survey.to_jobs()
 
         output_formatter = (
-            OutputFormatter(description="Ranked Scenario List")
+            OutputFormatter(description="Ranked Scenario List", output_type="ScenarioList")
             .to_scenario_list()
             .to_ranked_scenario_list(
                 option_fields=option_fields,
@@ -1073,7 +1099,9 @@ class Macro(BaseMacro):
             default_formatter_name="ranked_list",
             attachment_formatters=[
                 # Transform the provided ScenarioList into pairwise comparisons
-                ScenarioAttachmentFormatter(description="Pairwise choose_k").choose_k(2)
+                ScenarioAttachmentFormatter(
+                    description="Pairwise choose_k", output_type="ScenarioList"
+                ).choose_k(2)
             ],
         )
 

@@ -33,7 +33,7 @@ jobs_object = Survey([generation_question]).to_jobs()
 
 # Define output formatter to return the original scenarios augmented with generated content
 output_formatter = (
-    OutputFormatter(description="Agent Stories", output_type="edsl_object")
+    OutputFormatter(description="Agent Stories", output_type="ScenarioList")
     .select("scenario.*", "answer.*", "agent.*")
     .to_scenario_list()
 )

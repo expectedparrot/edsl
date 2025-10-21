@@ -161,7 +161,7 @@ generate_job = (
 candidates_formatter = (
     OutputFormatter(
         description="Create a ScenarioList of 2-sentence startup descriptions",
-        output_type="edsl_object",
+        output_type="ScenarioList",
     )
     .select("answer.shorten")
     .rename({"answer.shorten": "two_sentences"})

@@ -150,7 +150,7 @@ initial_survey = Survey(
 # which performs ETL operations to convert scenario data into Dimension objects.
 # For direct construction with Dimension objects, use AgentBlueprint.from_dimensions()
 output_formatter = (
-    OutputFormatter(description="Agent Blueprint", output_type="edsl_object")
+    OutputFormatter(description="Agent Blueprint", output_type="AgentBlueprint")
     .select("scenario.*", "answer.*")
     .to_scenario_list()
     .to_agent_blueprint(

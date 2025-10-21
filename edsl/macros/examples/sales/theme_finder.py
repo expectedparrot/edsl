@@ -78,7 +78,7 @@ def create_theme_generation_app():
 
     # Output formatter: collect all themes into a list
     theme_list_formatter = (
-        OutputFormatter(description="Generated Themes")
+        OutputFormatter(description="Generated Themes", output_type="json")
         .select("answer.generated_themes")
         .to_list()
     )
@@ -150,7 +150,7 @@ def create_theme_consolidation_app():
     jobs_object = Survey([consolidation_question]).to_jobs()
 
     consolidated_formatter = (
-        OutputFormatter(description="Consolidated Themes")
+        OutputFormatter(description="Consolidated Themes", output_type="json")
         .select("answer.consolidated_themes")
         .to_list()
         .__getitem__(0)
@@ -248,7 +248,7 @@ def create_labeling_app(theme_labels=None):
 
     # Return the original ScenarioList with the new field added
     labeled_formatter = (
-        OutputFormatter(description="Labeled Responses")
+        OutputFormatter(description="Labeled Responses", output_type="ScenarioList")
         .select("scenario.*", "answer.identified_themes")
         .to_scenario_list()
     )
@@ -323,7 +323,7 @@ def create_theme_validation_app():
     jobs_object = Survey([validation_question]).to_jobs()
 
     report_formatter = (
-        OutputFormatter(description="Validation Report")
+        OutputFormatter(description="Validation Report", output_type="json")
         .select("answer.validation_report")
         .to_list()
         .__getitem__(0)
@@ -405,7 +405,7 @@ def create_theme_refinement_app():
     jobs_object = Survey([refinement_question]).to_jobs()
 
     refined_formatter = (
-        OutputFormatter(description="Refined Themes")
+        OutputFormatter(description="Refined Themes", output_type="json")
         .select("answer.refined_themes")
         .to_list()
         .__getitem__(0)
@@ -492,7 +492,7 @@ def create_theme_finder_app():
 
     # Collect all candidate themes
     candidate_formatter = (
-        OutputFormatter(description="Candidate Themes")
+        OutputFormatter(description="Candidate Themes", output_type="ScenarioList")
         .select("answer.candidate_themes")
         .expand("answer.candidate_themes")
         .to_scenario_list()
@@ -614,7 +614,7 @@ def create_complete_theme_finder():
     )
 
     labeled_formatter = (
-        OutputFormatter(description="Labeled Responses")
+        OutputFormatter(description="Labeled Responses", output_type="ScenarioList")
         .select("scenario.response_text", "answer.identified_themes")
         .to_scenario_list()
     )

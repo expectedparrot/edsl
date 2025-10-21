@@ -17,12 +17,11 @@ def build_telephone_macro() -> CompositeMacro:
             question_name="translated_text",
             question_text="Please translate {{ scenario.input_text }} to German. Just return the translated text, no other text.",
         )
-        .comment("Translating from English to German")
         .to_jobs()
     )
 
     of = (
-        OutputFormatter(description="Output Formatter")
+        OutputFormatter(description="Output Formatter", output_type="json")
         .select("answer.*")
         .to_list()
         .__getitem__(0)
@@ -44,7 +43,6 @@ def build_telephone_macro() -> CompositeMacro:
             question_name="translated_text",
             question_text="Please translate {{ scenario.input_text }} from German to English. Just return the translated text, no other text.",
         )
-        .comment("Translating from German to English")
         .to_jobs()
     )
 
@@ -89,7 +87,7 @@ if __name__ == "__main__":
         .comment("Getting line from Pirates of Penzance")
         .to_jobs(),
         output_formatters={
-            "of": OutputFormatter(description="Output Formatter")
+            "of": OutputFormatter(description="Output Formatter", output_type="json")
             .select("answer.*")
             .to_list()
             .__getitem__(0)

@@ -40,6 +40,8 @@ class MacroSerialization:
                 add_edsl_version=add_edsl_version
             ),
             "attachment_formatters": attachment_formatters_data,
+            "default_params": macro._default_params,
+            "default_formatter_name": macro.output_formatters.default,
         }
 
     @staticmethod
@@ -84,6 +86,8 @@ class MacroSerialization:
                 data.get("output_formatters")
             ),
             "attachment_formatters": attachment_formatters,
+            "default_params": data.get("default_params"),
+            "default_formatter_name": data.get("default_formatter_name"),
             "client_mode": data.get("client_mode", False),
         }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}

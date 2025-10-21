@@ -137,7 +137,7 @@ initial_survey = Survey(
 
 # Output formatter - expand the list of section dictionaries into individual scenarios
 scenario_list_output = (
-    OutputFormatter(description="Structured Policy Data", output_type="edsl_object")
+    OutputFormatter(description="Structured Policy Data", output_type="ScenarioList")
     .select("scenario.*", "answer.policy_sections")
     .expand("answer.policy_sections")
     .to_scenario_list()
@@ -168,7 +168,7 @@ rich_preview = (
 # DOCX FileStore output - note: don't provide filename to get FileStore object
 docx_output = (
     OutputFormatter(
-        description="Policy Document (DOCX FileStore)", output_type="edsl_object"
+        description="Policy Document (DOCX FileStore)", output_type="FileStore"
     )
     .select("scenario.*", "answer.policy_sections")
     .expand("answer.policy_sections")
@@ -179,7 +179,7 @@ docx_output = (
 
 # Excel output for data analysis
 excel_output = (
-    OutputFormatter(description="Policy Data (Excel)", output_type="edsl_object")
+    OutputFormatter(description="Policy Data (Excel)", output_type="FileStore")
     .select("scenario.*", "answer.policy_sections")
     .expand("answer.policy_sections")
     .to_scenario_list()
