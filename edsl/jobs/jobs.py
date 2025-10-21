@@ -1132,6 +1132,23 @@ class Jobs(Base):
         else:
             return len(self) * self.run_config.parameters.n
 
+    @property
+    def nr_questions(self) -> int:
+        """Calculate the total number of questions that will be executed.
+
+        This is the product of the number of interviews and the number of questions
+        in the survey. It represents the total number of LLM API calls that will be
+        made during job execution.
+
+        >>> Jobs.example().nr_questions
+        8
+
+        Returns
+        -------
+            int: Total number of questions to be executed (num_interviews × num_survey_questions)
+        """
+        return self.num_interviews * len(self.survey)
+
     def _run(self, config: RunConfig) -> Tuple[Optional["Results"], Optional[str]]:
         """Shared code for run and run_async methods.
 
