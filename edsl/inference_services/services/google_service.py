@@ -1,7 +1,5 @@
 import os
 from typing import Any, Dict, Optional, TYPE_CHECKING
-from google import genai
-from google.genai import types
 
 # from ...exceptions.general import MissingAPIKeyError
 from ..inference_service_abc import InferenceServiceABC
@@ -11,6 +9,31 @@ from ..decorators import report_errors_async
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
     from ...scenarios.file_store import FileStore as Files
+
+# Lazy imports for Google genai packages (they load slowly)
+_genai = None
+_types = None
+
+
+def _get_genai():
+    """Lazy import of google.genai module."""
+    global _genai
+    if _genai is None:
+        from google import genai
+
+        _genai = genai
+    return _genai
+
+
+def _get_types():
+    """Lazy import of google.genai.types module."""
+    global _types
+    if _types is None:
+        from google.genai import types
+
+        _types = types
+    return _types
+
 
 safety_settings = [
     {
@@ -50,6 +73,7 @@ class GoogleService(InferenceServiceABC):
         if not api_key:
             raise ValueError("GOOGLE_API_KEY environment variable not set.")
 
+        genai = _get_genai()
         client = genai.Client(api_key=api_key)
         response = client.models.list()
         model_list = list(response)
@@ -152,20 +176,10 @@ class GoogleService(InferenceServiceABC):
                     ):
                         # print("Creating new Google client...", flush=True)
                         # creation_start = time.time()
+
+                        genai = _get_genai()
                         self._cached_client = genai.Client(api_key=self.api_token)
                         self._cached_api_token = self.api_token
-                        # creation_time = time.time() - creation_start
-                        # client_time = time.time() - client_start
-                        # print(
-                        #     f"Google client creation took {creation_time:.3f}s (total with lock: {client_time:.3f}s)",
-                        #     flush=True,
-                        # )
-                    # else:
-                    # client_time = time.time() - client_start
-                    # print(
-                    #     f"Using cached Google client (took {client_time:.3f}s)",
-                    #     flush=True,
-                    # )
 
                 client = self._cached_client
 
@@ -237,6 +251,8 @@ class GoogleService(InferenceServiceABC):
 
                 # Time config creation
                 # config_start = time.time()
+                types = _get_types()
+
                 generation_config = types.GenerateContentConfig(
                     temperature=self.temperature,
                     top_p=self.topP,
