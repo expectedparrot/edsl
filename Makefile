@@ -210,13 +210,13 @@ benchmark-components: ## Run component-level benchmarks
 	python scripts/component_benchmark.py
 
 benchmark-memory: ## Run memory profiling on ScenarioList filter operation
-	python scripts/memory_profiler.py --size 1000
+	python scripts/memory_profiler.py --size 1000 --no-open
 
 benchmark-memory-large: ## Run memory profiling with a large dataset (5000 scenarios)
-	python scripts/memory_profiler.py --size 5000
-	
+	python scripts/memory_profiler.py --size 5000 --no-open
+
 benchmark-memory-line: ## Run line-by-line memory profiling on ScenarioList filter
-	python scripts/memory_line_profiler.py --size 20
+	python scripts/memory_line_profiler.py --size 20 --no-open
 
 test-memory-scaling: ## Run comprehensive memory scaling tests for ScenarioList
 	RUN_MEMORY_SCALING_TEST=1 pytest -xvs tests/scenarios/test_ScenarioList_memory.py::test_scenario_list_memory_scaling
@@ -236,8 +236,9 @@ benchmark-all: ## Run all performance benchmarks and generate reports
 	@python scripts/write_performance_yaml.py
 	@echo "Generating performance visualizations..."
 	@python scripts/visualize_performance.py --report
-	@make benchmark-report || true
-	@echo "All benchmarks complete. See performance.yml and benchmark_logs/reports/ for results."
+	@echo "Generating regression visualization..."
+	@python scripts/regression_detector.py --open
+	@echo "All benchmarks complete. See regression_report.html for results."
 	@bash scripts/mark_check_complete.sh BENCHMARKS
 
 benchmark-test: ## Test that benchmark scripts work properly
@@ -245,6 +246,9 @@ benchmark-test: ## Test that benchmark scripts work properly
 
 performance-report: ## Generate performance report from existing performance.yml
 	python scripts/visualize_performance.py --report --open
+
+regression-check: ## Check for performance regressions and generate report
+	python scripts/regression_detector.py --open
 
 performance-visualize: ## Create performance visualizations without opening report
 	python scripts/visualize_performance.py --report
