@@ -51,3 +51,6 @@ edsl/widgets/src/
 edsl/conjure/examples/*
 edsl/conjure/raw_data/*
 edsl/assistants/examples/*
+benchmark_logs/*
+performance.yml
+edsl/assistants/edsl_output/
