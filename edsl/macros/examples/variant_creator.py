@@ -64,7 +64,7 @@ jobs_object = q_variant.by(Scenario.example())
 
 # Output formatter to create scenario list with variants
 output_formatter = (
-    OutputFormatter(description="Variant List", output_type="edsl_object")
+    OutputFormatter(description="Variant List", output_type="ScenarioList")
     .select("scenario.modifications", "answer.variant_text")
     .to_scenario_list()
 )
@@ -80,7 +80,7 @@ from edsl.scenarios import Scenario
 
 
 attachment_formatter = (
-    ScenarioAttachmentFormatter()
+    ScenarioAttachmentFormatter(output_type="ScenarioList")
     .replace_value("modifications", DEFAULT_MODIFICATIONS)
     .to_scenario_list()
     .expand("modifications")

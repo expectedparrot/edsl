@@ -75,7 +75,7 @@ jobs_object = (
 )
 
 base_formatter = (
-    OutputFormatter(description="Rubric Survey", output_type="edsl_object")
+    OutputFormatter(description="Rubric Survey", output_type="Survey")
     .select("scenario.dimensions", "answer.scales", "scenario.weights")
     .rename(
         {
@@ -91,7 +91,7 @@ base_formatter = (
     .zip("question_options", "option_labels", "option_labels")
 )
 
-rubric_survey = base_formatter.copy().set_output_type("edsl_object").to_survey()
+rubric_survey = base_formatter.copy().set_output_type("Survey").to_survey()
 survey_with_weights = rubric_survey.copy().add_weighted_linear_scale_sum()
 survey_table = (
     rubric_survey.copy()

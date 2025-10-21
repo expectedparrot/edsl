@@ -31,7 +31,7 @@ q_new_value = QuestionFreeText(
 jobs_object = Survey([q_new_value]).to_jobs()
 
 agent_list = OutputFormatter(
-    description="Panel Reaction", output_type="edsl_object"
+    description="Panel Reaction", output_type="AgentList"
 ).then(
     "augment_agents",
     field_name="new_persona_field",

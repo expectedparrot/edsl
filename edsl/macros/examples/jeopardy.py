@@ -32,7 +32,7 @@ q_questions = QuestionList(
 jobs_object = q_questions.by(Scenario.example())
 
 of = (
-    OutputFormatter(description="Topics", output_type="edsl_object")
+    OutputFormatter(description="Topics", output_type="ScenarioList")
     .select("answer.generated_questions", "scenario.input_text")
     .expand("answer.generated_questions")
     .select("answer.generated_questions")
@@ -59,7 +59,9 @@ markdown_formatter = (
 
 # This modifies the scenario by chunking the text
 # before attaching it to the jobs object.
-sa = ScenarioAttachmentFormatter(name="Scenario Attachment Formatter").chunk_text(
+sa = ScenarioAttachmentFormatter(
+    name="Scenario Attachment Formatter", output_type="ScenarioList"
+).chunk_text(
     field="input_text", chunk_size_field="words_per_chunk", unit="word"
 )
 

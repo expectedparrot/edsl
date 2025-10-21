@@ -158,7 +158,7 @@ thread_template = """
 *Generated with EDSL*
 """
 
-docx_formatter = OutputFormatter(description="DOCX Report").to_docx(
+docx_formatter = OutputFormatter(description="DOCX Report", output_type="docx").to_docx(
     "twitter_thread.docx"
 )
 

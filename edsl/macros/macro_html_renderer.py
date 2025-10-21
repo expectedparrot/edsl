@@ -47,7 +47,7 @@ class MacroHTMLRenderer:
         desc_html = self._convert_markdown_to_html(macro_desc)
 
         rows_html: list[str] = []
-        for param in self.macro.parameters:
+        for param in self.macro.parameters_scenario_list:
             rows_html.append(
                 """
                 <tr>
@@ -96,7 +96,7 @@ class MacroHTMLRenderer:
             return '"..."'
 
         example_kv_lines: list[str] = []
-        for param in self.macro.parameters:
+        for param in self.macro.parameters_scenario_list:
             value_literal = _example_value_for_type(str(param["question_type"]))
             example_kv_lines.append(
                 f"    {repr(str(param['question_name']))}: {value_literal}"

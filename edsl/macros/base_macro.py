@@ -151,6 +151,17 @@ class BaseMacro(Base, MacroMixin, ABC):
         # Normal construction
         return super().__new__(cls)
 
+
+    @classmethod
+    def list(cls) -> "ScenarioList":
+        """List all macros.
+
+        Returns:
+            List of macro information.
+        """
+        scenario_list = super().list()
+        return scenario_list.select('description', 'owner_username', 'alias').table()
+
     @classmethod
     def _load_from_server(cls, identifier: str) -> "BaseMacro":
         """Load macro from server - tries deployed then owned.
@@ -228,6 +239,7 @@ class BaseMacro(Base, MacroMixin, ABC):
             m = cls.from_dict(macro_dict)
             m.macro_id = cls.get_public_macro_uuid(owner, alias)
             m.client_mode = True
+            m._initialized = True  # Mark as initialized to prevent __init__ from re-running
             return m
         else:
             # Assume it's a macro_id
@@ -244,6 +256,7 @@ class BaseMacro(Base, MacroMixin, ABC):
             m = cls.from_dict(macro_dict)
             m.client_mode = True
             m.macro_id = qualified_name
+            m._initialized = True  # Mark as initialized to prevent __init__ from re-running
             return m
 
     def alias(self) -> str:
@@ -318,7 +331,14 @@ class BaseMacro(Base, MacroMixin, ABC):
         return Scenario(result)
 
     @property
-    def parameters(self) -> "ScenarioList":
+    def parameters(self) -> "Table":
+        """Return ScenarioList of parameter info derived from the initial survey."""
+        sl = self.parameters_scenario_list
+        return sl.select('question_name', 'question_text', 'question_type').rename({'question_name': 'parameter', 'question_text': 'description', 'question_type': 'input_type'}).table()
+
+
+    @property
+    def parameters_scenario_list(self) -> "ScenarioList":
         """Return ScenarioList of parameter info derived from the initial survey."""
         from ..scenarios.scenario_list import ScenarioList
 
@@ -447,7 +467,7 @@ class BaseMacro(Base, MacroMixin, ABC):
 
         # Parameters
         try:
-            param_names = [p["question_name"] for p in self.parameters]
+            param_names = [p["question_name"] for p in self.parameters_scenario_list]
             num_params = len(param_names)
         except Exception:
             param_names = []

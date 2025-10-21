@@ -94,7 +94,7 @@ def create_parallel_theme_generator():
 
     # Collect all generated themes into a flat list
     all_themes_formatter = (
-        OutputFormatter(description="All Generated Themes")
+        OutputFormatter(description="All Generated Themes", output_type="ScenarioList")
         .select("answer.themes")
         .expand("answer.themes")  # Flatten list of lists
         .to_scenario_list()
@@ -178,7 +178,7 @@ def create_theme_consolidator():
     jobs_object = Survey([consolidation_question]).to_jobs().by(analyst)
 
     consolidated_formatter = (
-        OutputFormatter(description="Consolidated Themes")
+        OutputFormatter(description="Consolidated Themes", output_type="json")
         .select("answer.consolidated_themes")
         .to_list()
         .__getitem__(0)  # Get first element (the list of themes)
@@ -261,7 +261,7 @@ def create_parallel_labeler():
 
     # Return original data with new field
     labeled_formatter = (
-        OutputFormatter(description="Labeled Responses")
+        OutputFormatter(description="Labeled Responses", output_type="ScenarioList")
         .select("scenario.*", "answer.identified_themes")
         .to_scenario_list()
     )
@@ -355,7 +355,7 @@ def create_theme_validator():
     jobs_object = Survey([validation_question]).to_jobs().by(analyst)
 
     report_formatter = (
-        OutputFormatter(description="Validation Report")
+        OutputFormatter(description="Validation Report", output_type="json")
         .select("answer.validation_analysis")
         .to_list()
         .__getitem__(0)
@@ -448,7 +448,7 @@ def create_theme_refiner():
     jobs_object = Survey([refinement_question]).to_jobs().by(analyst)
 
     refined_formatter = (
-        OutputFormatter(description="Refined Themes")
+        OutputFormatter(description="Refined Themes", output_type="json")
         .select("answer.refined_themes")
         .to_list()
         .__getitem__(0)
@@ -557,7 +557,7 @@ def create_integrated_theme_finder():
     )
 
     labeled_formatter = (
-        OutputFormatter(description="Labeled Responses")
+        OutputFormatter(description="Labeled Responses", output_type="ScenarioList")
         .select("scenario.response_text", "answer.identified_themes")
         .to_scenario_list()
     )
@@ -661,7 +661,7 @@ def create_simple_theme_finder():
     jobs_object = Survey([theme_generation]).to_jobs().by(analyst)
 
     themes_formatter = (
-        OutputFormatter(description="Generated Themes")
+        OutputFormatter(description="Generated Themes", output_type="json")
         .select("answer.generated_themes")
         .to_list()
         .__getitem__(0)

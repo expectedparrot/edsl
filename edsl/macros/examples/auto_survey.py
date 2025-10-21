@@ -83,7 +83,7 @@ job = (
 # )
 
 output_formatter = (
-    OutputFormatter(description="Survey", output_type="edsl_object")
+    OutputFormatter(description="Survey", output_type="Survey")
     .select(
         "generated_question_text",
         "generated_question_type",

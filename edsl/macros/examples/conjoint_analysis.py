@@ -112,7 +112,7 @@ table_formatter = (
 )
 
 structured_formatter = (
-    OutputFormatter(name="Structured Results", output_type="edsl_object")
+    OutputFormatter(name="Structured Results", output_type="ScenarioList")
     .select(
         "scenario.component",
         "scenario.potential_levels",
@@ -123,7 +123,7 @@ structured_formatter = (
 )
 
 scenario_list_formatter = (
-    OutputFormatter(name="Conjoint Scenario List", output_type="edsl_object")
+    OutputFormatter(name="Conjoint Scenario List", output_type="ScenarioList")
     .select("scenario.component", "scenario.potential_levels", "answer.current_level")
     .rename(
         {

@@ -169,14 +169,14 @@ initial_survey = Survey(
 debug_scenario_list = (
     OutputFormatter(
         description="Debug ScenarioList (before agent_blueprint)",
-        output_type="edsl_object",
+        output_type="ScenarioList",
     )
     .select("scenario.*", "answer.*")
     .to_scenario_list()
 )
 
 agent_blueprint = (
-    OutputFormatter(description="Agent Blueprint", output_type="edsl_object")
+    OutputFormatter(description="Agent Blueprint", output_type="AgentBlueprint")
     .select("scenario.*", "answer.*")
     .to_scenario_list()
     .to_agent_blueprint(
@@ -210,7 +210,7 @@ markdown_formatter = (
     .to_string()
 )
 
-raw = OutputFormatter(description="Raw results")
+raw = OutputFormatter(description="Raw results", output_type="Results")
 
 # Debug table to inspect the data
 debug_table = (
@@ -236,7 +236,7 @@ debug_fields = (
 # Debug: Validate probs are numeric
 debug_probs_validation = (
     OutputFormatter(
-        description="Debug: Validate probs field types", output_type="edsl_object"
+        description="Debug: Validate probs field types", output_type="ScenarioList"
     )
     .select("scenario.*", "answer.*")
     .to_scenario_list()
@@ -263,7 +263,9 @@ macro = Macro(
     default_formatter_name="agent_blueprint",
     attachment_formatters=[
         # Convert the passed Survey into a ScenarioList and attach as scenarios
-        SurveyAttachmentFormatter(description="Survey->ScenarioList").to_scenario_list(
+        SurveyAttachmentFormatter(
+            description="Survey->ScenarioList", output_type="ScenarioList"
+        ).to_scenario_list(
             remove_jinja2_syntax=True
         )
     ],

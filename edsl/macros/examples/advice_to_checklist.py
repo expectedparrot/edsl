@@ -47,7 +47,7 @@ s = Scenario({"advice_text": "Make sure your website is accessible"})
 jobs_object = Survey([checklist_question]).by(s)
 
 checklist_formatter = (
-    OutputFormatter(description="Checklist Survey", output_type="edsl_object")
+    OutputFormatter(description="Checklist Survey", output_type="Survey")
     .select("scenario.advice_text", "answer.checklist_items")
     .expand("answer.checklist_items")
     .select("answer.checklist_items")

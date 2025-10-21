@@ -58,8 +58,8 @@ class MacroRegistry:
         scenarios = []
         for name, macro in cls._macros_by_name.items():
             description = getattr(macro, "description", None)
-            # Macro.parameters returns a ScenarioList
-            parameters = getattr(macro, "parameters", [])
+            # Macro.parameters_scenario_list returns a ScenarioList
+            parameters = getattr(macro, "parameters_scenario_list", [])
             scenarios.append(
                 Scenario(
                     {

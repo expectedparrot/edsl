@@ -35,7 +35,9 @@ class CompositeMacro(BaseMacro):
 
     def __init__(
         self,
-        first_macro: Macro,
+        __macro_identifier: Optional[str] = None,
+        *,
+        first_macro: Optional[Macro] = None,
         second_macro: Optional[Macro] = None,
         bindings: Optional[dict[str, Any]] = None,
         fixed: Optional[dict[str, dict[str, Any]]] = None,
@@ -47,6 +49,7 @@ class CompositeMacro(BaseMacro):
         """Initialize the composite macro.
 
         Args:
+            __macro_identifier: Internal parameter used by __new__ to signal server loading.
             first_macro: The first macro to run (macro1).
             second_macro: The second macro to run (macro2). May be set later via >>.
             bindings: An explicit dict describing how to populate macro2 params.
@@ -61,6 +64,17 @@ class CompositeMacro(BaseMacro):
             short_description: One sentence description.
             long_description: Longer description.
         """
+        # If instance was already initialized by __new__ (from server), skip initialization
+        if hasattr(self, "_initialized") and self._initialized:
+            return
+
+        # Check required arguments when creating new instance
+        if __macro_identifier is None and first_macro is None:
+            raise TypeError(
+                "CompositeMacro.__init__() missing required argument: 'first_macro'. "
+                "To load from server, use: CompositeMacro('owner/alias')"
+            )
+
         self.first_macro = first_macro
         self.second_macro = second_macro
         self.bindings = dict(bindings or {})
@@ -87,6 +101,9 @@ class CompositeMacro(BaseMacro):
         self.long_description = (
             long_description or f"Composite macro: {self.display_name}."
         )
+
+        # Mark as initialized to prevent re-initialization
+        self._initialized = True
 
     def __rshift__(self, macro: "Macro") -> "CompositeMacro":
         """Chain a second macro to this composite using the >> operator."""

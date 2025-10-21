@@ -119,7 +119,7 @@ markdown_output = (
 
 # Scenario list formatter for further processing
 survey_data_output = (
-    OutputFormatter(description="Survey Data", output_type="edsl_object")
+    OutputFormatter(description="Survey Data", output_type="ScenarioList")
     .select(
         "scenario.survey_context",
         "scenario.survey_style",

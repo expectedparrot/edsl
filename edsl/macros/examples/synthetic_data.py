@@ -91,7 +91,7 @@ initial_survey = Survey(
 # The expand creates scenarios with 'dataset_rows' field containing the dict
 # We use unpack_dict to flatten the nested dict into top-level scenario fields
 output_formatter = (
-    OutputFormatter(description="Synthetic Dataset", output_type="edsl_object")
+    OutputFormatter(description="Synthetic Dataset", output_type="ScenarioList")
     .select("answer.dataset_rows")
     .expand("answer.dataset_rows")
     .to_scenario_list()
@@ -121,14 +121,14 @@ rich_table = (
 
 # Debug formatter to see raw output
 debug_raw = OutputFormatter(
-    description="Debug: Raw Output", output_type="edsl_object"
+    description="Debug: Raw Output", output_type="ScenarioList"
 ).select("answer.dataset_rows")
 
 # Excel FileStore output
 # Note: Don't provide filename parameter - it will write to disk and return None
 # Without filename, to_excel returns a FileStore object that can be manipulated
 excel_output = (
-    OutputFormatter(description="Excel FileStore", output_type="edsl_object")
+    OutputFormatter(description="Excel FileStore", output_type="FileStore")
     .select("answer.dataset_rows")
     .expand("answer.dataset_rows")
     .to_scenario_list()

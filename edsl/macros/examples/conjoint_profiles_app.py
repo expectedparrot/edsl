@@ -45,7 +45,7 @@ jobs_object = Survey([confirmation_question]).by(conjoint_analyst)
 
 # 4. Standard output formatters (the actual profile generation will happen when apps are chained)
 profiles_formatter = (
-    OutputFormatter(description="Conjoint Profiles", output_type="edsl_object")
+    OutputFormatter(description="Conjoint Profiles", output_type="ScenarioList")
     .select("*")
     .to_scenario_list()
 )
