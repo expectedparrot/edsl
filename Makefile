@@ -349,6 +349,10 @@ visualize: ## Visualize the repo structure
 ##@Testing 🐛
 ###############
 github-tests-locally: ## Run tests on GitHub Actions (with only committed files)
+	@echo "Cleaning up Docker before starting..."
+	@docker stop $$(docker ps -q -f "name=act-") 2>/dev/null || true
+	@docker rm $$(docker ps -aq -f "name=act-") 2>/dev/null || true
+	@docker system prune -f --volumes
 	@echo "Stashing uncommitted changes..."
 	@git stash push -u -m "Temporary stash for github-tests-locally"
 	@echo "Running tests with act..."
@@ -356,7 +360,9 @@ github-tests-locally: ## Run tests on GitHub Actions (with only committed files)
 	EXIT_CODE=$$?; \
 	echo "Restoring uncommitted changes..."; \
 	git stash pop; \
-	echo "Cleaning up Docker images created by act..."; \
+	echo "Cleaning up Docker images and containers created by act..."; \
+	docker stop $$(docker ps -q -f "name=act-") 2>/dev/null || true; \
+	docker rm $$(docker ps -aq -f "name=act-") 2>/dev/null || true; \
 	docker image prune -f --filter "label=org.opencontainers.image.source=https://github.com/catthehacker/docker_images"; \
 	docker system prune -f --volumes; \
 	echo "Docker cleanup complete."; \
