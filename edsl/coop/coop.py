@@ -149,6 +149,9 @@ class Coop(CoopFunctionsMixin):
     # Class-level error cache shared across all instances
     _class_error_cache = {}  # {error_signature: last_reported_time}
 
+    # Class-level API key - if set, this will be used as default for all instances
+    _class_api_key: Optional[str] = None
+
     def __init__(
         self, api_key: Optional[str] = None, url: Optional[str] = None
     ) -> None:
@@ -156,12 +159,15 @@ class Coop(CoopFunctionsMixin):
         Initialize the Expected Parrot API client.
 
         This constructor sets up the connection to Expected Parrot's cloud services.
-        If not provided explicitly, it will attempt to obtain an API key from
-        environment variables or from a stored location in the user's config directory.
+        If not provided explicitly, it will attempt to obtain an API key from:
+        1. The api_key parameter
+        2. The class-level _class_api_key (if set via Coop._class_api_key = "key")
+        3. Environment variables or stored location in user's config directory
 
         Parameters:
             api_key (str, optional): API key for authentication with Expected Parrot.
-                If not provided, will attempt to obtain from environment or stored location.
+                If not provided, will attempt to obtain from class-level setting,
+                environment, or stored location.
             url (str, optional): Base URL for the Expected Parrot service.
                 If not provided, uses the default from configuration.
 
@@ -175,9 +181,14 @@ class Coop(CoopFunctionsMixin):
         Example:
             >>> coop = Coop()  # Uses API key from environment or stored location
             >>> coop = Coop(api_key="your-api-key")  # Explicitly provide API key
+            >>> Coop._class_api_key = "my-key"  # Set class-level default
+            >>> coop = Coop()  # Will use "my-key"
         """
         self.ep_key_handler = ExpectedParrotKeyHandler()
-        self.api_key = api_key or self.ep_key_handler.get_ep_api_key()
+        # Priority: instance parameter > class-level setting > environment/stored
+        self.api_key = (
+            api_key or self._class_api_key or self.ep_key_handler.get_ep_api_key()
+        )
 
         self.url = url or CONFIG.EXPECTED_PARROT_URL
         if self.url.endswith("/"):
@@ -1842,6 +1853,7 @@ class Coop(CoopFunctionsMixin):
             payload={
                 "job_uuid": job_uuid,
                 "message": "Job uploaded successfully",
+                "nr_questions": job.nr_questions,
             },
         )
         response_json = response.json()
@@ -3443,6 +3455,204 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def _process_filestores_for_push(
+        self, object_dict: dict, original_object=None
+    ) -> dict:
+        """
+        Detect FileStore objects in the serialized object, upload them to GCS,
+        and offload them by replacing base64_string with "offloaded" marker.
+
+        This method:
+        1. Recursively searches for FileStore objects in the object_dict
+        2. For each FileStore, requests upload URL from backend
+        3. Uploads file content to GCS
+        4. Adds file_uuid to external_locations["gcs"]
+        5. Replaces base64_string with "offloaded"
+        6. Updates the original FileStore objects in the original_object
+
+        Args:
+            object_dict: The serialized object dictionary
+            original_object: The original EDSLObject (optional, for updating FileStores)
+
+        Returns:
+            dict: The modified object_dict with offloaded FileStores
+        """
+        import base64
+        from copy import deepcopy
+
+        # Create a deep copy to avoid modifying the original dict structure
+        modified_dict = deepcopy(object_dict)
+
+        def process_dict_recursive(d: dict, path: str = ""):
+            """Recursively process dictionaries looking for FileStore objects."""
+            if self._scenario_is_file_store(d):
+                # This is a FileStore object
+                base64_string = d.get("base64_string", "")
+
+                # Skip if already offloaded
+                if base64_string == "offloaded":
+                    return d
+
+                # Skip if no content to upload
+                if not base64_string or not isinstance(base64_string, str):
+                    return d
+
+                # Get FileStore metadata
+                file_name = d.get("path", "unknown")
+                mime_type = d.get("mime_type", "application/octet-stream")
+                suffix = d.get("suffix", "bin")
+
+                # Request upload URL from backend
+                try:
+                    response = self._send_server_request(
+                        uri="api/v0/filestore/upload-url",
+                        method="POST",
+                        payload={
+                            "file_name": file_name,
+                            "mime_type": mime_type,
+                            "suffix": suffix,
+                        },
+                    )
+                    response_data = response.json()
+                    file_uuid = response_data.get("file_uuid")
+                    upload_url = response_data.get("upload_url")
+
+                    if not file_uuid or not upload_url:
+                        # If backend didn't return proper response, skip upload
+                        return d
+
+                    # Decode base64 content
+                    file_content = base64.b64decode(base64_string)
+
+                    # Upload to GCS
+                    upload_response = requests.put(
+                        upload_url,
+                        data=file_content,
+                        headers={
+                            "Content-Type": mime_type,
+                            "Content-Length": str(len(file_content)),
+                        },
+                    )
+
+                    # Check if upload was successful
+                    if upload_response.status_code in (200, 201):
+                        # Upload successful, offload the FileStore
+                        d["base64_string"] = "offloaded"
+
+                        # Add file_uuid to external_locations
+                        if "external_locations" not in d:
+                            d["external_locations"] = {}
+
+                        d["external_locations"]["gcs"] = {
+                            "file_uuid": file_uuid,
+                            "uploaded": True,
+                            "offloaded": True,
+                        }
+
+                        # Also update the original FileStore object if we have access to it
+                        if original_object is not None and path:
+                            try:
+                                # Navigate to the FileStore in the original object
+                                from ..scenarios.file_store import FileStore
+
+                                # Clean up the path: remove leading dots and split
+                                clean_path = path.lstrip(".")
+                                keys = (
+                                    clean_path.split(".")
+                                    if "." in clean_path
+                                    else [clean_path]
+                                )
+                                # Filter out empty strings that might result from splitting
+                                keys = [k for k in keys if k]
+                                current_obj = original_object
+
+                                # For list-like objects (ScenarioList, AgentList), the first key in the path
+                                # might be the serialization wrapper (e.g., 'scenarios', 'agents')
+                                # which doesn't exist as an attribute on the object itself.
+                                # We need to transform 'scenarios[0]' to just '[0]' for list-like objects.
+                                if keys and "[" in keys[0]:
+                                    first_key_name = keys[0].split("[")[0]
+                                    if (
+                                        first_key_name
+                                        and hasattr(original_object, "__iter__")
+                                        and not hasattr(original_object, first_key_name)
+                                    ):
+                                        # Remove the key name but keep the bracket part
+                                        # e.g., 'scenarios[0]' becomes '[0]'
+                                        bracket_part = "[" + keys[0].split("[", 1)[1]
+                                        keys[0] = bracket_part
+
+                                # Navigate through nested structures
+                                for key in keys:
+                                    if (
+                                        "[" in key
+                                    ):  # Handle bracket-style list indexing: "items[0]"
+                                        key_name, idx = key.split("[")
+                                        idx = int(idx.rstrip("]"))
+                                        # Handle empty key_name (means root object is a list)
+                                        if key_name:
+                                            current_obj = current_obj[key_name][idx]
+                                        else:
+                                            current_obj = current_obj[idx]
+                                    elif (
+                                        key.isdigit()
+                                    ):  # Handle numeric string keys for list access: "0", "1", etc.
+                                        # Convert string index to integer for list-like objects
+                                        current_obj = current_obj[int(key)]
+                                    else:
+                                        # Regular dictionary-style key access
+                                        current_obj = current_obj[key]
+
+                                # Update the FileStore object directly
+                                if isinstance(current_obj, FileStore):
+                                    current_obj.base64_string = "offloaded"
+                                    current_obj["base64_string"] = "offloaded"
+
+                                    if "external_locations" not in current_obj:
+                                        current_obj["external_locations"] = {}
+
+                                    current_obj["external_locations"]["gcs"] = {
+                                        "file_uuid": file_uuid,
+                                        "uploaded": True,
+                                        "offloaded": True,
+                                    }
+                                    current_obj.external_locations = current_obj[
+                                        "external_locations"
+                                    ]
+                            except Exception as update_error:
+                                # If we can't update the original object, that's okay
+                                # The serialized dict is still correctly offloaded
+                                print(
+                                    f"Warning: Could not update original FileStore at path '{path}': {update_error}"
+                                )
+                    else:
+                        # Upload failed, keep FileStore as-is with full base64
+                        pass
+
+                except Exception as e:
+                    # If upload fails, keep the FileStore as-is (with full base64)
+                    # This ensures backward compatibility
+                    print(f"Warning: FileStore upload failed: {e}")
+
+            else:
+                # Not a FileStore, recursively process nested dicts
+                for key, value in d.items():
+                    if isinstance(value, dict):
+                        d[key] = process_dict_recursive(
+                            value, f"{path}.{key}" if path else key
+                        )
+                    elif isinstance(value, list):
+                        d[key] = [
+                            process_dict_recursive(item, f"{path}.{key}[{i}]")
+                            if isinstance(item, dict)
+                            else item
+                            for i, item in enumerate(value)
+                        ]
+
+            return d
+
+        return process_dict_recursive(modified_dict)
+
     def push(
         self,
         object: EDSLObject,
@@ -3476,6 +3686,11 @@ class Coop(CoopFunctionsMixin):
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
         object_dict = object.to_dict()
         object_hash = object.get_hash() if hasattr(object, "get_hash") else None
+
+        # Process FileStore objects: upload to GCS and offload
+        object_dict = self._process_filestores_for_push(
+            object_dict, original_object=object
+        )
 
         # Send the request to the API endpoint
         response = self._send_server_request(

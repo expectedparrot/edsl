@@ -146,6 +146,65 @@ class FileStore(Scenario):
             key_name = "file_store"
         return Scenario({key_name: self})
 
+    def _restore_from_gcs(self) -> None:
+        """
+        Restore FileStore content from Google Cloud Storage.
+
+        This method is called automatically when accessing an offloaded FileStore's
+        path property. It downloads the file content from GCS using the file_uuid
+        stored in external_locations["gcs"] and restores the base64_string.
+
+        Raises:
+            Exception: If GCS file_uuid is not found or download fails
+        """
+        import requests
+
+        # Check if GCS information is available
+        gcs_info = self.external_locations.get("gcs")
+        if not gcs_info or "file_uuid" not in gcs_info:
+            raise ValueError(
+                "Cannot restore offloaded FileStore: no GCS file_uuid found in external_locations"
+            )
+
+        file_uuid = gcs_info["file_uuid"]
+
+        # Request download URL from backend
+        try:
+            from ..coop import Coop
+
+            coop = Coop()
+
+            response = coop._send_server_request(
+                uri="api/v0/filestore/download-url",
+                method="POST",
+                payload={
+                    "file_uuid": file_uuid,
+                    "suffix": self.suffix,
+                },
+            )
+            response_data = response.json()
+            download_url = response_data.get("download_url")
+
+            if not download_url:
+                raise ValueError("Backend did not return a download URL")
+
+            # Download file content from GCS
+            download_response = requests.get(download_url, timeout=60)
+            download_response.raise_for_status()
+            file_content = download_response.content
+
+            # Encode to base64 and restore
+            self.base64_string = base64.b64encode(file_content).decode("utf-8")
+
+            # Update the Scenario data dict as well
+            self["base64_string"] = self.base64_string
+
+            # Mark as restored in GCS info
+            self.external_locations["gcs"]["offloaded"] = False
+
+        except Exception as e:
+            raise Exception(f"Failed to restore FileStore from GCS: {e}")
+
     @property
     def path(self) -> str:
         """
@@ -155,6 +214,10 @@ class FileStore(Scenario):
         content, even if the original file is no longer accessible or if the FileStore
         was created from a base64 string without a path. If the original path doesn't
         exist, it automatically generates a temporary file from the base64 content.
+
+        For offloaded FileStores (uploaded to GCS during push), this property will
+        automatically download the file content from GCS and restore the base64_string
+        before creating the temporary file.
 
         Returns:
             A string containing a valid file path to access the file content.
@@ -175,7 +238,21 @@ class FileStore(Scenario):
             - Accessing this property may create a new temporary file if needed
             - This property provides a consistent interface regardless of how the
               FileStore was created (from file or from base64 string)
+            - For offloaded FileStores, accessing this property will trigger a download
+              from GCS, which may take time for large files
         """
+        # Check if the FileStore is offloaded and needs to be restored from GCS
+        if self.base64_string == "offloaded":
+            # Check if we have GCS info before attempting restore
+            gcs_info = self.external_locations.get("gcs", {})
+            if not gcs_info or "file_uuid" not in gcs_info:
+                raise ValueError(
+                    f"FileStore content has been offloaded but GCS restoration info is missing. "
+                    f"This FileStore cannot be used without the original file content. "
+                    f"external_locations: {self.external_locations}"
+                )
+            self._restore_from_gcs()
+
         # Check if original path exists and is accessible
         if self._path and os.path.isfile(self._path):
             return self._path

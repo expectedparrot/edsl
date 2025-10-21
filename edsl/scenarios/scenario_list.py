@@ -2102,11 +2102,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         sj = ScenarioJoin(self, other)
         return sj.right_join(by)
 
-    def to_dict(self, sort: bool = False, add_edsl_version: bool = False) -> dict:
+    def to_dict(self, sort: bool = False, add_edsl_version: bool = True) -> dict:
         """
         >>> s = ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood-fired pizza'})])
-        >>> s.to_dict()
-        {'scenarios': [{'food': 'wood chips'}, {'food': 'wood-fired pizza'}]}
+        >>> s.to_dict()  # doctest: +ELLIPSIS
+        {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}, {'food': 'wood-fired pizza', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
 
         >>> s = ScenarioList([Scenario({'food': 'wood chips'})], codebook={'food': 'description'})
         >>> d = s.to_dict()
@@ -2114,6 +2114,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         True
         >>> d['codebook'] == {'food': 'description'}
         True
+
+        >>> # To exclude edsl_version and edsl_class_name, explicitly set add_edsl_version=False
+        >>> s.to_dict(add_edsl_version=False)
+        {'scenarios': [{'food': 'wood chips'}], 'codebook': {'food': 'description'}}
 
         >>> # To include edsl_version and edsl_class_name, explicitly set add_edsl_version=True
         >>> s.to_dict(add_edsl_version=True)  # doctest: +ELLIPSIS
