@@ -70,6 +70,12 @@ def create_serialization_test_data(start_new_version=False):
 
     for subclass_name, subclass in combined_items:
         example = subclass.example()
+        # Skip classes where example() returns None (e.g., abstract base classes)
+        if example is None:
+            logging.warning(
+                f"Skipping class {subclass_name} because example() returned None"
+            )
+            continue
         data.append(
             {
                 "class_name": subclass_name,
