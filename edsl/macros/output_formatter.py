@@ -495,11 +495,17 @@ class ObjectFormatter(ABC):
             args = tuple(item.get("args", []))
             kwargs = dict(item.get("kwargs", {}))
             stored.append((name, args, kwargs))
+
+        # Handle legacy "auto" output_type by converting to "Results"
+        output_type = data.get("output_type", "Results")
+        if output_type == "auto":
+            output_type = "Results"
+
         instance = subclass(
             description=description_value,
             allowed_commands=allowed,
             params=data.get("params"),
-            output_type=data.get("output_type", "auto"),
+            output_type=output_type,
             _stored_commands=stored,
         )
         return instance
