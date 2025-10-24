@@ -9,14 +9,16 @@ if TYPE_CHECKING:
 
 class AgentListCodeGenerator:
     """Handles code generation operations for AgentList objects.
-    
+
     This class provides functionality for generating Python code that can
     recreate AgentList objects, useful for debugging, documentation, and
     code generation workflows.
     """
 
     @staticmethod
-    def generate_code(agent_list: "AgentList", string: bool = True) -> Union[str, list[str]]:
+    def generate_code(
+        agent_list: "AgentList", string: bool = True
+    ) -> Union[str, list[str]]:
         """Return code to construct an AgentList.
 
         Args:
@@ -45,7 +47,7 @@ class AgentListCodeGenerator:
             "from edsl import AgentList",
         ]
         lines.append(f"agent_list = AgentList({agent_list.data})")
-        
+
         if string:
             return "\n".join(lines)
-        return lines 
+        return lines

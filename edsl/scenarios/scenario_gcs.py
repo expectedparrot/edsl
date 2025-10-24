@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 class ScenarioGCS:
     """
     Handles Google Cloud Storage operations for Scenario objects.
-    
+
     This class provides methods for uploading FileStore objects contained within
     Scenario instances to Google Cloud Storage buckets using signed URLs. It also
     provides information about FileStore objects to help with upload planning.
@@ -32,13 +32,15 @@ class ScenarioGCS:
     def __init__(self, scenario: "Scenario"):
         """
         Initialize the GCS handler with a Scenario instance.
-        
+
         Args:
             scenario: The Scenario instance containing FileStore objects to upload.
         """
         self.scenario = scenario
 
-    def save_to_gcs_bucket(self, signed_url_or_dict: Union[str, Dict[str, str]]) -> dict:
+    def save_to_gcs_bucket(
+        self, signed_url_or_dict: Union[str, Dict[str, str]]
+    ) -> dict:
         """
         Saves FileStore objects contained within this Scenario to a Google Cloud Storage bucket.
 
@@ -73,7 +75,9 @@ class ScenarioGCS:
         upload_results = []
 
         # Case 1: This Scenario was created from a FileStore (has direct base64_string)
-        if "base64_string" in self.scenario and isinstance(self.scenario.get("base64_string"), str):
+        if "base64_string" in self.scenario and isinstance(
+            self.scenario.get("base64_string"), str
+        ):
             if self.scenario["base64_string"] == "offloaded":
                 raise ValueError("File content is offloaded. Cannot upload to GCS.")
 
@@ -118,7 +122,9 @@ class ScenarioGCS:
         else:
             # Collect all FileStore keys first
             filestore_keys = [
-                key for key, value in self.scenario.items() if isinstance(value, FileStore)
+                key
+                for key, value in self.scenario.items()
+                if isinstance(value, FileStore)
             ]
 
             if not filestore_keys:
@@ -225,7 +231,9 @@ class ScenarioGCS:
             return {
                 "total_count": 1,
                 "filestore_keys": ["filestore_content"],
-                "file_extensions": {"filestore_content": self.scenario.get("suffix", "")},
+                "file_extensions": {
+                    "filestore_content": self.scenario.get("suffix", "")
+                },
                 "file_types": {
                     "filestore_content": self.scenario.get(
                         "mime_type", "application/octet-stream"
@@ -309,7 +317,9 @@ class ScenarioGCS:
         info = self.get_filestore_info()
         return info["summary"]
 
-    def validate_signed_urls(self, signed_url_or_dict: Union[str, Dict[str, str]]) -> dict:
+    def validate_signed_urls(
+        self, signed_url_or_dict: Union[str, Dict[str, str]]
+    ) -> dict:
         """
         Validate that the provided signed URLs match the FileStore objects in the Scenario.
 
@@ -333,12 +343,14 @@ class ScenarioGCS:
             "errors": [],
             "warnings": [],
             "expected_keys": info["filestore_keys"],
-            "total_filestore_objects": info["total_count"]
+            "total_filestore_objects": info["total_count"],
         }
 
         if info["total_count"] == 0:
             validation_result["valid"] = False
-            validation_result["errors"].append("No FileStore objects found in Scenario to upload")
+            validation_result["errors"].append(
+                "No FileStore objects found in Scenario to upload"
+            )
             return validation_result
 
         if info["is_filestore_scenario"]:
@@ -351,7 +363,7 @@ class ScenarioGCS:
         else:
             # Multiple FileStore objects - validate URL mapping
             filestore_keys = info["filestore_keys"]
-            
+
             if isinstance(signed_url_or_dict, str):
                 if len(filestore_keys) > 1:
                     validation_result["valid"] = False
@@ -377,4 +389,4 @@ class ScenarioGCS:
                     "signed_url_or_dict must be either a string or a dictionary"
                 )
 
-        return validation_result 
+        return validation_result

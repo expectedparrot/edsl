@@ -223,9 +223,7 @@ def load_services_builder(path: Union[str, Path] = ".") -> ServicesBuilder:
             f"'services' variable in app.py is not a ServicesBuilder instance, got {type(services)}"
         )
 
-    print(
-        f"🔍 DEBUG: Successfully loaded ServicesBuilder with {len(services)} services"
-    )
+    print(f"🔍 DEBUG: Successfully loaded ServicesBuilder with {len(services)} services")
     return services
 
 
@@ -268,9 +266,7 @@ def validate(path: Path):
             click.echo(f"   - {p}")
         sys.exit(1)
 
-    click.echo(
-        click.style("✅  Extension repository structure looks good.", fg="green")
-    )
+    click.echo(click.style("✅  Extension repository structure looks good.", fg="green"))
 
     # ------------------------------------------------------------------
     #  Load and parse config.py to ensure it is valid
@@ -396,9 +392,7 @@ def local_run(path: Path, port: int, install_deps: bool):
         # Add the extension directory to Python path so app.py can find its imports
         sys.path.insert(0, str(target))
 
-        click.echo(
-            click.style("\n🚀  Starting local service collection...", fg="green")
-        )
+        click.echo(click.style("\n🚀  Starting local service collection...", fg="green"))
 
         # Update the service collection with the local base URL
         base_url = f"http://localhost:{port}"
@@ -471,9 +465,7 @@ def run(path: Path, port: int):
         click.echo(click.style("\n🔨  Building Docker image...", fg="yellow"))
         mgr.build()
 
-        click.echo(
-            click.style("\n🚀  Starting local service collection...", fg="green")
-        )
+        click.echo(click.style("\n🚀  Starting local service collection...", fg="green"))
         mgr.run()
 
         # Update the service collection with the local base URL
@@ -727,9 +719,7 @@ def gcp_build(path: Path, project_id: Optional[str], region: str, registry: str)
             click.echo(push_result.stderr)
             sys.exit(1)
 
-        click.echo(
-            click.style("\n✅  Successfully built and pushed image:", fg="green")
-        )
+        click.echo(click.style("\n✅  Successfully built and pushed image:", fg="green"))
         click.echo(f"    {image_name}")
 
         # Save the image info for deployment

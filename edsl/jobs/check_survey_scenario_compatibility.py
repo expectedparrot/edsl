@@ -8,7 +8,6 @@ if TYPE_CHECKING:
 
 
 class CheckSurveyScenarioCompatibility:
-
     def __init__(self, survey: "Survey", scenarios: "ScenarioList"):
         self.survey = survey
         self.scenarios = scenarios

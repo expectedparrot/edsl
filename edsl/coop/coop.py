@@ -3659,6 +3659,7 @@ class Coop(CoopFunctionsMixin):
         description: Optional[str] = None,
         alias: Optional[str] = None,
         visibility: Optional[VisibilityType] = "unlisted",
+        overwrite: bool = False,
     ) -> "Scenario":
         """
         Generate a signed URL for pushing an object directly to Google Cloud Storage.
@@ -3711,7 +3712,45 @@ class Coop(CoopFunctionsMixin):
             from .exceptions import CoopResponseError
 
             url = f"{self.api_url}/api/v0/object/push"
-            raise CoopResponseError(f"Request to {url} failed: {response.text}")
+            error_message = response.text
+
+            # Check if this is an alias conflict error and overwrite is enabled
+            if (
+                overwrite
+                and alias
+                and "already have an object with the alias" in error_message
+            ):
+                # Get username to construct the alias URL
+                profile = self.get_profile()
+                username = profile["username"]
+
+                # Construct the alias URL and use patch instead
+                alias_url = f"{self.url}/content/{username}/{alias}"
+                patch_result = self.patch(
+                    url_or_uuid=alias_url,
+                    description=description,
+                    alias=alias,
+                    value=object,
+                    visibility=visibility,
+                )
+
+                # Get complete metadata after the patch
+                metadata = self.get_metadata(alias_url)
+
+                # Return in the same format as push
+                return Scenario(
+                    {
+                        "description": metadata.get("description"),
+                        "object_type": object_type,
+                        "url": metadata.get("url"),
+                        "alias_url": metadata.get("alias_url"),
+                        "uuid": metadata.get("uuid"),
+                        "version": self._edsl_version,
+                        "visibility": metadata.get("visibility"),
+                    }
+                )
+
+            raise CoopResponseError(f"Request to {url} failed: {error_message}")
 
         try:
             json_data = json.dumps(

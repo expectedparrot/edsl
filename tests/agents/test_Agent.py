@@ -40,8 +40,8 @@ def test_agent_dunder_methods():
     # __eq__
     assert agent1 == agent1
     assert agent1 + agent2 == agent3
-    # __repr__
-    assert repr(agent1) == "Agent(traits = {'age': 10})"
+    # __repr__ - use _eval_repr_() for a consistent, testable format
+    assert agent1._eval_repr_() == "Agent(traits = {'age': 10})"
 
 
 def test_agent_serialization():
