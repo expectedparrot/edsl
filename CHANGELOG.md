@@ -1,6 +1,36 @@
 # Changelog
 
-## [1.0.3] - 2025-08-29
+## [1.0.5] - 2025-10-23
+### Added
+- **QuestionDemand**: New question type for collecting demand curves from language models, enabling economic analysis by asking for quantities demanded at various price points. Supports multiple numeric price points with automatic validation of non-negative quantities.
+- **QuestionPydantic**: New question type for structured generation with Pydantic models. Enables extraction of structured data using Pydantic schemas with models that support structured outputs (e.g., `gpt-4o-mini`).
+- **Survey generation methods**: New methods `Survey.generate_survey_from_topic()` to create surveys from topic strings with scenario placeholders, and `Survey.generate_survey_from_questions()` to generate surveys from question text lists with automatic question option suggestions.
+- **ScenarioList to Agent conversion**: New `ScenarioList.to_agent_traits()` method returns a single Agent with traits for all scenarios in the list, with auto-incremented keys for duplicates.
+- **EDSL Apps framework**: Introduced the concept of EDSL "Apps" for building interactive data analysis workflows.
+- **Mintlify documentation**: Migrated documentation to Mintlify format with improved navigation and styling.
+
+### Improved
+- **Performance optimizations**: Significant improvements to prompt rendering with detailed timing and profiling, render caching for agent prompts, increased cache sizes for template compilation, optimized hash computations with result caching in `Agent.__hash__`, and changed `InvigilatorBase.prompt_constructor` to use `@cached_property` to prevent unnecessary instance recreation.
+- **Cost estimation performance**: Fixed prompts and cost estimation computation that was taking 300+ seconds for large jobs with many scenarios and questions.
+- **Remote job polling**: Introduced dynamic and adaptive polling strategy that calculates intervals based on job complexity and progress, reducing unnecessary API calls for long jobs while ensuring quick detection for short jobs.
+- **Proxy service support**: Added repeater proxy logic for Mistral, Azure, OpenRouter, and Together services with cache key computation on client side and prevention of duplicate file uploads.
+- **FileStore GCS offloading**: Implemented automatic offloading of large file contents to Google Cloud Storage during push operations with automatic restoration when accessed, significantly reducing payload sizes.
+- **Text file support**: Enhanced Anthropic model integration with text file decoding support for .txt, .json, and other text formats, with proper handling of images, PDFs, and clear warnings for unsupported file types.
+- **Survey rule evaluation**: Improved safety and reliability of rule evaluation with proper string escaping using `json.dumps`, better error messages, and more robust survey navigation logic that skips unevaluable stop rules.
+
+### Fixed
+- **Jobs.pull() method**: Fixed incorrect logic in `Jobs.pull()` that was causing "Object not found" errors when pulling jobs.
+- **Progress bar display**: Resolved issues with remote job progress bar display.
+- **Agent traits persistence**: Fixed `traits_presentation_template` not persisting in serialization when set via setter after agent construction.
+- **Grok-4 model calls**: Fixed parameter compatibility by filtering unsupported parameters (`presence_penalty`, `frequency_penalty`) for grok-4 model on xai service.
+- **Conversation module**: Various fixes to the Conversation module functionality.
+- **Duplicate hash handling**: Refactored index tracking to use `_position_index` attribute directly on objects instead of hash-based dictionaries, fixing issues with duplicate hashes.
+
+### Changed
+- **Jobs metadata**: Added `nr_questions` property to Jobs class, computing total questions to be executed (interviews × survey questions).
+- **Notebook imports**: Updated notebook import mechanisms for better compatibility.
+
+## [1.0.4] - 2025-08-29
 ### Added
 - **Firecrawl Integration**: Complete web scraping capabilities with new FirecrawlScenario class. Enables scraping, crawling, searching, and structured data extraction from websites, returning results as EDSL Scenario and ScenarioList objects for seamless integration with surveys and analysis workflows.
 
