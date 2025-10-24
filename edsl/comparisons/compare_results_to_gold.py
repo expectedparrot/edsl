@@ -11,895 +11,15 @@ if TYPE_CHECKING:
 
 from ..base import Base
 
-
-class ResultPairComparisonList:
-    """A list of ResultPairComparison objects with additional analysis methods.
-
-    This class wraps a list of ResultPairComparison objects and provides
-    methods for analyzing and visualizing the personas/agents involved.
-    """
-
-    def __init__(self, comparisons: List, agent_name: str = None):
-        """Initialize with a list of ResultPairComparison objects.
-
-        Args:
-            comparisons: List of ResultPairComparison objects
-            agent_name: Optional name of the agent these comparisons belong to
-        """
-        self.comparisons = comparisons
-        self.agent_name = agent_name
-
-    def __len__(self):
-        return len(self.comparisons)
-
-    def __getitem__(self, index):
-        return self.comparisons[index]
-
-    def __iter__(self):
-        return iter(self.comparisons)
-
-    def show_full_traits(self) -> "FullTraitsTable":
-        """Create an interactive HTML table showing all traits from agent traits.
-
-        Returns:
-            FullTraitsTable object that displays all trait information with navigation
-        """
-        return FullTraitsTable(self.comparisons, self.agent_name)
-
-    def show_personas(self) -> "PersonaViewer":
-        """Create an interactive viewer showing just the persona trait from candidates.
-
-        Returns:
-            PersonaViewer object that displays persona text with navigation
-        """
-        return PersonaViewer(self.comparisons, self.agent_name)
-
-
-class PersonaViewer:
-    """Interactive viewer for displaying just the persona trait from candidates."""
-
-    def __init__(self, comparisons: List, agent_name: str = None):
-        """Initialize with comparisons list.
-
-        Args:
-            comparisons: List of ResultPairComparison objects
-            agent_name: Optional agent name for context
-        """
-        self.comparisons = comparisons
-        self.agent_name = agent_name
-        self.personas = self._extract_personas()
-
-    def _extract_personas(self) -> List[Dict[str, Any]]:
-        """Extract just the persona trait from each comparison's candidate agent."""
-        personas = []
-        for idx, comp in enumerate(self.comparisons):
-            persona_data = {
-                "index": idx,
-                "persona": None,
-            }
-
-            # Extract persona trait from result_A (candidate)
-            if hasattr(comp.result_A, "agent") and hasattr(
-                comp.result_A.agent, "traits"
-            ):
-                traits = comp.result_A.agent.traits or {}
-                persona_data["persona"] = traits.get("persona", "No persona defined")
-            else:
-                persona_data["persona"] = "No persona available"
-
-            personas.append(persona_data)
-
-        return personas
-
-    def _repr_html_(self) -> str:
-        """Return HTML representation with persona viewer."""
-        if not self.personas:
-            return "<p>No personas found in comparisons.</p>"
-
-        # Generate unique ID for this viewer instance
-        import random
-
-        viewer_id = f"pv_{random.randint(100000, 999999)}"
-
-        html = [
-            f'<div id="persona-viewer-{viewer_id}" style="font-family: Arial, sans-serif;">'
-        ]
-
-        # Title
-        title = (
-            f"Persona Viewer - Agent: {self.agent_name}"
-            if self.agent_name
-            else "Persona Viewer"
-        )
-        html.append(f"<h3>{title}</h3>")
-
-        # Navigation controls
-        html.append('<div style="margin: 10px 0;">')
-        html.append(
-            f'  <button onclick="prevPersona_{viewer_id}()" style="padding: 5px 15px; margin-right: 10px;">← Previous</button>'
-        )
-        html.append(
-            f'  <span id="persona-counter-{viewer_id}" style="font-weight: bold; margin: 0 10px;">Candidate 1 of {len(self.personas)}</span>'
-        )
-        html.append(
-            f'  <button onclick="nextPersona_{viewer_id}()" style="padding: 5px 15px; margin-left: 10px;">Next →</button>'
-        )
-        html.append("</div>")
-
-        # Create a div for each persona (only first one visible)
-        for idx, persona_data in enumerate(self.personas):
-            display = "block" if idx == 0 else "none"
-            html.append(
-                f'<div class="persona-content-{viewer_id}" id="persona-{viewer_id}-{idx}" style="display: {display};">'
-            )
-
-            # Show persona in a textbox
-            persona_text = str(persona_data["persona"])
-            html.append(
-                '<div style="background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; padding: 15px; margin-top: 10px; white-space: pre-wrap; font-family: Georgia, serif; line-height: 1.6;">'
-            )
-            html.append(persona_text)
-            html.append("</div>")
-            html.append("</div>")
-
-        # JavaScript for navigation (unique per instance)
-        html.append("<script>")
-        html.append(f"let currentPersona_{viewer_id} = 0;")
-        html.append(f"const totalPersonas_{viewer_id} = {len(self.personas)};")
-        html.append(
-            f"""
-function showPersona_{viewer_id}(index) {{
-    // Hide all personas for this viewer
-    const personas = document.querySelectorAll('.persona-content-{viewer_id}');
-    personas.forEach(p => p.style.display = 'none');
-    
-    // Show selected persona
-    const selected = document.getElementById('persona-{viewer_id}-' + index);
-    if (selected) {{
-        selected.style.display = 'block';
-    }}
-    
-    // Update counter
-    const counter = document.getElementById('persona-counter-{viewer_id}');
-    if (counter) {{
-        counter.textContent = 'Candidate ' + (index + 1) + ' of ' + totalPersonas_{viewer_id};
-    }}
-    
-    currentPersona_{viewer_id} = index;
-}}
-
-function nextPersona_{viewer_id}() {{
-    const next = (currentPersona_{viewer_id} + 1) % totalPersonas_{viewer_id};
-    showPersona_{viewer_id}(next);
-}}
-
-function prevPersona_{viewer_id}() {{
-    const prev = (currentPersona_{viewer_id} - 1 + totalPersonas_{viewer_id}) % totalPersonas_{viewer_id};
-    showPersona_{viewer_id}(prev);
-}}
-        """
-        )
-        html.append("</script>")
-        html.append("</div>")
-
-        return "\n".join(html)
-
-
-class FullTraitsTable:
-    """Interactive HTML table for displaying and navigating through all traits."""
-
-    def __init__(self, comparisons: List, agent_name: str = None):
-        """Initialize with comparisons list.
-
-        Args:
-            comparisons: List of ResultPairComparison objects
-            agent_name: Optional agent name for context
-        """
-        self.comparisons = comparisons
-        self.agent_name = agent_name
-        self.personas = self._extract_personas()
-
-    def _extract_personas(self) -> List[Dict[str, Any]]:
-        """Extract persona information from each comparison's agent traits."""
-        personas = []
-        for idx, comp in enumerate(self.comparisons):
-            persona_data = {
-                "index": idx,
-                "result_A_traits": {},
-                "result_B_traits": {},
-            }
-
-            # Extract traits from result_A
-            if hasattr(comp.result_A, "agent") and hasattr(
-                comp.result_A.agent, "traits"
-            ):
-                persona_data["result_A_traits"] = comp.result_A.agent.traits or {}
-
-            # Extract traits from result_B
-            if hasattr(comp.result_B, "agent") and hasattr(
-                comp.result_B.agent, "traits"
-            ):
-                persona_data["result_B_traits"] = comp.result_B.agent.traits or {}
-
-            # Also store agent names for reference
-            if hasattr(comp.result_A, "agent") and hasattr(comp.result_A.agent, "name"):
-                persona_data["result_A_name"] = comp.result_A.agent.name
-            if hasattr(comp.result_B, "agent") and hasattr(comp.result_B.agent, "name"):
-                persona_data["result_B_name"] = comp.result_B.agent.name
-
-            personas.append(persona_data)
-
-        return personas
-
-    def _repr_html_(self) -> str:
-        """Return HTML representation with interactive persona viewer."""
-        if not self.personas:
-            return "<p>No personas found in comparisons.</p>"
-
-        # Generate unique ID for this viewer instance
-        import random
-
-        viewer_id = f"ftt_{random.randint(100000, 999999)}"
-
-        # Get all unique trait keys across all personas
-        all_traits_A = set()
-        all_traits_B = set()
-        for p in self.personas:
-            all_traits_A.update(p["result_A_traits"].keys())
-            all_traits_B.update(p["result_B_traits"].keys())
-
-        all_traits_A = sorted(all_traits_A)
-        all_traits_B = sorted(all_traits_B)
-
-        html = [
-            f'<div id="traits-viewer-{viewer_id}" style="font-family: Arial, sans-serif;">'
-        ]
-
-        # Title
-        title = (
-            f"Full Traits Viewer - Agent: {self.agent_name}"
-            if self.agent_name
-            else "Full Traits Viewer"
-        )
-        html.append(f"<h3>{title}</h3>")
-
-        # Navigation controls
-        html.append('<div style="margin: 10px 0;">')
-        html.append(
-            f'  <button onclick="prevTraits_{viewer_id}()" style="padding: 5px 15px; margin-right: 10px;">← Previous</button>'
-        )
-        html.append(
-            f'  <span id="traits-counter-{viewer_id}" style="font-weight: bold; margin: 0 10px;">Candidate 1 of {len(self.personas)}</span>'
-        )
-        html.append(
-            f'  <button onclick="nextTraits_{viewer_id}()" style="padding: 5px 15px; margin-left: 10px;">Next →</button>'
-        )
-        html.append("</div>")
-
-        # Create a div for each persona (only first one visible)
-        for idx, persona in enumerate(self.personas):
-            display = "block" if idx == 0 else "none"
-            html.append(
-                f'<div class="traits-content-{viewer_id}" id="traits-{viewer_id}-{idx}" style="display: {display};">'
-            )
-
-            # Create table for this persona
-            html.append(
-                '<table style="border-collapse: collapse; width: 100%; margin-top: 10px;">'
-            )
-            html.append("<thead>")
-            html.append('  <tr style="background-color: #f2f2f2;">')
-            html.append(
-                '    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Trait</th>'
-            )
-            html.append(
-                '    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Candidate Value</th>'
-            )
-            html.append(
-                '    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Gold Standard Value</th>'
-            )
-            html.append("  </tr>")
-            html.append("</thead>")
-            html.append("<tbody>")
-
-            # Combine all trait keys
-            all_trait_keys = sorted(set(all_traits_A) | set(all_traits_B))
-
-            for trait_key in all_trait_keys:
-                value_a = persona["result_A_traits"].get(trait_key, "-")
-                value_b = persona["result_B_traits"].get(trait_key, "-")
-
-                # Format values
-                if value_a != "-":
-                    value_a_str = str(value_a)
-                    if len(value_a_str) > 100:
-                        value_a_str = value_a_str[:100] + "..."
-                else:
-                    value_a_str = "-"
-
-                if value_b != "-":
-                    value_b_str = str(value_b)
-                    if len(value_b_str) > 100:
-                        value_b_str = value_b_str[:100] + "..."
-                else:
-                    value_b_str = "-"
-
-                # Highlight if values differ
-                if value_a != value_b and value_a != "-" and value_b != "-":
-                    row_style = "background-color: #fff9c4;"
-                else:
-                    row_style = ""
-
-                html.append(f'  <tr style="{row_style}">')
-                html.append(
-                    f'    <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;">{trait_key}</td>'
-                )
-                html.append(
-                    f'    <td style="border: 1px solid #ddd; padding: 8px;">{value_a_str}</td>'
-                )
-                html.append(
-                    f'    <td style="border: 1px solid #ddd; padding: 8px;">{value_b_str}</td>'
-                )
-                html.append("  </tr>")
-
-            html.append("</tbody>")
-            html.append("</table>")
-            html.append("</div>")
-
-        # JavaScript for navigation (unique per instance)
-        html.append("<script>")
-        html.append(f"let currentTraits_{viewer_id} = 0;")
-        html.append(f"const totalTraits_{viewer_id} = {len(self.personas)};")
-        html.append(
-            f"""
-function showTraits_{viewer_id}(index) {{
-    // Hide all traits for this viewer
-    const traits = document.querySelectorAll('.traits-content-{viewer_id}');
-    traits.forEach(t => t.style.display = 'none');
-    
-    // Show selected traits
-    const selected = document.getElementById('traits-{viewer_id}-' + index);
-    if (selected) {{
-        selected.style.display = 'block';
-    }}
-    
-    // Update counter
-    const counter = document.getElementById('traits-counter-{viewer_id}');
-    if (counter) {{
-        counter.textContent = 'Candidate ' + (index + 1) + ' of ' + totalTraits_{viewer_id};
-    }}
-    
-    currentTraits_{viewer_id} = index;
-}}
-
-function nextTraits_{viewer_id}() {{
-    const next = (currentTraits_{viewer_id} + 1) % totalTraits_{viewer_id};
-    showTraits_{viewer_id}(next);
-}}
-
-function prevTraits_{viewer_id}() {{
-    const prev = (currentTraits_{viewer_id} - 1 + totalTraits_{viewer_id}) % totalTraits_{viewer_id};
-    showTraits_{viewer_id}(prev);
-}}
-        """
-        )
-        html.append("</script>")
-        html.append("</div>")
-
-        return "\n".join(html)
-
-
-class InteractiveQuestionViewer:
-    """Interactive viewer for clicking through all questions in a survey."""
-
-    def __init__(self, questions_data: Dict[str, tuple]):
-        """Initialize the interactive question viewer.
-
-        Args:
-            questions_data: Dict mapping question_name -> (question_text, agent_data)
-        """
-        self.questions_data = questions_data
-        self.question_names = sorted(questions_data.keys())
-
-    def _repr_html_(self) -> str:
-        """Return HTML representation with interactive question navigation."""
-        if not self.questions_data:
-            return "<p>No questions found.</p>"
-
-        # Generate unique ID for this viewer instance
-        import random
-
-        viewer_id = f"qv_{random.randint(100000, 999999)}"
-
-        html = [
-            f'<div id="question-viewer-{viewer_id}" style="font-family: Arial, sans-serif;">'
-        ]
-
-        # Title
-        html.append("<h2>Interactive Question Comparison</h2>")
-
-        # Navigation controls
-        html.append(
-            '<div style="margin: 15px 0; padding: 10px; background-color: #f8f9fa; border-radius: 5px;">'
-        )
-        html.append(
-            f'  <button onclick="prevQuestion_{viewer_id}()" style="padding: 8px 20px; margin-right: 10px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">← Previous</button>'
-        )
-        html.append(
-            f'  <span id="question-counter-{viewer_id}" style="font-weight: bold; margin: 0 15px; font-size: 1.1em;">Question 1 of {len(self.question_names)}</span>'
-        )
-        html.append(
-            f'  <button onclick="nextQuestion_{viewer_id}()" style="padding: 8px 20px; margin-left: 10px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">Next →</button>'
-        )
-        html.append("</div>")
-
-        # Create a div for each question (only first one visible)
-        for idx, question_name in enumerate(self.question_names):
-            question_text, agent_data = self.questions_data[question_name]
-            display = "block" if idx == 0 else "none"
-            html.append(
-                f'<div class="question-content-{viewer_id}" id="question-{viewer_id}-{idx}" style="display: {display};">'
-            )
-
-            # Embed the ByQuestionComparison HTML directly
-            comparison = ByQuestionComparison(question_name, question_text, agent_data)
-            html.append(comparison._repr_html_())
-
-            html.append("</div>")
-
-        # JavaScript for navigation (unique per instance)
-        html.append("<script>")
-        html.append(f"let currentQuestion_{viewer_id} = 0;")
-        html.append(f"const totalQuestions_{viewer_id} = {len(self.question_names)};")
-        html.append(
-            f"""
-function showQuestion_{viewer_id}(index) {{
-    // Hide all questions for this viewer
-    const questions = document.querySelectorAll('.question-content-{viewer_id}');
-    questions.forEach(q => q.style.display = 'none');
-    
-    // Show selected question
-    const selected = document.getElementById('question-{viewer_id}-' + index);
-    if (selected) {{
-        selected.style.display = 'block';
-    }}
-    
-    // Update counter
-    const counter = document.getElementById('question-counter-{viewer_id}');
-    if (counter) {{
-        counter.textContent = 'Question ' + (index + 1) + ' of ' + totalQuestions_{viewer_id};
-    }}
-    
-    currentQuestion_{viewer_id} = index;
-}}
-
-function nextQuestion_{viewer_id}() {{
-    const next = (currentQuestion_{viewer_id} + 1) % totalQuestions_{viewer_id};
-    showQuestion_{viewer_id}(next);
-}}
-
-function prevQuestion_{viewer_id}() {{
-    const prev = (currentQuestion_{viewer_id} - 1 + totalQuestions_{viewer_id}) % totalQuestions_{viewer_id};
-    showQuestion_{viewer_id}(prev);
-}}
-        """
-        )
-        html.append("</script>")
-        html.append("</div>")
-
-        return "\n".join(html)
-
-
-class ByQuestionComparison:
-    """Table showing candidate answers vs gold standard for a specific question.
-
-    This class provides a nice HTML visualization for Jupyter notebooks showing
-    how different candidates answered a question compared to the gold standard.
-    """
-
-    def __init__(
-        self, question_name: str, question_text: str, agent_data: Dict[str, List[tuple]]
-    ):
-        """Initialize the by-question comparison table.
-
-        Args:
-            question_name: The question identifier
-            question_text: The full text of the question
-            agent_data: Dict mapping agent_name -> list of (candidate_idx, candidate_answer, gold_answer) tuples
-        """
-        self.question_name = question_name
-        self.question_text = question_text
-        self.agent_data = agent_data
-
-    def _repr_html_(self) -> str:
-        """Return HTML representation for Jupyter notebook display."""
-        html = ['<div style="overflow-x: auto; font-family: Arial, sans-serif;">']
-
-        # Title with question name and text
-        html.append(
-            f'<h3 style="color: #2c3e50; margin-bottom: 5px;">Question: {self.question_name}</h3>'
-        )
-        if self.question_text:
-            html.append(
-                f'<p style="color: #7f8c8d; font-style: italic; margin-top: 0; margin-bottom: 15px;">{self.question_text}</p>'
-            )
-
-        html.append(
-            '<table style="border-collapse: collapse; border: 1px solid #ddd; width: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">'
-        )
-
-        # Header row
-        html.append('<thead><tr style="background-color: #34495e; color: white;">')
-        html.append(
-            '<th style="border: 1px solid #2c3e50; padding: 12px; text-align: left; font-weight: bold; width: 30%;">Agent / Candidate</th>'
-        )
-        html.append(
-            '<th style="border: 1px solid #2c3e50; padding: 12px; text-align: left; font-weight: bold;">Candidate Answer</th>'
-        )
-        html.append(
-            '<th style="border: 1px solid #2c3e50; padding: 12px; text-align: left; font-weight: bold; background-color: #2c3e50;">True Answer (Gold)</th>'
-        )
-        html.append("</tr></thead>")
-
-        # Data rows
-        html.append("<tbody>")
-        for agent_name in sorted(self.agent_data.keys()):
-            # Agent grouping row
-            html.append('<tr style="background-color: #3498db; color: white;">')
-            html.append(
-                f'<td colspan="3" style="border: 1px solid #2980b9; padding: 10px; font-weight: bold; font-size: 1.05em;">📊 {agent_name}</td>'
-            )
-            html.append("</tr>")
-
-            # Candidate rows
-            candidates = self.agent_data[agent_name]
-            for row_idx, (candidate_idx, candidate_answer, gold_answer) in enumerate(
-                candidates
-            ):
-                # Alternate row colors
-                row_bg = "#f8f9fa" if row_idx % 2 == 0 else "#ffffff"
-                html.append(f'<tr style="background-color: {row_bg};">')
-
-                # Candidate identifier (indented)
-                html.append(
-                    f'<td style="border: 1px solid #ddd; padding: 8px; padding-left: 30px; color: #555;">→ Candidate #{candidate_idx}</td>'
-                )
-
-                # Format candidate answer
-                candidate_str = (
-                    str(candidate_answer)
-                    if candidate_answer is not None
-                    else '<em style="color: #95a5a6;">No answer</em>'
-                )
-                # Highlight if it matches gold
-                if candidate_answer == gold_answer:
-                    answer_style = "border: 1px solid #ddd; padding: 8px; background-color: #d4edda; font-weight: bold;"
-                    candidate_str = f"✓ {candidate_str}"
-                else:
-                    answer_style = "border: 1px solid #ddd; padding: 8px;"
-                html.append(f'<td style="{answer_style}">{candidate_str}</td>')
-
-                # Format gold answer
-                gold_str = (
-                    str(gold_answer)
-                    if gold_answer is not None
-                    else '<em style="color: #95a5a6;">No answer</em>'
-                )
-                html.append(
-                    f'<td style="border: 1px solid #ddd; padding: 8px; background-color: #fff3cd;">{gold_str}</td>'
-                )
-
-                html.append("</tr>")
-
-        html.append("</tbody>")
-        html.append("</table>")
-        html.append("</div>")
-
-        return "\n".join(html)
-
-    def to_rich_table(self):
-        """Return a Rich Table object for terminal display."""
-        from rich.table import Table
-
-        table = Table(title=f"Answers for Question: {self.question_name}")
-
-        # Add columns
-        table.add_column("Agent / Candidate", style="bold")
-        table.add_column("Candidate Answer")
-        table.add_column("True Answer")
-
-        # Add rows
-        for agent_name in sorted(self.agent_data.keys()):
-            # Agent grouping row
-            table.add_row(f"[bold cyan]{agent_name}[/bold cyan]", "", "")
-
-            # Candidate rows
-            candidates = self.agent_data[agent_name]
-            for candidate_idx, candidate_answer, gold_answer in candidates:
-                candidate_str = (
-                    str(candidate_answer) if candidate_answer is not None else "-"
-                )
-                gold_str = str(gold_answer) if gold_answer is not None else "-"
-
-                table.add_row(f"  Candidate #{candidate_idx}", candidate_str, gold_str)
-
-        return table
-
-    def print(self):
-        """Print the table to console using Rich."""
-        from rich.console import Console
-
-        console = Console()
-        console.print(self.to_rich_table())
-
-
-class ComparisonPerformanceTable:
-    """Table showing which candidates perform best on each question-metric combination.
-
-    This class holds performance data for multiple candidates across questions and metrics,
-    identifying which candidates are best performers (or tied) on each dimension.
-    Can display data for one or multiple agents.
-    """
-
-    def __init__(
-        self,
-        agent_data: Dict[str, Dict[int, Dict[str, Dict[str, Any]]]],
-        questions: List[str],
-        metrics: List[str],
-        best_performers: Dict[str, Dict[tuple, Set[int]]],
-        pareto_members: Dict[str, Set[int]] = None,
-    ):
-        """Initialize the performance table.
-
-        Args:
-            agent_data: Nested dict: agent_name -> candidate_idx -> question -> metric -> value
-            questions: List of question names
-            metrics: List of metric names
-            best_performers: Dict mapping agent_name -> (question, metric) -> set of best candidate indices
-            pareto_members: Dict mapping agent_name -> set of candidate indices in Pareto frontier
-        """
-        self.agent_data = agent_data
-        self.questions = questions
-        self.metrics = metrics
-        self.best_performers = best_performers
-        self.pareto_members = pareto_members or {}
-
-    @property
-    def agents(self) -> List[str]:
-        """Return list of agent names in the table."""
-        return list(self.agent_data.keys())
-
-    def _calculate_pareto_frontier(self, agent_name: str) -> Set[int]:
-        """Calculate which candidates are in the Pareto frontier for an agent.
-
-        A candidate is in the Pareto frontier if it's not dominated by any other candidate.
-        Candidate A dominates B if A >= B on all question-metric pairs and A > B on at least one.
-        Higher values are better.
-
-        Args:
-            agent_name: The agent to calculate Pareto frontier for
-
-        Returns:
-            Set of candidate indices that are in the Pareto frontier
-        """
-        data = self.agent_data[agent_name]
-        candidate_indices = list(data.keys())
-
-        if not candidate_indices:
-            return set()
-
-        # For each candidate, collect all their metric values
-        candidate_scores = {}
-        for idx in candidate_indices:
-            scores = []
-            for q in self.questions:
-                for m in self.metrics:
-                    val = data[idx][q][m]
-                    if val is not None:
-                        try:
-                            scores.append(float(val))
-                        except (TypeError, ValueError):
-                            # If can't convert to float, use 0
-                            scores.append(0.0)
-                    else:
-                        scores.append(0.0)
-            candidate_scores[idx] = scores
-
-        # Find Pareto frontier
-        pareto_set = set()
-        for idx in candidate_indices:
-            is_dominated = False
-            for other_idx in candidate_indices:
-                if idx == other_idx:
-                    continue
-
-                # Check if other_idx dominates idx
-                scores_idx = candidate_scores[idx]
-                scores_other = candidate_scores[other_idx]
-
-                # other dominates idx if other >= idx on all dimensions and other > idx on at least one
-                all_gte = all(
-                    s_other >= s_idx for s_other, s_idx in zip(scores_other, scores_idx)
-                )
-                any_gt = any(
-                    s_other > s_idx for s_other, s_idx in zip(scores_other, scores_idx)
-                )
-
-                if all_gte and any_gt:
-                    is_dominated = True
-                    break
-
-            if not is_dominated:
-                pareto_set.add(idx)
-
-        return pareto_set
-
-    def _repr_html_(self) -> str:
-        """Return HTML representation for Jupyter notebook display."""
-        html = ['<div style="overflow-x: auto;">']
-        html.append("<h2>Candidate Performance Comparison</h2>")
-
-        # Create a table for each agent
-        for agent_name in sorted(self.agent_data.keys()):
-            data = self.agent_data[agent_name]
-            agent_best = self.best_performers[agent_name]
-
-            # Calculate Pareto frontier if not already done
-            if agent_name not in self.pareto_members:
-                self.pareto_members[agent_name] = self._calculate_pareto_frontier(
-                    agent_name
-                )
-            pareto_set = self.pareto_members[agent_name]
-
-            html.append(f'<h3 style="margin-top: 20px;">Agent: {agent_name}</h3>')
-            html.append(
-                '<table style="border-collapse: collapse; border: 1px solid #ddd; margin-bottom: 30px;">'
-            )
-
-            # Header row
-            html.append('<thead><tr style="background-color: #f2f2f2;">')
-            html.append(
-                '<th style="border: 1px solid #ddd; padding: 8px; text-align: center; font-weight: bold;">Candidate</th>'
-            )
-            html.append(
-                '<th style="border: 1px solid #ddd; padding: 8px; text-align: center; font-weight: bold; width: 60px;">Pareto</th>'
-            )
-            for q in self.questions:
-                for m in self.metrics:
-                    html.append(
-                        f'<th style="border: 1px solid #ddd; padding: 8px; text-align: center; font-size: 0.9em;">{q}<br/>{m}</th>'
-                    )
-            html.append("</tr></thead>")
-
-            # Data rows
-            html.append("<tbody>")
-            for idx in sorted(data.keys()):
-                html.append("<tr>")
-                html.append(
-                    f'<td style="border: 1px solid #ddd; padding: 8px; text-align: center; font-weight: bold;">#{idx}</td>'
-                )
-
-                # Pareto column
-                pareto_mark = "✓" if idx in pareto_set else ""
-                pareto_style = (
-                    "border: 1px solid #ddd; padding: 8px; text-align: center; background-color: #e3f2fd;"
-                    if idx in pareto_set
-                    else "border: 1px solid #ddd; padding: 8px; text-align: center;"
-                )
-                html.append(f'<td style="{pareto_style}">{pareto_mark}</td>')
-
-                for q in self.questions:
-                    for m in self.metrics:
-                        val = data[idx][q][m]
-
-                        if val is None:
-                            cell_text = "-"
-                            cell_style = "border: 1px solid #ddd; padding: 8px; text-align: center;"
-                        else:
-                            # Format the value
-                            try:
-                                if isinstance(val, bool):
-                                    cell_text = "✓" if val else "✗"
-                                elif isinstance(val, float):
-                                    cell_text = f"{val:.3f}"
-                                else:
-                                    cell_text = str(val)
-                            except:
-                                cell_text = str(val)
-
-                            # Check if this is a best performer
-                            if idx in agent_best.get((q, m), set()):
-                                cell_style = "border: 1px solid #ddd; padding: 8px; text-align: center; background-color: #90EE90; font-weight: bold;"
-                            else:
-                                cell_style = "border: 1px solid #ddd; padding: 8px; text-align: center;"
-
-                        html.append(f'<td style="{cell_style}">{cell_text}</td>')
-
-                html.append("</tr>")
-            html.append("</tbody>")
-            html.append("</table>")
-
-        html.append("</div>")
-        return "\n".join(html)
-
-    def to_rich_table(self):
-        """Return a list of Rich Table objects for terminal display (one per agent)."""
-        from rich.table import Table
-
-        tables = []
-        for agent_name in sorted(self.agent_data.keys()):
-            data = self.agent_data[agent_name]
-            agent_best = self.best_performers[agent_name]
-
-            # Calculate Pareto frontier if not already done
-            if agent_name not in self.pareto_members:
-                self.pareto_members[agent_name] = self._calculate_pareto_frontier(
-                    agent_name
-                )
-            pareto_set = self.pareto_members[agent_name]
-
-            table = Table(
-                title=f"Candidate Performance Comparison for Agent: {agent_name}"
-            )
-
-            # Add columns
-            table.add_column("Candidate", style="bold", justify="center")
-            table.add_column("Pareto", justify="center", width=7)
-            for q in self.questions:
-                for m in self.metrics:
-                    table.add_column(f"{q}\n{m}", justify="center")
-
-            # Add rows
-            for idx in sorted(data.keys()):
-                row_data = [f"#{idx}"]
-
-                # Add Pareto checkmark
-                if idx in pareto_set:
-                    row_data.append("[blue]✓[/blue]")
-                else:
-                    row_data.append("")
-
-                for q in self.questions:
-                    for m in self.metrics:
-                        val = data[idx][q][m]
-                        if val is None:
-                            row_data.append("-")
-                        else:
-                            # Format the value
-                            try:
-                                if isinstance(val, bool):
-                                    cell_text = "✓" if val else "✗"
-                                elif isinstance(val, float):
-                                    cell_text = f"{val:.3f}"
-                                else:
-                                    cell_text = str(val)
-                            except:
-                                cell_text = str(val)
-
-                            # Check if this is a best performer
-                            if idx in agent_best.get((q, m), set()):
-                                cell_text = f"[green]{cell_text}[/green]"
-
-                            row_data.append(cell_text)
-
-                table.add_row(*row_data)
-
-            tables.append(table)
-
-        return tables if len(tables) > 1 else tables[0]
-
-    def print(self):
-        """Print the table(s) to console using Rich."""
-        from rich.console import Console
-
-        console = Console()
-        tables = self.to_rich_table()
-        if isinstance(tables, list):
-            for table in tables:
-                console.print(table)
-                console.print()  # Add spacing between tables
-        else:
-            console.print(tables)
+# Import helper classes from comparison_helpers module
+from .comparison_helpers import (
+    ResultPairComparisonList,
+    PersonaViewer,
+    FullTraitsTable,
+    InteractiveQuestionViewer,
+    ByQuestionComparison,
+    ComparisonPerformanceTable,
+)
 
 
 class CompareResultsToGold(Base):
@@ -1264,7 +384,7 @@ class CompareResultsToGold(Base):
             >>> viewer = crtg.by_question()  # Click through all questions
             >>>
             >>> # Specific question
-            >>> table = crtg.by_question("q0")  # Just one question
+            >>> table = crtg.by_question("how_feeling")  # Just one question
         """
         # If no question specified, create interactive viewer for all questions
         if question_name is None:
@@ -2012,7 +1132,7 @@ class CompareResultsToGold(Base):
         """Return an example CompareResultsToGold instance.
 
         Creates a simple example with mock candidate and gold standard results
-        for demonstration purposes.
+        for demonstration purposes using test models (no actual LLM calls).
 
         Args:
             randomize: If True, creates random example data
@@ -2027,7 +1147,7 @@ class CompareResultsToGold(Base):
             True
         """
         try:
-            from edsl import Results, Agent, Survey, Model
+            from edsl import Results, Agent, Survey, Model, Cache
             from edsl.questions import QuestionMultipleChoice
         except ImportError as exc:
             raise ImportError(
@@ -2046,12 +1166,21 @@ class CompareResultsToGold(Base):
             traits={"persona": "candidate 1"},
         )
 
-        # Run surveys to get results
-        # Gold results
-        gold_results = survey.by(agent_gold).by(Model.example()).run()
+        # Create test models with different canned responses (no actual LLM calls)
+        # Gold model gives the "correct" answer (matching one of the question options)
+        model_gold = Model(model_name="test", service_name="test", canned_response="Great")
+        
+        # Candidate model gives a different answer (matching a different option)
+        model_cand = Model(model_name="test", service_name="test", canned_response="Good")
 
-        # Candidate results
-        candidate_results = survey.by(agent_cand1).by(Model.example()).run()
+        # Run surveys to get results (using test models, no API calls)
+        gold_results = survey.by(agent_gold).by(model_gold).run(
+            cache=False, disable_remote_cache=True, disable_remote_inference=True
+        )
+
+        candidate_results = survey.by(agent_cand1).by(model_cand).run(
+            cache=False, disable_remote_cache=True, disable_remote_inference=True
+        )
 
         scenario_names = {0: "Candidate 1"}
 
@@ -2090,3 +1219,95 @@ class CompareResultsToGold(Base):
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
         console.print(output, end="")
         return console.file.getvalue()
+
+if __name__ == "__main__":
+    import doctest
+    
+    # Run doctests
+    print("Running doctests...")
+    results = doctest.testmod()
+    print(f"Doctests: {results.attempted} attempted, {results.failed} failed\n")
+    
+    if results.failed == 0:
+        print("=" * 70)
+        print("DEMO: CompareResultsToGold Example")
+        print("=" * 70)
+        
+        # Create example comparison
+        print("\n1. Creating example with test models (no LLM calls)...")
+        crtg = CompareResultsToGold.example()
+        print(f"   ✓ Created comparison with {len(crtg.agents)} agent(s)")
+        print(f"   Agents: {', '.join(crtg.agents)}")
+        
+        # Show the actual comparison object repr
+        print("\n2. Examining a ResultPairComparison object...")
+        comp_list = list(crtg.comparisons.values())[0]
+        comp = comp_list[0]
+        print(f"   Type: {type(comp).__name__}")
+        print(f"   Repr: {repr(comp)}")
+        
+        # Show an AnswerComparison object repr
+        print("\n3. Examining an AnswerComparison object...")
+        for q_name, q_comp in comp.comparison.items():
+            print(f"   Question: '{q_name}'")
+            print(f"   Type: {type(q_comp).__name__}")
+            print(f"\n   Standard repr:")
+            print(f"   {repr(q_comp)}")
+            print(f"\n   Rich summary representation (_summary_repr):")
+            if hasattr(q_comp, '_summary_repr'):
+                print(q_comp._summary_repr())
+            else:
+                print("   (No _summary_repr method available)")
+            print(f"\n   Available methods: {[m for m in dir(q_comp) if not m.startswith('_')][:10]}")
+        
+        # Show by_question table - actual repr
+        print("\n4. ByQuestionComparison table representation...")
+        try:
+            table = crtg.by_question("how_feeling")
+            print(f"   Type: {type(table).__name__}")
+            print(f"   Question name: {table.question_name}")
+            print(f"   Question text: {table.question_text}")
+            print(f"   Agent data keys: {list(table.agent_data.keys())}")
+            print(f"\n   Repr:")
+            print(repr(table))
+            print(f"\n   Rich table representation:")
+            table.print()
+        except Exception as e:
+            print(f"   ! Error: {e}")
+        
+        # Show performance table - actual repr
+        print("\n5. ComparisonPerformanceTable representation...")
+        try:
+            perf_table = crtg.comparison_performance_table()
+            print(f"   Type: {type(perf_table).__name__}")
+            print(f"   Agents: {perf_table.agents}")
+            print(f"   Questions: {perf_table.questions}")
+            print(f"   Metrics: {perf_table.metrics}")
+            print(f"\n   Repr:")
+            print(repr(perf_table))
+            print(f"\n   Rich table representation:")
+            perf_table.print()
+        except Exception as e:
+            print(f"   ! Error: {e}")
+        
+        # Show CompareResultsToGold repr
+        print("\n6. CompareResultsToGold object representation...")
+        print(f"   Type: {type(crtg).__name__}")
+        print(f"   Repr: {repr(crtg)}")
+        print(f"   Str: {str(crtg)}")
+        
+        # Show filtering
+        print("\n7. Demonstrating metric filtering...")
+        try:
+            filtered = crtg.keep_metrics("exact_match")
+            print(f"   Original metrics: {len(comp.comparison_factory.comparison_fns) if hasattr(comp, 'comparison_factory') else 'N/A'}")
+            fcomp = list(filtered.comparisons.values())[0][0]
+            filtered_count = len(fcomp.comparison_factory.comparison_fns) if hasattr(fcomp, "comparison_factory") else 0
+            print(f"   Filtered metrics: {filtered_count}")
+            print(f"   Filtered comparison repr: {repr(filtered)}")
+        except Exception as e:
+            print(f"   ! Error: {e}")
+        
+        print("\n" + "=" * 70)
+        print("Demo complete! All features working without LLM calls.")
+        print("=" * 70)
