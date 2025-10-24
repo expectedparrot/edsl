@@ -12,13 +12,10 @@ def build_telephone_macro() -> CompositeMacro:
         question_name="input_text", question_text="What is the input text?"
     ).to_survey()
 
-    jobs_de = (
-        QuestionFreeText(
-            question_name="translated_text",
-            question_text="Please translate {{ scenario.input_text }} to German. Just return the translated text, no other text.",
-        )
-        .to_jobs()
-    )
+    jobs_de = QuestionFreeText(
+        question_name="translated_text",
+        question_text="Please translate {{ scenario.input_text }} to German. Just return the translated text, no other text.",
+    ).to_jobs()
 
     of = (
         OutputFormatter(description="Output Formatter", output_type="json")
@@ -38,13 +35,10 @@ def build_telephone_macro() -> CompositeMacro:
         default_formatter_name="of",
     )
 
-    jobs_en = (
-        QuestionFreeText(
-            question_name="translated_text",
-            question_text="Please translate {{ scenario.input_text }} from German to English. Just return the translated text, no other text.",
-        )
-        .to_jobs()
-    )
+    jobs_en = QuestionFreeText(
+        question_name="translated_text",
+        question_text="Please translate {{ scenario.input_text }} from German to English. Just return the translated text, no other text.",
+    ).to_jobs()
 
     german_to_english = Macro(
         application_name="to_english",

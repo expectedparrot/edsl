@@ -547,14 +547,27 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """Return a string representation of the Results.
 
         Uses traditional repr format when running doctests, otherwise uses
-        rich-based display for better readability.
+        rich-based display for better readability. In Jupyter notebooks,
+        returns a minimal string since _repr_html_ handles the display.
         """
         import os
 
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
-        else:
-            return self._summary_repr()
+
+        # Check if we're in a Jupyter notebook environment
+        # If so, return minimal representation since _repr_html_ will handle display
+        try:
+            from IPython import get_ipython
+
+            ipy = get_ipython()
+            if ipy is not None and "IPKernelApp" in ipy.config:
+                # We're in a Jupyter notebook/kernel, not IPython terminal
+                return f"Results(...)"
+        except (NameError, ImportError):
+            pass
+
+        return self._summary_repr()
 
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the Results.

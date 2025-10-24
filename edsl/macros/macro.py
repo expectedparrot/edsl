@@ -199,13 +199,21 @@ class Macro(BaseMacro):
                     "To load from server, use: Macro('owner/alias')"
                 )
             if display_name is None:
-                raise TypeError("Macro.__init__() missing required argument: 'display_name'")
+                raise TypeError(
+                    "Macro.__init__() missing required argument: 'display_name'"
+                )
             if short_description is None:
-                raise TypeError("Macro.__init__() missing required argument: 'short_description'")
+                raise TypeError(
+                    "Macro.__init__() missing required argument: 'short_description'"
+                )
             if long_description is None:
-                raise TypeError("Macro.__init__() missing required argument: 'long_description'")
+                raise TypeError(
+                    "Macro.__init__() missing required argument: 'long_description'"
+                )
             if initial_survey is None:
-                raise TypeError("Macro.__init__() missing required argument: 'initial_survey'")
+                raise TypeError(
+                    "Macro.__init__() missing required argument: 'initial_survey'"
+                )
 
         self.jobs_object = jobs_object
         # Set via descriptors (handles validation)
@@ -1070,7 +1078,9 @@ class Macro(BaseMacro):
         jobs_object = survey.to_jobs()
 
         output_formatter = (
-            OutputFormatter(description="Ranked Scenario List", output_type="ScenarioList")
+            OutputFormatter(
+                description="Ranked Scenario List", output_type="ScenarioList"
+            )
             .to_scenario_list()
             .to_ranked_scenario_list(
                 option_fields=option_fields,
