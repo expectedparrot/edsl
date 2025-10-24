@@ -1030,7 +1030,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 max_value_length = max(terminal_width - 30, 50)
                 value_repr = repr(value)
                 if len(value_repr) > max_value_length:
-                    value_repr = value_repr[:max_value_length - 3] + "..."
+                    value_repr = value_repr[: max_value_length - 3] + "..."
 
                 output.append("                ", style="white")
                 output.append(f"'{key}'", style="bold yellow")
@@ -1039,7 +1039,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             if was_truncated:
                 output.append(
                     f"                ... ({num_fields - MAX_FIELDS} more fields)\n",
-                    style="dim"
+                    style="dim",
                 )
 
             output.append("            }\n", style="white")
@@ -1055,7 +1055,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         if len(self) > MAX_SCENARIOS:
             output.append(
                 f"        ... ({len(self) - MAX_SCENARIOS} more scenarios)\n",
-                style="dim"
+                style="dim",
             )
 
         output.append("    ]\n", style="white")
