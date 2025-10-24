@@ -15,6 +15,31 @@ Key features include:
 
 ScenarioList is a core component in the EDSL framework for creating, managing, and
 manipulating collections of Scenarios for experiments, surveys, and data processing tasks.
+
+Doctest (chainable conditionals design)
+    >>> from edsl.scenarios import Scenario, ScenarioList
+    >>> sl = ScenarioList([Scenario({"a": "x"}), Scenario({"a": "y"})])
+    >>> # If True, apply then-branch; else apply else-branch
+    >>> out_true = (
+    ...     sl.when(True)            # start recording (active branch: then)
+    ...       .then()                # explicitly set then-branch (optional)
+    ...         .add_value("flag", 1)
+    ...       .else_()               # switch to else branch
+    ...         .add_value("flag", 0)
+    ...       .end()                 # evaluate and apply
+    ... )
+    >>> set(s["flag"] for s in out_true) == {1}
+    True
+    >>> out_false = (
+    ...     sl.when(False)
+    ...       .then()
+    ...         .add_value("flag", 1)
+    ...       .else_()
+    ...         .add_value("flag", 0)
+    ...       .end()
+    ... )
+    >>> set(s["flag"] for s in out_false) == {0}
+    True
 """
 
 from __future__ import annotations
@@ -31,8 +56,6 @@ import warnings
 import csv
 import random
 import os
-import inspect
-from collections import defaultdict
 from collections.abc import Iterable, MutableSequence
 import json
 import pickle
@@ -40,7 +63,6 @@ import pickle
 
 # Import for refactoring to Source classes
 
-from simpleeval import EvalWithCompoundTypes, NameNotDefined  # type: ignore
 from tabulate import tabulate_formats
 
 try:
@@ -55,6 +77,8 @@ if TYPE_CHECKING:
     from ..jobs import Jobs, Job
     from ..surveys import Survey
     from ..questions import QuestionBase, Question
+    from ..agents import Agent
+    from typing import Sequence
 
 
 from ..base import Base
@@ -137,16 +161,174 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
     def __init__(
         self,
-        data: Optional[list] = None,
+        data: Optional[list | str] = None,
         codebook: Optional[dict[str, str]] = None,
         data_class: Optional[type] = data_class,
     ):
         """Initialize a new ScenarioList with optional data and codebook."""
         self._data_class = data_class
         self.data = self._data_class([])
-        for item in data or []:
-            self.data.append(item)
+        if data is not None and isinstance(data, str):
+            sl = ScenarioList.pull(data)
+            if codebook is not None:
+                raise ValueError(
+                    "Codebook cannot be provided when pulling from a remote source"
+                )
+            codebook = sl.codebook
+            super().__init__()
+            for item in sl.data:
+                self.data.append(item)
+        else:
+            for item in data or []:
+                self.data.append(item)
         self.codebook = codebook or {}
+        # Conditional builder state (ephemeral)
+        self._cond_active: bool = False
+        self._cond_branch: Optional[str] = None
+        self._cond_condition: Any = None
+        self._cond_ops: dict[str, list[tuple[str, tuple, dict]]] = {
+            "then": [],
+            "else": [],
+        }
+
+    # Intercept method access during conditional recording
+    def __getattribute__(self, name: str):  # noqa: D401
+        # Fast path for core attributes to avoid recursion
+        if name in {
+            "_cond_active",
+            "_cond_branch",
+            "_cond_condition",
+            "_cond_ops",
+            "when",
+            "then",
+            "else_",
+            "otherwise",
+            "end",
+            "cancel",
+        }:
+            return object.__getattribute__(self, name)
+
+        attr = object.__getattribute__(self, name)
+
+        # Only intercept when actively recording and the attribute is a public bound method to record
+        try:
+            is_active = object.__getattribute__(self, "_cond_active")
+            _current_branch = object.__getattribute__(self, "_cond_branch")
+        except Exception:
+            return attr
+
+        if not is_active:
+            return attr
+
+        # Do not record private/dunder or builder controls
+        if name.startswith("_"):
+            return attr
+
+        builder_exclusions = {
+            "when",
+            "then",
+            "else_",
+            "otherwise",
+            "end",
+            "cancel",
+        }
+
+        if name in builder_exclusions:
+            return attr
+
+        # Only wrap callables (methods)
+        import inspect as _inspect
+
+        if callable(attr) and _inspect.ismethod(attr):
+
+            def recorder(*args, **kwargs):
+                ops = object.__getattribute__(self, "_cond_ops")
+                branch = object.__getattribute__(self, "_cond_branch")
+                ops[branch].append((name, args, kwargs))
+                return self
+
+            return recorder
+
+        return attr
+
+    # ---- Chainable conditional builder API ----
+    def when(self, condition: Any) -> "ScenarioList":
+        """Begin a conditional chain on this ScenarioList.
+
+        Records subsequent method calls until `end()`.
+        """
+        if self._cond_active:
+            raise ScenarioError(
+                "Nested when() is not supported. Call end() or cancel() first."
+            )
+        self._cond_active = True
+        self._cond_branch = "then"
+        self._cond_condition = condition
+        self._cond_ops = {"then": [], "else": []}
+        return self
+
+    def then(self) -> "ScenarioList":
+        if not self._cond_active:
+            raise ScenarioError("then() called without an active when().")
+        self._cond_branch = "then"
+        return self
+
+    def else_(self) -> "ScenarioList":
+        if not self._cond_active:
+            raise ScenarioError("else_() called without an active when().")
+        self._cond_branch = "else"
+        return self
+
+    def otherwise(self) -> "ScenarioList":
+        return self.else_()
+
+    def cancel(self) -> "ScenarioList":
+        """Abort the current conditional recording and reset state."""
+        self._cond_active = False
+        self._cond_branch = None
+        self._cond_condition = None
+        self._cond_ops = {"then": [], "else": []}
+        return self
+
+    @staticmethod
+    def _cond_to_bool(val: Any) -> bool:
+        if isinstance(val, bool):
+            return val
+        if val is None:
+            return False
+        if isinstance(val, (int, float)):
+            return bool(val)
+        if isinstance(val, str):
+            lowered = val.strip().lower()
+            if lowered in {"", "false", "no", "0", "off", "n"}:
+                return False
+            if lowered in {"true", "yes", "1", "on", "y"}:
+                return True
+            return True
+        return bool(val)
+
+    def end(self) -> "ScenarioList":
+        """End the conditional chain, apply recorded ops for the chosen branch, and return a ScenarioList."""
+        if not self._cond_active:
+            raise ScenarioError("end() called without an active when().")
+
+        chosen_branch = "then" if self._cond_to_bool(self._cond_condition) else "else"
+        ops_to_apply = self._cond_ops.get(chosen_branch, [])
+
+        sl: "ScenarioList" = self
+        for method_name, args, kwargs in ops_to_apply:
+            method = object.__getattribute__(sl, method_name)
+            result = method(*args, **kwargs)
+            # Preserve chaining semantics: some methods return None/inplace
+            sl = result if isinstance(result, ScenarioList) else sl
+
+        # Reset state
+        self._cond_active = False
+        self._cond_branch = None
+        self._cond_condition = None
+        self._cond_ops = {"then": [], "else": []}
+
+        return sl
 
     def is_serializable(self):
         for item in self.data:
@@ -196,6 +378,51 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         Scenario({'a': 3})
         """
         return self.data[index]
+
+    def slice(self, slice_str: str) -> ScenarioList:
+        """Get a slice of the ScenarioList using string notation.
+
+        Args:
+            slice_str: String slice notation like '1:', '2:5', ':3', '1:5:2'
+
+        Returns:
+            A new ScenarioList containing the sliced scenarios.
+
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList.from_list("a", [1, 2, 3, 4, 5])
+            >>> sl.slice('1:')  # Everything from index 1 onwards
+            ScenarioList([Scenario({'a': 2}), Scenario({'a': 3}), Scenario({'a': 4}), Scenario({'a': 5})])
+            >>> sl.slice(':3')  # First 3 elements
+            ScenarioList([Scenario({'a': 1}), Scenario({'a': 2}), Scenario({'a': 3})])
+            >>> sl.slice('2:4')  # Elements from index 2 to 4 (exclusive)
+            ScenarioList([Scenario({'a': 3}), Scenario({'a': 4})])
+            >>> sl.slice('1:5:2')  # Every 2nd element from index 1 to 5
+            ScenarioList([Scenario({'a': 2}), Scenario({'a': 4})])
+        """
+        # Parse the slice string
+        parts = slice_str.split(":")
+        if len(parts) == 1:
+            # Single index
+            start = int(parts[0]) if parts[0] else 0
+            stop = start + 1
+            step = 1
+        elif len(parts) == 2:
+            # start:stop
+            start = int(parts[0]) if parts[0] else None
+            stop = int(parts[1]) if parts[1] else None
+            step = 1
+        elif len(parts) == 3:
+            # start:stop:step
+            start = int(parts[0]) if parts[0] else None
+            stop = int(parts[1]) if parts[1] else None
+            step = int(parts[2]) if parts[2] else 1
+        else:
+            raise ValueError(f"Invalid slice string: {slice_str}")
+
+        # Create slice object and use existing __getitem__ method
+        slice_obj = slice(start, stop, step)
+        return self[slice_obj]
 
     def sum(self, field: str) -> int:
         """Sum the values of a field across all scenarios."""
@@ -496,6 +723,41 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             )
         return new_list
 
+    def string_cat_if(
+        self,
+        key: str,
+        addend: str,
+        condition: Any,
+        position: str = "suffix",
+        inplace: bool = False,
+    ) -> ScenarioList:
+        """Conditionally concatenate a string to a field across all Scenarios.
+
+        The condition may be a boolean or a string such as 'yes'/'no', 'true'/'false', '1'/'0'.
+        Non-empty strings are coerced using a permissive truthy mapping.
+        """
+
+        def _to_bool(val: Any) -> bool:
+            if isinstance(val, bool):
+                return val
+            if val is None:
+                return False
+            if isinstance(val, (int, float)):
+                return bool(val)
+            if isinstance(val, str):
+                lowered = val.strip().lower()
+                if lowered in {"", "false", "no", "0", "off", "n"}:
+                    return False
+                if lowered in {"true", "yes", "1", "on", "y"}:
+                    return True
+                # Fallback: any other non-empty string is considered True
+                return True
+            return bool(val)
+
+        if not _to_bool(condition):
+            return self if inplace else self.duplicate()
+        return self.string_cat(key, addend, position=position, inplace=inplace)
+
     def transform_by_key(self, key_field: str) -> Scenario:
         """Transform the ScenarioList into a single Scenario with key/value pairs.
 
@@ -718,8 +980,91 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __repr__(self):
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the ScenarioList.
+
+        This representation can be used with eval() to recreate the ScenarioList object.
+        Used primarily for doctests and debugging.
+        """
         return f"ScenarioList({list(self.data)})"
+
+    def _summary_repr(self, MAX_SCENARIOS: int = 10, MAX_FIELDS: int = 10) -> str:
+        """Generate a summary representation of the ScenarioList with Rich formatting.
+
+        Args:
+            MAX_SCENARIOS: Maximum number of scenarios to show (default: 10)
+            MAX_FIELDS: Maximum number of fields to show per scenario (default: 10)
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+        import shutil
+
+        # Get terminal width
+        terminal_width = shutil.get_terminal_size().columns
+
+        # Build the Rich text
+        output = Text()
+        output.append("ScenarioList(\n", style="bold cyan")
+        output.append(f"    num_scenarios={len(self)},\n", style="white")
+        output.append("    scenarios=[\n", style="white")
+
+        # Show the first MAX_SCENARIOS scenarios
+        num_to_show = min(MAX_SCENARIOS, len(self))
+        for i, scenario in enumerate(self.data[:num_to_show]):
+            # Get scenario representation with limited fields
+            scenario_data = dict(list(scenario.items())[:MAX_FIELDS])
+
+            # Check if we need to indicate truncation
+            num_fields = len(scenario)
+            was_truncated = num_fields > MAX_FIELDS
+
+            # Build scenario repr with indentation
+            output.append("        Scenario(\n", style="bold cyan")
+            output.append(f"            num_keys={num_fields},\n", style="white")
+            output.append("            data={\n", style="white")
+
+            # Show fields
+            for key, value in scenario_data.items():
+                # Format the value with truncation if needed
+                max_value_length = max(terminal_width - 30, 50)
+                value_repr = repr(value)
+                if len(value_repr) > max_value_length:
+                    value_repr = value_repr[:max_value_length - 3] + "..."
+
+                output.append("                ", style="white")
+                output.append(f"'{key}'", style="bold yellow")
+                output.append(f": {value_repr},\n", style="white")
+
+            if was_truncated:
+                output.append(
+                    f"                ... ({num_fields - MAX_FIELDS} more fields)\n",
+                    style="dim"
+                )
+
+            output.append("            }\n", style="white")
+            output.append("        )", style="bold cyan")
+
+            # Add comma and newline unless it's the last one
+            if i < num_to_show - 1:
+                output.append(",\n", style="white")
+            else:
+                output.append("\n", style="white")
+
+        # Add ellipsis if there are more scenarios
+        if len(self) > MAX_SCENARIOS:
+            output.append(
+                f"        ... ({len(self) - MAX_SCENARIOS} more scenarios)\n",
+                style="dim"
+            )
+
+        output.append("    ]\n", style="white")
+        output.append(")", style="bold cyan")
+
+        # Render to string
+        console = Console(file=io.StringIO(), force_terminal=True, width=terminal_width)
+        console.print(output, end="")
+        return console.file.getvalue()
 
     def __mul__(self, other: ScenarioList) -> ScenarioList:
         """Takes the cross product of two ScenarioLists.
@@ -795,31 +1140,82 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         data_list = list(sl.data)
         return ScenarioList(random.sample(data_list, n))
 
-    def expand(self, expand_field: str, number_field: bool = False) -> ScenarioList:
-        """Expand the ScenarioList by a field.
+    def expand(self, *expand_fields: str, number_field: bool = False) -> ScenarioList:
+        """Expand the ScenarioList by one or more fields.
 
-        :param expand_field: The field to expand.
-        :param number_field: Whether to add a field with the index of the value
+        - When a single field is provided, behavior is unchanged: expand rows by that field.
+        - When multiple fields are provided, they are expanded in lockstep (aligned). Each
+          field must be an iterable (strings are treated as scalars) of equal length; the
+          i-th elements across all fields are combined into one expanded row.
 
-        Example:
+        Args:
+            *expand_fields: One or more field names to expand. When multiple, lengths must match.
+            number_field: Whether to add a per-field index (1-based) for expanded values as
+                ``<field>_number``.
 
-        >>> s = ScenarioList( [ Scenario({'a':1, 'b':[1,2]}) ] )
-        >>> s.expand('b')
-        ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
-        >>> s.expand('b', number_field=True)
-        ScenarioList([Scenario({'a': 1, 'b': 1, 'b_number': 1}), Scenario({'a': 1, 'b': 2, 'b_number': 2})])
+        Examples:
+
+            Single-field (unchanged):
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': [1, 2]})])
+            >>> s.expand('b')
+            ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+            >>> s.expand('b', number_field=True)
+            ScenarioList([Scenario({'a': 1, 'b': 1, 'b_number': 1}), Scenario({'a': 1, 'b': 2, 'b_number': 2})])
+
+            Multi-field aligned expansion:
+            >>> s2 = ScenarioList([Scenario({'a': 1, 'b': [1, 2], 'c': ['x', 'y']})])
+            >>> s2.expand('b', 'c')
+            ScenarioList([Scenario({'a': 1, 'b': 1, 'c': 'x'}), Scenario({'a': 1, 'b': 2, 'c': 'y'})])
+            >>> s2.expand('b', 'c', number_field=True)  # doctest: +ELLIPSIS
+            ScenarioList([Scenario({'a': 1, 'b': 1, 'c': 'x', 'b_number': 1, 'c_number': 1}), ...])
         """
+        if not expand_fields:
+            raise ScenarioError("expand() requires at least one field name")
+
+        # Preserve original behavior for the single-field case
+        if len(expand_fields) == 1:
+            expand_field = expand_fields[0]
+            new_scenarios = []
+            for scenario in self:
+                values = scenario[expand_field]
+                if not isinstance(values, Iterable) or isinstance(values, str):
+                    values = [values]
+                for index, value in enumerate(values):
+                    new_scenario = scenario.copy()
+                    new_scenario[expand_field] = value
+                    if number_field:
+                        new_scenario[expand_field + "_number"] = index + 1
+                    new_scenarios.append(new_scenario)
+            return ScenarioList(new_scenarios)
+
+        # Multi-field aligned expansion
+        fields = list(expand_fields)
         new_scenarios = []
         for scenario in self:
-            values = scenario[expand_field]
-            if not isinstance(values, Iterable) or isinstance(values, str):
-                values = [values]
-            for index, value in enumerate(values):
+            value_lists = []
+            for field in fields:
+                vals = scenario[field]
+                if not isinstance(vals, Iterable) or isinstance(vals, str):
+                    vals = [vals]
+                value_lists.append(list(vals))
+
+            lengths = {len(v) for v in value_lists}
+            if len(lengths) != 1:
+                lengths_str = ", ".join(
+                    f"{fld}:{len(v)}" for fld, v in zip(fields, value_lists)
+                )
+                raise ScenarioError(
+                    f"All fields must have equal lengths for aligned expansion; got {lengths_str}"
+                )
+
+            for index, tuple_vals in enumerate(zip(*value_lists)):
                 new_scenario = scenario.copy()
-                new_scenario[expand_field] = value
-                if number_field:
-                    new_scenario[expand_field + "_number"] = index + 1
+                for field, val in zip(fields, tuple_vals):
+                    new_scenario[field] = val
+                    if number_field:
+                        new_scenario[field + "_number"] = index + 1
                 new_scenarios.append(new_scenario)
+
         return ScenarioList(new_scenarios)
 
     def _concatenate(
@@ -1186,7 +1582,14 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         new_sl = ScenarioList(data=[], codebook=self.codebook)
         for scenario in self:
-            new_sl.append(scenario.select(*fields))
+            try:
+                new_sl.append(scenario.select(*fields))
+            except KeyError:
+                from .exceptions import KeyScenarioError
+
+                raise KeyScenarioError(
+                    f"Key {fields} not found in scenario {scenario.keys()}"
+                )
         return new_sl
 
     def drop(self, *fields: str) -> ScenarioList:
@@ -1386,12 +1789,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             if d["question_type"] == "free_text":
                 if "question_options" in d:
                     _ = d.pop("question_options")
-            if "question_name" not in d or d["question_name"] == None:
+            if "question_name" not in d or d["question_name"] is None:
                 d["question_name"] = f"question_{index}"
 
-            if d["question_type"] == None:
+            if d["question_type"] is None:
                 d["question_type"] = "free_text"
                 d["question_options"] = None
+
+            if "weight" in d:
+                d["weight"] = float(d["weight"])
+
             new_d = d
             question = QuestionBase.from_dict(new_d)
             s.add_question(question)
@@ -1586,6 +1993,18 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
 
         """
+        # Collect all keys present across all scenarios
+        all_keys = set()
+        for scenario in self:
+            all_keys.update(scenario.keys())
+
+        # Check for keys in replacement_dict that are not present in any scenario
+        missing_keys = [key for key in replacement_dict.keys() if key not in all_keys]
+        if missing_keys:
+            warnings.warn(
+                f"The following keys in replacement_dict are not present in any scenario: {', '.join(missing_keys)}"
+            )
+
         new_sl = ScenarioList(data=[], codebook=self.codebook)
         for scenario in self:
             new_scenario = scenario.rename(replacement_dict)
@@ -1712,6 +2131,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         >>> # To exclude edsl_version and edsl_class_name, explicitly set add_edsl_version=False
         >>> s.to_dict(add_edsl_version=False)
         {'scenarios': [{'food': 'wood chips'}], 'codebook': {'food': 'description'}}
+
+        >>> # To include edsl_version and edsl_class_name, explicitly set add_edsl_version=True
+        >>> s.to_dict(add_edsl_version=True)  # doctest: +ELLIPSIS
+        {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'codebook': {'food': 'description'}, 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
         """
         if sort:
             data = sorted(self, key=lambda x: hash(x))
@@ -1875,6 +2298,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return cls(
             [Scenario.from_dict(s) for s in data["scenarios"]], codebook=codebook
         )
+
+    @classmethod
+    def from_list_of_dicts(cls, data: list[dict]) -> ScenarioList:
+        """Create a `ScenarioList` from a list of dictionaries.
+
+        >>> data = [{'name': 'Alice'}, {'name': 'Bob'}]
+        >>> ScenarioList.from_list_of_dicts(data)
+        ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
+        """
+        return cls([Scenario(s) for s in data])
 
     @classmethod
     def from_nested_dict(cls, data: dict) -> ScenarioList:
@@ -2145,6 +2578,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         dimension_name_field: str = "dimension",
         dimension_values_field: str = "dimension_values",
         dimension_description_field: Optional[str] = None,
+        dimension_probs_field: Optional[str] = None,
     ):
         """Create an AgentBlueprint from this ScenarioList.
 
@@ -2154,16 +2588,18 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             dimension_name_field: Field name to read the dimension name from.
             dimension_values_field: Field name to read the dimension values from.
             dimension_description_field: Optional field name for the dimension description.
+            dimension_probs_field: Optional field name for probability weights.
         """
         from .agent_blueprint import AgentBlueprint
 
-        return AgentBlueprint(
+        return AgentBlueprint.from_scenario_list(
             self,
             seed=seed,
             cycle=cycle,
             dimension_name_field=dimension_name_field,
             dimension_values_field=dimension_values_field,
             dimension_description_field=dimension_description_field,
+            dimension_probs_field=dimension_probs_field,
         )
 
     def collapse(

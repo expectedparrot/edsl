@@ -1,5 +1,10 @@
 from __future__ import annotations
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .survey import Survey
+    from ..questions.question_base import QuestionBase
+    from ..instructions.instruction import Instruction
 
 
 class InteractiveSurvey:
@@ -123,7 +128,9 @@ class InteractiveSurvey:
         current_item: Optional[Union["QuestionBase", "Instruction"]] = None
 
         while True:
-            next_item = self.survey.next_question_with_instructions(current_item, self._rule_answers)
+            next_item = self.survey.next_question_with_instructions(
+                current_item, self._rule_answers
+            )
 
             # End of survey
             from .base import EndOfSurvey
@@ -150,7 +157,9 @@ class InteractiveSurvey:
                 continue
 
             # If we get here, something unexpected was returned
-            raise RuntimeError("Survey returned an unexpected item during interactive run")
+            raise RuntimeError(
+                "Survey returned an unexpected item during interactive run"
+            )
 
         # Final clear and summary
         if self.clear_between_items:
@@ -164,7 +173,9 @@ class InteractiveSurvey:
             table.add_column("Answer")
             for qn, ans in self.answers.items():
                 table.add_row(qn, str(ans))
-            console.print(Panel.fit(table, title="Survey Complete", border_style="green"))
+            console.print(
+                Panel.fit(table, title="Survey Complete", border_style="green")
+            )
             console.print("Press Enter to finish…", style="dim")
             try:
                 console.input("")
@@ -196,7 +207,9 @@ class InteractiveSurvey:
         text = getattr(instruction, "text", "")
         if self.clear_between_items:
             console.clear()
-        console.print(Panel.fit(Markdown(text or ""), title="Instruction", border_style="cyan"))
+        console.print(
+            Panel.fit(Markdown(text or ""), title="Instruction", border_style="cyan")
+        )
         console.print("Press Enter to continue…", style="dim")
         try:
             console.input("")
@@ -214,10 +227,18 @@ class InteractiveSurvey:
 
         # Build a header panel with the question text
         question_text = getattr(question, "question_text", "")
-        console.print(Panel.fit(question_text, title=f"{question.question_name}", border_style="magenta"))
+        console.print(
+            Panel.fit(
+                question_text, title=f"{question.question_name}", border_style="magenta"
+            )
+        )
 
         # Checkbox (multi-select) with friendly numeric/text entry and iterative selection
-        if getattr(question, "question_type", None) == "checkbox" and hasattr(question, "question_options") and getattr(question, "question_options"):
+        if (
+            getattr(question, "question_type", None) == "checkbox"
+            and hasattr(question, "question_options")
+            and getattr(question, "question_options")
+        ):
             options = list(getattr(question, "question_options"))
             table = Table(show_header=True, header_style="bold blue")
             table.add_column("#", justify="right")
@@ -271,9 +292,15 @@ class InteractiveSurvey:
                         if len(ci) == 1:
                             candidate = options.index(ci[0]) if use_code else ci[0]
                         else:
-                            prefix = [opt for opt in options if str(opt).lower().startswith(lowered)]
+                            prefix = [
+                                opt
+                                for opt in options
+                                if str(opt).lower().startswith(lowered)
+                            ]
                             if len(prefix) == 1:
-                                candidate = options.index(prefix[0]) if use_code else prefix[0]
+                                candidate = (
+                                    options.index(prefix[0]) if use_code else prefix[0]
+                                )
 
                 if candidate is None:
                     return False
@@ -299,7 +326,13 @@ class InteractiveSurvey:
                         return validated.get("answer", selected)
                     except Exception as e:
                         error_message = Text(str(e), style="bold red")
-                        console.print(Panel.fit(error_message, title="Invalid Selection", border_style="red"))
+                        console.print(
+                            Panel.fit(
+                                error_message,
+                                title="Invalid Selection",
+                                border_style="red",
+                            )
+                        )
                         console.print("Please adjust your selections.", style="dim")
                         continue
                 if entry.lower() == "clear":
@@ -311,13 +344,20 @@ class InteractiveSurvey:
                     _display_selected()
                     continue
 
-                tokens = [t for t in entry.split(",") if t.strip()] if "," in entry else [entry]
+                tokens = (
+                    [t for t in entry.split(",") if t.strip()]
+                    if "," in entry
+                    else [entry]
+                )
                 added_any = False
                 for t in tokens:
                     added_any = _add_choice(t) or added_any
 
                 if not added_any:
-                    console.print("No matching option found. Try numbers or exact/unique text.", style="dim")
+                    console.print(
+                        "No matching option found. Try numbers or exact/unique text.",
+                        style="dim",
+                    )
                     continue
 
                 _display_selected()
@@ -329,7 +369,11 @@ class InteractiveSurvey:
                 # Loop until user types 'done'/'quit'
 
         # If options exist, show them (and provide numeric selection UX)
-        if getattr(question, "question_type", None) == "multiple_choice" and hasattr(question, "question_options") and getattr(question, "question_options"):
+        if (
+            getattr(question, "question_type", None) == "multiple_choice"
+            and hasattr(question, "question_options")
+            and getattr(question, "question_options")
+        ):
             options = list(getattr(question, "question_options"))
             table = Table(show_header=True, header_style="bold blue")
             table.add_column("#", justify="right")
@@ -368,24 +412,34 @@ class InteractiveSurvey:
                     exact_matches = [opt for opt in options if str(opt) == raw_stripped]
                     if len(exact_matches) == 1:
                         candidate = (
-                            options.index(exact_matches[0]) if use_code else exact_matches[0]
+                            options.index(exact_matches[0])
+                            if use_code
+                            else exact_matches[0]
                         )
                     else:
                         # Case-insensitive unique match
                         lowered = raw_stripped.lower()
-                        ci_matches = [opt for opt in options if str(opt).lower() == lowered]
+                        ci_matches = [
+                            opt for opt in options if str(opt).lower() == lowered
+                        ]
                         if len(ci_matches) == 1:
                             candidate = (
-                                options.index(ci_matches[0]) if use_code else ci_matches[0]
+                                options.index(ci_matches[0])
+                                if use_code
+                                else ci_matches[0]
                             )
                         else:
                             # Unique prefix match
                             prefix_matches = [
-                                opt for opt in options if str(opt).lower().startswith(lowered)
+                                opt
+                                for opt in options
+                                if str(opt).lower().startswith(lowered)
                             ]
                             if len(prefix_matches) == 1:
                                 candidate = (
-                                    options.index(prefix_matches[0]) if use_code else prefix_matches[0]
+                                    options.index(prefix_matches[0])
+                                    if use_code
+                                    else prefix_matches[0]
                                 )
 
                 # If still None, and permissive MC, pass raw text through
@@ -398,7 +452,11 @@ class InteractiveSurvey:
                     return validated.get("answer", candidate)
                 except Exception as e:
                     error_message = Text(str(e), style="bold red")
-                    console.print(Panel.fit(error_message, title="Invalid Response", border_style="red"))
+                    console.print(
+                        Panel.fit(
+                            error_message, title="Invalid Response", border_style="red"
+                        )
+                    )
                     console.print("Please try again.", style="dim")
                     continue
 
@@ -416,8 +474,14 @@ class InteractiveSurvey:
                     return validated.get("answer", path)
                 except Exception as e:
                     error_message = Text(str(e), style="bold red")
-                    console.print(Panel.fit(error_message, title="Invalid File", border_style="red"))
-                    console.print("Please enter a valid, existing file path.", style="dim")
+                    console.print(
+                        Panel.fit(
+                            error_message, title="Invalid File", border_style="red"
+                        )
+                    )
+                    console.print(
+                        "Please enter a valid, existing file path.", style="dim"
+                    )
                     continue
 
         console.print("Enter your response and press Enter:", style="dim")
@@ -434,7 +498,11 @@ class InteractiveSurvey:
                     return validated.get("answer", response)
                 except Exception as e:
                     error_message = Text(str(e), style="bold red")
-                    console.print(Panel.fit(error_message, title="Invalid Response", border_style="red"))
+                    console.print(
+                        Panel.fit(
+                            error_message, title="Invalid Response", border_style="red"
+                        )
+                    )
                     console.print("Please try again.", style="dim")
                     continue
 
@@ -455,5 +523,3 @@ class InteractiveSurvey:
 
 
 __all__ = ["InteractiveSurvey"]
-
-

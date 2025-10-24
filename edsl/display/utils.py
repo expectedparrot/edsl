@@ -42,7 +42,6 @@ def display_html(html_content, width=None, height=None, as_iframe=False):
     from html import escape
 
     if as_iframe:
-
         width = width or 600
         height = height or 200
         escaped_output = escape(html_content)

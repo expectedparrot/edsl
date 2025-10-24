@@ -96,5 +96,3 @@ class CreateDynamicTraitsFunction:
             return mapping
         # AgentList API expects a single trait per question
         return {q: traits[0] for q, traits in mapping.items() if traits}
-
-

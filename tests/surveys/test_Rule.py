@@ -36,7 +36,7 @@ class TestRule(unittest.TestCase):
         with self.assertRaises(Exception):
             r = Rule(
                 current_q=0,
-                expression="q1 == 'yes'",
+                expression="{{ q1.answer }} == 'yes'",
                 next_q=1,
                 question_name_to_index={"q1": 1},
                 priority=0,
@@ -46,7 +46,7 @@ class TestRule(unittest.TestCase):
         with self.assertRaises(Exception):
             r = Rule(
                 current_q=5,
-                expression="q1 == 'yes'",
+                expression="{{ q1.answer }} == 'yes'",
                 next_q=1,
                 question_name_to_index=self.question_name_to_index,
                 priority=0,
@@ -56,7 +56,7 @@ class TestRule(unittest.TestCase):
         try:
             r = Rule(
                 current_q=0,
-                expression="q1 == 'yes'",
+                expression="{{ q1.answer }} == 'yes'",
                 next_q=1,
                 question_name_to_index=self.question_name_to_index,
                 priority=0,

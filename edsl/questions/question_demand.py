@@ -73,13 +73,15 @@ def create_demand_model(prices: List[Union[int, float]]):
         >>> # Test count constraint
         >>> try:
         ...     ConstrainedModel(answer=[10, 8, 5])
+        ...     False  # Should have raised an exception
         ... except Exception as e:
-        ...     "Must provide" in str(e) and "quantities" in str(e)
+        ...     "at least" in str(e) and "items" in str(e)
         True
 
         >>> # Test negative values constraint
         >>> try:
         ...     ConstrainedModel(answer=[10, 8, -5, 2])
+        ...     False  # Should have raised an exception
         ... except Exception as e:
         ...     "non-negative" in str(e)
         True

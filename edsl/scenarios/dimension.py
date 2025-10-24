@@ -63,12 +63,14 @@ class Dimension(Generic[T]):
     # Construction helpers
     # ------------------------------------------------------------------
     @overload
-    def __init__(self, *, name: str, description: str, values: Sequence[T]): ...
+    def __init__(self, *, name: str, description: str, values: Sequence[T]):
+        ...
 
     @overload
     def __init__(
         self, *, name: str, description: str, values: Sequence[Tuple[T, float]]
-    ): ...
+    ):
+        ...
 
     def __init__(
         self,
@@ -82,13 +84,15 @@ class Dimension(Generic[T]):
 
         dim_values: List[DimensionValue[T]] = []
         for v in values:
-            if isinstance(v, tuple):
-                if len(v) != 2:
-                    raise ValueError(
-                        "Each (value, weight) tuple must have exactly two elements"
-                    )
-                value, weight = v  # type: ignore[misc]
-                dim_values.append(DimensionValue(value=value, weight=float(weight)))
+            # Handle both tuples and lists (JSON serialization converts tuples to lists)
+            if isinstance(v, (tuple, list)):
+                # Only treat as a weighted pair when the second element is numeric.
+                if len(v) == 2 and isinstance(v[1], (int, float)):
+                    value, weight = v  # type: ignore[misc]
+                    dim_values.append(DimensionValue(value=value, weight=float(weight)))
+                else:
+                    # Treat arbitrary tuples/lists as a single categorical value.
+                    dim_values.append(DimensionValue(value=v))
             else:
                 dim_values.append(DimensionValue(value=v))
 
@@ -163,3 +167,59 @@ class Dimension(Generic[T]):
         raise ValueError(
             f"{value!r} is not a valid option for dimension '{self.name}'."
         )
+
+    # ------------------------------------------------------------------
+    # Serialization helpers
+    # ------------------------------------------------------------------
+
+    def to_dict(self, add_edsl_version: bool = False) -> dict:
+        """Convert the Dimension to a dictionary for JSON serialization.
+
+        Args:
+            add_edsl_version: Ignored parameter for compatibility with other serialization methods.
+
+        Returns:
+            dict: Dictionary representation with name, description, and values
+                  as (value, weight) tuples.
+        """
+        return {
+            "name": self.name,
+            "description": self.description,
+            "values": [(dv.value, dv.weight) for dv in self.values],
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "Dimension":
+        """Create a Dimension from a dictionary.
+
+        Args:
+            d: Dictionary with 'name', 'description', and 'values' keys
+
+        Returns:
+            Dimension: A new Dimension instance
+        """
+        return cls(
+            name=d["name"],
+            description=d["description"],
+            values=d["values"],
+        )
+
+    def code(self) -> str:
+        """Generate Python code that recreates this Dimension.
+
+        Returns:
+            str: Python code that recreates this object
+        """
+        # Check if any weights differ from 1.0
+        has_weights = any(dv.weight != 1.0 for dv in self.values)
+
+        if has_weights:
+            # Show values with weights
+            values_repr = ", ".join(
+                f"({dv.value!r}, {dv.weight:g})" for dv in self.values
+            )
+        else:
+            # Just show the plain values
+            values_repr = ", ".join(repr(dv.value) for dv in self.values)
+
+        return f"Dimension(name={self.name!r}, description={self.description!r}, values=[{values_repr}])"

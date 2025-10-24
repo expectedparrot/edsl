@@ -24,7 +24,9 @@ from .embeddings_engine import EmbeddingsEngine
 
 
 def parse_arguments(argv: Optional[List[str]] = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Index and search using a mock embeddings engine.")
+    parser = argparse.ArgumentParser(
+        description="Index and search using a mock embeddings engine."
+    )
 
     # Indexing inputs
     parser.add_argument(
@@ -34,7 +36,9 @@ def parse_arguments(argv: Optional[List[str]] = None) -> argparse.Namespace:
     )
 
     # Standalone embedding (no indexing) helpers
-    parser.add_argument("--embed-query", type=str, help="Emit embedding vector for a single query.")
+    parser.add_argument(
+        "--embed-query", type=str, help="Emit embedding vector for a single query."
+    )
     parser.add_argument(
         "--embed-file",
         type=str,
@@ -42,8 +46,15 @@ def parse_arguments(argv: Optional[List[str]] = None) -> argparse.Namespace:
     )
 
     # Search options
-    parser.add_argument("--search", type=str, help="Query string to search against indexed documents.")
-    parser.add_argument("--top-k", type=int, default=5, help="Number of top results to return (default: 5).")
+    parser.add_argument(
+        "--search", type=str, help="Query string to search against indexed documents."
+    )
+    parser.add_argument(
+        "--top-k",
+        type=int,
+        default=5,
+        help="Number of top results to return (default: 5).",
+    )
 
     parser.add_argument(
         "--dim",
@@ -136,5 +147,3 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-
-

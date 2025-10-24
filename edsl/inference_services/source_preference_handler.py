@@ -36,7 +36,9 @@ class SourcePreferenceHandler:
         return self._used_source
 
     def fetch_model_info_data(
-        self, source_preferences: Optional[List[str]] = None, service_name: Optional[str] = None
+        self,
+        source_preferences: Optional[List[str]] = None,
+        service_name: Optional[str] = None,
     ) -> Dict[str, List["ModelInfo"]]:
         """
         Iterate through source preferences to find and fetch model info data.

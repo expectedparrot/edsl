@@ -70,7 +70,6 @@ class LoopProcessor:
             return value
 
         if key == "option_labels":
-
             return (
                 eval(self._render_template(value, scenario))
                 if isinstance(value, str)
@@ -313,7 +312,6 @@ class LongSurveyLoopProcessor:
             return value
 
         if key == "option_labels":
-
             return (
                 eval(self._render_template(value, scenario, scenario_index))
                 if isinstance(value, str)
@@ -339,7 +337,6 @@ class LongSurveyLoopProcessor:
         )
 
     def _jinja_variable_pattern(self) -> str:
-
         # Regular expression to find Jinja2 variables in the template
         pattern = (
             r"(?P<open>\{\{\s*)scenario\.(?P<var>[a-zA-Z0-9_.]+)(?P<close>\s*\}\})"

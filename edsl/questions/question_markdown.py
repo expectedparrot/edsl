@@ -54,7 +54,7 @@ class MarkdownResponseValidator(ResponseValidatorABC):
             t = s.strip()
             # Prefer ```markdown fences
             if t.startswith("```markdown"):
-                body = t[len("```markdown"):].lstrip("\n")
+                body = t[len("```markdown") :].lstrip("\n")
                 if body.endswith("```"):
                     body = body[:-3]
                 else:
@@ -150,5 +150,3 @@ class QuestionMarkdown(QuestionFreeText):
         """
         sample = "# Example Markdown\n\nThis is a sample."
         return {"answer": sample, "generated_tokens": sample}
-
-

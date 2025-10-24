@@ -11,8 +11,9 @@ from typing import Any, List, Optional, Dict, TYPE_CHECKING
 import os
 import base64
 import asyncio
-import json
 import uuid
+import json
+import re
 from datetime import datetime, timezone
 
 import logging
@@ -548,10 +549,10 @@ class RemoteProxyHandler:
         except LanguageModelInsufficientCreditsError:
             # Re-raise balance errors as-is - they should stop the job
             raise
-        except aiohttp.ClientError as e:
+        except aiohttp.ClientError:
             # Handle other HTTP errors normally
             raise
-        except Exception as e:
+        except Exception:
             # print(f"[ERROR] Unexpected error during proxy request: {str(e)}")
             raise
 
@@ -564,9 +565,6 @@ class RemoteProxyHandler:
         Returns:
             Current balance string if found, None otherwise
         """
-        import re
-        import json
-
         # First try to parse as JSON and extract from detail field
         try:
             error_data = json.loads(error_text)
@@ -601,8 +599,6 @@ class RemoteProxyHandler:
         """
         if not error_text:
             return False
-
-        import json
 
         # First try to parse as JSON and extract from detail field
         try:
@@ -670,7 +666,7 @@ async def check_user_balance(proxy_url: str, auth_headers: dict) -> dict:
                     }
                 elif response.status == 402:
                     # Balance is negative or zero
-                    error_detail = await response.text()
+                    await response.text()  # Consume the response
                     return {
                         "has_balance": False,
                         "current_balance": 0,

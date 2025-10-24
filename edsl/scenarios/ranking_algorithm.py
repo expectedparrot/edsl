@@ -94,7 +94,9 @@ class PairwiseRanker:
                 break
 
             # Find minimum weight in cycle
-            min_weight = min(current_weights.get(edge, float('inf')) for edge in cycle_edges)
+            min_weight = min(
+                current_weights.get(edge, float("inf")) for edge in cycle_edges
+            )
 
             # Reduce weights and remove zero-weight edges
             for edge in cycle_edges:
@@ -163,11 +165,17 @@ class PairwiseRanker:
                 # Calculate scores for tied vertices
                 scores = []
                 for v in tied_groups[rank]:
-                    out_sum = sum(edge_weights.get((v, u), 0) for u in adj_list.get(v, []))
-                    in_sum = sum(edge_weights.get((u, v), 0) for u in vertices
-                               if v in adj_list.get(u, []))
-                    total_edges = len(adj_list.get(v, [])) + \
-                                sum(1 for u in vertices if v in adj_list.get(u, []))
+                    out_sum = sum(
+                        edge_weights.get((v, u), 0) for u in adj_list.get(v, [])
+                    )
+                    in_sum = sum(
+                        edge_weights.get((u, v), 0)
+                        for u in vertices
+                        if v in adj_list.get(u, [])
+                    )
+                    total_edges = len(adj_list.get(v, [])) + sum(
+                        1 for u in vertices if v in adj_list.get(u, [])
+                    )
 
                     score = (out_sum - in_sum) / total_edges if total_edges > 0 else 0
                     scores.append((score, v))
@@ -189,7 +197,9 @@ class PairwiseRanker:
             Dictionary containing rankings, topological order, removed edges, and total removed weight
         """
         # Step 1: Find MWFAS
-        dag_adj, dag_weights = self._find_mwfas(self.adj_list, self.edge_weights, self.vertices)
+        dag_adj, dag_weights = self._find_mwfas(
+            self.adj_list, self.edge_weights, self.vertices
+        )
 
         # Step 2: Compute vertex rankings
         rankings, topo_order = self._topological_sort(dag_adj, self.vertices)
@@ -206,10 +216,10 @@ class PairwiseRanker:
                 removed_weight += w
 
         return {
-            'rankings': final_rankings,
-            'topological_order': topo_order,
-            'removed_edges': removed_edges,
-            'removed_weight': removed_weight
+            "rankings": final_rankings,
+            "topological_order": topo_order,
+            "removed_edges": removed_edges,
+            "removed_weight": removed_weight,
         }
 
 
@@ -267,7 +277,9 @@ def results_to_ranked_scenario_list(
         if answer_value is None:
             continue
 
-        winner_indices = [idx for idx, value in enumerate(option_values) if value == answer_value]
+        winner_indices = [
+            idx for idx, value in enumerate(option_values) if value == answer_value
+        ]
         if len(winner_indices) != 1:
             # Skip rows where the answer does not uniquely match one option
             continue
@@ -295,7 +307,7 @@ def results_to_ranked_scenario_list(
 
     ranker = PairwiseRanker(pairwise)
     ranking_result = ranker.generate_ranking()
-    rankings = ranking_result['rankings']
+    rankings = ranking_result["rankings"]
 
     # Sort items by increasing rank (1 is best)
     sorted_items = sorted(rankings.keys(), key=lambda x: rankings[x])
@@ -307,6 +319,7 @@ def results_to_ranked_scenario_list(
         else:
             scenarios.append(Scenario({item_field: item}))
     return ScenarioList(scenarios)
+
 
 # Example usage
 if __name__ == "__main__":
@@ -323,7 +336,7 @@ if __name__ == "__main__":
     result = ranker.generate_ranking()
 
     print("Rankings:")
-    for vertex, rank in sorted(result['rankings'].items(), key=lambda x: x[1]):
+    for vertex, rank in sorted(result["rankings"].items(), key=lambda x: x[1]):
         print(f"  Element {vertex}: Rank {rank}")
 
     print(f"\nTopological Order: {result['topological_order']}")
@@ -331,22 +344,22 @@ if __name__ == "__main__":
     print(f"Total Removed Weight: {result['removed_weight']:.2f}")
 
     # Example 2: Tournament results
-    print("\n" + "="*50 + "\n")
+    print("\n" + "=" * 50 + "\n")
     print("Example 2: Tournament Rankings")
 
     # A beats B strongly, B beats C moderately, C beats A weakly
     # A also beats D, B beats D weakly
     tournament = [
-        ('A', 'B', 5.0),
-        ('B', 'C', 3.0),
-        ('C', 'A', 1.0),
-        ('A', 'D', 4.0),
-        ('B', 'D', 1.5),
+        ("A", "B", 5.0),
+        ("B", "C", 3.0),
+        ("C", "A", 1.0),
+        ("A", "D", 4.0),
+        ("B", "D", 1.5),
     ]
 
     tournament_ranker = PairwiseRanker(tournament)
     result2 = tournament_ranker.generate_ranking()
 
     print("\nTournament Rankings:")
-    for player, rank in sorted(result2['rankings'].items(), key=lambda x: x[1]):
+    for player, rank in sorted(result2["rankings"].items(), key=lambda x: x[1]):
         print(f"  Player {player}: Rank {rank}")
