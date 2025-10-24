@@ -18,6 +18,11 @@ import argparse
 from pathlib import Path
 import matplotlib.pyplot as plt
 
+# Import EDSL components at module level to avoid timing import overhead in benchmarks
+from edsl import Survey, QuestionMultipleChoice, Model
+from edsl.caching import Cache
+from edsl.language_models import LanguageModel
+
 # Constants
 LOG_DIR = Path(".") / "benchmark_logs"
 LOG_FILE = LOG_DIR / "timing_log.jsonl"
@@ -54,8 +59,6 @@ def benchmark_star_import():
 @timed
 def create_large_survey(num_questions=1000):
     """Create a survey with many questions and measure performance."""
-    from edsl import Survey, QuestionMultipleChoice
-    
     questions = []
     for i in range(num_questions):
         q = QuestionMultipleChoice(
@@ -82,18 +85,13 @@ def render_survey_prompts(survey):
 @timed
 def run_survey_with_test_model(survey, num_questions=10):
     """Run a survey with a test model and measure performance."""
-    from edsl import Survey
-    from edsl import Model
-    
     # Use a subset of questions if needed
     if len(survey.questions) > num_questions:
         small_survey = Survey(questions=survey.questions[:num_questions])
     else:
         small_survey = survey
 
-    from edsl.caching import Cache
-    c = Cache()    
-    from edsl.language_models import LanguageModel
+    c = Cache()
     m = LanguageModel.example(test_model=True, canned_response="Option 0")
 
     #m = Model('test', canned_response = "Option 0")
