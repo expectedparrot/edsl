@@ -563,7 +563,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             ipy = get_ipython()
             if ipy is not None and "IPKernelApp" in ipy.config:
                 # We're in a Jupyter notebook/kernel, not IPython terminal
-                return f"Results(...)"
+                return "Results(...)"
         except (NameError, ImportError):
             pass
 
