@@ -1,4 +1,5 @@
 """MacroRunOutput wraps Results and provides lazy-evaluated access to output formats."""
+
 from typing import TYPE_CHECKING, Any, Optional
 from ..base import Base
 
@@ -91,21 +92,21 @@ class MacroRunOutput(Base):
             )
 
         html = f"""
-        <div style="font-family: sans-serif; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
+        <div style="padding: 15px;">
             <h3 style="margin-top: 0;">MacroRunOutput</h3>
             <p><strong>{len(formatter_names)}</strong> available output format(s):</p>
             <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
                 <thead>
-                    <tr style="background-color: #e9e9e9;">
-                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Access</th>
-                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Description</th>
+                    <tr>
+                        <th style="padding: 8px; text-align: left;">Access</th>
+                        <th style="padding: 8px; text-align: left;">Description</th>
                     </tr>
                 </thead>
                 <tbody>
                     {"".join(rows)}
                 </tbody>
             </table>
-            <p style="margin-top: 15px; font-size: 0.9em; color: #666;">
+            <p style="margin-top: 15px; font-size: 0.9em;">
                 ⭐ = default format | Access any format via: <code>output.&lt;format_name&gt;</code>
             </p>
         </div>
@@ -210,6 +211,32 @@ class MacroRunOutput(Base):
             f"# This output contains {len(self._results)} result(s)\n"
             f"# Available formats: {list(self._formatters.mapping.keys())}"
         )
+
+    def __repr__(self) -> str:
+        """Return a string representation of the MacroRunOutput.
+
+        Uses traditional repr format when running doctests, otherwise uses
+        rich-based display for better readability. In Jupyter notebooks,
+        returns a minimal string since _repr_html_ handles the display.
+        """
+        import os
+
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+
+        # Check if we're in a Jupyter notebook environment
+        # If so, return minimal representation since _repr_html_ will handle display
+        try:
+            from IPython import get_ipython
+
+            ipy = get_ipython()
+            if ipy is not None and "IPKernelApp" in ipy.config:
+                # We're in a Jupyter notebook/kernel, not IPython terminal
+                return "MacroRunOutput(...)"
+        except (NameError, ImportError):
+            pass
+
+        return self._summary_repr()
 
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the MacroRunOutput object.
