@@ -52,6 +52,9 @@ from .create_agent_delta import (
     batch_create_agent_deltas,
     create_agent_list_deltas_from_comparisons,
 )
+from .iteration_evaluator import IterationEvaluator, EvaluationResult
+from .improvement_history_tracker import ImprovementHistoryTracker
+from .answers_compare import AnswersCompare
 
 __all__ = [
     "ComparisonFunction",
@@ -88,4 +91,8 @@ __all__ = [
     "analyze_and_update_agent",
     "batch_create_agent_deltas",
     "create_agent_list_deltas_from_comparisons",
+    "IterationEvaluator",
+    "EvaluationResult",
+    "ImprovementHistoryTracker",
+    "AnswersCompare",
 ]
