@@ -10,9 +10,9 @@ if TYPE_CHECKING:
     from edsl.scenarios import ScenarioList
     from .metrics import MetricsCollection
     from ..results import Results
+    from .result_pair_comparison import ResultPairComparison
 
 from ..base import Base
-
 
 class CompareResultsToGold(Base):
     """Compare candidate model results against gold standard model results.

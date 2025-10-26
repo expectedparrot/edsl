@@ -285,6 +285,46 @@ class Agent(Base):
         )
 
         self.trait_categories = trait_categories or {}
+    
+    @property
+    def base_name(self) -> str | None:
+        """Get the base name of the agent.
+        
+        Extracts the base name from various name formats:
+        - If name is a dict, returns the "name" key value
+        - If name is a string representation of a dict, parses it and returns the "name" key value
+        - Otherwise, returns the name as-is
+        
+        Examples:
+        >>> from edsl.agents import Agent
+        >>> a = Agent(name="Alice")
+        >>> a.base_name
+        'Alice'
+        
+        >>> a = Agent(name="{'name': 'Bob', 'title': 'Dr'}")
+        >>> a.base_name
+        'Bob'
+        
+        >>> a = Agent(name="{'title': 'Dr', 'id': '123'}")
+        >>> a.base_name
+        "{'title': 'Dr', 'id': '123'}"
+        
+        >>> a = Agent()
+        >>> a.base_name is None
+        True
+        """
+        import ast
+        if isinstance(self.name, dict):
+            return self.name.get("name", None)
+
+        try:
+            naming_dict = ast.literal_eval(self.name)
+            if "name" in naming_dict:
+                return naming_dict["name"]
+            else:
+                return self.name
+        except ValueError:
+            return self.name
 
     @property
     def traits_presentation_template(self):

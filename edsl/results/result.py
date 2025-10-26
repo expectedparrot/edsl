@@ -24,7 +24,7 @@ maintaining a rich object model.
 from __future__ import annotations
 import inspect
 from collections import UserDict
-from typing import Any, Callable, Optional, TYPE_CHECKING, Union
+from typing import Any, Callable, Optional, TYPE_CHECKING, Union, List
 
 from ..base import Base
 
@@ -136,6 +136,15 @@ class Result(Base, UserDict):
 
         self._rb = None
         self._transformer = None
+
+    def get_question_text(self, question_name: QuestionName) -> str:
+        return self.data["question_to_attributes"].get(question_name, {}).get("question_text", question_name)
+
+    def get_question_type(self, question_name: QuestionName) -> str:
+        return self.data["question_to_attributes"].get(question_name, {}).get("question_type", "text")
+
+    def get_question_options(self, question_name: QuestionName) -> List[str]:
+        return self.data["question_to_attributes"].get(question_name, {}).get("question_options", [])
 
     @property
     def transformer(self):
@@ -345,6 +354,14 @@ class Result(Base, UserDict):
         from .exceptions import ResultsError
 
         raise ResultsError("The code() method is not implemented for Result objects")
+
+    def get_answer(self, question_name: QuestionName) -> AnswerValue:
+        """Return the answer for a given question name."""
+        return self.data["answer"].get(question_name)
+
+    def get_question_names(self) -> List[QuestionName]:
+        """Return the names of all questions in the result."""
+        return list[str](self.data["answer"].keys())
 
     def get_value(self, data_type: str, key: str) -> Any:
         """Return the value for a given data type and key.
