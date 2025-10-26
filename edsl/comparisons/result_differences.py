@@ -6,7 +6,6 @@ from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .result_pair_comparison import ResultPairComparison
-    from .answer_comparison import AnswerComparison
 
 from ..prompts import Prompt
 

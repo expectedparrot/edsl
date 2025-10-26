@@ -1022,72 +1022,105 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         """
         return f"AgentList({self.data})"
 
-    def _summary_repr(self, max_preview_values: int = 3) -> str:
+    def _summary_repr(self, MAX_AGENTS: int = 10, MAX_TRAITS: int = 10) -> str:
         """Generate a summary representation of the AgentList with Rich formatting.
 
         Args:
-            max_preview_values: Maximum number of values to show per trait (default: 3)
+            MAX_AGENTS: Maximum number of agents to show (default: 10)
+            MAX_TRAITS: Maximum number of traits to show per agent (default: 10)
         """
         from rich.console import Console
         from rich.text import Text
         import io
+        import shutil
+        import textwrap
 
-        trait_names = self.trait_keys
-
-        # Check for codebook
-        codebook_dict = None
-        try:
-            codebook_dict = self.codebook
-            if codebook_dict is not None and len(codebook_dict) == 0:
-                codebook_dict = None
-        except (IndexError, AgentListError):
-            pass
+        # Get terminal width
+        terminal_width = shutil.get_terminal_size().columns
 
         # Build the Rich text
         output = Text()
         output.append("AgentList(\n", style="bold cyan")
         output.append(f"    num_agents={len(self)},\n", style="white")
-        output.append("    traits:\n", style="white")
+        output.append("    agents=[\n", style="white")
 
-        # Build unified trait lines with codebook and preview
-        for trait in trait_names[:20]:  # Show up to 20 traits
-            # Get example values
-            values = []
-            for agent in self.data[:max_preview_values]:
-                if trait in agent.traits:
-                    val = agent.traits[trait]
-                    values.append(repr(val))
+        # Show the first MAX_AGENTS agents
+        num_to_show = min(MAX_AGENTS, len(self))
+        for i, agent in enumerate(self.data[:num_to_show]):
+            # Get agent traits with limited fields
+            agent_traits = dict(list(agent.traits.items())[:MAX_TRAITS])
 
-            # Add ellipsis if there are more values
-            if len(self) > max_preview_values:
-                values.append("...")
+            # Check if we need to indicate truncation
+            num_traits = len(agent.traits)
+            was_truncated = num_traits > MAX_TRAITS
 
-            values_str = ", ".join(values)
+            # Build agent repr with indentation
+            output.append("        Agent(\n", style="bold cyan")
+            output.append(f"            num_traits={num_traits},\n", style="white")
+            
+            # Add name if present
+            if agent.name is not None:
+                output.append(f"            name={repr(agent.name)},\n", style="white")
+            
+            output.append("            traits={\n", style="white")
 
-            # Build the line with codebook description if available
-            if codebook_dict and trait in codebook_dict:
-                description = codebook_dict[trait]
-                output.append(f"        {trait}: ", style="bold yellow")
-                output.append(f"{repr(description)}\n", style="dim")
-                output.append("            → ", style="green")
-                output.append(f"[{values_str}]\n", style="white")
+            # Show traits
+            for key, value in agent_traits.items():
+                # Format the value with wrapping if needed
+                max_value_length = max(terminal_width - 30, 50)
+                value_repr = repr(value)
+                
+                output.append("                ", style="white")
+                output.append(f"'{key}'", style="bold yellow")
+                output.append(": ", style="white")
+                
+                # Wrap long text values
+                if len(value_repr) > max_value_length:
+                    # Use textwrap to break into multiple lines
+                    wrapped_lines = textwrap.wrap(
+                        value_repr,
+                        width=max_value_length,
+                        break_long_words=True,
+                        break_on_hyphens=False
+                    )
+                    for line_idx, line in enumerate(wrapped_lines):
+                        if line_idx == 0:
+                            output.append(f"{line}\n", style="white")
+                        else:
+                            # Continuation lines are indented to align with the value
+                            output.append(f"                    {line}\n", style="white")
+                    # Remove the last newline and add comma
+                    output._text[-1] = output._text[-1].rstrip('\n') + ',\n'
+                else:
+                    output.append(f"{value_repr},\n", style="white")
+
+            if was_truncated:
+                output.append(
+                    f"                ... ({num_traits - MAX_TRAITS} more traits)\n",
+                    style="dim",
+                )
+
+            output.append("            }\n", style="white")
+            output.append("        )", style="bold cyan")
+
+            # Add comma and newline unless it's the last one
+            if i < num_to_show - 1:
+                output.append(",\n", style="white")
             else:
-                output.append(f"        {trait}: ", style="bold yellow")
-                output.append(f"[{values_str}]\n", style="white")
+                output.append("\n", style="white")
 
-        # Add ellipsis if there are more traits
-        if len(trait_names) > 20:
+        # Add ellipsis if there are more agents
+        if len(self) > MAX_AGENTS:
             output.append(
-                f"        ... ({len(trait_names) - 20} more traits)\n", style="dim"
+                f"        ... ({len(self) - MAX_AGENTS} more agents)\n",
+                style="dim",
             )
 
-        if len(trait_names) == 0:
-            output.append("        (no traits)\n", style="dim")
-
+        output.append("    ]\n", style="white")
         output.append(")", style="bold cyan")
 
         # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console = Console(file=io.StringIO(), force_terminal=True, width=terminal_width)
         console.print(output, end="")
         return console.file.getvalue()
 

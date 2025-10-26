@@ -210,6 +210,36 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
         """
         return f'Prompt(text="""{str(self)}""")'
 
+    def _repr_rich_(self):
+        """Rich representation showing template with highlighted variables and control structures."""
+        try:
+            from rich.text import Text
+            from rich.panel import Panel
+            import re
+        except ImportError:
+            return repr(self)
+        
+        text = Text()
+        template_str = str(self)
+        
+        # Pattern to match {{ ... }} and {% ... %}
+        pattern = r'(\{\{[^}]*\}\}|\{%[^%]*%\})'
+        
+        parts = re.split(pattern, template_str)
+        
+        for part in parts:
+            if part.startswith('{{') and part.endswith('}}'):
+                # Variable placeholder - cyan/bright blue
+                text.append(part, style="bold cyan")
+            elif part.startswith('{%') and part.endswith('%}'):
+                # Control structure (set, for, if, etc.) - magenta
+                text.append(part, style="bold magenta")
+            else:
+                # Regular text
+                text.append(part, style="white")
+        
+        return Panel(text, title="[bold blue]Prompt[/bold blue]", border_style="blue")
+
     def template_variables(self) -> list[str]:
         """Return the variables in the template."""
         # Fast path: if no template syntax, return empty list
