@@ -50,166 +50,150 @@
   ],
   "navigation": [
     {
-      "group": "Get Started",
+      "group": "Introduction",
       "pages": [
         "en/latest/index",
-        "en/latest/installation",
+        "en/latest/overview",
+        "en/latest/whitepaper",
+        "en/latest/papers",
+        "en/latest/citation"
+      ]
+    },
+    {
+      "group": "Getting Started",
+      "pages": [
         "en/latest/getting_started",
-        "en/latest/starter_tutorial"
+        "en/latest/installation",
+        "en/latest/api_keys",
+        "en/latest/remote_inference",
+        "en/latest/remote_caching",
+        "en/latest/starter_tutorial",
+        "en/latest/teaching",
+        "en/latest/colab_setup"
       ]
     },
     {
       "group": "Core Concepts",
       "pages": [
-        "en/latest/overview",
         "en/latest/questions",
-        "en/latest/agents",
-        "en/latest/language_models",
+        "en/latest/scenarios",
         "en/latest/surveys",
-        "en/latest/results",
-        "en/latest/scenarios"
-      ]
-    },
-    {
-      "group": "Features",
-      "pages": [
+        "en/latest/agents",
         "en/latest/prompts",
-        "en/latest/coop",
-        "en/latest/remote_inference",
-        "en/latest/remote_caching",
-        "en/latest/notebooks",
-        "en/latest/data",
-        "en/latest/filestore",
-        "en/latest/logging"
+        "en/latest/language_models"
       ]
     },
     {
-      "group": "Integrations",
+      "group": "Getting Data",
       "pages": [
-        "en/latest/api_keys",
-        "en/latest/firecrawl",
-        "en/latest/prolific",
-        "en/latest/colab_notebooks",
-        "en/latest/colab_setup"
+        "en/latest/firecrawl"
       ]
     },
     {
-      "group": "Reference",
+      "group": "Working with Results",
       "pages": [
-        "en/latest/jobs",
-        "en/latest/interviews",
-        "en/latest/answers",
+        "en/latest/results",
         "en/latest/dataset",
-        "en/latest/enums",
-        "en/latest/base",
+        "en/latest/data",
         "en/latest/exceptions",
+        "en/latest/token_usage",
+        "en/latest/checklist"
+      ]
+    },
+    {
+      "group": "Validating with Humans",
+      "pages": [
         "en/latest/humanize",
-        "en/latest/polly",
+        "en/latest/prolific"
+      ]
+    },
+    {
+      "group": "No-code Apps",
+      "pages": [
         "en/latest/survey_builder"
       ]
     },
     {
-      "group": "Resources",
+      "group": "Coop",
       "pages": [
+        "en/latest/coop",
         "en/latest/costs",
-        "en/latest/token_usage",
-        "en/latest/checklist",
-        "en/latest/teaching",
-        "en/latest/papers",
-        "en/latest/whitepaper",
         "en/latest/credits",
-        "en/latest/citation",
-        "en/latest/contributing"
+        "en/latest/filestore",
+        "en/latest/notebooks",
+        "en/latest/colab_notebooks"
       ]
     },
     {
-      "group": "Getting Started Examples",
+      "group": "How-to Guides",
       "pages": [
         "en/latest/notebooks/starter_tutorial",
-        "en/latest/notebooks/data_labeling_example",
-        "en/latest/notebooks/nps_survey",
-        "en/latest/notebooks/yoga_studio_name_survey",
-        "en/latest/notebooks/conduct_interview"
-      ]
-    },
-    {
-      "group": "Data & Scenarios",
-      "pages": [
-        "en/latest/notebooks/adding_metadata",
+        "en/latest/notebooks/estimating_costs",
+        "en/latest/notebooks/piping_comments",
+        "en/latest/notebooks/looping_and_piping",
+        "en/latest/notebooks/question_loop_scenarios",
+        "en/latest/notebooks/answering_instructions_example",
+        "en/latest/notebooks/video_scenario_example",
+        "en/latest/notebooks/image_scenario_example",
+        "en/latest/notebooks/updating_agents",
+        "en/latest/notebooks/save_load_objects_locally",
         "en/latest/notebooks/scenario_from_pdf",
         "en/latest/notebooks/scenario_list_wikipedia",
         "en/latest/notebooks/scenariolist_unpivot",
+        "en/latest/notebooks/filestore_examples_new",
         "en/latest/notebooks/scenarios_filestore_example",
-        "en/latest/notebooks/image_scenario_example",
-        "en/latest/notebooks/video_scenario_example",
-        "en/latest/notebooks/filestore_examples_new"
-      ]
-    },
-    {
-      "group": "Survey & Question Examples",
-      "pages": [
-        "en/latest/notebooks/looping_and_piping",
+        "en/latest/notebooks/adding_metadata",
         "en/latest/notebooks/skip_logic_scenarios",
-        "en/latest/notebooks/question_loop_scenarios",
-        "en/latest/notebooks/explore_survey_contexts",
-        "en/latest/notebooks/answering_instructions_example",
-        "en/latest/notebooks/google_form_to_edsl",
-        "en/latest/notebooks/free_responses"
-      ]
-    },
-    {
-      "group": "Agent Examples",
-      "pages": [
-        "en/latest/notebooks/import_agents",
-        "en/latest/notebooks/updating_agents",
-        "en/latest/notebooks/agent_fatigue",
         "en/latest/notebooks/example_agent_dynamic_traits",
-        "en/latest/notebooks/digital_twin"
+        "en/latest/notebooks/import_agents",
+        "en/latest/notebooks/batching_results",
+        "en/latest/notebooks/concept_induction",
+        "en/latest/notebooks/run_background",
+        "en/latest/notebooks/edsl_with_cloud_providers"
       ]
     },
     {
-      "group": "Analysis & Research",
+      "group": "Notebook Examples",
       "pages": [
-        "en/latest/notebooks/analyze_evaluations",
-        "en/latest/notebooks/analyze_customer_call",
-        "en/latest/notebooks/data_cleaning",
-        "en/latest/notebooks/data_labeling_agent",
         "en/latest/notebooks/data_labeling_validation_example",
+        "en/latest/notebooks/data_labeling_agent",
+        "en/latest/notebooks/data_labeling_example",
+        "en/latest/notebooks/data_cleaning",
+        "en/latest/notebooks/yoga_studio_name_survey",
         "en/latest/notebooks/summarizing_transcripts",
+        "en/latest/notebooks/reasoning_model_example",
+        "en/latest/notebooks/analyze_customer_call",
+        "en/latest/notebooks/analyze_evaluations",
+        "en/latest/notebooks/models_scoring_models",
+        "en/latest/notebooks/conduct_interview",
+        "en/latest/notebooks/nps_survey",
         "en/latest/notebooks/qualitative_research",
         "en/latest/notebooks/research_methods",
-        "en/latest/notebooks/concept_induction",
-        "en/latest/notebooks/piping_comments"
-      ]
-    },
-    {
-      "group": "Model Testing & Evaluation",
-      "pages": [
-        "en/latest/notebooks/models_scoring_models",
-        "en/latest/notebooks/explore_llm_biases",
-        "en/latest/notebooks/reasoning_model_example",
-        "en/latest/notebooks/testing_training_data"
-      ]
-    },
-    {
-      "group": "Advanced Topics",
-      "pages": [
-        "en/latest/notebooks/batching_results",
-        "en/latest/notebooks/run_background",
-        "en/latest/notebooks/save_load_objects_locally",
-        "en/latest/notebooks/estimating_costs",
         "en/latest/notebooks/random_numbers",
-        "en/latest/notebooks/writing_style"
+        "en/latest/notebooks/testing_training_data",
+        "en/latest/notebooks/evaluating_job_posts",
+        "en/latest/notebooks/explore_llm_biases",
+        "en/latest/notebooks/agent_fatigue",
+        "en/latest/notebooks/explore_survey_contexts",
+        "en/latest/notebooks/free_responses",
+        "en/latest/notebooks/digital_twin",
+        "en/latest/notebooks/writing_style",
+        "en/latest/notebooks/google_form_to_edsl",
+        "en/latest/notebooks/edsl_polling",
+        "en/latest/notebooks/ces_data_edsl"
       ]
     },
     {
-      "group": "Use Cases",
+      "group": "Developers",
       "pages": [
-        "en/latest/notebooks/evaluating_job_posts",
-        "en/latest/notebooks/content_evaluation_example",
-        "en/latest/notebooks/ces_data_edsl",
-        "en/latest/notebooks/edsl_polling",
-        "en/latest/notebooks/edsl_with_cloud_providers"
+        "en/latest/contributing",
+        "en/latest/logging",
+        "en/latest/jobs",
+        "en/latest/interviews",
+        "en/latest/answers",
+        "en/latest/enums",
+        "en/latest/base",
+        "en/latest/polly"
       ]
     }
   ],
