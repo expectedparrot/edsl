@@ -209,5 +209,11 @@
     "thumbsRating": true,
     "suggestEdit": true,
     "raiseIssue": true
-  }
+  },
+  "redirects": [
+    {
+      "source": "/en/latest/:slug*.html",
+      "destination": "/en/latest/:slug*"
+    }
+  ]
 }
