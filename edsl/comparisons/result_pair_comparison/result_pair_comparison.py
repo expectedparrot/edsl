@@ -2,24 +2,34 @@ from __future__ import annotations
 
 """Comare the answers to the same survey, as captured by two Result objects."""
 
-from collections import UserDict
-from typing import Dict, Any, List, TYPE_CHECKING, Generator, Tuple
+from typing import Dict, Any, List, TYPE_CHECKING, Generator, Tuple, Iterator
 
 from ..metrics.metrics_collection import MetricsCollection
 
 if TYPE_CHECKING:
     from ...results.results import Results  # pragma: no cover – only for type hints
-    from ...scenarios import ScenarioList
     from ...results.results import Result
 
 
 # Type alias to make it clear that dict keys are question names
 QuestionName = str
 
-class ResultPairComparison(UserDict):
-    """Pair-wise comparison of two Result objects.    
-    """
 
+class ResultPairComparison:
+    """Pair-wise comparison of two Result objects.    
+    
+    Access comparison data via the `comparisons` attribute, which is a dictionary 
+    mapping question names to their comparison metrics.
+    
+    Examples:
+        >>> rc = ResultPairComparison.example()
+        >>> 'how_feeling' in rc.comparisons
+        True
+        >>> 'metrics' in rc.comparisons['how_feeling']
+        True
+        >>> 'question_info' in rc.comparisons['how_feeling']
+        True
+    """
     def __init__(
         self,
         result_A: Result,
@@ -31,9 +41,8 @@ class ResultPairComparison(UserDict):
         self.metrics_collection = (
             metrics_collection or MetricsCollection.with_defaults()
         )
-        # Compute comparison data immediately and initialize UserDict with it
-        comparison_data = dict[QuestionName, Dict[str, Any]](self._calculate_comparison())
-        UserDict.__init__(self, comparison_data)
+        # Compute comparison data immediately
+        self.comparisons = dict[QuestionName, Dict[str, Any]](self._calculate_comparison())
         
     @property
     def _common_questions(self) -> List[QuestionName]:
@@ -45,6 +54,28 @@ class ResultPairComparison(UserDict):
             ['how_feeling', 'how_feeling_yesterday']
         """
         return sorted(set[str](self.result_A.get_question_names()) & set[str](self.result_B.get_question_names()))
+    
+    @property
+    def scenario_A(self):
+        """Return the scenario data from result_A.
+        
+        Examples:
+            >>> rc = ResultPairComparison.example()
+            >>> rc.scenario_A is not None
+            True
+        """
+        return self.result_A.scenario
+    
+    @property
+    def scenario_B(self):
+        """Return the scenario data from result_B.
+        
+        Examples:
+            >>> rc = ResultPairComparison.example()
+            >>> rc.scenario_B is not None
+            True
+        """
+        return self.result_B.scenario
 
     def _calculate_comparison(self) -> Generator[Tuple[QuestionName, Dict[str, Any]], None, None]:
         """Calculate the comparison of the two results.
@@ -54,21 +85,118 @@ class ResultPairComparison(UserDict):
         for question_name in self._common_questions:
             answer_a = self.result_A.get_answer(question_name)
             answer_b = self.result_B.get_answer(question_name)
-            yield question_name, self.metrics_collection.compute_metrics(answer_a, answer_b)
+            yield question_name, {
+                'metrics': self.metrics_collection.compute_metrics(answer_a, answer_b), 
+                'question_info': self._get_question_info(question_name), 
+                'answer_a': answer_a,
+                'answer_b': answer_b,
+                }
     
     def _get_question_info(self, question_name: QuestionName) -> Dict[str, str]:
         """Return the information about a question.
         
         Examples:
             >>> rc = ResultPairComparison.example()
-            >>> rc._get_question_info('how_feeling')
-            {'question_text': 'How are you this {{ period }}?', 'question_type': 'multiple_choice', 'question_options': ['Good', 'Great', 'OK', 'Terrible']}
+            >>> info = rc._get_question_info('how_feeling')
+            >>> info['question_type']
+            'multiple_choice'
+            >>> 'How are you' in info['question_text']
+            True
         """
+        from ...prompts.prompt import Prompt
         return {
-            "question_text": self.result_A.get_question_text(question_name),
+            "question_text": (Prompt(self.result_A.get_question_text(question_name))
+            .render(primary_replacement = self.result_A.scenario).text
+            ),
             "question_type": self.result_A.get_question_type(question_name),
             "question_options": self.result_A.get_question_options(question_name),
         }
+
+    def __repr__(self) -> str:
+        """Generate a summary representation of the ResultPairComparison with Rich formatting.
+        
+        Displays all questions and their complete comparison data without truncation.
+        Order: question_info, answer_a, answer_b, metrics.
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+        import shutil
+        
+        # Get terminal width
+        terminal_width = shutil.get_terminal_size().columns
+        
+        # Build the Rich text
+        output = Text()
+        output.append("ResultPairComparison(\n", style="bold cyan")
+        output.append(f"    num_questions={len(self.comparisons)},\n")
+        output.append("    comparisons={\n")
+        
+        # Show all questions (no truncation)
+        for i, (question_name, comparison_data) in enumerate(self.comparisons.items()):
+            # Show question name
+            output.append("        ")
+            output.append(f"'{question_name}'", style="bold yellow")
+            output.append(": {\n")
+            
+            # Show question_info section first (no truncation)
+            if 'question_info' in comparison_data:
+                question_info = comparison_data['question_info']
+                output.append("            ")
+                output.append("'question_info'", style="bold magenta")
+                output.append(": {\n")
+                
+                for key, value in question_info.items():
+                    output.append("                ")
+                    output.append(f"'{key}'", style="bold green")
+                    output.append(f": {repr(value)},\n")
+                
+                output.append("            },\n")
+            
+            # Show answer_a (no truncation)
+            if 'answer_a' in comparison_data:
+                answer_a = comparison_data['answer_a']
+                output.append("            ")
+                output.append("'answer_a'", style="bold magenta")
+                output.append(f": {repr(answer_a)},\n")
+            
+            # Show answer_b (no truncation)
+            if 'answer_b' in comparison_data:
+                answer_b = comparison_data['answer_b']
+                output.append("            ")
+                output.append("'answer_b'", style="bold magenta")
+                output.append(f": {repr(answer_b)},\n")
+            
+            # Show metrics section last (no truncation)
+            if 'metrics' in comparison_data:
+                metrics_dict = comparison_data['metrics']
+                
+                output.append("            ")
+                output.append("'metrics'", style="bold magenta")
+                output.append(": {\n")
+                
+                for metric_name, metric_value in metrics_dict.items():
+                    output.append("                ")
+                    output.append(f"'{metric_name}'", style="bold green")
+                    output.append(f": {repr(metric_value)},\n")
+                
+                output.append("            }\n")
+            
+            output.append("        }")
+            
+            # Add comma and newline unless it's the last one
+            if i < len(self.comparisons) - 1:
+                output.append(",\n")
+            else:
+                output.append("\n")
+        
+        output.append("    }\n")
+        output.append(")", style="bold cyan")
+        
+        # Render to string
+        console = Console(file=io.StringIO(), force_terminal=True, width=terminal_width)
+        console.print(output, end="")
+        return console.file.getvalue()
 
     def to_dict(self, add_edsl_version: bool = True) -> Dict[str, Any]:
         """Serialize to dictionary.
@@ -90,7 +218,7 @@ class ResultPairComparison(UserDict):
         result = {
             "result_A": self.result_A.to_dict(),
             "result_B": self.result_B.to_dict(),
-            "data": dict(self.data),
+            "comparisons": self.comparisons,
             "edsl_class_name": self.__class__.__name__,
             "metrics_collection": self.metrics_collection.to_dict(add_edsl_version=add_edsl_version),
         }
@@ -108,11 +236,11 @@ class ResultPairComparison(UserDict):
             >>> rc = ResultPairComparison.example()
             >>> d = rc.to_dict(add_edsl_version=False)
             >>> rc2 = ResultPairComparison.from_dict(d)
-            >>> len(rc2) == len(rc)
+            >>> len(rc2.comparisons) == len(rc.comparisons)
             True
-            >>> list(rc2.keys()) == list(rc.keys())
+            >>> list(rc2.comparisons.keys()) == list(rc.comparisons.keys())
             True
-            >>> rc2['how_feeling']['exact_match'] == rc['how_feeling']['exact_match']
+            >>> rc2.comparisons['how_feeling']['metrics']['exact_match'] == rc.comparisons['how_feeling']['metrics']['exact_match']
             True
         """
         # Import Result to deserialize
@@ -134,7 +262,63 @@ class ResultPairComparison(UserDict):
             result_B = result_B,
             metrics_collection = metrics_collection,
         )
+        
+        # If we have pre-computed comparison data, use it (for backward compatibility with old serialization)
+        # Handles old formats: "data", "comparison_data", or new format: "comparisons"
+        if "comparisons" in data_copy:
+            instance.comparisons = data_copy["comparisons"]
+        elif "comparison_data" in data_copy:
+            instance.comparisons = data_copy["comparison_data"]
+        elif "data" in data_copy:
+            instance.comparisons = data_copy["data"]
+        
         return instance
+
+    def to_scenario_list(self) -> "ScenarioList":
+        """Convert comparison data to a ScenarioList with one scenario per question-metric pair.
+        
+        Creates a "long" format where each scenario contains:
+        - question_name: The name of the question being compared
+        - answer_a: The answer from result_A
+        - answer_b: The answer from result_B
+        - metric_name: The name of the metric
+        - metric_value: The value of the metric
+        
+        Returns:
+            ScenarioList with one scenario per question-metric combination
+            
+        Examples:
+            >>> rc = ResultPairComparison.example()
+            >>> sl = rc.to_scenario_list()
+            >>> len(sl) > 0
+            True
+            >>> 'question_name' in sl[0]
+            True
+            >>> 'metric_name' in sl[0]
+            True
+            >>> 'metric_value' in sl[0]
+            True
+        """
+        from ...scenarios.scenario import Scenario
+        from ...scenarios.scenario_list import ScenarioList
+        
+        scenarios = []
+        for question_name, comparison_data in self.comparisons.items():
+            answer_a = comparison_data['answer_a']
+            answer_b = comparison_data['answer_b']
+            metrics = comparison_data['metrics']
+            
+            for metric_name, metric_value in metrics.items():
+                scenario_dict = {
+                    'question_name': question_name,
+                    'answer_a': answer_a,
+                    'answer_b': answer_b,
+                    'metric_name': metric_name,
+                    'metric_value': metric_value,
+                }
+                scenarios.append(Scenario(scenario_dict))
+        
+        return ScenarioList(scenarios)
 
     @classmethod
     def example(
@@ -166,5 +350,5 @@ class ResultPairComparison(UserDict):
 
 if __name__ == "__main__":  # pragma: no cover
     import doctest
-    doctest.testmod()
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
     rc = ResultPairComparison.example()
