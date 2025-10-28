@@ -2291,6 +2291,51 @@ class Survey(Base):
             codebook[question.question_name] = question.question_text
         return codebook
 
+    def rename(self, rename_dict: Dict[str, str]) -> "Survey":
+        """Return a new Survey with the specified questions renamed.
+        
+        Args:
+            rename_dict: A dictionary mapping old question names to new question names.
+            
+        Returns:
+            A new Survey instance with the renamed questions.
+            
+        Raises:
+            ValueError: If any key in rename_dict does not correspond to an existing question name.
+            
+        Examples:
+            >>> s = Survey.example()
+            >>> s.question_names
+            ['q0', 'q1', 'q2']
+            >>> s_renamed = s.rename({'q0': 'likes_school', 'q1': 'reason_no'})
+            >>> s_renamed.question_names
+            ['likes_school', 'reason_no', 'q2']
+            
+            Attempting to rename a non-existent question raises an error:
+            
+            >>> s.rename({'q0': 'new_name', 'nonexistent': 'another_name'})
+            Traceback (most recent call last):
+            ...
+            ValueError: The following question names in rename_dict do not exist in the survey: {'nonexistent'}
+        """
+        # Validate that all keys in rename_dict exist in the survey
+        existing_question_names = set(self.question_names)
+        rename_keys = set(rename_dict.keys())
+        invalid_keys = rename_keys - existing_question_names
+        
+        if invalid_keys:
+            raise ValueError(
+                f"The following question names in rename_dict do not exist in the survey: {invalid_keys}"
+            )
+        
+        new_questions = []
+        for question in self.questions:
+            new_question = question.duplicate()
+            if question.question_name in rename_dict:
+                new_question.question_name = rename_dict[question.question_name]
+            new_questions.append(new_question)
+        return Survey(questions=new_questions)
+
     def with_edited_question(
         self,
         question_name: str,
