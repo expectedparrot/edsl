@@ -496,6 +496,63 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
                     if verbose:
                         print(f"Text matching solution invalid: {e}")
 
+        # Try partial matching on answer field if it's a string or list of strings
+        # Only apply partial matching when use_code=False (when answers should be option text values)
+        if "answer" in response and not self.use_code:
+            answer_value = response["answer"]
+            # Handle both single string and list of strings
+            answer_list = answer_value if isinstance(answer_value, list) else [answer_value]
+            
+            if all(isinstance(item, str) for item in answer_list):
+                if verbose:
+                    print(f"Attempting partial match for answer: {answer_list}")
+                
+                partial_matches = []
+                for answer_item in answer_list:
+                    # Try exact match first
+                    if answer_item in self.question_options:
+                        partial_matches.append(answer_item)
+                        continue
+                    
+                    # Try partial matching - check if answer_item is a prefix/substring of any option
+                    answer_item_lower = answer_item.lower().strip()
+                    best_match = None
+                    for option in self.question_options:
+                        option_lower = option.lower().strip()
+                        # Check if the answer is a prefix or the option starts with the answer
+                        if option_lower.startswith(answer_item_lower):
+                            best_match = option
+                            break
+                        # Also check if answer appears at the start (before a colon/dash)
+                        if ":" in option_lower or "-" in option_lower:
+                            prefix = option_lower.split(":")[0].strip() if ":" in option_lower else option_lower.split("-")[0].strip()
+                            if prefix == answer_item_lower or answer_item_lower.startswith(prefix):
+                                best_match = option
+                                break
+                    
+                    if best_match:
+                        partial_matches.append(best_match)
+                        if verbose:
+                            print(f"Matched '{answer_item}' to '{best_match}'")
+                
+                if partial_matches and len(partial_matches) == len(answer_list):
+                    if verbose:
+                        print(f"Successfully matched all answers: {partial_matches}")
+                    
+                    proposed_data = {
+                        "answer": partial_matches,
+                        "comment": response.get("comment"),
+                        "generated_tokens": response.get("generated_tokens"),
+                    }
+                    
+                    # Try validating with the proposed solution
+                    try:
+                        validated = self._base_validate(proposed_data)
+                        return validated.model_dump()
+                    except Exception as e:
+                        if verbose:
+                            print(f"Partial matching solution invalid: {e}")
+
         # If nothing worked, return the original response
         return response
 
