@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Factory that bundles together multiple comparison metrics."""
 
-from typing import Sequence, Dict, List, Any
+from typing import Sequence, Dict, Any
 from .metrics_abc import ComparisonFunction
 from .metric_definitions import (
     ExactMatch,
