@@ -814,7 +814,7 @@ class QuestionBase(
         question_type = self.to_dict().get("question_type", "None")
         return f"Question('{question_type}', {', '.join(items)})"
 
-    def _summary_repr(self, max_text_length: int = 60, max_options: int = 5) -> str:
+    def _summary_repr(self, max_text_length: int = 10_000, max_options: int = 50) -> str:
         """Generate a summary representation of the Question with Rich formatting.
 
         Args:
@@ -837,12 +837,42 @@ class QuestionBase(
         output.append(f'"{self.question_name}"', style="green")
         output.append(",\n", style="white")
 
-        # Question text (with truncation)
+        # Question text with Jinja2 and angle bracket highlighting (no truncation)
+        import re
         question_text = self.question_text
-        if len(question_text) > max_text_length:
-            question_text = question_text[: max_text_length - 3] + "..."
+        
         output.append("    question_text=", style="white")
-        output.append(f'"{question_text}"', style="cyan")
+        
+        # Build a separate Text object for the question text to preserve styling
+        question_text_styled = Text()
+        question_text_styled.append('"', style="cyan")
+        
+        # Parse and highlight both Jinja2 variables and angle brackets
+        # Pattern captures {{ }}, < >, or regular text
+        combined_pattern = r'(\{\{.*?\}\}|<[^>]+>)'
+        parts = re.split(combined_pattern, question_text)
+        
+        for part in parts:
+            if not part:  # Skip empty strings from split
+                continue
+            elif part.startswith('{{') and part.endswith('}}'):
+                # Replace spaces with non-breaking spaces to prevent wrapping inside variables
+                part_no_break = part.replace(' ', '\u00A0')
+                # Highlight Jinja2 variables in bold magenta
+                question_text_styled.append(part_no_break, style="bold magenta")
+            elif part.startswith('<') and part.endswith('>'):
+                # Replace spaces with non-breaking spaces in angle brackets too
+                part_no_break = part.replace(' ', '\u00A0')
+                # Highlight angle bracket tags in yellow
+                question_text_styled.append(part_no_break, style="yellow")
+            else:
+                # Regular text in cyan
+                question_text_styled.append(part, style="cyan")
+        
+        question_text_styled.append('"', style="cyan")
+        
+        # Append the styled question text as a complete unit
+        output.append(question_text_styled)
 
         # Question options (if present)
         if hasattr(self, "question_options"):
