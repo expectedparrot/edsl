@@ -171,11 +171,13 @@ class Agent(Base):
         dynamic_traits_function_name: Optional[str] = None,
         answer_question_directly_source_code: Optional[str] = None,
         answer_question_directly_function_name: Optional[str] = None,
+        **kwargs: Any,
     ):
         """Initialize a new Agent instance with specified traits and capabilities.
 
         Args:
-            traits: Dictionary of agent characteristics (e.g., {"age": 30, "occupation": "doctor"})
+            traits: Dictionary of agent characteristics (e.g., {"age": 30, "occupation": "doctor"}).
+                If None and additional keyword arguments are provided, those kwargs will be used as traits.
             name: Optional name identifier for the agent
             codebook: Dictionary mapping trait keys to human-readable descriptions for prompts.
                 This provides more descriptive labels for traits when rendering prompts.
@@ -187,6 +189,7 @@ class Agent(Base):
             dynamic_traits_function_name: Name of the dynamic traits function
             answer_question_directly_source_code: Source code for direct question answering method
             answer_question_directly_function_name: Name of the direct answering function
+            **kwargs: Additional keyword arguments. If traits is None, these will be used as traits.
 
         The Agent class brings together several key concepts:
 
@@ -197,6 +200,11 @@ class Agent(Base):
 
         Example:
         >>> a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
+        >>> a.traits
+        {'age': 10, 'hair': 'brown', 'height': 5.5}
+
+        You can also pass traits directly as keyword arguments:
+        >>> a = Agent(age=10, hair="brown", height=5.5)
         >>> a.traits
         {'age': 10, 'hair': 'brown', 'height': 5.5}
 
@@ -234,6 +242,10 @@ class Agent(Base):
         For details on how these components are used to construct prompts, see
         :py:class:`edsl.agents.Invigilator.InvigilatorBase`.
         """
+        # If traits is None and kwargs are provided, use kwargs as traits
+        if traits is None and kwargs:
+            traits = kwargs
+        
         # Initialize basic attributes directly
         self.name = name
 
