@@ -878,7 +878,7 @@ class RepresentationMixin:
         console = Console(record=True)
         console.print(table)
 
-    def _repr_html_(self):
+    def _repr_html_(self, include_class_info: bool = True):
         """Generate an HTML representation for Jupyter notebooks.
 
         This method is automatically called by Jupyter to render the object
@@ -896,13 +896,16 @@ class RepresentationMixin:
             docs = getattr(self, "__documentation__", "")
             table = self.table()
             table_html = table._repr_html_() if table is not None else ""
-            return (
-                "<p>"
-                + f"<a href='{docs}'>{class_name}</a>"
-                + summary_line
-                + "</p>"
-                + table_html
-            )
+            if include_class_info:
+                return (
+                    "<p>"
+                    + f"<a href='{docs}'>{class_name}</a>"
+                    + summary_line
+                    + "</p>"
+                    + table_html
+                )
+            else:
+                return (table_html)
         else:
             class_name = self.__class__.__name__
             documentation = getattr(self, "__documentation__", "")
