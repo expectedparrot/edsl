@@ -215,6 +215,7 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
         try:
             from rich.text import Text
             from rich.panel import Panel
+            from rich.console import Console
             import re
         except ImportError:
             return repr(self)
@@ -222,8 +223,8 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
         text = Text()
         template_str = str(self)
         
-        # Pattern to match {{ ... }} and {% ... %}
-        pattern = r'(\{\{[^}]*\}\}|\{%[^%]*%\})'
+        # Pattern to match {{ ... }}, {% ... %}, and <...>
+        pattern = r'(\{\{[^}]*\}\}|\{%[^%]*%\}|<[^>]*>)'
         
         parts = re.split(pattern, template_str)
         
@@ -234,11 +235,20 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
             elif part.startswith('{%') and part.endswith('%}'):
                 # Control structure (set, for, if, etc.) - magenta
                 text.append(part, style="bold magenta")
+            elif part.startswith('<') and part.endswith('>'):
+                # Angle bracket content - yellow
+                text.append(part, style="bold yellow")
             else:
                 # Regular text
                 text.append(part, style="white")
         
-        return Panel(text, title="[bold blue]Prompt[/bold blue]", border_style="blue")
+        panel = Panel(text, title="[bold blue]Prompt[/bold blue]", border_style="blue")
+        
+        # Print to console/terminal
+        console = Console()
+        console.print(panel)
+        
+        return panel
 
     def template_variables(self) -> list[str]:
         """Return the variables in the template."""
