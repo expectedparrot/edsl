@@ -12,14 +12,21 @@ visualization using termplotlib.
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional, TYPE_CHECKING, Dict
+from typing import Any, List, TYPE_CHECKING, Dict
 from collections import Counter
 
 if TYPE_CHECKING:
     from ..questions.question_base import QuestionBase
     from .results import Results
 
-import termplotlib as tpl
+# Optional import for terminal visualizations
+try:
+    import termplotlib as tpl
+    HAS_TERMPLOTLIB = True
+except ImportError:
+    HAS_TERMPLOTLIB = False
+    tpl = None
+
 import numpy as np
 
 
@@ -211,9 +218,9 @@ class MultipleChoiceAnswers(ByQuestionAnswers):
 
         lines = [
             f"Question: {self.question.question_text}",
-            f"Type: Multiple Choice",
+            "Type: Multiple Choice",
             f"Total responses: {total}",
-            f"",
+            "",
             "Distribution:",
         ]
 
@@ -230,6 +237,12 @@ class MultipleChoiceAnswers(ByQuestionAnswers):
         Returns:
             String containing termplotlib bar chart
         """
+        if not HAS_TERMPLOTLIB:
+            return (
+                "Terminal visualization unavailable.\n"
+                "Install termplotlib for charts: pip install termplotlib"
+            )
+
         valid_answers = self._get_valid_answers()
 
         if not valid_answers:
@@ -294,11 +307,11 @@ class CheckboxAnswers(ByQuestionAnswers):
 
         lines = [
             f"Question: {self.question.question_text}",
-            f"Type: Checkbox (multiple selections)",
+            "Type: Checkbox (multiple selections)",
             f"Total respondents: {total}",
             f"Total selections: {len(all_selections)}",
             f"Avg selections per respondent: {len(all_selections)/total:.1f}",
-            f"",
+            "",
             "Selection frequency:",
         ]
 
@@ -314,6 +327,12 @@ class CheckboxAnswers(ByQuestionAnswers):
         Returns:
             String containing termplotlib bar chart
         """
+        if not HAS_TERMPLOTLIB:
+            return (
+                "Terminal visualization unavailable.\n"
+                "Install termplotlib for charts: pip install termplotlib"
+            )
+
         valid_answers = self._get_valid_answers()
 
         if not valid_answers:
@@ -370,9 +389,9 @@ class NumericalAnswers(ByQuestionAnswers):
 
         lines = [
             f"Question: {self.question.question_text}",
-            f"Type: Numerical",
+            "Type: Numerical",
             f"Total responses: {len(values)}",
-            f"",
+            "",
             "Statistics:",
             f"  Mean: {np.mean(values):.2f}",
             f"  Median: {np.median(values):.2f}",
@@ -389,6 +408,12 @@ class NumericalAnswers(ByQuestionAnswers):
         Returns:
             String containing termplotlib histogram
         """
+        if not HAS_TERMPLOTLIB:
+            return (
+                "Terminal visualization unavailable.\n"
+                "Install termplotlib for charts: pip install termplotlib"
+            )
+
         valid_answers = self._get_valid_answers()
 
         if not valid_answers:
@@ -434,14 +459,14 @@ class LinearScaleAnswers(ByQuestionAnswers):
 
         lines = [
             f"Question: {self.question.question_text}",
-            f"Type: Linear Scale",
+            "Type: Linear Scale",
             f"Total responses: {len(values)}",
-            f"",
+            "",
             "Statistics:",
             f"  Mean: {np.mean(values):.2f}",
             f"  Median: {np.median(values):.2f}",
             f"  Mode: {counts.most_common(1)[0][0]}",
-            f"",
+            "",
             "Distribution:",
         ]
 
@@ -459,6 +484,12 @@ class LinearScaleAnswers(ByQuestionAnswers):
         Returns:
             String containing termplotlib bar chart
         """
+        if not HAS_TERMPLOTLIB:
+            return (
+                "Terminal visualization unavailable.\n"
+                "Install termplotlib for charts: pip install termplotlib"
+            )
+
         valid_answers = self._get_valid_answers()
 
         if not valid_answers:
@@ -513,9 +544,9 @@ class FreeTextAnswers(ByQuestionAnswers):
 
         lines = [
             f"Question: {self.question.question_text}",
-            f"Type: Free Text",
+            "Type: Free Text",
             f"Total responses: {len(valid_answers)}",
-            f"",
+            "",
             "Text Statistics:",
             f"  Avg characters: {np.mean(lengths):.1f}",
             f"  Avg words: {np.mean(word_counts):.1f}",
@@ -531,6 +562,12 @@ class FreeTextAnswers(ByQuestionAnswers):
         Returns:
             String containing termplotlib histogram
         """
+        if not HAS_TERMPLOTLIB:
+            return (
+                "Terminal visualization unavailable.\n"
+                "Install termplotlib for charts: pip install termplotlib"
+            )
+
         valid_answers = self._get_valid_answers()
 
         if not valid_answers:
@@ -603,9 +640,9 @@ class RankAnswers(ByQuestionAnswers):
 
         lines = [
             f"Question: {self.question.question_text}",
-            f"Type: Rank",
+            "Type: Rank",
             f"Total responses: {len(valid_answers)}",
-            f"",
+            "",
             "Average Rankings (lower is better):",
         ]
 
@@ -625,6 +662,12 @@ class RankAnswers(ByQuestionAnswers):
         Returns:
             String containing termplotlib bar chart
         """
+        if not HAS_TERMPLOTLIB:
+            return (
+                "Terminal visualization unavailable.\n"
+                "Install termplotlib for charts: pip install termplotlib"
+            )
+
         valid_answers = self._get_valid_answers()
 
         if not valid_answers:
@@ -688,7 +731,7 @@ class DefaultAnswers(ByQuestionAnswers):
             f"Type: {self.question.question_type}",
             f"Total responses: {len(valid_answers)}",
             f"Unique values: {len(counts)}",
-            f"",
+            "",
             "Top 10 values:",
         ]
 
@@ -708,6 +751,12 @@ class DefaultAnswers(ByQuestionAnswers):
         Returns:
             String containing termplotlib bar chart of top values
         """
+        if not HAS_TERMPLOTLIB:
+            return (
+                "Terminal visualization unavailable.\n"
+                "Install termplotlib for charts: pip install termplotlib"
+            )
+
         valid_answers = self._get_valid_answers()
 
         if not valid_answers:

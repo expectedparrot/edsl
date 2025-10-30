@@ -1,6 +1,6 @@
 """Vibes module for dataset operations."""
 
-from .vibe_filter import *
-from .vibe_viz import *
+from . import vibe_filter
+from . import vibe_viz
 
 __all__ = ["vibe_filter", "vibe_viz"]

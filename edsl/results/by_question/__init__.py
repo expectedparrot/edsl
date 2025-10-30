@@ -5,7 +5,7 @@ answered individual questions across a survey. It includes:
 
 - ByQuestionAnswers: Abstract base class for question-specific analysis
 - Question type-specific analyzers (MultipleChoiceAnswers, NumericalAnswers, etc.)
-- Terminal-based visualizations using termplotlib
+- Terminal-based visualizations using termplotlib (optional dependency)
 """
 
 from .by_question_answers import (

@@ -22,7 +22,7 @@ def is_jupyter():
         from IPython import get_ipython
 
         return get_ipython() is not None
-    except:
+    except Exception:
         return False
 
 

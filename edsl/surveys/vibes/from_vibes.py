@@ -1,6 +1,6 @@
 """Module for generating surveys from natural language descriptions."""
 
-from typing import TYPE_CHECKING, Optional, List, Dict, Any
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from ..survey import Survey

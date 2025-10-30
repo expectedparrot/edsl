@@ -6,7 +6,7 @@ from .remove_edsl_version import remove_edsl_version
 from .ast_utilities import extract_variable_names
 from .local_results_cache import object_disk_cache
 from .edsl_load import load as edsl_load
-from .show_diff import show_diff
+# from .show_diff import show_diff  # Not used in this module
 
 # Functions from utilities.py
 from .utilities import (

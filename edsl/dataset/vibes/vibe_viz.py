@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Any, Literal
+from typing import Optional, List, Dict, Any
 import pandas as pd
 import numpy as np
 from pydantic import BaseModel, Field

@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
 from openai import OpenAI
 import os
 import json
