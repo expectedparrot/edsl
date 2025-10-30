@@ -577,7 +577,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
-    def _summary_repr(self, max_text_preview: int = 60, max_items: int = 5) -> str:
+    def _summary_repr(self, max_text_preview: int = 60, max_items: int = 25) -> str:
         """Generate a summary representation of the Results with Rich formatting.
 
         Args:
@@ -587,56 +587,57 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
         # Build the Rich text
         output = Text()
-        output.append("Results(\n", style="bold cyan")
-        output.append(f"    num_observations={len(self)},\n", style="white")
-        output.append(f"    num_agents={len(set(self.agents))},\n", style="white")
-        output.append(f"    num_models={len(set(self.models))},\n", style="white")
-        output.append(f"    num_scenarios={len(set(self.scenarios))},\n", style="white")
+        output.append("Results(\n", style=RICH_STYLES["primary"])
+        output.append(f"    num_observations={len(self)},\n", style=RICH_STYLES["default"])
+        output.append(f"    num_agents={len(set(self.agents))},\n", style=RICH_STYLES["default"])
+        output.append(f"    num_models={len(set(self.models))},\n", style=RICH_STYLES["default"])
+        output.append(f"    num_scenarios={len(set(self.scenarios))},\n", style=RICH_STYLES["default"])
 
         # Show agent traits
         if len(self.agents) > 0:
             agent_keys = self.agent_keys
             if agent_keys:
-                output.append("    agent_traits: [", style="white")
+                output.append("    agent_traits: [", style=RICH_STYLES["default"])
                 # Filter out internal fields
                 trait_keys = [k for k in agent_keys if not k.startswith("agent_")]
                 if trait_keys:
                     output.append(
                         f"{', '.join(repr(k) for k in trait_keys[:max_items])}",
-                        style="yellow",
+                        style=RICH_STYLES["secondary"],
                     )
                     if len(trait_keys) > max_items:
                         output.append(
-                            f", ... ({len(trait_keys) - max_items} more)", style="dim"
+                            f", ... ({len(trait_keys) - max_items} more)", style=RICH_STYLES["dim"]
                         )
-                output.append("],\n", style="white")
+                output.append("],\n", style=RICH_STYLES["default"])
 
         # Show scenario fields
         if len(self.scenarios) > 0:
             scenario_keys = self.scenario_keys
             if scenario_keys:
-                output.append("    scenario_fields: [", style="white")
+                output.append("    scenario_fields: [", style=RICH_STYLES["default"])
                 # Filter out internal fields
                 field_keys = [k for k in scenario_keys if not k.startswith("scenario_")]
                 if field_keys:
                     output.append(
                         f"{', '.join(repr(k) for k in field_keys[:max_items])}",
-                        style="magenta",
+                        style=RICH_STYLES["secondary"],
                     )
                     if len(field_keys) > max_items:
                         output.append(
-                            f", ... ({len(field_keys) - max_items} more)", style="dim"
+                            f", ... ({len(field_keys) - max_items} more)", style=RICH_STYLES["dim"]
                         )
-                output.append("],\n", style="white")
+                output.append("],\n", style=RICH_STYLES["default"])
 
         # Show question information with text previews
         if self.survey and hasattr(self.survey, "questions"):
             questions = self.survey.questions
-            output.append(f"    num_questions={len(questions)},\n", style="white")
-            output.append("    questions: [\n", style="white")
+            output.append(f"    num_questions={len(questions)},\n", style=RICH_STYLES["default"])
+            output.append("    questions: [\n", style=RICH_STYLES["default"])
 
             # Show up to max_items questions with text previews
             for question in questions[:max_items]:
@@ -647,26 +648,26 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 if len(q_text) > max_text_preview:
                     q_text = q_text[:max_text_preview] + "..."
 
-                output.append("        ", style="white")
-                output.append(f"'{q_name}'", style="bold yellow")
-                output.append(": ", style="white")
-                output.append(f'"{q_text}"', style="dim")
-                output.append(",\n", style="white")
+                output.append("        ", style=RICH_STYLES["default"])
+                output.append(f"'{q_name}'", style=RICH_STYLES["secondary"])
+                output.append(": ", style=RICH_STYLES["default"])
+                output.append(f'"{q_text}"', style=RICH_STYLES["dim"])
+                output.append(",\n", style=RICH_STYLES["default"])
 
             if len(questions) > max_items:
                 output.append(
-                    f"        ... ({len(questions) - max_items} more)\n", style="dim"
+                    f"        ... ({len(questions) - max_items} more)\n", style=RICH_STYLES["dim"]
                 )
 
-            output.append("    ],\n", style="white")
+            output.append("    ],\n", style=RICH_STYLES["default"])
 
         # Show created columns if any
         if self.created_columns:
             output.append(
-                f"    created_columns={self.created_columns}\n", style="green"
+                f"    created_columns={self.created_columns}\n", style=RICH_STYLES["key"]
             )
 
-        output.append(")", style="bold cyan")
+        output.append(")", style=RICH_STYLES["primary"])
 
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
