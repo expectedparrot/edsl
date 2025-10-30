@@ -824,135 +824,136 @@ class QuestionBase(
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
         # Build the Rich text
         output = Text()
         question_type = self.to_dict().get("question_type", "unknown")
-        output.append("Question(", style="bold cyan")
-        output.append(f"'{question_type}'", style="bold yellow")
-        output.append(",\n", style="bold cyan")
+        output.append("Question(", style=RICH_STYLES["primary"])
+        output.append(f"'{question_type}'", style=RICH_STYLES["secondary"])
+        output.append(",\n", style=RICH_STYLES["primary"])
 
         # Question name
-        output.append("    question_name=", style="white")
-        output.append(f'"{self.question_name}"', style="green")
-        output.append(",\n", style="white")
+        output.append("    question_name=", style=RICH_STYLES["default"])
+        output.append(f'"{self.question_name}"', style=RICH_STYLES["key"])
+        output.append(",\n", style=RICH_STYLES["default"])
 
         # Question text with Jinja2 and angle bracket highlighting (no truncation)
         import re
         question_text = self.question_text
-        
-        output.append("    question_text=", style="white")
+
+        output.append("    question_text=", style=RICH_STYLES["default"])
         
         # Build a separate Text object for the question text to preserve styling
         question_text_styled = Text()
-        question_text_styled.append('"', style="cyan")
-        
+        question_text_styled.append('"', style=RICH_STYLES["default"])
+
         # Parse and highlight both Jinja2 variables and angle brackets
         # Pattern captures {{ }}, < >, or regular text
         combined_pattern = r'(\{\{.*?\}\}|<[^>]+>)'
         parts = re.split(combined_pattern, question_text)
-        
+
         for part in parts:
             if not part:  # Skip empty strings from split
                 continue
             elif part.startswith('{{') and part.endswith('}}'):
                 # Replace spaces with non-breaking spaces to prevent wrapping inside variables
                 part_no_break = part.replace(' ', '\u00A0')
-                # Highlight Jinja2 variables in bold magenta
-                question_text_styled.append(part_no_break, style="bold magenta")
+                # Highlight Jinja2 variables with highlight style
+                question_text_styled.append(part_no_break, style=RICH_STYLES["highlight"])
             elif part.startswith('<') and part.endswith('>'):
                 # Replace spaces with non-breaking spaces in angle brackets too
                 part_no_break = part.replace(' ', '\u00A0')
-                # Highlight angle bracket tags in yellow
-                question_text_styled.append(part_no_break, style="yellow")
+                # Highlight angle bracket tags in secondary style
+                question_text_styled.append(part_no_break, style=RICH_STYLES["secondary"])
             else:
-                # Regular text in cyan
-                question_text_styled.append(part, style="cyan")
-        
-        question_text_styled.append('"', style="cyan")
+                # Regular text in default style
+                question_text_styled.append(part, style=RICH_STYLES["default"])
+
+        question_text_styled.append('"', style=RICH_STYLES["default"])
         
         # Append the styled question text as a complete unit
         output.append(question_text_styled)
 
         # Question options (if present)
         if hasattr(self, "question_options"):
-            output.append(",\n", style="white")
+            output.append(",\n", style=RICH_STYLES["default"])
             num_options = len(self.question_options)
-            output.append(f"    num_options={num_options}", style="white")
+            output.append(f"    num_options={num_options}", style=RICH_STYLES["default"])
 
             if num_options > 0:
-                output.append(",\n", style="white")
-                output.append("    options=[\n", style="white")
+                output.append(",\n", style=RICH_STYLES["default"])
+                output.append("    options=[\n", style=RICH_STYLES["default"])
 
                 for i, option in enumerate(list(self.question_options)[:max_options]):
                     option_str = str(option)
                     if len(option_str) > 40:
                         option_str = option_str[:37] + "..."
-                    output.append("        ", style="white")
-                    output.append(f'"{option_str}"', style="yellow")
-                    output.append(",\n", style="white")
+                    output.append("        ", style=RICH_STYLES["default"])
+                    output.append(f'"{option_str}"', style=RICH_STYLES["secondary"])
+                    output.append(",\n", style=RICH_STYLES["default"])
 
                 if num_options > max_options:
                     output.append(
-                        f"        ... ({num_options - max_options} more)\n", style="dim"
+                        f"        ... ({num_options - max_options} more)\n", style=RICH_STYLES["dim"]
                     )
 
-                output.append("    ]", style="white")
+                output.append("    ]", style=RICH_STYLES["default"])
 
         # Numerical constraints (for QuestionNumerical)
         if hasattr(self, "min_value") and self.min_value is not None:
-            output.append(",\n", style="white")
-            output.append(f"    min_value={self.min_value}", style="white")
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append(f"    min_value={self.min_value}", style=RICH_STYLES["default"])
 
         if hasattr(self, "max_value") and self.max_value is not None:
-            output.append(",\n", style="white")
-            output.append(f"    max_value={self.max_value}", style="white")
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append(f"    max_value={self.max_value}", style=RICH_STYLES["default"])
 
         # Selection constraints (for QuestionCheckBox, QuestionRank)
         if hasattr(self, "min_selections") and self.min_selections is not None:
-            output.append(",\n", style="white")
-            output.append(f"    min_selections={self.min_selections}", style="white")
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append(f"    min_selections={self.min_selections}", style=RICH_STYLES["default"])
 
         if hasattr(self, "max_selections") and self.max_selections is not None:
-            output.append(",\n", style="white")
-            output.append(f"    max_selections={self.max_selections}", style="white")
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append(f"    max_selections={self.max_selections}", style=RICH_STYLES["default"])
 
         if hasattr(self, "num_selections") and self.num_selections is not None:
-            output.append(",\n", style="white")
-            output.append(f"    num_selections={self.num_selections}", style="white")
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append(f"    num_selections={self.num_selections}", style=RICH_STYLES["default"])
 
         # Option labels (for QuestionLinearScale)
         if hasattr(self, "option_labels") and self.option_labels:
-            output.append(",\n", style="white")
-            output.append("    option_labels={", style="white")
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append("    option_labels={", style=RICH_STYLES["default"])
             labels_str = ", ".join(f"{k}: '{v}'" for k, v in self.option_labels.items())
             if len(labels_str) > 50:
                 labels_str = labels_str[:47] + "..."
-            output.append(labels_str, style="magenta")
-            output.append("}", style="white")
+            output.append(labels_str, style=RICH_STYLES["highlight"])
+            output.append("}", style=RICH_STYLES["default"])
 
         # Weight (for QuestionLinearScale)
         if hasattr(self, "weight") and self.weight is not None:
-            output.append(",\n", style="white")
-            output.append(f"    weight={self.weight}", style="white")
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append(f"    weight={self.weight}", style=RICH_STYLES["default"])
 
         # Boolean flags - check both .data and direct attributes
         data_dict = self.data
 
         if "use_code" in data_dict and data_dict["use_code"]:
-            output.append(",\n", style="white")
-            output.append("    use_code=True", style="white")
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append("    use_code=True", style=RICH_STYLES["default"])
 
         # permissive is stored without underscore, so check attribute directly
         if hasattr(self, "permissive") and self.permissive:
-            output.append(",\n", style="white")
-            output.append("    permissive=True", style="white")
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append("    permissive=True", style=RICH_STYLES["default"])
 
         if "include_comment" in data_dict and not data_dict["include_comment"]:
-            output.append(",\n", style="white")
-            output.append("    include_comment=False", style="white")
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append("    include_comment=False", style=RICH_STYLES["default"])
 
-        output.append("\n)", style="bold cyan")
+        output.append("\n)", style=RICH_STYLES["primary"])
 
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=120)

@@ -29,7 +29,7 @@ from typing import (
 from typing_extensions import Literal
 from ..base import Base
 from ..scenarios import Scenario
-from ..utilities import remove_edsl_version
+from ..utilities import remove_edsl_version, with_spinner
 
 if TYPE_CHECKING:
     from ..questions import QuestionBase
@@ -2195,77 +2195,8 @@ class Survey(Base):
             max_text_preview: Maximum characters to show for question text previews
             max_items: Maximum number of items to show in lists before truncating
         """
-        from rich.console import Console
-        from rich.text import Text
-        import io
-
-        # Build the Rich text
-        output = Text()
-        output.append("Survey(\n", style="bold cyan")
-        output.append(f"    num_questions={len(self.questions)},\n", style="white")
-
-        # Show if survey has non-default rules (skip logic)
-        has_rules = len(self.rule_collection.non_default_rules) > 0
-        if has_rules:
-            output.append(
-                f"    has_skip_logic=True ({len(self.rule_collection.non_default_rules)} rules),\n",
-                style="yellow",
-            )
-
-        # Show if survey has instructions
-        has_instructions = len(self._instruction_names_to_instructions) > 0
-        if has_instructions:
-            output.append(
-                f"    has_instructions=True ({len(self._instruction_names_to_instructions)} instructions),\n",
-                style="cyan",
-            )
-
-        # Show question groups if any
-        if self.question_groups:
-            output.append(
-                f"    question_groups={list(self.question_groups.keys())},\n",
-                style="magenta",
-            )
-
-        # Show questions to randomize if any
-        if self.questions_to_randomize:
-            output.append(
-                f"    questions_to_randomize={self.questions_to_randomize},\n",
-                style="green",
-            )
-
-        # Show question information using each question's _summary_repr
-        if self.questions:
-            output.append("    questions: [\n", style="white")
-
-            # Show up to max_items questions using their own _summary_repr
-            for question in self.questions[:max_items]:
-                # Get the question's own summary representation
-                question_repr = (
-                    question._summary_repr()
-                    if hasattr(question, "_summary_repr")
-                    else repr(question)
-                )
-
-                # Add indentation to each line of the question's repr
-                indented_repr = "        " + question_repr.replace("\n", "\n        ")
-                output.append(indented_repr, style="white")
-                output.append(",\n", style="white")
-
-            if len(self.questions) > max_items:
-                output.append(
-                    f"        ... ({len(self.questions) - max_items} more)\n",
-                    style="dim",
-                )
-
-            output.append("    ]\n", style="white")
-
-        output.append(")", style="bold cyan")
-
-        # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
-        console.print(output, end="")
-        return console.file.getvalue()
+        from .survey_repr import generate_summary_repr
+        return generate_summary_repr(self, max_text_preview, max_items)
 
     def _summary(self) -> dict:
         return {
@@ -3250,6 +3181,254 @@ Design tips:
         return cls(questions)
 
     @classmethod
+    @with_spinner("Generating survey from description...")
+    def from_vibes(
+        cls,
+        description: str,
+        *,
+        num_questions: Optional[int] = None,
+        model: str = "gpt-4o",
+        temperature: float = 0.7,
+    ) -> "Survey":
+        """Generate a survey from a natural language description.
+
+        This method uses an LLM to generate a complete survey based on a description
+        of what the survey should cover. It automatically selects appropriate question
+        types and formats.
+
+        Args:
+            description: Natural language description of the survey topic.
+                Examples:
+                - "Survey about a new consumer brand of vitamin water"
+                - "Customer satisfaction survey for a restaurant"
+                - "Employee engagement survey"
+            num_questions: Optional number of questions to generate. If not provided,
+                the LLM will decide based on the topic (typically 5-10).
+            model: OpenAI model to use for generation (default: "gpt-4o")
+            temperature: Temperature for generation (default: 0.7)
+
+        Returns:
+            Survey: A new Survey instance with the generated questions
+
+        Examples:
+            Basic usage:
+
+            >>> survey = Survey.from_vibes("Survey about a new consumer brand of vitamin water")  # doctest: +SKIP
+
+            With specific number of questions:
+
+            >>> survey = Survey.from_vibes("Employee engagement survey", num_questions=8)  # doctest: +SKIP
+
+            Using a different model:
+
+            >>> survey = Survey.from_vibes(
+            ...     "Customer satisfaction for a restaurant",
+            ...     model="gpt-4",
+            ...     temperature=0.5
+            ... )  # doctest: +SKIP
+
+        Notes:
+            - Requires OPENAI_API_KEY environment variable to be set
+            - The generator will select from available question types: free_text,
+              multiple_choice, checkbox, numerical, likert_five, linear_scale,
+              yes_no, rank, budget, list, matrix
+            - Questions are automatically given appropriate names and options
+        """
+        from .survey_generator import SurveyGenerator
+
+        # Create the generator
+        generator = SurveyGenerator(model=model, temperature=temperature)
+
+        # Generate the survey schema
+        survey_data = generator.generate_survey(description, num_questions=num_questions)
+
+        # Convert each question definition to a question object
+        questions = []
+        for i, q_data in enumerate(survey_data["questions"]):
+            question_obj = cls._create_question_from_dict(q_data, f"q{i}")
+            questions.append(question_obj)
+
+        return cls(questions)
+
+    def vibe_edit(
+        self,
+        edit_instructions: str,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.7,
+    ) -> "Survey":
+        """Edit the survey using natural language instructions.
+
+        This method uses an LLM to modify an existing survey based on natural language
+        instructions. It can translate questions, change wording, drop questions, or
+        make other modifications as requested.
+
+        Args:
+            edit_instructions: Natural language description of the edits to apply.
+                Examples:
+                - "Translate all questions to Spanish"
+                - "Make the language more formal"
+                - "Remove the third question"
+                - "Change all likert scales to multiple choice questions"
+                - "Add a more casual tone to all questions"
+            model: OpenAI model to use for editing (default: "gpt-4o")
+            temperature: Temperature for generation (default: 0.7)
+
+        Returns:
+            Survey: A new Survey instance with the edited questions
+
+        Examples:
+            Basic usage:
+
+            >>> survey = Survey.from_vibes("Customer satisfaction survey")  # doctest: +SKIP
+            >>> edited_survey = survey.vibe_edit("Translate to Spanish")  # doctest: +SKIP
+
+            Make language more formal:
+
+            >>> survey = Survey.from_vibes("Employee feedback survey")  # doctest: +SKIP
+            >>> edited_survey = survey.vibe_edit("Make the language more formal and professional")  # doctest: +SKIP
+
+            Remove questions:
+
+            >>> survey = Survey.from_vibes("Product feedback survey")  # doctest: +SKIP
+            >>> edited_survey = survey.vibe_edit("Remove any questions about pricing")  # doctest: +SKIP
+
+        Notes:
+            - Requires OPENAI_API_KEY environment variable to be set
+            - The editor will maintain question structure and types unless explicitly asked to change them
+            - Questions can be dropped by asking to remove or delete them
+            - Translations will apply to both question text and options
+        """
+        from .vibe_editor import VibeEdit
+
+        # Convert current questions to dict format
+        current_questions = []
+        for question in self.questions:
+            q_dict = question.to_dict()
+            # Extract the relevant fields for the editor
+            question_data = {
+                "question_name": q_dict.get("question_name"),
+                "question_text": q_dict.get("question_text"),
+                "question_type": q_dict.get("question_type"),
+            }
+            if "question_options" in q_dict and q_dict["question_options"]:
+                question_data["question_options"] = q_dict["question_options"]
+            if "min_value" in q_dict and q_dict["min_value"] is not None:
+                question_data["min_value"] = q_dict["min_value"]
+            if "max_value" in q_dict and q_dict["max_value"] is not None:
+                question_data["max_value"] = q_dict["max_value"]
+            current_questions.append(question_data)
+
+        # Create the editor
+        editor = VibeEdit(model=model, temperature=temperature)
+
+        # Edit the survey
+        edited_data = editor.edit_survey(current_questions, edit_instructions)
+
+        # Convert each edited question definition to a question object
+        questions = []
+        for i, q_data in enumerate(edited_data["questions"]):
+            question_obj = self._create_question_from_dict(q_data, f"q{i}")
+            questions.append(question_obj)
+
+        return self.__class__(questions)
+
+    def vibe_add(
+        self,
+        add_instructions: str,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.7,
+    ) -> "Survey":
+        """Add new questions to the survey using natural language instructions.
+
+        This method uses an LLM to add new questions to an existing survey based on
+        natural language instructions. It can add simple questions, questions with
+        skip logic, or multiple related questions. Existing skip logic is preserved.
+
+        Args:
+            add_instructions: Natural language description of what to add.
+                Examples:
+                - "Add a question asking their age"
+                - "Add a follow-up question about satisfaction if they answered yes to q0"
+                - "Add questions about demographics: age, gender, and location"
+                - "Add a question asking about income, but only show it if age > 18"
+            model: OpenAI model to use for generation (default: "gpt-4o")
+            temperature: Temperature for generation (default: 0.7)
+
+        Returns:
+            Survey: A new Survey instance with the original questions plus the new ones
+
+        Examples:
+            Add a simple question:
+
+            >>> survey = Survey.from_vibes("Customer satisfaction survey")  # doctest: +SKIP
+            >>> expanded_survey = survey.vibe_add("Add a question asking their age")  # doctest: +SKIP
+
+            Add a question with skip logic:
+
+            >>> survey = Survey([q0, q1])  # doctest: +SKIP
+            >>> survey_with_skip = survey.vibe_add(  # doctest: +SKIP
+            ...     "Add a question about purchase frequency, but only if they answered 'yes' to q0"
+            ... )
+
+            Add multiple related questions:
+
+            >>> survey = Survey.from_vibes("Product feedback")  # doctest: +SKIP
+            >>> expanded = survey.vibe_add("Add demographic questions: age, gender, location")  # doctest: +SKIP
+
+        Notes:
+            - Requires OPENAI_API_KEY environment variable to be set
+            - New questions are appended to the end of the survey
+            - Skip logic can reference existing questions by their question_name
+            - Skip logic syntax: conditions like "{{ q0.answer }} == 'yes'" or "{{ age.answer }} > 18"
+            - Multiple questions can be added in a single call
+            - Existing skip logic in the survey is preserved
+        """
+        from .vibe_add_helper import VibeAdd
+
+        # Get current question information for context
+        current_questions = []
+        for question in self.questions:
+            q_dict = question.to_dict()
+            question_data = {
+                "question_name": q_dict.get("question_name"),
+                "question_text": q_dict.get("question_text"),
+                "question_type": q_dict.get("question_type"),
+            }
+            if "question_options" in q_dict and q_dict["question_options"]:
+                question_data["question_options"] = q_dict["question_options"]
+            current_questions.append(question_data)
+
+        # Create the adder
+        adder = VibeAdd(model=model, temperature=temperature)
+
+        # Generate new questions
+        added_data = adder.add_questions(current_questions, add_instructions)
+
+        # Convert new questions to question objects
+        new_questions = []
+        base_index = len(self.questions)
+        for i, q_data in enumerate(added_data["questions"]):
+            question_obj = self._create_question_from_dict(q_data, f"q{base_index + i}")
+            new_questions.append(question_obj)
+
+        # Create new survey with all questions AND preserve existing rule_collection
+        all_questions = list(self.questions) + new_questions
+        new_survey = self.__class__(
+            questions=all_questions,
+            rule_collection=self.rule_collection  # Preserves existing skip logic!
+        )
+
+        # Add skip logic for newly added questions if specified
+        for skip_rule in added_data.get("skip_rules", []):
+            target_question = skip_rule["target_question"]
+            condition = skip_rule["condition"]
+            new_survey = new_survey.add_skip_rule(target_question, condition)
+
+        return new_survey
+
+    @classmethod
     def _infer_question_types(
         cls, question_data: List[Dict[str, Any]], model: "LanguageModel"
     ) -> List[Dict[str, Any]]:
@@ -3327,6 +3506,13 @@ Guidelines:
             QuestionMultipleChoice,
             QuestionLinearScale,
             QuestionCheckBox,
+            QuestionNumerical,
+            QuestionLikertFive,
+            QuestionYesNo,
+            QuestionRank,
+            QuestionBudget,
+            QuestionList,
+            QuestionMatrix,
         )
         import re
         import uuid
@@ -3513,6 +3699,66 @@ Guidelines:
                 question_name=name,
                 question_text=text,
                 question_options=opts,
+            )
+
+        if qtype in ("numerical", "number", "numeric"):
+            min_val = data.get("min_value")
+            max_val = data.get("max_value")
+            return QuestionNumerical(
+                question_name=name,
+                question_text=text,
+                min_value=min_val,
+                max_value=max_val,
+            )
+
+        if qtype in ("likert_five", "likert5", "likert"):
+            return QuestionLikertFive(
+                question_name=name,
+                question_text=text,
+            )
+
+        if qtype in ("yes_no", "yesno", "boolean"):
+            return QuestionYesNo(
+                question_name=name,
+                question_text=text,
+            )
+
+        if qtype in ("rank", "ranking"):
+            if not opts:
+                opts = ["Option 1", "Option 2", "Option 3", "Option 4"]
+            return QuestionRank(
+                question_name=name,
+                question_text=text,
+                question_options=opts,
+            )
+
+        if qtype in ("budget", "allocation"):
+            if not opts:
+                opts = ["Option 1", "Option 2", "Option 3", "Option 4"]
+            return QuestionBudget(
+                question_name=name,
+                question_text=text,
+                question_options=opts,
+                budget_sum=100,  # Default budget
+            )
+
+        if qtype in ("list", "array"):
+            max_items = data.get("max_items", 10)
+            return QuestionList(
+                question_name=name,
+                question_text=text,
+                max_list_items=max_items,
+            )
+
+        if qtype in ("matrix", "grid"):
+            # Matrix requires rows (items) and columns (options)
+            rows = data.get("rows", opts if opts else ["Row 1", "Row 2", "Row 3"])
+            columns = data.get("columns", ["Column 1", "Column 2", "Column 3"])
+            return QuestionMatrix(
+                question_name=name,
+                question_text=text,
+                question_items=rows,
+                question_options=columns,
             )
 
         # Fallback to FreeText
