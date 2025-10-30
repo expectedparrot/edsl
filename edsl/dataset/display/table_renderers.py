@@ -6,20 +6,31 @@ from .table_data_class import TableData
 
 
 def escape_and_colorize_html(text: str, colorize: bool = True) -> str:
-    """Escape HTML special characters and optionally colorize tag-like patterns.
+    """Escape HTML special characters, convert URLs to hyperlinks, and optionally colorize tag-like patterns.
 
     Args:
         text: The text to escape and colorize
         colorize: If True, add color styling to patterns that look like HTML tags
 
     Returns:
-        HTML-safe string with optional color styling for tags
+        HTML-safe string with URLs as hyperlinks and optional color styling for tags
     """
     # First, escape all HTML special characters
     escaped = html.escape(str(text))
 
+    # Convert URLs to hyperlinks before colorizing
+    # Pattern to match http://, https://, ftp://, and ftps:// URLs
+    url_pattern = r'(https?://[^\s<>"]+|ftp://[^\s<>"]+)'
+
+    def make_hyperlink(match):
+        url = match.group(1)
+        return f'<a href="{url}" target="_blank" rel="noopener noreferrer">{url}</a>'
+
+    # Replace URLs with hyperlinks
+    with_links = re.sub(url_pattern, make_hyperlink, escaped)
+
     if not colorize:
-        return escaped
+        return with_links
 
     # Pattern to match escaped tag-like structures: &lt;...&gt;
     # This matches opening tags, closing tags, and self-closing tags
@@ -41,7 +52,7 @@ def escape_and_colorize_html(text: str, colorize: bool = True) -> str:
         return f'<span style="color: {color}; font-weight: 500;">&lt;{slash}{tag_name}{rest}&gt;</span>'
 
     # Replace all tag-like patterns with colored versions
-    colorized = re.sub(tag_pattern, colorize_tag, escaped)
+    colorized = re.sub(tag_pattern, colorize_tag, with_links)
 
     return colorized
 
