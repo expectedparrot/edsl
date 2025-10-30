@@ -186,6 +186,65 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         return self.to_scenario_list().filter(expression).to_dataset()
 
+    def vibe_filter(
+        self,
+        criteria: str,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.1,
+        show_expression: bool = False
+    ) -> "Dataset":
+        """
+        Filter the dataset using natural language criteria.
+
+        This method uses an LLM to generate a filter expression based on
+        natural language criteria, then applies it using the dataset's filter method.
+
+        Parameters:
+            criteria: Natural language description of the filtering criteria.
+                Examples:
+                - "Keep only people over 30"
+                - "Remove outliers in the satisfaction scores"
+                - "Only include responses from the last month"
+                - "Filter out any rows with missing data"
+            model: OpenAI model to use for generating the filter (default: "gpt-4o")
+            temperature: Temperature for generation (default: 0.1 for consistent logic)
+            show_expression: If True, prints the generated filter expression
+
+        Returns:
+            Dataset: A new Dataset containing only the rows that match the criteria
+
+        Examples:
+            >>> from edsl.dataset import Dataset
+            >>> d = Dataset([{'age': [25, 35, 42]}, {'occupation': ['student', 'engineer', 'teacher']}])
+            >>> # filtered = d.vibe_filter("Keep only people over 30")
+
+        Notes:
+            - Requires OPENAI_API_KEY environment variable to be set
+            - The LLM generates a filter expression using column names directly
+            - Uses the dataset's built-in filter() method for safe evaluation
+            - Use show_expression=True to see the generated filter logic
+        """
+        from .vibe_filter import VibeFilter
+
+        # Get column names and sample data
+        columns = self.relevant_columns()
+
+        # Get a few sample rows to help the LLM understand the data structure
+        sample_dicts = self.to_dicts(remove_prefix=False)[:5]
+
+        # Create the filter generator
+        filter_gen = VibeFilter(model=model, temperature=temperature)
+
+        # Generate the filter expression
+        filter_expr = filter_gen.create_filter(columns, sample_dicts, criteria)
+
+        if show_expression:
+            print(f"Generated filter expression: {filter_expr}")
+
+        # Use the dataset's built-in filter method which returns Dataset
+        return self.filter(filter_expr)
+
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict[str, Callable]] = None
     ) -> "Dataset":
@@ -384,15 +443,16 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
-        # Build the Rich text
+        # Build the Rich text with consistent styling
         output = Text()
-        output.append("Dataset(\n", style="bold cyan")
+        output.append("Dataset(\n", style=RICH_STYLES["primary"])
 
         # Handle empty dataset
         if not self.data:
-            output.append("    data=[]\n", style="dim")
-            output.append(")", style="bold cyan")
+            output.append("    data=[]\n", style=RICH_STYLES["dim"])
+            output.append(")", style=RICH_STYLES["primary"])
             console = Console(file=io.StringIO(), force_terminal=True, width=120)
             console.print(output, end="")
             return console.file.getvalue()
@@ -400,32 +460,32 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         num_obs = len(self)
         num_cols = len(self.keys())
 
-        output.append(f"    num_observations={num_obs},\n", style="white")
-        output.append(f"    num_columns={num_cols},\n", style="white")
+        output.append(f"    num_observations={num_obs},\n", style=RICH_STYLES["default"])
+        output.append(f"    num_columns={num_cols},\n", style=RICH_STYLES["default"])
 
         # Show column names
         if num_cols > 0:
             cols = self.keys()
-            output.append("    columns=[\n", style="white")
+            output.append("    columns=[\n", style=RICH_STYLES["default"])
 
             for i, col in enumerate(cols[:max_cols]):
                 col_str = str(col)
                 if len(col_str) > 40:
                     col_str = col_str[:37] + "..."
-                output.append("        ", style="white")
-                output.append(f"'{col_str}'", style="yellow")
-                output.append(",\n", style="white")
+                output.append("        ", style=RICH_STYLES["default"])
+                output.append(f"'{col_str}'", style=RICH_STYLES["key"])
+                output.append(",\n", style=RICH_STYLES["default"])
 
             if num_cols > max_cols:
                 output.append(
-                    f"        ... ({num_cols - max_cols} more)\n", style="dim"
+                    f"        ... ({num_cols - max_cols} more)\n", style=RICH_STYLES["dim"]
                 )
 
-            output.append("    ],\n", style="white")
+            output.append("    ],\n", style=RICH_STYLES["default"])
 
             # Show preview of data
             if num_obs > 0:
-                output.append("    preview={\n", style="white")
+                output.append("    preview={\n", style=RICH_STYLES["default"])
                 headers, rows = self._tabular()
 
                 # Show column headers and first few values
@@ -440,24 +500,24 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
                             val_str = val_str[: max_value_length - 3] + "..."
                         formatted_values.append(val_str)
 
-                    output.append("        ", style="white")
-                    output.append(f"'{col}'", style="bold yellow")
-                    output.append(f": [{', '.join(formatted_values)}", style="white")
+                    output.append("        ", style=RICH_STYLES["default"])
+                    output.append(f"'{col}'", style=RICH_STYLES["secondary"])
+                    output.append(f": [{', '.join(formatted_values)}", style=RICH_STYLES["value"])
 
                     if num_obs > max_rows:
-                        output.append(", ...", style="dim")
+                        output.append(", ...", style=RICH_STYLES["dim"])
 
-                    output.append("],\n", style="white")
+                    output.append("],\n", style=RICH_STYLES["default"])
 
                 if num_cols > max_cols:
                     output.append(
                         f"        ... ({num_cols - max_cols} more columns)\n",
-                        style="dim",
+                        style=RICH_STYLES["dim"],
                     )
 
-                output.append("    }\n", style="white")
+                output.append("    }\n", style=RICH_STYLES["default"])
 
-        output.append(")", style="bold cyan")
+        output.append(")", style=RICH_STYLES["primary"])
 
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=120)

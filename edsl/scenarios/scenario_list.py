@@ -988,6 +988,18 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         return f"ScenarioList({list(self.data)})"
 
+    @classmethod
+    def from_vibes(cls, description: str) -> ScenarioList:
+        """Create a ScenarioList from a vibe description.
+
+        Args:
+            description: A description of the vibe.
+        """
+        from .vibe_example import ScenarioGenerator
+        gen = ScenarioGenerator(model="gpt-4o", temperature=0.7)
+        result = gen.generate_scenarios(description)
+        return cls([Scenario(scenario) for scenario in result['scenarios']])
+
     def _summary_repr(self, MAX_SCENARIOS: int = 10, MAX_FIELDS: int = 10) -> str:
         """Generate a summary representation of the ScenarioList with Rich formatting.
 
@@ -999,15 +1011,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         from rich.text import Text
         import io
         import shutil
+        from edsl.config import RICH_STYLES
 
         # Get terminal width
         terminal_width = shutil.get_terminal_size().columns
 
         # Build the Rich text
         output = Text()
-        output.append("ScenarioList(\n", style="bold cyan")
-        output.append(f"    num_scenarios={len(self)},\n", style="white")
-        output.append("    scenarios=[\n", style="white")
+        output.append("ScenarioList(\n", style=RICH_STYLES["primary"])
+        output.append(f"    num_scenarios={len(self)},\n", style=RICH_STYLES["default"])
+        output.append("    scenarios=[\n", style=RICH_STYLES["default"])
 
         # Show the first MAX_SCENARIOS scenarios
         num_to_show = min(MAX_SCENARIOS, len(self))
@@ -1020,9 +1033,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             was_truncated = num_fields > MAX_FIELDS
 
             # Build scenario repr with indentation
-            output.append("        Scenario(\n", style="bold cyan")
-            output.append(f"            num_keys={num_fields},\n", style="white")
-            output.append("            data={\n", style="white")
+            output.append("        Scenario(\n", style=RICH_STYLES["primary"])
+            output.append(f"            num_keys={num_fields},\n", style=RICH_STYLES["default"])
+            output.append("            data={\n", style=RICH_STYLES["default"])
 
             # Show fields
             for key, value in scenario_data.items():
@@ -1032,34 +1045,34 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 if len(value_repr) > max_value_length:
                     value_repr = value_repr[: max_value_length - 3] + "..."
 
-                output.append("                ", style="white")
-                output.append(f"'{key}'", style="bold yellow")
-                output.append(f": {value_repr},\n", style="white")
+                output.append("                ", style=RICH_STYLES["default"])
+                output.append(f"'{key}'", style=RICH_STYLES["key"])
+                output.append(f": {value_repr},\n", style=RICH_STYLES["default"])
 
             if was_truncated:
                 output.append(
                     f"                ... ({num_fields - MAX_FIELDS} more fields)\n",
-                    style="dim",
+                    style=RICH_STYLES["dim"],
                 )
 
-            output.append("            }\n", style="white")
-            output.append("        )", style="bold cyan")
+            output.append("            }\n", style=RICH_STYLES["default"])
+            output.append("        )", style=RICH_STYLES["primary"])
 
             # Add comma and newline unless it's the last one
             if i < num_to_show - 1:
-                output.append(",\n", style="white")
+                output.append(",\n", style=RICH_STYLES["default"])
             else:
-                output.append("\n", style="white")
+                output.append("\n", style=RICH_STYLES["default"])
 
         # Add ellipsis if there are more scenarios
         if len(self) > MAX_SCENARIOS:
             output.append(
                 f"        ... ({len(self) - MAX_SCENARIOS} more scenarios)\n",
-                style="dim",
+                style=RICH_STYLES["dim"],
             )
 
-        output.append("    ]\n", style="white")
-        output.append(")", style="bold cyan")
+        output.append("    ]\n", style=RICH_STYLES["default"])
+        output.append(")", style=RICH_STYLES["primary"])
 
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=terminal_width)

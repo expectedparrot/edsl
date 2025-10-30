@@ -196,6 +196,57 @@ class DataOperationsBase:
         # Return 0 for empty datasets instead of None
         return _num_observations if _num_observations is not None else 0
 
+    def vibe_plot(self, description: str, show_code: bool = False):
+        """
+        Generate and display a ggplot2 visualization using natural language description.
+
+        Parameters:
+            description: Natural language description of the desired plot
+            show_code: If True, displays the generated R code alongside the plot
+
+        Returns:
+            A plot object that renders in Jupyter notebooks
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> # Generate a plot from a description (requires R/ggplot2):
+            >>> # plot = r.vibe_plot("bar chart of how_feeling")
+            >>> # Display with R code shown:
+            >>> # plot = r.vibe_plot("bar chart of how_feeling", show_code=True)
+        """
+        from .vibe_viz import GGPlotGenerator, RCodeDisplay
+        
+        gen = GGPlotGenerator(model="gpt-4o", temperature=0.1)
+        
+        if show_code:
+            # Get the code display object
+            code_display = gen.make_plot_code(
+                self.to_pandas(remove_prefix=True), 
+                description, 
+                return_display=True, 
+                show_code=True
+            )
+            # Extract the actual code string for ggplot2
+            r_code = code_display.code
+            
+            # Display the code (in Jupyter it will show with copy button, in terminal just the code)
+            try:
+                from IPython.display import display
+                from ..utilities.utilities import is_notebook
+                if is_notebook():
+                    display(code_display)
+                else:
+                    print(r_code)
+            except ImportError:
+                # Not in a notebook environment
+                print(r_code)
+        else:
+            # Get just the code string
+            r_code = gen.make_plot_code(self.to_pandas(remove_prefix=True), description)
+        
+        return self.ggplot2(r_code)
+
     def chart(self):
         """
         Create a chart from the results.
