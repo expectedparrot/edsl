@@ -24,7 +24,12 @@ def main():
     print("\n1. Basic Comparison Metrics")
     print("-" * 30)
 
-    from .metrics.metric_definitions import ExactMatch, CosineSimilarity, Overlap, SquaredDistance
+    from .metrics.metric_definitions import (
+        ExactMatch,
+        CosineSimilarity,
+        Overlap,
+        SquaredDistance,
+    )
 
     # Sample answers to compare
     answers_a = ["I love programming", "Python is great", "Machine learning rocks"]

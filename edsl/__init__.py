@@ -128,6 +128,7 @@ def _is_notebook_environment() -> bool:
     # Check for marimo first
     try:
         import marimo as mo
+
         if mo.running_in_notebook():
             return True
     except (ImportError, AttributeError):
@@ -176,15 +177,22 @@ def _display_notebook_login(login_url: str):
     # Try marimo first
     try:
         import marimo as mo
+
         if mo.running_in_notebook():
             # In marimo, we can't directly display - need to return the HTML object
             # But since this function is called from login(), we'll print the URL instead
             # marimo will auto-detect and make it clickable
-            print("🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key.")
+            print(
+                "🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key."
+            )
             print(f"Log in and automatically store key: {login_url}")
             print("\nLogging in will activate the following features:")
-            print("  - Remote inference: Runs jobs remotely on the Expected Parrot server.")
-            print("  - Remote logging: Sends error messages to the Expected Parrot server.")
+            print(
+                "  - Remote inference: Runs jobs remotely on the Expected Parrot server."
+            )
+            print(
+                "  - Remote logging: Sends error messages to the Expected Parrot server."
+            )
             return
     except (ImportError, AttributeError):
         pass
@@ -192,6 +200,7 @@ def _display_notebook_login(login_url: str):
     # Try IPython/Jupyter
     try:
         from IPython.display import display, HTML
+
         display(HTML(html_content))
         return
     except ImportError:
@@ -212,6 +221,7 @@ def _update_notebook_status(message: str, is_success: bool = False):
     # Check if we're in marimo - if so, just print the message
     try:
         import marimo as mo
+
         if mo.running_in_notebook():
             print(message)
             return

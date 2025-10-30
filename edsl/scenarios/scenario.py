@@ -682,7 +682,8 @@ class Scenario(Base, UserDict):
 
             if num_keys > max_items:
                 output.append(
-                    f"        ... ({num_keys - max_items} more)\n", style=RICH_STYLES["dim"]
+                    f"        ... ({num_keys - max_items} more)\n",
+                    style=RICH_STYLES["dim"],
                 )
 
             output.append("    }\n", style=RICH_STYLES["default"])

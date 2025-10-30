@@ -138,18 +138,36 @@ class Result(Base, UserDict):
         self._transformer = None
 
     @property
-    def answers(self) -> 'ScenarioList':
+    def answers(self) -> "ScenarioList":
         from ..scenarios import Scenario, ScenarioList
-        return ScenarioList([Scenario(question_name=k, answer=v) for k, v in self.sub_dicts['answer'].items()])
+
+        return ScenarioList(
+            [
+                Scenario(question_name=k, answer=v)
+                for k, v in self.sub_dicts["answer"].items()
+            ]
+        )
 
     def get_question_text(self, question_name: QuestionName) -> str:
-        return self.data["question_to_attributes"].get(question_name, {}).get("question_text", question_name)
+        return (
+            self.data["question_to_attributes"]
+            .get(question_name, {})
+            .get("question_text", question_name)
+        )
 
     def get_question_type(self, question_name: QuestionName) -> str:
-        return self.data["question_to_attributes"].get(question_name, {}).get("question_type", "text")
+        return (
+            self.data["question_to_attributes"]
+            .get(question_name, {})
+            .get("question_type", "text")
+        )
 
     def get_question_options(self, question_name: QuestionName) -> List[str]:
-        return self.data["question_to_attributes"].get(question_name, {}).get("question_options", [])
+        return (
+            self.data["question_to_attributes"]
+            .get(question_name, {})
+            .get("question_options", [])
+        )
 
     def select(self, *question_names: QuestionName) -> "Result":
         """Return a new Result with only the specified questions included.
@@ -177,21 +195,21 @@ class Result(Base, UserDict):
             {'how_feeling': 'OK', 'how_feeling_yesterday': 'Great'}
         """
         question_names_set = set(question_names)
-        
+
         def filter_keys(d: dict, handle_prefixes: bool = False) -> dict:
             """Helper to filter keys in a dictionary to only include specified questions.
-            
+
             Args:
                 d: Dictionary to filter
                 handle_prefixes: If True, also includes keys where question names are prefixes
             """
             if not d:
                 return d
-            
+
             if not handle_prefixes:
                 # Simple case: exact key match
                 return {k: v for k, v in d.items() if k in question_names_set}
-            
+
             # Complex case: handle keys where question name is a prefix
             result = {}
             for k, v in d.items():
@@ -215,13 +233,23 @@ class Result(Base, UserDict):
             "answer": filter_keys(self.data["answer"]),
             "prompt": filter_keys(self.data.get("prompt", {}), handle_prefixes=True),
             "raw_model_response": self.data.get("raw_model_response", {}),
-            "question_to_attributes": filter_keys(self.data.get("question_to_attributes", {})),
-            "generated_tokens": filter_keys(self.data.get("generated_tokens", {}), handle_prefixes=True),
-            "comments_dict": filter_keys(self.data.get("comments_dict", {}), handle_prefixes=True),
-            "reasoning_summaries_dict": filter_keys(self.data.get("reasoning_summaries_dict", {}), handle_prefixes=True),
+            "question_to_attributes": filter_keys(
+                self.data.get("question_to_attributes", {})
+            ),
+            "generated_tokens": filter_keys(
+                self.data.get("generated_tokens", {}), handle_prefixes=True
+            ),
+            "comments_dict": filter_keys(
+                self.data.get("comments_dict", {}), handle_prefixes=True
+            ),
+            "reasoning_summaries_dict": filter_keys(
+                self.data.get("reasoning_summaries_dict", {}), handle_prefixes=True
+            ),
             "cache_used_dict": filter_keys(self.data.get("cache_used_dict", {})),
             "cache_keys": filter_keys(self.data.get("cache_keys", {})),
-            "validated_dict": filter_keys(self.data.get("validated_dict", {}), handle_prefixes=True),
+            "validated_dict": filter_keys(
+                self.data.get("validated_dict", {}), handle_prefixes=True
+            ),
         }
 
         return Result(**new_data, indices=self.indices)
@@ -252,20 +280,21 @@ class Result(Base, UserDict):
             >>> renamed.answer
             {'mood': 'OK', 'mood_yesterday': 'Great'}
         """
+
         def rename_keys(d: dict, handle_prefixes: bool = False) -> dict:
             """Helper to rename keys in a dictionary.
-            
+
             Args:
                 d: Dictionary to process
                 handle_prefixes: If True, also handles keys where question names are prefixes
             """
             if not d:
                 return d
-            
+
             if not handle_prefixes:
                 # Simple case: exact key match
                 return {rename_dict.get(k, k): v for k, v in d.items()}
-            
+
             # Complex case: handle keys where question name is a prefix
             result = {}
             for k, v in d.items():
@@ -278,7 +307,7 @@ class Result(Base, UserDict):
                         break
                     elif k.startswith(old_name + "_"):
                         # Replace the prefix
-                        new_key = new_name + k[len(old_name):]
+                        new_key = new_name + k[len(old_name) :]
                         break
                 result[new_key] = v
             return result
@@ -292,13 +321,23 @@ class Result(Base, UserDict):
             "answer": rename_keys(self.data["answer"]),
             "prompt": rename_keys(self.data.get("prompt", {}), handle_prefixes=True),
             "raw_model_response": self.data.get("raw_model_response", {}),
-            "question_to_attributes": rename_keys(self.data.get("question_to_attributes", {})),
-            "generated_tokens": rename_keys(self.data.get("generated_tokens", {}), handle_prefixes=True),
-            "comments_dict": rename_keys(self.data.get("comments_dict", {}), handle_prefixes=True),
-            "reasoning_summaries_dict": rename_keys(self.data.get("reasoning_summaries_dict", {}), handle_prefixes=True),
+            "question_to_attributes": rename_keys(
+                self.data.get("question_to_attributes", {})
+            ),
+            "generated_tokens": rename_keys(
+                self.data.get("generated_tokens", {}), handle_prefixes=True
+            ),
+            "comments_dict": rename_keys(
+                self.data.get("comments_dict", {}), handle_prefixes=True
+            ),
+            "reasoning_summaries_dict": rename_keys(
+                self.data.get("reasoning_summaries_dict", {}), handle_prefixes=True
+            ),
             "cache_used_dict": rename_keys(self.data.get("cache_used_dict", {})),
             "cache_keys": rename_keys(self.data.get("cache_keys", {})),
-            "validated_dict": rename_keys(self.data.get("validated_dict", {}), handle_prefixes=True),
+            "validated_dict": rename_keys(
+                self.data.get("validated_dict", {}), handle_prefixes=True
+            ),
         }
 
         return Result(**new_data, indices=self.indices)
@@ -630,7 +669,6 @@ class Result(Base, UserDict):
 
         return ResultSerializer.from_dict(data)
 
-
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the Result object.
 
@@ -664,7 +702,9 @@ class Result(Base, UserDict):
                 )
                 if len(agent_traits) > 3:
                     trait_str += f", ... ({len(agent_traits) - 3} more)"
-                output.append(f"    agent: {{{trait_str}}},\n", style=RICH_STYLES["key"])
+                output.append(
+                    f"    agent: {{{trait_str}}},\n", style=RICH_STYLES["key"]
+                )
             else:
                 output.append("    agent: Agent(),\n", style=RICH_STYLES["key"])
 
@@ -677,7 +717,9 @@ class Result(Base, UserDict):
                 )
                 if len(scenario_dict) > 3:
                     scenario_str += f", ... ({len(scenario_dict) - 3} more)"
-                output.append(f"    scenario: {{{scenario_str}}},\n", style=RICH_STYLES["key"])
+                output.append(
+                    f"    scenario: {{{scenario_str}}},\n", style=RICH_STYLES["key"]
+                )
             else:
                 output.append("    scenario: Scenario(),\n", style=RICH_STYLES["key"])
 
@@ -687,7 +729,9 @@ class Result(Base, UserDict):
                 self.model, "model", getattr(self.model, "_model_", "unknown")
             )
             service_name = getattr(self.model, "_inference_service_", "unknown")
-            output.append(f"    model: {model_name} ({service_name}),\n", style=RICH_STYLES["key"])
+            output.append(
+                f"    model: {model_name} ({service_name}),\n", style=RICH_STYLES["key"]
+            )
 
         # Iteration
         iteration = self.data.get("iteration", 0)

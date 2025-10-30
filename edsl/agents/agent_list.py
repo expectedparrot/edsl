@@ -750,7 +750,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         *,
         model: str = "gpt-4o",
         temperature: float = 0.1,
-        show_expression: bool = False
+        show_expression: bool = False,
     ) -> "AgentList":
         """
         Filter the agent list using natural language criteria.
@@ -1121,11 +1121,16 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
             # Build agent repr with indentation
             output.append("        Agent(\n", style=RICH_STYLES["primary"])
-            output.append(f"            num_traits={num_traits},\n", style=RICH_STYLES["default"])
+            output.append(
+                f"            num_traits={num_traits},\n", style=RICH_STYLES["default"]
+            )
 
             # Add name if present
             if agent.name is not None:
-                output.append(f"            name={repr(agent.name)},\n", style=RICH_STYLES["default"])
+                output.append(
+                    f"            name={repr(agent.name)},\n",
+                    style=RICH_STYLES["default"],
+                )
 
             output.append("            traits={\n", style=RICH_STYLES["default"])
 
@@ -1146,16 +1151,19 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
                         value_repr,
                         width=max_value_length,
                         break_long_words=True,
-                        break_on_hyphens=False
+                        break_on_hyphens=False,
                     )
                     for line_idx, line in enumerate(wrapped_lines):
                         if line_idx == 0:
                             output.append(f"{line}\n", style=RICH_STYLES["default"])
                         else:
                             # Continuation lines are indented to align with the value
-                            output.append(f"                    {line}\n", style=RICH_STYLES["default"])
+                            output.append(
+                                f"                    {line}\n",
+                                style=RICH_STYLES["default"],
+                            )
                     # Remove the last newline and add comma
-                    output._text[-1] = output._text[-1].rstrip('\n') + ',\n'
+                    output._text[-1] = output._text[-1].rstrip("\n") + ",\n"
                 else:
                     output.append(f"{value_repr},\n", style=RICH_STYLES["default"])
 
@@ -1467,9 +1475,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         # Generate the agent population
         agent_data = generator.generate_agents(
-            description,
-            num_agents=num_agents,
-            traits=traits
+            description, num_agents=num_agents, traits=traits
         )
 
         # Convert each agent definition to an Agent object
@@ -1545,7 +1551,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         current_agents = []
         for agent in self.data:
             agent_dict = {"traits": dict(agent.traits)}
-            if hasattr(agent, 'name') and agent.name:
+            if hasattr(agent, "name") and agent.name:
                 agent_dict["name"] = agent.name
             current_agents.append(agent_dict)
 

@@ -495,7 +495,9 @@ class BaseMacro(Base, MacroMixin, ABC):
                 if i < min(num_params, max_params) - 1:
                     output.append(", ", style=RICH_STYLES["default"])
             if num_params > max_params:
-                output.append(f", ... ({num_params - max_params} more)", style=RICH_STYLES["dim"])
+                output.append(
+                    f", ... ({num_params - max_params} more)", style=RICH_STYLES["dim"]
+                )
             output.append("]", style=RICH_STYLES["default"])
 
         output.append(",\n", style=RICH_STYLES["default"])
@@ -525,7 +527,9 @@ class BaseMacro(Base, MacroMixin, ABC):
             fmt_names_list = []
             num_formatters = 0
 
-        output.append(f"    num_formatters={num_formatters}", style=RICH_STYLES["default"])
+        output.append(
+            f"    num_formatters={num_formatters}", style=RICH_STYLES["default"]
+        )
 
         if num_formatters > 0:
             output.append(",\n    formatters=[", style=RICH_STYLES["default"])
@@ -535,7 +539,8 @@ class BaseMacro(Base, MacroMixin, ABC):
                     output.append(", ", style=RICH_STYLES["default"])
             if num_formatters > max_formatters:
                 output.append(
-                    f", ... ({num_formatters - max_formatters} more)", style=RICH_STYLES["dim"]
+                    f", ... ({num_formatters - max_formatters} more)",
+                    style=RICH_STYLES["dim"],
                 )
             output.append("]", style=RICH_STYLES["default"])
 

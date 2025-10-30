@@ -996,9 +996,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             description: A description of the vibe.
         """
         from .vibe_example import ScenarioGenerator
+
         gen = ScenarioGenerator(model="gpt-4o", temperature=0.7)
         result = gen.generate_scenarios(description)
-        return cls([Scenario(scenario) for scenario in result['scenarios']])
+        return cls([Scenario(scenario) for scenario in result["scenarios"]])
 
     def _summary_repr(self, MAX_SCENARIOS: int = 10, MAX_FIELDS: int = 10) -> str:
         """Generate a summary representation of the ScenarioList with Rich formatting.
@@ -1034,7 +1035,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
             # Build scenario repr with indentation
             output.append("        Scenario(\n", style=RICH_STYLES["primary"])
-            output.append(f"            num_keys={num_fields},\n", style=RICH_STYLES["default"])
+            output.append(
+                f"            num_keys={num_fields},\n", style=RICH_STYLES["default"]
+            )
             output.append("            data={\n", style=RICH_STYLES["default"])
 
             # Show fields

@@ -86,7 +86,8 @@ class ModelList(Base, UserList):
 
             if len(self) > max_items:
                 output.append(
-                    f"        ... ({len(self) - max_items} more)\n", style=RICH_STYLES["dim"]
+                    f"        ... ({len(self) - max_items} more)\n",
+                    style=RICH_STYLES["dim"],
                 )
 
             output.append("    ]\n", style=RICH_STYLES["default"])

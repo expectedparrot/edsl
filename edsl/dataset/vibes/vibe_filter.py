@@ -37,7 +37,7 @@ def find_dotenv_upwards(start_path: Optional[str] = None) -> Optional[Path]:
 
     # Search upwards until we find .env or reach the root
     while True:
-        env_file = current / '.env'
+        env_file = current / ".env"
         if env_file.is_file():
             return env_file
 
@@ -166,7 +166,7 @@ class VibeFilter:
                 "The expression should return True to keep a row, False to filter it out. "
                 "Use 'row' as the dictionary containing the current row's data. "
                 "Return ONLY a valid JSON object with a 'filter_expression' key containing the Python expression as a string."
-            )
+            ),
         }
 
         resp = self.client.chat.completions.create(
@@ -194,7 +194,7 @@ if __name__ == "__main__":
     sample_data = [
         {"age": 25, "occupation": "student", "city": "Boston"},
         {"age": 35, "occupation": "engineer", "city": "San Francisco"},
-        {"age": 28, "occupation": "teacher", "city": "New York"}
+        {"age": 28, "occupation": "teacher", "city": "New York"},
     ]
     expr = filter_tool.create_filter(columns, sample_data, "Keep only people over 30")
     print(f"Filter expression: {expr}")
@@ -208,5 +208,7 @@ if __name__ == "__main__":
 
     # Example 3: Complex criteria
     print("Example 3: Complex filter")
-    expr3 = filter_tool.create_filter(columns, sample_data, "People over 25 in technical roles")
+    expr3 = filter_tool.create_filter(
+        columns, sample_data, "People over 25 in technical roles"
+    )
     print(f"Filter expression: {expr3}")

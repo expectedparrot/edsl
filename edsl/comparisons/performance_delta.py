@@ -694,7 +694,9 @@ class PerformanceDelta(Base):
 
         output = Text()
         output.append("PerformanceDelta(", style=RICH_STYLES["primary"])
-        output.append(f"improvements={summary['improvements']}", style=RICH_STYLES["key"])
+        output.append(
+            f"improvements={summary['improvements']}", style=RICH_STYLES["key"]
+        )
         output.append(", ", style=RICH_STYLES["default"])
         output.append(f"unchanged={summary['unchanged']}", style=RICH_STYLES["default"])
         output.append(", ", style=RICH_STYLES["default"])

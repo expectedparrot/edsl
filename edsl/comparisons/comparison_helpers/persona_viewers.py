@@ -337,4 +337,3 @@ function prevTraits_{viewer_id}() {{
         html.append("</div>")
 
         return "\n".join(html)
-

@@ -39,7 +39,7 @@ def find_dotenv_upwards(start_path: Optional[str] = None) -> Optional[Path]:
 
     # Search upwards until we find .env or reach the root
     while True:
-        env_file = current / '.env'
+        env_file = current / ".env"
         if env_file.is_file():
             return env_file
 
@@ -78,6 +78,7 @@ class QuestionDefinition(BaseModel):
     max_value : Optional[float]
         Maximum value for numerical questions
     """
+
     question_name: str = Field(
         description="A valid Python variable name to identify the question (e.g., 'age', 'satisfaction_rating')"
     )
@@ -102,15 +103,13 @@ class QuestionDefinition(BaseModel):
     )
     question_options: Optional[List[str]] = Field(
         None,
-        description="List of options for choice-based questions (required for multiple_choice, checkbox, rank, budget)"
+        description="List of options for choice-based questions (required for multiple_choice, checkbox, rank, budget)",
     )
     min_value: Optional[float] = Field(
-        None,
-        description="Minimum value for numerical or linear_scale questions"
+        None, description="Minimum value for numerical or linear_scale questions"
     )
     max_value: Optional[float] = Field(
-        None,
-        description="Maximum value for numerical or linear_scale questions"
+        None, description="Maximum value for numerical or linear_scale questions"
     )
 
 
@@ -123,6 +122,7 @@ class SurveySchema(BaseModel):
     questions : List[QuestionDefinition]
         List of questions that make up the survey
     """
+
     questions: List[QuestionDefinition] = Field(
         description="List of questions in the survey"
     )
@@ -159,10 +159,7 @@ class SurveyGenerator:
         self.client = OpenAI()  # reads OPENAI_API_KEY from env
 
     def generate_survey(
-        self,
-        description: str,
-        *,
-        num_questions: Optional[int] = None
+        self, description: str, *, num_questions: Optional[int] = None
     ) -> Dict[str, List[Dict[str, Any]]]:
         """
         Generate a survey based on a natural language description.
@@ -268,26 +265,34 @@ class SurveyGenerator:
                     "question_text": "The product meets my expectations",
                     "question_type": "likert_five",
                     "question_options": None,
-                    "note": "Statement form - can be agreed/disagreed with"
+                    "note": "Statement form - can be agreed/disagreed with",
                 },
                 "correct_multiple_choice": {
                     "question_text": "How easy was it to use the product?",
                     "question_type": "multiple_choice",
-                    "question_options": ["Very easy", "Easy", "Neutral", "Difficult", "Very difficult"],
-                    "note": "Question form with matching options"
+                    "question_options": [
+                        "Very easy",
+                        "Easy",
+                        "Neutral",
+                        "Difficult",
+                        "Very difficult",
+                    ],
+                    "note": "Question form with matching options",
                 },
                 "incorrect_example": {
                     "question_text": "How easy was it to use the product?",
                     "question_type": "likert_five",
                     "question_options": None,
-                    "note": "WRONG - 'How easy' question cannot use agree/disagree scale"
-                }
-            }
+                    "note": "WRONG - 'How easy' question cannot use agree/disagree scale",
+                },
+            },
         }
 
         if num_questions:
             user_prompt["num_questions"] = num_questions
-            user_prompt["instructions"] = f"Generate exactly {num_questions} questions for this survey. Ensure question phrasing matches response options."
+            user_prompt[
+                "instructions"
+            ] = f"Generate exactly {num_questions} questions for this survey. Ensure question phrasing matches response options."
         else:
             user_prompt["instructions"] = (
                 "Generate an appropriate number of questions (typically 5-10) "
@@ -321,7 +326,9 @@ if __name__ == "__main__":
 
     # Example 2: Restaurant satisfaction
     print("Example 2: Customer satisfaction survey for a restaurant")
-    result2 = gen.generate_survey("Customer satisfaction survey for a restaurant", num_questions=6)
+    result2 = gen.generate_survey(
+        "Customer satisfaction survey for a restaurant", num_questions=6
+    )
     print(json.dumps(result2, indent=2))
     print()
 

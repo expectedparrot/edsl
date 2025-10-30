@@ -39,7 +39,7 @@ def find_dotenv_upwards(start_path: Optional[str] = None) -> Optional[Path]:
 
     # Search upwards until we find .env or reach the root
     while True:
-        env_file = current / '.env'
+        env_file = current / ".env"
         if env_file.is_file():
             return env_file
 
@@ -174,7 +174,7 @@ class AgentVibeEdit:
                 "and optionally a 'name' field. "
                 "Return ONLY a valid JSON object with an 'agents' key containing an array of agent objects. "
                 "Each agent object must have a 'traits' key (object) and optionally a 'name' key (string)."
-            )
+            ),
         }
 
         resp = self.client.chat.completions.create(
@@ -200,16 +200,16 @@ if __name__ == "__main__":
     original_agents = [
         {
             "traits": {"age": 25, "occupation": "student", "city": "Boston"},
-            "name": "Alice"
+            "name": "Alice",
         },
         {
             "traits": {"age": 30, "occupation": "engineer", "city": "San Francisco"},
-            "name": "Bob"
+            "name": "Bob",
         },
         {
             "traits": {"age": 28, "occupation": "teacher", "city": "New York"},
-            "name": "Charlie"
-        }
+            "name": "Charlie",
+        },
     ]
 
     # Example 1: Make all agents older
@@ -220,7 +220,10 @@ if __name__ == "__main__":
 
     # Example 2: Add a new trait
     print("Example 2: Add education level trait")
-    result2 = editor.edit_agent_list(original_agents, "Add an 'education_level' trait to all agents with appropriate values")
+    result2 = editor.edit_agent_list(
+        original_agents,
+        "Add an 'education_level' trait to all agents with appropriate values",
+    )
     print(json.dumps(result2, indent=2))
     print()
 

@@ -519,7 +519,7 @@ class ComparisonPerformanceTable:
 
     def __repr__(self) -> str:
         """Return Rich-formatted summary representation for terminal display.
-        
+
         Shows aggregate statistics and summary scores instead of the full detailed table.
         For the full detailed table, use .print() method.
         """
@@ -530,36 +530,40 @@ class ComparisonPerformanceTable:
         import io
 
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
-        
+
         # Calculate summary statistics for each agent
         for agent_name in sorted(self.agent_data.keys()):
             data = self.agent_data[agent_name]
             agent_best = self.best_performers[agent_name]
-            
+
             # Calculate Pareto frontier if not already done
             if agent_name not in self.pareto_members:
-                self.pareto_members[agent_name] = self._calculate_pareto_frontier(agent_name)
+                self.pareto_members[agent_name] = self._calculate_pareto_frontier(
+                    agent_name
+                )
             pareto_set = self.pareto_members[agent_name]
-            
+
             # Create summary table
             summary_table = Table(
                 title=f"Performance Summary for Agent: {agent_name}",
                 box=box.ROUNDED,
-                title_style="bold cyan"
+                title_style="bold cyan",
             )
-            
+
             summary_table.add_column("Candidate", style="bold", justify="center")
             summary_table.add_column("Pareto", justify="center", width=7)
             summary_table.add_column("# Wins", justify="center", style="green")
             summary_table.add_column("Avg Score", justify="center", style="yellow")
             summary_table.add_column("Win Rate", justify="center", style="cyan")
-            
+
             # Calculate statistics for each candidate
             for idx in sorted(data.keys()):
                 # Count wins (best performer on question-metric pairs)
-                num_wins = sum(1 for key, winners in agent_best.items() if idx in winners)
+                num_wins = sum(
+                    1 for key, winners in agent_best.items() if idx in winners
+                )
                 total_pairs = len(self.questions) * len(self.metrics)
-                
+
                 # Calculate average score across all question-metric pairs
                 scores = []
                 for q in self.questions:
@@ -570,10 +574,10 @@ class ComparisonPerformanceTable:
                                 scores.append(float(val))
                             except (TypeError, ValueError):
                                 pass
-                
+
                 avg_score = sum(scores) / len(scores) if scores else 0.0
                 win_rate = (num_wins / total_pairs * 100) if total_pairs > 0 else 0.0
-                
+
                 # Format row
                 pareto_mark = "[blue]✓[/blue]" if idx in pareto_set else ""
                 summary_table.add_row(
@@ -581,12 +585,12 @@ class ComparisonPerformanceTable:
                     pareto_mark,
                     str(num_wins),
                     f"{avg_score:.3f}",
-                    f"{win_rate:.1f}%"
+                    f"{win_rate:.1f}%",
                 )
-            
+
             console.print(summary_table)
             console.print()
-        
+
         # Add dimensions info
         info_text = (
             f"[cyan]Dimensions:[/cyan] {len(self.questions)} questions × {len(self.metrics)} metrics "
@@ -594,10 +598,9 @@ class ComparisonPerformanceTable:
             f"[dim]For detailed question-by-question breakdown, use .print() method[/dim]"
         )
         console.print(Panel(info_text, border_style="blue", box=box.ROUNDED))
-        
+
         return console.file.getvalue()
 
     def __str__(self) -> str:
         """Return Rich-formatted summary representation for terminal display."""
         return self.__repr__()
-

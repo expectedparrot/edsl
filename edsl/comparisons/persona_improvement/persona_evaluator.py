@@ -16,11 +16,11 @@ class PersonaGenerationEvaluator:
 
     def __init__(
         self,
-        train_agents: 'AgentList',
-        gold_results: 'Results',
-        evaluation_survey: 'Survey',
+        train_agents: "AgentList",
+        gold_results: "Results",
+        evaluation_survey: "Survey",
         sample_size: Optional[int] = None,
-        persona_instructions: Optional['ScenarioList'] = None,
+        persona_instructions: Optional["ScenarioList"] = None,
         instruction_indices: Optional[list] = None,
     ):
         """Initialize with training agents, gold standard results and evaluation survey.
@@ -43,7 +43,7 @@ class PersonaGenerationEvaluator:
         self.instruction_indices = instruction_indices
 
     @classmethod
-    def example(cls) -> 'PersonaGenerationEvaluator':
+    def example(cls) -> "PersonaGenerationEvaluator":
         """Return an example PersonaGenerationEvaluator instance.
 
         Returns:
@@ -51,17 +51,17 @@ class PersonaGenerationEvaluator:
         """
         from ...results import Results
         from ...surveys import Survey
-        
+
         results = Results.example()
         survey = Survey.example()
         return cls(
-            train_agents=results.agents, 
-            gold_results=results, 
-            evaluation_survey=survey, 
-            sample_size=2
+            train_agents=results.agents,
+            gold_results=results,
+            evaluation_survey=survey,
+            sample_size=2,
         )
 
-    def evaluate(self, verbose: bool = False) -> 'CompareResultsToGold':
+    def evaluate(self, verbose: bool = False) -> "CompareResultsToGold":
         """Generate personas and evaluate them against gold standard.
 
         Args:
@@ -71,17 +71,16 @@ class PersonaGenerationEvaluator:
             CompareResultsToGold object with evaluation results
         """
         from ..compare_results_to_gold import CompareResultsToGold
-        
+
         # Generate personas from training agents
         persona_gen = PersonaGenerator(
             agents=self.train_agents,
             sample_size=self.sample_size,
             persona_instructions=self.persona_instructions,
         )
-        
+
         agent_list = persona_gen.generate_personas(
-            instruction_indices=self.instruction_indices,
-            verbose=verbose
+            instruction_indices=self.instruction_indices, verbose=verbose
         )
 
         # Run evaluation survey with generated personas
@@ -94,9 +93,9 @@ class PersonaGenerationEvaluator:
             selected_instructions = [
                 persona_gen.persona_instructions[i] for i in self.instruction_indices
             ]
-        
+
         scenario_names = {
-            k: instr.get("label", f"instruction_{k}") 
+            k: instr.get("label", f"instruction_{k}")
             for k, instr in enumerate(selected_instructions)
         }
 
@@ -106,4 +105,3 @@ class PersonaGenerationEvaluator:
             self.gold_results,
             scenario_names=scenario_names,
         )
-

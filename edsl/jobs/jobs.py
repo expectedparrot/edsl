@@ -2096,7 +2096,9 @@ class Jobs(Base):
         # Build the Rich text
         output = Text()
         output.append("Jobs(\n", style=RICH_STYLES["primary"])
-        output.append(f"    num_interviews={self.num_interviews},\n", style=RICH_STYLES["default"])
+        output.append(
+            f"    num_interviews={self.num_interviews},\n", style=RICH_STYLES["default"]
+        )
 
         # Survey information
         if self.survey:
@@ -2113,7 +2115,9 @@ class Jobs(Base):
                 ]
                 if num_questions > max_items:
                     question_names.append(f"... ({num_questions - max_items} more)")
-                output.append(f"        questions: {question_names},\n", style=RICH_STYLES["dim"])
+                output.append(
+                    f"        questions: {question_names},\n", style=RICH_STYLES["dim"]
+                )
 
         # Agents information
         num_agents = len(self.agents) if self.agents else 0
@@ -2129,7 +2133,9 @@ class Jobs(Base):
                     f"... ({len(self.agents.trait_keys) - max_items} more)"
                 )
             if trait_keys:
-                output.append(f"        traits: {trait_keys},\n", style=RICH_STYLES["dim"])
+                output.append(
+                    f"        traits: {trait_keys},\n", style=RICH_STYLES["dim"]
+                )
 
         # Models information
         num_models = len(self.models) if self.models else 0
@@ -2163,7 +2169,9 @@ class Jobs(Base):
                     f"... ({len(self.scenarios.parameters) - max_items} more)"
                 )
             if params:
-                output.append(f"        parameters: {params},\n", style=RICH_STYLES["dim"])
+                output.append(
+                    f"        parameters: {params},\n", style=RICH_STYLES["dim"]
+                )
 
         output.append(")", style=RICH_STYLES["primary"])
 

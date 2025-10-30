@@ -98,7 +98,9 @@ class AnswersCompare:
         self._dist1 = None
         self._dist2 = None
 
-    def _get_distributions(self, smoothing: float = 1e-10) -> tuple[Dict[Any, float], Dict[Any, float]]:
+    def _get_distributions(
+        self, smoothing: float = 1e-10
+    ) -> tuple[Dict[Any, float], Dict[Any, float]]:
         """Get probability distributions for both question analyses.
 
         Args:
@@ -126,7 +128,7 @@ class AnswersCompare:
         question = self.qa1._report.results.survey.get(self.question_name)
 
         # Get all possible values
-        if hasattr(question, 'question_options') and question.question_options:
+        if hasattr(question, "question_options") and question.question_options:
             all_values = list(question.question_options)
         else:
             # Use union of observed values
@@ -150,8 +152,8 @@ class AnswersCompare:
         # Renormalize to ensure they sum to 1
         sum1 = sum(dist1.values())
         sum2 = sum(dist2.values())
-        dist1 = {k: v/sum1 for k, v in dist1.items()}
-        dist2 = {k: v/sum2 for k, v in dist2.items()}
+        dist1 = {k: v / sum1 for k, v in dist1.items()}
+        dist2 = {k: v / sum2 for k, v in dist2.items()}
 
         # Cache for reuse
         self._dist1 = dist1
@@ -212,10 +214,16 @@ class AnswersCompare:
         m_dist = {k: (dist1[k] + dist2[k]) / 2 for k in dist1.keys()}
 
         # JS divergence is average of two KL divergences
-        kl1 = sum(dist1[k] * np.log(dist1[k] / m_dist[k])
-                  for k in dist1.keys() if dist1[k] > 0)
-        kl2 = sum(dist2[k] * np.log(dist2[k] / m_dist[k])
-                  for k in dist2.keys() if dist2[k] > 0)
+        kl1 = sum(
+            dist1[k] * np.log(dist1[k] / m_dist[k])
+            for k in dist1.keys()
+            if dist1[k] > 0
+        )
+        kl2 = sum(
+            dist2[k] * np.log(dist2[k] / m_dist[k])
+            for k in dist2.keys()
+            if dist2[k] > 0
+        )
 
         return float((kl1 + kl2) / 2)
 
@@ -345,18 +353,21 @@ class AnswersCompare:
             bhattacharyya_distance: 0.156
         """
         return {
-            'kl_divergence': self.kl_divergence(),
-            'kl_divergence_reverse': self.kl_divergence(reverse=True),
-            'jensen_shannon_divergence': self.jensen_shannon_divergence(),
-            'hellinger_distance': self.hellinger_distance(),
-            'total_variation_distance': self.total_variation_distance(),
-            'chi_squared': self.chi_squared(),
-            'bhattacharyya_distance': self.bhattacharyya_distance(),
+            "kl_divergence": self.kl_divergence(),
+            "kl_divergence_reverse": self.kl_divergence(reverse=True),
+            "jensen_shannon_divergence": self.jensen_shannon_divergence(),
+            "hellinger_distance": self.hellinger_distance(),
+            "total_variation_distance": self.total_variation_distance(),
+            "chi_squared": self.chi_squared(),
+            "bhattacharyya_distance": self.bhattacharyya_distance(),
         }
 
     def _repr_html_(self) -> str:
         from ..scenarios import Scenario
-        return Scenario({str(k): str(v) for k, v in self.all_metrics().items()})._repr_html_()
+
+        return Scenario(
+            {str(k): str(v) for k, v in self.all_metrics().items()}
+        )._repr_html_()
 
     # def summary(self) -> str:
     #     """Generate a formatted summary of all distance metrics.
@@ -476,4 +487,5 @@ class AnswersCompare:
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

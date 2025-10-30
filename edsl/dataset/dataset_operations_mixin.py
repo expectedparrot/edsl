@@ -216,24 +216,25 @@ class DataOperationsBase:
             >>> # plot = r.vibe_plot("bar chart of how_feeling", show_code=True)
         """
         from .vibes.vibe_viz import GGPlotGenerator, RCodeDisplay
-        
+
         gen = GGPlotGenerator(model="gpt-4o", temperature=0.1)
-        
+
         if show_code:
             # Get the code display object
             code_display = gen.make_plot_code(
-                self.to_pandas(remove_prefix=True), 
-                description, 
-                return_display=True, 
-                show_code=True
+                self.to_pandas(remove_prefix=True),
+                description,
+                return_display=True,
+                show_code=True,
             )
             # Extract the actual code string for ggplot2
             r_code = code_display.code
-            
+
             # Display the code (in Jupyter it will show with copy button, in terminal just the code)
             try:
                 from IPython.display import display
                 from ..utilities.utilities import is_notebook
+
                 if is_notebook():
                     display(code_display)
                 else:
@@ -244,7 +245,7 @@ class DataOperationsBase:
         else:
             # Get just the code string
             r_code = gen.make_plot_code(self.to_pandas(remove_prefix=True), description)
-        
+
         return self.ggplot2(r_code)
 
     def chart(self):

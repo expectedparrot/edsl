@@ -13,9 +13,9 @@ from .metric_definitions import (
     # LLMSimilarity,
 )
 
+
 class MetricsCollection:
-    """Collection of metrics that can be used to compare answers.
-    """
+    """Collection of metrics that can be used to compare answers."""
 
     def __init__(self, comparison_fns: Sequence[ComparisonFunction] | None = None):
         """Initialize factory with optional comparison functions.
@@ -35,8 +35,7 @@ class MetricsCollection:
         self.metrics = list[ComparisonFunction](comparison_fns)
 
     def add_metric(self, comparison_fn: ComparisonFunction) -> "MetricsCollection":
-        """Add a single comparison function via dependency injection.
-        """
+        """Add a single comparison function via dependency injection."""
         if not isinstance(comparison_fn, ComparisonFunction):
             raise TypeError(
                 f"Expected ComparisonFunction instance, got {type(comparison_fn).__name__}"
@@ -65,12 +64,12 @@ class MetricsCollection:
             >>> any(isinstance(fn, ExactMatch) for fn in factory.comparison_fns)
             True
         """
-        import os 
+        import os
 
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             # for speed in doctests, only include ExactMatch
             return MetricsCollection([ExactMatch()])
-        
+
         comparisons = [ExactMatch()]
 
         # Add CosineSimilarity functions only if sentence-transformers is available
@@ -95,7 +94,7 @@ class MetricsCollection:
 
     def compute_metrics(self, answer_a: Any, answer_b: Any) -> Dict[str, Any]:
         """Compute all metrics for a pair of answers.
-        
+
         Returns:
             Dictionary mapping metric names to their computed values
         """
@@ -118,7 +117,7 @@ class MetricsCollection:
             >>> data = factory.to_dict(add_edsl_version=False)
             >>> data['comparison_fns'][0]['class_name']
             'ExactMatch'
-            >>> 
+            >>>
             >>> # Collection with CosineSimilarity includes model_name
             >>> factory = MetricsCollection().add_metric(CosineSimilarity("all-MiniLM-L6-v2"))
             >>> data = factory.to_dict(add_edsl_version=False)
@@ -127,12 +126,11 @@ class MetricsCollection:
             >>> data['comparison_fns'][0]['params']['model_name']
             'all-MiniLM-L6-v2'
         """
-        result = {
-            "comparison_fns": [fn.to_dict() for fn in self.metrics]
-        }
+        result = {"comparison_fns": [fn.to_dict() for fn in self.metrics]}
 
         if add_edsl_version:
             from edsl import __version__
+
             result["edsl_version"] = __version__
             result["edsl_class_name"] = "MetricsCollection"
 

@@ -38,7 +38,7 @@ def find_dotenv_upwards(start_path: Optional[str] = None) -> Optional[Path]:
 
     # Search upwards until we find .env or reach the root
     while True:
-        env_file = current / '.env'
+        env_file = current / ".env"
         if env_file.is_file():
             return env_file
 
@@ -61,6 +61,7 @@ if env_path:
 # OpenAI's structured output requires all fields to be defined explicitly
 # We'll use a flexible approach with many optional fields
 
+
 class AgentDefinition(BaseModel):
     """
     Schema for a single agent in a population.
@@ -68,19 +69,24 @@ class AgentDefinition(BaseModel):
     Uses predefined trait fields that cover most use cases.
     The LLM will populate relevant fields based on the population description.
     """
+
     # Identity fields
     name: Optional[str] = Field(None, description="Name of the agent (if applicable)")
     age: Optional[int] = Field(None, description="Age in years")
     gender: Optional[str] = Field(None, description="Gender identity")
 
     # Location fields
-    location: Optional[str] = Field(None, description="City, state, or general location")
+    location: Optional[str] = Field(
+        None, description="City, state, or general location"
+    )
     hometown: Optional[str] = Field(None, description="Place of origin")
 
     # Professional fields
     occupation: Optional[str] = Field(None, description="Job title or occupation")
     industry: Optional[str] = Field(None, description="Industry or sector")
-    years_experience: Optional[int] = Field(None, description="Years in current role or field")
+    years_experience: Optional[int] = Field(
+        None, description="Years in current role or field"
+    )
 
     # Education fields
     education_level: Optional[str] = Field(None, description="Highest education level")
@@ -92,25 +98,47 @@ class AgentDefinition(BaseModel):
     income_bracket: Optional[str] = Field(None, description="Income range or bracket")
 
     # Demographic fields
-    marital_status: Optional[str] = Field(None, description="Marital or relationship status")
-    household_size: Optional[int] = Field(None, description="Number of people in household")
+    marital_status: Optional[str] = Field(
+        None, description="Marital or relationship status"
+    )
+    household_size: Optional[int] = Field(
+        None, description="Number of people in household"
+    )
     children: Optional[int] = Field(None, description="Number of children")
 
     # Behavioral/Attitudinal fields
-    political_affiliation: Optional[str] = Field(None, description="Political leaning or party")
+    political_affiliation: Optional[str] = Field(
+        None, description="Political leaning or party"
+    )
     values: Optional[str] = Field(None, description="Core values or beliefs")
     interests: Optional[str] = Field(None, description="Hobbies or interests")
     personality: Optional[str] = Field(None, description="Personality traits")
 
     # Context-specific fields (can be adapted by LLM)
-    trait_1: Optional[Union[str, int, float, bool]] = Field(None, description="Additional context-specific trait")
-    trait_2: Optional[Union[str, int, float, bool]] = Field(None, description="Additional context-specific trait")
-    trait_3: Optional[Union[str, int, float, bool]] = Field(None, description="Additional context-specific trait")
-    trait_4: Optional[Union[str, int, float, bool]] = Field(None, description="Additional context-specific trait")
-    trait_5: Optional[Union[str, int, float, bool]] = Field(None, description="Additional context-specific trait")
-    trait_6: Optional[Union[str, int, float, bool]] = Field(None, description="Additional context-specific trait")
-    trait_7: Optional[Union[str, int, float, bool]] = Field(None, description="Additional context-specific trait")
-    trait_8: Optional[Union[str, int, float, bool]] = Field(None, description="Additional context-specific trait")
+    trait_1: Optional[Union[str, int, float, bool]] = Field(
+        None, description="Additional context-specific trait"
+    )
+    trait_2: Optional[Union[str, int, float, bool]] = Field(
+        None, description="Additional context-specific trait"
+    )
+    trait_3: Optional[Union[str, int, float, bool]] = Field(
+        None, description="Additional context-specific trait"
+    )
+    trait_4: Optional[Union[str, int, float, bool]] = Field(
+        None, description="Additional context-specific trait"
+    )
+    trait_5: Optional[Union[str, int, float, bool]] = Field(
+        None, description="Additional context-specific trait"
+    )
+    trait_6: Optional[Union[str, int, float, bool]] = Field(
+        None, description="Additional context-specific trait"
+    )
+    trait_7: Optional[Union[str, int, float, bool]] = Field(
+        None, description="Additional context-specific trait"
+    )
+    trait_8: Optional[Union[str, int, float, bool]] = Field(
+        None, description="Additional context-specific trait"
+    )
 
     model_config = {"extra": "forbid"}  # Required by OpenAI
 
@@ -124,6 +152,7 @@ class AgentPopulationSchema(BaseModel):
     agents : List[AgentDefinition]
         List of agent definitions that make up the population
     """
+
     agents: List[AgentDefinition] = Field(
         description="List of agents in the population, each with their own traits"
     )
@@ -164,7 +193,7 @@ class AgentGenerator:
         description: str,
         *,
         num_agents: Optional[int] = None,
-        traits: Optional[List[str]] = None
+        traits: Optional[List[str]] = None,
     ) -> Dict[str, List[Dict[str, Any]]]:
         """
         Generate a population of agents based on a natural language description.
@@ -344,10 +373,7 @@ class AgentGenerator:
             # Everything else becomes traits (excluding None values)
             traits = {k: v for k, v in agent_dict.items() if v is not None}
 
-            agents_list.append({
-                "traits": traits,
-                "name": agent_name
-            })
+            agents_list.append({"traits": traits, "name": agent_name})
 
         return {"agents": agents_list}
 
@@ -364,10 +390,7 @@ if __name__ == "__main__":
 
     # Example 2: Small business owners
     print("Example 2: Small business owners in the Midwest")
-    result2 = gen.generate_agents(
-        "Small business owners in the Midwest",
-        num_agents=6
-    )
+    result2 = gen.generate_agents("Small business owners in the Midwest", num_agents=6)
     print(json.dumps(result2, indent=2))
     print()
 
@@ -376,6 +399,6 @@ if __name__ == "__main__":
     result3 = gen.generate_agents(
         "Voters in a swing state",
         traits=["age", "political_affiliation", "education_level", "key_issue"],
-        num_agents=5
+        num_agents=5,
     )
     print(json.dumps(result3, indent=2))

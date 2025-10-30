@@ -1005,9 +1005,13 @@ class AgentBlueprint(Base):
 
         output = Text()
         output.append("AgentBlueprint(", style=RICH_STYLES["primary"])
-        output.append(f"dimensions={len(self.dimensions)}", style=RICH_STYLES["default"])
+        output.append(
+            f"dimensions={len(self.dimensions)}", style=RICH_STYLES["default"]
+        )
         output.append(", ", style=RICH_STYLES["default"])
-        output.append(f"combinations={self._total_combinations}", style=RICH_STYLES["secondary"])
+        output.append(
+            f"combinations={self._total_combinations}", style=RICH_STYLES["secondary"]
+        )
         output.append(")", style=RICH_STYLES["primary"])
 
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
