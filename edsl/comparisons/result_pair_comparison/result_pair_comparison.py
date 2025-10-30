@@ -104,10 +104,23 @@ class ResultPairComparison:
             True
         """
         from ...prompts.prompt import Prompt
+        try:
+            d = self.result_A.scenario_dict
+            answers_dict = {k: {'answer': v} for k, v in self.result_A.sub_dicts['answers'].items()}
+            combined_dict = {**d, **answers_dict}
+            question_text = (Prompt(self.result_A
+                .get_question_text(question_name))
+                .render(primary_replacement = combined_dict)
+                .text)
+        except Exception as e:
+            question_text = "Unknown"
+            import warnings
+            warnings.warn(f"Error getting question text: {e}")
+            question_text = "Error getting question text: " + str(e)
+            warnings.warn(f"Raw question text: {self.result_A.get_question_text(question_name)}")
+            warnings.warn(f"Primary replacement: {self.result_A.scenario}")
         return {
-            "question_text": (Prompt(self.result_A.get_question_text(question_name))
-            .render(primary_replacement = self.result_A.scenario).text
-            ),
+            "question_text": question_text,
             "question_type": self.result_A.get_question_type(question_name),
             "question_options": self.result_A.get_question_options(question_name),
         }

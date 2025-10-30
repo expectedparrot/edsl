@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from rich.table import Table
 
-from .metrics import ComparisonFunction
+from .metrics.metrics_abc import ComparisonFunction
 from .answer_comparison import AnswerComparison
 from .factory import ComparisonFactory
 
