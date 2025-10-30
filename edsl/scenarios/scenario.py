@@ -647,6 +647,7 @@ class Scenario(Base, UserDict):
             max_items: Maximum number of key-value pairs to show before truncating
             max_value_length: Maximum length of a value before truncating. If None, uses terminal width.
         """
+        from edsl.config import RICH_STYLES
         from rich.console import Console
         from rich.text import Text
         import io
@@ -662,12 +663,12 @@ class Scenario(Base, UserDict):
 
         # Build the Rich text
         output = Text()
-        output.append("Scenario(\n", style="bold cyan")
+        output.append("Scenario(\n", style=RICH_STYLES["primary"])
 
         num_keys = len(self.data)
         if num_keys > 0:
-            output.append(f"    num_keys={num_keys},\n", style="white")
-            output.append("    data={\n", style="white")
+            output.append(f"    num_keys={num_keys},\n", style=RICH_STYLES["default"])
+            output.append("    data={\n", style=RICH_STYLES["default"])
 
             for i, (key, value) in enumerate(list(self.data.items())[:max_items]):
                 # Format the value with truncation if needed
@@ -675,20 +676,20 @@ class Scenario(Base, UserDict):
                 if len(value_repr) > max_value_length:
                     value_repr = value_repr[: max_value_length - 3] + "..."
 
-                output.append("        ", style="white")
-                output.append(f"'{key}'", style="bold yellow")
-                output.append(f": {value_repr},\n", style="white")
+                output.append("        ", style=RICH_STYLES["default"])
+                output.append(f"'{key}'", style=RICH_STYLES["secondary"])
+                output.append(f": {value_repr},\n", style=RICH_STYLES["default"])
 
             if num_keys > max_items:
                 output.append(
-                    f"        ... ({num_keys - max_items} more)\n", style="dim"
+                    f"        ... ({num_keys - max_items} more)\n", style=RICH_STYLES["dim"]
                 )
 
-            output.append("    }\n", style="white")
+            output.append("    }\n", style=RICH_STYLES["default"])
         else:
-            output.append("    data={}\n", style="dim")
+            output.append("    data={}\n", style=RICH_STYLES["dim"])
 
-        output.append(")", style="bold cyan")
+        output.append(")", style=RICH_STYLES["primary"])
 
         # Render to string using actual terminal width
         console = Console(file=io.StringIO(), force_terminal=True, width=terminal_width)

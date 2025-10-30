@@ -62,6 +62,31 @@ class GGPlot:
         print(f"File saved to: {filename}")
         return None  # Return None instead of self
 
+    def __repr__(self):
+        """Display the plot in terminal by opening it."""
+        # Don't display if the plot was saved
+        if self._saved:
+            return f"<GGPlot saved>"
+
+        # Generate and open PNG in terminal
+        import platform
+        import os
+
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+            save_command = f'\nggsave("{tmp.name}", plot = last_plot(), width = {self.width}, height = {self.height}, device = "png")'
+            self._execute_r_code(save_command)
+
+            # Open the PNG with system viewer
+            system = platform.system()
+            if system == "Darwin":  # macOS
+                subprocess.run(["open", tmp.name])
+            elif system == "Linux":
+                subprocess.run(["xdg-open", tmp.name])
+            elif system == "Windows":
+                os.startfile(tmp.name)
+
+            return f"<GGPlot displayed at {tmp.name}>"
+
     def _repr_html_(self):
         """Display the plot in a Jupyter notebook."""
         # Don't display if the plot was saved
