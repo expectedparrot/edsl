@@ -139,6 +139,8 @@ class RunParameters(Base):
         Returns:
             str: A formatted summary representation of the RunParameters
         """
+        from edsl.config import RICH_STYLES
+
         # Only show non-default values for brevity
         non_defaults = []
         defaults = RunParameters()
@@ -174,7 +176,7 @@ class RunParameters(Base):
             non_defaults.append(f"job_uuid='{self.job_uuid}'")
 
         params_str = ", ".join(non_defaults) if non_defaults else "all defaults"
-        return f"[cyan]RunParameters[/cyan]({params_str})"
+        return f"[{RICH_STYLES['primary']}]RunParameters[/{RICH_STYLES['primary']}]({params_str})"
 
 
 @dataclass

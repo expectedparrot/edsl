@@ -23,6 +23,9 @@ from .utilities import (
 # Decorator utilities
 from .decorators import sync_wrapper, jupyter_nb_handler, memory_profile
 
+# Spinner utilities
+from .spinner import with_spinner, silent_spinner
+
 # Standalone utilities
 from .is_notebook import is_notebook
 from .is_valid_variable_name import is_valid_variable_name
@@ -48,6 +51,8 @@ __all__ = [
     "sync_wrapper",
     "jupyter_nb_handler",
     "memory_profile",
+    "with_spinner",
+    "silent_spinner",
     "is_notebook",
     "is_valid_variable_name",
     "sanitize_string",
