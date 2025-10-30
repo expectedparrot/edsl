@@ -1252,72 +1252,73 @@ class Agent(Base):
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
         # Build the Rich text
         output = Text()
         class_name = self.__class__.__name__
 
-        output.append(f"{class_name}(\n", style="bold cyan")
+        output.append(f"{class_name}(\n", style=RICH_STYLES["primary"])
 
         # Name (if present)
         if self.name:
-            output.append("    name=", style="white")
-            output.append(f'"{self.name}"', style="green")
-            output.append(",\n", style="white")
+            output.append("    name=", style=RICH_STYLES["default"])
+            output.append(f'"{self.name}"', style=RICH_STYLES["key"])
+            output.append(",\n", style=RICH_STYLES["default"])
 
         # Traits
         traits = self.traits
         num_traits = len(traits)
-        output.append(f"    num_traits={num_traits}", style="white")
+        output.append(f"    num_traits={num_traits}", style=RICH_STYLES["default"])
 
         if num_traits > 0:
-            output.append(",\n    traits={\n", style="white")
+            output.append(",\n    traits={\n", style=RICH_STYLES["default"])
 
             for i, (key, value) in enumerate(list(traits.items())[:max_traits]):
                 value_repr = repr(value)
                 if len(value_repr) > 40:
                     value_repr = value_repr[:37] + "..."
 
-                output.append("        ", style="white")
-                output.append(f"'{key}'", style="bold yellow")
-                output.append(f": {value_repr},\n", style="white")
+                output.append("        ", style=RICH_STYLES["default"])
+                output.append(f"'{key}'", style=RICH_STYLES["secondary"])
+                output.append(f": {value_repr},\n", style=RICH_STYLES["default"])
 
             if num_traits > max_traits:
                 output.append(
-                    f"        ... ({num_traits - max_traits} more)\n", style="dim"
+                    f"        ... ({num_traits - max_traits} more)\n", style=RICH_STYLES["dim"]
                 )
 
-            output.append("    }", style="white")
+            output.append("    }", style=RICH_STYLES["default"])
 
         # Codebook (if present)
         if self.codebook:
             num_codebook = len(self.codebook)
-            output.append(",\n    ", style="white")
-            output.append(f"num_codebook_entries={num_codebook}", style="magenta")
+            output.append(",\n    ", style=RICH_STYLES["default"])
+            output.append(f"num_codebook_entries={num_codebook}", style=RICH_STYLES["highlight"])
 
         # Instruction (if custom)
         if self.instruction != self.default_instruction:
             instruction_text = self.instruction
             if len(instruction_text) > 50:
                 instruction_text = instruction_text[:47] + "..."
-            output.append(",\n    instruction=", style="white")
-            output.append(f'"{instruction_text}"', style="cyan")
+            output.append(",\n    instruction=", style=RICH_STYLES["default"])
+            output.append(f'"{instruction_text}"', style=RICH_STYLES["key"])
 
         # Dynamic traits function (if present)
         if self.has_dynamic_traits_function:
             func_name = self.dynamic_traits_function_name or "anonymous"
-            output.append(",\n    ", style="white")
-            output.append(f"dynamic_traits_function='{func_name}'", style="blue")
+            output.append(",\n    ", style=RICH_STYLES["default"])
+            output.append(f"dynamic_traits_function='{func_name}'", style=RICH_STYLES["key"])
 
         # Direct answering method (if present)
         if hasattr(self, "answer_question_directly"):
             func_name = getattr(
                 self, "answer_question_directly_function_name", "anonymous"
             )
-            output.append(",\n    ", style="white")
-            output.append(f"direct_answer_method='{func_name}'", style="blue")
+            output.append(",\n    ", style=RICH_STYLES["default"])
+            output.append(f"direct_answer_method='{func_name}'", style=RICH_STYLES["key"])
 
-        output.append("\n)", style="bold cyan")
+        output.append("\n)", style=RICH_STYLES["primary"])
 
         # Render to string
         string_io = io.StringIO()

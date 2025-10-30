@@ -191,28 +191,6 @@ class AgentBlueprint(Base):
     def _repr_html_(self) -> str:
         return self.table()._repr_html_()
 
-    def __repr__(self) -> str:
-        """Return a string representation of the AgentBlueprint.
-
-        In doctest mode, returns a simple eval'able representation.
-        Otherwise, returns a Rich-formatted version with details.
-
-        Examples:
-            >>> blueprint = AgentBlueprint.example()
-            >>> blueprint  # doctest: +ELLIPSIS
-            AgentBlueprint(dimensions=['politics', 'age', 'gender'], total_combinations=27, seed=42, cycle=True)
-        """
-        import os
-
-        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
-            return (
-                f"AgentBlueprint(dimensions={self.dimensions!r}, "
-                f"total_combinations={self._total_combinations}, "
-                f"seed={self.seed}, cycle={self.cycle})"
-            )
-        else:
-            return self._rich_repr()
-
     def _rich_repr(self) -> str:  # pragma: no cover
         """Return a Rich-formatted representation with dimension details.
 
@@ -695,7 +673,7 @@ class AgentBlueprint(Base):
         --------
         >>> blueprint = AgentBlueprint.example()
         >>> blueprint
-        AgentBlueprint(dimensions=['politics', 'age', 'gender'], total_combinations=27, seed=42, cycle=True)
+        AgentBlueprint(dimensions=[politics, age, gender])
         >>> blueprint._total_combinations
         27
         >>> len(blueprint.dimensions)
@@ -800,6 +778,141 @@ class AgentBlueprint(Base):
             cycle=self.cycle,
         )
 
+    def add_dimension_value(
+        self, dimension_name: str, value, weight: float = 1.0
+    ) -> "AgentBlueprint":
+        """Return a new AgentBlueprint with a value added to the specified dimension.
+
+        Parameters
+        ----------
+        dimension_name : str
+            The name of the dimension to modify.
+        value
+            The value to add to the dimension.
+        weight : float, default=1.0
+            The probability weight for the new value.
+
+        Returns
+        -------
+        AgentBlueprint
+            A new blueprint with the value added to the specified dimension.
+
+        Raises
+        ------
+        ValueError
+            If the dimension does not exist in the blueprint or if the value already exists.
+
+        Examples
+        --------
+        >>> blueprint = AgentBlueprint.example()
+        >>> new_blueprint = blueprint.add_dimension_value("politics", "libertarian")
+        >>> new_blueprint._total_combinations  # Should be 36 instead of 27
+        36
+        """
+        if dimension_name not in self._dimension_map:
+            raise ValueError(
+                f"Dimension '{dimension_name}' does not exist in blueprint"
+            )
+
+        old_dimension = self._dimension_map[dimension_name]
+
+        # Check if value already exists
+        if value in old_dimension.to_plain_list():
+            raise ValueError(
+                f"Value {value!r} already exists in dimension '{dimension_name}'"
+            )
+
+        # Create new dimension with the added value
+        new_values = [(dv.value, dv.weight) for dv in old_dimension.values]
+        new_values.append((value, weight))
+
+        new_dimension = Dimension(
+            name=old_dimension.name,
+            description=old_dimension.description,
+            values=new_values,
+        )
+
+        # Create new dimension map with the updated dimension
+        new_dimension_map = {
+            name: (new_dimension if name == dimension_name else dim)
+            for name, dim in self._dimension_map.items()
+        }
+
+        return AgentBlueprint(
+            new_dimension_map,
+            seed=self.seed,
+            cycle=self.cycle,
+        )
+
+    def drop_dimension_value(self, dimension_name: str, value) -> "AgentBlueprint":
+        """Return a new AgentBlueprint with a value removed from the specified dimension.
+
+        Parameters
+        ----------
+        dimension_name : str
+            The name of the dimension to modify.
+        value
+            The value to remove from the dimension.
+
+        Returns
+        -------
+        AgentBlueprint
+            A new blueprint with the value removed from the specified dimension.
+
+        Raises
+        ------
+        ValueError
+            If the dimension does not exist, if the value does not exist in the dimension,
+            or if removing the value would leave the dimension empty.
+
+        Examples
+        --------
+        >>> blueprint = AgentBlueprint.example()
+        >>> new_blueprint = blueprint.drop_dimension_value("politics", "center")
+        >>> new_blueprint._total_combinations  # Should be 18 instead of 27
+        18
+        """
+        if dimension_name not in self._dimension_map:
+            raise ValueError(
+                f"Dimension '{dimension_name}' does not exist in blueprint"
+            )
+
+        old_dimension = self._dimension_map[dimension_name]
+
+        # Check if value exists
+        if value not in old_dimension.to_plain_list():
+            raise ValueError(
+                f"Value {value!r} does not exist in dimension '{dimension_name}'"
+            )
+
+        # Create new dimension without the dropped value
+        new_values = [
+            (dv.value, dv.weight) for dv in old_dimension.values if dv.value != value
+        ]
+
+        if not new_values:
+            raise ValueError(
+                f"Cannot drop the last value from dimension '{dimension_name}'; dimension must have at least one value"
+            )
+
+        new_dimension = Dimension(
+            name=old_dimension.name,
+            description=old_dimension.description,
+            values=new_values,
+        )
+
+        # Create new dimension map with the updated dimension
+        new_dimension_map = {
+            name: (new_dimension if name == dimension_name else dim)
+            for name, dim in self._dimension_map.items()
+        }
+
+        return AgentBlueprint(
+            new_dimension_map,
+            seed=self.seed,
+            cycle=self.cycle,
+        )
+
     # ------------------------------------------------------------------
     # Probability utilities
     # ------------------------------------------------------------------
@@ -888,13 +1001,14 @@ class AgentBlueprint(Base):
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
         output = Text()
-        output.append("AgentBlueprint(", style="bold cyan")
-        output.append(f"dimensions={len(self.dimensions)}", style="white")
-        output.append(", ", style="white")
-        output.append(f"combinations={self._total_combinations}", style="yellow")
-        output.append(")", style="bold cyan")
+        output.append("AgentBlueprint(", style=RICH_STYLES["primary"])
+        output.append(f"dimensions={len(self.dimensions)}", style=RICH_STYLES["default"])
+        output.append(", ", style=RICH_STYLES["default"])
+        output.append(f"combinations={self._total_combinations}", style=RICH_STYLES["secondary"])
+        output.append(")", style=RICH_STYLES["primary"])
 
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
         console.print(output, end="")
