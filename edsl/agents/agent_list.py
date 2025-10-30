@@ -786,7 +786,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             - Uses the agent list's built-in filter() method for safe evaluation
             - Use show_expression=True to see the generated filter logic
         """
-        from edsl.dataset.vibe_filter import VibeFilter
+        from edsl.dataset.vibes.vibe_filter import VibeFilter
 
         # Get trait names and sample data
         trait_names = self.all_traits
@@ -1460,7 +1460,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             - Higher temperature (0.7-0.9) creates more diverse populations
             - The generator avoids stereotypes and creates nuanced individuals
         """
-        from .agent_generator import AgentGenerator
+        from .vibes import AgentGenerator
 
         # Create the generator
         generator = AgentGenerator(model=model, temperature=temperature)
@@ -1539,7 +1539,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             - New traits can be added with appropriate values inferred from existing traits
             - Trait values will be modified appropriately based on instructions
         """
-        from .agent_vibe_editor import AgentVibeEdit
+        from .vibes import AgentVibeEdit
 
         # Convert current agents to dict format
         current_agents = []
