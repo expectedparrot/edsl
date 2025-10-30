@@ -11,22 +11,19 @@ from typing import Dict
 # These styles are chosen to provide good contrast in both light and dark themes
 RICH_STYLES: Dict[str, str] = {
     # Primary structural elements
-    "primary": "bold blue",           # Main object names, headers
-    "secondary": "bold green",        # Secondary headers, emphasized keys
-
+    "primary": "bold blue",  # Main object names, headers
+    "secondary": "bold green",  # Secondary headers, emphasized keys
     # Text content
-    "default": "default",             # Regular text that adapts to theme
-    "key": "green",                   # Dictionary keys, column names
-    "value": "default",               # Values, data content
-
+    "default": "default",  # Regular text that adapts to theme
+    "key": "green",  # Dictionary keys, column names
+    "value": "default",  # Values, data content
     # Status and metadata
-    "dim": "dim",                     # Muted text, ellipsis indicators
-    "highlight": "bold",              # Important information
-
+    "dim": "dim",  # Muted text, ellipsis indicators
+    "highlight": "bold",  # Important information
     # Specific use cases
-    "number": "default",              # Numeric values
-    "string": "default",              # String values
-    "bracket": "default",             # Brackets, parentheses
+    "number": "default",  # Numeric values
+    "string": "default",  # String values
+    "bracket": "default",  # Brackets, parentheses
 }
 
 

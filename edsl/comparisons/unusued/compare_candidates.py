@@ -48,10 +48,11 @@ class CompareCandidates:
             CompareCandidates object
         """
         from .result_pair_comparison import ResultPairComparison
+
         return cls(
-            ResultPairComparison.example(first_index=0, second_index=3), 
-            ResultPairComparison.example(first_index=1, second_index=3)
-            )
+            ResultPairComparison.example(first_index=0, second_index=3),
+            ResultPairComparison.example(first_index=1, second_index=3),
+        )
 
     def compare(self) -> "ScenarioList":
         """Compare the two candidates and return a ScenarioList with performance data.
@@ -203,14 +204,14 @@ class CompareCandidates:
 
 class CompareCandidatesRich:
     """Create rich table representations of candidate comparisons.
-    
+
     Takes the output from CompareCandidates.compare() and formats it as
     stacked rich tables, one per question, with metrics as rows.
     """
 
     def __init__(self, scenario_list: "ScenarioList"):
         """Initialize with a ScenarioList from CompareCandidates.compare().
-        
+
         Args:
             scenario_list: Output from CompareCandidates.compare()
         """
@@ -224,17 +225,18 @@ class CompareCandidatesRich:
             CompareCandidatesRich object
         """
         from .compare_candidates import CompareCandidates
+
         return cls(CompareCandidates.example().compare())
 
     def to_string(self) -> str:
         """Return the comparison as a string with rich formatting.
-        
+
         Returns:
             Formatted string representation of the comparison
         """
         from io import StringIO
         from rich.console import Console
-        
+
         string_io = StringIO()
         console = Console(file=string_io, force_terminal=True, width=120)
         self._render_to_console(console)
@@ -243,13 +245,13 @@ class CompareCandidatesRich:
     def display(self) -> None:
         """Display the comparison as rich tables grouped by question."""
         from rich.console import Console
-        
+
         console = Console()
         self._render_to_console(console)
 
     def _render_to_console(self, console) -> None:
         """Render the comparison to the given console.
-        
+
         Args:
             console: Rich Console object to render to
         """
@@ -261,7 +263,7 @@ class CompareCandidatesRich:
         questions = defaultdict(list)
         for scenario in self.scenario_list:
             questions[scenario["question_name"]].append(scenario)
-        
+
         # Track Pareto winners for summary
         pareto_summary = {}
 
@@ -272,7 +274,7 @@ class CompareCandidatesRich:
             candidate_answer_1 = str(first_scenario["candidate_answer_1"])
             candidate_answer_2 = str(first_scenario["candidate_answer_2"])
             actual_answer = str(first_scenario["actual_answer"])
-            
+
             # Get question metadata
             question_text = str(first_scenario.get("question_text", ""))
             question_type = str(first_scenario.get("question_type", ""))
@@ -286,7 +288,7 @@ class CompareCandidatesRich:
             )
             metadata_table.add_column("Field", style="dim italic")
             metadata_table.add_column("Value", no_wrap=False)
-            
+
             if question_text:
                 metadata_table.add_row("Question Text:", question_text)
             if question_type:
@@ -307,7 +309,7 @@ class CompareCandidatesRich:
             answers_table.add_row(
                 candidate_answer_1,
                 candidate_answer_2,
-                Text(actual_answer, style="green")
+                Text(actual_answer, style="green"),
             )
 
             # Create metrics table
@@ -325,7 +327,7 @@ class CompareCandidatesRich:
             candidate_1_wins = winners.count("candidate_1")
             candidate_2_wins = winners.count("candidate_2")
             ties = winners.count("tie")
-            
+
             if ties == len(winners):
                 pareto_winner = "Tie"
             elif candidate_1_wins > 0 and candidate_2_wins == 0:
@@ -334,7 +336,7 @@ class CompareCandidatesRich:
                 pareto_winner = "Candidate 2"
             else:
                 pareto_winner = "Mixed"
-            
+
             pareto_summary[question_name] = pareto_winner
 
             # Add rows for each metric
@@ -347,8 +349,10 @@ class CompareCandidatesRich:
                 # Format metric values with winner highlighting
                 if winner == "candidate_1":
                     value_1_text = Text(
-                        f"{value_1:.4f}" if isinstance(value_1, float) else str(value_1),
-                        style="blue"
+                        f"{value_1:.4f}"
+                        if isinstance(value_1, float)
+                        else str(value_1),
+                        style="blue",
                     )
                     value_2_text = Text(
                         f"{value_2:.4f}" if isinstance(value_2, float) else str(value_2)
@@ -358,8 +362,10 @@ class CompareCandidatesRich:
                         f"{value_1:.4f}" if isinstance(value_1, float) else str(value_1)
                     )
                     value_2_text = Text(
-                        f"{value_2:.4f}" if isinstance(value_2, float) else str(value_2),
-                        style="blue"
+                        f"{value_2:.4f}"
+                        if isinstance(value_2, float)
+                        else str(value_2),
+                        style="blue",
                     )
                 else:  # tie
                     value_1_text = Text(
@@ -378,6 +384,7 @@ class CompareCandidatesRich:
 
             # Combine tables vertically
             from rich.console import Group
+
             combined = Group(
                 Text(f"Question: {question_name}", style="bold cyan", justify="center"),
                 Text(""),  # Spacing
@@ -392,13 +399,13 @@ class CompareCandidatesRich:
             panel = Panel(combined, expand=False, border_style="bright_blue")
             console.print(panel)
             console.print()  # Add spacing between questions
-        
+
         # Display summary table
         self._render_summary_table(console, pareto_summary)
 
     def _render_summary_table(self, console, pareto_summary: dict) -> None:
         """Render a summary table showing Pareto winners for each question.
-        
+
         Args:
             console: Rich Console object to render to
             pareto_summary: Dictionary mapping question names to Pareto winner status
@@ -406,7 +413,7 @@ class CompareCandidatesRich:
         from rich.table import Table
         from rich.panel import Panel
         from rich.text import Text
-        
+
         # Create summary table
         summary_table = Table(
             title="Summary: Pareto Winners by Question",
@@ -415,7 +422,7 @@ class CompareCandidatesRich:
         )
         summary_table.add_column("Question", style="cyan", no_wrap=False)
         summary_table.add_column("Pareto Winner", justify="center")
-        
+
         # Add rows for each question
         for question_name, pareto_winner in pareto_summary.items():
             # Style the winner text
@@ -427,9 +434,9 @@ class CompareCandidatesRich:
                 winner_text = Text(pareto_winner, style="dim")
             else:  # Mixed
                 winner_text = Text(pareto_winner, style="yellow")
-            
+
             summary_table.add_row(question_name, winner_text)
-        
+
         # Display in a panel
         panel = Panel(summary_table, expand=False, border_style="green")
         console.print(panel)

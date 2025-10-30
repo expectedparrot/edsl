@@ -1,7 +1,10 @@
 from IPython.display import HTML
 import difflib
 
-def show_diff(text1, text2, text1_name="Original", text2_name="Modified", split_sentences = True):
+
+def show_diff(
+    text1, text2, text1_name="Original", text2_name="Modified", split_sentences=True
+):
     """
     Compact side-by-side diff without wasted space
     """
@@ -10,9 +13,10 @@ def show_diff(text1, text2, text1_name="Original", text2_name="Modified", split_
         text2 = "\n".join(text2.split("."))
     d = difflib.HtmlDiff()
     # Use make_table instead of make_file for more control
-    html_table = d.make_table(text1.splitlines(), text2.splitlines(), 
-                              fromdesc=text1_name, todesc=text2_name)
-    
+    html_table = d.make_table(
+        text1.splitlines(), text2.splitlines(), fromdesc=text1_name, todesc=text2_name
+    )
+
     custom_css = """
     <style>
         /* Compact table styling */
@@ -67,5 +71,5 @@ def show_diff(text1, text2, text1_name="Original", text2_name="Modified", split_
     </style>
     <div class="diff-wrapper">
     """
-    
+
     display(HTML(custom_css + html_table + "</div>"))

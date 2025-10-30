@@ -192,7 +192,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         *,
         model: str = "gpt-4o",
         temperature: float = 0.1,
-        show_expression: bool = False
+        show_expression: bool = False,
     ) -> "Dataset":
         """
         Filter the dataset using natural language criteria.
@@ -460,7 +460,9 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         num_obs = len(self)
         num_cols = len(self.keys())
 
-        output.append(f"    num_observations={num_obs},\n", style=RICH_STYLES["default"])
+        output.append(
+            f"    num_observations={num_obs},\n", style=RICH_STYLES["default"]
+        )
         output.append(f"    num_columns={num_cols},\n", style=RICH_STYLES["default"])
 
         # Show column names
@@ -478,7 +480,8 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
             if num_cols > max_cols:
                 output.append(
-                    f"        ... ({num_cols - max_cols} more)\n", style=RICH_STYLES["dim"]
+                    f"        ... ({num_cols - max_cols} more)\n",
+                    style=RICH_STYLES["dim"],
                 )
 
             output.append("    ],\n", style=RICH_STYLES["default"])
@@ -502,7 +505,9 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
                     output.append("        ", style=RICH_STYLES["default"])
                     output.append(f"'{col}'", style=RICH_STYLES["secondary"])
-                    output.append(f": [{', '.join(formatted_values)}", style=RICH_STYLES["value"])
+                    output.append(
+                        f": [{', '.join(formatted_values)}", style=RICH_STYLES["value"]
+                    )
 
                     if num_obs > max_rows:
                         output.append(", ...", style=RICH_STYLES["dim"])

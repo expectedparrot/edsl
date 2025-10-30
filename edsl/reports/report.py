@@ -551,12 +551,17 @@ class OutputWrapper:
                 return result
 
             # Generate appropriate visualization based on question type
-            if question_type in ['multiple_choice', 'yes_no', 'linear_scale', 'likert_five']:
+            if question_type in [
+                "multiple_choice",
+                "yes_no",
+                "linear_scale",
+                "likert_five",
+            ]:
                 # Bar chart for categorical/scale data
                 counts = Counter(valid_answers)
 
                 # Get options from question if available
-                if hasattr(question, 'question_options'):
+                if hasattr(question, "question_options"):
                     options = question.question_options
                     labels = [str(opt) for opt in options]
                     values = [counts.get(opt, 0) for opt in options]
@@ -577,6 +582,7 @@ class OutputWrapper:
                 # Capture output
                 import io
                 import sys
+
                 old_stdout = sys.stdout
                 sys.stdout = buffer = io.StringIO()
                 fig.show()
@@ -585,7 +591,7 @@ class OutputWrapper:
 
                 output_lines.append(viz_output)
 
-            elif question_type in ['numerical']:
+            elif question_type in ["numerical"]:
                 # Histogram for numerical data
                 values = np.array(valid_answers, dtype=float)
 
@@ -593,7 +599,9 @@ class OutputWrapper:
                 output_lines.append(f"Mean: {np.mean(values):.2f}")
                 output_lines.append(f"Median: {np.median(values):.2f}")
                 output_lines.append(f"Std Dev: {np.std(values):.2f}")
-                output_lines.append(f"Min: {np.min(values):.2f}, Max: {np.max(values):.2f}")
+                output_lines.append(
+                    f"Min: {np.min(values):.2f}, Max: {np.max(values):.2f}"
+                )
                 output_lines.append("")
 
                 counts, bin_edges = np.histogram(values)
@@ -602,6 +610,7 @@ class OutputWrapper:
 
                 import io
                 import sys
+
                 old_stdout = sys.stdout
                 sys.stdout = buffer = io.StringIO()
                 fig.show()
@@ -610,7 +619,7 @@ class OutputWrapper:
 
                 output_lines.append(viz_output)
 
-            elif question_type in ['checkbox']:
+            elif question_type in ["checkbox"]:
                 # Bar chart for checkbox (multiple selections)
                 all_selections = []
                 for answer in valid_answers:
@@ -624,7 +633,9 @@ class OutputWrapper:
 
                 output_lines.append(f"Total respondents: {len(valid_answers)}")
                 output_lines.append(f"Total selections: {len(all_selections)}")
-                output_lines.append(f"Avg selections per respondent: {len(all_selections)/len(valid_answers):.1f}")
+                output_lines.append(
+                    f"Avg selections per respondent: {len(all_selections)/len(valid_answers):.1f}"
+                )
                 output_lines.append("")
 
                 labels = [str(item[0]) for item in sorted_items]
@@ -635,6 +646,7 @@ class OutputWrapper:
 
                 import io
                 import sys
+
                 old_stdout = sys.stdout
                 sys.stdout = buffer = io.StringIO()
                 fig.show()
@@ -643,13 +655,15 @@ class OutputWrapper:
 
                 output_lines.append(viz_output)
 
-            elif question_type in ['free_text']:
+            elif question_type in ["free_text"]:
                 # Text length distribution
                 lengths = np.array([len(str(answer)) for answer in valid_answers])
 
                 output_lines.append(f"Total responses: {len(valid_answers)}")
                 output_lines.append(f"Avg characters: {np.mean(lengths):.1f}")
-                output_lines.append(f"Shortest: {np.min(lengths)}, Longest: {np.max(lengths)}")
+                output_lines.append(
+                    f"Shortest: {np.min(lengths)}, Longest: {np.max(lengths)}"
+                )
                 output_lines.append("")
                 output_lines.append("Response Length Distribution:")
                 output_lines.append("")
@@ -660,6 +674,7 @@ class OutputWrapper:
 
                 import io
                 import sys
+
                 old_stdout = sys.stdout
                 sys.stdout = buffer = io.StringIO()
                 fig.show()
@@ -686,6 +701,7 @@ class OutputWrapper:
 
                 import io
                 import sys
+
                 old_stdout = sys.stdout
                 sys.stdout = buffer = io.StringIO()
                 fig.show()
@@ -696,11 +712,15 @@ class OutputWrapper:
 
         else:
             # Multiple questions - show a note
-            output_lines.append("Multi-question terminal visualizations not yet supported.")
+            output_lines.append(
+                "Multi-question terminal visualizations not yet supported."
+            )
             output_lines.append(f"Questions: {', '.join(self._question_names)}")
             output_lines.append("\nFor now, analyze each question individually:")
             for qname in self._question_names:
-                output_lines.append(f"  results.analyze('{qname}').bar_chart_output.terminal_chart()")
+                output_lines.append(
+                    f"  results.analyze('{qname}').bar_chart_output.terminal_chart()"
+                )
 
         output_lines.append("")
         output_lines.append("=" * 70)
@@ -847,8 +867,13 @@ class QuestionAnalysis:
             # Question Details Section (compact)
             for i, (qname, question) in enumerate(zip(self._question_names, questions)):
                 # Question info table
-                q_table = Table(show_header=False, box=box.SIMPLE, border_style="blue",
-                               padding=(0, 1), collapse_padding=True)
+                q_table = Table(
+                    show_header=False,
+                    box=box.SIMPLE,
+                    border_style="blue",
+                    padding=(0, 1),
+                    collapse_padding=True,
+                )
                 q_table.add_column("Field", style="cyan bold", width=15)
                 q_table.add_column("Value", style="white")
 
@@ -857,8 +882,10 @@ class QuestionAnalysis:
                 q_table.add_row("Text", question.question_text)
 
                 # Add options if available
-                if hasattr(question, 'question_options') and question.question_options:
-                    options_str = ", ".join([str(opt) for opt in question.question_options[:10]])
+                if hasattr(question, "question_options") and question.question_options:
+                    options_str = ", ".join(
+                        [str(opt) for opt in question.question_options[:10]]
+                    )
                     if len(question.question_options) > 10:
                         options_str += f" ... ({len(question.question_options)} total)"
                     q_table.add_row("Options", options_str)
@@ -874,9 +901,13 @@ class QuestionAnalysis:
 
                 if valid_answers:
                     # Statistics table (compact)
-                    stats_table = Table(title="[bold cyan]Statistics[/bold cyan]",
-                                       box=box.SIMPLE, border_style="cyan",
-                                       padding=(0, 1), collapse_padding=True)
+                    stats_table = Table(
+                        title="[bold cyan]Statistics[/bold cyan]",
+                        box=box.SIMPLE,
+                        border_style="cyan",
+                        padding=(0, 1),
+                        collapse_padding=True,
+                    )
                     stats_table.add_column("Metric", style="cyan", width=22)
                     stats_table.add_column("Value", style="yellow", width=28)
 
@@ -884,36 +915,56 @@ class QuestionAnalysis:
                     stats_table.add_row("Valid Responses", str(len(valid_answers)))
 
                     if len(answers) > len(valid_answers):
-                        stats_table.add_row("Missing/None", str(len(answers) - len(valid_answers)))
+                        stats_table.add_row(
+                            "Missing/None", str(len(answers) - len(valid_answers))
+                        )
 
                     # Type-specific statistics
                     question_type = question.question_type
 
-                    if question_type in ['numerical']:
+                    if question_type in ["numerical"]:
                         values = np.array(valid_answers, dtype=float)
                         stats_table.add_row("Mean", f"{np.mean(values):.2f}")
                         stats_table.add_row("Median", f"{np.median(values):.2f}")
                         stats_table.add_row("Std Dev", f"{np.std(values):.2f}")
-                        stats_table.add_row("Range", f"{np.min(values):.2f} - {np.max(values):.2f}")
+                        stats_table.add_row(
+                            "Range", f"{np.min(values):.2f} - {np.max(values):.2f}"
+                        )
 
-                    elif question_type in ['multiple_choice', 'yes_no', 'linear_scale', 'likert_five']:
+                    elif question_type in [
+                        "multiple_choice",
+                        "yes_no",
+                        "linear_scale",
+                        "likert_five",
+                    ]:
                         counts = Counter(valid_answers)
                         stats_table.add_row("Unique Values", str(len(counts)))
                         most_common = counts.most_common(1)[0]
-                        stats_table.add_row("Most Common", f"{most_common[0]} ({most_common[1]} times)")
+                        stats_table.add_row(
+                            "Most Common", f"{most_common[0]} ({most_common[1]} times)"
+                        )
 
-                    elif question_type in ['checkbox']:
+                    elif question_type in ["checkbox"]:
                         all_selections = []
                         for answer in valid_answers:
                             if isinstance(answer, list):
                                 all_selections.extend(answer)
-                        stats_table.add_row("Total Selections", str(len(all_selections)))
-                        stats_table.add_row("Avg per Respondent", f"{len(all_selections)/len(valid_answers):.1f}")
+                        stats_table.add_row(
+                            "Total Selections", str(len(all_selections))
+                        )
+                        stats_table.add_row(
+                            "Avg per Respondent",
+                            f"{len(all_selections)/len(valid_answers):.1f}",
+                        )
 
-                    elif question_type in ['free_text']:
+                    elif question_type in ["free_text"]:
                         lengths = [len(str(a)) for a in valid_answers]
-                        stats_table.add_row("Avg Length", f"{np.mean(lengths):.1f} chars")
-                        stats_table.add_row("Length Range", f"{min(lengths)} - {max(lengths)} chars")
+                        stats_table.add_row(
+                            "Avg Length", f"{np.mean(lengths):.1f} chars"
+                        )
+                        stats_table.add_row(
+                            "Length Range", f"{min(lengths)} - {max(lengths)} chars"
+                        )
 
                     console.print(stats_table)
 
@@ -924,11 +975,16 @@ class QuestionAnalysis:
                         console.print("[bold cyan]Distribution[/bold cyan]")
 
                         # Generate appropriate plot based on question type
-                        if question_type in ['multiple_choice', 'yes_no', 'linear_scale', 'likert_five']:
+                        if question_type in [
+                            "multiple_choice",
+                            "yes_no",
+                            "linear_scale",
+                            "likert_five",
+                        ]:
                             counts = Counter(valid_answers)
 
                             # Get options from question if available
-                            if hasattr(question, 'question_options'):
+                            if hasattr(question, "question_options"):
                                 options = question.question_options
                                 labels = [str(opt) for opt in options]
                                 values = [counts.get(opt, 0) for opt in options]
@@ -944,6 +1000,7 @@ class QuestionAnalysis:
                             old_stdout = console.file
                             plot_buffer = io.StringIO()
                             import sys
+
                             sys.stdout = plot_buffer
                             fig.show()
                             plot_output = plot_buffer.getvalue()
@@ -951,16 +1008,22 @@ class QuestionAnalysis:
 
                             console.print(plot_output)
 
-                        elif question_type in ['numerical']:
+                        elif question_type in ["numerical"]:
                             values = np.array(valid_answers, dtype=float)
                             counts, bin_edges = np.histogram(values)
 
                             fig = tpl.figure()
-                            fig.hist(counts, bin_edges, orientation="horizontal", force_ascii=False)
+                            fig.hist(
+                                counts,
+                                bin_edges,
+                                orientation="horizontal",
+                                force_ascii=False,
+                            )
 
                             old_stdout = console.file
                             plot_buffer = io.StringIO()
                             import sys
+
                             sys.stdout = plot_buffer
                             fig.show()
                             plot_output = plot_buffer.getvalue()
@@ -969,17 +1032,25 @@ class QuestionAnalysis:
                             console.print(plot_output)
 
                     except ImportError:
-                        console.print("[dim italic]Install termplotlib for visualizations: pip install termplotlib[/dim italic]")
+                        console.print(
+                            "[dim italic]Install termplotlib for visualizations: pip install termplotlib[/dim italic]"
+                        )
 
             else:
                 # Multi-question analysis
                 console.print("[yellow]Multi-question analysis[/yellow]")
-                console.print(f"Analyzing {len(self._question_names)} questions together")
+                console.print(
+                    f"Analyzing {len(self._question_names)} questions together"
+                )
 
             # Available Outputs Section (compact)
-            outputs_table = Table(title="[bold cyan]Available Methods[/bold cyan]",
-                                 box=box.SIMPLE, border_style="cyan",
-                                 padding=(0, 1), collapse_padding=True)
+            outputs_table = Table(
+                title="[bold cyan]Available Methods[/bold cyan]",
+                box=box.SIMPLE,
+                border_style="cyan",
+                padding=(0, 1),
+                collapse_padding=True,
+            )
             outputs_table.add_column("Method/Attribute", style="green", width=35)
             outputs_table.add_column("Description", style="white", width=55)
 
@@ -998,8 +1069,10 @@ class QuestionAnalysis:
             # Add terminal_chart method if single question
             if len(self._question_names) == 1:
                 outputs_table.add_section()
-                outputs_table.add_row(".bar_chart_output.terminal_chart()",
-                                     "Show full terminal visualization")
+                outputs_table.add_row(
+                    ".bar_chart_output.terminal_chart()",
+                    "Show full terminal visualization",
+                )
 
             console.print(outputs_table)
 

@@ -16,12 +16,12 @@ import html
 def find_dotenv_upwards(start_path: Optional[str] = None) -> Optional[Path]:
     """
     Search for .env file starting from start_path and moving up the directory tree.
-    
+
     Parameters
     ----------
     start_path : str, optional
         Starting directory for the search. Defaults to current working directory.
-    
+
     Returns
     -------
     Path or None
@@ -29,21 +29,21 @@ def find_dotenv_upwards(start_path: Optional[str] = None) -> Optional[Path]:
     """
     if start_path is None:
         start_path = os.getcwd()
-    
+
     current = Path(start_path).resolve()
-    
+
     # Search upwards until we find .env or reach the root
     while True:
-        env_file = current / '.env'
+        env_file = current / ".env"
         if env_file.is_file():
             return env_file
-        
+
         # Check if we've reached the root
         parent = current.parent
         if parent == current:
             # We've reached the root directory
             return None
-        
+
         current = parent
 
 
@@ -66,7 +66,9 @@ class GGPlotReply(BaseModel):
 
 
 # ---------- 2) DataFrame → compact schema summary ----------
-def summarize_df_for_llm(df: pd.DataFrame, max_levels: int = 12, sample_n: int = 0) -> Dict[str, Any]:
+def summarize_df_for_llm(
+    df: pd.DataFrame, max_levels: int = 12, sample_n: int = 0
+) -> Dict[str, Any]:
     """
     Produce a compact, *non-sensitive* schema for the LLM (no full data).
     """
@@ -95,17 +97,24 @@ def summarize_df_for_llm(df: pd.DataFrame, max_levels: int = 12, sample_n: int =
         }
 
         if role == "numeric":
-            info["min"] = float(np.nanmin(s.values.astype("float64"))) if s.notna().any() else None
-            info["max"] = float(np.nanmax(s.values.astype("float64"))) if s.notna().any() else None
+            info["min"] = (
+                float(np.nanmin(s.values.astype("float64")))
+                if s.notna().any()
+                else None
+            )
+            info["max"] = (
+                float(np.nanmax(s.values.astype("float64")))
+                if s.notna().any()
+                else None
+            )
         elif role in ("categorical", "binary"):
             # small peek at levels
             lvls = (
                 s.astype("string")
-                 .dropna()
-                 .value_counts()
-                 .head(max_levels)
-                 .index
-                 .tolist()
+                .dropna()
+                .value_counts()
+                .head(max_levels)
+                .index.tolist()
             )
             info["levels_preview"] = lvls
 
@@ -120,9 +129,9 @@ def summarize_df_for_llm(df: pd.DataFrame, max_levels: int = 12, sample_n: int =
         # extremely tiny sample for context (strings only, truncated)
         tiny = (
             df.sample(min(sample_n, len(df)), random_state=0)
-              .astype({c: "string" for c in df.columns})
-              .fillna("NA")
-              .applymap(lambda x: x[:80])
+            .astype({c: "string" for c in df.columns})
+            .fillna("NA")
+            .applymap(lambda x: x[:80])
         )
         schema["tiny_sample"] = tiny.to_dict(orient="records")
 
@@ -134,17 +143,17 @@ def summarize_df_for_llm(df: pd.DataFrame, max_levels: int = 12, sample_n: int =
 class RCodeDisplay:
     """
     Wrapper for R code with display options including syntax highlighting and copy functionality.
-    
+
     In HTML/Jupyter environments, displays the code with syntax highlighting and a click-to-copy button.
     In terminal environments, displays the plain code string.
-    
+
     Parameters
     ----------
     code : str
         The R code to display.
     show_code : bool, default True
         Whether to show the code. If False, returns empty string.
-    
+
     Examples
     --------
     >>> r_code = "ggplot(data = self, aes(x = x, y = y)) + geom_point()"
@@ -154,24 +163,26 @@ class RCodeDisplay:
     >>> print(display)  # Always prints plain string
     ggplot(data = self, aes(x = x, y = y)) + geom_point()
     """
+
     code: str
     show_code: bool = True
-    
+
     def _repr_html_(self) -> str:
         """
         Generate HTML representation with syntax highlighting and click-to-copy button.
         """
         if not self.show_code:
             return ""
-        
+
         # Escape HTML special characters
         escaped_code = html.escape(self.code)
-        
+
         # Generate a unique ID for this code block
         import random
         import string
-        code_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
-        
+
+        code_id = "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
+
         # HTML with syntax highlighting (using CSS classes for R) and copy button
         html_output = f"""
         <div style="margin: 10px 0; font-family: monospace; position: relative;">
@@ -208,7 +219,7 @@ class RCodeDisplay:
         </script>
         """
         return html_output
-    
+
     def __repr__(self) -> str:
         """
         Plain text representation for terminal display.
@@ -216,7 +227,7 @@ class RCodeDisplay:
         if not self.show_code:
             return ""
         return self.code
-    
+
     def __str__(self) -> str:
         """
         Return just the code string.
@@ -240,7 +251,7 @@ class GGPlotGenerator:
         *,
         sample_n: int = 0,
         return_display: bool = False,
-        show_code: bool = True
+        show_code: bool = True,
     ) -> str | RCodeDisplay:
         """
         Return an R ggplot2 string that *begins* with: ggplot(data = self, ...)
@@ -289,12 +300,12 @@ class GGPlotGenerator:
             "examples": [
                 {
                     "ask": "scatter price vs quantity with smooth and color by market",
-                    "ok": "ggplot(data = self, aes(x = quantity, y = price, color = market)) + geom_point() + geom_smooth(se = FALSE, method = 'loess')"
+                    "ok": "ggplot(data = self, aes(x = quantity, y = price, color = market)) + geom_point() + geom_smooth(se = FALSE, method = 'loess')",
                 },
                 {
                     "ask": "histogram of log(price) faceted by year",
-                    "ok": "ggplot(data = self, aes(x = log(price))) + geom_histogram(bins = 30) + facet_wrap(~ year)"
-                }
+                    "ok": "ggplot(data = self, aes(x = log(price))) + geom_histogram(bins = 30) + facet_wrap(~ year)",
+                },
             ],
         }
 
@@ -314,7 +325,7 @@ class GGPlotGenerator:
 
         # Hard safety: enforce required prefix if the model forgets.
         if not code.startswith("ggplot(") and "ggplot(" in code:
-            code = code[code.index("ggplot("):].lstrip()
+            code = code[code.index("ggplot(") :].lstrip()
         if not code.startswith("ggplot(data = self"):
             # best-effort coercion: inject data = self if missing
             if code.startswith("ggplot("):
@@ -328,22 +339,24 @@ class GGPlotGenerator:
 # ---------- 5) Example usage ----------
 if __name__ == "__main__":
     # Fake data
-    df = pd.DataFrame({
-        "price": [10, 12, 9, 14],
-        "quantity": [100, 120, 80, 140],
-        "market": ["A", "B", "A", "B"],
-        "year": [2022, 2022, 2023, 2023],
-    })
+    df = pd.DataFrame(
+        {
+            "price": [10, 12, 9, 14],
+            "quantity": [100, 120, 80, 140],
+            "market": ["A", "B", "A", "B"],
+            "year": [2022, 2022, 2023, 2023],
+        }
+    )
 
     gen = GGPlotGenerator(model="gpt-4o", temperature=0.1)
     request = "Plot price versus quantity with a loess smoother; color by market and facet by year."
-    
+
     # Example 1: Return plain string (default behavior)
     r_code = gen.make_plot_code(df, request)
     print("Plain string output:")
     print(r_code)
     print()
-    
+
     # Example 2: Return RCodeDisplay object (for HTML/Jupyter with copy button)
     r_code_display = gen.make_plot_code(df, request, return_display=True)
     print("Display object (shows fancy HTML in Jupyter, plain code in terminal):")

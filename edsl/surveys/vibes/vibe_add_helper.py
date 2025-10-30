@@ -39,7 +39,7 @@ def find_dotenv_upwards(start_path: Optional[str] = None) -> Optional[Path]:
 
     # Search upwards until we find .env or reach the root
     while True:
-        env_file = current / '.env'
+        env_file = current / ".env"
         if env_file.is_file():
             return env_file
 
@@ -78,6 +78,7 @@ class QuestionDefinition(BaseModel):
     max_value : Optional[float]
         Maximum value for numerical questions
     """
+
     question_name: str = Field(
         description="A valid Python variable name to identify the question (e.g., 'age', 'satisfaction_rating')"
     )
@@ -102,15 +103,13 @@ class QuestionDefinition(BaseModel):
     )
     question_options: Optional[List[str]] = Field(
         None,
-        description="List of options for choice-based questions (required for multiple_choice, checkbox, rank, budget)"
+        description="List of options for choice-based questions (required for multiple_choice, checkbox, rank, budget)",
     )
     min_value: Optional[float] = Field(
-        None,
-        description="Minimum value for numerical or linear_scale questions"
+        None, description="Minimum value for numerical or linear_scale questions"
     )
     max_value: Optional[float] = Field(
-        None,
-        description="Maximum value for numerical or linear_scale questions"
+        None, description="Maximum value for numerical or linear_scale questions"
     )
 
 
@@ -125,6 +124,7 @@ class SkipRuleDefinition(BaseModel):
     condition : str
         The condition expression that determines if the question should be skipped
     """
+
     target_question: str = Field(
         description="The question_name of the question to apply the skip rule to"
     )
@@ -132,7 +132,7 @@ class SkipRuleDefinition(BaseModel):
         description=(
             "The condition expression that determines if the question should be skipped. "
             "Use template syntax to reference previous questions' answers. "
-            "Examples: \"{{ q0.answer }} == 'yes'\", \"{{ age.answer }} > 18\", "
+            'Examples: "{{ q0.answer }} == \'yes\'", "{{ age.answer }} > 18", '
             "\"{{ satisfaction.answer }} == 'Very satisfied'\""
         )
     )
@@ -149,12 +149,13 @@ class AddedQuestionsSchema(BaseModel):
     skip_rules : List[SkipRuleDefinition]
         List of skip rules to apply to the added questions
     """
+
     questions: List[QuestionDefinition] = Field(
         description="List of questions to add to the survey"
     )
     skip_rules: List[SkipRuleDefinition] = Field(
         default=[],
-        description="List of skip rules to apply to the added questions (optional)"
+        description="List of skip rules to apply to the added questions (optional)",
     )
 
 
@@ -261,7 +262,7 @@ class VibeAdd:
             "- Use template syntax: {{ question_name.answer }} to reference previous answers\n"
             "- Examples:\n"
             "  * \"{{ q0.answer }} == 'yes'\" - skip if q0 answer is 'yes'\n"
-            "  * \"{{ age.answer }} > 18\" - skip if age is greater than 18\n"
+            '  * "{{ age.answer }} > 18" - skip if age is greater than 18\n'
             "  * \"{{ satisfaction.answer }} == 'Very satisfied'\" - skip if satisfaction is 'Very satisfied'\n"
             "- Skip rules make the question NOT show if the condition is True\n"
             "- You can reference ANY existing question by its question_name\n"
@@ -286,7 +287,7 @@ class VibeAdd:
                 "create appropriate skip rules. Remember that skip rules prevent a question "
                 "from showing when the condition is True, so you may need to negate the logic "
                 "from the instructions."
-            )
+            ),
         }
 
         resp = self.client.responses.parse(
@@ -303,7 +304,7 @@ class VibeAdd:
         # Convert Pydantic models to dicts
         return {
             "questions": [q.model_dump() for q in out.questions],
-            "skip_rules": [r.model_dump() for r in out.skip_rules]
+            "skip_rules": [r.model_dump() for r in out.skip_rules],
         }
 
 
@@ -316,14 +317,20 @@ if __name__ == "__main__":
         {
             "question_name": "liked_product",
             "question_text": "Do you like our product?",
-            "question_type": "yes_no"
+            "question_type": "yes_no",
         },
         {
             "question_name": "satisfaction",
             "question_text": "How satisfied are you?",
             "question_type": "multiple_choice",
-            "question_options": ["Very satisfied", "Satisfied", "Neutral", "Dissatisfied", "Very dissatisfied"]
-        }
+            "question_options": [
+                "Very satisfied",
+                "Satisfied",
+                "Neutral",
+                "Dissatisfied",
+                "Very dissatisfied",
+            ],
+        },
     ]
 
     # Example 1: Add a simple question
@@ -336,7 +343,7 @@ if __name__ == "__main__":
     print("Example 2: Add a follow-up question with skip logic")
     result2 = adder.add_questions(
         current_survey,
-        "Add a question about purchase frequency, but only show it if they liked the product"
+        "Add a question about purchase frequency, but only show it if they liked the product",
     )
     print(json.dumps(result2, indent=2))
     print()
@@ -344,7 +351,6 @@ if __name__ == "__main__":
     # Example 3: Add multiple related questions
     print("Example 3: Add demographic questions")
     result3 = adder.add_questions(
-        current_survey,
-        "Add demographic questions: age, gender, and location"
+        current_survey, "Add demographic questions: age, gender, and location"
     )
     print(json.dumps(result3, indent=2))

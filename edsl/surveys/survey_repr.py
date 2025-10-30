@@ -10,7 +10,9 @@ if TYPE_CHECKING:
     from .survey import Survey
 
 
-def generate_summary_repr(survey: "Survey", max_text_preview: int = 60, max_items: int = 50) -> str:
+def generate_summary_repr(
+    survey: "Survey", max_text_preview: int = 60, max_items: int = 50
+) -> str:
     """Generate a summary representation of the Survey with Rich formatting.
 
     Args:
@@ -30,7 +32,9 @@ def generate_summary_repr(survey: "Survey", max_text_preview: int = 60, max_item
     # Build the Rich text
     output = Text()
     output.append("Survey(\n", style=RICH_STYLES["primary"])
-    output.append(f"    num_questions={len(survey.questions)},\n", style=RICH_STYLES["default"])
+    output.append(
+        f"    num_questions={len(survey.questions)},\n", style=RICH_STYLES["default"]
+    )
 
     # Show if survey has non-default rules (skip logic)
     has_rules = len(survey.rule_collection.non_default_rules) > 0
@@ -92,13 +96,19 @@ def generate_summary_repr(survey: "Survey", max_text_preview: int = 60, max_item
                 for rule in rules:
                     output.append("\n            ", style=RICH_STYLES["default"])
                     if rule.before_rule:
-                        output.append("↳ skip_rule: ", style=f"{RICH_STYLES['secondary']} italic")
+                        output.append(
+                            "↳ skip_rule: ", style=f"{RICH_STYLES['secondary']} italic"
+                        )
                     else:
-                        output.append("↳ jump_rule: ", style=f"{RICH_STYLES['secondary']} italic")
+                        output.append(
+                            "↳ jump_rule: ", style=f"{RICH_STYLES['secondary']} italic"
+                        )
 
                     # Format the rule description
                     next_q_name = "EndOfSurvey"
-                    if rule.next_q != EndOfSurvey and rule.next_q < len(survey.questions):
+                    if rule.next_q != EndOfSurvey and rule.next_q < len(
+                        survey.questions
+                    ):
                         next_q_name = survey.questions[rule.next_q].question_name
 
                     rule_desc = f"if {rule.expression} → {next_q_name}"

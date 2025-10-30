@@ -245,7 +245,7 @@ class Agent(Base):
         # If traits is None and kwargs are provided, use kwargs as traits
         if traits is None and kwargs:
             traits = kwargs
-        
+
         # Initialize basic attributes directly
         self.name = name
 
@@ -297,35 +297,36 @@ class Agent(Base):
         )
 
         self.trait_categories = trait_categories or {}
-    
+
     @property
     def base_name(self) -> str | None:
         """Get the base name of the agent.
-        
+
         Extracts the base name from various name formats:
         - If name is a dict, returns the "name" key value
         - If name is a string representation of a dict, parses it and returns the "name" key value
         - Otherwise, returns the name as-is
-        
+
         Examples:
         >>> from edsl.agents import Agent
         >>> a = Agent(name="Alice")
         >>> a.base_name
         'Alice'
-        
+
         >>> a = Agent(name="{'name': 'Bob', 'title': 'Dr'}")
         >>> a.base_name
         'Bob'
-        
+
         >>> a = Agent(name="{'title': 'Dr', 'id': '123'}")
         >>> a.base_name
         "{'title': 'Dr', 'id': '123'}"
-        
+
         >>> a = Agent()
         >>> a.base_name is None
         True
         """
         import ast
+
         if isinstance(self.name, dict):
             return self.name.get("name", None)
 
@@ -1285,7 +1286,8 @@ class Agent(Base):
 
             if num_traits > max_traits:
                 output.append(
-                    f"        ... ({num_traits - max_traits} more)\n", style=RICH_STYLES["dim"]
+                    f"        ... ({num_traits - max_traits} more)\n",
+                    style=RICH_STYLES["dim"],
                 )
 
             output.append("    }", style=RICH_STYLES["default"])
@@ -1294,7 +1296,9 @@ class Agent(Base):
         if self.codebook:
             num_codebook = len(self.codebook)
             output.append(",\n    ", style=RICH_STYLES["default"])
-            output.append(f"num_codebook_entries={num_codebook}", style=RICH_STYLES["highlight"])
+            output.append(
+                f"num_codebook_entries={num_codebook}", style=RICH_STYLES["highlight"]
+            )
 
         # Instruction (if custom)
         if self.instruction != self.default_instruction:
@@ -1308,7 +1312,9 @@ class Agent(Base):
         if self.has_dynamic_traits_function:
             func_name = self.dynamic_traits_function_name or "anonymous"
             output.append(",\n    ", style=RICH_STYLES["default"])
-            output.append(f"dynamic_traits_function='{func_name}'", style=RICH_STYLES["key"])
+            output.append(
+                f"dynamic_traits_function='{func_name}'", style=RICH_STYLES["key"]
+            )
 
         # Direct answering method (if present)
         if hasattr(self, "answer_question_directly"):
@@ -1316,7 +1322,9 @@ class Agent(Base):
                 self, "answer_question_directly_function_name", "anonymous"
             )
             output.append(",\n    ", style=RICH_STYLES["default"])
-            output.append(f"direct_answer_method='{func_name}'", style=RICH_STYLES["key"])
+            output.append(
+                f"direct_answer_method='{func_name}'", style=RICH_STYLES["key"]
+            )
 
         output.append("\n)", style=RICH_STYLES["primary"])
 

@@ -592,10 +592,19 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         # Build the Rich text
         output = Text()
         output.append("Results(\n", style=RICH_STYLES["primary"])
-        output.append(f"    num_observations={len(self)},\n", style=RICH_STYLES["default"])
-        output.append(f"    num_agents={len(set(self.agents))},\n", style=RICH_STYLES["default"])
-        output.append(f"    num_models={len(set(self.models))},\n", style=RICH_STYLES["default"])
-        output.append(f"    num_scenarios={len(set(self.scenarios))},\n", style=RICH_STYLES["default"])
+        output.append(
+            f"    num_observations={len(self)},\n", style=RICH_STYLES["default"]
+        )
+        output.append(
+            f"    num_agents={len(set(self.agents))},\n", style=RICH_STYLES["default"]
+        )
+        output.append(
+            f"    num_models={len(set(self.models))},\n", style=RICH_STYLES["default"]
+        )
+        output.append(
+            f"    num_scenarios={len(set(self.scenarios))},\n",
+            style=RICH_STYLES["default"],
+        )
 
         # Show agent traits
         if len(self.agents) > 0:
@@ -611,7 +620,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                     )
                     if len(trait_keys) > max_items:
                         output.append(
-                            f", ... ({len(trait_keys) - max_items} more)", style=RICH_STYLES["dim"]
+                            f", ... ({len(trait_keys) - max_items} more)",
+                            style=RICH_STYLES["dim"],
                         )
                 output.append("],\n", style=RICH_STYLES["default"])
 
@@ -629,14 +639,17 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                     )
                     if len(field_keys) > max_items:
                         output.append(
-                            f", ... ({len(field_keys) - max_items} more)", style=RICH_STYLES["dim"]
+                            f", ... ({len(field_keys) - max_items} more)",
+                            style=RICH_STYLES["dim"],
                         )
                 output.append("],\n", style=RICH_STYLES["default"])
 
         # Show question information with text previews
         if self.survey and hasattr(self.survey, "questions"):
             questions = self.survey.questions
-            output.append(f"    num_questions={len(questions)},\n", style=RICH_STYLES["default"])
+            output.append(
+                f"    num_questions={len(questions)},\n", style=RICH_STYLES["default"]
+            )
             output.append("    questions: [\n", style=RICH_STYLES["default"])
 
             # Show up to max_items questions with text previews
@@ -656,7 +669,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
             if len(questions) > max_items:
                 output.append(
-                    f"        ... ({len(questions) - max_items} more)\n", style=RICH_STYLES["dim"]
+                    f"        ... ({len(questions) - max_items} more)\n",
+                    style=RICH_STYLES["dim"],
                 )
 
             output.append("    ],\n", style=RICH_STYLES["default"])
@@ -664,7 +678,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         # Show created columns if any
         if self.created_columns:
             output.append(
-                f"    created_columns={self.created_columns}\n", style=RICH_STYLES["key"]
+                f"    created_columns={self.created_columns}\n",
+                style=RICH_STYLES["key"],
             )
 
         output.append(")", style=RICH_STYLES["primary"])

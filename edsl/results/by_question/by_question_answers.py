@@ -73,9 +73,7 @@ class ByQuestionAnswers(ABC):
 
     @classmethod
     def from_results(
-        cls,
-        results: "Results",
-        question_name: str
+        cls, results: "Results", question_name: str
     ) -> "ByQuestionAnswers":
         """Create an analyzer from a Results object and question name.
 
@@ -111,9 +109,7 @@ class ByQuestionAnswers(ABC):
 
     @classmethod
     def create(
-        cls,
-        question: "QuestionBase",
-        answers: List[Any]
+        cls, question: "QuestionBase", answers: List[Any]
     ) -> "ByQuestionAnswers":
         """Factory method to create the appropriate subclass based on question type.
 
@@ -218,7 +214,7 @@ class MultipleChoiceAnswers(ByQuestionAnswers):
             f"Type: Multiple Choice",
             f"Total responses: {total}",
             f"",
-            "Distribution:"
+            "Distribution:",
         ]
 
         # Sort by frequency descending
@@ -242,7 +238,7 @@ class MultipleChoiceAnswers(ByQuestionAnswers):
         counts = Counter(valid_answers)
 
         # Get all options from question if available
-        if hasattr(self.question, 'question_options'):
+        if hasattr(self.question, "question_options"):
             labels = self.question.question_options
             # Ensure all options are included, even with 0 counts
             values = [counts.get(label, 0) for label in labels]
@@ -258,6 +254,7 @@ class MultipleChoiceAnswers(ByQuestionAnswers):
         # Capture the output
         import io
         import sys
+
         old_stdout = sys.stdout
         sys.stdout = buffer = io.StringIO()
         fig.show()
@@ -302,7 +299,7 @@ class CheckboxAnswers(ByQuestionAnswers):
             f"Total selections: {len(all_selections)}",
             f"Avg selections per respondent: {len(all_selections)/total:.1f}",
             f"",
-            "Selection frequency:"
+            "Selection frequency:",
         ]
 
         for choice, count in counts.most_common():
@@ -341,6 +338,7 @@ class CheckboxAnswers(ByQuestionAnswers):
 
         import io
         import sys
+
         old_stdout = sys.stdout
         sys.stdout = buffer = io.StringIO()
         fig.show()
@@ -404,6 +402,7 @@ class NumericalAnswers(ByQuestionAnswers):
 
         import io
         import sys
+
         old_stdout = sys.stdout
         sys.stdout = buffer = io.StringIO()
         fig.show()
@@ -443,7 +442,7 @@ class LinearScaleAnswers(ByQuestionAnswers):
             f"  Median: {np.median(values):.2f}",
             f"  Mode: {counts.most_common(1)[0][0]}",
             f"",
-            "Distribution:"
+            "Distribution:",
         ]
 
         # Show distribution by scale value
@@ -468,7 +467,7 @@ class LinearScaleAnswers(ByQuestionAnswers):
         counts = Counter(valid_answers)
 
         # Get scale range from question if available
-        if hasattr(self.question, 'question_options'):
+        if hasattr(self.question, "question_options"):
             scale_values = sorted(self.question.question_options)
         else:
             scale_values = sorted(counts.keys())
@@ -481,6 +480,7 @@ class LinearScaleAnswers(ByQuestionAnswers):
 
         import io
         import sys
+
         old_stdout = sys.stdout
         sys.stdout = buffer = io.StringIO()
         fig.show()
@@ -544,6 +544,7 @@ class FreeTextAnswers(ByQuestionAnswers):
 
         import io
         import sys
+
         old_stdout = sys.stdout
         sys.stdout = buffer = io.StringIO()
         fig.show()
@@ -559,6 +560,7 @@ class YesNoAnswers(MultipleChoiceAnswers):
     Inherits from MultipleChoiceAnswers since yes/no is essentially
     a binary multiple choice question.
     """
+
     pass
 
 
@@ -568,6 +570,7 @@ class LikertFiveAnswers(LinearScaleAnswers):
     Inherits from LinearScaleAnswers since Likert scales are
     discrete ordered scales.
     """
+
     pass
 
 
@@ -603,13 +606,12 @@ class RankAnswers(ByQuestionAnswers):
             f"Type: Rank",
             f"Total responses: {len(valid_answers)}",
             f"",
-            "Average Rankings (lower is better):"
+            "Average Rankings (lower is better):",
         ]
 
         # Sort by average position
         avg_positions = {
-            opt: np.mean(positions)
-            for opt, positions in position_sums.items()
+            opt: np.mean(positions) for opt, positions in position_sums.items()
         }
 
         for option, avg_pos in sorted(avg_positions.items(), key=lambda x: x[1]):
@@ -640,8 +642,7 @@ class RankAnswers(ByQuestionAnswers):
 
         # Calculate averages and sort
         avg_positions = {
-            opt: np.mean(positions)
-            for opt, positions in position_sums.items()
+            opt: np.mean(positions) for opt, positions in position_sums.items()
         }
         sorted_items = sorted(avg_positions.items(), key=lambda x: x[1])
 
@@ -653,6 +654,7 @@ class RankAnswers(ByQuestionAnswers):
 
         import io
         import sys
+
         old_stdout = sys.stdout
         sys.stdout = buffer = io.StringIO()
         fig.show()
@@ -687,7 +689,7 @@ class DefaultAnswers(ByQuestionAnswers):
             f"Total responses: {len(valid_answers)}",
             f"Unique values: {len(counts)}",
             f"",
-            "Top 10 values:"
+            "Top 10 values:",
         ]
 
         for value, count in counts.most_common(10):
@@ -722,6 +724,7 @@ class DefaultAnswers(ByQuestionAnswers):
 
         import io
         import sys
+
         old_stdout = sys.stdout
         sys.stdout = buffer = io.StringIO()
         fig.show()

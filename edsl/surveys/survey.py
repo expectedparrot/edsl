@@ -2196,6 +2196,7 @@ class Survey(Base):
             max_items: Maximum number of items to show in lists before truncating
         """
         from .survey_repr import generate_summary_repr
+
         return generate_summary_repr(self, max_text_preview, max_items)
 
     def _summary(self) -> dict:
@@ -2224,16 +2225,16 @@ class Survey(Base):
 
     def rename(self, rename_dict: Dict[str, str]) -> "Survey":
         """Return a new Survey with the specified questions renamed.
-        
+
         Args:
             rename_dict: A dictionary mapping old question names to new question names.
-            
+
         Returns:
             A new Survey instance with the renamed questions.
-            
+
         Raises:
             ValueError: If any key in rename_dict does not correspond to an existing question name.
-            
+
         Examples:
             >>> s = Survey.example()
             >>> s.question_names
@@ -2241,9 +2242,9 @@ class Survey(Base):
             >>> s_renamed = s.rename({'q0': 'likes_school', 'q1': 'reason_no'})
             >>> s_renamed.question_names
             ['likes_school', 'reason_no', 'q2']
-            
+
             Attempting to rename a non-existent question raises an error:
-            
+
             >>> s.rename({'q0': 'new_name', 'nonexistent': 'another_name'})
             Traceback (most recent call last):
             ...
@@ -2253,12 +2254,12 @@ class Survey(Base):
         existing_question_names = set(self.question_names)
         rename_keys = set(rename_dict.keys())
         invalid_keys = rename_keys - existing_question_names
-        
+
         if invalid_keys:
             raise ValueError(
                 f"The following question names in rename_dict do not exist in the survey: {invalid_keys}"
             )
-        
+
         new_questions = []
         for question in self.questions:
             new_question = question.duplicate()
@@ -3240,7 +3241,9 @@ Design tips:
         generator = SurveyGenerator(model=model, temperature=temperature)
 
         # Generate the survey schema
-        survey_data = generator.generate_survey(description, num_questions=num_questions)
+        survey_data = generator.generate_survey(
+            description, num_questions=num_questions
+        )
 
         # Convert each question definition to a question object
         questions = []
@@ -3417,7 +3420,7 @@ Design tips:
         all_questions = list(self.questions) + new_questions
         new_survey = self.__class__(
             questions=all_questions,
-            rule_collection=self.rule_collection  # Preserves existing skip logic!
+            rule_collection=self.rule_collection,  # Preserves existing skip logic!
         )
 
         # Add skip logic for newly added questions if specified

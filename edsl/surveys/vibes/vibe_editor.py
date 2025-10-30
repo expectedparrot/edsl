@@ -39,7 +39,7 @@ def find_dotenv_upwards(start_path: Optional[str] = None) -> Optional[Path]:
 
     # Search upwards until we find .env or reach the root
     while True:
-        env_file = current / '.env'
+        env_file = current / ".env"
         if env_file.is_file():
             return env_file
 
@@ -78,6 +78,7 @@ class QuestionDefinition(BaseModel):
     max_value : Optional[float]
         Maximum value for numerical questions
     """
+
     question_name: str = Field(
         description="A valid Python variable name to identify the question (e.g., 'age', 'satisfaction_rating')"
     )
@@ -102,15 +103,13 @@ class QuestionDefinition(BaseModel):
     )
     question_options: Optional[List[str]] = Field(
         None,
-        description="List of options for choice-based questions (required for multiple_choice, checkbox, rank, budget)"
+        description="List of options for choice-based questions (required for multiple_choice, checkbox, rank, budget)",
     )
     min_value: Optional[float] = Field(
-        None,
-        description="Minimum value for numerical or linear_scale questions"
+        None, description="Minimum value for numerical or linear_scale questions"
     )
     max_value: Optional[float] = Field(
-        None,
-        description="Maximum value for numerical or linear_scale questions"
+        None, description="Maximum value for numerical or linear_scale questions"
     )
 
 
@@ -123,6 +122,7 @@ class EditedSurveySchema(BaseModel):
     questions : List[QuestionDefinition]
         List of questions that make up the edited survey
     """
+
     questions: List[QuestionDefinition] = Field(
         description="List of questions in the edited survey"
     )
@@ -246,7 +246,7 @@ class VibeEdit:
                 "Return the complete edited survey with all questions that should remain. "
                 "Ensure all questions maintain proper structure with appropriate question_type, "
                 "question_options (where needed), and valid question_name variables."
-            )
+            ),
         }
 
         resp = self.client.responses.parse(
@@ -274,18 +274,24 @@ if __name__ == "__main__":
             "question_name": "satisfaction",
             "question_text": "How satisfied are you with our product?",
             "question_type": "multiple_choice",
-            "question_options": ["Very satisfied", "Satisfied", "Neutral", "Dissatisfied", "Very dissatisfied"]
+            "question_options": [
+                "Very satisfied",
+                "Satisfied",
+                "Neutral",
+                "Dissatisfied",
+                "Very dissatisfied",
+            ],
         },
         {
             "question_name": "recommendation",
             "question_text": "Would you recommend us to a friend?",
-            "question_type": "yes_no"
+            "question_type": "yes_no",
         },
         {
             "question_name": "feedback",
             "question_text": "Please provide any additional feedback",
-            "question_type": "free_text"
-        }
+            "question_type": "free_text",
+        },
     ]
 
     # Example 1: Translate to Spanish
@@ -296,11 +302,15 @@ if __name__ == "__main__":
 
     # Example 2: Make more formal
     print("Example 2: Make language more formal")
-    result2 = editor.edit_survey(original_survey, "Make the language more formal and professional")
+    result2 = editor.edit_survey(
+        original_survey, "Make the language more formal and professional"
+    )
     print(json.dumps(result2, indent=2))
     print()
 
     # Example 3: Drop a question
     print("Example 3: Remove the recommendation question")
-    result3 = editor.edit_survey(original_survey, "Remove the question about recommendation")
+    result3 = editor.edit_survey(
+        original_survey, "Remove the question about recommendation"
+    )
     print(json.dumps(result3, indent=2))

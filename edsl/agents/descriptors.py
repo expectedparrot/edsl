@@ -65,9 +65,11 @@ class TraitsDescriptor:
         """Set the name of the attribute."""
         self.name = name
 
+
 from collections import UserDict
 
 import json
+
 
 class Codebook(dict):
     """Codebook for the Agent's traits."""
@@ -80,9 +82,10 @@ class Codebook(dict):
 
     def _repr_html_(self):
         from ..scenarios import ScenarioList, Scenario
+
         sl = ScenarioList()
         for key, value in self.items():
-            sl.append(Scenario({'key': key, 'value': value}))
+            sl.append(Scenario({"key": key, "value": value}))
         return sl._repr_html_(include_class_info=False)
 
 

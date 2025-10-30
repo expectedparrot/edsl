@@ -15,7 +15,7 @@ def test_multiple_choice():
     q = QuestionMultipleChoice(
         question_name="color",
         question_text="Favorite color?",
-        question_options=["Red", "Blue", "Green"]
+        question_options=["Red", "Blue", "Green"],
     )
 
     answers = ["Red", "Blue", "Red", "Green", "Red"]
@@ -42,10 +42,7 @@ def test_numerical():
     from edsl.questions import QuestionNumerical
     from edsl.results.by_question.by_question_answers import ByQuestionAnswers
 
-    q = QuestionNumerical(
-        question_name="age",
-        question_text="What is your age?"
-    )
+    q = QuestionNumerical(question_name="age", question_text="What is your age?")
 
     answers = [25, 30, 35, 40, 45]
     analyzer = ByQuestionAnswers.create(q, answers)
@@ -70,7 +67,7 @@ def test_linear_scale():
     q = QuestionLinearScale(
         question_name="satisfaction",
         question_text="How satisfied?",
-        question_options=[1, 2, 3, 4, 5]
+        question_options=[1, 2, 3, 4, 5],
     )
 
     answers = [5, 4, 5, 3, 4, 5]
@@ -93,7 +90,7 @@ def test_checkbox():
     q = QuestionCheckBox(
         question_name="interests",
         question_text="Select interests",
-        question_options=["Sports", "Music", "Reading"]
+        question_options=["Sports", "Music", "Reading"],
     )
 
     answers = [
@@ -117,10 +114,7 @@ def test_free_text():
     from edsl.questions import QuestionFreeText
     from edsl.results.by_question.by_question_answers import ByQuestionAnswers
 
-    q = QuestionFreeText(
-        question_name="feedback",
-        question_text="Your feedback?"
-    )
+    q = QuestionFreeText(question_name="feedback", question_text="Your feedback?")
 
     answers = ["Great!", "Good service", "Excellent work"]
     analyzer = ByQuestionAnswers.create(q, answers)
@@ -140,9 +134,7 @@ def test_with_none_values():
     from edsl.results.by_question.by_question_answers import ByQuestionAnswers
 
     q = QuestionMultipleChoice(
-        question_name="test",
-        question_text="Test?",
-        question_options=["A", "B"]
+        question_name="test", question_text="Test?", question_options=["A", "B"]
     )
 
     answers = ["A", None, "B", None, "A"]
@@ -176,5 +168,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n✗ Error running tests: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

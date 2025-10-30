@@ -13,9 +13,10 @@ if TYPE_CHECKING:
     from ..results import Results
     from .result_pair_comparison import ResultPairComparison
 
+
 class CompareResultsToGold(UserDict):
     """Compare candidate model results against gold standard model results.
-    
+
     This class behaves like a dictionary, mapping base agent names to their comparisons.
 
     Examples:
@@ -77,7 +78,7 @@ class CompareResultsToGold(UserDict):
 
     def __repr__(self) -> str:
         """Return a Rich-formatted representation of the CompareResultsToGold.
-        
+
         Examples:
             >>> from edsl.comparisons import CompareResultsToGold
             >>> crtg = CompareResultsToGold.example()
@@ -105,7 +106,7 @@ class CompareResultsToGold(UserDict):
 
     def _eval_repr(self):
         """Return a string representation of the CompareResultsToGold for evaluation purposes.
-        
+
         Examples:
             >>> from edsl.comparisons import CompareResultsToGold
             >>> crtg = CompareResultsToGold.example()
@@ -113,8 +114,10 @@ class CompareResultsToGold(UserDict):
             'CompareResultsToGold()'
         """
         return f"{self.__class__.__name__}()"
-    
-    def _summary_repr(self, MAX_AGENTS: int = 5, MAX_COMPARISONS: int = 3, MAX_QUESTIONS: int = 3) -> str:
+
+    def _summary_repr(
+        self, MAX_AGENTS: int = 5, MAX_COMPARISONS: int = 3, MAX_QUESTIONS: int = 3
+    ) -> str:
         """Generate a summary representation of the CompareResultsToGold with Rich formatting.
 
         Args:
@@ -127,43 +130,56 @@ class CompareResultsToGold(UserDict):
         import io
         import shutil
         from edsl.config import RICH_STYLES
-        
+
         # Get terminal width
         terminal_width = shutil.get_terminal_size().columns
-        
+
         # Build the Rich text
         output = Text()
         output.append("CompareResultsToGold(\n", style=RICH_STYLES["primary"])
-        output.append(f"    num_base_agents={len(self)},\n", style=RICH_STYLES["default"])
-        output.append(f"    num_candidates={len(self.candidate_results)},\n", style=RICH_STYLES["default"])
-        output.append(f"    num_gold={len(self.gold_results)},\n", style=RICH_STYLES["default"])
+        output.append(
+            f"    num_base_agents={len(self)},\n", style=RICH_STYLES["default"]
+        )
+        output.append(
+            f"    num_candidates={len(self.candidate_results)},\n",
+            style=RICH_STYLES["default"],
+        )
+        output.append(
+            f"    num_gold={len(self.gold_results)},\n", style=RICH_STYLES["default"]
+        )
         output.append("    data={\n", style=RICH_STYLES["default"])
-        
+
         # Show the first MAX_AGENTS base agents
         num_agents_to_show = min(MAX_AGENTS, len(self))
-        for agent_idx, (base_agent_name, comparisons) in enumerate(list(self.items())[:num_agents_to_show]):
+        for agent_idx, (base_agent_name, comparisons) in enumerate(
+            list(self.items())[:num_agents_to_show]
+        ):
             # Show base agent name
             output.append("        ", style=RICH_STYLES["default"])
             output.append(f"'{base_agent_name}'", style=RICH_STYLES["secondary"])
             output.append(": {\n", style=RICH_STYLES["default"])
-            
+
             # Show comparisons for this base agent
             num_comparisons_to_show = min(MAX_COMPARISONS, len(comparisons))
-            for comp_idx, (full_agent_name, rpc) in enumerate(list(comparisons.items())[:num_comparisons_to_show]):
+            for comp_idx, (full_agent_name, rpc) in enumerate(
+                list(comparisons.items())[:num_comparisons_to_show]
+            ):
                 output.append("            ", style=RICH_STYLES["default"])
                 output.append(f"'{full_agent_name}'", style=RICH_STYLES["secondary"])
                 output.append(": {\n", style=RICH_STYLES["default"])
-                
+
                 # Show first few questions from the ResultPairComparison
                 num_questions_to_show = min(MAX_QUESTIONS, len(rpc))
-                for q_idx, (question_name, metrics) in enumerate(list(rpc.items())[:num_questions_to_show]):
+                for q_idx, (question_name, metrics) in enumerate(
+                    list(rpc.items())[:num_questions_to_show]
+                ):
                     output.append("                ", style=RICH_STYLES["default"])
                     output.append(f"'{question_name}'", style=RICH_STYLES["key"])
                     output.append(": ", style=RICH_STYLES["default"])
 
                     # Show a few key metrics
                     metrics_preview = {}
-                    for key in ['exact_match', 'cosine_similarity', 'edit_distance']:
+                    for key in ["exact_match", "cosine_similarity", "edit_distance"]:
                         if key in metrics:
                             metrics_preview[key] = metrics[key]
 
@@ -173,7 +189,7 @@ class CompareResultsToGold(UserDict):
                         output.append(",\n", style=RICH_STYLES["default"])
                     else:
                         output.append("\n", style=RICH_STYLES["default"])
-                
+
                 # Show truncation indicator if needed
                 if len(rpc) > MAX_QUESTIONS:
                     output.append(
@@ -187,7 +203,7 @@ class CompareResultsToGold(UserDict):
                     output.append(",\n", style=RICH_STYLES["default"])
                 else:
                     output.append("\n", style=RICH_STYLES["default"])
-            
+
             # Show truncation indicator if needed
             if len(comparisons) > MAX_COMPARISONS:
                 output.append(
@@ -201,7 +217,7 @@ class CompareResultsToGold(UserDict):
                 output.append(",\n", style=RICH_STYLES["default"])
             else:
                 output.append("\n", style=RICH_STYLES["default"])
-        
+
         # Show truncation indicator if needed
         if len(self) > MAX_AGENTS:
             output.append(
@@ -211,7 +227,7 @@ class CompareResultsToGold(UserDict):
 
         output.append("    }\n", style=RICH_STYLES["default"])
         output.append(")", style=RICH_STYLES["primary"])
-        
+
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=terminal_width)
         console.print(output, end="")
@@ -255,7 +271,13 @@ class CompareResultsToGold(UserDict):
         return {
             "candidate_results": self.candidate_results.to_dict(),
             "gold_results": self.gold_results.to_dict(),
-            "data": {base_agent_name: {full_agent_name: rpc.to_dict() for full_agent_name, rpc in comparisons.items()} for base_agent_name, comparisons in self.data.items()},
+            "data": {
+                base_agent_name: {
+                    full_agent_name: rpc.to_dict()
+                    for full_agent_name, rpc in comparisons.items()
+                }
+                for base_agent_name, comparisons in self.data.items()
+            },
         }
 
     @classmethod
@@ -283,7 +305,11 @@ class CompareResultsToGold(UserDict):
             Results.from_dict(data["gold_results"]),
         )
         instance.data = {
-            base_agent_name: {full_agent_name: ResultPairComparison.from_dict(rpc_dict) for full_agent_name, rpc_dict in comparisons.items()} for base_agent_name, comparisons in data.get("data", {}).items()
+            base_agent_name: {
+                full_agent_name: ResultPairComparison.from_dict(rpc_dict)
+                for full_agent_name, rpc_dict in comparisons.items()
+            }
+            for base_agent_name, comparisons in data.get("data", {}).items()
         }
         return instance
 
@@ -345,7 +371,6 @@ class CompareResultsToGold(UserDict):
             .run(cache=False, disable_remote_cache=True, disable_remote_inference=True)
         )
         return cls(candidate_results, gold_results)
-
 
 
 if __name__ == "__main__":

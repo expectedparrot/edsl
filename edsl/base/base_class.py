@@ -905,7 +905,7 @@ class RepresentationMixin:
                     + table_html
                 )
             else:
-                return (table_html)
+                return table_html
         else:
             class_name = self.__class__.__name__
             documentation = getattr(self, "__documentation__", "")

@@ -41,7 +41,7 @@ class ResultPairComparisonList:
             FullTraitsTable object that displays all trait information with navigation
         """
         from .persona_viewers import FullTraitsTable
-        
+
         return FullTraitsTable(self.comparisons, self.agent_name)
 
     def show_personas(self) -> "PersonaViewer":
@@ -51,6 +51,5 @@ class ResultPairComparisonList:
             PersonaViewer object that displays persona text with navigation
         """
         from .persona_viewers import PersonaViewer
-        
-        return PersonaViewer(self.comparisons, self.agent_name)
 
+        return PersonaViewer(self.comparisons, self.agent_name)

@@ -245,7 +245,9 @@ class MacroRunOutput(Base):
 
         # Number of results
         num_results = len(self._results) if hasattr(self._results, "__len__") else "?"
-        output.append(f"    results: {num_results} result(s),\n", style=RICH_STYLES["key"])
+        output.append(
+            f"    results: {num_results} result(s),\n", style=RICH_STYLES["key"]
+        )
 
         # Number of formatters
         output.append(

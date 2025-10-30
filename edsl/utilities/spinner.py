@@ -20,6 +20,7 @@ def is_jupyter():
     """
     try:
         from IPython import get_ipython
+
         return get_ipython() is not None
     except:
         return False
@@ -45,21 +46,22 @@ def silent_spinner(message="Processing..."):
     """
     if is_jupyter():
         from IPython.display import display, HTML, clear_output
-        display(HTML(f'<i>{message}</i>'))
+
+        display(HTML(f"<i>{message}</i>"))
         yield
         clear_output(wait=False)
     else:
         stop_spinner = threading.Event()
 
         def spin():
-            spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+            spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
             idx = 0
             while not stop_spinner.is_set():
-                sys.stderr.write(f'\r{message} {spinner[idx]}')
+                sys.stderr.write(f"\r{message} {spinner[idx]}")
                 sys.stderr.flush()
                 idx = (idx + 1) % len(spinner)
                 time.sleep(0.1)
-            sys.stderr.write('\r' + ' ' * (len(message) + 2) + '\r')
+            sys.stderr.write("\r" + " " * (len(message) + 2) + "\r")
             sys.stderr.flush()
 
         spinner_thread = threading.Thread(target=spin)
@@ -90,11 +92,14 @@ def with_spinner(message=None):
         ...     time.sleep(2)
         ...     return "Processing complete!"
     """
+
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             spinner_message = message or f"Running {func.__name__}..."
             with silent_spinner(spinner_message):
                 return func(*args, **kwargs)
+
         return wrapper
+
     return decorator

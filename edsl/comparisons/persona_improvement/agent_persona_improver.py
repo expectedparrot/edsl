@@ -15,21 +15,24 @@ from ...surveys import Survey
 
 def sentences_to_lines(text):
     """Convert sentences in text to separate lines.
-    
+
     Args:
         text: Input text with sentences
-        
+
     Returns:
         Text with each sentence on a separate line
     """
     sentences = re.split(r"(?<=[.?])\s+", text)
     sentences = [s.strip() for s in sentences if s.strip()]
     return "\n".join(sentences)
-import textwrap 
+
+
+import textwrap
 
 q_improve = QuestionFreeText(
     question_name="improvements",
-    question_text=textwrap.dedent("""\
+    question_text=textwrap.dedent(
+        """\
     An AI agent was asked to take a survey given to a real user. 
     The persona was supposed to represent the person in question. 
     This is the original persona:
@@ -64,7 +67,8 @@ q_improve = QuestionFreeText(
     Text to delete:
     ...
     </deletion>
-    """),
+    """
+    ),
 )
 q_new_persona = QuestionFreeText(
     question_name="new_persona",
@@ -91,10 +95,11 @@ survey = Survey([q_improve, q_new_persona])
 class AgentPersonaImprover:
     """Class to generate improved persona candidates from comparison results."""
 
-    def __init__(self, 
-    result_pair_comparisons: List['ResultPairComparison'], 
-    improvement_survey: Optional[Survey] = None,
-    agent_trait_field: str = "persona",
+    def __init__(
+        self,
+        result_pair_comparisons: List["ResultPairComparison"],
+        improvement_survey: Optional[Survey] = None,
+        agent_trait_field: str = "persona",
     ):
         """Initialize with the survey used to generate improved personas.
 
@@ -110,7 +115,9 @@ class AgentPersonaImprover:
         for comparison in self.result_pair_comparisons:
             agent = comparison.result_A.agent
             if agent_trait_field not in agent.traits:
-                raise ValueError(f"Agent {agent.name} does not have a {agent_trait_field} trait")
+                raise ValueError(
+                    f"Agent {agent.name} does not have a {agent_trait_field} trait"
+                )
 
         self._new_agent_list = None
 
@@ -122,13 +129,14 @@ class AgentPersonaImprover:
         return self._new_agent_list
 
     @classmethod
-    def example(cls) -> 'AgentPersonaImprover':
+    def example(cls) -> "AgentPersonaImprover":
         """Return an example PersonaImprover instance with a Yes/No question.
 
         Returns:
             PersonaImprover instance with a survey asking if favorite color is Green
         """
         from .. import ResultPairComparison
+
         # q = QuestionYesNo(
         #     question_name="favorite_color_green",
         #     question_text="Is your favorite color Green?"
@@ -136,13 +144,17 @@ class AgentPersonaImprover:
         # #survey = Survey(questions=[q])
         rc1 = ResultPairComparison.example(first_index=0, second_index=2)
         rc2 = ResultPairComparison.example(first_index=1, second_index=2)
-        rc1.result_A.agent.traits["persona"] = "I am a friendly person who likes to help others."
-        rc2.result_A.agent.traits["persona"] = "I am a disagreeable person who likes to harm others."
+        rc1.result_A.agent.traits[
+            "persona"
+        ] = "I am a friendly person who likes to help others."
+        rc2.result_A.agent.traits[
+            "persona"
+        ] = "I am a disagreeable person who likes to harm others."
         rc1.result_A.agent.name = "Agent 1"
         rc2.result_A.agent.name = "Agent 2"
         return cls(result_pair_comparisons=[rc1, rc2])
 
-    def _generate_scenario(self, comparison: 'ResultPairComparison') -> 'Scenario':
+    def _generate_scenario(self, comparison: "ResultPairComparison") -> "Scenario":
         """Generate a scenario from the comparison for persona improvement.
 
         Args:
@@ -152,14 +164,15 @@ class AgentPersonaImprover:
             Scenario with original_persona and delta_text for improvement survey
         """
         from ...scenarios import Scenario
-        
+
         current_agent = comparison.result_A.agent
         original_persona = sentences_to_lines(current_agent.persona)
         from ...comparisons import ResultDifferences
+
         delta_text = ResultDifferences(comparison).generate_report()
         return Scenario(original_persona=original_persona, delta_text=delta_text)
 
-    def _generate_new_agent_list(self) -> 'AgentList':
+    def _generate_new_agent_list(self) -> "AgentList":
         """Generate multiple candidate agents with improved personas in parallel.
 
         Args:
@@ -170,15 +183,17 @@ class AgentPersonaImprover:
         """
         from ...agents import Agent, AgentList
         from ...scenarios import ScenarioList
-        
+
         # Create a ScenarioList from all comparisons
-        scenario_list = ScenarioList([self._generate_scenario(comp) for comp in self.result_pair_comparisons])
-        
+        scenario_list = ScenarioList(
+            [self._generate_scenario(comp) for comp in self.result_pair_comparisons]
+        )
+
         # Run improvement survey in parallel for all scenarios
         improve_results = self.improvement_survey.by(scenario_list).run()
         # Extract new personas as a list
         new_personas = improve_results.select("new_persona").to_list()
-        
+
         # Create new agents with improved personas
         candidate_agents = []
         for i, comparison in enumerate(self.result_pair_comparisons):
@@ -188,7 +203,7 @@ class AgentPersonaImprover:
                 traits={"persona": new_personas[i]},
             )
             candidate_agents.append(candidate_agent)
-        
+
         return AgentList(candidate_agents)
 
 
