@@ -33,7 +33,7 @@ class ComparisonResults:
 
         >>> # Create mock comparisons for testing
         >>> from collections import OrderedDict
-        >>> from .metrics import ExactMatch
+        >>> from .metrics.metric_definitions import ExactMatch
         >>> from .factory import ComparisonFactory
         >>> comparisons = OrderedDict([
         ...     ('q1', AnswerComparison('yes', 'no', exact_match=False, question_type='yes_no')),

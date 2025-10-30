@@ -354,120 +354,124 @@ class AnswersCompare:
             'bhattacharyya_distance': self.bhattacharyya_distance(),
         }
 
-    def summary(self) -> str:
-        """Generate a formatted summary of all distance metrics.
+    def _repr_html_(self) -> str:
+        from ..scenarios import Scenario
+        return Scenario({str(k): str(v) for k, v in self.all_metrics().items()})._repr_html_()
 
-        Returns:
-            Formatted string with all metrics
+    # def summary(self) -> str:
+    #     """Generate a formatted summary of all distance metrics.
 
-        Examples:
-            >>> compare = AnswersCompare(qa1, qa2)
-            >>> print(compare.summary())
-        """
-        from rich.console import Console
-        from rich.table import Table
-        from rich import box
-        import io
+    #     Returns:
+    #         Formatted string with all metrics
 
-        console = Console(file=io.StringIO(), force_terminal=True, width=80)
+    #     Examples:
+    #         >>> compare = AnswersCompare(qa1, qa2)
+    #         >>> print(compare.summary())
+    #     """
+    #     from rich.console import Console
+    #     from rich.table import Table
+    #     from rich import box
+    #     import io
 
-        # Header
-        console.print(f"\n[bold cyan]Distribution Comparison: {self.question_name}[/bold cyan]\n")
+    #     console = Console(file=io.StringIO(), force_terminal=True, width=80)
 
-        # Metrics table
-        metrics = self.all_metrics()
-        table = Table(title="Distance Metrics", box=box.SIMPLE, border_style="cyan")
-        table.add_column("Metric", style="cyan", width=30)
-        table.add_column("Value", style="yellow", width=15)
-        table.add_column("Interpretation", style="white", width=30)
+    #     # Header
+    #     console.print(f"\n[bold cyan]Distribution Comparison: {self.question_name}[/bold cyan]\n")
 
-        # Add metrics with interpretations
-        interpretations = {
-            'kl_divergence': 'Asymmetric (qa1→qa2)',
-            'kl_divergence_reverse': 'Asymmetric (qa2→qa1)',
-            'jensen_shannon_divergence': 'Symmetric [0, 0.69]',
-            'hellinger_distance': 'Metric [0, 1]',
-            'total_variation_distance': 'L1 distance [0, 1]',
-            'chi_squared': 'Unbounded',
-            'bhattacharyya_distance': 'Unbounded',
-        }
+    #     # Metrics table
+    #     metrics = self.all_metrics()
+    #     table = Table(title="Distance Metrics", box=box.SIMPLE, border_style="cyan")
+    #     table.add_column("Metric", style="cyan", width=30)
+    #     table.add_column("Value", style="yellow", width=15)
+    #     table.add_column("Interpretation", style="white", width=30)
 
-        for name, value in metrics.items():
-            interpretation = interpretations.get(name, '')
-            table.add_row(name.replace('_', ' ').title(), f"{value:.4f}", interpretation)
+    #     # Add metrics with interpretations
+    #     interpretations = {
+    #         'kl_divergence': 'Asymmetric (qa1→qa2)',
+    #         'kl_divergence_reverse': 'Asymmetric (qa2→qa1)',
+    #         'jensen_shannon_divergence': 'Symmetric [0, 0.69]',
+    #         'hellinger_distance': 'Metric [0, 1]',
+    #         'total_variation_distance': 'L1 distance [0, 1]',
+    #         'chi_squared': 'Unbounded',
+    #         'bhattacharyya_distance': 'Unbounded',
+    #     }
 
-        console.print(table)
+    #     for name, value in metrics.items():
+    #         interpretation = interpretations.get(name, '')
+    #         table.add_row(name.replace('_', ' ').title(), f"{value:.4f}", interpretation)
 
-        # Overall assessment
-        js_div = metrics['jensen_shannon_divergence']
-        if js_div < 0.05:
-            assessment = "[green]Very similar distributions[/green]"
-        elif js_div < 0.15:
-            assessment = "[yellow]Somewhat different distributions[/yellow]"
-        elif js_div < 0.30:
-            assessment = "[orange1]Quite different distributions[/orange1]"
-        else:
-            assessment = "[red]Very different distributions[/red]"
+    #     console.print(table)
 
-        console.print(f"\nOverall: {assessment}\n")
+    #     # Overall assessment
+    #     js_div = metrics['jensen_shannon_divergence']
+    #     if js_div < 0.05:
+    #         assessment = "[green]Very similar distributions[/green]"
+    #     elif js_div < 0.15:
+    #         assessment = "[yellow]Somewhat different distributions[/yellow]"
+    #     elif js_div < 0.30:
+    #         assessment = "[orange1]Quite different distributions[/orange1]"
+    #     else:
+    #         assessment = "[red]Very different distributions[/red]"
 
-        return console.file.getvalue()
+    #     console.print(f"\nOverall: {assessment}\n")
 
-    def __repr__(self):
-        """Return rich-formatted string representation with key metrics."""
-        try:
-            from rich.console import Console
-            from rich.table import Table
-            from rich import box
-            import io
+    #     return console.file.getvalue()
 
-            console = Console(file=io.StringIO(), force_terminal=True, width=90)
+    # def __repr__(self):
+    #     """Return rich-formatted string representation with key metrics."""
+    #     try:
+    #         from rich.console import Console
+    #         from rich.table import Table
+    #         from rich import box
+    #         import io
 
-            # Header
-            console.print(f"\n[bold cyan]Distribution Comparison[/bold cyan]")
-            console.print(f"[dim]Question: {self.question_name}[/dim]")
+    #         console = Console(file=io.StringIO(), force_terminal=True, width=90)
 
-            # Get key metrics
-            try:
-                js_div = self.jensen_shannon_divergence()
-                hellinger = self.hellinger_distance()
-                tv_dist = self.total_variation_distance()
+    #         # Header
+    #         console.print(f"\n[bold cyan]Distribution Comparison[/bold cyan]")
+    #         console.print(f"[dim]Question: {self.question_name}[/dim]")
 
-                # Compact metrics table
-                table = Table(show_header=False, box=box.SIMPLE, border_style="cyan",
-                             padding=(0, 1), collapse_padding=True)
-                table.add_column("Metric", style="cyan", width=28)
-                table.add_column("Value", style="yellow", width=12)
+    #         # Get key metrics
+    #         try:
+    #             js_div = self.jensen_shannon_divergence()
+    #             hellinger = self.hellinger_distance()
+    #             tv_dist = self.total_variation_distance()
 
-                table.add_row("Jensen-Shannon", f"{js_div:.4f}")
-                table.add_row("Hellinger", f"{hellinger:.4f}")
-                table.add_row("Total Variation", f"{tv_dist:.4f}")
+    #             # Compact metrics table
+    #             table = Table(show_header=False, box=box.SIMPLE, border_style="cyan",
+    #                          padding=(0, 1), collapse_padding=True)
+    #             table.add_column("Metric", style="cyan", width=28)
+    #             table.add_column("Value", style="yellow", width=12)
 
-                console.print(table)
+    #             table.add_row("Jensen-Shannon", f"{js_div:.4f}")
+    #             table.add_row("Hellinger", f"{hellinger:.4f}")
+    #             table.add_row("Total Variation", f"{tv_dist:.4f}")
 
-                # Overall assessment
-                if js_div < 0.05:
-                    assessment = "[green]Very similar[/green]"
-                elif js_div < 0.15:
-                    assessment = "[yellow]Somewhat different[/yellow]"
-                elif js_div < 0.30:
-                    assessment = "[orange1]Quite different[/orange1]"
-                else:
-                    assessment = "[red]Very different[/red]"
+    #             console.print(table)
 
-                console.print(f"Assessment: {assessment}")
+    #             # Overall assessment
+    #             if js_div < 0.05:
+    #                 assessment = "[green]Very similar[/green]"
+    #             elif js_div < 0.15:
+    #                 assessment = "[yellow]Somewhat different[/yellow]"
+    #             elif js_div < 0.30:
+    #                 assessment = "[orange1]Quite different[/orange1]"
+    #             else:
+    #                 assessment = "[red]Very different[/red]"
 
-                # Tip
-                console.print("\n[dim]Tip: Use .summary() for all metrics or .all_metrics() for dict[/dim]\n")
+    #             console.print(f"Assessment: {assessment}")
 
-            except Exception as e:
-                console.print(f"\n[dim]Metrics not yet computed: {e}[/dim]\n")
+    #             # Tip
+    #             console.print("\n[dim]Tip: Use .summary() for all metrics or .all_metrics() for dict[/dim]\n")
 
-            return console.file.getvalue()
+    #         except Exception as e:
+    #             console.print(f"\n[dim]Metrics not yet computed: {e}[/dim]\n")
 
-        except Exception:
-            # Fallback to simple repr if rich formatting fails
-            return f"AnswersCompare(question='{self.question_name}')"
+    #         return console.file.getvalue()
+
+    #     except Exception:
+    #         # Fallback to simple repr if rich formatting fails
+    #         return f"AnswersCompare(question='{self.question_name}')"
 
 
 if __name__ == "__main__":
