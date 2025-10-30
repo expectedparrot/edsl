@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 def test_multiple_choice():
     """Test multiple choice analyzer."""
     from edsl.questions import QuestionMultipleChoice
-    from by_question_answers import ByQuestionAnswers
+    from edsl.results.by_question.by_question_answers import ByQuestionAnswers
 
     q = QuestionMultipleChoice(
         question_name="color",
@@ -40,7 +40,7 @@ def test_multiple_choice():
 def test_numerical():
     """Test numerical analyzer."""
     from edsl.questions import QuestionNumerical
-    from by_question_answers import ByQuestionAnswers
+    from edsl.results.by_question.by_question_answers import ByQuestionAnswers
 
     q = QuestionNumerical(
         question_name="age",
@@ -65,7 +65,7 @@ def test_numerical():
 def test_linear_scale():
     """Test linear scale analyzer."""
     from edsl.questions import QuestionLinearScale
-    from by_question_answers import ByQuestionAnswers
+    from edsl.results.by_question.by_question_answers import ByQuestionAnswers
 
     q = QuestionLinearScale(
         question_name="satisfaction",
@@ -88,7 +88,7 @@ def test_linear_scale():
 def test_checkbox():
     """Test checkbox analyzer."""
     from edsl.questions import QuestionCheckBox
-    from by_question_answers import ByQuestionAnswers
+    from edsl.results.by_question.by_question_answers import ByQuestionAnswers
 
     q = QuestionCheckBox(
         question_name="interests",
@@ -115,7 +115,7 @@ def test_checkbox():
 def test_free_text():
     """Test free text analyzer."""
     from edsl.questions import QuestionFreeText
-    from by_question_answers import ByQuestionAnswers
+    from edsl.results.by_question.by_question_answers import ByQuestionAnswers
 
     q = QuestionFreeText(
         question_name="feedback",
@@ -137,7 +137,7 @@ def test_free_text():
 def test_with_none_values():
     """Test handling of None values."""
     from edsl.questions import QuestionMultipleChoice
-    from by_question_answers import ByQuestionAnswers
+    from edsl.results.by_question.by_question_answers import ByQuestionAnswers
 
     q = QuestionMultipleChoice(
         question_name="test",

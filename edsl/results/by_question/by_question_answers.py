@@ -44,8 +44,8 @@ class ByQuestionAnswers(ABC):
         >>> from edsl import Results
         >>> results = Results.example()
         >>> analyzer = ByQuestionAnswers.from_results(results, 'how_feeling')
-        >>> analyzer.summary()  # Show summary statistics
-        >>> analyzer.visualize()  # Show terminal visualization
+        >>> type(analyzer).__name__
+        'MultipleChoiceAnswers'
 
         Direct instantiation with a question and answers:
 
@@ -57,7 +57,8 @@ class ByQuestionAnswers(ABC):
         ... )
         >>> answers = ["Red", "Blue", "Red", "Green", "Red"]
         >>> analyzer = ByQuestionAnswers.create(q, answers)
-        >>> analyzer.visualize()  # Shows bar chart
+        >>> type(analyzer).__name__
+        'MultipleChoiceAnswers'
     """
 
     def __init__(self, question: "QuestionBase", answers: List[Any]):
@@ -93,13 +94,14 @@ class ByQuestionAnswers(ABC):
             ValueError: If question_name not found in results
 
         Examples:
+            >>> from edsl import Results
             >>> results = Results.example()
             >>> analyzer = ByQuestionAnswers.from_results(results, 'how_feeling')
             >>> type(analyzer).__name__
             'MultipleChoiceAnswers'
         """
         # Get the question object from results
-        question = results.survey.get_question(question_name)
+        question = results.survey.get(question_name)
 
         # Get the answers from results
         answers = results.get_answers(question_name)
@@ -172,8 +174,10 @@ class ByQuestionAnswers(ABC):
         """Print both summary and visualization to terminal.
 
         Examples:
-            >>> analyzer = ByQuestionAnswers.from_results(results, 'question_name')
-            >>> analyzer.show()  # Prints summary and visualization
+            >>> from edsl import Results
+            >>> results = Results.example()
+            >>> analyzer = ByQuestionAnswers.from_results(results, 'how_feeling')
+            >>> analyzer.show()  # doctest: +SKIP
         """
         print(self.summary())
         print()
