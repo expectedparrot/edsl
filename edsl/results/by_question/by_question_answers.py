@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 # Optional import for terminal visualizations
 try:
     import termplotlib as tpl
+
     HAS_TERMPLOTLIB = True
 except ImportError:
     HAS_TERMPLOTLIB = False
