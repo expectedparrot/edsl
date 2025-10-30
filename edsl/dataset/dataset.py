@@ -225,7 +225,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             - Uses the dataset's built-in filter() method for safe evaluation
             - Use show_expression=True to see the generated filter logic
         """
-        from .vibe_filter import VibeFilter
+        from .vibes.vibe_filter import VibeFilter
 
         # Get column names and sample data
         columns = self.relevant_columns()
