@@ -66,11 +66,6 @@ class TraitsDescriptor:
         self.name = name
 
 
-from collections import UserDict
-
-import json
-
-
 class Codebook(dict):
     """Codebook for the Agent's traits."""
 

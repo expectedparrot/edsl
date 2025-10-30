@@ -215,7 +215,7 @@ class DataOperationsBase:
             >>> # Display with R code shown:
             >>> # plot = r.vibe_plot("bar chart of how_feeling", show_code=True)
         """
-        from .vibes.vibe_viz import GGPlotGenerator, RCodeDisplay
+        from .vibes.vibe_viz import GGPlotGenerator
 
         gen = GGPlotGenerator(model="gpt-4o", temperature=0.1)
 

@@ -66,7 +66,7 @@ class GGPlot:
         """Display the plot in terminal by opening it."""
         # Don't display if the plot was saved
         if self._saved:
-            return f"<GGPlot saved>"
+            return "<GGPlot saved>"
 
         # Generate and open PNG in terminal
         import platform

@@ -1,4 +1,4 @@
-from IPython.display import HTML
+from IPython.display import HTML, display
 import difflib
 
 
