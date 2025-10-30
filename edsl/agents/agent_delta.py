@@ -396,22 +396,23 @@ class AgentDelta(Base):
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
         output = Text()
-        output.append("AgentDelta(", style="bold cyan")
+        output.append("AgentDelta(", style=RICH_STYLES["primary"])
 
         if self.traits:
-            output.append("traits=", style="white")
+            output.append("traits=", style=RICH_STYLES["default"])
             traits_str = ", ".join(
                 f"{k}={v!r}" for k, v in list(self.traits.items())[:3]
             )
             if len(self.traits) > 3:
                 traits_str += f", ... ({len(self.traits) - 3} more)"
-            output.append(f"{{{traits_str}}}", style="yellow")
+            output.append(f"{{{traits_str}}}", style=RICH_STYLES["secondary"])
         else:
-            output.append("empty", style="dim")
+            output.append("empty", style=RICH_STYLES["dim"])
 
-        output.append(")", style="bold cyan")
+        output.append(")", style=RICH_STYLES["primary"])
 
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
         console.print(output, end="")
