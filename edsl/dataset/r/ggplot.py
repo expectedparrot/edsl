@@ -81,7 +81,6 @@ class GGPlot:
 
 
 class GGPlotMethod:
-
     def __init__(self, results):
         """Initialize the GGPlotMethod with results.
 

@@ -158,7 +158,6 @@ class QuestionNumericalProcessor(QuestionAttributeProcessor):
                 return scenario_numerical_value
 
         if source_type == "prior_answers":
-
             # Try getting numerical value from prior answers
             prior_answer_numerical_value = self._get_numerical_value_from_prior_answers(
                 self.prior_answers_dict, numerical_key

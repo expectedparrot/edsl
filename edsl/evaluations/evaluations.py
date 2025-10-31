@@ -57,7 +57,6 @@ def success_failure_tally(
 
 
 class Evaluation:
-
     def __init__(self, r1: Responses, r2: Responses, name: Optional[str] = None):
         self.r1 = r1
         self.r2 = r2

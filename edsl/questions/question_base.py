@@ -48,7 +48,16 @@ Technical Details:
 
 from __future__ import annotations
 from abc import ABC
-from typing import Any, Type, Optional, Union, TypedDict, TYPE_CHECKING, Literal
+from typing import (
+    Any,
+    Type,
+    Optional,
+    Union,
+    TypedDict,
+    TYPE_CHECKING,
+    Literal,
+    Callable,
+)
 
 from .descriptors import QuestionNameDescriptor, QuestionTextDescriptor
 from .answer_validator_mixin import AnswerValidatorMixin
@@ -190,6 +199,21 @@ class QuestionBase(
 
     _answering_instructions = None
     _question_presentation = None
+
+    def comment(
+        self,
+        comment: str,
+        func: Optional[Callable] = None,
+        log_format: Optional[str] = None,
+    ):
+        """Comment on this question."""
+        if func is None:
+            func = print
+        if log_format is None:
+            log_format = "{comment}"
+        comment = log_format.format(comment=comment)
+        func(comment)
+        return self
 
     def is_valid_question_name(self) -> bool:
         """
@@ -760,11 +784,27 @@ class QuestionBase(
             )
 
     def __repr__(self) -> str:
-        """Return a string representation of the question. Should be able to be used to reconstruct the question.
+        """Return a string representation of the question.
+
+        Uses traditional repr format when running doctests, otherwise uses
+        rich-based display for better readability.
 
         >>> from edsl import QuestionFreeText as Q
         >>> repr(Q.example())
         'Question(\\'free_text\\', question_name = \"""how_are_you\""", question_text = \"""How are you?\""")'
+        """
+        import os
+
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+        else:
+            return self._summary_repr()
+
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the question.
+
+        This representation can be used to reconstruct the question.
+        Used primarily for doctests and debugging.
         """
         items = [
             f'{k} = """{v}"""' if isinstance(v, str) else f"{k} = {v}"
@@ -773,6 +813,121 @@ class QuestionBase(
         ]
         question_type = self.to_dict().get("question_type", "None")
         return f"Question('{question_type}', {', '.join(items)})"
+
+    def _summary_repr(self, max_text_length: int = 60, max_options: int = 5) -> str:
+        """Generate a summary representation of the Question with Rich formatting.
+
+        Args:
+            max_text_length: Maximum length of question text before truncating
+            max_options: Maximum number of options to show before truncating
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+
+        # Build the Rich text
+        output = Text()
+        question_type = self.to_dict().get("question_type", "unknown")
+        output.append("Question(", style="bold cyan")
+        output.append(f"'{question_type}'", style="bold yellow")
+        output.append(",\n", style="bold cyan")
+
+        # Question name
+        output.append("    question_name=", style="white")
+        output.append(f'"{self.question_name}"', style="green")
+        output.append(",\n", style="white")
+
+        # Question text (with truncation)
+        question_text = self.question_text
+        if len(question_text) > max_text_length:
+            question_text = question_text[: max_text_length - 3] + "..."
+        output.append("    question_text=", style="white")
+        output.append(f'"{question_text}"', style="cyan")
+
+        # Question options (if present)
+        if hasattr(self, "question_options"):
+            output.append(",\n", style="white")
+            num_options = len(self.question_options)
+            output.append(f"    num_options={num_options}", style="white")
+
+            if num_options > 0:
+                output.append(",\n", style="white")
+                output.append("    options=[\n", style="white")
+
+                for i, option in enumerate(list(self.question_options)[:max_options]):
+                    option_str = str(option)
+                    if len(option_str) > 40:
+                        option_str = option_str[:37] + "..."
+                    output.append("        ", style="white")
+                    output.append(f'"{option_str}"', style="yellow")
+                    output.append(",\n", style="white")
+
+                if num_options > max_options:
+                    output.append(
+                        f"        ... ({num_options - max_options} more)\n", style="dim"
+                    )
+
+                output.append("    ]", style="white")
+
+        # Numerical constraints (for QuestionNumerical)
+        if hasattr(self, "min_value") and self.min_value is not None:
+            output.append(",\n", style="white")
+            output.append(f"    min_value={self.min_value}", style="white")
+
+        if hasattr(self, "max_value") and self.max_value is not None:
+            output.append(",\n", style="white")
+            output.append(f"    max_value={self.max_value}", style="white")
+
+        # Selection constraints (for QuestionCheckBox, QuestionRank)
+        if hasattr(self, "min_selections") and self.min_selections is not None:
+            output.append(",\n", style="white")
+            output.append(f"    min_selections={self.min_selections}", style="white")
+
+        if hasattr(self, "max_selections") and self.max_selections is not None:
+            output.append(",\n", style="white")
+            output.append(f"    max_selections={self.max_selections}", style="white")
+
+        if hasattr(self, "num_selections") and self.num_selections is not None:
+            output.append(",\n", style="white")
+            output.append(f"    num_selections={self.num_selections}", style="white")
+
+        # Option labels (for QuestionLinearScale)
+        if hasattr(self, "option_labels") and self.option_labels:
+            output.append(",\n", style="white")
+            output.append("    option_labels={", style="white")
+            labels_str = ", ".join(f"{k}: '{v}'" for k, v in self.option_labels.items())
+            if len(labels_str) > 50:
+                labels_str = labels_str[:47] + "..."
+            output.append(labels_str, style="magenta")
+            output.append("}", style="white")
+
+        # Weight (for QuestionLinearScale)
+        if hasattr(self, "weight") and self.weight is not None:
+            output.append(",\n", style="white")
+            output.append(f"    weight={self.weight}", style="white")
+
+        # Boolean flags - check both .data and direct attributes
+        data_dict = self.data
+
+        if "use_code" in data_dict and data_dict["use_code"]:
+            output.append(",\n", style="white")
+            output.append("    use_code=True", style="white")
+
+        # permissive is stored without underscore, so check attribute directly
+        if hasattr(self, "permissive") and self.permissive:
+            output.append(",\n", style="white")
+            output.append("    permissive=True", style="white")
+
+        if "include_comment" in data_dict and not data_dict["include_comment"]:
+            output.append(",\n", style="white")
+            output.append("    include_comment=False", style="white")
+
+        output.append("\n)", style="bold cyan")
+
+        # Render to string
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
 
     def __eq__(self, other: Union[Any, Type[QuestionBase]]) -> bool:
         """Check if two questions are equal. Equality is defined as having the .to_dict().

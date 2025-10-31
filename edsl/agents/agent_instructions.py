@@ -132,3 +132,9 @@ class AgentInstructions:
             True
         """
         return self.agent.instruction
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()

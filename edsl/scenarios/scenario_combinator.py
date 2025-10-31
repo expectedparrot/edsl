@@ -69,5 +69,3 @@ class ScenarioCombinator:
         for group in groups:
             new_data = {f"{base_key}_{i+1}": value for i, value in enumerate(group)}
             yield Scenario(new_data)
-
-

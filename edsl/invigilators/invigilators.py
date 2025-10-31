@@ -298,7 +298,7 @@ class InvigilatorAI(InvigilatorBase):
             params["files_list"] = prompts["files_list"]
 
         # Pass response schema for QuestionPydantic if available
-        if hasattr(self.question, 'get_response_schema'):
+        if hasattr(self.question, "get_response_schema"):
             params["response_schema"] = self.question.get_response_schema()
             params["response_schema_name"] = self.question.user_pydantic_model.__name__
 

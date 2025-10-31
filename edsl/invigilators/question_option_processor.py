@@ -1,12 +1,14 @@
 from typing import Union, TYPE_CHECKING
 
 
-#import edsl.scenarios.scenario  # noqa: F401
+# import edsl.scenarios.scenario  # noqa: F401
 from .question_attribute_processor import (
     QuestionAttributeProcessor,
 )
+
 if TYPE_CHECKING:
     from ..scenarios import Scenario
+
 
 class QuestionOptionProcessor(QuestionAttributeProcessor):
     """
@@ -14,9 +16,7 @@ class QuestionOptionProcessor(QuestionAttributeProcessor):
     These can be provided directly, as a template string, or fetched from prior answers or the scenario.
     """
 
-    def __init__(
-        self, scenario: "Scenario", prior_answers_dict: dict
-    ):
+    def __init__(self, scenario: "Scenario", prior_answers_dict: dict):
         # Call parent class constructor
         super().__init__(scenario, prior_answers_dict)
 
@@ -150,7 +150,6 @@ class QuestionOptionProcessor(QuestionAttributeProcessor):
                 return scenario_options
 
         if source_type == "prior_answers":
-
             # Try getting options from prior answers
             prior_answer_options = self._get_options_from_prior_answers(
                 self.prior_answers_dict, option_key

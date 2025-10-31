@@ -977,6 +977,38 @@ class Cache(Base):
             }
         )
 
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the Cache.
+
+        Returns:
+            str: A string that can be evaluated to recreate the Cache object
+        """
+        return f"Cache(data={{{len(self.data)} entries}})"
+
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the Cache with Rich formatting.
+
+        Returns:
+            str: A formatted summary representation of the Cache
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+
+        output = Text()
+        output.append("Cache(", style="bold cyan")
+        output.append(f"entries={len(self.data)}", style="white")
+
+        if hasattr(self, "filename") and self.filename:
+            output.append(", ", style="white")
+            output.append(f'filename="{self.filename}"', style="green")
+
+        output.append(")", style="bold cyan")
+
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
+
 
 if __name__ == "__main__":
     import doctest

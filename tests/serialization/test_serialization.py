@@ -127,6 +127,13 @@ def test_serialization_coverage():
             "CoopProlificFilters",
             "QuestionMultipleChoiceWithOther",
             "Service",
+            "AgentDelta",
+            "AgentListDeltas",
+            "CompareResultsToGold",
+            "PerformanceDelta",
+            "ResultPairComparison",
+            "BaseMacro",  # Abstract base class for Macro and CompositeMacro
+            "CompositeMacro",
         ]
     )
 
