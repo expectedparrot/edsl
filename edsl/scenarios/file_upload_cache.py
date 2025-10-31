@@ -133,8 +133,8 @@ class FileUploadCache:
         #     flush=True,
         # )
         async with self._locks[file_hash]:
-            lock_time = time.time() - lock_start
-            # print(f"Lock acquired in {lock_time:.3f}s", flush=True)
+            _lock_time = time.time() - lock_start
+            # print(f"Lock acquired in {_lock_time:.3f}s", flush=True)
 
             # Double-check after acquiring lock (another task might have uploaded)
             if cache_key in self._cache:
@@ -163,9 +163,9 @@ class FileUploadCache:
                         # )
                         upload_start = time.time()
                         result = await file_store.async_upload_google()
-                        upload_time = time.time() - upload_start
+                        _upload_time = time.time() - upload_start
                         # print(
-                        #     f"Async upload completed in {upload_time:.3f}s", flush=True
+                        #     f"Async upload completed in {_upload_time:.3f}s", flush=True
                         # )
                     else:
                         # print(
@@ -176,9 +176,9 @@ class FileUploadCache:
                         upload_start = time.time()
                         loop = asyncio.get_event_loop()
                         await loop.run_in_executor(None, file_store.upload_google)
-                        upload_time = time.time() - upload_start
+                        _upload_time = time.time() - upload_start
                         # print(
-                        #     f"Sync upload fallback completed in {upload_time:.3f}s",
+                        #     f"Sync upload fallback completed in {_upload_time:.3f}s",
                         #     flush=True,
                         # )
                         result = file_store.external_locations.get("google")
@@ -189,8 +189,8 @@ class FileUploadCache:
                 cache_start = time.time()
                 self._cache[cache_key] = result
                 self._stats["total_upload_time"] += time.time() - start_time
-                cache_time = time.time() - cache_start
-                # print(f"Cache storage took {cache_time:.3f}s", flush=True)
+                _cache_time = time.time() - cache_start
+                # print(f"Cache storage took {_cache_time:.3f}s", flush=True)
 
                 # Ensure file_store has the updated external_locations
                 file_store.external_locations[service] = result

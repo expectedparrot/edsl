@@ -60,7 +60,9 @@ class FileUploadResponseValidator(ResponseValidatorABC):
 
     required_params = []
     valid_examples = [({"answer": __file__}, {})]
-    invalid_examples = [({"answer": "/definitely/not/here.xyz"}, {}, "File does not exist")]
+    invalid_examples = [
+        ({"answer": "/definitely/not/here.xyz"}, {}, "File does not exist")
+    ]
 
     # No custom fix; rely on strict validation
 
@@ -114,5 +116,3 @@ class QuestionFileUpload(QuestionBase):
             question_name="file_path",
             question_text="Please provide the path to the file.",
         )
-
-

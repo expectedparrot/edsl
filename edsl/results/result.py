@@ -24,7 +24,7 @@ maintaining a rich object model.
 from __future__ import annotations
 import inspect
 from collections import UserDict
-from typing import Any, Callable, Optional, TYPE_CHECKING, Union
+from typing import Any, Callable, Optional, TYPE_CHECKING, Union, List
 
 from ..base import Base
 
@@ -136,6 +136,211 @@ class Result(Base, UserDict):
 
         self._rb = None
         self._transformer = None
+
+    @property
+    def answers(self) -> "ScenarioList":
+        from ..scenarios import Scenario, ScenarioList
+
+        return ScenarioList(
+            [
+                Scenario(question_name=k, answer=v)
+                for k, v in self.sub_dicts["answer"].items()
+            ]
+        )
+
+    def get_question_text(self, question_name: QuestionName) -> str:
+        return (
+            self.data["question_to_attributes"]
+            .get(question_name, {})
+            .get("question_text", question_name)
+        )
+
+    def get_question_type(self, question_name: QuestionName) -> str:
+        return (
+            self.data["question_to_attributes"]
+            .get(question_name, {})
+            .get("question_type", "text")
+        )
+
+    def get_question_options(self, question_name: QuestionName) -> List[str]:
+        return (
+            self.data["question_to_attributes"]
+            .get(question_name, {})
+            .get("question_options", [])
+        )
+
+    def select(self, *question_names: QuestionName) -> "Result":
+        """Return a new Result with only the specified questions included.
+
+        This method creates a new Result object that contains only the answers and
+        related metadata for the specified question names. All other data (agent,
+        scenario, model) is preserved. This is useful when you want to focus on a
+        subset of questions from a larger interview.
+
+        Args:
+            *question_names: Variable number of question names to include in the result.
+
+        Returns:
+            A new Result object containing only the specified questions.
+
+        Examples:
+            >>> result = Result.example()
+            >>> result.answer
+            {'how_feeling': 'OK', 'how_feeling_yesterday': 'Great'}
+            >>> selected = result.select('how_feeling')
+            >>> selected.answer
+            {'how_feeling': 'OK'}
+            >>> selected2 = result.select('how_feeling', 'how_feeling_yesterday')
+            >>> selected2.answer
+            {'how_feeling': 'OK', 'how_feeling_yesterday': 'Great'}
+        """
+        question_names_set = set(question_names)
+
+        def filter_keys(d: dict, handle_prefixes: bool = False) -> dict:
+            """Helper to filter keys in a dictionary to only include specified questions.
+
+            Args:
+                d: Dictionary to filter
+                handle_prefixes: If True, also includes keys where question names are prefixes
+            """
+            if not d:
+                return d
+
+            if not handle_prefixes:
+                # Simple case: exact key match
+                return {k: v for k, v in d.items() if k in question_names_set}
+
+            # Complex case: handle keys where question name is a prefix
+            result = {}
+            for k, v in d.items():
+                # Check if key matches a question name exactly or starts with it
+                if k in question_names_set:
+                    result[k] = v
+                else:
+                    # Check if key starts with any question name followed by underscore
+                    for q_name in question_names_set:
+                        if k.startswith(q_name + "_"):
+                            result[k] = v
+                            break
+            return result
+
+        # Create new data with filtered keys in all relevant dictionaries
+        new_data = {
+            "agent": self.data["agent"],
+            "scenario": self.data["scenario"],
+            "model": self.data["model"],
+            "iteration": self.data["iteration"],
+            "answer": filter_keys(self.data["answer"]),
+            "prompt": filter_keys(self.data.get("prompt", {}), handle_prefixes=True),
+            "raw_model_response": self.data.get("raw_model_response", {}),
+            "question_to_attributes": filter_keys(
+                self.data.get("question_to_attributes", {})
+            ),
+            "generated_tokens": filter_keys(
+                self.data.get("generated_tokens", {}), handle_prefixes=True
+            ),
+            "comments_dict": filter_keys(
+                self.data.get("comments_dict", {}), handle_prefixes=True
+            ),
+            "reasoning_summaries_dict": filter_keys(
+                self.data.get("reasoning_summaries_dict", {}), handle_prefixes=True
+            ),
+            "cache_used_dict": filter_keys(self.data.get("cache_used_dict", {})),
+            "cache_keys": filter_keys(self.data.get("cache_keys", {})),
+            "validated_dict": filter_keys(
+                self.data.get("validated_dict", {}), handle_prefixes=True
+            ),
+        }
+
+        return Result(**new_data, indices=self.indices)
+
+    def rename(self, rename_dict: dict[QuestionName, QuestionName]) -> "Result":
+        """Return a new Result with question names renamed according to rename_dict.
+
+        This method creates a new Result object where all occurrences of question names
+        (used as keys in various dictionaries) are replaced with their new names as
+        specified in the rename_dict. This is useful when you want to standardize
+        question naming or align multiple Results with different naming conventions.
+
+        The method handles both exact key matches and composite keys where the question
+        name is used as a prefix (e.g., 'question_name_user_prompt').
+
+        Args:
+            rename_dict: A dictionary mapping old question names to new question names.
+                Only the questions specified in this dict will be renamed; others remain unchanged.
+
+        Returns:
+            A new Result object with renamed question keys throughout all sub-dictionaries.
+
+        Examples:
+            >>> result = Result.example()
+            >>> result.answer
+            {'how_feeling': 'OK', 'how_feeling_yesterday': 'Great'}
+            >>> renamed = result.rename({'how_feeling': 'mood', 'how_feeling_yesterday': 'mood_yesterday'})
+            >>> renamed.answer
+            {'mood': 'OK', 'mood_yesterday': 'Great'}
+        """
+
+        def rename_keys(d: dict, handle_prefixes: bool = False) -> dict:
+            """Helper to rename keys in a dictionary.
+
+            Args:
+                d: Dictionary to process
+                handle_prefixes: If True, also handles keys where question names are prefixes
+            """
+            if not d:
+                return d
+
+            if not handle_prefixes:
+                # Simple case: exact key match
+                return {rename_dict.get(k, k): v for k, v in d.items()}
+
+            # Complex case: handle keys where question name is a prefix
+            result = {}
+            for k, v in d.items():
+                new_key = k
+                # Check each question name to see if it's a prefix of this key
+                for old_name, new_name in rename_dict.items():
+                    # Check if key starts with old_name followed by underscore or is exact match
+                    if k == old_name:
+                        new_key = new_name
+                        break
+                    elif k.startswith(old_name + "_"):
+                        # Replace the prefix
+                        new_key = new_name + k[len(old_name) :]
+                        break
+                result[new_key] = v
+            return result
+
+        # Create new data with renamed keys in all relevant dictionaries
+        new_data = {
+            "agent": self.data["agent"],
+            "scenario": self.data["scenario"],
+            "model": self.data["model"],
+            "iteration": self.data["iteration"],
+            "answer": rename_keys(self.data["answer"]),
+            "prompt": rename_keys(self.data.get("prompt", {}), handle_prefixes=True),
+            "raw_model_response": self.data.get("raw_model_response", {}),
+            "question_to_attributes": rename_keys(
+                self.data.get("question_to_attributes", {})
+            ),
+            "generated_tokens": rename_keys(
+                self.data.get("generated_tokens", {}), handle_prefixes=True
+            ),
+            "comments_dict": rename_keys(
+                self.data.get("comments_dict", {}), handle_prefixes=True
+            ),
+            "reasoning_summaries_dict": rename_keys(
+                self.data.get("reasoning_summaries_dict", {}), handle_prefixes=True
+            ),
+            "cache_used_dict": rename_keys(self.data.get("cache_used_dict", {})),
+            "cache_keys": rename_keys(self.data.get("cache_keys", {})),
+            "validated_dict": rename_keys(
+                self.data.get("validated_dict", {}), handle_prefixes=True
+            ),
+        }
+
+        return Result(**new_data, indices=self.indices)
 
     @property
     def transformer(self):
@@ -346,6 +551,14 @@ class Result(Base, UserDict):
 
         raise ResultsError("The code() method is not implemented for Result objects")
 
+    def get_answer(self, question_name: QuestionName) -> AnswerValue:
+        """Return the answer for a given question name."""
+        return self.data["answer"].get(question_name)
+
+    def get_question_names(self) -> List[QuestionName]:
+        """Return the names of all questions in the result."""
+        return list[str](self.data["answer"].keys())
+
     def get_value(self, data_type: str, key: str) -> Any:
         """Return the value for a given data type and key.
 
@@ -456,14 +669,107 @@ class Result(Base, UserDict):
 
         return ResultSerializer.from_dict(data)
 
-    def __repr__(self):
-        """Return a string representation of the Result object.
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the Result object.
 
-        Returns:
-            A string representation showing the class name and all data parameters.
+        This representation can be used with eval() to recreate the Result object.
+        Used primarily for doctests and debugging.
         """
         params = ", ".join(f"{key}={repr(value)}" for key, value in self.data.items())
         return f"{self.__class__.__name__}({params})"
+
+    def _summary_repr(self, max_answers: int = 5) -> str:
+        """Generate a summary representation of the Result with Rich formatting.
+
+        Args:
+            max_answers: Maximum number of answers to show before truncating
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+        from edsl.config import RICH_STYLES
+
+        # Build the Rich text
+        output = Text()
+        output.append("Result(\n", style=RICH_STYLES["primary"])
+
+        # Agent information
+        if self.agent:
+            agent_traits = getattr(self.agent, "traits", {})
+            if agent_traits:
+                trait_str = ", ".join(
+                    f"{k}={repr(v)}" for k, v in list(agent_traits.items())[:3]
+                )
+                if len(agent_traits) > 3:
+                    trait_str += f", ... ({len(agent_traits) - 3} more)"
+                output.append(
+                    f"    agent: {{{trait_str}}},\n", style=RICH_STYLES["key"]
+                )
+            else:
+                output.append("    agent: Agent(),\n", style=RICH_STYLES["key"])
+
+        # Scenario information
+        if self.scenario:
+            scenario_dict = dict(self.scenario)
+            if scenario_dict:
+                scenario_str = ", ".join(
+                    f"{k}={repr(v)}" for k, v in list(scenario_dict.items())[:3]
+                )
+                if len(scenario_dict) > 3:
+                    scenario_str += f", ... ({len(scenario_dict) - 3} more)"
+                output.append(
+                    f"    scenario: {{{scenario_str}}},\n", style=RICH_STYLES["key"]
+                )
+            else:
+                output.append("    scenario: Scenario(),\n", style=RICH_STYLES["key"])
+
+        # Model information
+        if self.model:
+            model_name = getattr(
+                self.model, "model", getattr(self.model, "_model_", "unknown")
+            )
+            service_name = getattr(self.model, "_inference_service_", "unknown")
+            output.append(
+                f"    model: {model_name} ({service_name}),\n", style=RICH_STYLES["key"]
+            )
+
+        # Iteration
+        iteration = self.data.get("iteration", 0)
+        output.append(f"    iteration: {iteration},\n", style=RICH_STYLES["default"])
+
+        # Answers
+        answers = self.answer
+        if answers:
+            output.append(
+                f"    answers: {len(answers)} question{'s' if len(answers) != 1 else ''},\n",
+                style=RICH_STYLES["secondary"],
+            )
+            output.append("        {\n", style=RICH_STYLES["default"])
+
+            for i, (q_name, q_answer) in enumerate(list(answers.items())[:max_answers]):
+                answer_repr = repr(q_answer)
+                if len(answer_repr) > 50:
+                    answer_repr = answer_repr[:47] + "..."
+                output.append("            ", style=RICH_STYLES["default"])
+                output.append(f"'{q_name}'", style=RICH_STYLES["secondary"])
+                output.append(f": {answer_repr},\n", style=RICH_STYLES["default"])
+
+            if len(answers) > max_answers:
+                output.append(
+                    f"            ... ({len(answers) - max_answers} more)\n",
+                    style=RICH_STYLES["dim"],
+                )
+
+            output.append("        },\n", style=RICH_STYLES["default"])
+        else:
+            output.append("    answers: {},\n", style=RICH_STYLES["dim"])
+
+        output.append(")", style=RICH_STYLES["primary"])
+
+        # Render to string
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
 
     @classmethod
     def example(cls) -> "Result":

@@ -39,8 +39,8 @@ def test_jobs_simple_stuf(valid_job):
     assert valid_job.agents[0].traits == {"trait1": "value1"}
     # assert valid_job.models[0].model == "gpt-4-1106-preview"
     assert valid_job.scenarios[0].get("price") == 100
-    # Check the repr string contains expected components
-    assert "Jobs(survey=Survey(" in repr(valid_job)
+    # Check the eval repr string contains expected components
+    assert "Jobs(survey=Survey(" in valid_job._eval_repr_()
     
     # Skip the eval part as it requires too many imports
     # assert isinstance(eval(repr(valid_job)), Jobs)

@@ -14,17 +14,17 @@ class ScenarioJoin:
     >>> from edsl import ScenarioList, Scenario
     >>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
     >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Los Angeles'})])
-    
+
     # Left join (keeps all left scenarios, adds matching right data)
     >>> s3 = s1.left_join(s2, 'name')
     >>> s3 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'}), Scenario({'age': 25, 'location': None, 'name': 'Bob'})])
     True
-    
+
     # Inner join (keeps only scenarios with matches in both)
     >>> s4 = s1.inner_join(s2, 'name')
     >>> s4 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'})])
     True
-    
+
     # Right join (keeps all right scenarios, adds matching left data)
     >>> s5 = s1.right_join(s2, 'name')
     >>> s5 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'}), Scenario({'age': None, 'location': 'Los Angeles', 'name': 'Charlie'})])

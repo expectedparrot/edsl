@@ -7,32 +7,33 @@ import html
 
 from ..base.base_class import Base
 from .embedding_function import EmbeddingFunction
- 
+
 if TYPE_CHECKING:
     from ..surveys import Survey
     from ..agents import AgentList
 
+
 @dataclass
 class Document:
     """Represents a document with its content and metadata."""
-    
+
     id: str
     content: str
     metadata: Dict[str, Any]
     embedding: Optional[List[float]] = None
 
 
-@dataclass 
+@dataclass
 class SearchResult:
     """Represents a search result with document and similarity score."""
-    
+
     document: Document
     similarity_score: float
 
 
 class EmbeddingsEngine(Base):
     """Main engine for document embedding, storage, and similarity search.
-    
+
     This class provides functionality to:
     - Load documents and generate their embeddings using an injected embedding function
     - Store documents with their embeddings and metadata
@@ -66,10 +67,10 @@ class EmbeddingsEngine(Base):
         >>> [r.document.id for r in e2.search("x", top_k=1)][0]
         '0'
     """
-    
+
     def __init__(self, embedding_function: Optional[EmbeddingFunction] = None):
         """Initialize the embeddings engine.
-        
+
         Args:
             embedding_function: The embedding function to use. If omitted, defaults
                 to OpenAIEmbeddingFunction.
@@ -119,10 +120,18 @@ class EmbeddingsEngine(Base):
         for q_index, q in enumerate(questions):
             parts: List[str] = []
             # Include question text
-            if include_question_text and hasattr(q, "question_text") and q.question_text:
+            if (
+                include_question_text
+                and hasattr(q, "question_text")
+                and q.question_text
+            ):
                 parts.append(str(q.question_text))
             # Append options (as plain text) to the same content string
-            if include_options and hasattr(q, "question_options") and getattr(q, "question_options"):
+            if (
+                include_options
+                and hasattr(q, "question_options")
+                and getattr(q, "question_options")
+            ):
                 option_texts = [str(opt) for opt in getattr(q, "question_options")]
                 if option_texts:
                     parts.append(" ".join(option_texts))
@@ -180,7 +189,11 @@ class EmbeddingsEngine(Base):
         # Determine if codebook is present on agents (use first agent that has one)
         codebook: Optional[Dict[str, str]] = None
         for agent in getattr(agent_list, "data", []) or []:
-            if hasattr(agent, "codebook") and isinstance(agent.codebook, dict) and agent.codebook:
+            if (
+                hasattr(agent, "codebook")
+                and isinstance(agent.codebook, dict)
+                and agent.codebook
+            ):
                 codebook = agent.codebook
                 break
 
@@ -237,16 +250,39 @@ class EmbeddingsEngine(Base):
                 "content": doc.content,
                 "metadata": doc.metadata,
                 "embedding": doc.embedding,
-                **({"edsl_version": __import__("edsl").__version__, "edsl_class_name": "Scenario"} if add_edsl_version else {}),
+                **(
+                    {
+                        "edsl_version": __import__("edsl").__version__,
+                        "edsl_class_name": "Scenario",
+                    }
+                    if add_edsl_version
+                    else {}
+                ),
             }
             for doc in self.documents
         ]
         d: Dict[str, Any] = {
             "scenarios": scenarios_payload,
-            "embedding_function": getattr(self.embedding_function, "short_name", self.embedding_function.__class__.__name__),
+            "embedding_function": getattr(
+                self.embedding_function,
+                "short_name",
+                self.embedding_function.__class__.__name__,
+            ),
             "embedding_function_params": {
-                **({"embedding_dim": getattr(self.embedding_function, "embedding_dim", 1536)} if hasattr(self.embedding_function, "embedding_dim") else {}),
-                **({"normalize": getattr(self.embedding_function, "_normalize", False)} if hasattr(self.embedding_function, "_normalize") else {}),
+                **(
+                    {
+                        "embedding_dim": getattr(
+                            self.embedding_function, "embedding_dim", 1536
+                        )
+                    }
+                    if hasattr(self.embedding_function, "embedding_dim")
+                    else {}
+                ),
+                **(
+                    {"normalize": getattr(self.embedding_function, "_normalize", False)}
+                    if hasattr(self.embedding_function, "_normalize")
+                    else {}
+                ),
             },
         }
         if add_edsl_version:
@@ -347,7 +383,7 @@ class EmbeddingsEngine(Base):
             )
 
         table_rows = [
-            "<tr><th style=\"text-align:left\">ID</th><th style=\"text-align:left\">Content</th><th style=\"text-align:left\">Embedding</th></tr>"
+            '<tr><th style="text-align:left">ID</th><th style="text-align:left">Content</th><th style="text-align:left">Embedding</th></tr>'
         ]
         for id_cell, content_cell, emb_cell in rows[:200]:
             table_rows.append(
@@ -363,15 +399,19 @@ class EmbeddingsEngine(Base):
             f"function: {html.escape(self.embedding_function.__class__.__name__)}"
         )
         return (
-            "<div>" + title + "</div>" +
-            "<table border=1 cellspacing=0 cellpadding=4>" +
-            "".join(table_rows) +
-            "</table>"
+            "<div>"
+            + title
+            + "</div>"
+            + "<table border=1 cellspacing=0 cellpadding=4>"
+            + "".join(table_rows)
+            + "</table>"
         )
-        
-    def add_document(self, id: str, content: str, metadata: Optional[Dict[str, Any]] = None) -> "EmbeddingsEngine":
+
+    def add_document(
+        self, id: str, content: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> "EmbeddingsEngine":
         """Add a single document to the engine.
-        
+
         Args:
             id: Unique identifier for the document
             content: Text content of the document
@@ -379,15 +419,19 @@ class EmbeddingsEngine(Base):
         """
         if metadata is None:
             metadata = {}
-            
+
         embedding = self.embedding_function.embed_query(content)
-        document = Document(id=id, content=content, metadata=metadata, embedding=embedding)
+        document = Document(
+            id=id, content=content, metadata=metadata, embedding=embedding
+        )
         self.documents.append(document)
         return self
-        
-    def add_documents(self, documents: List[Union[str, Dict[str, Any]]]) -> "EmbeddingsEngine":
+
+    def add_documents(
+        self, documents: List[Union[str, Dict[str, Any]]]
+    ) -> "EmbeddingsEngine":
         """Add multiple documents to the engine.
-        
+
         Args:
             documents: Either a list of strings (each string is the content) or
                 a list of document dictionaries with 'id', 'content', and optional 'metadata'.
@@ -436,14 +480,14 @@ class EmbeddingsEngine(Base):
             )
             self.documents.append(document)
         return self
-            
+
     def search(self, query: str, top_k: int = 5) -> List[SearchResult]:
         """Search for similar documents using cosine similarity.
-        
+
         Args:
             query: Query text to search for
             top_k: Number of top results to return
-            
+
         Returns:
             List of SearchResult objects ranked by similarity score (highest first)
 
@@ -457,35 +501,37 @@ class EmbeddingsEngine(Base):
         """
         if not self.documents:
             return []
-            
+
         query_embedding = self.embedding_function.embed_query(query)
 
         # Lazily compute any missing document embeddings in batch for efficiency
-        missing_indices = [i for i, d in enumerate(self.documents) if d.embedding is None]
+        missing_indices = [
+            i for i, d in enumerate(self.documents) if d.embedding is None
+        ]
         if missing_indices:
             texts = [self.documents[i].content for i in missing_indices]
             new_embeddings = self.embedding_function.embed_documents(texts)
             for idx, emb in zip(missing_indices, new_embeddings):
                 self.documents[idx].embedding = emb
-        
+
         results = []
         for document in self.documents:
             if document.embedding is None:
                 continue
-                
+
             similarity = self._cosine_similarity(query_embedding, document.embedding)
             results.append(SearchResult(document=document, similarity_score=similarity))
-            
+
         # Sort by similarity score (highest first) and return top_k
         results.sort(key=lambda x: x.similarity_score, reverse=True)
         return results[:top_k]
-        
+
     def get_document(self, id: str) -> Optional[Document]:
         """Retrieve a document by its ID.
-        
+
         Args:
             id: Document ID to retrieve
-            
+
         Returns:
             Document if found, None otherwise
         """
@@ -493,13 +539,13 @@ class EmbeddingsEngine(Base):
             if document.id == id:
                 return document
         return None
-        
+
     def remove_document(self, id: str) -> bool:
         """Remove a document by its ID.
-        
+
         Args:
             id: Document ID to remove
-            
+
         Returns:
             True if document was found and removed, False otherwise
         """
@@ -508,36 +554,36 @@ class EmbeddingsEngine(Base):
                 del self.documents[i]
                 return True
         return False
-        
+
     def clear(self) -> None:
         """Remove all documents from the engine."""
         self.documents.clear()
-        
+
     def count(self) -> int:
         """Get the number of documents stored in the engine."""
         return len(self.documents)
-        
+
     @staticmethod
     def _cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
         """Calculate cosine similarity between two vectors.
-        
+
         Args:
             vec1: First vector
             vec2: Second vector
-            
+
         Returns:
             Cosine similarity score between -1 and 1
         """
         if len(vec1) != len(vec2):
             raise ValueError("Vectors must have the same length")
-            
+
         dot_product = sum(a * b for a, b in zip(vec1, vec2))
         magnitude1 = math.sqrt(sum(a * a for a in vec1))
         magnitude2 = math.sqrt(sum(a * a for a in vec2))
-        
+
         if magnitude1 == 0 or magnitude2 == 0:
             return 0.0
-            
+
         return dot_product / (magnitude1 * magnitude2)
 
     # --- Visualization helpers ---
@@ -566,6 +612,7 @@ class EmbeddingsEngine(Base):
         )
         try:
             import sys as _sys
+
             if auto_open and hasattr(_sys.stdout, "isatty") and _sys.stdout.isatty():
                 view.open()
         except Exception:
@@ -599,6 +646,7 @@ class EmbeddingsEngine(Base):
         )
         try:
             import sys as _sys
+
             if auto_open and hasattr(_sys.stdout, "isatty") and _sys.stdout.isatty():
                 view.open()
         except Exception:
@@ -686,6 +734,7 @@ class EmbeddingsEngine(Base):
         if auto_open:
             try:
                 import sys as _sys
+
                 if hasattr(_sys.stdout, "isatty") and _sys.stdout.isatty():
                     view.open()
             except Exception:

@@ -48,7 +48,16 @@ Technical Details:
 
 from __future__ import annotations
 from abc import ABC
-from typing import Any, Type, Optional, Union, TypedDict, TYPE_CHECKING, Literal
+from typing import (
+    Any,
+    Type,
+    Optional,
+    Union,
+    TypedDict,
+    TYPE_CHECKING,
+    Literal,
+    Callable,
+)
 
 from .descriptors import QuestionNameDescriptor, QuestionTextDescriptor
 from .answer_validator_mixin import AnswerValidatorMixin
@@ -190,6 +199,21 @@ class QuestionBase(
 
     _answering_instructions = None
     _question_presentation = None
+
+    def comment(
+        self,
+        comment: str,
+        func: Optional[Callable] = None,
+        log_format: Optional[str] = None,
+    ):
+        """Comment on this question."""
+        if func is None:
+            func = print
+        if log_format is None:
+            log_format = "{comment}"
+        comment = log_format.format(comment=comment)
+        func(comment)
+        return self
 
     def is_valid_question_name(self) -> bool:
         """
@@ -760,11 +784,27 @@ class QuestionBase(
             )
 
     def __repr__(self) -> str:
-        """Return a string representation of the question. Should be able to be used to reconstruct the question.
+        """Return a string representation of the question.
+
+        Uses traditional repr format when running doctests, otherwise uses
+        rich-based display for better readability.
 
         >>> from edsl import QuestionFreeText as Q
         >>> repr(Q.example())
         'Question(\\'free_text\\', question_name = \"""how_are_you\""", question_text = \"""How are you?\""")'
+        """
+        import os
+
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+        else:
+            return self._summary_repr()
+
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the question.
+
+        This representation can be used to reconstruct the question.
+        Used primarily for doctests and debugging.
         """
         items = [
             f'{k} = """{v}"""' if isinstance(v, str) else f"{k} = {v}"
@@ -773,6 +813,175 @@ class QuestionBase(
         ]
         question_type = self.to_dict().get("question_type", "None")
         return f"Question('{question_type}', {', '.join(items)})"
+
+    def _summary_repr(
+        self, max_text_length: int = 10_000, max_options: int = 50
+    ) -> str:
+        """Generate a summary representation of the Question with Rich formatting.
+
+        Args:
+            max_text_length: Maximum length of question text before truncating
+            max_options: Maximum number of options to show before truncating
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+        from edsl.config import RICH_STYLES
+
+        # Build the Rich text
+        output = Text()
+        question_type = self.to_dict().get("question_type", "unknown")
+        output.append("Question(", style=RICH_STYLES["primary"])
+        output.append(f"'{question_type}'", style=RICH_STYLES["secondary"])
+        output.append(",\n", style=RICH_STYLES["primary"])
+
+        # Question name
+        output.append("    question_name=", style=RICH_STYLES["default"])
+        output.append(f'"{self.question_name}"', style=RICH_STYLES["key"])
+        output.append(",\n", style=RICH_STYLES["default"])
+
+        # Question text with Jinja2 and angle bracket highlighting (no truncation)
+        import re
+
+        question_text = self.question_text
+
+        output.append("    question_text=", style=RICH_STYLES["default"])
+
+        # Build a separate Text object for the question text to preserve styling
+        question_text_styled = Text()
+        question_text_styled.append('"', style=RICH_STYLES["default"])
+
+        # Parse and highlight both Jinja2 variables and angle brackets
+        # Pattern captures {{ }}, < >, or regular text
+        combined_pattern = r"(\{\{.*?\}\}|<[^>]+>)"
+        parts = re.split(combined_pattern, question_text)
+
+        for part in parts:
+            if not part:  # Skip empty strings from split
+                continue
+            elif part.startswith("{{") and part.endswith("}}"):
+                # Replace spaces with non-breaking spaces to prevent wrapping inside variables
+                part_no_break = part.replace(" ", "\u00A0")
+                # Highlight Jinja2 variables with highlight style
+                question_text_styled.append(
+                    part_no_break, style=RICH_STYLES["highlight"]
+                )
+            elif part.startswith("<") and part.endswith(">"):
+                # Replace spaces with non-breaking spaces in angle brackets too
+                part_no_break = part.replace(" ", "\u00A0")
+                # Highlight angle bracket tags in secondary style
+                question_text_styled.append(
+                    part_no_break, style=RICH_STYLES["secondary"]
+                )
+            else:
+                # Regular text in default style
+                question_text_styled.append(part, style=RICH_STYLES["default"])
+
+        question_text_styled.append('"', style=RICH_STYLES["default"])
+
+        # Append the styled question text as a complete unit
+        output.append(question_text_styled)
+
+        # Question options (if present)
+        if hasattr(self, "question_options"):
+            output.append(",\n", style=RICH_STYLES["default"])
+            num_options = len(self.question_options)
+            output.append(
+                f"    num_options={num_options}", style=RICH_STYLES["default"]
+            )
+
+            if num_options > 0:
+                output.append(",\n", style=RICH_STYLES["default"])
+                output.append("    options=[\n", style=RICH_STYLES["default"])
+
+                for i, option in enumerate(list(self.question_options)[:max_options]):
+                    option_str = str(option)
+                    if len(option_str) > 40:
+                        option_str = option_str[:37] + "..."
+                    output.append("        ", style=RICH_STYLES["default"])
+                    output.append(f'"{option_str}"', style=RICH_STYLES["secondary"])
+                    output.append(",\n", style=RICH_STYLES["default"])
+
+                if num_options > max_options:
+                    output.append(
+                        f"        ... ({num_options - max_options} more)\n",
+                        style=RICH_STYLES["dim"],
+                    )
+
+                output.append("    ]", style=RICH_STYLES["default"])
+
+        # Numerical constraints (for QuestionNumerical)
+        if hasattr(self, "min_value") and self.min_value is not None:
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append(
+                f"    min_value={self.min_value}", style=RICH_STYLES["default"]
+            )
+
+        if hasattr(self, "max_value") and self.max_value is not None:
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append(
+                f"    max_value={self.max_value}", style=RICH_STYLES["default"]
+            )
+
+        # Selection constraints (for QuestionCheckBox, QuestionRank)
+        if hasattr(self, "min_selections") and self.min_selections is not None:
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append(
+                f"    min_selections={self.min_selections}",
+                style=RICH_STYLES["default"],
+            )
+
+        if hasattr(self, "max_selections") and self.max_selections is not None:
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append(
+                f"    max_selections={self.max_selections}",
+                style=RICH_STYLES["default"],
+            )
+
+        if hasattr(self, "num_selections") and self.num_selections is not None:
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append(
+                f"    num_selections={self.num_selections}",
+                style=RICH_STYLES["default"],
+            )
+
+        # Option labels (for QuestionLinearScale)
+        if hasattr(self, "option_labels") and self.option_labels:
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append("    option_labels={", style=RICH_STYLES["default"])
+            labels_str = ", ".join(f"{k}: '{v}'" for k, v in self.option_labels.items())
+            if len(labels_str) > 50:
+                labels_str = labels_str[:47] + "..."
+            output.append(labels_str, style=RICH_STYLES["highlight"])
+            output.append("}", style=RICH_STYLES["default"])
+
+        # Weight (for QuestionLinearScale)
+        if hasattr(self, "weight") and self.weight is not None:
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append(f"    weight={self.weight}", style=RICH_STYLES["default"])
+
+        # Boolean flags - check both .data and direct attributes
+        data_dict = self.data
+
+        if "use_code" in data_dict and data_dict["use_code"]:
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append("    use_code=True", style=RICH_STYLES["default"])
+
+        # permissive is stored without underscore, so check attribute directly
+        if hasattr(self, "permissive") and self.permissive:
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append("    permissive=True", style=RICH_STYLES["default"])
+
+        if "include_comment" in data_dict and not data_dict["include_comment"]:
+            output.append(",\n", style=RICH_STYLES["default"])
+            output.append("    include_comment=False", style=RICH_STYLES["default"])
+
+        output.append("\n)", style=RICH_STYLES["primary"])
+
+        # Render to string
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
 
     def __eq__(self, other: Union[Any, Type[QuestionBase]]) -> bool:
         """Check if two questions are equal. Equality is defined as having the .to_dict().

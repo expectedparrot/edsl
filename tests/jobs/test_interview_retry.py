@@ -25,7 +25,7 @@ def test_retry():
         question_name="q2",
     )
     s = Survey(questions=[q0, q1, q2])
-    s = s.add_rule(q0, "q0 == 'yes'", q2)
+    s = s.add_rule(q0, "{{ q0.answer }} == 'yes'", q2)
 
     # create an interview
     a = Agent(traits=None)

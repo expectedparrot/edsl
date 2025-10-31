@@ -1,6 +1,60 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
+import html
+import re
 from .table_data_class import TableData
+
+
+def escape_and_colorize_html(text: str, colorize: bool = True) -> str:
+    """Escape HTML special characters, convert URLs to hyperlinks, and optionally colorize tag-like patterns.
+
+    Args:
+        text: The text to escape and colorize
+        colorize: If True, add color styling to patterns that look like HTML tags
+
+    Returns:
+        HTML-safe string with URLs as hyperlinks and optional color styling for tags
+    """
+    # First, escape all HTML special characters
+    escaped = html.escape(str(text))
+
+    # Convert URLs to hyperlinks before colorizing
+    # Pattern to match http://, https://, ftp://, and ftps:// URLs
+    url_pattern = r'(https?://[^\s<>"]+|ftp://[^\s<>"]+)'
+
+    def make_hyperlink(match):
+        url = match.group(1)
+        return f'<a href="{url}" target="_blank" rel="noopener noreferrer">{url}</a>'
+
+    # Replace URLs with hyperlinks
+    with_links = re.sub(url_pattern, make_hyperlink, escaped)
+
+    if not colorize:
+        return with_links
+
+    # Pattern to match escaped tag-like structures: &lt;...&gt;
+    # This matches opening tags, closing tags, and self-closing tags
+    tag_pattern = r"&lt;(/?)([^&\s]+)([^&]*)&gt;"
+
+    def colorize_tag(match):
+        slash = match.group(1)  # Captures "/" for closing tags or empty string
+        tag_name = match.group(2)  # Tag name
+        rest = match.group(3)  # Any attributes or content after tag name
+
+        # Different colors for opening vs closing tags
+        if slash:
+            # Closing tags in a reddish color
+            color = "#d73a49"  # GitHub-style red
+        else:
+            # Opening tags in a bluish color
+            color = "#005cc5"  # GitHub-style blue
+
+        return f'<span style="color: {color}; font-weight: 500;">&lt;{slash}{tag_name}{rest}&gt;</span>'
+
+    # Replace all tag-like patterns with colored versions
+    colorized = re.sub(tag_pattern, colorize_tag, with_links)
+
+    return colorized
 
 
 class DataTablesRendererABC(ABC):
@@ -62,12 +116,15 @@ class DataTablesRenderer(DataTablesRendererABC):
         """
 
         header_cells = "".join(
-            f"<th>{header}</th>" for header in self.table_data.headers
+            f"<th>{escape_and_colorize_html(header)}</th>"
+            for header in self.table_data.headers
         )
         body_rows = ""
         for row in self.table_data.data:
             body_rows += "<tr>"
-            body_rows += "".join(f"<td>{cell}</td>" for cell in row)
+            body_rows += "".join(
+                f"<td>{escape_and_colorize_html(cell)}</td>" for cell in row
+            )
             body_rows += "</tr>"
 
         parameters = self.table_data.parameters or {}
@@ -107,6 +164,13 @@ class PandasStyleRenderer(DataTablesRendererABC):
                     return "<p>Empty table</p>"
                 df = pd.DataFrame(self.table_data.data, columns=self.table_data.headers)
 
+            # Escape HTML special characters, colorize tags, and escape dollar signs to prevent MathJax rendering
+            df = df.map(
+                lambda x: escape_and_colorize_html(x).replace("$", "\\$")
+                if isinstance(x, str)
+                else x
+            )
+
             styled_df = df.style.set_properties(
                 **{
                     "text-align": "left",
@@ -141,17 +205,22 @@ class RichRenderer(DataTablesRendererABC):
         for this renderer. The render_terminal method below is what's used.
         """
         # Provide a basic HTML fallback for HTML contexts
-        html = "<table border='1'><thead><tr>"
-        html += "".join(f"<th>{header}</th>" for header in self.table_data.headers)
-        html += "</tr></thead><tbody>"
+        html_output = "<table border='1'><thead><tr>"
+        html_output += "".join(
+            f"<th>{escape_and_colorize_html(header)}</th>"
+            for header in self.table_data.headers
+        )
+        html_output += "</tr></thead><tbody>"
 
         for row in self.table_data.data:
-            html += "<tr>"
-            html += "".join(f"<td>{cell}</td>" for cell in row)
-            html += "</tr>"
-        html += "</tbody></table>"
+            html_output += "<tr>"
+            html_output += "".join(
+                f"<td>{escape_and_colorize_html(cell)}</td>" for cell in row
+            )
+            html_output += "</tr>"
+        html_output += "</tbody></table>"
 
-        return html
+        return html_output
 
     # ------------------------------------------------------------------
     # Rich terminal helpers
@@ -208,7 +277,22 @@ class RichRenderer(DataTablesRendererABC):
         This is primarily useful for non-interactive contexts where the Rich
         colour codes are still desirable (e.g. writing to a log file) or when
         :pymeth:`TableDisplay.__repr__` needs a value to return.
+
+        In Jupyter notebooks, returns a minimal string since _repr_html_ handles display.
         """
+        # In Jupyter notebook environments, return minimal string
+        # since _repr_html_ will handle the actual display
+        # Check specifically for Jupyter notebook (not just IPython terminal)
+        try:
+            ipy = get_ipython()
+            if ipy is not None and "IPKernelApp" in ipy.config:
+                # We're in a Jupyter notebook/kernel, not IPython terminal
+                rows = len(self.table_data.data)
+                cols = len(self.table_data.headers)
+                return f"TableDisplay({rows} rows x {cols} columns)"
+        except NameError:
+            pass
+
         try:
             from rich.console import Console
             import io

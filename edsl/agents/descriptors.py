@@ -1,6 +1,6 @@
 """This module contains the descriptors used to set the attributes of the Agent class."""
 
-from typing import Dict
+from typing import Dict, Optional, Union
 from .exceptions import AgentNameError, AgentTraitKeyError
 
 
@@ -25,7 +25,7 @@ class NameDescriptor:
         """Return the value of the attribute."""
         return instance.__dict__[self.name]
 
-    def __set__(self, instance, name: str) -> None:
+    def __set__(self, instance, name: Optional[Union[str, int]]) -> None:
         """Set the value of the attribute."""
         instance.__dict__[self.name] = convert_agent_name(name)
 
@@ -64,6 +64,24 @@ class TraitsDescriptor:
     def __set_name__(self, owner, name: str) -> None:
         """Set the name of the attribute."""
         self.name = name
+
+
+class Codebook(dict):
+    """Codebook for the Agent's traits."""
+
+    def __init__(self, codebook_dict: Dict[str, str]):
+        super().__init__(codebook_dict)
+
+    def __setitem__(self, key: str, value: str):
+        super().__setitem__(key, value)
+
+    def _repr_html_(self):
+        from ..scenarios import ScenarioList, Scenario
+
+        sl = ScenarioList()
+        for key, value in self.items():
+            sl.append(Scenario({"key": key, "value": value}))
+        return sl._repr_html_(include_class_info=False)
 
 
 class CodebookDescriptor:
@@ -109,7 +127,7 @@ class CodebookDescriptor:
             instance: The instance object
             codebook_dict: Dictionary mapping trait keys to descriptions
         """
-        instance.__dict__[self.name] = codebook_dict
+        instance.__dict__[self.name] = Codebook(codebook_dict)
 
     def __set_name__(self, owner, name: str) -> None:
         """Set the name of the attribute in the instance's dictionary.
