@@ -1001,12 +1001,12 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         result = gen.generate_scenarios(description)
         return cls([Scenario(scenario) for scenario in result["scenarios"]])
 
-    def _summary_repr(self, MAX_SCENARIOS: int = 10, MAX_FIELDS: int = 10) -> str:
+    def _summary_repr(self, MAX_SCENARIOS: int = 10, MAX_FIELDS: int = 500) -> str:
         """Generate a summary representation of the ScenarioList with Rich formatting.
 
         Args:
             MAX_SCENARIOS: Maximum number of scenarios to show (default: 10)
-            MAX_FIELDS: Maximum number of fields to show per scenario (default: 10)
+            MAX_FIELDS: Maximum number of fields to show per scenario (default: 500)
         """
         from rich.console import Console
         from rich.text import Text
@@ -2851,34 +2851,58 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return generator.generate_batch(count)
 
     @classmethod
-    def from_source(cls, source_type: str, *args, **kwargs) -> "ScenarioList":
+    def from_source(cls, source_type_or_data: Any, *args, **kwargs) -> "ScenarioList":
         """
-        Create a ScenarioList from a specified source type.
+        Create a ScenarioList from a specified source type or infer it automatically.
 
         This method serves as the main entry point for creating ScenarioList objects,
         providing a unified interface for various data sources.
 
+        **Two modes of operation:**
+        
+        1. **Explicit source type** (2+ arguments): Specify the source type explicitly
+           Example: ScenarioList.from_source('csv', 'data.csv')
+        
+        2. **Auto-detect source** (1 argument): Pass only the data and let it infer the type
+           Example: ScenarioList.from_source('data.csv')
+
         Args:
-            source_type: The type of source to create a ScenarioList from.
-                         Valid values include: 'urls', 'directory', 'csv', 'tsv',
-                         'excel', 'pdf', 'pdf_to_image', and others.
-            *args: Positional arguments to pass to the source-specific method.
+            source_type_or_data: Either:
+                - A string specifying the source type ('csv', 'excel', 'pdf', etc.) 
+                  when using explicit mode with additional args
+                - The actual data source (file path, URL, dict, DataFrame, etc.) 
+                  when using auto-detect mode
+            *args: Positional arguments to pass to the source-specific method 
+                   (only used in explicit mode).
             **kwargs: Keyword arguments to pass to the source-specific method.
 
         Returns:
             A ScenarioList object created from the specified source.
 
         Examples:
-            >>> # This is a simplified example for doctest
-            >>> # In real usage, you would provide a path to your CSV file:
-            >>> # sl_csv = ScenarioList.from_source('csv', 'your_data.csv')
-            >>> # Or use other source types like 'directory', 'excel', etc.
-            >>> # Examples of other source types:
-            >>> # sl_dir = ScenarioList.from_source('directory', '/path/to/files')
+            >>> # Explicit source type (original behavior)
+            >>> # sl = ScenarioList.from_source('csv', 'data.csv')
+            
+            >>> # Auto-detect source type (new behavior)
+            >>> sl = ScenarioList.from_source({'name': ['Alice', 'Bob'], 'age': [25, 30]})
+            Detected source type: dictionary
+            
+            >>> # Auto-detect from file
+            >>> # sl = ScenarioList.from_source('data.csv')
+            >>> # Detected source type: CSV file at data.csv
         """
         from .scenario_source import ScenarioSource
-
-        return ScenarioSource.from_source(source_type, *args, **kwargs)
+        from .scenario_source_inferrer import ScenarioSourceInferrer
+        
+        # If no additional positional args, assume user wants auto-detection
+        if len(args) == 0:
+            # Auto-detect mode: source_type_or_data is actually the data
+            return ScenarioSourceInferrer.infer_and_create(
+                source_type_or_data, verbose=True, **kwargs
+            )
+        else:
+            # Explicit mode: source_type_or_data is the source type string
+            return ScenarioSource.from_source(source_type_or_data, *args, **kwargs)
 
 
 if __name__ == "__main__":
