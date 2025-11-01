@@ -322,3 +322,33 @@ class KeyScenarioError(ScenarioError):
             message: A description of the error that occurred.
         """
         super().__init__(message)
+
+
+class UnsupportedSourceTypeError(ScenarioError):
+    """
+    Exception raised when attempting to create scenarios from an unsupported source type.
+
+    This exception occurs when:
+    - Using a source type that is not registered in the Source registry
+    - Attempting to use a from_* method that doesn't exist
+    - Providing an invalid source_type parameter to ScenarioSource methods
+
+    To fix this error:
+    1. Check the list of valid source types returned in the error message
+    2. Verify the source type is properly registered if it's a custom type
+    3. Ensure you're using a supported source format (csv, json, pdf, etc.)
+
+    Examples:
+        ```python
+        ScenarioSource.from_source("invalid_type", data)  # Raises UnsupportedSourceTypeError
+        ```
+    """
+
+    def __init__(self, message: str):
+        """
+        Initialize the UnsupportedSourceTypeError with a message.
+
+        Args:
+            message: A description of the error that occurred.
+        """
+        super().__init__(message)

@@ -986,7 +986,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         This representation can be used with eval() to recreate the ScenarioList object.
         Used primarily for doctests and debugging.
         """
-        return f"ScenarioList({list(self.data)})"
+        return f"ScenarioList([{', '.join([x._eval_repr_() for x in self.data])}])"
 
     @classmethod
     def from_vibes(cls, description: str) -> ScenarioList:
@@ -2027,6 +2027,41 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_sl.append(new_scenario)
         return new_sl
 
+    def snakify(self) -> ScenarioList:
+        """Convert all scenario keys to valid Python identifiers (snake_case).
+
+        This method delegates to ScenarioSnakifier to transform all keys to lowercase,
+        replace spaces and special characters with underscores, and ensure all keys are
+        valid Python identifiers. If multiple keys would map to the same snakified name,
+        numbers are appended to ensure uniqueness.
+
+        Returns:
+            ScenarioList: A new ScenarioList with snakified keys.
+
+        Examples:
+            >>> s = ScenarioList([Scenario({'First Name': 'Alice', 'Age Group': '30s'})])
+            >>> result = s.snakify()
+            >>> sorted(result[0].keys())
+            ['age_group', 'first_name']
+            >>> result[0]['first_name']
+            'Alice'
+            >>> result[0]['age_group']
+            '30s'
+
+            >>> s = ScenarioList([Scenario({'name': 'Alice', 'Name': 'Bob', 'NAME': 'Charlie'})])
+            >>> result = s.snakify()
+            >>> sorted(result[0].keys())
+            ['name', 'name_1', 'name_2']
+
+            >>> s = ScenarioList([Scenario({'User-Name': 'Alice', '123field': 'test', 'valid_key': 'keep'})])
+            >>> result = s.snakify()
+            >>> sorted(result[0].keys())
+            ['_123field', 'user_name', 'valid_key']
+        """
+        from .scenario_snakifier import ScenarioSnakifier
+        
+        return ScenarioSnakifier(self).snakify()
+
     def replace_names(self, new_names: list) -> ScenarioList:
         """Replace the field names in the scenarios with a new list of names.
 
@@ -2793,6 +2828,117 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 new_sl.append(Scenario(new_scenario))
             return new_sl
 
+    def filter_na(self, fields: Union[str, List[str]] = "*") -> "ScenarioList":
+        """
+        Remove scenarios where specified fields contain None or NaN values.
+        
+        This method filters out scenarios that have null/NaN values in the specified
+        fields. It's similar to pandas' dropna() functionality. Values considered as
+        NA include: None, float('nan'), and string representations like 'nan', 'none', 'null'.
+        
+        Args:
+            fields: Field name(s) to check for NA values. Can be:
+                    - "*" (default): Check all fields in each scenario
+                    - A single field name (str): Check only that field
+                    - A list of field names: Check all specified fields
+                    
+                    A scenario is kept only if NONE of the specified fields contain NA values.
+        
+        Returns:
+            ScenarioList: A new ScenarioList containing only scenarios without NA values
+                         in the specified fields.
+        
+        Examples:
+            Remove scenarios with any NA values in any field:
+            >>> scenarios = ScenarioList([
+            ...     Scenario({'a': 1, 'b': 2}),
+            ...     Scenario({'a': None, 'b': 3}),
+            ...     Scenario({'a': 4, 'b': 5})
+            ... ])
+            >>> filtered = scenarios.filter_na()
+            >>> len(filtered)
+            2
+            >>> filtered[0]['a']
+            1
+            
+            Remove scenarios with NA in specific field:
+            >>> scenarios = ScenarioList([
+            ...     Scenario({'name': 'Alice', 'age': 30}),
+            ...     Scenario({'name': None, 'age': 25}),
+            ...     Scenario({'name': 'Bob', 'age': None})
+            ... ])
+            >>> filtered = scenarios.filter_na('name')
+            >>> len(filtered)
+            2
+            >>> filtered[0]['name']
+            'Alice'
+            >>> filtered[1]['name']
+            'Bob'
+            
+            Remove scenarios with NA in multiple specific fields:
+            >>> filtered = scenarios.filter_na(['name', 'age'])
+            >>> len(filtered)
+            1
+            >>> filtered[0]['name']
+            'Alice'
+            
+            Handle float NaN values:
+            >>> import math
+            >>> scenarios = ScenarioList([
+            ...     Scenario({'x': 1.0, 'y': 2.0}),
+            ...     Scenario({'x': float('nan'), 'y': 3.0}),
+            ...     Scenario({'x': 4.0, 'y': 5.0})
+            ... ])
+            >>> filtered = scenarios.filter_na('x')
+            >>> len(filtered)
+            2
+        """
+        import math
+        
+        def is_na(val):
+            """Check if a value is considered NA (None or NaN)."""
+            if val is None:
+                return True
+            # Check for float NaN
+            if isinstance(val, float) and math.isnan(val):
+                return True
+            # Check for string representations of null values
+            if hasattr(val, "__str__"):
+                str_val = str(val).lower()
+                if str_val in ["nan", "none", "null"]:
+                    return True
+            return False
+        
+        # Determine which fields to check
+        if fields == "*":
+            # Check all fields - need to collect all unique keys across scenarios
+            check_fields = set()
+            for scenario in self:
+                check_fields.update(scenario.keys())
+            check_fields = list(check_fields)
+        elif isinstance(fields, str):
+            check_fields = [fields]
+        else:
+            check_fields = list(fields)
+        
+        # Filter scenarios
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
+        for scenario in self:
+            # Check if any of the specified fields contain NA
+            has_na = False
+            for field in check_fields:
+                # Only check fields that exist in this scenario
+                if field in scenario:
+                    if is_na(scenario[field]):
+                        has_na = True
+                        break
+            
+            # Keep scenario only if it has no NA values in checked fields
+            if not has_na:
+                new_sl.append(scenario)
+        
+        return new_sl
+
     def create_conjoint_comparisons(
         self,
         attribute_field: str = "attribute",
@@ -2851,12 +2997,13 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return generator.generate_batch(count)
 
     @classmethod
-    def from_source(cls, source_type_or_data: Any, *args, **kwargs) -> "ScenarioList":
+    def from_source(cls, source_type_or_data: Any, *args, snakify: bool = True, **kwargs) -> "ScenarioList":
         """
         Create a ScenarioList from a specified source type or infer it automatically.
 
         This method serves as the main entry point for creating ScenarioList objects,
-        providing a unified interface for various data sources.
+        providing a unified interface for various data sources. By default, column names
+        are automatically converted to valid Python identifiers (snake_case).
 
         **Two modes of operation:**
         
@@ -2874,10 +3021,14 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                   when using auto-detect mode
             *args: Positional arguments to pass to the source-specific method 
                    (only used in explicit mode).
+            snakify: If True (default), automatically convert all scenario keys to 
+                     valid Python identifiers (snake_case). Set to False to preserve 
+                     original column names.
             **kwargs: Keyword arguments to pass to the source-specific method.
 
         Returns:
-            A ScenarioList object created from the specified source.
+            A ScenarioList object created from the specified source, with snakified keys
+            if snakify=True.
 
         Examples:
             >>> # Explicit source type (original behavior)
@@ -2887,9 +3038,15 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             >>> sl = ScenarioList.from_source({'name': ['Alice', 'Bob'], 'age': [25, 30]})
             Detected source type: dictionary
             
-            >>> # Auto-detect from file
-            >>> # sl = ScenarioList.from_source('data.csv')
+            >>> # Auto-detect from file with snakify
+            >>> # sl = ScenarioList.from_source('data.csv')  # Keys will be snakified
             >>> # Detected source type: CSV file at data.csv
+            
+            >>> # Preserve original column names
+            >>> sl = ScenarioList.from_source({'First Name': ['Alice']}, snakify=False)
+            Detected source type: dictionary
+            >>> 'First Name' in sl[0]
+            True
         """
         from .scenario_source import ScenarioSource
         from .scenario_source_inferrer import ScenarioSourceInferrer
@@ -2897,12 +3054,18 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         # If no additional positional args, assume user wants auto-detection
         if len(args) == 0:
             # Auto-detect mode: source_type_or_data is actually the data
-            return ScenarioSourceInferrer.infer_and_create(
+            scenario_list = ScenarioSourceInferrer.infer_and_create(
                 source_type_or_data, verbose=True, **kwargs
             )
         else:
             # Explicit mode: source_type_or_data is the source type string
-            return ScenarioSource.from_source(source_type_or_data, *args, **kwargs)
+            scenario_list = ScenarioSource.from_source(source_type_or_data, *args, **kwargs)
+        
+        # Apply snakify transformation if requested
+        if snakify:
+            scenario_list = scenario_list.snakify()
+        
+        return scenario_list
 
 
 if __name__ == "__main__":

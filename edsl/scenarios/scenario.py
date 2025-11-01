@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from ..jobs import Jobs
     from ..questions import QuestionBase as Question
     from ..surveys import Survey
+    from .qr_code import QRCodeList
 
 
 from .firecrawl_scenario import FirecrawlRequest
@@ -585,6 +586,51 @@ class Scenario(Base, UserDict):
         import webbrowser
 
         webbrowser.open(urls[position])
+
+    def qr_codes(self) -> "QRCodeList":
+        """Generate QR codes for all URLs found in the scenario.
+
+        This method extracts all URLs from the scenario values and creates QR codes
+        for each one. The returned QRCodeList will display appropriately based on
+        the context:
+        - In Jupyter notebooks: Shows visual QR codes with clickable URL captions
+        - In terminal: Lists URLs and can generate ASCII QR codes or save to files
+
+        Returns:
+            QRCodeList: A collection of QR codes for all URLs in the scenario
+
+        Raises:
+            ValueError: If no URLs are found in the scenario
+            ImportError: If the qrcode library is not installed
+
+        Examples:
+            Create QR codes from a scenario with URLs:
+            >>> s = Scenario({"website": "https://example.com", "api": "https://api.example.com"})
+            >>> qr_list = s.qr_codes()  # doctest: +SKIP
+            >>> len(qr_list)  # doctest: +SKIP
+            2
+
+            Display in Jupyter notebook:
+            >>> s.qr_codes()  # In Jupyter, this will display visual QR codes  # doctest: +SKIP
+
+            Save QR codes to files:
+            >>> qr_list = s.qr_codes()  # doctest: +SKIP
+            >>> qr_list.save_all("./qr_codes")  # doctest: +SKIP
+
+        Notes:
+            - Requires the qrcode library: pip install "qrcode[pil]"
+            - URLs are extracted using regex pattern matching
+            - Supports http://, https://, and ftp:// protocols
+        """
+        from .qr_code import QRCode, QRCodeList, extract_urls_from_scenario
+
+        urls = extract_urls_from_scenario(self)
+
+        if not urls:
+            raise ValueError("No URLs found in scenario")
+
+        qr_codes = [QRCode(url) for url in urls]
+        return QRCodeList(qr_codes)
 
     def to_dict(
         self, add_edsl_version: bool = True, offload_base64: bool = False

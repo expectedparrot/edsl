@@ -800,6 +800,12 @@ class QuestionBase(
         else:
             return self._summary_repr()
 
+    def __str__(self) -> str:
+        """
+        Return a string representation of the question.
+        """
+        return self._eval_repr_()
+
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the question.
 

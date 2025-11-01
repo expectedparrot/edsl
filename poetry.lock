@@ -5538,6 +5538,26 @@ files = [
 cffi = {version = "*", markers = "implementation_name == \"pypy\""}
 
 [[package]]
+name = "qrcode"
+version = "8.2"
+description = "QR Code image generator"
+optional = true
+python-versions = "<4.0,>=3.9"
+files = [
+    {file = "qrcode-8.2-py3-none-any.whl", hash = "sha256:16e64e0716c14960108e85d853062c9e8bba5ca8252c0b4d0231b9df4060ff4f"},
+    {file = "qrcode-8.2.tar.gz", hash = "sha256:35c3f2a4172b33136ab9f6b3ef1c00260dd2f66f858f24d88418a015f446506c"},
+]
+
+[package.dependencies]
+colorama = {version = "*", markers = "sys_platform == \"win32\""}
+pillow = {version = ">=9.1.0", optional = true, markers = "extra == \"pil\" or extra == \"all\""}
+
+[package.extras]
+all = ["pillow (>=9.1.0)", "pypng"]
+pil = ["pillow (>=9.1.0)"]
+png = ["pypng"]
+
+[[package]]
 name = "referencing"
 version = "0.37.0"
 description = "JSON Referencing + Python"
@@ -7505,7 +7525,7 @@ propcache = ">=0.2.1"
 [extras]
 agent-building = ["seaborn", "sentence-transformers"]
 conjure = ["psutil", "pyreadstat", "requests"]
-full = ["altair", "fastapi", "nbclient", "nbformat", "playwright", "psutil", "pyreadstat", "pyyaml", "requests", "seaborn", "sentence-transformers", "termplotlib", "uvicorn"]
+full = ["altair", "fastapi", "nbclient", "nbformat", "playwright", "psutil", "pyreadstat", "pyyaml", "qrcode", "requests", "seaborn", "sentence-transformers", "termplotlib", "uvicorn"]
 screenshots = ["playwright"]
 services = ["fastapi", "uvicorn"]
 viz = ["altair", "nbclient", "nbformat", "pyyaml", "termplotlib"]
@@ -7513,4 +7533,4 @@ viz = ["altair", "nbclient", "nbformat", "pyyaml", "termplotlib"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.14"
-content-hash = "772375415573ea754463d0fc2104365682b3bcfbb2e93251e98fa047b779b537"
+content-hash = "4a84dc215c9e78ad7e0d908d6839ceed1d8a0f084aa821fd6ad06b11e0bc24e0"

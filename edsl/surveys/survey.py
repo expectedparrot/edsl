@@ -2442,7 +2442,8 @@ class Survey(Base):
 
         Then, create a project on Coop so you can share the survey with human respondents.
         """
-        from edsl.coop import Coop
+        from ..coop import Coop
+        from ..scenarios import Scenario
 
         c = Coop()
         project_details = c.create_project(
@@ -2452,7 +2453,7 @@ class Survey(Base):
             survey_alias=survey_alias,
             survey_visibility=survey_visibility,
         )
-        return project_details
+        return Scenario(project_details)
 
     # Add export method delegations
     def css(self):
