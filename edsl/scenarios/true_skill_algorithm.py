@@ -1,5 +1,11 @@
-from typing import Sequence, Dict, List, Any
-import trueskill
+from typing import Sequence, Dict, Any
+
+try:
+    import trueskill
+
+    TRUESKILL_AVAILABLE = True
+except ImportError:
+    TRUESKILL_AVAILABLE = False
 from .scenario_list import ScenarioList
 from .scenario import Scenario
 
@@ -18,7 +24,7 @@ def results_to_true_skill_ranked_list(
     initial_sigma: float = 8.333,
     beta: float = None,
     tau: float = None,
-    **kwargs
+    **kwargs,
 ) -> "ScenarioList":
     """
     Convert pairwise comparison results into a TrueSkill-ranked ScenarioList.
@@ -41,6 +47,12 @@ def results_to_true_skill_ranked_list(
     Returns:
         ScenarioList ordered best-to-worst according to TrueSkill ranking.
     """
+    if not TRUESKILL_AVAILABLE:
+        raise ImportError(
+            "The trueskill library is required for this function. "
+            "Install it with: pip install trueskill"
+        )
+
     if not option_fields or len(option_fields) < 2:
         raise ValueError("option_fields must include at least two scenario columns")
 
@@ -94,7 +106,9 @@ def results_to_true_skill_ranked_list(
             continue
 
         # Find which option was chosen as the winner
-        winner_indices = [idx for idx, value in enumerate(option_values) if value == answer_value]
+        winner_indices = [
+            idx for idx, value in enumerate(option_values) if value == answer_value
+        ]
         if len(winner_indices) != 1:
             continue  # Skip ambiguous results
 
@@ -108,7 +122,9 @@ def results_to_true_skill_ranked_list(
                 loser_team = [ratings[loser_value]]
 
                 # Update ratings based on this match result (winner beats loser)
-                new_winner_rating, new_loser_rating = trueskill.rate([winner_team, loser_team])
+                new_winner_rating, new_loser_rating = trueskill.rate(
+                    [winner_team, loser_team]
+                )
 
                 # Update the stored ratings
                 ratings[winner_value] = new_winner_rating[0]
@@ -119,9 +135,7 @@ def results_to_true_skill_ranked_list(
         return rating.mu - 3 * rating.sigma
 
     sorted_items = sorted(
-        ratings.items(),
-        key=lambda x: conservative_rating(x[1]),
-        reverse=True
+        ratings.items(), key=lambda x: conservative_rating(x[1]), reverse=True
     )
 
     # Create output scenarios
@@ -144,7 +158,6 @@ def results_to_true_skill_ranked_list(
 
 if __name__ == "__main__":
     # Example usage with the TrueSkill library
-    import random
 
     # Configure TrueSkill
     trueskill.setup(mu=25.0, sigma=8.333)
@@ -155,7 +168,9 @@ if __name__ == "__main__":
 
     print("Initial ratings:")
     for item, rating in ratings.items():
-        print(f"  {item}: mu={rating.mu:.2f}, sigma={rating.sigma:.2f}, conservative={rating.mu - 3*rating.sigma:.2f}")
+        print(
+            f"  {item}: mu={rating.mu:.2f}, sigma={rating.sigma:.2f}, conservative={rating.mu - 3*rating.sigma:.2f}"
+        )
 
     # Simulate some matches where healthier foods tend to win
     matches = [
@@ -172,7 +187,9 @@ if __name__ == "__main__":
         winner_team = [ratings[name] for name in winner_team_names]
         loser_team = [ratings[name] for name in loser_team_names]
 
-        new_winner_ratings, new_loser_ratings = trueskill.rate([winner_team, loser_team])
+        new_winner_ratings, new_loser_ratings = trueskill.rate(
+            [winner_team, loser_team]
+        )
 
         # Update stored ratings
         for i, name in enumerate(winner_team_names):
@@ -182,7 +199,11 @@ if __name__ == "__main__":
 
     print("\nFinal ratings:")
     # Sort by conservative rating
-    sorted_items = sorted(ratings.items(), key=lambda x: x[1].mu - 3*x[1].sigma, reverse=True)
+    sorted_items = sorted(
+        ratings.items(), key=lambda x: x[1].mu - 3 * x[1].sigma, reverse=True
+    )
     for rank, (item, rating) in enumerate(sorted_items, 1):
         conservative = rating.mu - 3 * rating.sigma
-        print(f"  {rank}. {item}: mu={rating.mu:.2f}, sigma={rating.sigma:.2f}, conservative={conservative:.2f}")
+        print(
+            f"  {rank}. {item}: mu={rating.mu:.2f}, sigma={rating.sigma:.2f}, conservative={conservative:.2f}"
+        )

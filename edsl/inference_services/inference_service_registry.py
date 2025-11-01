@@ -273,7 +273,9 @@ class InferenceServiceRegistry:
         return list(all_services)
 
     def fetch_model_info_data(
-        self, source_preferences: Optional[List[str]] = None, service_name: Optional[str] = None
+        self,
+        source_preferences: Optional[List[str]] = None,
+        service_name: Optional[str] = None,
     ) -> Dict[str, List["ModelInfo"]]:
         """
         Refreshes the model info data and rebuilds the model-to-service and service-to-model mappings, taking source preferences into account.

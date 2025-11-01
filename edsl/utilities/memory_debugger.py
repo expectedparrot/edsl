@@ -704,9 +704,11 @@ class MemoryDebugger:
             The path to the HTML report file.
         """
         # Generate HTML report with both incoming and outgoing reference visualizations
-        html_filename, outgoing_refs_filename, incoming_refs_filename = (
-            self._generate_html_report(prefix, output_dir)
-        )
+        (
+            html_filename,
+            outgoing_refs_filename,
+            incoming_refs_filename,
+        ) = self._generate_html_report(prefix, output_dir)
 
         # Also create the legacy markdown report for backward compatibility
         timestamp = time.strftime("%Y%m%d_%H%M%S")

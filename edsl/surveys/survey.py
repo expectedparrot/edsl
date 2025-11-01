@@ -162,7 +162,7 @@ class Survey(Base):
 
     def __init__(
         self,
-        questions: Optional[List["QuestionType"]] = None,
+        questions: Optional[List["QuestionType"] | str] = None,
         memory_plan: Optional["MemoryPlan"] = None,
         rule_collection: Optional["RuleCollection"] = None,
         question_groups: Optional["QuestionGroupType"] = None,
@@ -200,6 +200,11 @@ class Survey(Base):
 
             >>> s = Survey([q1, q2, q3], question_groups={"demographics": (0, 1), "food_questions": (2, 2)})
         """
+        if questions is not None and isinstance(questions, str):
+            pulled_survey = Survey.pull(questions)
+            self.__dict__.update(pulled_survey.__dict__)
+            return
+
         self.raw_passed_questions = questions
 
         true_questions = self._process_raw_questions(self.raw_passed_questions)
@@ -617,6 +622,11 @@ class Survey(Base):
 
         # Deserialize each question and instruction
         questions = []
+        question_dicts = data.get("questions", None)
+        if question_dicts is None:
+            raise SurveyError(
+                f"No questions found in the survey dictionary. The keys are {data.keys()}"
+            )
         for q_dict in data["questions"]:
             cls_type = get_class(q_dict)
             questions.append(cls_type.from_dict(q_dict))
@@ -840,6 +850,104 @@ class Survey(Base):
         question_text = (
             f"{{% set numbers = [{answers_expr}] %}}\n"  # list of answers
             "{{ numbers | sum }}"
+        )
+
+        # Create and add the compute question
+        from ..questions import QuestionCompute
+
+        compute_q = QuestionCompute(
+            question_name=question_name, question_text=question_text
+        )
+        return self.add_question(compute_q)
+
+    def add_weighted_linear_scale_sum(
+        self,
+        question_name: str = "weighted_score",
+        include: Optional[List[Union[str, "QuestionBase"]]] = None,
+    ) -> "Survey":
+        """Add a compute question that sums weighted answers from linear_scale questions.
+
+        This method creates a QuestionCompute that iterates through all linear_scale
+        questions (or a specified subset), multiplying each answer by its weight
+        (if provided) and summing the results. Questions without a weight are skipped.
+
+        Args:
+            question_name: Name for the new compute question.
+            include: Optional list of question names or question objects to include;
+                if omitted, all prior `linear_scale` questions with weights are used.
+
+        Returns:
+            Survey: The updated survey (supports chaining).
+
+        Raises:
+            SurveyCreationError: If any included question is not of type linear_scale,
+                or if none with weights are available.
+
+        Example:
+            >>> from edsl import Survey
+            >>> from edsl.questions import QuestionLinearScale
+            >>> s = Survey()
+            >>> s = s.add_question(QuestionLinearScale(
+            ...     question_name="q1",
+            ...     question_text="Quality?",
+            ...     question_options=[1, 2, 3, 4, 5],
+            ...     weight=2.0
+            ... ))
+            >>> s = s.add_question(QuestionLinearScale(
+            ...     question_name="q2",
+            ...     question_text="Speed?",
+            ...     question_options=[1, 2, 3, 4, 5],
+            ...     weight=1.5
+            ... ))
+            >>> s = s.add_weighted_linear_scale_sum()
+        """
+        # Resolve included questions
+        if include is None:
+            included_questions: List["QuestionBase"] = [
+                q
+                for q in self.questions
+                if getattr(q, "question_type", None) == "linear_scale"
+                and getattr(q, "_weight", None) is not None
+            ]
+        else:
+            name_to_q = self.question_names_to_questions()
+            included_questions = []
+            for item in include:
+                if isinstance(item, str):
+                    if item not in name_to_q:
+                        raise SurveyCreationError(
+                            f"Question '{item}' not found in survey."
+                        )
+                    q_obj = name_to_q[item]
+                else:
+                    q_obj = item
+
+                if getattr(q_obj, "question_type", None) != "linear_scale":
+                    raise SurveyCreationError(
+                        f"Question '{q_obj.question_name}' must be of type 'linear_scale'."
+                    )
+                if getattr(q_obj, "_weight", None) is None:
+                    raise SurveyCreationError(
+                        f"Question '{q_obj.question_name}' must have a weight."
+                    )
+                included_questions.append(q_obj)
+
+        # Must have at least one valid prior question
+        if not included_questions:
+            raise SurveyCreationError(
+                "No prior 'linear_scale' questions with weights available."
+            )
+
+        # Build the Jinja template to compute weighted sum
+        # Create a list of weighted values and sum them
+        weighted_values = []
+        for q in included_questions:
+            weight = getattr(q, "_weight")
+            weighted_values.append(f"({q.question_name}.answer * {weight})")
+
+        question_text = (
+            f"{{% set weighted_values = [{', '.join(weighted_values)}] %}}\n"
+            "{{ weighted_values | sum }}"
         )
 
         # Create and add the compute question
@@ -1608,7 +1716,7 @@ class Survey(Base):
                                 return EndOfSurvey
                             else:
                                 candidate_next_q = skip_result.next_q
-                        except:
+                        except Exception:
                             # If there's an error finding where to skip to, just go to next question
                             candidate_next_q += 1
                     else:
@@ -2066,18 +2174,98 @@ class Survey(Base):
 
         return self._create_subsurvey(kept_questions)
 
-    def __repr__(self) -> str:
-        """Return a string representation of the survey."""
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the survey.
 
-        # questions_string = ", ".join([repr(q) for q in self._questions])
+        This representation can be used with eval() to recreate the Survey object.
+        Used primarily for doctests and debugging.
+        """
         if self.raw_passed_questions is None:
             questions_string = ", ".join([repr(q) for q in self.questions])
         else:
             questions_string = ", ".join(
                 [repr(q) for q in self.raw_passed_questions or []]
             )
-        # question_names_string = ", ".join([repr(name) for name in self.question_names])
         return f"Survey(questions=[{questions_string}], memory_plan={self.memory_plan}, rule_collection={self.rule_collection}, question_groups={self.question_groups}, questions_to_randomize={self.questions_to_randomize})"
+
+    def _summary_repr(self, max_text_preview: int = 60, max_items: int = 50) -> str:
+        """Generate a summary representation of the Survey with Rich formatting.
+
+        Args:
+            max_text_preview: Maximum characters to show for question text previews
+            max_items: Maximum number of items to show in lists before truncating
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+
+        # Build the Rich text
+        output = Text()
+        output.append("Survey(\n", style="bold cyan")
+        output.append(f"    num_questions={len(self.questions)},\n", style="white")
+
+        # Show if survey has non-default rules (skip logic)
+        has_rules = len(self.rule_collection.non_default_rules) > 0
+        if has_rules:
+            output.append(
+                f"    has_skip_logic=True ({len(self.rule_collection.non_default_rules)} rules),\n",
+                style="yellow",
+            )
+
+        # Show if survey has instructions
+        has_instructions = len(self._instruction_names_to_instructions) > 0
+        if has_instructions:
+            output.append(
+                f"    has_instructions=True ({len(self._instruction_names_to_instructions)} instructions),\n",
+                style="cyan",
+            )
+
+        # Show question groups if any
+        if self.question_groups:
+            output.append(
+                f"    question_groups={list(self.question_groups.keys())},\n",
+                style="magenta",
+            )
+
+        # Show questions to randomize if any
+        if self.questions_to_randomize:
+            output.append(
+                f"    questions_to_randomize={self.questions_to_randomize},\n",
+                style="green",
+            )
+
+        # Show question information using each question's _summary_repr
+        if self.questions:
+            output.append("    questions: [\n", style="white")
+
+            # Show up to max_items questions using their own _summary_repr
+            for question in self.questions[:max_items]:
+                # Get the question's own summary representation
+                question_repr = (
+                    question._summary_repr()
+                    if hasattr(question, "_summary_repr")
+                    else repr(question)
+                )
+
+                # Add indentation to each line of the question's repr
+                indented_repr = "        " + question_repr.replace("\n", "\n        ")
+                output.append(indented_repr, style="white")
+                output.append(",\n", style="white")
+
+            if len(self.questions) > max_items:
+                output.append(
+                    f"        ... ({len(self.questions) - max_items} more)\n",
+                    style="dim",
+                )
+
+            output.append("    ]\n", style="white")
+
+        output.append(")", style="bold cyan")
+
+        # Render to string
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
 
     def _summary(self) -> dict:
         return {
@@ -2326,6 +2514,20 @@ class Survey(Base):
             scenario, filename, return_link, css, cta, include_question_name
         )
 
+    def to_markdown(self) -> str:
+        """Generate a markdown string representation of the survey.
+
+        Converts Jinja2 braces ({{ }}) to << >> to indicate piping.
+
+        Returns:
+            str: Markdown formatted string representation of the survey.
+        """
+        text = self.table(tablefmt="github").to_string()
+        # Replace Jinja2 braces with << >> to indicate piping
+        text = re.sub(r"\{\{", "<<", text)
+        text = re.sub(r"\}\}", ">>", text)
+        return text
+
     # Deprecated aliases – keep for backward compatibility
     def docx(
         self,
@@ -2346,10 +2548,24 @@ class Survey(Base):
         return self._exporter.show()
 
     def to_scenario_list(
-        self, questions_only: bool = True, rename=False
+        self,
+        questions_only: bool = True,
+        rename=False,
+        remove_jinja2_syntax: bool = False,
     ) -> "ScenarioList":
-        """Convert the survey to a scenario list."""
-        return self._exporter.to_scenario_list(questions_only, rename)
+        """Convert the survey to a scenario list.
+
+        Args:
+            questions_only: If True, only include questions (not instructions).
+            rename: If True, rename keys for display (e.g., 'question_name' to 'identifier').
+            remove_jinja2_syntax: If True, remove Jinja2 template syntax ({{ }}) from question text.
+
+        Returns:
+            ScenarioList: A scenario list containing survey data.
+        """
+        return self._exporter.to_scenario_list(
+            questions_only, rename, remove_jinja2_syntax
+        )
 
     def code(self, filename: str = "", survey_var_name: str = "survey") -> list[str]:
         """Create the Python code representation of a survey."""

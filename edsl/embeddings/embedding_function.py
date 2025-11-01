@@ -18,9 +18,10 @@ except Exception:  # pragma: no cover - optional dependency
 
 class EmbeddingFunction(ABC):
     """Abstract base class for embedding functions.
-    
+
     This allows for dependency injection of different embedding providers.
     """
+
     _registry: Dict[str, Type["EmbeddingFunction"]] = {}
 
     # Subclasses MUST define a unique short_name string
@@ -51,26 +52,26 @@ class EmbeddingFunction(ABC):
         """Instantiate a registered embedding function by its short name."""
         subclass = cls.get_class_by_name(name)
         return subclass(**kwargs)
-    
+
     @abstractmethod
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """Generate embeddings for a list of documents.
-        
+
         Args:
             texts: List of text documents to embed
-            
+
         Returns:
             List of embedding vectors, one for each input text
         """
         pass
-    
+
     @abstractmethod
     def embed_query(self, text: str) -> List[float]:
         """Generate embedding for a single query text.
-        
+
         Args:
             text: Query text to embed
-            
+
         Returns:
             Embedding vector for the query
         """
@@ -237,11 +238,11 @@ class OpenAIEmbeddingFunction(EmbeddingFunction):
                 resolved_api_key = None
         else:
             resolved_api_key = None
-            
+
         # Fall back to explicit api_key parameter or environment variable
         if not resolved_api_key:
             resolved_api_key = api_key or os.getenv("OPENAI_API_KEY")
-            
+
         if not resolved_api_key:
             raise EnvironmentError(
                 "OPENAI_API_KEY not found. Provide via KeyLookup, api_key parameter, or environment variable."
@@ -285,8 +286,11 @@ if __name__ == "__main__":
     """
     try:
         from ..key_management import KeyLookupBuilder
+
         key_lookup = KeyLookupBuilder().build()
-        embedder = OpenAIEmbeddingFunction(model="text-embedding-3-small", normalize=True, key_lookup=key_lookup)
+        embedder = OpenAIEmbeddingFunction(
+            model="text-embedding-3-small", normalize=True, key_lookup=key_lookup
+        )
     except Exception as exc:  # pragma: no cover - runtime/demo-only
         print(f"Failed to initialize OpenAIEmbeddingFunction: {exc}")
         raise SystemExit(1)

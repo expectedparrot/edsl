@@ -42,8 +42,15 @@ probable_junk/
 !edsl/utilities/data/*.json
 !.vscode/settings.json
 !tests/serialization/data/*.json
+!performance.yml
 .env*
 docs/notebooks/drafts/*
 test.py
 edsl/widgets/src/
 .edsl_model_archive.json
+edsl/conjure/examples/*
+edsl/conjure/raw_data/*
+edsl/assistants/examples/*
+benchmark_logs/*
+performance.yml
+edsl/assistants/edsl_output/

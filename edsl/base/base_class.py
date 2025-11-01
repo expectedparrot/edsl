@@ -15,7 +15,7 @@ JSON/YAML serialization, file persistence, pretty printing, and object compariso
 from abc import ABC, abstractmethod, ABCMeta
 import gzip
 import json
-from typing import Any, Optional, Union, TYPE_CHECKING
+from typing import Any, Optional, Union, TYPE_CHECKING, Callable
 from uuid import UUID
 import difflib
 from typing import Dict, Literal, List, Tuple
@@ -23,7 +23,6 @@ from collections import UserList
 import inspect
 
 from .. import logger
-
 
 
 if TYPE_CHECKING:
@@ -188,6 +187,7 @@ class PersistenceMixin:
         alias: Optional[str] = None,
         visibility: Optional[str] = "unlisted",
         expected_parrot_url: Optional[str] = None,
+        overwrite: bool = False,
     ) -> dict:
         """
         Get a signed URL for directly uploading an object to Google Cloud Storage.
@@ -211,7 +211,7 @@ class PersistenceMixin:
         from edsl.coop import Coop
 
         c = Coop(url=expected_parrot_url)
-        return c.push(self, description, alias, visibility)
+        return c.push(self, description, alias, visibility, overwrite)
 
     def to_yaml(self, add_edsl_version=False, filename: str = None) -> Union[str, None]:
         """Convert the object to YAML format.
@@ -328,6 +328,7 @@ class PersistenceMixin:
                 - UUID string (e.g., "123e4567-e89b-12d3-a456-426614174000")
                 - Full URL (e.g., "https://expectedparrot.com/content/123e4567...")
                 - Alias URL (e.g., "https://expectedparrot.com/content/username/my-survey")
+                - Shorthand alias (e.g., "username/my-survey")
             expected_parrot_url (str, optional): Optional custom URL for the coop service
 
         Returns:
@@ -336,12 +337,24 @@ class PersistenceMixin:
         Example:
             >>> response = SurveyClass.pull("123e4567-e89b-12d3-a456-426614174000")
             >>> response = SurveyClass.pull("https://expectedparrot.com/content/username/my-survey")
+            >>> response = SurveyClass.pull("username/my-survey")
             >>> print(f"Download URL: {response['signed_url']}")
             >>> # Use the signed_url to download the object directly
         """
         from edsl.coop import Coop
         from edsl.coop import ObjectRegistry
         from edsl.jobs import Jobs
+        from edsl.config import CONFIG
+
+        # Convert shorthand syntax to full URL if needed
+        if isinstance(url_or_uuid, str) and not url_or_uuid.startswith(
+            ("http://", "https://")
+        ):
+            # Check if it looks like a UUID (basic check for UUID format)
+            is_uuid = len(url_or_uuid) == 36 and url_or_uuid.count("-") == 4
+            if not is_uuid and "/" in url_or_uuid:
+                # Looks like shorthand format "username/alias"
+                url_or_uuid = f"{CONFIG.EXPECTED_PARROT_URL}/content/{url_or_uuid}"
 
         coop = Coop(url=expected_parrot_url)
 
@@ -902,6 +915,35 @@ class RepresentationMixin:
                 + TableDisplay.from_dictionary_wide(display_dict)._repr_html_()
             )
 
+    def __repr__(self):
+        """Return a string representation of the object.
+
+        Uses traditional repr format when running doctests, otherwise uses
+        rich-based display for better readability. In Jupyter notebooks,
+        returns a minimal string since _repr_html_ handles the display.
+
+        Returns:
+            str: String representation of the object
+        """
+        import os
+
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+
+        # Check if we're in a Jupyter notebook environment
+        # If so, return minimal representation since _repr_html_ will handle display
+        try:
+            from IPython import get_ipython
+
+            ipy = get_ipython()
+            if ipy is not None and "IPKernelApp" in ipy.config:
+                # We're in a Jupyter notebook/kernel, not IPython terminal
+                return f"{self.__class__.__name__}(...)"
+        except (NameError, ImportError):
+            pass
+
+        return self._summary_repr()
+
     def __str__(self):
         """Return the string representation of the object.
 
@@ -1000,7 +1042,6 @@ class Base(
         # Query the cloud service to get the UUID based on the hash
         coop = Coop()
         return coop.get_uuid_from_hash(object_hash)
-    
 
     def apply_command(self, command_name, kwargs):
         if hasattr(self, command_name):
@@ -1010,24 +1051,25 @@ class Base(
             # If method returns an object (like to_A, to_B), return that object
             return result if result is not None else self
         else:
-            raise ValueError(f"Command method {command_name} not found on {type(self).__name__}")
+            raise ValueError(
+                f"Command method {command_name} not found on {type(self).__name__}"
+            )
 
-    
     @property
     def polly_commands(self):
         """Auto-generate commands list from methods decorated with @polly_command"""
         commands = []
         # Use dir() and getattr to avoid recursion issues with inspect.getmembers
         for name in dir(self):
-            if not name.startswith('_'):  # Skip private methods
+            if not name.startswith("_"):  # Skip private methods
                 try:
                     attr = getattr(self, name)
-                    if callable(attr) and hasattr(attr, '_is_polly_command'):
+                    if callable(attr) and hasattr(attr, "_is_polly_command"):
                         # Get method signature to extract kwargs
                         sig = inspect.signature(attr)
                         kwargs = {}
                         for param_name, param in sig.parameters.items():
-                            if param_name != 'self':  # Skip 'self' parameter
+                            if param_name != "self":  # Skip 'self' parameter
                                 # Use default value if available, otherwise use a placeholder
                                 if param.default != inspect.Parameter.empty:
                                     kwargs[param_name] = param.default
@@ -1042,16 +1084,12 @@ class Base(
                                             kwargs[param_name] = None
                                     else:
                                         kwargs[param_name] = None
-                        
-                        commands.append({
-                            'command_name': name,
-                            'kwargs': kwargs
-                        })
+
+                        commands.append({"command_name": name, "kwargs": kwargs})
                 except:
                     # Skip any attributes that cause issues during introspection
                     continue
         return commands
-
 
     def keys(self):
         """Get the key names in the object's dictionary representation.
@@ -1132,6 +1170,27 @@ class Base(
         """
         return json.dumps(self.to_dict())
 
+    def comment(
+        self,
+        comment: str,
+        func: Optional[Callable] = None,
+        log_format: Optional[str] = None,
+    ):
+        """Comment on this object.
+
+        Args:
+            comment: The comment to print
+            func: The function to use to print the comment
+            log_format: The format to use to print the comment
+        """
+        if func is None:
+            func = print
+        if log_format is None:
+            log_format = "{comment}"
+        comment = log_format.format(comment=comment)
+        func(comment)
+        return self
+
     def store(self, d: dict, key_name: Optional[str] = None):
         """Store this object in a dictionary with an optional key.
 
@@ -1171,6 +1230,36 @@ class Base(
 
         Returns:
             str: Python code that, when executed, creates an equivalent object
+        """
+        from edsl.base.exceptions import BaseNotImplementedError
+
+        raise BaseNotImplementedError("This method is not implemented yet.")
+
+    @abstractmethod
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the object.
+
+        This method must be implemented by all subclasses to provide a
+        representation that can be used with eval() to recreate the object.
+        Used primarily for doctests and debugging.
+
+        Returns:
+            str: An eval-able string representation of the object
+        """
+        from edsl.base.exceptions import BaseNotImplementedError
+
+        raise BaseNotImplementedError("This method is not implemented yet.")
+
+    @abstractmethod
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the object with Rich formatting.
+
+        This method must be implemented by all subclasses to provide a
+        human-readable summary representation suitable for display in terminals
+        and notebooks. Should use Rich formatting for better readability.
+
+        Returns:
+            str: A formatted summary representation of the object
         """
         from edsl.base.exceptions import BaseNotImplementedError
 

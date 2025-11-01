@@ -13,7 +13,7 @@ from itertools import product
 from ..base.decorators import polly_command
 
 from collections import UserList
-from typing import Any, List, Optional, Union, TYPE_CHECKING
+from typing import Any, Callable, List, Optional, Union, TYPE_CHECKING
 
 # simpleeval imports moved to agent_list_filter.py
 
@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from ..surveys import Survey
     from ..scenarios import ScenarioList
     from ..results import Results
+    from .agent_list_deltas import AgentListDeltas
 
 
 # is_iterable function moved to agent_list_trait_operations.py
@@ -70,7 +71,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
     def __init__(
         self,
-        data: Optional[list["Agent"]] = None,
+        data: Optional[list["Agent"] | str] = None,
         codebook: Optional[dict[str, str]] = None,
     ):
         """Initialize a new AgentList.
@@ -89,6 +90,11 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             codebook: Optional dictionary mapping trait names to descriptions.
                       If provided, will be applied to all agents in the list.
         """
+        if data is not None and isinstance(data, str):
+            al = AgentList.pull(data)
+            self.__dict__.update(al.__dict__)
+            return
+
         if data is not None:
             super().__init__(data)
         else:
@@ -125,15 +131,16 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
     def set_dynamic_traits(self, function: Callable) -> None:
         """Set the dynamic traits for all agents in the list.
-        
+
         Args:
             function: The function to set.
         """
         for agent in self.data:
             agent.traits_manager.set_dynamic_function(function)
 
-
-    def set_dynamic_traits_from_question_map(self, q_to_traits: dict[str, list[str]]) -> "AgentList":
+    def set_dynamic_traits_from_question_map(
+        self, q_to_traits: dict[str, list[str]]
+    ) -> "AgentList":
         """Configure dynamic traits for each agent from a question→traits mapping (in-place).
 
         Each agent will get a dynamic traits function that, when asked a question whose
@@ -179,7 +186,9 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             )
 
         for agent in self.data:
-            base = dict(agent.traits)  # snapshot static traits before setting dynamic function
+            base = dict(
+                agent.traits
+            )  # snapshot static traits before setting dynamic function
 
             def f(question, base_traits=base, qmap=q_to_traits):
                 keys = qmap[question.question_name]
@@ -189,8 +198,37 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         return self
 
+    def with_categories(self, *categories: str) -> "AgentList":
+        """Return a new AgentList with agents filtered to only specified categories.
 
+        This method applies the with_categories method to each agent in the list,
+        creating new agents that contain only traits belonging to the specified categories.
 
+        Args:
+            *categories: Variable number of category names to include in the filtered agents.
+
+        Returns:
+            AgentList: A new AgentList with agents containing only traits from the specified categories.
+
+        Raises:
+            AgentErrors: If any category is not found in an agent's trait_categories.
+
+        Examples:
+            >>> from edsl import Agent, AgentList
+            >>> a1 = Agent(traits={'age': 30, 'hometown': 'Boston', 'food': 'beans'})
+            >>> a1.add_category('demographics', ['age', 'hometown'])
+            >>> a1.add_category('preferences', ['food'])
+            >>> a2 = Agent(traits={'age': 25, 'hometown': 'SF', 'food': 'sushi'})
+            >>> a2.add_category('demographics', ['age', 'hometown'])
+            >>> a2.add_category('preferences', ['food'])
+            >>> al = AgentList([a1, a2])
+            >>> demographics_only = al.with_categories('demographics')
+            >>> demographics_only[0].traits
+            {'age': 30, 'hometown': 'Boston'}
+            >>> demographics_only[1].traits
+            {'age': 25, 'hometown': 'SF'}
+        """
+        return AgentList([agent.with_categories(*categories) for agent in self.data])
 
     @polly_command
     def add_instructions(self, instructions: str) -> "AgentList":
@@ -214,19 +252,22 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         for agent in self.data:
             agent.instruction = instructions
         return self
-    
+
     def __add__(self, other: AgentList) -> AgentList:
         """Add two AgentLists together."""
-        # have to have the same traits + codebook 
+        # have to have the same traits + codebook
         if self.trait_keys != other.trait_keys:
             raise ValueError("AgentLists must have the same traits and codebook")
-        
-        if hasattr(self, 'codebook') and hasattr(other, 'codebook'):
+
+        if hasattr(self, "codebook") and hasattr(other, "codebook"):
             if self.codebook != other.codebook:
                 raise ValueError("AgentLists must have the same codebook")
-        
-        return AgentList(self.data + other.data, codebook=self.codebook if hasattr(self, 'codebook') else None)
-    
+
+        return AgentList(
+            self.data + other.data,
+            codebook=self.codebook if hasattr(self, "codebook") else None,
+        )
+
     @property
     def trait_keys(self) -> List[str]:
         """Get the trait keys for the AgentList."""
@@ -234,7 +275,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         for agent in self.data:
             keys.update(agent.traits.keys())
         return list(keys)
-    
+
     @classmethod
     def manage(cls):
         from ..widgets.agent_list_manager import AgentListManagerWidget
@@ -288,6 +329,46 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         if seed:
             random.seed(seed)
         return AgentList(random.sample(self.data, n))
+
+    def apply_deltas(self, deltas: "AgentListDeltas") -> AgentList:
+        """Apply an AgentListDeltas to create a new agent list with updated agents.
+
+        This is a convenience method that delegates to AgentListDeltas.apply().
+        All agent names in the deltas must match the names in this agent list.
+
+        Args:
+            deltas: The AgentListDeltas to apply
+
+        Returns:
+            A new AgentList with updated agents
+
+        Raises:
+            AgentListError: If agent names in deltas don't match the agent list
+
+        Examples:
+            Apply deltas to an agent list:
+
+            >>> from edsl import Agent, AgentList, AgentDelta, AgentListDeltas
+            >>> agent1 = Agent(name='Alice', traits={'age': 30})
+            >>> agent2 = Agent(name='Bob', traits={'age': 25})
+            >>> agent_list = AgentList([agent1, agent2])
+            >>> deltas = AgentListDeltas({
+            ...     'Alice': AgentDelta({'age': 31}),
+            ...     'Bob': AgentDelta({'age': 26})
+            ... })
+            >>> updated_list = agent_list.apply_deltas(deltas)
+            >>> [agent.traits['age'] for agent in updated_list]
+            [31, 26]
+
+            Error when names don't match:
+
+            >>> bad_deltas = AgentListDeltas({'Charlie': AgentDelta({'age': 40})})
+            >>> agent_list.apply_deltas(bad_deltas)  # doctest: +ELLIPSIS
+            Traceback (most recent call last):
+            ...
+            edsl.agents.exceptions.AgentListError: ...
+        """
+        return deltas.apply(self)
 
     def drop(self, *field_names: Union[str, List[str]]) -> AgentList:
         """Drop field(s) from all agents in the AgentList.
@@ -501,6 +582,14 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             agent_list_data
         ), "The number of new names does not match the number of agents."
 
+    def give_uuid_names(self) -> None:
+        """Give the agents uuid names."""
+        import uuid
+
+        for agent in self:
+            agent.name = str(uuid.uuid4())
+        return None
+
     def give_names(
         self,
         *trait_keys: str,
@@ -703,7 +792,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             >>> #     'csv', 'agents.csv',
             >>> #     instructions="Answer as if you were the person described"
             >>> # )
-            >>> # 
+            >>> #
             >>> # Create agents with a CSV codebook file
             >>> # agents = AgentList.from_source(
             >>> #     'csv', 'agents.csv',
@@ -813,15 +902,17 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         return AgentListTraitOperations.add_trait(self, trait, values)
 
     @classmethod
-    def from_results(cls, results: "Results", question_names: Optional[List[str]] = None) -> "AgentList":
+    def from_results(
+        cls, results: "Results", question_names: Optional[List[str]] = None
+    ) -> "AgentList":
         """Create an AgentList from a Results object.
-        
+
         Args:
             results: The Results object to convert
             question_names: Optional list of question names to include. If None, all questions are included.
                           Affects both answer.* columns (as traits) and prompt.* columns (as codebook).
                           Agent traits are always included.
-        
+
         Returns:
             AgentList: A new AgentList created from the Results
         """
@@ -898,7 +989,107 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         )
 
     def __repr__(self):
+        """Return a string representation of the AgentList.
+
+        Uses traditional repr format when running doctests, otherwise uses
+        rich-based display for better readability. In Jupyter notebooks,
+        returns a minimal string since _repr_html_ handles the display.
+        """
+        import os
+
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+
+        # Check if we're in a Jupyter notebook environment
+        # If so, return minimal representation since _repr_html_ will handle display
+        try:
+            from IPython import get_ipython
+
+            ipy = get_ipython()
+            if ipy is not None and "IPKernelApp" in ipy.config:
+                # We're in a Jupyter notebook/kernel, not IPython terminal
+                return "AgentList(...)"
+        except (NameError, ImportError):
+            pass
+
+        return self._summary_repr()
+
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the AgentList.
+
+        This representation can be used with eval() to recreate the AgentList object.
+        Used primarily for doctests and debugging.
+        """
         return f"AgentList({self.data})"
+
+    def _summary_repr(self, max_preview_values: int = 3) -> str:
+        """Generate a summary representation of the AgentList with Rich formatting.
+
+        Args:
+            max_preview_values: Maximum number of values to show per trait (default: 3)
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+
+        trait_names = self.trait_keys
+
+        # Check for codebook
+        codebook_dict = None
+        try:
+            codebook_dict = self.codebook
+            if codebook_dict is not None and len(codebook_dict) == 0:
+                codebook_dict = None
+        except (IndexError, AgentListError):
+            pass
+
+        # Build the Rich text
+        output = Text()
+        output.append("AgentList(\n", style="bold cyan")
+        output.append(f"    num_agents={len(self)},\n", style="white")
+        output.append("    traits:\n", style="white")
+
+        # Build unified trait lines with codebook and preview
+        for trait in trait_names[:20]:  # Show up to 20 traits
+            # Get example values
+            values = []
+            for agent in self.data[:max_preview_values]:
+                if trait in agent.traits:
+                    val = agent.traits[trait]
+                    values.append(repr(val))
+
+            # Add ellipsis if there are more values
+            if len(self) > max_preview_values:
+                values.append("...")
+
+            values_str = ", ".join(values)
+
+            # Build the line with codebook description if available
+            if codebook_dict and trait in codebook_dict:
+                description = codebook_dict[trait]
+                output.append(f"        {trait}: ", style="bold yellow")
+                output.append(f"{repr(description)}\n", style="dim")
+                output.append("            → ", style="green")
+                output.append(f"[{values_str}]\n", style="white")
+            else:
+                output.append(f"        {trait}: ", style="bold yellow")
+                output.append(f"[{values_str}]\n", style="white")
+
+        # Add ellipsis if there are more traits
+        if len(trait_names) > 20:
+            output.append(
+                f"        ... ({len(trait_names) - 20} more traits)\n", style="dim"
+            )
+
+        if len(trait_names) == 0:
+            output.append("        (no traits)\n", style="dim")
+
+        output.append(")", style="bold cyan")
+
+        # Render to string
+        console = Console(file=io.StringIO(), force_terminal=True, width=120)
+        console.print(output, end="")
+        return console.file.getvalue()
 
     def _summary(self) -> dict:
         return {
@@ -1066,7 +1257,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
                     raise AgentListError("All agents must have the same codebook.")
             self._codebook = codebook
         return self._codebook
-
 
     def code(self, string=True) -> Union[str, list[str]]:
         """Return code to construct an AgentList.

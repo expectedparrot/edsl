@@ -152,7 +152,6 @@ class CoopProlificFilters(ScenarioList):
                 "select_filter_options" in scenario_dict
                 and scenario_dict["select_filter_options"] is not None
             ):
-
                 # Create a truncated representation of the options list
                 formatter = reprlib.Repr()
                 formatter.maxstring = 50

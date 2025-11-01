@@ -17,9 +17,9 @@ class CoopFunctionsMixin:
         return results.select("answer.better_names").first()
 
     def send_log(
-        self, 
-        n: Optional[int] = 100, 
-        description: Optional[str] = None, 
+        self,
+        n: Optional[int] = 100,
+        description: Optional[str] = None,
         alias: Optional[str] = None,
         level: Optional[str] = None,
         min_level: Optional[str] = None,
@@ -29,7 +29,7 @@ class CoopFunctionsMixin:
         end_date: Optional[str] = None,
         pattern: Optional[str] = None,
         logger_pattern: Optional[str] = None,
-        as_scenario_list: bool = False
+        as_scenario_list: bool = False,
     ):
         """
         Create a FileStore or ScenarioList of filtered EDSL log entries and push it to coop.
@@ -41,7 +41,7 @@ class CoopFunctionsMixin:
             level: Specific log level(s) to include ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
             min_level: Minimum log level (includes this level and higher)
             since_hours: Include entries from last N hours
-            since_minutes: Include entries from last N minutes  
+            since_minutes: Include entries from last N minutes
             start_date: Start date for filtering (format: 'YYYY-MM-DD')
             end_date: End date for filtering (format: 'YYYY-MM-DD')
             pattern: Regex pattern to match in log messages
@@ -54,14 +54,14 @@ class CoopFunctionsMixin:
         Raises:
             FileNotFoundError: If the log file doesn't exist
             Exception: If there's an error reading the log or uploading to coop
-            
+
         Examples:
             # Send last 50 error entries as log file
             coop.send_log(n=50, level='ERROR')
-            
+
             # Send entries as ScenarioList for analysis
             coop.send_log(level='ERROR', n=25, as_scenario_list=True)
-            
+
             # Send time-filtered entries for pattern analysis
             coop.send_log(since_hours=24, pattern='exception|error', as_scenario_list=True)
         """
@@ -84,7 +84,7 @@ class CoopFunctionsMixin:
                 start_date=start_date,
                 end_date=end_date,
                 pattern=pattern,
-                logger_pattern=logger_pattern
+                logger_pattern=logger_pattern,
             )
         except Exception as e:
             raise Exception(f"Error filtering log entries: {e}")
@@ -109,42 +109,48 @@ class CoopFunctionsMixin:
             filter_desc.append(f"pattern: {pattern}")
         if logger_pattern:
             filter_desc.append(f"logger: {logger_pattern}")
-        
+
         filter_str = ", ".join(filter_desc) if filter_desc else "all entries"
-        
+
         if as_scenario_list:
             # Convert to ScenarioList and push directly
             scenario_list = log_manager.to_scenario_list(entries=entries)
-            
+
             if description is None:
-                description = f"EDSL log scenarios ({len(scenario_list)} scenarios, {filter_str})"
-            
+                description = (
+                    f"EDSL log scenarios ({len(scenario_list)} scenarios, {filter_str})"
+                )
+
             # Push the ScenarioList to coop
             result = self.push(scenario_list, description=description, alias=alias)
             return result
-            
+
         else:
             # Convert entries back to log lines and create FileStore
             log_lines = log_manager.get_entry_lines(entries)
 
             # Create a temporary file with the filtered log entries
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.log', delete=False, encoding='utf-8') as temp_file:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".log", delete=False, encoding="utf-8"
+            ) as temp_file:
                 for line in log_lines:
-                    temp_file.write(line + '\n')
+                    temp_file.write(line + "\n")
                 temp_file_path = temp_file.name
 
             try:
                 # Create a FileStore object from the temporary file
                 file_store = FileStore(temp_file_path)
-                
+
                 if description is None:
-                    description = f"EDSL log entries ({len(log_lines)} entries, {filter_str})"
-                
+                    description = (
+                        f"EDSL log entries ({len(log_lines)} entries, {filter_str})"
+                    )
+
                 # Push the FileStore to coop
                 result = self.push(file_store, description=description, alias=alias)
-                
+
                 return result
-                
+
             finally:
                 # Clean up the temporary file
                 try:

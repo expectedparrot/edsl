@@ -331,6 +331,49 @@ class AgentTraitsManager:
         new_agent.traits_manager.set_traits_safely(new_traits)
         return new_agent
 
+    def update_trait(self, trait_name: str, value: Any) -> "Agent":
+        """Update an existing trait value.
+
+        This method modifies the value of an existing trait. If the trait
+        doesn't exist, it raises an AgentErrors exception.
+
+        Args:
+            trait_name: The name of the trait to update
+            value: The new value for the trait
+
+        Returns:
+            A new Agent instance with the updated trait value
+
+        Raises:
+            AgentErrors: If the trait doesn't exist
+
+        Examples:
+            >>> from edsl.agents import Agent
+            >>> agent = Agent(traits={'age': 30, 'height': 5.5})
+            >>> new_agent = agent.traits_manager.update_trait('age', 31)
+            >>> new_agent.traits
+            {'age': 31, 'height': 5.5}
+
+            Updating a non-existent trait raises an error:
+
+            >>> agent.traits_manager.update_trait('weight', 150)  # doctest: +ELLIPSIS
+            Traceback (most recent call last):
+            ...
+            edsl.agents.exceptions.AgentErrors: ...
+        """
+        if trait_name not in self.agent.traits:
+            raise AgentErrors(
+                f"Cannot update trait '{trait_name}': trait does not exist. "
+                f"Available traits: {list(self.agent.traits.keys())}. "
+                f"Use add_trait() to add new traits."
+            )
+
+        new_agent = self.agent.duplicate()
+        new_traits = dict(new_agent.traits)
+        new_traits[trait_name] = value
+        new_agent.traits_manager.set_traits_safely(new_traits)
+        return new_agent
+
     def set_all_traits(self, new_traits: dict[str, Any]) -> None:
         """Set all traits, replacing existing ones.
 

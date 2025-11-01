@@ -104,7 +104,8 @@ class QuestionInstructionPromptBuilder:
         Respond only with a string corresponding to one of the options.
         <BLANKLINE>
         <BLANKLINE>
-        After the answer, you can put a comment explaining why you chose that option on the next line.\""")
+        After the answer, you can put a comment explaining why you chose that option on the next line.
+        \""")
         """
         # Create base prompt
         base_prompt = self._create_base_prompt()

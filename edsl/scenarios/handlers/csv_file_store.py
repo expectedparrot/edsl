@@ -7,8 +7,9 @@ class CsvMethods(FileMethods):
 
     def to_scenario_list(self):
         from ..scenario_list import ScenarioList
+
         pandas_df = self.to_pandas()
-        return ScenarioList.from_source('pandas', pandas_df)
+        return ScenarioList.from_source("pandas", pandas_df)
 
     def view_system(self):
         import os
