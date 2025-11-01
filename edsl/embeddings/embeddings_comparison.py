@@ -15,7 +15,9 @@ class EmbeddingsComparison:
         self.right = right
 
     # --- Data helpers ---
-    def ids_vectors(self) -> Tuple[List[str], List[List[float]], List[str], List[List[float]]]:
+    def ids_vectors(
+        self,
+    ) -> Tuple[List[str], List[List[float]], List[str], List[List[float]]]:
         ids1, vecs1 = self._get_ids_vectors(self.left)
         ids2, vecs2 = self._get_ids_vectors(self.right)
         return ids1, vecs1, ids2, vecs2
@@ -38,24 +40,34 @@ class EmbeddingsComparison:
         """
         return CrossDistanceHeatmapView(self, **kwargs)
 
-    def bipartite_nearest_neighbors(self, width: int = 900, height: int = 600, label_size: int = 12) -> "BipartiteNearestNeighborsView":
+    def bipartite_nearest_neighbors(
+        self, width: int = 900, height: int = 600, label_size: int = 12
+    ) -> "BipartiteNearestNeighborsView":
         """Return a notebook-friendly view of a bipartite NN graph between engines."""
-        return BipartiteNearestNeighborsView(self, width=width, height=height, label_size=label_size)
+        return BipartiteNearestNeighborsView(
+            self, width=width, height=height, label_size=label_size
+        )
 
     def joint_tsne(self, **kwargs: Any) -> str:
         """Run t-SNE over concatenated embeddings, color left vs right, draw hulls for each side."""
         ids1, vecs1, ids2, vecs2 = self.ids_vectors()
+
         # Create a fake engine-like object to reuse Viz.svg_tsne on concatenated data
         class _EngineLike:
             def __init__(self, ids: List[str], vecs: List[List[float]]):
-                self.documents = [type("D", (), {"id": id_, "content": id_, "embedding": vec})() for id_, vec in zip(ids, vecs)]
+                self.documents = [
+                    type("D", (), {"id": id_, "content": id_, "embedding": vec})()
+                    for id_, vec in zip(ids, vecs)
+                ]
 
         ids = [f"L:{i}" for i in ids1] + [f"R:{i}" for i in ids2]
         vecs = vecs1 + vecs2
         eng_like = _EngineLike(ids, vecs)
         # Build cluster assignments: 0 for left, 1 for right
         assignments = {id_: (0 if id_.startswith("L:") else 1) for id_ in ids}
-        return Viz.svg_tsne(eng_like, cluster_assignments=assignments, draw_hulls=True, **kwargs)
+        return Viz.svg_tsne(
+            eng_like, cluster_assignments=assignments, draw_hulls=True, **kwargs
+        )
 
     # --- internals ---
     @staticmethod
@@ -71,7 +83,9 @@ class EmbeddingsComparison:
         return ids, vectors
 
     @staticmethod
-    def _get_ids_vectors_contents(engine: "Any") -> Tuple[List[str], List[List[float]], List[str]]:
+    def _get_ids_vectors_contents(
+        engine: "Any",
+    ) -> Tuple[List[str], List[List[float]], List[str]]:
         # ensure embeddings present
         missing = [i for i, d in enumerate(engine.documents) if d.embedding is None]
         if missing:
@@ -125,30 +139,48 @@ def _svg_cross_heatmap(
             fill = Viz._value_to_color(val)
             x = padding + label_space_left + j * cell_size
             y = padding + label_space_top + i * cell_size
-            parts.append(f"<rect x='{x}' y='{y}' width='{cell_size}' height='{cell_size}' fill='{fill}' />")
+            parts.append(
+                f"<rect x='{x}' y='{y}' width='{cell_size}' height='{cell_size}' fill='{fill}' />"
+            )
     # Column labels (right ids) vertical with uniform origin and baseline
     for j, doc_id in enumerate(ids_right):
         # Pivot at the top-left of each column so the START of all strings aligns
         x = padding + label_space_left + j * cell_size
         y = padding + label_space_top
         text = Viz._escape(right_labels[j])
-        title = Viz._escape(right_tooltips[j]) if right_tooltips and j < len(right_tooltips) else None
+        title = (
+            Viz._escape(right_tooltips[j])
+            if right_tooltips and j < len(right_tooltips)
+            else None
+        )
         parts.append(f"<g transform='translate({x},{y}) rotate(-90)'>")
         if title:
-            parts.append(f"<text font-size='{label_size}' text-anchor='start' dominant-baseline='text-before-edge'><title>{title}</title>{text}</text>")
+            parts.append(
+                f"<text font-size='{label_size}' text-anchor='start' dominant-baseline='text-before-edge'><title>{title}</title>{text}</text>"
+            )
         else:
-            parts.append(f"<text font-size='{label_size}' text-anchor='start' dominant-baseline='text-before-edge'>{text}</text>")
+            parts.append(
+                f"<text font-size='{label_size}' text-anchor='start' dominant-baseline='text-before-edge'>{text}</text>"
+            )
         parts.append("</g>")
     # Row labels (left ids)
     for i, doc_id in enumerate(ids_left):
         x = padding + label_space_left - 4
         y = padding + label_space_top + i * cell_size + cell_size * 0.7
         text = Viz._escape(left_labels[i])
-        title = Viz._escape(left_tooltips[i]) if left_tooltips and i < len(left_tooltips) else None
+        title = (
+            Viz._escape(left_tooltips[i])
+            if left_tooltips and i < len(left_tooltips)
+            else None
+        )
         if title:
-            parts.append(f"<text x='{x}' y='{y}' font-size='{label_size}' text-anchor='end'><title>{title}</title>{text}</text>")
+            parts.append(
+                f"<text x='{x}' y='{y}' font-size='{label_size}' text-anchor='end'><title>{title}</title>{text}</text>"
+            )
         else:
-            parts.append(f"<text x='{x}' y='{y}' font-size='{label_size}' text-anchor='end'>{text}</text>")
+            parts.append(
+                f"<text x='{x}' y='{y}' font-size='{label_size}' text-anchor='end'>{text}</text>"
+            )
     # (cells were already drawn before labels)
     parts.append("</svg>")
     return "".join(parts)
@@ -180,22 +212,30 @@ class CrossDistanceHeatmapView:
 
     def to_svg(self) -> str:
         if self._svg_cache is None:
-            ids1, vecs1, contents1 = EmbeddingsComparison._get_ids_vectors_contents(self._cmp.left)
-            ids2, vecs2, contents2 = EmbeddingsComparison._get_ids_vectors_contents(self._cmp.right)
+            ids1, vecs1, contents1 = EmbeddingsComparison._get_ids_vectors_contents(
+                self._cmp.left
+            )
+            ids2, vecs2, contents2 = EmbeddingsComparison._get_ids_vectors_contents(
+                self._cmp.right
+            )
             # recompute matrix using vecs to avoid double compute
             matrix: List[List[float]] = []
             for v1 in vecs1:
                 row: List[float] = []
                 for v2 in vecs2:
-                    row.append(self._cmp.left._cosine_similarity(v1, v2))  # noqa: SLF001
+                    row.append(
+                        self._cmp.left._cosine_similarity(v1, v2)
+                    )  # noqa: SLF001
                 matrix.append(row)
 
             if self._show_snippets:
+
                 def wrap_snip(text: str) -> str:
                     words = str(text).split()
                     if len(words) <= self._snippet_words:
                         return str(text)
                     return " ".join(words[: self._snippet_words]) + " …"
+
                 left_labels = [wrap_snip(t) for t in contents1]
                 right_labels = [wrap_snip(t) for t in contents2]
             else:
@@ -228,7 +268,10 @@ class CrossDistanceHeatmapView:
         import os
         import tempfile
         import subprocess
-        svg_path = path or self.save(os.path.join(tempfile.gettempdir(), "embeddings_cross_distance.svg"))
+
+        svg_path = path or self.save(
+            os.path.join(tempfile.gettempdir(), "embeddings_cross_distance.svg")
+        )
         if path is None:
             with open(svg_path, "w", encoding="utf-8") as f:
                 f.write(self.to_svg())
@@ -251,7 +294,14 @@ class CrossDistanceHeatmapView:
 
 
 class BipartiteNearestNeighborsView:
-    def __init__(self, comparison: EmbeddingsComparison, *, width: int, height: int, label_size: int) -> None:
+    def __init__(
+        self,
+        comparison: EmbeddingsComparison,
+        *,
+        width: int,
+        height: int,
+        label_size: int,
+    ) -> None:
         self._cmp = comparison
         self._width = width
         self._height = height
@@ -261,8 +311,12 @@ class BipartiteNearestNeighborsView:
     def to_svg(self) -> str:
         if self._svg_cache is None:
             # Include contents so we can show informative tooltips
-            ids1, vecs1, contents1 = EmbeddingsComparison._get_ids_vectors_contents(self._cmp.left)
-            ids2, vecs2, contents2 = EmbeddingsComparison._get_ids_vectors_contents(self._cmp.right)
+            ids1, vecs1, contents1 = EmbeddingsComparison._get_ids_vectors_contents(
+                self._cmp.left
+            )
+            ids2, vecs2, contents2 = EmbeddingsComparison._get_ids_vectors_contents(
+                self._cmp.right
+            )
             margin = 20
             left_x = 120
             right_x = self._width - 120
@@ -280,7 +334,9 @@ class BipartiteNearestNeighborsView:
             def cosine(a: List[float], b: List[float]) -> float:
                 return self._cmp.left._cosine_similarity(a, b)  # noqa: SLF001
 
-            arrows: List[Tuple[Tuple[float, float], Tuple[float, float], str, str, float]] = []
+            arrows: List[
+                Tuple[Tuple[float, float], Tuple[float, float], str, str, float]
+            ] = []
             for i, v1 in enumerate(vecs1):
                 best_j = None
                 best_sim = -2.0
@@ -289,7 +345,15 @@ class BipartiteNearestNeighborsView:
                     if sim > best_sim:
                         best_sim, best_j = sim, j
                 if best_j is not None:
-                    arrows.append(((left_x, left_y[i]), (right_x, right_y[best_j]), ids1[i], ids2[best_j], best_sim))
+                    arrows.append(
+                        (
+                            (left_x, left_y[i]),
+                            (right_x, right_y[best_j]),
+                            ids1[i],
+                            ids2[best_j],
+                            best_sim,
+                        )
+                    )
 
             parts: List[str] = [
                 f"<svg xmlns='http://www.w3.org/2000/svg' width='{self._width}' height='{self._height}' viewBox='0 0 {self._width} {self._height}'>",
@@ -298,16 +362,28 @@ class BipartiteNearestNeighborsView:
             ]
 
             # Draw nodes
-            for x, y, doc_id in [(left_x, left_y[i], ids1[i]) for i in range(len(ids1))]:
+            for x, y, doc_id in [
+                (left_x, left_y[i], ids1[i]) for i in range(len(ids1))
+            ]:
                 label = Viz._escape(Viz._truncate(doc_id, 24))
                 tip = Viz._escape(str(contents1[ids1.index(doc_id)])) if ids1 else label
-                parts.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='4' fill='#1f77b4'><title>{tip}</title></circle>")
-                parts.append(f"<text x='{x - 8:.1f}' y='{y + 4:.1f}' font-size='{self._label_size}' text-anchor='end' fill='#333'>{label}</text>")
-            for x, y, doc_id in [(right_x, right_y[i], ids2[i]) for i in range(len(ids2))]:
+                parts.append(
+                    f"<circle cx='{x:.1f}' cy='{y:.1f}' r='4' fill='#1f77b4'><title>{tip}</title></circle>"
+                )
+                parts.append(
+                    f"<text x='{x - 8:.1f}' y='{y + 4:.1f}' font-size='{self._label_size}' text-anchor='end' fill='#333'>{label}</text>"
+                )
+            for x, y, doc_id in [
+                (right_x, right_y[i], ids2[i]) for i in range(len(ids2))
+            ]:
                 label = Viz._escape(Viz._truncate(doc_id, 24))
                 tip = Viz._escape(str(contents2[ids2.index(doc_id)])) if ids2 else label
-                parts.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='4' fill='#ff7f0e'><title>{tip}</title></circle>")
-                parts.append(f"<text x='{x + 8:.1f}' y='{y + 4:.1f}' font-size='{self._label_size}' text-anchor='start' fill='#333'>{label}</text>")
+                parts.append(
+                    f"<circle cx='{x:.1f}' cy='{y:.1f}' r='4' fill='#ff7f0e'><title>{tip}</title></circle>"
+                )
+                parts.append(
+                    f"<text x='{x + 8:.1f}' y='{y + 4:.1f}' font-size='{self._label_size}' text-anchor='start' fill='#333'>{label}</text>"
+                )
 
             # Draw arrows with width mapped to similarity
             for (x1, y1), (x2, y2), idl, idr, sim in arrows:
@@ -335,4 +411,3 @@ class BipartiteNearestNeighborsView:
         with open(path, "w", encoding="utf-8") as f:
             f.write(svg)
         return path
-

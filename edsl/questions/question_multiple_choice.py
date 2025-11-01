@@ -374,9 +374,9 @@ class QuestionMultipleChoice(QuestionBase):
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
-    question_options: Union[list[str], list[list], list[float], list[int]] = (
-        QuestionOptionsDescriptor()
-    )
+    question_options: Union[
+        list[str], list[list], list[float], list[int]
+    ] = QuestionOptionsDescriptor()
     _response_model = None
     response_validator_class = MultipleChoiceResponseValidator
 
@@ -553,9 +553,10 @@ class QuestionMultipleChoice(QuestionBase):
             except Exception:
                 # In case where user used question_options = [{{scenario.opt1}, {{scenario.opt2}}]
                 from collections import defaultdict
+
                 with_scenario_prefix = defaultdict(dict)
                 for key, value in substitution_dict.items():
-                    with_scenario_prefix['scenario'][key] = value
+                    with_scenario_prefix["scenario"][key] = value
                     new_dict = {**with_scenario_prefix, **substitution_dict}
                     translated_options = [
                         Template(str(option)).render(new_dict)

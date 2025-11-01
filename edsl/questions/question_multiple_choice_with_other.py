@@ -226,7 +226,6 @@ class MultipleChoiceWithOtherResponseValidator(MultipleChoiceResponseValidator):
             response_text not in self.question_options
             and "other" in response_text.lower()
         ):
-
             # Try to extract the custom text after "Other"
             # This is a fallback for other formats
             after_other = response_text.lower().split("other", 1)
@@ -358,9 +357,9 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
 
     question_type = "multiple_choice_with_other"
     purpose = "When options are known but you want to allow for custom responses"
-    question_options: Union[list[str], list[list], list[float], list[int]] = (
-        QuestionOptionsDescriptor()
-    )
+    question_options: Union[
+        list[str], list[list], list[float], list[int]
+    ] = QuestionOptionsDescriptor()
     _response_model = None
     response_validator_class = MultipleChoiceWithOtherResponseValidator
 

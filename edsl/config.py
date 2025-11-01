@@ -1,4 +1,4 @@
-"""Config module wrapper for backward compatibility.
+"""Config module wrapper for backward compatibility."""
 
 # Re-export everything from edsl.config module
 from edsl.config import *

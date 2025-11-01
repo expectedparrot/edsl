@@ -35,7 +35,6 @@ from typing import (
 
 # Local imports
 from .scenario import Scenario
-from .scenario_list import ScenarioList  # Re-export for tests expecting this symbol here
 from .directory_scanner import DirectoryScanner
 from .exceptions import ScenarioError
 
@@ -71,7 +70,7 @@ def deprecated_classmethod(
 
 
 if TYPE_CHECKING:
-    pass
+    from .scenario_list import ScenarioList
 
 
 class Source(ABC):
@@ -204,9 +203,8 @@ class URLSource(Source):
 
     def to_scenario_list(self):
         """Create a ScenarioList from a list of URLs."""
-        import requests
-
         from .scenario_list import ScenarioList
+        import requests
 
         result = ScenarioList()
         for url in self.urls:
@@ -306,8 +304,6 @@ class DirectorySource(Source):
     def to_scenario_list(self):
         """Create a ScenarioList from files in a directory."""
         import glob
-
-        from .scenario_list import ScenarioList
 
         # Set default recursive value
         recursive = self.recursive
@@ -1834,7 +1830,6 @@ class ScenarioSource:
     @staticmethod
     def _from_urls(urls: list[str], field_name: Optional[str] = "text"):
         """Create a ScenarioList from a list of URLs."""
-        from .scenario_list import ScenarioList
 
         import requests
 
@@ -1966,8 +1961,6 @@ class ScenarioSource:
         source = WikipediaSource(url, table_index, header)
         return source.to_scenario_list()
 
-
-
     @staticmethod
     def _from_excel(file_path: str, sheet_name: Optional[str] = None, **kwargs):
         """Create a ScenarioList from an Excel file."""
@@ -2045,7 +2038,6 @@ class ScenarioSource:
     @staticmethod
     def _from_dict(data: dict):
         """Create a ScenarioList from a dictionary."""
-        from .scenario_list import ScenarioList
 
         if "scenarios" in data:
             scenarios = [Scenario(s) for s in data["scenarios"]]
@@ -2073,7 +2065,6 @@ class ScenarioSource:
     @staticmethod
     def _from_nested_dict(data: dict, id_field: Optional[str] = None):
         """Create a ScenarioList from a nested dictionary."""
-        from .scenario_list import ScenarioList
 
         scenarios = []
 

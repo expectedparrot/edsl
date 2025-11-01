@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import csv
+import math
 import warnings
 from typing import Optional, List, Any, TYPE_CHECKING
 
@@ -77,13 +78,15 @@ class AgentListFactories:
         return AgentList(agent_list)
 
     @staticmethod
-    def from_results(results: "Results", question_names: Optional[List[str]] = None) -> "AgentList":
+    def from_results(
+        results: "Results", question_names: Optional[List[str]] = None
+    ) -> "AgentList":
         """Create an AgentList from a Results object.
 
         Args:
             results: The Results object to convert
             question_names: Optional list of question names to include. If None, all questions are included.
-                          Affects both answer.* columns (as traits) and prompt.* columns (as codebook).
+                          Affects both answer.* columns (as traits) and the codebook (question_text).
                           Agent traits are always included.
 
         Returns:
@@ -99,52 +102,61 @@ class AgentListFactories:
         from .agent import Agent
         from .agent_list import AgentList
 
-        df = results.select("agent.*", "answer.*", "prompt.*").to_pandas()
+        # Get question_text for each question from the Results metadata
+        # Access the first result to get question_to_attributes
+        codebook = {}
+        if len(results) > 0:
+            first_result = results[0]
+            question_to_attributes = first_result.data.get("question_to_attributes", {})
+
+            # Build codebook with question_text for each question
+            for q_name, q_attrs in question_to_attributes.items():
+                if question_names is None or q_name in question_names:
+                    q_text = q_attrs.get("question_text", q_name)
+                    codebook[q_name] = q_text
+
+        df = results.select("agent.*", "answer.*").to_pandas()
 
         agents = []
         for index, row in df.iterrows():
             traits = {}
-            codebook = {}
             has_name = False
             name = None
-            
+
             for column in df.columns:
                 value = row[column]
-        
-                if column.startswith('answer.'):
+
+                # Replace NaN/inf values with None for JSON serializability
+                if isinstance(value, float) and (
+                    math.isnan(value) or math.isinf(value)
+                ):
+                    value = None
+
+                if column.startswith("answer."):
                     key = column[7:]  # Remove 'answer.' prefix
                     # Only include this answer if question_names is None or if the key is in question_names
                     if question_names is None or key in question_names:
                         traits[key] = value
-                    
-                elif column.startswith('prompt.'):
-                    # Only include columns that end with '_user_prompt'
-                    if column.endswith('_user_prompt'):
-                        key = column[7:]  # Remove 'prompt.' prefix
-                        key = key[:-12]  # Remove '_user_prompt' suffix
-                        # Only include this prompt if question_names is None or if the key is in question_names
-                        if question_names is None or key in question_names:
-                            codebook[key] = value
-                        
-                elif column.startswith('agent.'):
+
+                elif column.startswith("agent."):
                     # Skip agent.instructions and agent.index
-                    if column == 'agent.agent_name':
+                    if column == "agent.agent_name":
                         name = value  # Store as separate parameter
                         has_name = True
-                    elif column not in ['agent.agent_instruction', 'agent.agent_index']:
+                    elif column not in ["agent.agent_instruction", "agent.agent_index"]:
                         key = column[6:]  # Remove 'agent.' prefix
                         traits[key] = value
-            
+
             # Create Agent with or without name parameter
             if has_name:
                 agent = Agent(name=name, traits=traits, codebook=codebook)
             else:
                 agent = Agent(traits=traits, codebook=codebook)
             agents.append(agent)
-        
+
         # Deduplicate agents list -- in case any models had identical questions/answers for an agent
         unique_agents = list(set(agents))
-        
+
         return AgentList(unique_agents)
 
     @staticmethod

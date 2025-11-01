@@ -155,6 +155,8 @@ class ExpectedParrotKeyHandler:
                     "differs from the one stored in the config directory. Using the one "
                     "from the environment variable."
                 )
+                # Update the cached key to match the environment variable
+                self.store_ep_api_key(api_key_from_os)
             api_key = api_key_from_os
         # Handle the case where only OS environment has key
         elif api_key_from_os:

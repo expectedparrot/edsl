@@ -1,6 +1,6 @@
 """This module contains the descriptors used to set the attributes of the Agent class."""
 
-from typing import Dict
+from typing import Dict, Optional, Union
 from .exceptions import AgentNameError, AgentTraitKeyError
 
 
@@ -25,7 +25,7 @@ class NameDescriptor:
         """Return the value of the attribute."""
         return instance.__dict__[self.name]
 
-    def __set__(self, instance, name: str) -> None:
+    def __set__(self, instance, name: Optional[Union[str, int]]) -> None:
         """Set the value of the attribute."""
         instance.__dict__[self.name] = convert_agent_name(name)
 
