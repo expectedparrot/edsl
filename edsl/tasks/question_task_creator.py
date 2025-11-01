@@ -171,30 +171,35 @@ class QuestionTaskCreator(UserList):
         """
 
         requested_tokens = self.estimated_tokens()
-        
+
         # Batch token acquisition to reduce async overhead
         # Pre-calculate wait times to minimize I/O waiting
         token_wait_time = self.tokens_bucket.wait_time(requested_tokens)
         request_wait_time = self.model_buckets.requests_bucket.wait_time(1)
-        
+
         if token_wait_time > 0:
             self.task_status = TaskStatus.WAITING_FOR_TOKEN_CAPACITY
         elif request_wait_time > 0:
             self.waiting = True
             self.task_status = TaskStatus.WAITING_FOR_REQUEST_CAPACITY
-        
+
         # Batch both token acquisitions to reduce async context switching
         if token_wait_time > 0 or request_wait_time > 0:
             # Use asyncio.gather to parallelize token acquisition when possible
             import asyncio
+
             await asyncio.gather(
                 self.tokens_bucket.get_tokens(requested_tokens),
-                self.model_buckets.requests_bucket.get_tokens(1, cheat_bucket_capacity=True)
+                self.model_buckets.requests_bucket.get_tokens(
+                    1, cheat_bucket_capacity=True
+                ),
             )
         else:
             # Fast path when no waiting required - still batch for consistency
             await self.tokens_bucket.get_tokens(requested_tokens)
-            await self.model_buckets.requests_bucket.get_tokens(1, cheat_bucket_capacity=True)
+            await self.model_buckets.requests_bucket.get_tokens(
+                1, cheat_bucket_capacity=True
+            )
 
         self.task_status = TaskStatus.API_CALL_IN_PROGRESS
         try:

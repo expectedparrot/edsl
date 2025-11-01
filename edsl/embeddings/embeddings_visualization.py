@@ -54,7 +54,9 @@ class EmbeddingsEngineVisualization:
         for i in range(len(vectors)):
             row: List[float] = []
             for j in range(len(vectors)):
-                sim = engine._cosine_similarity(vectors[i], vectors[j])  # noqa: SLF001 (intentional use)
+                sim = engine._cosine_similarity(
+                    vectors[i], vectors[j]
+                )  # noqa: SLF001 (intentional use)
                 row.append(sim)
             matrix.append(row)
         return ids, matrix
@@ -96,11 +98,23 @@ class EmbeddingsEngineVisualization:
         # Layout dimensions with separate left/top label spaces
         approx_char_w = label_size * 0.6
         # Left labels use ids; estimate width from longest id (up to 18 chars like we display)
-        left_label_lengths = [len(EmbeddingsEngineVisualization._truncate(doc_id, 18)) for doc_id in ids]
-        label_space_left = max(int(approx_char_w * (max(left_label_lengths) if left_label_lengths else 1)) + 14, label_size + 2, 14)
+        left_label_lengths = [
+            len(EmbeddingsEngineVisualization._truncate(doc_id, 18)) for doc_id in ids
+        ]
+        label_space_left = max(
+            int(approx_char_w * (max(left_label_lengths) if left_label_lengths else 1))
+            + 14,
+            label_size + 2,
+            14,
+        )
         # Top labels are vertical; estimate required height from longest label (up to 18 chars)
         top_label_lengths = left_label_lengths  # same ids
-        label_space_top = max(int(approx_char_w * (max(top_label_lengths) if top_label_lengths else 1)) + 14, label_size + 2, 24)
+        label_space_top = max(
+            int(approx_char_w * (max(top_label_lengths) if top_label_lengths else 1))
+            + 14,
+            label_size + 2,
+            24,
+        )
         width = padding * 2 + label_space_left + cell_size * n
         height = padding * 2 + label_space_top + cell_size * n
 
@@ -155,15 +169,31 @@ class EmbeddingsEngineVisualization:
                     # Build tooltip with row/col ids and contents
                     row_id = EmbeddingsEngineVisualization._escape(ids[r])
                     col_id = EmbeddingsEngineVisualization._escape(ids[c])
-                    row_lines = EmbeddingsEngineVisualization._wrap_text_words(contents[r], words_per_line=10, max_lines=3)
-                    col_lines = EmbeddingsEngineVisualization._wrap_text_words(contents[c], words_per_line=10, max_lines=3)
-                    row_lines = [EmbeddingsEngineVisualization._escape(line) for line in row_lines]
-                    col_lines = [EmbeddingsEngineVisualization._escape(line) for line in col_lines]
+                    row_lines = EmbeddingsEngineVisualization._wrap_text_words(
+                        contents[r], words_per_line=10, max_lines=3
+                    )
+                    col_lines = EmbeddingsEngineVisualization._wrap_text_words(
+                        contents[c], words_per_line=10, max_lines=3
+                    )
+                    row_lines = [
+                        EmbeddingsEngineVisualization._escape(line)
+                        for line in row_lines
+                    ]
+                    col_lines = [
+                        EmbeddingsEngineVisualization._escape(line)
+                        for line in col_lines
+                    ]
                     value_text = f"cos={value:.2f}"
                     tooltip_font = max(12, label_size)
                     approx_char_w = tooltip_font * 0.6
                     # Build combined lines with headers
-                    lines: List[str] = [f"{row_id}:"] + [f"  {ln}" for ln in row_lines] + [f"{col_id}:"] + [f"  {ln}" for ln in col_lines] + [value_text]
+                    lines: List[str] = (
+                        [f"{row_id}:"]
+                        + [f"  {ln}" for ln in row_lines]
+                        + [f"{col_id}:"]
+                        + [f"  {ln}" for ln in col_lines]
+                        + [value_text]
+                    )
                     max_len = max(len(line) for line in lines)
                     box_w = int(12 + approx_char_w * max_len)
                     line_h = tooltip_font + 2
@@ -181,12 +211,18 @@ class EmbeddingsEngineVisualization:
                         by = max(2, height - box_h - 2)
                     parts.append("<g class='cell'>")
                     # Native tooltip fallback attached to rect for reliable browser behavior
-                    parts.append(f"<rect x='{x}' y='{y}' width='{cell_size}' height='{cell_size}' fill='{fill}'><title>{row_id} | {col_id} | {value_text}</title></rect>")
+                    parts.append(
+                        f"<rect x='{x}' y='{y}' width='{cell_size}' height='{cell_size}' fill='{fill}'><title>{row_id} | {col_id} | {value_text}</title></rect>"
+                    )
                     parts.append("<g class='tip'>")
-                    parts.append(f"<rect x='{bx}' y='{by}' rx='4' ry='4' width='{box_w}' height='{box_h}' fill='white' stroke='#333' stroke-opacity='0.4' fill-opacity='0.95' />")
+                    parts.append(
+                        f"<rect x='{bx}' y='{by}' rx='4' ry='4' width='{box_w}' height='{box_h}' fill='white' stroke='#333' stroke-opacity='0.4' fill-opacity='0.95' />"
+                    )
                     ty = by + 6 + tooltip_font
                     for line in lines:
-                        parts.append(f"<text x='{bx + 6}' y='{ty}' font-size='{tooltip_font}' fill='#111'>{line}</text>")
+                        parts.append(
+                            f"<text x='{bx + 6}' y='{ty}' font-size='{tooltip_font}' fill='#111'>{line}</text>"
+                        )
                         ty += line_h
                     parts.append("</g>")
                     if show_values:
@@ -195,7 +231,9 @@ class EmbeddingsEngineVisualization:
                         )
                     parts.append("</g>")
                 else:
-                    parts.append(f"<rect x='{x}' y='{y}' width='{cell_size}' height='{cell_size}' fill='{fill}'><title>{row_id} | {col_id} | {value_text}</title></rect>")
+                    parts.append(
+                        f"<rect x='{x}' y='{y}' width='{cell_size}' height='{cell_size}' fill='{fill}'><title>{row_id} | {col_id} | {value_text}</title></rect>"
+                    )
                     if show_values:
                         parts.append(
                             f"<text x='{x + cell_size/2}' y='{y + cell_size*0.65}' font-size='{label_size - 2}' text-anchor='middle' fill='black'>{value:.2f}</text>"
@@ -229,7 +267,11 @@ class EmbeddingsEngineVisualization:
             random_state: RNG seed for reproducibility.
             label_size: Font size for labels.
         """
-        ids, vectors, contents = EmbeddingsEngineVisualization._get_ids_vectors_contents(engine)
+        (
+            ids,
+            vectors,
+            contents,
+        ) = EmbeddingsEngineVisualization._get_ids_vectors_contents(engine)
         n = len(ids)
         if n == 0:
             return EmbeddingsEngineVisualization._svg_empty("No documents to visualize")
@@ -250,14 +292,23 @@ class EmbeddingsEngineVisualization:
         if _TSNE is not None:
             try:
                 # Use scikit-learn t-SNE on raw vectors
-                tsne = _TSNE(n_components=2, perplexity=min(perplexity, max(5.0, (n - 1) / 3.0)), random_state=random_state, init="random")
+                tsne = _TSNE(
+                    n_components=2,
+                    perplexity=min(perplexity, max(5.0, (n - 1) / 3.0)),
+                    random_state=random_state,
+                    init="random",
+                )
                 arr = EmbeddingsEngineVisualization._as_numpy_array(vectors)
                 proj = tsne.fit_transform(arr)
                 points_01 = EmbeddingsEngineVisualization._normalize_points(proj)  # type: ignore[arg-type]
             except Exception:
-                points_01 = EmbeddingsEngineVisualization._pca_or_random(vectors, random_state)
+                points_01 = EmbeddingsEngineVisualization._pca_or_random(
+                    vectors, random_state
+                )
         else:
-            points_01 = EmbeddingsEngineVisualization._pca_or_random(vectors, random_state)
+            points_01 = EmbeddingsEngineVisualization._pca_or_random(
+                vectors, random_state
+            )
 
         # Scale to SVG dimensions with margins
         margin = 20
@@ -270,8 +321,14 @@ class EmbeddingsEngineVisualization:
         # Colors per id if cluster assignments provided
         colors: Optional[dict] = None
         if cluster_assignments:
-            doc_to_cluster = EmbeddingsEngineVisualization._normalize_cluster_assignments(ids, cluster_assignments)
-            colors = EmbeddingsEngineVisualization._colors_for_clusters(ids, doc_to_cluster)
+            doc_to_cluster = (
+                EmbeddingsEngineVisualization._normalize_cluster_assignments(
+                    ids, cluster_assignments
+                )
+            )
+            colors = EmbeddingsEngineVisualization._colors_for_clusters(
+                ids, doc_to_cluster
+            )
         # Default to drawing hulls if clusters provided and draw_hulls not explicitly set
         if draw_hulls is None:
             draw_hulls = cluster_assignments is not None
@@ -295,7 +352,9 @@ class EmbeddingsEngineVisualization:
     @staticmethod
     def _ensure_all_embeddings(engine: "Any") -> None:
         """Compute missing document embeddings in batch, if any."""
-        missing_indices = [i for i, d in enumerate(engine.documents) if d.embedding is None]
+        missing_indices = [
+            i for i, d in enumerate(engine.documents) if d.embedding is None
+        ]
         if not missing_indices:
             return
         texts = [engine.documents[i].content for i in missing_indices]
@@ -311,7 +370,9 @@ class EmbeddingsEngineVisualization:
         return ids, vectors
 
     @staticmethod
-    def _get_ids_vectors_contents(engine: "Any") -> Tuple[List[str], List[List[float]], List[str]]:
+    def _get_ids_vectors_contents(
+        engine: "Any",
+    ) -> Tuple[List[str], List[List[float]], List[str]]:
         EmbeddingsEngineVisualization._ensure_all_embeddings(engine)
         ids: List[str] = [doc.id for doc in engine.documents]
         vectors: List[List[float]] = [doc.embedding for doc in engine.documents]  # type: ignore
@@ -321,7 +382,9 @@ class EmbeddingsEngineVisualization:
     @staticmethod
     def _as_numpy_array(vectors: List[List[float]]):  # type: ignore[no-untyped-def]
         if _np is None:
-            raise RuntimeError("NumPy is required for this operation but is not installed.")
+            raise RuntimeError(
+                "NumPy is required for this operation but is not installed."
+            )
         return _np.asarray(vectors, dtype=float)
 
     @staticmethod
@@ -334,7 +397,9 @@ class EmbeddingsEngineVisualization:
             min_y, max_y = min(ys), max(ys)
             span_x = (max_x - min_x) or 1.0
             span_y = (max_y - min_y) or 1.0
-            return [((x - min_x) / span_x, (y - min_y) / span_y) for x, y in zip(xs, ys)]
+            return [
+                ((x - min_x) / span_x, (y - min_y) / span_y) for x, y in zip(xs, ys)
+            ]
         xs = arr[:, 0]
         ys = arr[:, 1]
         min_x, max_x = float(xs.min()), float(xs.max())
@@ -346,7 +411,9 @@ class EmbeddingsEngineVisualization:
         return [(float(x), float(y)) for x, y in zip(xs01, ys01)]
 
     @staticmethod
-    def _pca_or_random(vectors: List[List[float]], seed: int) -> List[Tuple[float, float]]:
+    def _pca_or_random(
+        vectors: List[List[float]], seed: int
+    ) -> List[Tuple[float, float]]:
         # PCA via NumPy if available, else deterministic pseudo-random positions
         if _np is not None:
             try:
@@ -437,13 +504,19 @@ class EmbeddingsEngineVisualization:
         # First draw base points/labels
         base_parts: List[str] = []
         for (x, y), doc_id in zip(points, ids):
-            label = EmbeddingsEngineVisualization._escape(EmbeddingsEngineVisualization._truncate(doc_id, 24))
+            label = EmbeddingsEngineVisualization._escape(
+                EmbeddingsEngineVisualization._truncate(doc_id, 24)
+            )
             fill_color = "#1f77b4"
             if colors and doc_id in colors:
                 fill_color = colors[doc_id]
             base_parts.append("<g class='pt'>")
-            base_parts.append(f"<circle cx='{x:.2f}' cy='{y:.2f}' r='4' fill='{fill_color}' />")
-            base_parts.append(f"<text x='{x + 6:.2f}' y='{y + 4:.2f}' font-size='{label_size}' fill='#333'>{label}</text>")
+            base_parts.append(
+                f"<circle cx='{x:.2f}' cy='{y:.2f}' r='4' fill='{fill_color}' />"
+            )
+            base_parts.append(
+                f"<text x='{x + 6:.2f}' y='{y + 4:.2f}' font-size='{label_size}' fill='#333'>{label}</text>"
+            )
             base_parts.append("</g>")
 
         parts.extend(base_parts)
@@ -453,9 +526,14 @@ class EmbeddingsEngineVisualization:
             overlay_parts: List[str] = []
             for (x, y), tip in zip(points, tooltips):
                 raw = str(tip)
-                wrapped_lines = EmbeddingsEngineVisualization._wrap_text_words(raw, words_per_line=10, max_lines=3)
+                wrapped_lines = EmbeddingsEngineVisualization._wrap_text_words(
+                    raw, words_per_line=10, max_lines=3
+                )
                 # Escape post-wrapping (line-wise)
-                esc_lines = [EmbeddingsEngineVisualization._escape(line) for line in wrapped_lines]
+                esc_lines = [
+                    EmbeddingsEngineVisualization._escape(line)
+                    for line in wrapped_lines
+                ]
                 tooltip_font = max(14, label_size + 2)
                 approx_char_w = tooltip_font * 0.6
                 max_chars = max((len(line) for line in esc_lines), default=1)
@@ -474,12 +552,18 @@ class EmbeddingsEngineVisualization:
                     by = max(2, height - box_h - 2)
                 overlay_parts.append("<g class='tip-overlay'>")
                 # Invisible hover catcher to ensure overlay receives hover and stays on top
-                overlay_parts.append(f"<circle class='overlay-capture' cx='{x:.2f}' cy='{y:.2f}' r='10' fill='white' />")
+                overlay_parts.append(
+                    f"<circle class='overlay-capture' cx='{x:.2f}' cy='{y:.2f}' r='10' fill='white' />"
+                )
                 overlay_parts.append("<g class='tip'>")
-                overlay_parts.append(f"<rect x='{bx:.2f}' y='{by:.2f}' rx='4' ry='4' width='{box_w}' height='{box_h}' fill='white' stroke='#333' stroke-opacity='0.7' fill-opacity='1' />")
+                overlay_parts.append(
+                    f"<rect x='{bx:.2f}' y='{by:.2f}' rx='4' ry='4' width='{box_w}' height='{box_h}' fill='white' stroke='#333' stroke-opacity='0.7' fill-opacity='1' />"
+                )
                 ty = by + 8 + tooltip_font
                 for line in esc_lines:
-                    overlay_parts.append(f"<text x='{bx + 8:.2f}' y='{ty:.2f}' font-size='{tooltip_font}' fill='#111'>{line}</text>")
+                    overlay_parts.append(
+                        f"<text x='{bx + 8:.2f}' y='{ty:.2f}' font-size='{tooltip_font}' fill='#111'>{line}</text>"
+                    )
                     ty += line_h
                 overlay_parts.append("</g>")
                 overlay_parts.append("</g>")
@@ -491,7 +575,9 @@ class EmbeddingsEngineVisualization:
                 title = EmbeddingsEngineVisualization._escape(str(tip))
                 title_parts.append("<g>")
                 title_parts.append(f"<title>{title}</title>")
-                title_parts.append(f"<circle cx='{x:.2f}' cy='{y:.2f}' r='4' fill='transparent' />")
+                title_parts.append(
+                    f"<circle cx='{x:.2f}' cy='{y:.2f}' r='4' fill='transparent' />"
+                )
                 title_parts.append("</g>")
             parts.extend(title_parts)
         parts.append("</svg>")
@@ -534,7 +620,11 @@ class EmbeddingsEngineVisualization:
         """
         # If keys look like doc ids present in ids, assume direct mapping
         if assignments and next(iter(assignments.keys())) in set(ids):
-            return {doc_id: int(cluster_id) for doc_id, cluster_id in assignments.items() if doc_id in ids}
+            return {
+                doc_id: int(cluster_id)
+                for doc_id, cluster_id in assignments.items()
+                if doc_id in ids
+            }
         # Otherwise assume cluster -> list mapping
         normalized: dict = {}
         for cluster_id, doc_list in assignments.items():  # type: ignore[attr-defined]
@@ -550,8 +640,16 @@ class EmbeddingsEngineVisualization:
     @staticmethod
     def _colors_for_clusters(ids: List[str], doc_to_cluster: dict) -> dict:
         palette = [
-            "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
-            "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
+            "#1f77b4",
+            "#ff7f0e",
+            "#2ca02c",
+            "#d62728",
+            "#9467bd",
+            "#8c564b",
+            "#e377c2",
+            "#7f7f7f",
+            "#bcbd22",
+            "#17becf",
         ]
         cluster_to_color: dict = {}
         colors: dict = {}
@@ -580,7 +678,7 @@ class EmbeddingsEngineVisualization:
             text.replace("&", "&amp;")
             .replace("<", "&lt;")
             .replace(">", "&gt;")
-            .replace("\"", "&quot;")
+            .replace('"', "&quot;")
             .replace("'", "&apos;")
         )
 
@@ -593,7 +691,7 @@ class EmbeddingsEngineVisualization:
         """Map similarity in [-1,1] to a diverging blue-white-red color."""
         v = max(-1.0, min(1.0, float(value)))
         if v < 0:
-            t = (v + 1.0)  # 0..1 for negatives
+            t = v + 1.0  # 0..1 for negatives
             r, g, b = int(255 * (1.0 - 0.5 * t)), int(255 * (1.0 - 0.8 * t)), 255
         else:
             t = v  # 0..1 for positives
@@ -601,7 +699,9 @@ class EmbeddingsEngineVisualization:
         return f"rgb({r},{g},{b})"
 
     @staticmethod
-    def _wrap_text_words(text: str, words_per_line: int = 10, max_lines: int = 3) -> List[str]:
+    def _wrap_text_words(
+        text: str, words_per_line: int = 10, max_lines: int = 3
+    ) -> List[str]:
         """Wrap text into lines with approximately words_per_line words; truncate with ellipsis.
 
         The function is character-agnostic and uses whitespace splitting. If the
@@ -694,7 +794,10 @@ class DistanceMatrixView:
         import os
         import tempfile
         import subprocess
-        svg_path = path or self.save(os.path.join(tempfile.gettempdir(), "embeddings_distance_matrix.svg"))
+
+        svg_path = path or self.save(
+            os.path.join(tempfile.gettempdir(), "embeddings_distance_matrix.svg")
+        )
         if path is None:
             # Save to ensure file exists
             with open(svg_path, "w", encoding="utf-8") as f:
@@ -773,7 +876,10 @@ class TSNEView:
         import os
         import tempfile
         import subprocess
-        svg_path = path or self.save(os.path.join(tempfile.gettempdir(), "embeddings_tsne.svg"))
+
+        svg_path = path or self.save(
+            os.path.join(tempfile.gettempdir(), "embeddings_tsne.svg")
+        )
         if path is None:
             with open(svg_path, "w", encoding="utf-8") as f:
                 f.write(self.to_svg())
@@ -793,5 +899,3 @@ class TSNEView:
 
     def _repr_html_(self) -> str:
         return self.to_svg()
-
-

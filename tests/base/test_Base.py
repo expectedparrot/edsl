@@ -22,11 +22,18 @@ class TestBaseModels:
 
         for key, value in RegisterSubclassesMeta.get_registry().items():
             assert key in [
+                "BaseMacro",
+                "Macro",
+                "MacroRunOutput",
+                "CompositeMacro",
                 "Result",
                 "Results",
                 "Survey",
                 "Agent",
                 "AgentList",
+                "AgentBlueprint",
+                "AgentDelta",
+                "AgentListDeltas",
                 "Scenario",
                 "ScenarioList",
                 "AgentList",
@@ -48,7 +55,10 @@ class TestBaseModels:
                 "CoopRegularObjects",
                 "CoopProlificFilters",
                 "Service",
-                "FileStoreList"
+                "FileStoreList",
+                "CompareResultsToGold",
+                "PerformanceDelta",
+                "ResultPairComparison"
             ]
 
         from edsl.base.exceptions import BaseNotImplementedError

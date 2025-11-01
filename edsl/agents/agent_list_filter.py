@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 class EmptyAgentList:
     """Represents an empty AgentList result from filtering operations."""
-    
+
     def __repr__(self):
         return "Empty AgentList"
 
@@ -24,7 +24,7 @@ class EmptyAgentList:
 
 class AgentListFilter:
     """Handles filtering operations for AgentList objects.
-    
+
     This class provides functionality for filtering AgentList objects based on
     boolean expressions that can reference agent traits and names.
     """
@@ -39,7 +39,7 @@ class AgentListFilter:
                 each agent's traits.
 
         Returns:
-            AgentList or EmptyAgentList: A new AgentList containing only agents that 
+            AgentList or EmptyAgentList: A new AgentList containing only agents that
                 satisfy the expression, or EmptyAgentList if no matches or error.
 
         Examples:
@@ -62,7 +62,9 @@ class AgentListFilter:
 
         try:
             new_data = [
-                agent for agent in agent_list.data if create_evaluator(agent).eval(expression)
+                agent
+                for agent in agent_list.data
+                if create_evaluator(agent).eval(expression)
             ]
         except NameNotDefined:
             e = AgentListError(f"'{expression}' is not a valid expression.")
@@ -76,4 +78,4 @@ class AgentListFilter:
         if len(new_data) == 0:
             return EmptyAgentList()
 
-        return AgentList(new_data) 
+        return AgentList(new_data)

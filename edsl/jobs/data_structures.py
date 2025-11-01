@@ -125,6 +125,57 @@ class RunParameters(Base):
     def example(cls) -> "RunConfig":
         return cls()
 
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of RunParameters.
+
+        This representation can be used with eval() to recreate the RunParameters object.
+        Used primarily for doctests and debugging.
+        """
+        return f"RunParameters(**{self.to_dict()})"
+
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the RunParameters with Rich formatting.
+
+        Returns:
+            str: A formatted summary representation of the RunParameters
+        """
+        # Only show non-default values for brevity
+        non_defaults = []
+        defaults = RunParameters()
+        for field_name in [
+            "n",
+            "progress_bar",
+            "stop_on_exception",
+            "check_api_keys",
+            "verbose",
+            "print_exceptions",
+            "skip_retry",
+            "raise_validation_errors",
+            "background",
+            "disable_remote_cache",
+            "use_api_proxy",
+            "offload_execution",
+            "fresh",
+        ]:
+            current_val = getattr(self, field_name)
+            default_val = getattr(defaults, field_name)
+            if current_val != default_val:
+                non_defaults.append(f"{field_name}={current_val}")
+
+        if self.remote_cache_description:
+            non_defaults.append(
+                f"remote_cache_description='{self.remote_cache_description}'"
+            )
+        if self.remote_inference_description:
+            non_defaults.append(
+                f"remote_inference_description='{self.remote_inference_description}'"
+            )
+        if self.job_uuid:
+            non_defaults.append(f"job_uuid='{self.job_uuid}'")
+
+        params_str = ", ".join(non_defaults) if non_defaults else "all defaults"
+        return f"[cyan]RunParameters[/cyan]({params_str})"
+
 
 @dataclass
 class RunConfig:

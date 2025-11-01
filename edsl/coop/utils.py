@@ -7,6 +7,8 @@ from ..notebooks import Notebook
 from ..results import Results
 from ..scenarios import Scenario, ScenarioList
 from ..surveys import Survey
+from ..macros.macro import Macro
+from ..macros.composite_macro import CompositeMacro
 
 from ..questions import QuestionBase
 
@@ -26,6 +28,8 @@ EDSLObject = Union[
     Scenario,
     ScenarioList,
     Survey,
+    Macro,
+    CompositeMacro,
 ]
 
 ObjectType = Literal[
@@ -40,6 +44,8 @@ ObjectType = Literal[
     "scenario",
     "scenario_list",
     "survey",
+    "macro",
+    "composite_macro",
 ]
 
 
@@ -98,6 +104,8 @@ class ObjectRegistry:
             {"object_type": "scenario", "edsl_class": Scenario},
             {"object_type": "scenario_list", "edsl_class": ScenarioList},
             {"object_type": "survey", "edsl_class": Survey},
+            {"object_type": "macro", "edsl_class": Macro},
+            {"object_type": "composite_macro", "edsl_class": CompositeMacro},
         ]
 
     @property

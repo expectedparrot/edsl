@@ -35,6 +35,7 @@ def _import_textual():
             DirectoryTree,
         )
         from textual import events  # type: ignore
+
         return {
             "App": App,
             "ComposeResult": ComposeResult,
@@ -52,7 +53,9 @@ def _import_textual():
             "DirectoryTree": DirectoryTree,
             "events": events,
         }
-    except Exception as e:  # pragma: no cover - only triggered when textual not installed
+    except (
+        Exception
+    ) as e:  # pragma: no cover - only triggered when textual not installed
         raise TextualInteractiveSurveyUnavailable(
             "Textual is required for TextualInteractiveSurvey. Install with: pip install textual"
         ) from e
@@ -87,7 +90,6 @@ class TextualInteractiveSurveyApp:  # Thin wrapper to avoid importing textual at
         Vertical = sym["Vertical"]
         Container = sym["Container"]
         Header = sym["Header"]
-        Footer = sym["Footer"]
         Button = sym["Button"]
         Static = sym["Static"]
         Input = sym["Input"]
@@ -142,7 +144,9 @@ class TextualInteractiveSurveyApp:  # Thin wrapper to avoid importing textual at
             def _goto_next(self, current: Optional[Any]) -> None:
                 from .base import EndOfSurvey  # lazy import
 
-                next_item = survey.next_question_with_instructions(current, rule_answers)
+                next_item = survey.next_question_with_instructions(
+                    current, rule_answers
+                )
                 if next_item is EndOfSurvey:
                     self.exit(answers)
                     return
@@ -194,7 +198,9 @@ class TextualInteractiveSurveyApp:  # Thin wrapper to avoid importing textual at
                     state.temp_value = ta
                 elif qtype == "multiple_choice":
                     options = list(getattr(item, "question_options", []) or [])
-                    select_options: List[Tuple[str, Any]] = [(str(opt), idx) for idx, opt in enumerate(options)]
+                    select_options: List[Tuple[str, Any]] = [
+                        (str(opt), idx) for idx, opt in enumerate(options)
+                    ]
                     sel = Select(select_options)
                     self.widget_region.mount(sel)
                     sel.focus()
@@ -226,7 +232,9 @@ class TextualInteractiveSurveyApp:  # Thin wrapper to avoid importing textual at
                     state.temp_value = inp
 
             # Validation and collection
-            def _collect_and_validate(self, state: _QuestionViewState) -> Tuple[bool, Optional[str]]:
+            def _collect_and_validate(
+                self, state: _QuestionViewState
+            ) -> Tuple[bool, Optional[str]]:
                 item = state.item
                 qname = getattr(item, "question_name", None)
                 if not qname:
@@ -238,7 +246,11 @@ class TextualInteractiveSurveyApp:  # Thin wrapper to avoid importing textual at
                 try:
                     if qtype == "free_text":
                         widget = state.temp_value
-                        text_value = widget.text if hasattr(widget, "text") else str(widget.value)
+                        text_value = (
+                            widget.text
+                            if hasattr(widget, "text")
+                            else str(widget.value)
+                        )
                         validated = item._validate_answer({"answer": text_value})
                         value = validated.get("answer", text_value)
                     elif qtype == "multiple_choice":
@@ -252,20 +264,36 @@ class TextualInteractiveSurveyApp:  # Thin wrapper to avoid importing textual at
                         value = validated.get("answer", value)
                     elif qtype == "checkbox":
                         checkboxes, options = state.temp_value
-                        indices = [i for i, cb in enumerate(checkboxes) if getattr(cb, "value", False)]
+                        indices = [
+                            i
+                            for i, cb in enumerate(checkboxes)
+                            if getattr(cb, "value", False)
+                        ]
                         if not indices:
                             value = [] if use_code else []
                         value = indices if use_code else [options[i] for i in indices]
                         validated = item._validate_answer({"answer": value})
                         value = validated.get("answer", value)
                     elif qtype == "file_upload":
-                        path = state.temp_value.value if hasattr(state.temp_value, "value") else ""
+                        path = (
+                            state.temp_value.value
+                            if hasattr(state.temp_value, "value")
+                            else ""
+                        )
                         validated = item._validate_answer({"answer": path})
                         value = validated.get("answer", path)
                     else:
                         # Generic single-line
-                        raw = state.temp_value.value if hasattr(state.temp_value, "value") else str(state.temp_value)
-                        validated = item._validate_answer({"answer": raw}) if hasattr(item, "_validate_answer") else {"answer": raw}
+                        raw = (
+                            state.temp_value.value
+                            if hasattr(state.temp_value, "value")
+                            else str(state.temp_value)
+                        )
+                        validated = (
+                            item._validate_answer({"answer": raw})
+                            if hasattr(item, "_validate_answer")
+                            else {"answer": raw}
+                        )
                         value = validated.get("answer", raw)
 
                     answers[qname] = value
@@ -300,7 +328,9 @@ class TextualInteractiveSurveyApp:  # Thin wrapper to avoid importing textual at
                 if self.file_input is None:
                     return
                 import os
+
                 tree = DirectoryTree(os.getcwd())
+
                 def _on_file_selected(message) -> None:  # type: ignore[no-untyped-def]
                     try:
                         path = str(getattr(message, "path", ""))
@@ -310,6 +340,7 @@ class TextualInteractiveSurveyApp:  # Thin wrapper to avoid importing textual at
                         container.remove()
                     except Exception:
                         container.remove()
+
                 tree.can_focus = True
                 tree.show_root = False
                 tree.border_title = "Select a file"
@@ -330,6 +361,8 @@ def run_textual_survey(survey: Any, title: Optional[str] = None) -> Dict[str, An
     return app.run()
 
 
-__all__ = ["TextualInteractiveSurveyApp", "run_textual_survey", "TextualInteractiveSurveyUnavailable"]
-
-
+__all__ = [
+    "TextualInteractiveSurveyApp",
+    "run_textual_survey",
+    "TextualInteractiveSurveyUnavailable",
+]

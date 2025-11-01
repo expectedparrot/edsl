@@ -35,7 +35,10 @@ class CheckTemplateSyntax:
 
             for var_name, field_name in matches:
                 # Check if the variable name is not 'scenario', 'agent', and not a question name
-                if var_name not in {"scenario", "agent"} and var_name not in question_names:
+                if (
+                    var_name not in {"scenario", "agent"}
+                    and var_name not in question_names
+                ):
                     # Try to find a similar question name (likely misspelled)
                     closest_question = self._find_closest_question_name(
                         var_name, question_names

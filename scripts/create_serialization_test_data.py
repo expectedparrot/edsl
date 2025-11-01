@@ -3,10 +3,15 @@ import logging
 import json
 import os
 import sys
+
+# Add project root to sys.path to enable tests imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from edsl import __version__ as edsl_version
 from edsl.base import RegisterSubclassesMeta
 from edsl.coop.utils import ObjectRegistry
 from edsl.questions import *
+from edsl.jobs import Jobs  # Import Jobs to ensure it's registered
 from tests.serialization.cases.RegisterSerializationCasesMeta import (
     RegisterSerializationCasesMeta,
 )
@@ -65,6 +70,12 @@ def create_serialization_test_data(start_new_version=False):
 
     for subclass_name, subclass in combined_items:
         example = subclass.example()
+        # Skip classes where example() returns None (e.g., abstract base classes)
+        if example is None:
+            logging.warning(
+                f"Skipping class {subclass_name} because example() returned None"
+            )
+            continue
         data.append(
             {
                 "class_name": subclass_name,

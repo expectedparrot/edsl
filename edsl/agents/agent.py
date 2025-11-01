@@ -87,10 +87,11 @@ if TYPE_CHECKING:
     from ..invigilators import InvigilatorBase
     from ..prompts import Prompt
     from ..key_management import KeyLookup
+    from .agent_delta import AgentDelta
     from ..jobs import Jobs
     from ..dataset import Dataset
     from ..results import Result
-    from ..utilities.similarity_rank import RankableItems
+    from ..utilities.similarity_rank import RankableItems  # type: ignore[import-untyped]
 
 # Type alias for trait categories
 OrganizedTraits = dict[str, list[str]]
@@ -438,12 +439,15 @@ class Agent(Base):
 
         return AgentOperations.keep(self, *field_names)
 
-    def duplicate(self) -> "Agent":
+    def duplicate(self, add_edsl_version: bool = False) -> "Agent":
         """Create a deep copy of this agent with all its traits and capabilities.
 
         This method creates a completely independent copy of the agent, including
         all its traits, codebook, instructions, and special functions like dynamic
         traits and direct answering methods.
+
+        Args:
+            add_edsl_version: Whether to include EDSL version information (ignored for agents)
 
         Returns:
             Agent: A new agent instance that is functionally identical to this one
@@ -476,7 +480,7 @@ class Agent(Base):
             >>> a2.instruction
             'Have fun!'
         """
-        new_agent = Agent.from_dict(self.to_dict())
+        new_agent = Agent.from_dict(self.to_dict(add_edsl_version=add_edsl_version))
 
         # Transfer direct answering method if present
         self.direct_answering.transfer_to(new_agent)
@@ -1000,7 +1004,7 @@ class Agent(Base):
 
         return AgentCombination.add_with_plus_operator(self, other_agent)
 
-    def __eq__(self, other: "Agent") -> bool:
+    def __eq__(self, other: object) -> bool:
         """Check if two agents are equal.
 
         This only checks the traits.
@@ -1012,6 +1016,8 @@ class Agent(Base):
         >>> a1 == a3
         False
         """
+        if not isinstance(other, Agent):
+            return NotImplemented
         # return self.data == other.data
         return hash(self) == hash(other)
 
@@ -1083,7 +1089,7 @@ class Agent(Base):
             False
         """
         if function is None:
-            self.traits_manager.remove_dynamic_function()
+            self.traits_manager.remove_function()
         else:
             self.traits_manager.initialize_dynamic_function(function)
 
@@ -1171,8 +1177,12 @@ class Agent(Base):
         if "_traits" not in self.__dict__:
             self._traits = {}
 
-    def __repr__(self) -> str:
-        """Return representation of Agent."""
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the Agent.
+
+        This representation can be used with eval() to recreate the Agent object.
+        Used primarily for doctests and debugging.
+        """
         class_name = self.__class__.__name__
         items = [
             f'{k} = """{v}"""' if isinstance(v, str) else f"{k} = {v}"
@@ -1180,6 +1190,88 @@ class Agent(Base):
             if k not in ("question_type", "invigilator") and not k.startswith("_")
         ]
         return f"{class_name}({', '.join(items)})"
+
+    def _summary_repr(self, max_traits: int = 5) -> str:
+        """Generate a summary representation of the Agent with Rich formatting.
+
+        Args:
+            max_traits: Maximum number of traits to show before truncating
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+
+        # Build the Rich text
+        output = Text()
+        class_name = self.__class__.__name__
+
+        output.append(f"{class_name}(\n", style="bold cyan")
+
+        # Name (if present)
+        if self.name:
+            output.append("    name=", style="white")
+            output.append(f'"{self.name}"', style="green")
+            output.append(",\n", style="white")
+
+        # Traits
+        traits = self.traits
+        num_traits = len(traits)
+        output.append(f"    num_traits={num_traits}", style="white")
+
+        if num_traits > 0:
+            output.append(",\n    traits={\n", style="white")
+
+            for i, (key, value) in enumerate(list(traits.items())[:max_traits]):
+                value_repr = repr(value)
+                if len(value_repr) > 40:
+                    value_repr = value_repr[:37] + "..."
+
+                output.append("        ", style="white")
+                output.append(f"'{key}'", style="bold yellow")
+                output.append(f": {value_repr},\n", style="white")
+
+            if num_traits > max_traits:
+                output.append(
+                    f"        ... ({num_traits - max_traits} more)\n", style="dim"
+                )
+
+            output.append("    }", style="white")
+
+        # Codebook (if present)
+        if self.codebook:
+            num_codebook = len(self.codebook)
+            output.append(",\n    ", style="white")
+            output.append(f"num_codebook_entries={num_codebook}", style="magenta")
+
+        # Instruction (if custom)
+        if self.instruction != self.default_instruction:
+            instruction_text = self.instruction
+            if len(instruction_text) > 50:
+                instruction_text = instruction_text[:47] + "..."
+            output.append(",\n    instruction=", style="white")
+            output.append(f'"{instruction_text}"', style="cyan")
+
+        # Dynamic traits function (if present)
+        if self.has_dynamic_traits_function:
+            func_name = self.dynamic_traits_function_name or "anonymous"
+            output.append(",\n    ", style="white")
+            output.append(f"dynamic_traits_function='{func_name}'", style="blue")
+
+        # Direct answering method (if present)
+        if hasattr(self, "answer_question_directly"):
+            func_name = getattr(
+                self, "answer_question_directly_function_name", "anonymous"
+            )
+            output.append(",\n    ", style="white")
+            output.append(f"direct_answer_method='{func_name}'", style="blue")
+
+        output.append("\n)", style="bold cyan")
+
+        # Render to string
+        string_io = io.StringIO()
+        console = Console(file=string_io, force_terminal=True, width=120)
+        console.print(output, end="")
+        return string_io.getvalue()
 
     @property
     def data(self) -> dict:
@@ -1346,6 +1438,48 @@ class Agent(Base):
         """
         return self.traits_manager.remove_trait(trait)
 
+    def update_trait(self, trait_name: str, value: Any) -> "Agent":
+        """Update an existing trait value.
+
+        This method modifies the value of an existing trait. If the trait
+        doesn't exist, it raises an AgentErrors exception. To add a new trait,
+        use add_trait() instead.
+
+        Args:
+            trait_name: The name of the trait to update
+            value: The new value for the trait
+
+        Returns:
+            A new Agent instance with the updated trait value
+
+        Raises:
+            AgentErrors: If the trait doesn't exist
+
+        Examples:
+            Update an existing trait value:
+
+            >>> a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
+            >>> a_updated = a.update_trait("age", 11)
+            >>> a_updated.traits
+            {'age': 11, 'hair': 'brown', 'height': 5.5}
+
+            Update with a different type:
+
+            >>> a = Agent(traits={"age": 10, "hair": "brown"})
+            >>> a_updated = a.update_trait("hair", "black")
+            >>> a_updated.traits
+            {'age': 10, 'hair': 'black'}
+
+            Error when trying to update a non-existent trait:
+
+            >>> a = Agent(traits={"age": 10})
+            >>> a.update_trait("weight", 150)  # doctest: +ELLIPSIS
+            Traceback (most recent call last):
+            ...
+            edsl.agents.exceptions.AgentErrors: ...
+        """
+        return self.traits_manager.update_trait(trait_name, value)
+
     def translate_traits(self, values_codebook: dict[str, dict[Any, Any]]) -> "Agent":
         """Translate traits to a new codebook.
 
@@ -1361,6 +1495,47 @@ class Agent(Base):
             Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})
         """
         return self.traits_manager.translate_traits(values_codebook)
+
+    def apply_delta(self, delta: "AgentDelta") -> "Agent":
+        """Apply an AgentDelta to create a new agent with updated trait values.
+
+        This is a convenience method that delegates to AgentDelta.apply().
+
+        Args:
+            delta: The AgentDelta to apply
+
+        Returns:
+            A new Agent instance with the updated trait values
+
+        Raises:
+            AgentErrors: If any trait in the delta doesn't exist in this agent
+
+        Examples:
+            Apply a delta to update agent traits:
+
+            >>> from edsl.agents import AgentDelta
+            >>> a = Agent(traits={'age': 30, 'height': 5.5})
+            >>> delta = AgentDelta({'age': 31})
+            >>> updated = a.apply_delta(delta)
+            >>> updated.traits
+            {'age': 31, 'height': 5.5}
+
+            Multiple trait updates:
+
+            >>> delta = AgentDelta({'age': 35, 'height': 5.8})
+            >>> updated = a.apply_delta(delta)
+            >>> updated.traits
+            {'age': 35, 'height': 5.8}
+
+            Error when trait doesn't exist:
+
+            >>> bad_delta = AgentDelta({'weight': 150})
+            >>> a.apply_delta(bad_delta)  # doctest: +ELLIPSIS
+            Traceback (most recent call last):
+            ...
+            edsl.agents.exceptions.AgentErrors: ...
+        """
+        return delta.apply(self)
 
     @classmethod
     def example(cls, randomize: bool = False) -> "Agent":

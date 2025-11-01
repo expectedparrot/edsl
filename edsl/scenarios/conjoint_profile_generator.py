@@ -34,7 +34,7 @@ Example:
 
 from __future__ import annotations
 import random
-from typing import TYPE_CHECKING, Optional, Union, List, Dict, Any
+from typing import TYPE_CHECKING, Optional, List, Dict, Any
 from collections.abc import Iterator
 
 from .scenario import Scenario
@@ -78,9 +78,9 @@ class ConjointProfileGenerator:
     def __init__(
         self,
         attribute_scenarios: ScenarioList,
-        attribute_field: str = 'attribute',
-        levels_field: str = 'levels',
-        random_seed: Optional[int] = None
+        attribute_field: str = "attribute",
+        levels_field: str = "levels",
+        random_seed: Optional[int] = None,
     ):
         """
         Initialize the ConjointProfileGenerator.
@@ -291,4 +291,5 @@ class ConjointProfileGenerator:
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

@@ -6,7 +6,4 @@ This module provides functionality for document embedding, storage, and similari
 from edsl.embeddings.embeddings_engine import EmbeddingsEngine
 from edsl.embeddings.embedding_function import EmbeddingFunction
 
-__all__ = [
-    "EmbeddingsEngine", 
-    "EmbeddingFunction"
-]
+__all__ = ["EmbeddingsEngine", "EmbeddingFunction"]
