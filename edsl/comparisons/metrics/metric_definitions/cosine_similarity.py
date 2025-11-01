@@ -7,18 +7,19 @@ import numpy as np
 from ..metrics_abc import ComparisonFunction, optional_import
 
 
-# Clean, concise optional imports
-sentence_transformers = optional_import(
-    "sentence_transformers",
-    install_name="sentence-transformers",
-    description="sentence-transformers (required for semantic similarity)",
-)
+# Defer imports until needed - check availability without importing
+def _check_sentence_transformers_available():
+    """Check if sentence_transformers is available without importing it."""
+    try:
+        import importlib.util
+        spec = importlib.util.find_spec("sentence_transformers")
+        return spec is not None
+    except (ImportError, ValueError):
+        return False
 
-# Extract what we need with fallbacks
-SentenceTransformer = getattr(sentence_transformers, "SentenceTransformer", None)
 
-# Simple availability checks
-SENTENCE_TRANSFORMERS_AVAILABLE = bool(sentence_transformers)
+# Simple availability checks (without importing)
+SENTENCE_TRANSFORMERS_AVAILABLE = _check_sentence_transformers_available()
 
 
 class CosineSimilarity(ComparisonFunction):
@@ -74,6 +75,13 @@ class CosineSimilarity(ComparisonFunction):
                        - "all-distilroberta-v1": Balanced speed/quality
         """
         self.model_name = model_name
+        # Lazy import - only load when actually instantiating
+        sentence_transformers = optional_import(
+            "sentence_transformers",
+            install_name="sentence-transformers",
+            description="sentence-transformers (required for semantic similarity)",
+        )
+        SentenceTransformer = getattr(sentence_transformers, "SentenceTransformer", None)
         self.model = SentenceTransformer(
             model_name
         )  # Will raise ImportError with helpful message if missing
