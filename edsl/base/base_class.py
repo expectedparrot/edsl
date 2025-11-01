@@ -953,7 +953,8 @@ class RepresentationMixin:
         Returns:
             str: String representation of the object
         """
-        return self.__repr__()
+        return self._eval_repr_()
+
 
 
 class HashingMixin:
