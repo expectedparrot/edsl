@@ -202,3 +202,30 @@ class SurveyRuleCannotEvaluateError(SurveyError):
     """
 
     relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html#rules"
+
+
+class SurveyQuestionsToRandomizeError(SurveyCreationError):
+    """
+    Exception raised when the questions_to_randomize parameter is invalid.
+
+    This exception occurs when:
+    - The questions_to_randomize parameter is not a list of strings
+    - One or more question names in questions_to_randomize don't exist in the survey
+    - A non-string value is included in questions_to_randomize
+
+    To fix this error:
+    1. Ensure questions_to_randomize is a list of strings
+    2. Verify that each string matches a question_name in the survey
+    3. Check for typos in question names
+
+    Examples:
+        ```python
+        # Invalid: question name doesn't exist
+        Survey([q1, q2], questions_to_randomize=['q1', 'q3'])  # Raises SurveyQuestionsToRandomizeError
+        
+        # Invalid: non-string value
+        Survey([q1, q2], questions_to_randomize=['q1', 123])  # Raises SurveyQuestionsToRandomizeError
+        ```
+    """
+
+    doc_anchor = "creating-surveys"
