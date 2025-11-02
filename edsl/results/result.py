@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from ..scenarios import Scenario, ScenarioList
     from ..language_models import LanguageModel
     from ..surveys import Survey
+    from .result_transcript import Transcript
 
 QuestionName = str
 AnswerValue = Any
@@ -453,41 +454,53 @@ class Result(Base, UserDict):
                 )
         return None
 
-    def transcript(self, format: str = "simple") -> str:
-        """Return the questions and answers in a human-readable transcript.
+    def transcript(self, show_comments: bool = True, carousel: bool = True) -> "Transcript":
+        """Return a Transcript object that displays questions and answers.
+
+        The returned Transcript object provides intelligent display formatting:
+        - In terminal/console: Rich formatted output with colored panels
+        - In Jupyter notebooks: HTML formatted carousel with styled cards and copy button
+        - When converted to string: Simple plain-text format
 
         Args:
-            format: The format for the transcript. Either 'simple' or 'rich'.
-                'simple' (default) returns plain-text format with questions, options,
-                and answers separated by blank lines. 'rich' uses the rich library
-                to wrap each Q&A block in a Panel with colors and formatting.
+            show_comments: Whether to include respondent comments in the transcript.
+                Defaults to True.
+            carousel: Whether to display as a carousel in HTML (one Q&A at a time with navigation).
+                Defaults to True. Set to False to show all Q&As at once. Only affects HTML display.
 
         Returns:
-            A formatted transcript string of the interview.
-
-        Raises:
-            ImportError: If 'rich' format is requested but the rich library is not installed.
+            A Transcript object that adapts its display to the environment.
 
         Examples:
             >>> result = Result.example()
-            >>> transcript = result.transcript(format="simple")
-            >>> print(transcript)
-            QUESTION: How are you this {{ period }}?
-            OPTIONS: Good / Great / OK / Terrible
-            ANSWER: OK
-            <BLANKLINE>
-            QUESTION: How were you feeling yesterday {{ period }}?
-            OPTIONS: Good / Great / OK / Terrible
-            ANSWER: Great
+            >>> transcript = result.transcript()
+            >>> # Will display with Rich formatting in terminal
+            >>> # Will display as carousel in Jupyter with navigation
+            >>> # Can convert to string for plain text
+            >>> str(transcript)  # doctest: +ELLIPSIS
+            'QUESTION: ...'
+            
+            >>> # Exclude comments
+            >>> transcript_no_comments = result.transcript(show_comments=False)
+            
+            >>> # Display as list (all questions at once)
+            >>> transcript_list = result.transcript(carousel=False)
+            
+            >>> # Explicitly get specific formats
+            >>> transcript.to_simple()  # doctest: +ELLIPSIS
+            'QUESTION: ...'
+            >>> transcript.to_html()  # doctest: +ELLIPSIS
+            '...<div...'
         """
-        from .result_transcript import generate_transcript
+        from .result_transcript import Transcript
 
-        return generate_transcript(self, format)
+        return Transcript(self, show_comments=show_comments, carousel=carousel)
 
     def q_and_a(self, include_scenario: bool = False) -> "ScenarioList":
         """Return a ScenarioList with one row per question containing text, answer, and comment.
 
         Each Scenario in the returned ScenarioList has these keys:
+        - "question_name": The internal question name/identifier
         - "question_text": The rendered question text
         - "answer": The recorded answer value
         - "comment": The recorded comment for the question (if any)
@@ -497,7 +510,7 @@ class Result(Base, UserDict):
         Examples:
             >>> r = Result.example()
             >>> sl = r.q_and_a()
-            >>> {"question_text", "answer", "comment"}.issubset(set(sl.parameters))
+            >>> {"question_name", "question_text", "answer", "comment"}.issubset(set(sl.parameters))
             True
             >>> len(sl) == len(r.answer)
             True
@@ -529,6 +542,7 @@ class Result(Base, UserDict):
             q_text = q_meta.get("question_text", question_name)
 
             row = {
+                "question_name": question_name,
                 "question_text": q_text,
                 "answer": answer_value,
                 "comment": comments_by_question.get(question_name),
