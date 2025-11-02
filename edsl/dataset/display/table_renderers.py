@@ -116,14 +116,14 @@ class DataTablesRenderer(DataTablesRendererABC):
         """
 
         header_cells = "".join(
-            f"<th>{escape_and_colorize_html(header)}</th>"
+            f"<th style='vertical-align: top;'>{escape_and_colorize_html(header)}</th>"
             for header in self.table_data.headers
         )
         body_rows = ""
         for row in self.table_data.data:
             body_rows += "<tr>"
             body_rows += "".join(
-                f"<td>{escape_and_colorize_html(cell)}</td>" for cell in row
+                f"<td style='vertical-align: top;'>{escape_and_colorize_html(cell)}</td>" for cell in row
             )
             body_rows += "</tr>"
 
@@ -174,6 +174,7 @@ class PandasStyleRenderer(DataTablesRendererABC):
             styled_df = df.style.set_properties(
                 **{
                     "text-align": "left",
+                    "vertical-align": "top",  # Top-justify text in cells
                     "white-space": "pre-wrap",  # Allows text wrapping
                     "max-width": "300px",  # Maximum width before wrapping
                     "word-wrap": "break-word",  # Breaks words that exceed max-width
@@ -207,7 +208,7 @@ class RichRenderer(DataTablesRendererABC):
         # Provide a basic HTML fallback for HTML contexts
         html_output = "<table border='1'><thead><tr>"
         html_output += "".join(
-            f"<th>{escape_and_colorize_html(header)}</th>"
+            f"<th style='vertical-align: top;'>{escape_and_colorize_html(header)}</th>"
             for header in self.table_data.headers
         )
         html_output += "</tr></thead><tbody>"
@@ -215,7 +216,7 @@ class RichRenderer(DataTablesRendererABC):
         for row in self.table_data.data:
             html_output += "<tr>"
             html_output += "".join(
-                f"<td>{escape_and_colorize_html(cell)}</td>" for cell in row
+                f"<td style='vertical-align: top;'>{escape_and_colorize_html(cell)}</td>" for cell in row
             )
             html_output += "</tr>"
         html_output += "</tbody></table>"
