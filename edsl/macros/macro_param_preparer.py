@@ -111,7 +111,15 @@ class MacroParamPreparer:
                     try:
                         from ..scenarios import FileStore
 
-                        value = FileStore(path=value)
+                        # Handle both string paths and FileStore dicts
+                        if isinstance(value, str):
+                            # String path - use path parameter
+                            value = FileStore(path=value)
+                        elif isinstance(value, FileStore):
+                            # Already a FileStore - keep as-is
+                            pass
+                        else:
+                            value = answer_value
                     except Exception:
                         value = answer_value
                 scenario_vars[q_name] = value
