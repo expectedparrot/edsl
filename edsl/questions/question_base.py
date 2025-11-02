@@ -818,7 +818,13 @@ class QuestionBase(
             if k != "question_type"
         ]
         question_type = self.to_dict().get("question_type", "None")
-        return f"Question('{question_type}', {', '.join(items)})"
+
+        if not items:
+            return f"Question('{question_type}')"
+
+        # Format with newlines and indentation
+        formatted_items = ",\n\t".join(items)
+        return f"Question('{question_type}',\n\t{formatted_items}\n)"
 
     def _summary_repr(
         self, max_text_length: int = 10_000, max_options: int = 50
@@ -1183,26 +1189,27 @@ class QuestionBase(
             >>> code_str = q.code()  # Returns string in non-notebook environment
         """
         code_string = self._eval_repr_()
-        
+
         # Check if we're in a notebook environment
         try:
             from IPython import get_ipython
+
             if get_ipython() is None:
                 return code_string
         except ImportError:
             return code_string
-        
+
         # Format code with pygments
         try:
             from pygments import highlight
             from pygments.lexers import PythonLexer
             from pygments.formatters import HtmlFormatter
             from IPython.display import HTML
-            
+
             # Generate syntax-highlighted HTML
-            formatter = HtmlFormatter(style='default', noclasses=True)
+            formatter = HtmlFormatter(style="default", noclasses=True)
             highlighted = highlight(code_string, PythonLexer(), formatter)
-            
+
             # Create HTML with copy button
             html = f"""
             <div style="position: relative; margin: 10px 0;">
@@ -1229,7 +1236,7 @@ class QuestionBase(
                 <textarea style="position: absolute; left: -9999px;" readonly>{code_string}</textarea>
             </div>
             """
-            
+
             return HTML(html)
         except ImportError:
             # If pygments isn't available, return plain string
