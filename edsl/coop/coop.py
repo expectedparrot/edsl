@@ -258,9 +258,9 @@ class Coop(CoopFunctionsMixin):
             if "json_string" in log_payload and log_payload["json_string"]:
                 json_str = log_payload["json_string"]
                 if len(json_str) > 200:
-                    log_payload[
-                        "json_string"
-                    ] = f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    log_payload["json_string"] = (
+                        f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    )
             self._logger.info(f"Request payload: {log_payload}")
 
         try:
@@ -3643,9 +3643,11 @@ class Coop(CoopFunctionsMixin):
                         )
                     elif isinstance(value, list):
                         d[key] = [
-                            process_dict_recursive(item, f"{path}.{key}[{i}]")
-                            if isinstance(item, dict)
-                            else item
+                            (
+                                process_dict_recursive(item, f"{path}.{key}[{i}]")
+                                if isinstance(item, dict)
+                                else item
+                            )
                             for i, item in enumerate(value)
                         ]
 
@@ -3774,9 +3776,7 @@ class Coop(CoopFunctionsMixin):
                     value_type = (
                         "inf"
                         if math.isinf(value)
-                        else "nan"
-                        if math.isnan(value)
-                        else "invalid"
+                        else "nan" if math.isnan(value) else "invalid"
                     )
                     error_msg += f"  • {path}: {value} ({value_type})\n"
 
@@ -3832,6 +3832,7 @@ class Coop(CoopFunctionsMixin):
                 "description": response_json.get("description"),
                 "object_type": object_type,
                 "url": f"{self.url}/content/{object_uuid}",
+                "alias": object_alias,
                 "alias_url": self._get_alias_url(owner_username, object_alias),
                 "uuid": object_uuid,
                 "version": self._edsl_version,
