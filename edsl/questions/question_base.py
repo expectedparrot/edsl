@@ -783,22 +783,22 @@ class QuestionBase(
                 f"Question has no attribute {key} of type {type(key)}"
             )
 
-    def __repr__(self) -> str:
-        """Return a string representation of the question.
+    # def __repr__(self) -> str:
+    #     """Return a string representation of the question.
 
-        Uses traditional repr format when running doctests, otherwise uses
-        rich-based display for better readability.
+    #     Uses traditional repr format when running doctests, otherwise uses
+    #     rich-based display for better readability.
 
-        >>> from edsl import QuestionFreeText as Q
-        >>> repr(Q.example())
-        'Question(\\'free_text\\', question_name = \"""how_are_you\""", question_text = \"""How are you?\""")'
-        """
-        import os
+    #     >>> from edsl import QuestionFreeText as Q
+    #     >>> repr(Q.example())
+    #     'Question(\\'free_text\\', question_name = \"""how_are_you\""", question_text = \"""How are you?\""")'
+    #     """
+    #     import os
 
-        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
-            return self._eval_repr_()
-        else:
-            return self._summary_repr()
+    #     if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+    #         return self._eval_repr_()
+    #     else:
+    #         return self._summary_repr()
 
     def __str__(self) -> str:
         """
@@ -892,13 +892,10 @@ class QuestionBase(
         if hasattr(self, "question_options"):
             output.append(",\n", style=RICH_STYLES["default"])
             num_options = len(self.question_options)
-            output.append(
-                f"    num_options={num_options}", style=RICH_STYLES["default"]
-            )
 
             if num_options > 0:
                 output.append(",\n", style=RICH_STYLES["default"])
-                output.append("    options=[\n", style=RICH_STYLES["default"])
+                output.append("    question_options=[\n", style=RICH_STYLES["default"])
 
                 for i, option in enumerate(list(self.question_options)[:max_options]):
                     option_str = str(option)
@@ -1168,6 +1165,75 @@ class QuestionBase(
             ) from e
 
         return QuestionInspectorWidget(self)
+
+    def code(self):
+        """Display the code representation of this question with syntax highlighting and copy button.
+
+        In notebook environments, this method displays the eval-able string representation
+        from _eval_repr_() with Python syntax highlighting and a click-to-copy button.
+        In non-notebook environments, it returns the plain string.
+
+        Returns:
+            In notebooks: IPython.display.HTML object with formatted code
+            Otherwise: str from _eval_repr_()
+
+        Examples:
+            >>> from edsl import QuestionFreeText as Q
+            >>> q = Q.example()
+            >>> code_str = q.code()  # Returns string in non-notebook environment
+        """
+        code_string = self._eval_repr_()
+        
+        # Check if we're in a notebook environment
+        try:
+            from IPython import get_ipython
+            if get_ipython() is None:
+                return code_string
+        except ImportError:
+            return code_string
+        
+        # Format code with pygments
+        try:
+            from pygments import highlight
+            from pygments.lexers import PythonLexer
+            from pygments.formatters import HtmlFormatter
+            from IPython.display import HTML
+            
+            # Generate syntax-highlighted HTML
+            formatter = HtmlFormatter(style='default', noclasses=True)
+            highlighted = highlight(code_string, PythonLexer(), formatter)
+            
+            # Create HTML with copy button
+            html = f"""
+            <div style="position: relative; margin: 10px 0;">
+                <button onclick="
+                    var textarea = this.parentElement.querySelector('textarea');
+                    navigator.clipboard.writeText(textarea.value);
+                    this.textContent = 'Copied!';
+                    setTimeout(() => {{ this.textContent = 'Copy to clipboard'; }}, 2000);
+                " style="
+                    position: absolute;
+                    right: 10px;
+                    top: 10px;
+                    padding: 5px 10px;
+                    background-color: #f0f0f0;
+                    border: 1px solid #ccc;
+                    border-radius: 3px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    z-index: 10;
+                ">Copy to clipboard</button>
+                <div style="padding-top: 10px;">
+                    {highlighted}
+                </div>
+                <textarea style="position: absolute; left: -9999px;" readonly>{code_string}</textarea>
+            </div>
+            """
+            
+            return HTML(html)
+        except ImportError:
+            # If pygments isn't available, return plain string
+            return code_string
 
     # endregion
 

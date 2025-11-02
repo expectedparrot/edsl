@@ -169,6 +169,48 @@ class Question(metaclass=Meta):
                 print_parameters={"containerHeight": "auto"},
             )
 
+    @classmethod
+    def from_vibes(
+        cls,
+        description: str,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.7,
+    ):
+        """Generate a question from a natural language description.
+
+        This method uses an LLM to generate an appropriate EDSL question based on a
+        description of what the question should ask. It automatically selects appropriate
+        question types and formats.
+
+        Args:
+            description: Natural language description of what the question should ask
+            model: OpenAI model to use for generation (default: "gpt-4o")
+            temperature: Temperature for generation (default: 0.7)
+
+        Returns:
+            QuestionBase: A new Question instance with the appropriate type
+
+        Examples:
+            >>> from edsl import Question
+            >>> q = Question.from_vibes("Ask what their favorite color is")  # doctest: +SKIP
+            >>> print(q.question_name, q.question_type)  # doctest: +SKIP
+            favorite_color multiple_choice
+
+            >>> q = Question.from_vibes("Find out how satisfied they are with the product")  # doctest: +SKIP
+            >>> print(q.question_type)  # doctest: +SKIP
+            multiple_choice
+
+            >>> q = Question.from_vibes("Ask if they would recommend this to a friend")  # doctest: +SKIP
+            >>> print(q.question_type)  # doctest: +SKIP
+            yes_no
+        """
+        from .vibes import generate_question_from_vibes
+
+        return generate_question_from_vibes(
+            cls, description, model=model, temperature=temperature
+        )
+
 
 def get_question_class(question_type):
     """Return the class for the given question type."""
