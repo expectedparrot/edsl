@@ -68,7 +68,12 @@ from .survey_simulator import Simulator
 from .memory import MemoryManagement
 from .rules import RuleManager, RuleCollection
 from .survey_export import SurveyExport
-from .exceptions import SurveyCreationError, SurveyHasNoRulesError, SurveyError
+from .exceptions import (
+    SurveyCreationError,
+    SurveyHasNoRulesError,
+    SurveyError,
+    SurveyQuestionsToRandomizeError,
+)
 
 
 class PseudoIndices(UserDict):
@@ -240,6 +245,28 @@ class Survey(Base):
             self.questions_to_randomize = questions_to_randomize
         else:
             self.questions_to_randomize = []
+
+        # Validate questions_to_randomize
+        if self.questions_to_randomize:
+            # Check that each element is a string
+            for item in self.questions_to_randomize:
+                if not isinstance(item, str):
+                    raise SurveyQuestionsToRandomizeError(
+                        f"questions_to_randomize must be a list of strings. "
+                        f"Found non-string value: {item!r} (type: {type(item).__name__})"
+                    )
+            
+            # Get all question names from the survey
+            question_names_in_survey = {q.question_name for q in self.questions}
+            
+            # Check that each question name exists in the survey
+            for question_name in self.questions_to_randomize:
+                if question_name not in question_names_in_survey:
+                    raise SurveyQuestionsToRandomizeError(
+                        f"questions_to_randomize contains question name '{question_name}' "
+                        f"which is not present in the survey. "
+                        f"Valid question names are: {sorted(question_names_in_survey)}"
+                    )
 
         self._seed: Optional[int] = None
 
@@ -3236,23 +3263,10 @@ Design tips:
               yes_no, rank, budget, list, matrix
             - Questions are automatically given appropriate names and options
         """
-        from .survey_generator import SurveyGenerator
-
-        # Create the generator
-        generator = SurveyGenerator(model=model, temperature=temperature)
-
-        # Generate the survey schema
-        survey_data = generator.generate_survey(
-            description, num_questions=num_questions
+        from .vibes import generate_survey_from_vibes
+        return generate_survey_from_vibes(
+            cls, description, num_questions=num_questions, model=model, temperature=temperature
         )
-
-        # Convert each question definition to a question object
-        questions = []
-        for i, q_data in enumerate(survey_data["questions"]):
-            question_obj = cls._create_question_from_dict(q_data, f"q{i}")
-            questions.append(question_obj)
-
-        return cls(questions)
 
     def vibe_edit(
         self,
@@ -3303,39 +3317,10 @@ Design tips:
             - Questions can be dropped by asking to remove or delete them
             - Translations will apply to both question text and options
         """
-        from .vibe_editor import VibeEdit
-
-        # Convert current questions to dict format
-        current_questions = []
-        for question in self.questions:
-            q_dict = question.to_dict()
-            # Extract the relevant fields for the editor
-            question_data = {
-                "question_name": q_dict.get("question_name"),
-                "question_text": q_dict.get("question_text"),
-                "question_type": q_dict.get("question_type"),
-            }
-            if "question_options" in q_dict and q_dict["question_options"]:
-                question_data["question_options"] = q_dict["question_options"]
-            if "min_value" in q_dict and q_dict["min_value"] is not None:
-                question_data["min_value"] = q_dict["min_value"]
-            if "max_value" in q_dict and q_dict["max_value"] is not None:
-                question_data["max_value"] = q_dict["max_value"]
-            current_questions.append(question_data)
-
-        # Create the editor
-        editor = VibeEdit(model=model, temperature=temperature)
-
-        # Edit the survey
-        edited_data = editor.edit_survey(current_questions, edit_instructions)
-
-        # Convert each edited question definition to a question object
-        questions = []
-        for i, q_data in enumerate(edited_data["questions"]):
-            question_obj = self._create_question_from_dict(q_data, f"q{i}")
-            questions.append(question_obj)
-
-        return self.__class__(questions)
+        from .vibes import edit_survey_with_vibes
+        return edit_survey_with_vibes(
+            self, edit_instructions, model=model, temperature=temperature
+        )
 
     def vibe_add(
         self,
@@ -3389,48 +3374,56 @@ Design tips:
             - Multiple questions can be added in a single call
             - Existing skip logic in the survey is preserved
         """
-        from .vibe_add_helper import VibeAdd
-
-        # Get current question information for context
-        current_questions = []
-        for question in self.questions:
-            q_dict = question.to_dict()
-            question_data = {
-                "question_name": q_dict.get("question_name"),
-                "question_text": q_dict.get("question_text"),
-                "question_type": q_dict.get("question_type"),
-            }
-            if "question_options" in q_dict and q_dict["question_options"]:
-                question_data["question_options"] = q_dict["question_options"]
-            current_questions.append(question_data)
-
-        # Create the adder
-        adder = VibeAdd(model=model, temperature=temperature)
-
-        # Generate new questions
-        added_data = adder.add_questions(current_questions, add_instructions)
-
-        # Convert new questions to question objects
-        new_questions = []
-        base_index = len(self.questions)
-        for i, q_data in enumerate(added_data["questions"]):
-            question_obj = self._create_question_from_dict(q_data, f"q{base_index + i}")
-            new_questions.append(question_obj)
-
-        # Create new survey with all questions AND preserve existing rule_collection
-        all_questions = list(self.questions) + new_questions
-        new_survey = self.__class__(
-            questions=all_questions,
-            rule_collection=self.rule_collection,  # Preserves existing skip logic!
+        from .vibes import add_questions_with_vibes
+        return add_questions_with_vibes(
+            self, add_instructions, model=model, temperature=temperature
         )
 
-        # Add skip logic for newly added questions if specified
-        for skip_rule in added_data.get("skip_rules", []):
-            target_question = skip_rule["target_question"]
-            condition = skip_rule["condition"]
-            new_survey = new_survey.add_skip_rule(target_question, condition)
+    def vibe_describe(
+        self,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.7,
+    ) -> 'Scenario':
+        """Generate a title and description for the survey.
 
-        return new_survey
+        This method uses an LLM to analyze the survey questions and generate
+        a descriptive title and detailed description of what the survey is about.
+
+        Args:
+            model: OpenAI model to use for generation (default: "gpt-4o")
+            temperature: Temperature for generation (default: 0.7)
+
+        Returns:
+            dict: Dictionary with keys:
+                - "proposed_title": A single sentence title for the survey
+                - "description": A paragraph-length description of the survey
+
+        Examples:
+            Basic usage:
+
+            >>> survey = Survey.from_vibes("Customer satisfaction survey")  # doctest: +SKIP
+            >>> description = survey.vibe_describe()  # doctest: +SKIP
+            >>> print(description["proposed_title"])  # doctest: +SKIP
+            >>> print(description["description"])  # doctest: +SKIP
+
+            Using a different model:
+
+            >>> survey = Survey([q0, q1, q2])  # doctest: +SKIP
+            >>> description = survey.vibe_describe(model="gpt-4o-mini")  # doctest: +SKIP
+
+        Notes:
+            - Requires OPENAI_API_KEY environment variable to be set
+            - The title will be a single sentence that captures the survey's essence
+            - The description will be a paragraph explaining the survey's purpose and topics
+            - Analyzes all questions to understand the overall survey theme
+        """
+        from .vibes import describe_survey_with_vibes
+        d =  describe_survey_with_vibes(
+            self, model=model, temperature=temperature
+        )
+        from ..scenarios import Scenario
+        return Scenario(**d)
 
     @classmethod
     def _infer_question_types(
