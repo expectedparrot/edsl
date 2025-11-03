@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from ..dataset import Dataset
     from ..caching import Cache
     from .results_transcript import Transcripts
+    from .vibes import ResultsVibeAnalysis
 
 
 from ..utilities import dict_hash
@@ -451,6 +452,80 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             self._report = Report(self)
 
         return self._report.analyze(*question_names)
+
+    def vibe_analyze(
+        self,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.7,
+        include_visualizations: bool = False,
+        generate_summary: bool = True,
+    ) -> "ResultsVibeAnalysis":
+        """Analyze all questions with LLM-powered insights.
+
+        This method iterates through each question in the survey, generates
+        standard analysis using the existing analyze() method, and uses an LLM
+        to provide natural language insights about the data patterns. Optionally,
+        it can also send visualizations to OpenAI's vision API for analysis.
+
+        In a Jupyter notebook, the results will display automatically with rich
+        formatting. For the best experience with interactive plots, call .display()
+        on the returned object.
+
+        Args:
+            model: OpenAI model to use for generating insights (default: "gpt-4o")
+            temperature: Temperature for LLM generation (default: 0.7)
+            include_visualizations: Whether to send visualizations to OpenAI for analysis
+                (default: False). WARNING: This can significantly increase API costs.
+            generate_summary: Whether to generate an overall summary report across
+                all questions (default: True)
+
+        Returns:
+            ResultsVibeAnalysis: Container object with analyses for all questions.
+                In Jupyter notebooks, will display automatically with HTML formatting.
+                For interactive plots, call .display() method.
+
+        Raises:
+            ValueError: If no survey is available or visualization dependencies missing
+            ImportError: If required packages are not installed
+
+        Examples:
+            >>> results = Results.example()  # doctest: +SKIP
+
+            >>> # Basic usage - will show HTML summary in notebooks
+            >>> results.vibe_analyze()  # doctest: +SKIP
+
+            >>> # For interactive plots and rich display
+            >>> analysis = results.vibe_analyze()  # doctest: +SKIP
+            >>> analysis.display()  # Shows plots inline with insights  # doctest: +SKIP
+
+            >>> # Access a specific question's analysis
+            >>> q_analysis = analysis["how_feeling"]  # doctest: +SKIP
+            >>> q_analysis.analysis.bar_chart  # doctest: +SKIP
+            >>> print(q_analysis.llm_insights)  # doctest: +SKIP
+            >>> # Charts are stored as PNG bytes for serialization
+            >>> q_analysis.chart_png  # PNG bytes  # doctest: +SKIP
+
+            >>> # With visualization analysis (more expensive - uses vision API)
+            >>> analysis = results.vibe_analyze(  # doctest: +SKIP
+            ...     include_visualizations=True
+            ... )  # doctest: +SKIP
+            >>> analysis.display()  # doctest: +SKIP
+
+            >>> # Export to serializable format for notebooks
+            >>> data = analysis.to_dict()  # doctest: +SKIP
+            >>> import json  # doctest: +SKIP
+            >>> json.dumps(data)  # Fully serializable  # doctest: +SKIP
+        """
+        from .vibes import analyze_with_vibes
+
+        return analyze_with_vibes(
+            self,
+            model=model,
+            temperature=temperature,
+            include_visualizations=include_visualizations,
+            generate_summary=generate_summary,
+        )
 
     def agent_answers_by_question(
         self, agent_key_fields: Optional[List[str]] = None, separator: str = ","
