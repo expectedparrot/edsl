@@ -1585,7 +1585,6 @@ class Jobs(Base):
                     r.scenario = scenario
                     r.model = model
                     results.append(r)
-        print("Attaching results of length", len(results))
         return Results(survey=self.survey, data=results)
 
 

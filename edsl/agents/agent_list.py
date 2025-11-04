@@ -966,6 +966,47 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         return AgentListTraitOperations.add_trait(self, trait, values)
 
+    def numberify(self) -> AgentList:
+        """Convert string traits to numeric types where possible.
+
+        This method attempts to convert string values to integers or floats
+        for all traits across all agents. It's particularly useful when loading
+        data from CSV files where numeric fields may be stored as strings.
+
+        Conversion rules:
+        - None values remain None
+        - Already numeric values (int, float) remain unchanged
+        - String values that can be parsed as integers are converted to int
+        - String values that can be parsed as floats are converted to float
+        - String values that cannot be parsed remain as strings
+        - Empty strings remain as empty strings
+
+        Returns:
+            AgentList: A new AgentList with numeric conversions applied
+
+        Examples:
+            >>> from edsl import Agent, AgentList
+            >>> al = AgentList([
+            ...     Agent(traits={'age': '30', 'height': '5.5', 'name': 'Alice'}),
+            ...     Agent(traits={'age': '25', 'height': '6.0', 'name': 'Bob'})
+            ... ])
+            >>> al_numeric = al.numberify()
+            >>> al_numeric[0].traits
+            {'age': 30, 'height': 5.5, 'name': 'Alice'}
+            >>> al_numeric[1].traits
+            {'age': 25, 'height': 6.0, 'name': 'Bob'}
+
+            Works with None values and mixed types:
+
+            >>> al = AgentList([Agent(traits={'count': '100', 'value': None, 'label': 'test'})])
+            >>> al_numeric = al.numberify()
+            >>> al_numeric[0].traits
+            {'count': 100, 'value': None, 'label': 'test'}
+        """
+        from .agent_list_trait_operations import AgentListTraitOperations
+
+        return AgentListTraitOperations.numberify(self)
+
     @classmethod
     def from_results(
         cls, results: "Results", question_names: Optional[List[str]] = None
