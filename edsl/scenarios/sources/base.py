@@ -43,7 +43,7 @@ def deprecated_classmethod(
 
 
 if TYPE_CHECKING:
-    from ..scenario_list import ScenarioList
+    pass
 
 
 class Source(ABC):

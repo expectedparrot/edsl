@@ -11,7 +11,7 @@ from ..scenario import Scenario
 from ..directory_scanner import DirectoryScanner
 
 if TYPE_CHECKING:
-    from ..scenario_list import ScenarioList
+    pass
 
 
 class DirectorySource(Source):

@@ -8,7 +8,7 @@ from .base import Source
 from ..scenario import Scenario
 
 if TYPE_CHECKING:
-    from ..scenario_list import ScenarioList
+    pass
 
 
 class SQLiteSource(Source):

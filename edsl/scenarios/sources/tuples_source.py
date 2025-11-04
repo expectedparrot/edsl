@@ -8,7 +8,7 @@ from ..scenario import Scenario
 from ..exceptions import ScenarioError
 
 if TYPE_CHECKING:
-    from ..scenario_list import ScenarioList
+    pass
 
 
 class TuplesSource(Source):

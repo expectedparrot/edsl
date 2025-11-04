@@ -6,14 +6,14 @@ import warnings
 from io import StringIO
 from urllib.parse import urlparse
 from collections import defaultdict
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from .base import Source
 from ..scenario import Scenario
 from ..exceptions import ScenarioError
 
 if TYPE_CHECKING:
-    from ..scenario_list import ScenarioList
+    pass
 
 
 class DelimitedFileSource(Source):
