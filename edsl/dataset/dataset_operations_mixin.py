@@ -196,13 +196,14 @@ class DataOperationsBase:
         # Return 0 for empty datasets instead of None
         return _num_observations if _num_observations is not None else 0
 
-    def vibe_plot(self, description: str, show_code: bool = False):
+    def vibe_plot(self, description: str, show_code: bool = False, show_expression: bool = False):
         """
         Generate and display a ggplot2 visualization using natural language description.
 
         Parameters:
             description: Natural language description of the desired plot
             show_code: If True, displays the generated R code alongside the plot
+            show_expression: If True, prints the R code used (alias for show_code)
 
         Returns:
             A plot object that renders in Jupyter notebooks
@@ -213,13 +214,16 @@ class DataOperationsBase:
             >>> # Generate a plot from a description (requires R/ggplot2):
             >>> # plot = r.vibe_plot("bar chart of how_feeling")
             >>> # Display with R code shown:
-            >>> # plot = r.vibe_plot("bar chart of how_feeling", show_code=True)
+            >>> # plot = r.vibe_plot("bar chart of how_feeling", show_expression=True)
         """
         from .vibes.vibe_viz import GGPlotGenerator
 
         gen = GGPlotGenerator(model="gpt-4o", temperature=0.1)
 
-        if show_code:
+        # Either show_code or show_expression will trigger displaying the code
+        should_show = show_code or show_expression
+
+        if should_show:
             # Get the code display object
             code_display = gen.make_plot_code(
                 self.to_pandas(remove_prefix=True),
