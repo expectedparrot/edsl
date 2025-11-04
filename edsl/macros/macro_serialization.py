@@ -61,6 +61,7 @@ class MacroSerialization:
             "default_params": macro._default_params,
             "fixed_params": fixed_params_data,
             "default_formatter_name": macro.output_formatters.default,
+            "pseudo_run": macro.pseudo_run,
         }
 
     @staticmethod
@@ -134,6 +135,7 @@ class MacroSerialization:
             "fixed_params": fixed_params if fixed_params else None,
             "default_formatter_name": data.get("default_formatter_name"),
             "client_mode": data.get("client_mode", False),
+            "pseudo_run": data.get("pseudo_run", False),
         }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
 

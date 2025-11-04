@@ -411,15 +411,23 @@ class BaseMacro(Base, MacroMixin, ABC):
     def __repr__(self) -> str:
         """Return a string representation of the macro.
 
-        Uses traditional repr format when running doctests, otherwise uses
-        rich-based display for better readability.
+        Uses traditional repr format when running doctests or in notebooks
+        (where _repr_html_ handles rich display), otherwise uses rich-based
+        display for better readability in terminals.
         """
         import os
+        from ..utilities.utilities import is_notebook
 
+        # Use simple repr for doctests
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
-        else:
-            return self._summary_repr()
+
+        # Use simple repr in notebooks to avoid double-display with _repr_html_
+        if is_notebook():
+            return self._eval_repr_()
+
+        # Use rich terminal display for standard Python interpreter
+        return self._summary_repr()
 
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the macro.
