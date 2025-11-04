@@ -114,6 +114,10 @@ class HTMLTableJobLogger(JobLogger):
             }
         )
 
+        # Auto-collapse when job completes
+        if status in [JobsStatus.COMPLETED, JobsStatus.FAILED, JobsStatus.PARTIALLY_FAILED]:
+            self.is_expanded = False
+
         if self.verbose:
             self.display_handle.update(HTML(self._get_html(status)))
         else:
