@@ -987,14 +987,14 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         Examples:
             >>> from edsl import Agent, AgentList
             >>> al = AgentList([
-            ...     Agent(traits={'age': '30', 'height': '5.5', 'name': 'Alice'}),
-            ...     Agent(traits={'age': '25', 'height': '6.0', 'name': 'Bob'})
+            ...     Agent(name='Alice', traits={'age': '30', 'height': '5.5'}),
+            ...     Agent(name='Bob', traits={'age': '25', 'height': '6.0'})
             ... ])
             >>> al_numeric = al.numberify()
             >>> al_numeric[0].traits
-            {'age': 30, 'height': 5.5, 'name': 'Alice'}
+            {'age': 30, 'height': 5.5}
             >>> al_numeric[1].traits
-            {'age': 25, 'height': 6.0, 'name': 'Bob'}
+            {'age': 25, 'height': 6.0}
 
             Works with None values and mixed types:
 

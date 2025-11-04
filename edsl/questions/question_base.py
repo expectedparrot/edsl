@@ -812,6 +812,8 @@ class QuestionBase(
         This representation can be used to reconstruct the question.
         Used primarily for doctests and debugging.
         """
+        import os
+
         items = [
             f'{k} = """{v}"""' if isinstance(v, str) else f"{k} = {v}"
             for k, v in self.data.items()
@@ -822,9 +824,15 @@ class QuestionBase(
         if not items:
             return f"Question('{question_type}')"
 
-        # Format with newlines and indentation
-        formatted_items = ",\n\t".join(items)
-        return f"Question('{question_type}',\n\t{formatted_items}\n)"
+        # Check if we're running doctests to determine format
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            # Single-line format for doctests
+            formatted_items = ", ".join(items)
+            return f"Question('{question_type}', {formatted_items})"
+        else:
+            # Multi-line format for regular use
+            formatted_items = ",\n\t".join(items)
+            return f"Question('{question_type}',\n\t{formatted_items}\n)"
 
     def _summary_repr(
         self, max_text_length: int = 10_000, max_options: int = 50
