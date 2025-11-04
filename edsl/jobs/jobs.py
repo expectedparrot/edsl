@@ -1570,6 +1570,25 @@ class Jobs(Base):
 
         return converted_object
 
+    def pseudo_run(self) -> Optional["Results"]:
+        """Used to create a results object with the survey, agents and scenarios but with no answers.
+
+        This is a method used by Macros. 
+        """
+        from ..results import Result, Results
+        results = []
+        for agent in self.agents or []:
+            for scenario in self.scenarios or [None]:
+                for model in self.models or [None]:
+                    r = Result.example()
+                    r.agent = agent
+                    r.scenario = scenario
+                    r.model = model
+                    results.append(r)
+        print("Attaching results of length", len(results))
+        return Results(survey=self.survey, data=results)
+
+
     @with_config
     def run(self, *, config: RunConfig) -> Optional["Results"]:
         """Run the job by conducting interviews and return their results.

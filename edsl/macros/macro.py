@@ -30,7 +30,8 @@ if TYPE_CHECKING:
 
 else:
     # At runtime, we can use a simple string annotation
-    Self = "MyClass"  # Adjust to your class name
+    Self = "Macro"  # Adjust to your class name
+    
 from .output_formatter import OutputFormatter, OutputFormatters
 from .api_payload import build_api_payload, reconstitute_from_api_payload
 from .answers_collector import AnswersCollector
@@ -168,6 +169,7 @@ class Macro(BaseMacro):
         default_params: Optional[dict[str, Any]] = None,
         fixed_params: Optional[dict[str, Any]] = None,
         client_mode: bool = False,
+        pseudo_run: bool = False,
     ):
         """Instantiate a Macro object.
 
@@ -253,6 +255,7 @@ class Macro(BaseMacro):
         MacroRegistry.register(self)
 
         self.client_mode = client_mode
+        self.pseudo_run = pseudo_run
 
         # Mark as initialized to prevent re-initialization
         self._initialized = True
@@ -310,10 +313,14 @@ class Macro(BaseMacro):
             results = cache[jobs_hash]
             return results
 
-        results = modified_jobs_object.run(
-            stop_on_exception=stop_on_exception,
-            disable_remote_inference=disable_remote_inference,
-        )
+
+        if self.pseudo_run:
+            results = modified_jobs_object.pseudo_run()
+        else:
+            results = modified_jobs_object.run(
+                stop_on_exception=stop_on_exception,
+                disable_remote_inference=disable_remote_inference,
+            )
         cache[jobs_hash] = results
         return results
 

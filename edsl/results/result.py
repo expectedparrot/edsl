@@ -420,15 +420,27 @@ class Result(Base, UserDict):
         # return self.data["agent"]
         return self.data["agent"]
 
+    @agent.setter
+    def agent(self, agent: "Agent"):
+        self.data["agent"] = agent
+
     @property
     def scenario(self) -> "Scenario":
         """Return the Scenario object."""
         return self.data["scenario"]
 
+    @scenario.setter
+    def scenario(self, scenario: "Scenario"):
+        self.data["scenario"] = scenario
+        
     @property
     def model(self) -> "LanguageModel":
         """Return the LanguageModel object."""
         return self.data["model"]
+
+    @model.setter
+    def model(self, model: "LanguageModel"):
+        self.data["model"] = model
 
     @property
     def answer(self) -> dict[QuestionName, AnswerValue]:
