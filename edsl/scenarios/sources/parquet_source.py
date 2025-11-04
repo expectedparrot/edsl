@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 class ParquetSource(Source):
     """Create ScenarioList from Parquet files."""
-    
+
     source_type = "parquet"
 
     def __init__(self, file_path: str):
@@ -100,4 +100,3 @@ class ParquetSource(Source):
             scenarios.append(Scenario(scenario_dict))
 
         return ScenarioList(scenarios)
-

@@ -70,9 +70,9 @@ class CompositeMacroVisualization:
                 "fontsize": FONT_SIZE,
             }
             if is_fixed:
-                node_attrs[
-                    "label"
-                ] = f"{param_name}\n(fixed: {self.composite_macro.fixed['macro1'][param_name]})"
+                node_attrs["label"] = (
+                    f"{param_name}\n(fixed: {self.composite_macro.fixed['macro1'][param_name]})"
+                )
 
             node = pydot.Node(f"macro1_input_{param_name}", **node_attrs)
             cluster_macro1.add_node(node)
@@ -133,15 +133,17 @@ class CompositeMacroVisualization:
                     "label": f"{param_name}",
                     "shape": "box",
                     "style": "filled",
-                    "fillcolor": "yellow"
-                    if is_fixed
-                    else ("lightgreen" if is_bound else "white"),
+                    "fillcolor": (
+                        "yellow"
+                        if is_fixed
+                        else ("lightgreen" if is_bound else "white")
+                    ),
                     "fontsize": FONT_SIZE,
                 }
                 if is_fixed:
-                    node_attrs[
-                        "label"
-                    ] = f"{param_name}\n(fixed: {self.composite_macro.fixed['macro2'][param_name]})"
+                    node_attrs["label"] = (
+                        f"{param_name}\n(fixed: {self.composite_macro.fixed['macro2'][param_name]})"
+                    )
 
                 node = pydot.Node(f"macro2_input_{param_name}", **node_attrs)
                 cluster_macro2.add_node(node)

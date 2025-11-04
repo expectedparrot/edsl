@@ -52,9 +52,11 @@ def write_agent_responses_csv(normalized: NormalizedSurvey, path: Path) -> Path:
                 "question_name": record["question_name"],
                 "response": response_str,
                 "response_kind": response_kind,
-                "response_metadata": json.dumps(response_metadata, ensure_ascii=False)
-                if response_metadata
-                else "",
+                "response_metadata": (
+                    json.dumps(response_metadata, ensure_ascii=False)
+                    if response_metadata
+                    else ""
+                ),
             }
         )
 

@@ -956,7 +956,6 @@ class RepresentationMixin:
         return self._eval_repr_()
 
 
-
 class HashingMixin:
     """Mixin that provides consistent hashing and equality operations.
 

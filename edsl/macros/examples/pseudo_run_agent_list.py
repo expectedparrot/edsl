@@ -46,10 +46,11 @@ initial_survey = Survey(
             question_text="How many agents would you like to sample from the list of 10?",
             min_value=1,
             max_value=10,
-        ), 
-        QuestionNumerical(question_name = "min_age", 
-        question_text = "What is the minimum age of the agents you would like to sample?",
-        )
+        ),
+        QuestionNumerical(
+            question_name="min_age",
+            question_text="What is the minimum age of the agents you would like to sample?",
+        ),
     ]
 )
 
@@ -57,9 +58,12 @@ initial_survey = Survey(
 # Create an output formatter that extracts agents and samples them
 # The {{ params.num_agents }} template will be replaced with the integer value from initial_survey
 # Note: params are nested under "params" key when passed to formatter
-agent_formatter = OutputFormatter(
-    description="Sampled Agents", output_type="AgentList"
-).agents().sample("{{ params.num_agents }}").filter("age > {{ params.min_age }}")
+agent_formatter = (
+    OutputFormatter(description="Sampled Agents", output_type="AgentList")
+    .agents()
+    .sample("{{ params.num_agents }}")
+    .filter("age > {{ params.min_age }}")
+)
 
 # Create the macro with pseudo_run=True
 macro = Macro(
@@ -86,7 +90,7 @@ if __name__ == "__main__":
     # The formatter will automatically extract agents, sample, and filter by age
     result = macro.output(params={"num_agents": 5})
     sampled_agents = result.agents
-    
+
     print(f"Sampled {len(sampled_agents)} agents:")
     for agent in sampled_agents:
         print(f"  - {agent.name}: {agent.traits}")
@@ -97,7 +101,7 @@ if __name__ == "__main__":
     print("=" * 60)
     result = macro.output(params={"num_agents": 10, "min_age": 30})
     filtered_agents = result.agents
-    
+
     print(f"Sampled {len(filtered_agents)} agents:")
     for agent in filtered_agents:
         print(f"  - {agent.name}: {agent.traits}")

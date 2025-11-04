@@ -128,10 +128,10 @@ class CandidateAgent:
                         "latest": latest_metrics[metric_name],
                         "improvement": improvement,
                         "percent_change": (
-                            improvement / first_metrics[metric_name] * 100
-                        )
-                        if first_metrics[metric_name] != 0
-                        else 0,
+                            (improvement / first_metrics[metric_name] * 100)
+                            if first_metrics[metric_name] != 0
+                            else 0
+                        ),
                     }
 
         # Calculate overall scores (mean of all metrics)
@@ -192,9 +192,11 @@ class CandidateAgent:
             summary["persona_evolution"].append(
                 {
                     "timestamp": record["timestamp"],
-                    "persona": record["new_persona"][:100] + "..."
-                    if len(record["new_persona"]) > 100
-                    else record["new_persona"],
+                    "persona": (
+                        record["new_persona"][:100] + "..."
+                        if len(record["new_persona"]) > 100
+                        else record["new_persona"]
+                    ),
                 }
             )
 
@@ -828,9 +830,11 @@ class ResultPairComparisonList(list):
         return {
             "count": n,
             "mean": sum(overall_scores) / n,
-            "median": overall_scores[n // 2]
-            if n % 2 == 1
-            else (overall_scores[n // 2 - 1] + overall_scores[n // 2]) / 2,
+            "median": (
+                overall_scores[n // 2]
+                if n % 2 == 1
+                else (overall_scores[n // 2 - 1] + overall_scores[n // 2]) / 2
+            ),
             "min": min(overall_scores),
             "max": max(overall_scores),
             "q1": overall_scores[n // 4],

@@ -222,7 +222,7 @@ class SurveyQuestionsToRandomizeError(SurveyCreationError):
         ```python
         # Invalid: question name doesn't exist
         Survey([q1, q2], questions_to_randomize=['q1', 'q3'])  # Raises SurveyQuestionsToRandomizeError
-        
+
         # Invalid: non-string value
         Survey([q1, q2], questions_to_randomize=['q1', 123])  # Raises SurveyQuestionsToRandomizeError
         ```

@@ -49,4 +49,3 @@ __all__ = [
     "PDFSource",
     "PDFImageSource",
 ]
-

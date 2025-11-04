@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 class DelimitedFileSource(Source):
     """Create ScenarioList from delimited text files (CSV, TSV, etc.)."""
-    
+
     source_type = "delimited_file"
 
     def __init__(
@@ -156,7 +156,7 @@ class DelimitedFileSource(Source):
 
 class CSVSource(DelimitedFileSource):
     """Create ScenarioList from CSV files."""
-    
+
     source_type = "csv"
 
     def __init__(
@@ -205,7 +205,7 @@ class CSVSource(DelimitedFileSource):
 
 class TSVSource(DelimitedFileSource):
     """Create ScenarioList from TSV (tab-separated values) files."""
-    
+
     source_type = "tsv"
 
     def __init__(
@@ -250,4 +250,3 @@ class TSVSource(DelimitedFileSource):
             f.write("Charlie\t35\tBoston\n")
 
         return cls(file_or_url=temp_path, has_header=True)
-

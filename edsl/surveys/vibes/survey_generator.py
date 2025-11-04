@@ -290,9 +290,9 @@ class SurveyGenerator:
 
         if num_questions:
             user_prompt["num_questions"] = num_questions
-            user_prompt[
-                "instructions"
-            ] = f"Generate exactly {num_questions} questions for this survey. Ensure question phrasing matches response options."
+            user_prompt["instructions"] = (
+                f"Generate exactly {num_questions} questions for this survey. Ensure question phrasing matches response options."
+            )
         else:
             user_prompt["instructions"] = (
                 "Generate an appropriate number of questions (typically 5-10) "

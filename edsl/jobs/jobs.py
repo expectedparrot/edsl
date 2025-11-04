@@ -1573,9 +1573,10 @@ class Jobs(Base):
     def pseudo_run(self) -> Optional["Results"]:
         """Used to create a results object with the survey, agents and scenarios but with no answers.
 
-        This is a method used by Macros. 
+        This is a method used by Macros.
         """
         from ..results import Result, Results
+
         results = []
         for agent in self.agents or []:
             for scenario in self.scenarios or [None]:
@@ -1586,7 +1587,6 @@ class Jobs(Base):
                     r.model = model
                     results.append(r)
         return Results(survey=self.survey, data=results)
-
 
     @with_config
     def run(self, *, config: RunConfig) -> Optional["Results"]:

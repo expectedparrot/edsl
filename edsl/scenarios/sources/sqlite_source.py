@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 class SQLiteSource(Source):
     """Create ScenarioList from a SQLite database table."""
-    
+
     source_type = "sqlite"
 
     def __init__(self, db_path: str, table: str, fields: Optional[list] = None):
@@ -78,4 +78,3 @@ class SQLiteSource(Source):
 
         conn.close()
         return ScenarioList(scenarios)
-

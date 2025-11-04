@@ -49,12 +49,12 @@ if TYPE_CHECKING:
 class Source(ABC):
     """
     Abstract base class for all ScenarioList sources.
-    
+
     Each source type should inherit from this class and implement the required methods.
     Sources are automatically registered via the __init_subclass__ hook, making them
     discoverable through the registry.
     """
-    
+
     # Registry to store child classes and their source types
     _registry: dict[str, Type["Source"]] = {}
 
@@ -132,4 +132,3 @@ class Source(ABC):
                 results[source_type] = False
                 print(f"Source {source_type} exception: {e}")
         return results
-

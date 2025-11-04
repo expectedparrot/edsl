@@ -1466,9 +1466,9 @@ class Report(UserDict):
             include_interactions=include_interactions,
             exclude_interactions=exclude_interactions,
             analyses=analyses if analyses else None,
-            analysis_output_filters=analysis_output_filters
-            if analysis_output_filters
-            else None,
+            analysis_output_filters=(
+                analysis_output_filters if analysis_output_filters else None
+            ),
             lorem_ipsum=lorem_ipsum,
             include_questions_table=include_questions_table,
             include_respondents_section=include_respondents_section,

@@ -357,9 +357,9 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
 
     question_type = "multiple_choice_with_other"
     purpose = "When options are known but you want to allow for custom responses"
-    question_options: Union[
-        list[str], list[list], list[float], list[int]
-    ] = QuestionOptionsDescriptor()
+    question_options: Union[list[str], list[list], list[float], list[int]] = (
+        QuestionOptionsDescriptor()
+    )
     _response_model = None
     response_validator_class = MultipleChoiceWithOtherResponseValidator
 

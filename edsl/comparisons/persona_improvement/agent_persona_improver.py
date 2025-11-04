@@ -144,12 +144,12 @@ class AgentPersonaImprover:
         # #survey = Survey(questions=[q])
         rc1 = ResultPairComparison.example(first_index=0, second_index=2)
         rc2 = ResultPairComparison.example(first_index=1, second_index=2)
-        rc1.result_A.agent.traits[
-            "persona"
-        ] = "I am a friendly person who likes to help others."
-        rc2.result_A.agent.traits[
-            "persona"
-        ] = "I am a disagreeable person who likes to harm others."
+        rc1.result_A.agent.traits["persona"] = (
+            "I am a friendly person who likes to help others."
+        )
+        rc2.result_A.agent.traits["persona"] = (
+            "I am a disagreeable person who likes to harm others."
+        )
         rc1.result_A.agent.name = "Agent 1"
         rc2.result_A.agent.name = "Agent 2"
         return cls(result_pair_comparisons=[rc1, rc2])

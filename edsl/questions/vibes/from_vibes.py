@@ -48,7 +48,10 @@ def generate_question_from_vibes(
     # Handle special conversions for certain question types
     if question_type in ("linear_scale", "linearscale"):
         # Convert min_value/max_value to question_options if needed
-        if "question_options" not in question_data or not question_data["question_options"]:
+        if (
+            "question_options" not in question_data
+            or not question_data["question_options"]
+        ):
             min_val = question_data.get("min_value")
             max_val = question_data.get("max_value")
             # Use defaults if not provided

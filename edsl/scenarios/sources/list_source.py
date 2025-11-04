@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 class ListSource(Source):
     """Create ScenarioList from a simple list of values."""
-    
+
     source_type = "list"
 
     def __init__(self, field_name: str, values: list, use_indexes: bool = False):
@@ -42,4 +42,3 @@ class ListSource(Source):
             scenarios.append(Scenario(scenario_dict))
 
         return ScenarioList(scenarios)
-

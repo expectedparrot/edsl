@@ -18,9 +18,11 @@ class MacroSerialization:
         attachment_formatters_data = None
         if hasattr(macro, "attachment_formatters") and macro.attachment_formatters:
             attachment_formatters_data = [
-                formatter.to_dict()
-                if hasattr(formatter, "to_dict")
-                else formatter.__dict__
+                (
+                    formatter.to_dict()
+                    if hasattr(formatter, "to_dict")
+                    else formatter.__dict__
+                )
                 for formatter in macro.attachment_formatters
             ]
 

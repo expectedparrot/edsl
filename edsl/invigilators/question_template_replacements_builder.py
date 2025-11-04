@@ -295,16 +295,14 @@ class QuestionTemplateReplacementsBuilder:
             if k not in all_file_keys
             and (not referenced_scenario_vars or k in referenced_scenario_vars)
         }
-        
+
         # Add an "all" key that contains all scenario key-value pairs as a string
         all_scenario_items = {
-            k: v
-            for k, v in self.scenario.items()
-            if k not in all_file_keys
+            k: v for k, v in self.scenario.items() if k not in all_file_keys
         }
         all_items_string = ", ".join(f"{k}: {v}" for k, v in all_scenario_items.items())
         scenario_items_with_all = {**scenario_items, "all": all_items_string}
-        
+
         scenario_items_with_prefix = {"scenario": scenario_items_with_all}
 
         result = {**file_refs, **scenario_items, **scenario_items_with_prefix}

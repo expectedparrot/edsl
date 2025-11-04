@@ -123,7 +123,8 @@ class DataTablesRenderer(DataTablesRendererABC):
         for row in self.table_data.data:
             body_rows += "<tr>"
             body_rows += "".join(
-                f"<td style='vertical-align: top;'>{escape_and_colorize_html(cell)}</td>" for cell in row
+                f"<td style='vertical-align: top;'>{escape_and_colorize_html(cell)}</td>"
+                for cell in row
             )
             body_rows += "</tr>"
 
@@ -166,9 +167,11 @@ class PandasStyleRenderer(DataTablesRendererABC):
 
             # Escape HTML special characters, colorize tags, and escape dollar signs to prevent MathJax rendering
             df = df.map(
-                lambda x: escape_and_colorize_html(x).replace("$", "\\$")
-                if isinstance(x, str)
-                else x
+                lambda x: (
+                    escape_and_colorize_html(x).replace("$", "\\$")
+                    if isinstance(x, str)
+                    else x
+                )
             )
 
             styled_df = df.style.set_properties(
@@ -216,7 +219,8 @@ class RichRenderer(DataTablesRendererABC):
         for row in self.table_data.data:
             html_output += "<tr>"
             html_output += "".join(
-                f"<td style='vertical-align: top;'>{escape_and_colorize_html(cell)}</td>" for cell in row
+                f"<td style='vertical-align: top;'>{escape_and_colorize_html(cell)}</td>"
+                for cell in row
             )
             html_output += "</tr>"
         html_output += "</tbody></table>"

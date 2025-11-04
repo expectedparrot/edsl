@@ -522,9 +522,11 @@ class PersonaPipeline:
         if metric_weights is None:
             metric_names = [str(fn) for fn in self.comparison_factory.comparison_fns]
             metric_weights = {
-                name: 1.0
-                if (name == "exact_match" or name.startswith("cosine_similarity"))
-                else 0.0
+                name: (
+                    1.0
+                    if (name == "exact_match" or name.startswith("cosine_similarity"))
+                    else 0.0
+                )
                 for name in metric_names
             }
 

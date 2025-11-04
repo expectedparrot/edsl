@@ -432,7 +432,7 @@ class Result(Base, UserDict):
     @scenario.setter
     def scenario(self, scenario: "Scenario"):
         self.data["scenario"] = scenario
-        
+
     @property
     def model(self) -> "LanguageModel":
         """Return the LanguageModel object."""
@@ -466,7 +466,9 @@ class Result(Base, UserDict):
                 )
         return None
 
-    def transcript(self, show_comments: bool = True, carousel: bool = True) -> "Transcript":
+    def transcript(
+        self, show_comments: bool = True, carousel: bool = True
+    ) -> "Transcript":
         """Return a Transcript object that displays questions and answers.
 
         The returned Transcript object provides intelligent display formatting:
@@ -491,13 +493,13 @@ class Result(Base, UserDict):
             >>> # Can convert to string for plain text
             >>> str(transcript)  # doctest: +ELLIPSIS
             'QUESTION: ...'
-            
+
             >>> # Exclude comments
             >>> transcript_no_comments = result.transcript(show_comments=False)
-            
+
             >>> # Display as list (all questions at once)
             >>> transcript_list = result.transcript(carousel=False)
-            
+
             >>> # Explicitly get specific formats
             >>> transcript.to_simple()  # doctest: +ELLIPSIS
             'QUESTION: ...'

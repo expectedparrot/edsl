@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 class TuplesSource(Source):
     """Create ScenarioList from a list of tuples with field names."""
-    
+
     source_type = "list_of_tuples"
 
     def __init__(
@@ -58,4 +58,3 @@ class TuplesSource(Source):
             scenarios.append(Scenario(scenario_dict))
 
         return ScenarioList(scenarios)
-

@@ -315,7 +315,11 @@ class QuestionOptionsDescriptor(BaseDescriptor):
                 )
             # Validate the 'from' template
             from_value = value["from"]
-            if not isinstance(from_value, str) or "{{" not in from_value or "}}" not in from_value:
+            if (
+                not isinstance(from_value, str)
+                or "{{" not in from_value
+                or "}}" not in from_value
+            ):
                 raise QuestionCreationValidationError(
                     f"The 'from' value must be a template string with jinja2 braces (got {from_value})."
                 )

@@ -1,4 +1,5 @@
 """Minimal test of run_async with Google model"""
+
 import asyncio
 from edsl import QuestionFreeText, Model, Agent, Scenario
 

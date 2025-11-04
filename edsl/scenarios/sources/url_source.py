@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 class URLSource(Source):
     """Create ScenarioList from a list of URLs by fetching their content."""
-    
+
     source_type = "urls"
 
     def __init__(self, urls: list[str], field_name: str):
@@ -78,4 +78,3 @@ class URLSource(Source):
                 continue
 
         return result
-

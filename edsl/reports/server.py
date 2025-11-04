@@ -44,12 +44,12 @@ class PreferencesModel(BaseModel):
     include_questions: Optional[List[str]] = None
     exclude_questions: Optional[List[str]] = None
     analyses: Optional[List[List[str]]] = None
-    analysis_output_filters: Optional[
-        Dict[str, List[str]]
-    ] = None  # keys will be pipe-joined tuples
-    analysis_writeup_filters: Optional[
-        Dict[str, bool]
-    ] = None  # keys will be pipe-joined tuples
+    analysis_output_filters: Optional[Dict[str, List[str]]] = (
+        None  # keys will be pipe-joined tuples
+    )
+    analysis_writeup_filters: Optional[Dict[str, bool]] = (
+        None  # keys will be pipe-joined tuples
+    )
 
     # New interaction filtering options
     include_interactions: Optional[List[List[str]]] = None
@@ -192,12 +192,16 @@ def export_config(prefs: PreferencesModel):
         for analysis in prefs.analyses:
             analysis_key = "|".join(analysis)
             config["analyses"][analysis_key] = {
-                "outputs": prefs.analysis_output_filters.get(analysis_key, [])
-                if prefs.analysis_output_filters
-                else [],
-                "writeup": prefs.analysis_writeup_filters.get(analysis_key, True)
-                if prefs.analysis_writeup_filters
-                else True,
+                "outputs": (
+                    prefs.analysis_output_filters.get(analysis_key, [])
+                    if prefs.analysis_output_filters
+                    else []
+                ),
+                "writeup": (
+                    prefs.analysis_writeup_filters.get(analysis_key, True)
+                    if prefs.analysis_writeup_filters
+                    else True
+                ),
             }
 
     yaml_content = yaml.dump(config, default_flow_style=False)

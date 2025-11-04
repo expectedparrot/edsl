@@ -115,7 +115,9 @@ class OptimizationResults:
 
         console.print("\n[bold cyan]🎯 OPTIMIZATION SUMMARY[/bold cyan]")
         console.print("=" * 50)
-        console.print(f"📊 Initial agents: {self.summary.get('initial_agent_count', 0)}")
+        console.print(
+            f"📊 Initial agents: {self.summary.get('initial_agent_count', 0)}"
+        )
         console.print(
             f"🚀 Optimized agents: {self.summary.get('optimized_agent_count', 0)}"
         )
