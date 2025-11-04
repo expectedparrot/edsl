@@ -115,6 +115,10 @@ class ResultFromInterview:
 
         validated_dictionary = self._get_validated_dictionary(model_response_objects)
 
+        # Build question_to_attributes from the actual question instances
+        # These have been updated by the invigilator (e.g., resolved dict-based options)
+        question_to_attributes = self._build_question_to_attributes(survey_copy)
+
         # Import Result here to avoid circular imports
         from .result import Result
 
@@ -135,6 +139,7 @@ class ResultFromInterview:
             indices=indices_copy,
             cache_keys=cache_keys,
             validated_dict=validated_dictionary,
+            question_to_attributes=question_to_attributes,
         )
 
         # Store only the hash, not the interview
@@ -301,3 +306,29 @@ class ResultFromInterview:
         for result in model_response_objects:
             validated_dict[f"{result.question_name}_validated"] = result.validated
         return validated_dict
+
+    def _build_question_to_attributes(self, survey):
+        """Build question_to_attributes from the actual question instances in the survey.
+
+        This is important because the invigilator may have updated question attributes
+        (like resolving dict-based question_options into lists).
+
+        Args:
+            survey: Survey object containing the question instances
+
+        Returns:
+            Dictionary mapping question names to their attributes
+        """
+        if survey is None:
+            return {}
+
+        return {
+            q.question_name: {
+                "question_text": q.question_text,
+                "question_type": q.question_type,
+                "question_options": (
+                    None if not hasattr(q, "question_options") else q.question_options
+                ),
+            }
+            for q in survey.questions
+        }
