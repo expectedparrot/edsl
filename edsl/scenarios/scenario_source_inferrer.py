@@ -87,27 +87,27 @@ class ScenarioSourceInferrer:
         # Check for pandas DataFrame
         if ScenarioSourceInferrer._is_pandas_dataframe(source):
             if verbose:
-                print(f"Detected source type: pandas DataFrame")
+                print("Detected source type: pandas DataFrame")
             return ScenarioSource.from_source("pandas", source, **kwargs)
         
         # Check for dictionary
         if isinstance(source, dict):
             if verbose:
                 if "scenarios" in source:
-                    print(f"Detected source type: serialized ScenarioList dictionary")
+                    print("Detected source type: serialized ScenarioList dictionary")
                 elif all(isinstance(v, dict) for v in source.values()):
-                    print(f"Detected source type: nested dictionary")
+                    print("Detected source type: nested dictionary")
                 else:
-                    print(f"Detected source type: dictionary")
+                    print("Detected source type: dictionary")
             return ScenarioSourceInferrer._handle_dict(source, **kwargs)
         
         # Check for list
         if isinstance(source, list):
             if verbose:
                 if source and isinstance(source[0], tuple):
-                    print(f"Detected source type: list of tuples")
+                    print("Detected source type: list of tuples")
                 else:
-                    print(f"Detected source type: list")
+                    print("Detected source type: list")
             return ScenarioSourceInferrer._handle_list(source, field_name, **kwargs)
         
         # Check for string (could be URL, file path, or directory)

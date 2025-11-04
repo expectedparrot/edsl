@@ -12,14 +12,13 @@ Results are saved to a log file for historical tracking.
 
 import time
 import datetime
-import os
 import json
 import argparse
 from pathlib import Path
 import matplotlib.pyplot as plt
 
 # Import EDSL components at module level to avoid timing import overhead in benchmarks
-from edsl import Survey, QuestionMultipleChoice, Model
+from edsl import Survey, QuestionMultipleChoice
 from edsl.caching import Cache
 from edsl.language_models import LanguageModel
 
@@ -43,7 +42,6 @@ def timed(func):
 @timed
 def benchmark_import():
     """Benchmark the time it takes to import edsl."""
-    import edsl
     return None
 
 

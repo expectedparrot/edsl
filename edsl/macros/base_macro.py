@@ -10,7 +10,7 @@ functionality shared between Macro and CompositeMacro, including:
 """
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional, Any, Union
+from typing import TYPE_CHECKING, Optional, Any
 from abc import ABC, abstractmethod
 import re
 from html import escape

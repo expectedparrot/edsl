@@ -4,12 +4,12 @@ import re
 from typing import TYPE_CHECKING, Optional, List
 
 if TYPE_CHECKING:
-    from ...scenarios import Scenario, ScenarioList
-    from ...agents import Agent, AgentList
+    from ...scenarios import Scenario
+    from ...agents import AgentList
     from ...comparisons import ResultPairComparison
 
 
-from ...questions import QuestionYesNo, QuestionFreeText
+from ...questions import QuestionFreeText
 from ...surveys import Survey
 
 

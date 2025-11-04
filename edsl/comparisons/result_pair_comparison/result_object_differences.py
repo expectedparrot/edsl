@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Dict, Sequence, Any, List
+from typing import TYPE_CHECKING, Optional, Dict, Sequence, Any
 from collections import UserDict
 
 if TYPE_CHECKING:

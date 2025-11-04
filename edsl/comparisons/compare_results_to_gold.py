@@ -1,5 +1,4 @@
 from __future__ import annotations
-import ast
 
 """Compare candidate results against gold standard results."""
 
@@ -8,7 +7,6 @@ from collections import UserDict
 
 if TYPE_CHECKING:
     from edsl.results import Results
-    from edsl.scenarios import ScenarioList
     from .metrics import MetricsCollection
     from ..results import Results
     from .result_pair_comparison import ResultPairComparison
@@ -332,7 +330,7 @@ class CompareResultsToGold(UserDict):
             >>> isinstance(crtg, CompareResultsToGold)
             True
         """
-        from edsl import Results, Agent, Survey, Model, Cache
+        from edsl import Agent, Survey, Model
         from edsl.questions import QuestionMultipleChoice
 
         # Create a simple survey for testing

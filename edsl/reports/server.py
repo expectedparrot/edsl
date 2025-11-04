@@ -3,7 +3,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Dict, Tuple, Optional
 from pathlib import Path
-import io, contextlib, uuid, yaml
+import io
+import contextlib
+import uuid
+import yaml
 
 from edsl import Results
 from reports.research import Research
@@ -18,7 +21,8 @@ results_cache: Optional[Results] = None
 
 # Helper to load Results from bytes (raw JSON or gzip)
 def _load_results_from_bytes(data: bytes) -> Results:
-    import json, gzip
+    import json
+    import gzip
 
     # First, attempt gzip
     try:

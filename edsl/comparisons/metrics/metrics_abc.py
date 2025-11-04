@@ -3,7 +3,7 @@ from __future__ import annotations
 """Abstract base class and utilities for EDSL comparison metrics."""
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Any
+from typing import List, Any
 
 
 # Elegant defensive import utility
