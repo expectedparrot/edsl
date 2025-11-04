@@ -11,6 +11,7 @@ from ..scenarios import ScenarioList, FileStore
 from ..scenarios import Scenario
 from ..scenarios.agent_blueprint import AgentBlueprint
 from ..surveys import Survey
+from ..agents import AgentList as AgentListImport
 
 relevant_classes = {
     Results: [
@@ -20,6 +21,7 @@ relevant_classes = {
         "report_from_template",
         "long_view",
         "augment_agents",
+        "agents",
     ],
     Dataset: ["table", "expand", "to_markdown", "to_list"],
     TableDisplay: ["flip", "to_string"],
@@ -51,15 +53,19 @@ relevant_classes = {
         "to_docx",
     ],
     Scenario: ["chunk_text", "replace_value", "to_scenario_list", "to_agent_list"],
+    AgentListImport: ["sample", "filter"],
     list: ["__getitem__"],
     AgentBlueprint: ["create_agent_list", "table"],
 }
 
 white_list_methods = []
+white_list_method_names = []
 for cls, methods in relevant_classes.items():
     for method in methods:
         try:
-            white_list_methods.append(getattr(cls, method))
+            attr = getattr(cls, method)
+            white_list_methods.append(attr)
+            white_list_method_names.append(method)
         except AttributeError:
             # Some methods may not be available at import time due to import order/cycles
             # Skip missing ones; unknown commands won't be whitelisted
@@ -74,10 +80,34 @@ def _get_return_annotation_safe(func: Any) -> Any:
         return inspect._empty
 
 
-white_list_commands = [f.__name__ for f in white_list_methods]
-return_types = {f.__name__: _get_return_annotation_safe(f) for f in white_list_methods}
+def _get_name_safe(func: Any, fallback_name: str) -> str:
+    """Get the name of a function or property, with fallback."""
+    # For properties, use the name of the getter function or fallback
+    if isinstance(func, property):
+        if func.fget is not None:
+            return getattr(func.fget, '__name__', fallback_name)
+        return fallback_name
+    # For regular functions/methods
+    return getattr(func, '__name__', fallback_name)
 
-parent_class = {f.__name__: f.__qualname__.split(".")[0] for f in white_list_methods}
+
+def _get_qualname_safe(func: Any, fallback_name: str) -> str:
+    """Get the qualified name of a function or property, with fallback."""
+    # For properties, use the qualname of the getter function
+    if isinstance(func, property):
+        if func.fget is not None:
+            return getattr(func.fget, '__qualname__', fallback_name)
+        return fallback_name
+    # For regular functions/methods
+    return getattr(func, '__qualname__', fallback_name)
+
+
+white_list_commands = [_get_name_safe(f, name) for f, name in zip(white_list_methods, white_list_method_names)]
+return_types = {_get_name_safe(f, name): _get_return_annotation_safe(f.fget if isinstance(f, property) else f) 
+                for f, name in zip(white_list_methods, white_list_method_names)}
+
+parent_class = {_get_name_safe(f, name): _get_qualname_safe(f, name).split(".")[0] 
+                for f, name in zip(white_list_methods, white_list_method_names)}
 
 from abc import ABC
 
@@ -108,11 +138,11 @@ ALLOWED_OUTPUT_TYPES = {
 # This avoids collisions for methods that share the same name across classes
 owner_to_methods: dict[str, set[str]] = {}
 return_types_by_owner_method: dict[tuple[str, str], Any] = {}
-for f in white_list_methods:
-    owner_name = f.__qualname__.split(".")[0]
-    method_name = f.__name__
+for f, name in zip(white_list_methods, white_list_method_names):
+    owner_name = _get_qualname_safe(f, name).split(".")[0]
+    method_name = _get_name_safe(f, name)
     owner_to_methods.setdefault(owner_name, set()).add(method_name)
-    ann = _get_return_annotation_safe(f)
+    ann = _get_return_annotation_safe(f.fget if isinstance(f, property) else f)
     return_types_by_owner_method[(owner_name, method_name)] = ann
 
 # Map known formatter targets to their root class names
@@ -274,7 +304,7 @@ class ObjectFormatter(ABC):
         if not self._stored_commands:
             return results
 
-        def _render_template_string(value: str, ctx: dict) -> str:
+        def _render_template_string(value: str, ctx: dict) -> Any:
             # Render only if it looks like a jinja2 template AND references a key present in ctx
             if (("{{" in value) or ("{%" in value)) and ctx:
                 # If none of the provided context keys appear in the template, skip rendering
@@ -286,7 +316,39 @@ class ObjectFormatter(ABC):
                 if keys and any(
                     ("{{" + k in value) or ("{{ " + k in value) for k in keys
                 ):
-                    return Template(value, undefined=StrictUndefined).render(**ctx)
+                    rendered = Template(value, undefined=StrictUndefined).render(**ctx)
+                    # Try to convert rendered string back to appropriate type
+                    # This handles cases like {{ num | int }} which still returns a string "3"
+                    # but should be an int for method calls
+                    return _smart_type_convert(rendered)
+            return value
+        
+        def _smart_type_convert(value: str) -> Any:
+            """Convert string to int, float, or bool if appropriate, otherwise return as-is."""
+            if not isinstance(value, str):
+                return value
+            
+            # Try bool first (before int, since "True"/"False" might parse as 1/0)
+            if value in ("True", "true"):
+                return True
+            if value in ("False", "false"):
+                return False
+            
+            # Try int
+            try:
+                # Check if it looks like an int (no decimal point)
+                if '.' not in value:
+                    return int(value)
+            except (ValueError, TypeError):
+                pass
+            
+            # Try float
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                pass
+            
+            # Return original string if no conversion worked
             return value
 
         def _resolve_templates(value: Any, ctx: dict) -> Any:
@@ -304,7 +366,16 @@ class ObjectFormatter(ABC):
         for command, args, kwargs in self._stored_commands:
             resolved_args = _resolve_templates(args, context)
             resolved_kwargs = _resolve_templates(kwargs, context)
-            results = getattr(results, command)(*resolved_args, **resolved_kwargs)
+            attr = getattr(results, command)
+            # If it's callable (method), call it with args/kwargs
+            # If it's not callable (property result), just use it directly (only if no args/kwargs)
+            if callable(attr):
+                results = attr(*resolved_args, **resolved_kwargs)
+            elif not resolved_args and not resolved_kwargs:
+                results = attr
+            else:
+                # Property-like but has args/kwargs - try to call anyway and let it fail naturally
+                results = attr(*resolved_args, **resolved_kwargs)
 
         return results
 
