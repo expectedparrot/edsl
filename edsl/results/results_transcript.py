@@ -187,9 +187,9 @@ class Transcripts:
         
         for i, result in enumerate(self.results):
             agent_name = self._get_agent_name(result)
-            lines.append(f"=" * 70)
+            lines.append("=" * 70)
             lines.append(f"RESPONDENT {i+1}: {agent_name}")
-            lines.append(f"=" * 70)
+            lines.append("=" * 70)
             lines.append("")
             
             q_and_a = result.q_and_a()
@@ -906,8 +906,8 @@ showSlide_{transcripts_id}(0, 0);
             ImportError: If the rich library is not installed
         """
         try:
-            from rich.console import Console
-            from rich.panel import Panel
+            from rich.console import Console  # noqa: F401
+            from rich.panel import Panel  # noqa: F401
         except ImportError as exc:
             raise ImportError(
                 "The 'rich' package is required for Rich formatting. Install it with `pip install rich`."

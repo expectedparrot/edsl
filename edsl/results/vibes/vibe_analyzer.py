@@ -6,7 +6,6 @@ import json
 
 if TYPE_CHECKING:
     from edsl.questions import QuestionBase
-    from edsl.reports.report import QuestionAnalysis
     from openai import OpenAI
 
 
@@ -146,7 +145,7 @@ class VibeAnalyzer:
                             )
                             return response.choices[0].message.content
                         except ImportError:
-                            return f"Unable to generate insights due to async context error. Try: pip install nest-asyncio"
+                            return "Unable to generate insights due to async context error. Try: pip install nest-asyncio"
                 except Exception:
                     return f"Unable to generate insights for {question_name} due to event loop issues."
             raise
@@ -244,7 +243,7 @@ class VibeAnalyzer:
                     )
                     return response.choices[0].message.content
                 except ImportError:
-                    return f"Unable to analyze visualization. Try: pip install nest-asyncio"
+                    return "Unable to analyze visualization. Try: pip install nest-asyncio"
                 except Exception:
                     return f"Unable to analyze visualization for {question_name}."
             raise
