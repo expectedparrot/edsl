@@ -285,14 +285,14 @@ class AgentListTraitOperations:
             >>> from edsl import Agent, AgentList
             >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
             >>> al = AgentList([
-            ...     Agent(traits={'age': '30', 'height': '5.5', 'name': 'Alice'}),
-            ...     Agent(traits={'age': '25', 'height': '6.0', 'name': 'Bob'})
+            ...     Agent(traits={'age': '30', 'height': '5.5', 'city': 'NYC'}),
+            ...     Agent(traits={'age': '25', 'height': '6.0', 'city': 'LA'})
             ... ])
             >>> al_numeric = AgentListTraitOperations.numberify(al)
             >>> al_numeric[0].traits
-            {'age': 30, 'height': 5.5, 'name': 'Alice'}
+            {'age': 30, 'height': 5.5, 'city': 'NYC'}
             >>> al_numeric[1].traits
-            {'age': 25, 'height': 6.0, 'name': 'Bob'}
+            {'age': 25, 'height': 6.0, 'city': 'LA'}
         """
         from .agent_list import AgentList
 

@@ -1647,7 +1647,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             ...     Scenario({'age': 35, 'occupation': 'engineer'}),
             ...     Scenario({'age': 42, 'occupation': 'teacher'})
             ... ])
-            >>> # filtered = sl.vibe_filter("Keep only people over 30")  # doctest: +SKIP
+            >>> filtered = sl.vibe_filter("Keep only people over 30")  # doctest: +SKIP
 
         Notes:
             - Requires OPENAI_API_KEY environment variable to be set
