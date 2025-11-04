@@ -5,7 +5,7 @@ from edsl.surveys.survey import Survey
 from edsl.surveys.base import EndOfSurvey
 from edsl.questions import QuestionMultipleChoice, QuestionFreeText
 from edsl.instructions import Instruction
-from edsl.surveys.exceptions import SurveyError, SurveyHasNoRulesError
+from edsl.surveys.exceptions import SurveyError
 
 
 class TestSurveyFlow(unittest.TestCase):

@@ -23,9 +23,7 @@ from edsl.questions import (
     QuestionFreeText,
     QuestionMultipleChoice,
     QuestionList,
-    QuestionNumerical,
 )
-from edsl import Scenario
 import textwrap
 
 
@@ -233,7 +231,7 @@ if __name__ == "__main__":
 
     if len(sl) > 0:
         print(f"\nColumns: {list(sl[0].keys())}")
-        print(f"\nFirst section:")
+        print("\nFirst section:")
         first = sl[0]
         print(f"  Title: {first.get('section_title', 'N/A')}")
         content_preview = (
@@ -248,7 +246,7 @@ if __name__ == "__main__":
         docx_fs = output.docx
         print(f"DOCX FileStore: {type(docx_fs)}")
         print(f"  Path: {docx_fs.path if docx_fs else 'None'}")
-        print(f"  Save with: docx_fs.save('company_policy.docx')")
+        print("  Save with: docx_fs.save('company_policy.docx')")
     except Exception as e:
         print(f"DOCX Error: {e}")
 
@@ -256,6 +254,6 @@ if __name__ == "__main__":
         excel_fs = output.excel
         print(f"\nExcel FileStore: {type(excel_fs)}")
         print(f"  Path: {excel_fs.path if excel_fs else 'None'}")
-        print(f"  Save with: excel_fs.save('policy_data.xlsx')")
+        print("  Save with: excel_fs.save('policy_data.xlsx')")
     except Exception as e:
         print(f"Excel Error: {e}")

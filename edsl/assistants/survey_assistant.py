@@ -29,7 +29,6 @@ Usage:
 
 import anyio
 import asyncio
-import gzip
 import json
 import os
 import sys
@@ -38,7 +37,7 @@ import logging
 import re
 from html import unescape
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 import yaml
 import typer
 from dotenv import load_dotenv
@@ -690,7 +689,7 @@ class SurveyAssistant:
                     f"\n[bold cyan]📊 Detected structured data file: {data_file.name}[/bold cyan]"
                 )
                 self._console.print(
-                    f"[dim]Using EDSL Conjure for native parsing (other files will be ignored)[/dim]"
+                    "[dim]Using EDSL Conjure for native parsing (other files will be ignored)[/dim]"
                 )
                 if other_files:
                     self._console.print(
@@ -701,7 +700,7 @@ class SurveyAssistant:
                     f"\n[bold cyan]📊 Detected structured data file: {data_file.name}[/bold cyan]"
                 )
                 self._console.print(
-                    f"[dim]Using EDSL Conjure for native parsing (faster & more reliable)[/dim]\n"
+                    "[dim]Using EDSL Conjure for native parsing (faster & more reliable)[/dim]\n"
                 )
 
             try:
@@ -727,7 +726,7 @@ class SurveyAssistant:
                 with open(yaml_file, "w") as f:
                     yaml.dump(survey.to_dict(), f, default_flow_style=False)
 
-                self._console.print(f"\n[green]✅ Survey generation complete![/green]")
+                self._console.print("\n[green]✅ Survey generation complete![/green]")
                 self._console.print(f"[dim]Saved to {output_file}[/dim]")
                 self._console.print(
                     f"[green]✓[/green] Generated survey with {len(survey.questions)} questions"
@@ -1127,7 +1126,7 @@ class SurveyAssistant:
                         f"\n[red]Error:[/red] {yaml_questions['error']}"
                     )
                     if not debug:
-                        self._console.print(f"[dim]Debug files saved to:[/dim]")
+                        self._console.print("[dim]Debug files saved to:[/dim]")
                         self._console.print(
                             f"  [dim]- {self.output_dir}/last_prompt.txt[/dim]"
                         )
@@ -1607,7 +1606,7 @@ You do not need to use any tools - all necessary data is provided in the prompt 
                         )
 
                         if stata_sample["column_labels"]:
-                            prompt += f"\nVariable Labels:\n"
+                            prompt += "\nVariable Labels:\n"
                             for var, label in list(
                                 stata_sample["column_labels"].items()
                             )[:10]:
@@ -1647,7 +1646,7 @@ You do not need to use any tools - all necessary data is provided in the prompt 
                         )
 
                         if spss_sample["column_labels"]:
-                            prompt += f"\nVariable Labels:\n"
+                            prompt += "\nVariable Labels:\n"
                             for var, label in list(
                                 spss_sample["column_labels"].items()
                             )[:10]:
@@ -1724,12 +1723,12 @@ You do not need to use any tools - all necessary data is provided in the prompt 
                             f"[yellow]⚠[/yellow] QSF parsing failed: {parsed_qsf['error']}"
                         )
                         self._console.print(
-                            f"[dim]Sending raw file content to Claude instead[/dim]"
+                            "[dim]Sending raw file content to Claude instead[/dim]"
                         )
 
                     prompt += f"=== {filename} (Qualtrics QSF - Raw JSON, parsing failed) ===\n"
                     prompt += f"Note: Automatic parsing failed with error: {parsed_qsf['error']}\n"
-                    prompt += f"Please parse this QSF JSON manually to extract survey questions.\n\n"
+                    prompt += "Please parse this QSF JSON manually to extract survey questions.\n\n"
                     prompt += f"{content}\n\n"
                 else:
                     prompt += f"=== {filename} (Qualtrics QSF - Pre-parsed) ===\n"
@@ -1853,7 +1852,7 @@ You do not need to use any tools - all necessary data is provided in the prompt 
 
                     # Show variable labels if available
                     if stata_sample["column_labels"]:
-                        prompt += f"\nVariable Labels:\n"
+                        prompt += "\nVariable Labels:\n"
                         for var, label in list(stata_sample["column_labels"].items())[
                             :10
                         ]:
@@ -1894,7 +1893,7 @@ You do not need to use any tools - all necessary data is provided in the prompt 
 
                     # Show variable labels if available
                     if spss_sample["column_labels"]:
-                        prompt += f"\nVariable Labels:\n"
+                        prompt += "\nVariable Labels:\n"
                         for var, label in list(spss_sample["column_labels"].items())[
                             :10
                         ]:
@@ -1956,7 +1955,7 @@ You do not need to use any tools - all necessary data is provided in the prompt 
                             self._console.print(f"  Rows: {stata_sample['total_rows']}")
                             if stata_sample["sampled"]:
                                 self._console.print(
-                                    f"  [dim](showing first 20 rows)[/dim]"
+                                    "  [dim](showing first 20 rows)[/dim]"
                                 )
                         else:
                             self._console.print(
@@ -1974,7 +1973,7 @@ You do not need to use any tools - all necessary data is provided in the prompt 
                             self._console.print(f"  Rows: {spss_sample['total_rows']}")
                             if spss_sample["sampled"]:
                                 self._console.print(
-                                    f"  [dim](showing first 20 rows)[/dim]"
+                                    "  [dim](showing first 20 rows)[/dim]"
                                 )
                         else:
                             self._console.print(
@@ -1995,7 +1994,7 @@ You do not need to use any tools - all necessary data is provided in the prompt 
                             self._console.print(f"  Rows: {xlsx_sample['total_rows']}")
                             if xlsx_sample["sampled"]:
                                 self._console.print(
-                                    f"  [dim](showing first 20 rows)[/dim]"
+                                    "  [dim](showing first 20 rows)[/dim]"
                                 )
                         else:
                             self._console.print(
@@ -2023,7 +2022,7 @@ You do not need to use any tools - all necessary data is provided in the prompt 
                         self._console.print(f"  Columns: {csv_sample['column_count']}")
                         self._console.print(f"  Rows: {csv_sample['total_rows']}")
                         if csv_sample["sampled"]:
-                            self._console.print(f"  [dim](showing first 20 rows)[/dim]")
+                            self._console.print("  [dim](showing first 20 rows)[/dim]")
                     else:
                         self._console.print(
                             f"[cyan]{filename}[/cyan] (CSV - parse error)"
@@ -2035,7 +2034,7 @@ You do not need to use any tools - all necessary data is provided in the prompt 
                         self._console.print(f"  Columns: {tsv_sample['column_count']}")
                         self._console.print(f"  Rows: {tsv_sample['total_rows']}")
                         if tsv_sample["sampled"]:
-                            self._console.print(f"  [dim](showing first 20 rows)[/dim]")
+                            self._console.print("  [dim](showing first 20 rows)[/dim]")
                     else:
                         self._console.print(
                             f"[cyan]{filename}[/cyan] (TSV - parse error)"
@@ -2050,7 +2049,7 @@ You do not need to use any tools - all necessary data is provided in the prompt 
                         self._console.print(f"  Columns: {xlsx_sample['column_count']}")
                         self._console.print(f"  Rows: {xlsx_sample['total_rows']}")
                         if xlsx_sample["sampled"]:
-                            self._console.print(f"  [dim](showing first 20 rows)[/dim]")
+                            self._console.print("  [dim](showing first 20 rows)[/dim]")
                     else:
                         self._console.print(
                             f"[cyan]{filename}[/cyan] (Excel - {xlsx_sample['error']})"
@@ -2066,7 +2065,7 @@ You do not need to use any tools - all necessary data is provided in the prompt 
                         )
                         self._console.print(f"  Rows: {stata_sample['total_rows']}")
                         if stata_sample["sampled"]:
-                            self._console.print(f"  [dim](showing first 20 rows)[/dim]")
+                            self._console.print("  [dim](showing first 20 rows)[/dim]")
                     else:
                         self._console.print(
                             f"[cyan]{filename}[/cyan] (Stata - {stata_sample['error']})"
@@ -2082,7 +2081,7 @@ You do not need to use any tools - all necessary data is provided in the prompt 
                         )
                         self._console.print(f"  Rows: {spss_sample['total_rows']}")
                         if spss_sample["sampled"]:
-                            self._console.print(f"  [dim](showing first 20 rows)[/dim]")
+                            self._console.print("  [dim](showing first 20 rows)[/dim]")
                     else:
                         self._console.print(
                             f"[cyan]{filename}[/cyan] (SPSS - {spss_sample['error']})"
@@ -2115,14 +2114,14 @@ You do not need to use any tools - all necessary data is provided in the prompt 
                     if isinstance(message, ResultMessage):
                         if debug:
                             print(
-                                f"[Tool result being sent back to Claude]", flush=True
+                                "[Tool result being sent back to Claude]", flush=True
                             )
                         continue
 
                     # Handle UserMessage (system messages back to Claude)
                     if isinstance(message, UserMessage):
                         if debug:
-                            print(f"[System message to Claude]", flush=True)
+                            print("[System message to Claude]", flush=True)
                         continue
 
                     if isinstance(message, AssistantMessage):
@@ -2135,7 +2134,7 @@ You do not need to use any tools - all necessary data is provided in the prompt 
                             if isinstance(block, ToolUseBlock):
                                 # Show tool usage details
                                 if debug:
-                                    print(f"\n[TOOL USE]:", flush=True)
+                                    print("\n[TOOL USE]:", flush=True)
                                     print(f"  Tool: {block.name}", flush=True)
                                     print(f"  ID: {block.id}", flush=True)
                                     if hasattr(block, "input") and block.input:
@@ -2152,7 +2151,7 @@ You do not need to use any tools - all necessary data is provided in the prompt 
 
                                 # Stream to stdout if debug mode
                                 if debug:
-                                    print(f"\n[TEXT]:", flush=True)
+                                    print("\n[TEXT]:", flush=True)
                                     print(text, flush=True)
 
                                 self.logger.debug(
@@ -2252,7 +2251,7 @@ You do not need to use any tools - all necessary data is provided in the prompt 
                         self.logger.debug(f"Saved prompt to {prompt_file}")
 
                     if not debug:
-                        self._console.print(f"\n[red]⚠ Content Filtering Error[/red]")
+                        self._console.print("\n[red]⚠ Content Filtering Error[/red]")
                         self._console.print(
                             "Claude's API blocked the response due to content filtering policy.\n"
                             "This can happen when survey content contains sensitive topics.\n\n"
@@ -2330,7 +2329,7 @@ You do not need to use any tools - all necessary data is provided in the prompt 
             Dictionary mapping question names to suggested column names
         """
         # Build a prompt for Claude
-        prompt = f"""I am analyzing existing research survey data and need help mapping question names to data columns.
+        prompt = """I am analyzing existing research survey data and need help mapping question names to data columns.
 
 This is for ACADEMIC RESEARCH ANALYSIS. I have a survey instrument and a data file from that survey,
 but the question names don't exactly match the column names. I need to map them correctly for analysis.
@@ -2344,7 +2343,7 @@ Survey Questions (not found in data):
             else:
                 prompt += f"- {qname}\n"
 
-        prompt += f"\nAvailable columns in data file:\n"
+        prompt += "\nAvailable columns in data file:\n"
         prompt += ", ".join(available_columns[:50])  # Limit to avoid huge prompts
 
         prompt += """
@@ -2797,7 +2796,6 @@ If no file looks like response data, return "NONE".
             >>> results.select('answer.*').print()
         """
         from edsl.agents import Agent, AgentList
-        from edsl.results import Results
 
         # Check if survey exists
         if self._survey is None:
@@ -2853,7 +2851,7 @@ If no file looks like response data, return "NONE".
             )
 
         self._console.print(
-            f"\n[bold cyan]🔄 Generating Results from survey responses[/bold cyan]"
+            "\n[bold cyan]🔄 Generating Results from survey responses[/bold cyan]"
         )
         self._console.print(f"Response file: [cyan]{response_file.name}[/cyan]")
         self._console.print(
@@ -2896,13 +2894,13 @@ If no file looks like response data, return "NONE".
                             f"\n[yellow]⚠️  Large dataset detected: {total_rows} respondents[/yellow]"
                         )
                         self._console.print(
-                            f"[dim]Processing all rows. This may take a while...[/dim]"
+                            "[dim]Processing all rows. This may take a while...[/dim]"
                         )
                         self._console.print(
-                            f"[dim]Tip: Use sample_size parameter to process a subset, e.g.:[/dim]"
+                            "[dim]Tip: Use sample_size parameter to process a subset, e.g.:[/dim]"
                         )
                         self._console.print(
-                            f"[dim]  sa.generate_results(sample_size=100)[/dim]\n"
+                            "[dim]  sa.generate_results(sample_size=100)[/dim]\n"
                         )
                     elif sample_size:
                         self._console.print(
@@ -2923,7 +2921,7 @@ If no file looks like response data, return "NONE".
                     verbose=True,  # Always show progress for long-running operations
                 )
 
-                self._console.print(f"\n[green]✅ Results generation complete![/green]")
+                self._console.print("\n[green]✅ Results generation complete![/green]")
                 self._console.print(
                     f"[green]✓[/green] Generated results for {len(results)} respondent(s)"
                 )
@@ -3039,17 +3037,17 @@ If no file looks like response data, return "NONE".
 
             # Warn but continue
             self._console.print(
-                f"\n[yellow]⚠️  Warning:[/yellow] This file might be a CODEBOOK or DATA DICTIONARY."
+                "\n[yellow]⚠️  Warning:[/yellow] This file might be a CODEBOOK or DATA DICTIONARY."
             )
             self._console.print(f"   Columns: {', '.join(column_names)}")
             self._console.print(
-                f"   If results look wrong, check if you're using the correct file.\n"
+                "   If results look wrong, check if you're using the correct file.\n"
             )
 
         # Create mapping from survey question names to data columns
         survey_questions = {q.question_name: q for q in self._survey.questions}
 
-        self._console.print(f"[dim]Mapping survey questions to data columns...[/dim]")
+        self._console.print("[dim]Mapping survey questions to data columns...[/dim]")
         question_to_column = {}
         missing_columns = []
 
@@ -3088,7 +3086,7 @@ If no file looks like response data, return "NONE".
 
             # Try to use Claude to map columns
             self._console.print(
-                f"\n[cyan]🤖 Asking Claude to suggest column mappings...[/cyan]"
+                "\n[cyan]🤖 Asking Claude to suggest column mappings...[/cyan]"
             )
 
             try:
@@ -3107,7 +3105,7 @@ If no file looks like response data, return "NONE".
                     self._console.print()
                 else:
                     self._console.print(
-                        f"[yellow]Claude could not suggest mappings[/yellow]\n"
+                        "[yellow]Claude could not suggest mappings[/yellow]\n"
                     )
             except Exception as e:
                 self._console.print(
@@ -3126,7 +3124,7 @@ If no file looks like response data, return "NONE".
                 # Give extra hint if this looks like a codebook
                 if is_likely_codebook:
                     self._console.print(
-                        f"\n[yellow]💡 Hint:[/yellow] The file appears to be a codebook/data dictionary."
+                        "\n[yellow]💡 Hint:[/yellow] The file appears to be a codebook/data dictionary."
                     )
                     self._console.print(
                         "   Try using the actual survey response data file instead."
@@ -3138,7 +3136,7 @@ If no file looks like response data, return "NONE".
                 raise ValueError(error_msg)
 
         # Build value mappings (e.g., 1 -> "Male", 2 -> "Female")
-        self._console.print(f"\n[dim]Checking for response code mappings...[/dim]")
+        self._console.print("\n[dim]Checking for response code mappings...[/dim]")
         value_mappings = await self.column_mapper.build_value_mappings(
             df, question_to_column, survey_questions, file_ext, meta
         )
@@ -3148,7 +3146,7 @@ If no file looks like response data, return "NONE".
                 f"[green]✓[/green] Built value mappings for {len(value_mappings)} question(s)\n"
             )
         else:
-            self._console.print(f"[dim]No code mappings needed[/dim]\n")
+            self._console.print("[dim]No code mappings needed[/dim]\n")
 
         # Determine sample size
         if sample_size is not None:
@@ -3228,7 +3226,7 @@ If no file looks like response data, return "NONE".
             )
 
             self._console.print(
-                f"\n[bold green]✅ Results generated successfully![/bold green]"
+                "\n[bold green]✅ Results generated successfully![/bold green]"
             )
             self._console.print(f"Total responses: {len(results)}")
 
@@ -3269,7 +3267,7 @@ def generate(
     ),
 ):
     """Generate EDSL survey from document files."""
-    console.print(f"[bold]EDSL Survey Generator[/bold]")
+    console.print("[bold]EDSL Survey Generator[/bold]")
 
     # Check for API key early
     if not check_api_key():
@@ -3308,7 +3306,7 @@ def generate(
             progress.stop()
 
             # Display results table
-            console.print(f"\n[bold]Generation Results[/bold]")
+            console.print("\n[bold]Generation Results[/bold]")
 
             table = Table(show_header=True, header_style="bold magenta")
             table.add_column("Question Name", style="cyan", no_wrap=True)
@@ -3329,7 +3327,7 @@ def generate(
 
             # Summary
             summary = result.get("survey_summary", {})
-            console.print(f"\n[bold]Summary:[/bold]")
+            console.print("\n[bold]Summary:[/bold]")
             console.print(
                 f"  Total questions attempted: {summary.get('total_questions', 0)}"
             )
@@ -3339,7 +3337,7 @@ def generate(
             console.print(f"  Failed: [red]{summary.get('failed_questions', 0)}[/red]")
 
             if result.get("success"):
-                console.print(f"\n[green]✓ Survey generated successfully![/green]")
+                console.print("\n[green]✓ Survey generated successfully![/green]")
                 console.print(f"Output directory: [bold]{result['output_dir']}[/bold]")
                 console.print(f"  - Individual YAMLs: {result['output_dir']}/*.yaml")
                 console.print(
@@ -3347,9 +3345,9 @@ def generate(
                 )
                 console.print(f"  - Survey object: {result.get('output_file', 'N/A')}")
             else:
-                console.print(f"\n[red]✗ Survey generation failed![/red]")
+                console.print("\n[red]✗ Survey generation failed![/red]")
                 if result.get("errors"):
-                    console.print(f"\n[bold]Errors:[/bold]")
+                    console.print("\n[bold]Errors:[/bold]")
                     for error in result["errors"]:
                         console.print(f"  - {error['question_name']}: {error['error']}")
                         console.print(f"    Check: {error['yaml_file']}")
@@ -3379,7 +3377,7 @@ def validate(
 
     if result["success"]:
         question = result["question"]
-        console.print(f"[green]✓ Valid EDSL question![/green]")
+        console.print("[green]✓ Valid EDSL question![/green]")
         console.print(f"  Type: {question.__class__.__name__}")
         console.print(f"  Name: {question.question_name}")
         console.print(f"  Text: {question.question_text}")
@@ -3423,10 +3421,10 @@ recommend,10,002
     with open(csv_file, "w") as f:
         f.write(csv_content)
 
-    console.print(f"Created example files:")
+    console.print("Created example files:")
     console.print(f"  - {example_file}")
     console.print(f"  - {csv_file}")
-    console.print(f"\nExample command:")
+    console.print("\nExample command:")
     console.print(
         f"  [bold]uv run edsl_survey_generator.py {example_file} {csv_file}[/bold]"
     )

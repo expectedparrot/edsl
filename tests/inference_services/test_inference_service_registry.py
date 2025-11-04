@@ -1,8 +1,7 @@
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 from datetime import datetime
-from collections import defaultdict
-from typing import Dict, List, Any, Optional
+from typing import List, Any
 
 from edsl.inference_services.inference_service_registry import InferenceServiceRegistry
 from edsl.inference_services.source_preference_handler import SourcePreferenceHandler

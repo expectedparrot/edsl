@@ -1,9 +1,8 @@
 import pytest
 from edsl.agents import Agent
-from edsl.agents.exceptions import AgentCombinationError
 from edsl.interviews import Interview
 from edsl.jobs import Jobs
-from edsl.questions import QuestionMultipleChoice, QuestionFreeText, Question
+from edsl.questions import QuestionMultipleChoice, QuestionFreeText
 from edsl.scenarios import Scenario, ScenarioList
 from edsl.surveys import Survey
 from edsl.caching import Cache

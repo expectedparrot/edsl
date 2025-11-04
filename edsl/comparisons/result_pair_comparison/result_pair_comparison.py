@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Comare the answers to the same survey, as captured by two Result objects."""
 
-from typing import Dict, Any, List, TYPE_CHECKING, Generator, Tuple, Iterator
+from typing import Dict, Any, List, TYPE_CHECKING, Generator, Tuple
 
 from ..metrics.metrics_collection import MetricsCollection
 

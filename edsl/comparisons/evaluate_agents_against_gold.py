@@ -3,8 +3,8 @@ from edsl.comparisons.result_pair_comparison.result_pair_comparison import (
 )
 
 
-from typing import Any, List, Dict
-from ..comparisons import CompareResultsToGold, ResultPairComparison
+from typing import List, Dict
+from ..comparisons import ResultPairComparison
 
 from collections import UserDict
 

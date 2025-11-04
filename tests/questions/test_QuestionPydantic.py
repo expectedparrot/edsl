@@ -5,7 +5,7 @@ specify arbitrary Pydantic models as response schemas for structured output.
 """
 
 import pytest
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 from edsl.questions import QuestionPydantic
 from edsl.questions.exceptions import QuestionAnswerValidationError
 

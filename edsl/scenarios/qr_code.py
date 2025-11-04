@@ -6,7 +6,7 @@ with context-aware display for both Jupyter notebooks and terminal environments.
 """
 
 import re
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 from io import BytesIO
 
 if TYPE_CHECKING:

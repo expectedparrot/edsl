@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Dict, Sequence, Any, List
+from typing import Optional, Dict, Sequence, Any, List
 from dataclasses import dataclass
 
 from ..result_pair_comparison.result_pair_comparison import ResultPairComparison

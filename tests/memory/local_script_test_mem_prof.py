@@ -1,7 +1,7 @@
 
 from edsl import FileStore,Scenario
 from memory_profiler import profile
-from edsl import QuestionFreeText, QuestionList, QuestionNumerical
+from edsl import QuestionFreeText, QuestionList
 from edsl import Survey,Model
 import json
 import os

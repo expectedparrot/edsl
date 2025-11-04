@@ -125,7 +125,6 @@ class MultiAgentImprover:
 
             # Get the candidate agent from trackers (it was updated during generation)
             # We need to pass the candidate agent that corresponds to this comparison
-            from ...agents import AgentList
 
             candidate_agents_list = list(self.agent_trackers.keys())
             active_idx = candidate_agents_list.index(agent_name)
@@ -213,7 +212,7 @@ class MultiAgentImprover:
                     )
                 if was_active_before and not tracker.is_active:
                     if verbose:
-                        print(f"   → Agent plateaued, removing from active set")
+                        print("   → Agent plateaued, removing from active set")
                     newly_inactive_count += 1
 
         return {
