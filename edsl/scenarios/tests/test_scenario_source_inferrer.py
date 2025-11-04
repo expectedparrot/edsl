@@ -182,7 +182,6 @@ def test_list_of_tuples_with_field_names():
 
 def test_serialized_scenario_list_dict():
     """Test inference of serialized ScenarioList dictionary."""
-    from edsl.scenarios import Scenario
     
     data = {
         "scenarios": [

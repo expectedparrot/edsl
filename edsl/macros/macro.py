@@ -16,7 +16,6 @@ from ..surveys import Survey
 from .base_macro import BaseMacro
 
 if TYPE_CHECKING:
-    from ..scenarios import ScenarioList
     from ..surveys import Survey
     from ..jobs import Jobs
     from ..results import Results
@@ -517,7 +516,6 @@ class Macro(BaseMacro):
     ) -> Any:
         """Run output remotely and return the locally rendered result using server-returned Results + formatters."""
         import requests
-        from uuid import UUID
 
         # Configuration
         from ..coop import Coop
@@ -547,7 +545,6 @@ class Macro(BaseMacro):
 
         reconstructed_results = Results.pull(results_uuid)
 
-        from .output_formatter import OutputFormatters
 
         ofs = self.output_formatters
         return MacroRunOutput(
