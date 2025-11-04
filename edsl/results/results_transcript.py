@@ -118,6 +118,65 @@ class Transcripts:
         values = [data.get(index_type, 0) for data in indices_data]
         return len(set(values)) > 1
     
+    def _format_agent_data(self, agent) -> str:
+        """Format agent data as HTML for display.
+        
+        Args:
+            agent: Agent object
+            
+        Returns:
+            HTML string with formatted agent information
+        """
+        html_parts = []
+        
+        # Get agent name if available
+        if hasattr(agent, 'name') and agent.name:
+            html_parts.append(f'<div style="margin-bottom: 8px;"><strong>Name:</strong> {html_module.escape(str(agent.name))}</div>')
+        
+        # Get agent traits if available
+        if hasattr(agent, 'traits') and agent.traits:
+            html_parts.append('<div style="margin-bottom: 8px;"><strong>Traits:</strong></div>')
+            html_parts.append('<div style="margin-left: 12px;">')
+            for key, value in agent.traits.items():
+                value_str = str(value)
+                # Truncate very long values
+                if len(value_str) > 500:
+                    value_str = value_str[:497] + '...'
+                html_parts.append(f'<div style="margin-bottom: 6px;"><strong>{html_module.escape(str(key))}:</strong> {html_module.escape(value_str)}</div>')
+            html_parts.append('</div>')
+        
+        if not html_parts:
+            return '<div style="color: #57606a; font-style: italic;">No agent information available</div>'
+        
+        return '\n'.join(html_parts)
+    
+    def _format_scenario_data(self, scenario) -> str:
+        """Format scenario data as HTML for display.
+        
+        Args:
+            scenario: Scenario object
+            
+        Returns:
+            HTML string with formatted scenario information
+        """
+        html_parts = []
+        
+        # Get scenario data (scenario is dict-like)
+        if hasattr(scenario, '__iter__'):
+            scenario_dict = dict(scenario)
+            if scenario_dict:
+                for key, value in scenario_dict.items():
+                    value_str = str(value)
+                    # Truncate very long values
+                    if len(value_str) > 500:
+                        value_str = value_str[:497] + '...'
+                    html_parts.append(f'<div style="margin-bottom: 8px;"><strong>{html_module.escape(str(key))}:</strong> {html_module.escape(value_str)}</div>')
+        
+        if not html_parts:
+            return '<div style="color: #57606a; font-style: italic;">No scenario information available</div>'
+        
+        return '\n'.join(html_parts)
+    
     def _generate_simple(self) -> str:
         """Generate a simple plain-text transcripts view.
         
@@ -270,30 +329,6 @@ class Transcripts:
            onmouseout="this.style.background='transparent';">
             📋 Copy
         </button>
-    </div>
-    
-    <!-- Agent Info Tooltip (Hidden by default) -->
-    <div id="agent-tooltip-{transcripts_id}" style="
-        display: none;
-        position: absolute;
-        background: #24292e;
-        color: #ffffff;
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-size: 13px;
-        z-index: 1000;
-        max-width: 300px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        pointer-events: none;
-    ">
-        <div style="
-            font-size: 11px;
-            color: #8b949e;
-            margin-bottom: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        ">Respondent Info</div>
-        <div id="agent-tooltip-content-{transcripts_id}"></div>
     </div>
     
     <!-- Carousel Container -->
