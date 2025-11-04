@@ -143,7 +143,7 @@ class ResultsVibeAnalysis:
     def display(self):
         """Display the analysis with plots and insights in a notebook."""
         try:
-            from IPython.display import display, HTML, Markdown
+            from IPython.display import display, HTML, Markdown  # noqa: F401
         except ImportError:
             print("IPython not available. Using print_insights() instead.")
             self.print_insights()
@@ -174,8 +174,8 @@ class ResultsVibeAnalysis:
                 elif hasattr(q_analysis.analysis, 'bar_chart'):
                     chart = q_analysis.analysis.bar_chart
                     display(chart)
-            except Exception as e:
-                print(f"Could not display chart: {e}")
+            except Exception:
+                print("Could not display chart")
 
             # Display LLM insights
             if q_analysis.llm_insights:
@@ -578,7 +578,7 @@ def _capture_chart_as_png(chart_wrapper) -> Optional[bytes]:
             buf.seek(0)
             return buf.read()
 
-    except Exception as e:
+    except Exception:
         # Silently fail if we can't capture the image
         pass
 

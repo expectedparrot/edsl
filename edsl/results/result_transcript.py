@@ -698,8 +698,8 @@ function showCopyFeedback_{transcript_id}() {{
             ImportError: If the rich library is not installed
         """
         try:
-            from rich.console import Console
-            from rich.panel import Panel
+            from rich.console import Console  # noqa: F401
+            from rich.panel import Panel  # noqa: F401
         except ImportError as exc:
             raise ImportError(
                 "The 'rich' package is required for Rich formatting. Install it with `pip install rich`."

@@ -1,6 +1,6 @@
 """Module for generating questions from natural language descriptions."""
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..question_base import QuestionBase
