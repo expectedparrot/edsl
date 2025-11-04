@@ -12,6 +12,7 @@ def _check_sentence_transformers_available():
     """Check if sentence_transformers is available without importing it."""
     try:
         import importlib.util
+
         spec = importlib.util.find_spec("sentence_transformers")
         return spec is not None
     except (ImportError, ValueError):
@@ -81,7 +82,9 @@ class CosineSimilarity(ComparisonFunction):
             install_name="sentence-transformers",
             description="sentence-transformers (required for semantic similarity)",
         )
-        SentenceTransformer = getattr(sentence_transformers, "SentenceTransformer", None)
+        SentenceTransformer = getattr(
+            sentence_transformers, "SentenceTransformer", None
+        )
         self.model = SentenceTransformer(
             model_name
         )  # Will raise ImportError with helpful message if missing

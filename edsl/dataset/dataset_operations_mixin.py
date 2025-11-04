@@ -196,7 +196,9 @@ class DataOperationsBase:
         # Return 0 for empty datasets instead of None
         return _num_observations if _num_observations is not None else 0
 
-    def vibe_plot(self, description: str, show_code: bool = False, show_expression: bool = False):
+    def vibe_plot(
+        self, description: str, show_code: bool = False, show_expression: bool = False
+    ):
         """
         Generate and display a ggplot2 visualization using natural language description.
 

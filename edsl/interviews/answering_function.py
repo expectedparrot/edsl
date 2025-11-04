@@ -150,11 +150,11 @@ class SkipHandler:
         answers = self._current_info_env()
 
         # Get the index of the next question, which could also be the end of the survey
-        next_question: Union[
-            int, EndOfSurvey
-        ] = self._survey.rule_collection.next_question(
-            q_now=current_question_index,
-            answers=answers,
+        next_question: Union[int, EndOfSurvey] = (
+            self._survey.rule_collection.next_question(
+                q_now=current_question_index,
+                answers=answers,
+            )
         )
 
         def cancel_between(start, end):

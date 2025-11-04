@@ -21,6 +21,7 @@ class QuestionVibeAnalysis:
         visualization_analysis: Optional LLM analysis of the visualization
         chart_png: PNG bytes of the chart for serialization
     """
+
     question_name: str
     question_text: str
     question_type: str
@@ -46,7 +47,7 @@ class QuestionVibeAnalysis:
 
         # Try to get from analysis
         try:
-            if hasattr(self.analysis, 'bar_chart'):
+            if hasattr(self.analysis, "bar_chart"):
                 return _capture_chart_as_png(self.analysis.bar_chart)
         except Exception:
             pass
@@ -65,6 +66,7 @@ class ResultsVibeAnalysis:
         question_analyses: Dictionary mapping question names to their analyses
         summary_report: Optional overall summary report across all questions
     """
+
     question_analyses: Dict[str, QuestionVibeAnalysis] = field(default_factory=dict)
     summary_report: Optional[str] = None
 
@@ -110,7 +112,7 @@ class ResultsVibeAnalysis:
                 "visualization_analysis": q_analysis.visualization_analysis,
                 # Store PNG as base64 string for JSON compatibility
                 "chart_png_base64": (
-                    base64.b64encode(q_analysis.chart_png).decode('utf-8')
+                    base64.b64encode(q_analysis.chart_png).decode("utf-8")
                     if q_analysis.chart_png
                     else None
                 ),
@@ -152,7 +154,9 @@ class ResultsVibeAnalysis:
         # Display each question's analysis
         for q_name, q_analysis in self.question_analyses.items():
             # Question header
-            display(HTML(f"""
+            display(
+                HTML(
+                    f"""
                 <div style="margin-top: 30px; margin-bottom: 20px; padding: 15px;
                      background-color: #f0f7ff; border-left: 4px solid #0066cc; border-radius: 4px;">
                     <h2 style="margin: 0; color: #0066cc; font-size: 20px;">
@@ -162,16 +166,19 @@ class ResultsVibeAnalysis:
                         Question: <code>{q_name}</code> | Type: <code>{q_analysis.question_type}</code>
                     </p>
                 </div>
-            """))
+            """
+                )
+            )
 
             # Display the chart/visualization
             try:
                 # First try to use the stored PNG
                 if q_analysis.chart_png:
                     from IPython.display import Image
+
                     display(Image(q_analysis.chart_png))
                 # Otherwise try to display the interactive chart
-                elif hasattr(q_analysis.analysis, 'bar_chart'):
+                elif hasattr(q_analysis.analysis, "bar_chart"):
                     chart = q_analysis.analysis.bar_chart
                     display(chart)
             except Exception:
@@ -179,7 +186,9 @@ class ResultsVibeAnalysis:
 
             # Display LLM insights
             if q_analysis.llm_insights:
-                display(HTML(f"""
+                display(
+                    HTML(
+                        f"""
                     <div style="margin: 20px 0; padding: 15px;
                          background-color: #f9f9f9; border-radius: 4px; border: 1px solid #ddd;">
                         <h3 style="margin-top: 0; color: #333; font-size: 16px;">
@@ -189,11 +198,15 @@ class ResultsVibeAnalysis:
                             {q_analysis.llm_insights.replace(chr(10), '<br>')}
                         </div>
                     </div>
-                """))
+                """
+                    )
+                )
 
             # Display visualization analysis if available
             if q_analysis.visualization_analysis:
-                display(HTML(f"""
+                display(
+                    HTML(
+                        f"""
                     <div style="margin: 20px 0; padding: 15px;
                          background-color: #fff8e6; border-radius: 4px; border: 1px solid #ffd700;">
                         <h3 style="margin-top: 0; color: #333; font-size: 16px;">
@@ -203,11 +216,15 @@ class ResultsVibeAnalysis:
                             {q_analysis.visualization_analysis.replace(chr(10), '<br>')}
                         </div>
                     </div>
-                """))
+                """
+                    )
+                )
 
         # Display overall summary
         if self.summary_report:
-            display(HTML(f"""
+            display(
+                HTML(
+                    f"""
                 <div style="margin-top: 40px; padding: 20px;
                      background-color: #e8f5e9; border-radius: 4px; border: 2px solid #4caf50;">
                     <h2 style="margin-top: 0; color: #2e7d32; font-size: 20px;">
@@ -217,24 +234,29 @@ class ResultsVibeAnalysis:
                         {self.summary_report.replace(chr(10) + chr(10), '</p><p style="margin: 15px 0;">').replace(chr(10), '<br>')}
                     </div>
                 </div>
-            """))
+            """
+                )
+            )
 
     def _repr_html_(self):
         """Return HTML representation for automatic display in Jupyter notebooks."""
         html_parts = []
 
         # Overall header
-        html_parts.append("""
+        html_parts.append(
+            """
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1000px;">
                 <h1 style="color: #0066cc; border-bottom: 3px solid #0066cc; padding-bottom: 10px; margin-bottom: 30px;">
                     📊 Results Analysis with AI Insights
                 </h1>
-        """)
+        """
+        )
 
         # Each question's analysis
         for q_name, q_analysis in self.question_analyses.items():
             # Question header
-            html_parts.append(f"""
+            html_parts.append(
+                f"""
                 <div style="margin-top: 30px; margin-bottom: 20px; padding: 15px;
                      background-color: #f0f7ff; border-left: 4px solid #0066cc; border-radius: 4px;">
                     <h2 style="margin: 0; color: #0066cc; font-size: 20px;">
@@ -244,46 +266,57 @@ class ResultsVibeAnalysis:
                         Question: <code>{q_name}</code> | Type: <code>{q_analysis.question_type}</code>
                     </p>
                 </div>
-            """)
+            """
+            )
 
             # Try to get chart HTML or PNG
             try:
                 # First try to use the stored PNG
                 if q_analysis.chart_png:
                     import base64
-                    img_base64 = base64.b64encode(q_analysis.chart_png).decode('utf-8')
-                    html_parts.append(f"""
+
+                    img_base64 = base64.b64encode(q_analysis.chart_png).decode("utf-8")
+                    html_parts.append(
+                        f"""
                         <div style="margin: 20px 0;">
                             <img src="data:image/png;base64,{img_base64}"
                                  style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px;"/>
                         </div>
-                    """)
+                    """
+                    )
                 # Otherwise try to get HTML representation
-                elif hasattr(q_analysis.analysis, 'bar_chart'):
+                elif hasattr(q_analysis.analysis, "bar_chart"):
                     chart = q_analysis.analysis.bar_chart
-                    if hasattr(chart, '_repr_html_'):
-                        html_parts.append(f"""
+                    if hasattr(chart, "_repr_html_"):
+                        html_parts.append(
+                            f"""
                             <div style="margin: 20px 0;">
                                 {chart._repr_html_()}
                             </div>
-                        """)
-                    elif hasattr(chart, 'to_html'):
-                        html_parts.append(f"""
+                        """
+                        )
+                    elif hasattr(chart, "to_html"):
+                        html_parts.append(
+                            f"""
                             <div style="margin: 20px 0;">
                                 {chart.to_html()}
                             </div>
-                        """)
+                        """
+                        )
             except Exception:
-                html_parts.append("""
+                html_parts.append(
+                    """
                     <div style="margin: 20px 0; padding: 10px; background-color: #f9f9f9; border-radius: 4px;">
                         <em>Chart available via .bar_chart property</em>
                     </div>
-                """)
+                """
+                )
 
             # LLM insights
             if q_analysis.llm_insights:
-                insights_html = q_analysis.llm_insights.replace('\n', '<br>')
-                html_parts.append(f"""
+                insights_html = q_analysis.llm_insights.replace("\n", "<br>")
+                html_parts.append(
+                    f"""
                     <div style="margin: 20px 0; padding: 15px;
                          background-color: #f9f9f9; border-radius: 4px; border: 1px solid #ddd;">
                         <h3 style="margin-top: 0; color: #333; font-size: 16px;">
@@ -293,12 +326,14 @@ class ResultsVibeAnalysis:
                             {insights_html}
                         </div>
                     </div>
-                """)
+                """
+                )
 
             # Visualization analysis if available
             if q_analysis.visualization_analysis:
-                viz_html = q_analysis.visualization_analysis.replace('\n', '<br>')
-                html_parts.append(f"""
+                viz_html = q_analysis.visualization_analysis.replace("\n", "<br>")
+                html_parts.append(
+                    f"""
                     <div style="margin: 20px 0; padding: 15px;
                          background-color: #fff8e6; border-radius: 4px; border: 1px solid #ffd700;">
                         <h3 style="margin-top: 0; color: #333; font-size: 16px;">
@@ -308,12 +343,16 @@ class ResultsVibeAnalysis:
                             {viz_html}
                         </div>
                     </div>
-                """)
+                """
+                )
 
         # Overall summary
         if self.summary_report:
-            summary_html = self.summary_report.replace('\n\n', '</p><p style="margin: 15px 0;">').replace('\n', '<br>')
-            html_parts.append(f"""
+            summary_html = self.summary_report.replace(
+                "\n\n", '</p><p style="margin: 15px 0;">'
+            ).replace("\n", "<br>")
+            html_parts.append(
+                f"""
                 <div style="margin-top: 40px; padding: 20px;
                      background-color: #e8f5e9; border-radius: 4px; border: 2px solid #4caf50;">
                     <h2 style="margin-top: 0; color: #2e7d32; font-size: 20px;">
@@ -323,10 +362,11 @@ class ResultsVibeAnalysis:
                         <p style="margin: 15px 0;">{summary_html}</p>
                     </div>
                 </div>
-            """)
+            """
+            )
 
         html_parts.append("</div>")
-        return ''.join(html_parts)
+        return "".join(html_parts)
 
 
 def analyze_with_vibes(
@@ -398,7 +438,9 @@ def analyze_with_vibes(
             continue
 
         # Extract actual response data from results
-        data_summary = _extract_data_summary(analysis, question_type, results, question_name)
+        data_summary = _extract_data_summary(
+            analysis, question_type, results, question_name
+        )
 
         # Generate LLM insights about the data
         llm_insights = analyzer.analyze_question_data(
@@ -412,7 +454,7 @@ def analyze_with_vibes(
         # Capture chart as PNG for serialization
         chart_png = None
         try:
-            if hasattr(analysis, 'bar_chart'):
+            if hasattr(analysis, "bar_chart"):
                 chart_png = _capture_chart_as_png(analysis.bar_chart)
         except Exception as e:
             print(f"Warning: Could not capture chart for '{question_name}': {e}")
@@ -485,13 +527,16 @@ def _extract_data_summary(
         # Get unique values and their counts for categorical data
         if question_type in ["multiple_choice", "checkbox", "yes_no"]:
             from collections import Counter
+
             response_counts = Counter(str(r) for r in responses if r is not None)
             summary["distribution"] = dict(response_counts)
             summary["unique_values"] = list(response_counts.keys())
 
         # Get statistics for numerical data
         elif question_type in ["numerical", "linear_scale"]:
-            numeric_responses = [r for r in responses if r is not None and isinstance(r, (int, float))]
+            numeric_responses = [
+                r for r in responses if r is not None and isinstance(r, (int, float))
+            ]
             if numeric_responses:
                 summary["statistics"] = {
                     "count": len(numeric_responses),
@@ -501,8 +546,11 @@ def _extract_data_summary(
                 }
                 # Also get distribution for discrete scales
                 from collections import Counter
+
                 response_counts = Counter(numeric_responses)
-                summary["distribution"] = {str(k): v for k, v in response_counts.items()}
+                summary["distribution"] = {
+                    str(k): v for k, v in response_counts.items()
+                }
 
         # For free text, provide samples
         elif question_type in ["free_text", "text"]:
@@ -514,9 +562,9 @@ def _extract_data_summary(
 
     # Also try to get frequency table data from analysis if available
     try:
-        if hasattr(analysis, 'frequency_table'):
+        if hasattr(analysis, "frequency_table"):
             freq_table = analysis.frequency_table
-            if hasattr(freq_table, '_data'):
+            if hasattr(freq_table, "_data"):
                 summary["frequency_table"] = freq_table._data
     except Exception:
         pass
@@ -535,26 +583,26 @@ def _capture_chart_as_png(chart_wrapper) -> Optional[bytes]:
     """
     try:
         # If it's an OutputWrapper, get the actual chart
-        if hasattr(chart_wrapper, 'chart'):
+        if hasattr(chart_wrapper, "chart"):
             actual_chart = chart_wrapper.chart
         else:
             actual_chart = chart_wrapper
 
         # For Altair charts (most common in edsl)
-        if hasattr(actual_chart, 'save'):
+        if hasattr(actual_chart, "save"):
             import tempfile
             import os
 
             # Create temp file
-            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
                 temp_path = f.name
 
             try:
                 # Save chart as PNG
-                actual_chart.save(temp_path, format='png')
+                actual_chart.save(temp_path, format="png")
 
                 # Read the PNG bytes
-                with open(temp_path, 'rb') as f:
+                with open(temp_path, "rb") as f:
                     png_bytes = f.read()
 
                 return png_bytes
@@ -567,14 +615,15 @@ def _capture_chart_as_png(chart_wrapper) -> Optional[bytes]:
                     pass
 
         # For Plotly figures
-        elif hasattr(actual_chart, 'to_image'):
+        elif hasattr(actual_chart, "to_image"):
             return actual_chart.to_image(format="png")
 
         # For matplotlib figures
-        elif hasattr(actual_chart, 'savefig'):
+        elif hasattr(actual_chart, "savefig"):
             import io
+
             buf = io.BytesIO()
-            actual_chart.savefig(buf, format='png')
+            actual_chart.savefig(buf, format="png")
             buf.seek(0)
             return buf.read()
 
@@ -596,7 +645,7 @@ def _get_visualization_image(analysis: "QuestionAnalysis") -> Optional[bytes]:
     """
     try:
         # Try to get bar chart as the default visualization
-        if hasattr(analysis, 'bar_chart'):
+        if hasattr(analysis, "bar_chart"):
             return _capture_chart_as_png(analysis.bar_chart)
     except Exception:
         pass

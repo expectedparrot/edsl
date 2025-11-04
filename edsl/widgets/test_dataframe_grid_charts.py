@@ -50,7 +50,9 @@ def test_basic_functionality():
 
     # Create sample data
     df = create_sample_data()
-    print(f"📊 Created sample dataset with {len(df)} rows and {len(df.columns)} columns")
+    print(
+        f"📊 Created sample dataset with {len(df)} rows and {len(df.columns)} columns"
+    )
 
     # Create widget
     widget = DataFrameGridChartsWidget(dataframe=df)

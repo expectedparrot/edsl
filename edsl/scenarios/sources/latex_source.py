@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 class LaTeXSource(Source):
     """Create ScenarioList from tables in LaTeX files."""
-    
+
     source_type = "latex"
 
     def __init__(self, file_path: str, table_index: int = 0, has_header: bool = True):
@@ -111,4 +111,3 @@ Charlie & 35 & 92 \\
             scenarios.append(Scenario(scenario_dict))
 
         return ScenarioList(scenarios)
-

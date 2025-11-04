@@ -1048,10 +1048,15 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             - If a codebook is present, it will be included in the analysis
         """
         from .vibes import describe_scenario_list_with_vibes
-        d =  describe_scenario_list_with_vibes(
-            self, model=model, temperature=temperature, max_sample_values=max_sample_values
+
+        d = describe_scenario_list_with_vibes(
+            self,
+            model=model,
+            temperature=temperature,
+            max_sample_values=max_sample_values,
         )
         from ..scenarios import Scenario
+
         return Scenario(**d)
 
     def _summary_repr(self, MAX_SCENARIOS: int = 10, MAX_FIELDS: int = 500) -> str:
@@ -2181,7 +2186,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             ['_123field', 'user_name', 'valid_key']
         """
         from .scenario_snakifier import ScenarioSnakifier
-        
+
         return ScenarioSnakifier(self).snakify()
 
     def replace_names(self, new_names: list) -> ScenarioList:
@@ -2953,23 +2958,23 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def filter_na(self, fields: Union[str, List[str]] = "*") -> "ScenarioList":
         """
         Remove scenarios where specified fields contain None or NaN values.
-        
+
         This method filters out scenarios that have null/NaN values in the specified
         fields. It's similar to pandas' dropna() functionality. Values considered as
         NA include: None, float('nan'), and string representations like 'nan', 'none', 'null'.
-        
+
         Args:
             fields: Field name(s) to check for NA values. Can be:
                     - "*" (default): Check all fields in each scenario
                     - A single field name (str): Check only that field
                     - A list of field names: Check all specified fields
-                    
+
                     A scenario is kept only if NONE of the specified fields contain NA values.
-        
+
         Returns:
             ScenarioList: A new ScenarioList containing only scenarios without NA values
                          in the specified fields.
-        
+
         Examples:
             Remove scenarios with any NA values in any field:
             >>> scenarios = ScenarioList([
@@ -2982,7 +2987,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             2
             >>> filtered[0]['a']
             1
-            
+
             Remove scenarios with NA in specific field:
             >>> scenarios = ScenarioList([
             ...     Scenario({'name': 'Alice', 'age': 30}),
@@ -2996,14 +3001,14 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             'Alice'
             >>> filtered[1]['name']
             'Bob'
-            
+
             Remove scenarios with NA in multiple specific fields:
             >>> filtered = scenarios.filter_na(['name', 'age'])
             >>> len(filtered)
             1
             >>> filtered[0]['name']
             'Alice'
-            
+
             Handle float NaN values:
             >>> import math
             >>> scenarios = ScenarioList([
@@ -3016,7 +3021,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             2
         """
         import math
-        
+
         def is_na(val):
             """Check if a value is considered NA (None or NaN)."""
             if val is None:
@@ -3030,7 +3035,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 if str_val in ["nan", "none", "null"]:
                     return True
             return False
-        
+
         # Determine which fields to check
         if fields == "*":
             # Check all fields - need to collect all unique keys across scenarios
@@ -3042,7 +3047,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             check_fields = [fields]
         else:
             check_fields = list(fields)
-        
+
         # Filter scenarios
         new_sl = ScenarioList(data=[], codebook=self.codebook)
         for scenario in self:
@@ -3054,11 +3059,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                     if is_na(scenario[field]):
                         has_na = True
                         break
-            
+
             # Keep scenario only if it has no NA values in checked fields
             if not has_na:
                 new_sl.append(scenario)
-        
+
         return new_sl
 
     def create_conjoint_comparisons(
@@ -3119,7 +3124,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return generator.generate_batch(count)
 
     @classmethod
-    def from_source(cls, source_type_or_data: Any, *args, snakify: bool = True, **kwargs) -> "ScenarioList":
+    def from_source(
+        cls, source_type_or_data: Any, *args, snakify: bool = True, **kwargs
+    ) -> "ScenarioList":
         """
         Create a ScenarioList from a specified source type or infer it automatically.
 
@@ -3128,23 +3135,23 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         are automatically converted to valid Python identifiers (snake_case).
 
         **Two modes of operation:**
-        
+
         1. **Explicit source type** (2+ arguments): Specify the source type explicitly
            Example: ScenarioList.from_source('csv', 'data.csv')
-        
+
         2. **Auto-detect source** (1 argument): Pass only the data and let it infer the type
            Example: ScenarioList.from_source('data.csv')
 
         Args:
             source_type_or_data: Either:
-                - A string specifying the source type ('csv', 'excel', 'pdf', etc.) 
+                - A string specifying the source type ('csv', 'excel', 'pdf', etc.)
                   when using explicit mode with additional args
-                - The actual data source (file path, URL, dict, DataFrame, etc.) 
+                - The actual data source (file path, URL, dict, DataFrame, etc.)
                   when using auto-detect mode
-            *args: Positional arguments to pass to the source-specific method 
+            *args: Positional arguments to pass to the source-specific method
                    (only used in explicit mode).
-            snakify: If True (default), automatically convert all scenario keys to 
-                     valid Python identifiers (snake_case). Set to False to preserve 
+            snakify: If True (default), automatically convert all scenario keys to
+                     valid Python identifiers (snake_case). Set to False to preserve
                      original column names.
             **kwargs: Keyword arguments to pass to the source-specific method.
 
@@ -3155,15 +3162,15 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         Examples:
             >>> # Explicit source type (original behavior)
             >>> # sl = ScenarioList.from_source('csv', 'data.csv')
-            
+
             >>> # Auto-detect source type (new behavior)
             >>> sl = ScenarioList.from_source({'name': ['Alice', 'Bob'], 'age': [25, 30]})
             Detected source type: dictionary
-            
+
             >>> # Auto-detect from file with snakify
             >>> # sl = ScenarioList.from_source('data.csv')  # Keys will be snakified
             >>> # Detected source type: CSV file at data.csv
-            
+
             >>> # Preserve original column names
             >>> sl = ScenarioList.from_source({'First Name': ['Alice']}, snakify=False)
             Detected source type: dictionary
@@ -3172,7 +3179,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         from .scenario_source import ScenarioSource
         from .scenario_source_inferrer import ScenarioSourceInferrer
-        
+
         # If no additional positional args, assume user wants auto-detection
         if len(args) == 0:
             # Auto-detect mode: source_type_or_data is actually the data
@@ -3181,12 +3188,14 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             )
         else:
             # Explicit mode: source_type_or_data is the source type string
-            scenario_list = ScenarioSource.from_source(source_type_or_data, *args, **kwargs)
-        
+            scenario_list = ScenarioSource.from_source(
+                source_type_or_data, *args, **kwargs
+            )
+
         # Apply snakify transformation if requested
         if snakify:
             scenario_list = scenario_list.snakify()
-        
+
         return scenario_list
 
 

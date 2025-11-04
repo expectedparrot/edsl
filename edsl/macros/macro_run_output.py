@@ -1,4 +1,5 @@
 """MacroRunOutput wraps Results and provides lazy-evaluated access to output formats."""
+
 from typing import TYPE_CHECKING, Any, Optional
 from ..base import Base
 

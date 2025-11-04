@@ -142,7 +142,11 @@ class QuestionOptionProcessor(QuestionAttributeProcessor):
             else:
                 # If we can't resolve the template, just return additional options
                 # or default if no additional options
-                return additional_options if additional_options else self._get_default_options()
+                return (
+                    additional_options
+                    if additional_options
+                    else self._get_default_options()
+                )
 
         # If not a template string or dict, return as is or default
         if not isinstance(options_entry, str):

@@ -299,7 +299,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         In HTML/Jupyter, displays as an interactive carousel with:
         - "Prev/Next Respondent" buttons to navigate between agents
         - "Prev Q/Next Q" buttons to navigate between questions
-        
+
         In terminal, displays Rich formatted output with agent headers and Q&A pairs.
 
         Args:
@@ -316,7 +316,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> # In Jupyter: Interactive carousel navigation
             >>> # In terminal: Rich formatted display
             >>> # As string: Plain text format
-            
+
             >>> # Without comments
             >>> transcripts_no_comments = results.transcripts(show_comments=False)
         """

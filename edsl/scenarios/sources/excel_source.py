@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 class ExcelSource(Source):
     """Create ScenarioList from Excel (.xlsx) files."""
-    
+
     source_type = "excel"
 
     def __init__(
@@ -184,4 +184,3 @@ class ExcelSource(Source):
                 scenarios.append(Scenario(scenario_dict))
 
             return ScenarioList(scenarios)
-

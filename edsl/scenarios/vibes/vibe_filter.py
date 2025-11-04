@@ -162,7 +162,9 @@ class VibeFilter:
             "task": "Generate a Python filter expression for a ScenarioList",
             "criteria": criteria,
             "available_keys": keys,
-            "sample_scenarios": sample_scenarios[:3],  # Just show first 3 scenarios as examples
+            "sample_scenarios": sample_scenarios[
+                :3
+            ],  # Just show first 3 scenarios as examples
             "instructions": (
                 "Based on the filtering criteria, generate a Python boolean expression. "
                 "The expression should return True to keep a scenario, False to filter it out. "

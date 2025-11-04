@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 class GoogleDocSource(Source):
     """Create ScenarioList from Google Docs by paragraphs."""
-    
+
     source_type = "google_doc"
 
     def __init__(self, url: str):
@@ -97,7 +97,7 @@ class GoogleDocSource(Source):
 
 class GoogleSheetSource(Source):
     """Create ScenarioList from Google Sheets."""
-    
+
     source_type = "google_sheet"
 
     def __init__(
@@ -211,4 +211,3 @@ class GoogleSheetSource(Source):
             raise ScenarioError(f"Error fetching the Google Sheet: {str(e)}")
         except Exception as e:
             raise ScenarioError(f"Error processing Google Sheet: {str(e)}")
-

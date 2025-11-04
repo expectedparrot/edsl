@@ -1,4 +1,5 @@
 """Parser for Qualtrics CSV exports with three or four header rows."""
+
 import json
 import re
 import sqlite3

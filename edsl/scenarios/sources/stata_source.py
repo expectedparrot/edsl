@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 class StataSource(Source):
     """Create ScenarioList from Stata (.dta) files with optional metadata."""
-    
+
     source_type = "dta"
 
     def __init__(self, file_path: str, include_metadata: bool = True):
@@ -117,4 +117,3 @@ class StataSource(Source):
                 }
 
         return result
-

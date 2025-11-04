@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 class DirectorySource(Source):
     """Create ScenarioList from files in a directory."""
-    
+
     source_type = "directory"
 
     def __init__(
@@ -156,4 +156,3 @@ class DirectorySource(Source):
                 ignore_dirs=self.ignore_dirs,
                 ignore_files=self.ignore_files,
             )
-

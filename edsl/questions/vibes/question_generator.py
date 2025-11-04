@@ -142,9 +142,7 @@ class QuestionGenerator:
     def __post_init__(self):
         self.client = OpenAI()  # reads OPENAI_API_KEY from env
 
-    def generate_question(
-        self, description: str
-    ) -> Dict[str, Any]:
+    def generate_question(self, description: str) -> Dict[str, Any]:
         """
         Generate a question based on a natural language description.
 

@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 class WikipediaSource(Source):
     """Create ScenarioList from tables in Wikipedia pages."""
-    
+
     source_type = "wikipedia"
 
     def __init__(self, url: str, table_index: int = 0, header: bool = True):
@@ -117,4 +117,3 @@ class WikipediaSource(Source):
             raise ScenarioError(f"Error parsing tables: {str(e)}")
         except Exception as e:
             raise ScenarioError(f"An unexpected error occurred: {str(e)}")
-

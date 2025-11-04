@@ -113,8 +113,9 @@ class DirectAnswerMethod(Protocol):
         The answer to the question
     """
 
-    def __call__(self, self_: A, question: "QuestionBase", scenario: "Scenario") -> Any:
-        ...
+    def __call__(
+        self, self_: A, question: "QuestionBase", scenario: "Scenario"
+    ) -> Any: ...
 
 
 class Agent(Base):

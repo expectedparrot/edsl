@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 class PandasSource(Source):
     """Create ScenarioList from a pandas DataFrame."""
-    
+
     source_type = "pandas"
 
     def __init__(self, df):
@@ -84,4 +84,3 @@ class PandasSource(Source):
             scenarios.append(Scenario(scenario_dict))
 
         return ScenarioList(scenarios)
-

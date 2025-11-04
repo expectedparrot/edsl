@@ -41,6 +41,7 @@ class VibeAnalyzer:
             try:
                 # Import here to avoid issues at module load time
                 from openai import OpenAI as OpenAIClient
+
                 self._client = OpenAIClient()
             except Exception as e:
                 raise RuntimeError(f"Failed to initialize OpenAI client: {e}")
@@ -109,7 +110,7 @@ class VibeAnalyzer:
                 "Analyze this survey question's results and provide 3-5 key insights. "
                 "Include specific observations about the data patterns, distributions, "
                 "and any notable trends or outliers."
-            )
+            ),
         }
 
         try:
@@ -126,6 +127,7 @@ class VibeAnalyzer:
             if "cannot enter context" in str(e) or "already entered" in str(e):
                 # Asyncio context issue - try to work around it
                 import asyncio
+
                 try:
                     # Try to get or create an event loop
                     loop = asyncio.get_event_loop()
@@ -133,13 +135,17 @@ class VibeAnalyzer:
                         # We're in a running loop (like Jupyter), need nest_asyncio
                         try:
                             import nest_asyncio
+
                             nest_asyncio.apply()
                             # Retry the call
                             response = self.client.chat.completions.create(
                                 model=self.model,
                                 messages=[
                                     {"role": "system", "content": system_prompt},
-                                    {"role": "user", "content": json.dumps(user_prompt, indent=2)},
+                                    {
+                                        "role": "user",
+                                        "content": json.dumps(user_prompt, indent=2),
+                                    },
                                 ],
                                 temperature=self.temperature,
                             )
@@ -189,38 +195,43 @@ class VibeAnalyzer:
         if image_data:
             # Convert image bytes to base64 for OpenAI API
             import base64
-            image_base64 = base64.b64encode(image_data).decode('utf-8')
 
-            messages.append({
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": (
-                            f"This is a {visualization_type or 'chart'} for the question:\n"
-                            f"'{question_text}' (question type: {question_type})\n\n"
-                            f"Analyze this visualization and provide key insights about the data patterns."
-                        )
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{image_base64}"
-                        }
-                    }
-                ]
-            })
+            image_base64 = base64.b64encode(image_data).decode("utf-8")
+
+            messages.append(
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                f"This is a {visualization_type or 'chart'} for the question:\n"
+                                f"'{question_text}' (question type: {question_type})\n\n"
+                                f"Analyze this visualization and provide key insights about the data patterns."
+                            ),
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/png;base64,{image_base64}"
+                            },
+                        },
+                    ],
+                }
+            )
         else:
             # Fallback without image
-            messages.append({
-                "role": "user",
-                "content": (
-                    f"Analyzing {visualization_type or 'visualization'} for question:\n"
-                    f"'{question_text}' (type: {question_type}, name: {question_name})\n\n"
-                    f"Provide general guidance on what insights this type of "
-                    f"visualization typically reveals."
-                )
-            })
+            messages.append(
+                {
+                    "role": "user",
+                    "content": (
+                        f"Analyzing {visualization_type or 'visualization'} for question:\n"
+                        f"'{question_text}' (type: {question_type}, name: {question_name})\n\n"
+                        f"Provide general guidance on what insights this type of "
+                        f"visualization typically reveals."
+                    ),
+                }
+            )
 
         try:
             response = self.client.chat.completions.create(
@@ -234,6 +245,7 @@ class VibeAnalyzer:
             if "cannot enter context" in str(e) or "already entered" in str(e):
                 try:
                     import nest_asyncio
+
                     nest_asyncio.apply()
                     response = self.client.chat.completions.create(
                         model=self.model,
@@ -243,17 +255,16 @@ class VibeAnalyzer:
                     )
                     return response.choices[0].message.content
                 except ImportError:
-                    return "Unable to analyze visualization. Try: pip install nest-asyncio"
+                    return (
+                        "Unable to analyze visualization. Try: pip install nest-asyncio"
+                    )
                 except Exception:
                     return f"Unable to analyze visualization for {question_name}."
             raise
         except Exception as e:
             return f"Error analyzing visualization for {question_name}: {str(e)}"
 
-    def generate_summary_report(
-        self,
-        analyses: Dict[str, Dict[str, Any]]
-    ) -> str:
+    def generate_summary_report(self, analyses: Dict[str, Dict[str, Any]]) -> str:
         """Generate an overall summary report across all question analyses.
 
         Args:
@@ -277,7 +288,7 @@ class VibeAnalyzer:
                 "2. Identifies common themes or patterns\n"
                 "3. Provides actionable recommendations\n"
                 "4. Is concise (2-3 paragraphs maximum)"
-            )
+            ),
         }
 
         try:
@@ -294,12 +305,16 @@ class VibeAnalyzer:
             if "cannot enter context" in str(e) or "already entered" in str(e):
                 try:
                     import nest_asyncio
+
                     nest_asyncio.apply()
                     response = self.client.chat.completions.create(
                         model=self.model,
                         messages=[
                             {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": json.dumps(user_prompt, indent=2)},
+                            {
+                                "role": "user",
+                                "content": json.dumps(user_prompt, indent=2),
+                            },
                         ],
                         temperature=self.temperature,
                     )

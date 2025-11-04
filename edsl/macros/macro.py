@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 else:
     # At runtime, we can use a simple string annotation
     Self = "Macro"  # Adjust to your class name
-    
+
 from .output_formatter import OutputFormatter, OutputFormatters
 from .api_payload import build_api_payload, reconstitute_from_api_payload
 from .answers_collector import AnswersCollector
@@ -313,7 +313,6 @@ class Macro(BaseMacro):
             results = cache[jobs_hash]
             return results
 
-
         if self.pseudo_run:
             results = modified_jobs_object.pseudo_run()
         else:
@@ -551,7 +550,6 @@ class Macro(BaseMacro):
         from ..results import Results
 
         reconstructed_results = Results.pull(results_uuid)
-
 
         ofs = self.output_formatters
         return MacroRunOutput(

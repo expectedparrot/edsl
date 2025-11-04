@@ -254,9 +254,9 @@ def sample_stata_spss_file(
             "sampled": total_rows > max_rows,
             "column_labels": column_labels,
             "value_labels": value_labels,
-            "variable_count": meta.number_columns
-            if hasattr(meta, "number_columns")
-            else len(columns),
+            "variable_count": (
+                meta.number_columns if hasattr(meta, "number_columns") else len(columns)
+            ),
         }
     except Exception as e:
         return {"error": f"Failed to parse {file_type.upper()} file: {e}"}
@@ -819,9 +819,9 @@ class SurveyAssistant:
                             self._console.print(f"\n[red]Error:[/red] {error_msg}")
                             raise FileNotFoundError(error_msg)
                         # File is valid, use placeholder - will be parsed in _generate_survey_yaml
-                        file_contents[
-                            str(file_path)
-                        ] = f"[Binary file: {file_path.name}]"
+                        file_contents[str(file_path)] = (
+                            f"[Binary file: {file_path.name}]"
+                        )
                         self.logger.debug(
                             f"Marked {file_path.name} as binary format for special parsing"
                         )
@@ -841,9 +841,9 @@ class SurveyAssistant:
                             self._console.print(f"\n[red]Error:[/red] {error_msg}")
                             raise FileNotFoundError(error_msg)
                         # File is valid, use placeholder - will be parsed in _generate_survey_yaml
-                        file_contents[
-                            str(file_path)
-                        ] = f"[Binary file: {file_path.name}]"
+                        file_contents[str(file_path)] = (
+                            f"[Binary file: {file_path.name}]"
+                        )
                         self.logger.debug(
                             f"Marked {file_path.name} as binary format for special parsing"
                         )
@@ -1269,26 +1269,26 @@ class SurveyAssistant:
             detailed_results = {
                 "success": len(questions) > 0,
                 "output_dir": str(self.output_dir),
-                "output_file": str(self.output_dir / "survey.json.gz")
-                if survey
-                else None,
-                "survey_yaml_file": str(self.output_dir / "survey.yaml")
-                if survey
-                else None,
+                "output_file": (
+                    str(self.output_dir / "survey.json.gz") if survey else None
+                ),
+                "survey_yaml_file": (
+                    str(self.output_dir / "survey.yaml") if survey else None
+                ),
                 "questions_processed": question_results,
                 "errors": errors,
                 "survey_summary": {
                     "total_questions": len(questions) + len(errors),
                     "successful_questions": len(questions),
                     "failed_questions": len(errors),
-                    "question_types": list(
-                        set([q.__class__.__name__ for q in questions])
-                    )
-                    if questions
-                    else [],
-                    "question_names": [q.question_name for q in questions]
-                    if questions
-                    else [],
+                    "question_types": (
+                        list(set([q.__class__.__name__ for q in questions]))
+                        if questions
+                        else []
+                    ),
+                    "question_names": (
+                        [q.question_name for q in questions] if questions else []
+                    ),
                 },
             }
 
@@ -1300,9 +1300,9 @@ class SurveyAssistant:
                     "successful_questions": len(questions),
                     "failed_questions": len(errors),
                     "output_dir": str(self.output_dir),
-                    "output_file": str(self.output_dir / "survey.json.gz")
-                    if survey
-                    else None,
+                    "output_file": (
+                        str(self.output_dir / "survey.json.gz") if survey else None
+                    ),
                 }
 
             return detailed_results
@@ -1932,7 +1932,9 @@ You do not need to use any tools - all necessary data is provided in the prompt 
             self.logger.debug(f"Saved prompt to {prompt_file}")
         else:
             # In debug mode, show the prompt
-            self._console.print("\n[bold yellow]📄 File Contents Summary:[/bold yellow]")
+            self._console.print(
+                "\n[bold yellow]📄 File Contents Summary:[/bold yellow]"
+            )
             self._console.print("[dim]" + "─" * 70 + "[/dim]")
             # Show info about each file
             for filename, content in file_contents.items():
@@ -2113,9 +2115,7 @@ You do not need to use any tools - all necessary data is provided in the prompt 
                     # Handle ResultMessage (tool results)
                     if isinstance(message, ResultMessage):
                         if debug:
-                            print(
-                                "[Tool result being sent back to Claude]", flush=True
-                            )
+                            print("[Tool result being sent back to Claude]", flush=True)
                         continue
 
                     # Handle UserMessage (system messages back to Claude)

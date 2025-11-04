@@ -85,10 +85,10 @@ def _get_name_safe(func: Any, fallback_name: str) -> str:
     # For properties, use the name of the getter function or fallback
     if isinstance(func, property):
         if func.fget is not None:
-            return getattr(func.fget, '__name__', fallback_name)
+            return getattr(func.fget, "__name__", fallback_name)
         return fallback_name
     # For regular functions/methods
-    return getattr(func, '__name__', fallback_name)
+    return getattr(func, "__name__", fallback_name)
 
 
 def _get_qualname_safe(func: Any, fallback_name: str) -> str:
@@ -96,18 +96,27 @@ def _get_qualname_safe(func: Any, fallback_name: str) -> str:
     # For properties, use the qualname of the getter function
     if isinstance(func, property):
         if func.fget is not None:
-            return getattr(func.fget, '__qualname__', fallback_name)
+            return getattr(func.fget, "__qualname__", fallback_name)
         return fallback_name
     # For regular functions/methods
-    return getattr(func, '__qualname__', fallback_name)
+    return getattr(func, "__qualname__", fallback_name)
 
 
-white_list_commands = [_get_name_safe(f, name) for f, name in zip(white_list_methods, white_list_method_names)]
-return_types = {_get_name_safe(f, name): _get_return_annotation_safe(f.fget if isinstance(f, property) else f) 
-                for f, name in zip(white_list_methods, white_list_method_names)}
+white_list_commands = [
+    _get_name_safe(f, name)
+    for f, name in zip(white_list_methods, white_list_method_names)
+]
+return_types = {
+    _get_name_safe(f, name): _get_return_annotation_safe(
+        f.fget if isinstance(f, property) else f
+    )
+    for f, name in zip(white_list_methods, white_list_method_names)
+}
 
-parent_class = {_get_name_safe(f, name): _get_qualname_safe(f, name).split(".")[0] 
-                for f, name in zip(white_list_methods, white_list_method_names)}
+parent_class = {
+    _get_name_safe(f, name): _get_qualname_safe(f, name).split(".")[0]
+    for f, name in zip(white_list_methods, white_list_method_names)
+}
 
 from abc import ABC
 
@@ -322,32 +331,32 @@ class ObjectFormatter(ABC):
                     # but should be an int for method calls
                     return _smart_type_convert(rendered)
             return value
-        
+
         def _smart_type_convert(value: str) -> Any:
             """Convert string to int, float, or bool if appropriate, otherwise return as-is."""
             if not isinstance(value, str):
                 return value
-            
+
             # Try bool first (before int, since "True"/"False" might parse as 1/0)
             if value in ("True", "true"):
                 return True
             if value in ("False", "false"):
                 return False
-            
+
             # Try int
             try:
                 # Check if it looks like an int (no decimal point)
-                if '.' not in value:
+                if "." not in value:
                     return int(value)
             except (ValueError, TypeError):
                 pass
-            
+
             # Try float
             try:
                 return float(value)
             except (ValueError, TypeError):
                 pass
-            
+
             # Return original string if no conversion worked
             return value
 

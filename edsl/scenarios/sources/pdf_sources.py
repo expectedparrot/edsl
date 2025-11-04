@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 class PDFSource(Source):
     """Create ScenarioList from PDF files by extracting text."""
-    
+
     source_type = "pdf"
 
     def __init__(
@@ -129,7 +129,7 @@ class PDFSource(Source):
 
 class PDFImageSource(Source):
     """Create ScenarioList from PDF files by converting pages to images."""
-    
+
     source_type = "pdf_to_image"
 
     def __init__(
@@ -207,4 +207,3 @@ class PDFImageSource(Source):
 
         except Exception as e:
             raise ScenarioError(f"Error converting PDF to images: {str(e)}")
-

@@ -75,18 +75,18 @@ class QRCode:
 
         # Convert image to base64
         buffer = BytesIO()
-        self.image.save(buffer, format='PNG')
+        self.image.save(buffer, format="PNG")
         img_str = base64.b64encode(buffer.getvalue()).decode()
 
         # Create HTML with image and caption
-        html = f'''
+        html = f"""
         <div style="display: inline-block; margin: 10px; text-align: center;">
             <img src="data:image/png;base64,{img_str}" style="max-width: 200px;">
             <div style="margin-top: 5px; font-size: 12px; word-wrap: break-word; max-width: 200px;">
                 <a href="{self.url}" target="_blank">{self.url}</a>
             </div>
         </div>
-        '''
+        """
         return html
 
     def __repr__(self) -> str:
@@ -127,7 +127,9 @@ class QRCode:
             qr.print_ascii()
         except ImportError:
             print(f"QR Code for: {self.url}")
-            print('Install qrcode library to display QR codes: pip install "qrcode[pil]"')
+            print(
+                'Install qrcode library to display QR codes: pip install "qrcode[pil]"'
+            )
 
 
 class QRCodeList:
@@ -157,8 +159,8 @@ class QRCodeList:
         html_parts = ['<div style="display: flex; flex-wrap: wrap;">']
         for qr in self.qr_codes:
             html_parts.append(qr._repr_html_())
-        html_parts.append('</div>')
-        return ''.join(html_parts)
+        html_parts.append("</div>")
+        return "".join(html_parts)
 
     def __repr__(self) -> str:
         """
@@ -173,8 +175,9 @@ class QRCodeList:
             return f"QRCodeList({len(self.qr_codes)} QR codes)"
         except NameError:
             # In terminal, just list the URLs
-            return f"QRCodeList with {len(self.qr_codes)} QR code(s):\n" + \
-                   "\n".join(f"  - {qr.url}" for qr in self.qr_codes)
+            return f"QRCodeList with {len(self.qr_codes)} QR code(s):\n" + "\n".join(
+                f"  - {qr.url}" for qr in self.qr_codes
+            )
 
     def __len__(self) -> int:
         """Return the number of QR codes."""

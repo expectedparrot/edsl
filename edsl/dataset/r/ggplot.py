@@ -72,6 +72,7 @@ class GGPlot:
         # (Jupyter will use _repr_html_ instead)
         try:
             from IPython import get_ipython
+
             if get_ipython() is not None:
                 return "<GGPlot>"
         except ImportError:

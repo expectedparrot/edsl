@@ -60,7 +60,7 @@ def add_questions_with_vibes(
     all_questions = list(survey.questions) + new_questions
     new_survey = survey.__class__(
         questions=all_questions,
-        rule_collection=survey.rule_collection  # Preserves existing skip logic!
+        rule_collection=survey.rule_collection,  # Preserves existing skip logic!
     )
 
     # Add skip logic for newly added questions if specified

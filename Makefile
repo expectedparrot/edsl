@@ -302,7 +302,7 @@ typing-report:
 	open typing_report/index.html
 
 format: ## Run code autoformatters (black).
-	pre-commit run black-jupyter --all-files --all
+	poetry run black edsl/
 	@bash scripts/mark_check_complete.sh BLACK
 
 lint: ## Run ruff linter with --fix --verbose. Use 'make lint DIR' to lint specific directory/file

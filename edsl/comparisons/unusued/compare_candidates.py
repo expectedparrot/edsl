@@ -349,9 +349,11 @@ class CompareCandidatesRich:
                 # Format metric values with winner highlighting
                 if winner == "candidate_1":
                     value_1_text = Text(
-                        f"{value_1:.4f}"
-                        if isinstance(value_1, float)
-                        else str(value_1),
+                        (
+                            f"{value_1:.4f}"
+                            if isinstance(value_1, float)
+                            else str(value_1)
+                        ),
                         style="blue",
                     )
                     value_2_text = Text(
@@ -362,9 +364,11 @@ class CompareCandidatesRich:
                         f"{value_1:.4f}" if isinstance(value_1, float) else str(value_1)
                     )
                     value_2_text = Text(
-                        f"{value_2:.4f}"
-                        if isinstance(value_2, float)
-                        else str(value_2),
+                        (
+                            f"{value_2:.4f}"
+                            if isinstance(value_2, float)
+                            else str(value_2)
+                        ),
                         style="blue",
                     )
                 else:  # tie

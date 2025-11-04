@@ -255,10 +255,10 @@ class Survey(Base):
                         f"questions_to_randomize must be a list of strings. "
                         f"Found non-string value: {item!r} (type: {type(item).__name__})"
                     )
-            
+
             # Get all question names from the survey
             question_names_in_survey = {q.question_name for q in self.questions}
-            
+
             # Check that each question name exists in the survey
             for question_name in self.questions_to_randomize:
                 if question_name not in question_names_in_survey:
@@ -3033,9 +3033,9 @@ Design tips:
                         scenario_vars = " ".join(
                             [f"{{{{ scenario.{key} }}}}" for key in scenario_keys]
                         )
-                        item[
-                            "question_text"
-                        ] = f"{original_text} (Context: {scenario_vars})"
+                        item["question_text"] = (
+                            f"{original_text} (Context: {scenario_vars})"
+                        )
 
                 question_obj = cls._create_question_from_dict(item, f"q{i}")
                 questions.append(question_obj)
@@ -3200,9 +3200,9 @@ Design tips:
                     scenario_vars = " ".join(
                         [f"{{{{ scenario.{key} }}}}" for key in scenario_keys]
                     )
-                    data[
-                        "question_text"
-                    ] = f"{original_text} (Context: {scenario_vars})"
+                    data["question_text"] = (
+                        f"{original_text} (Context: {scenario_vars})"
+                    )
 
             question_obj = cls._create_question_from_dict(data, f"q{i}")
             questions.append(question_obj)
@@ -3264,8 +3264,13 @@ Design tips:
             - Questions are automatically given appropriate names and options
         """
         from .vibes import generate_survey_from_vibes
+
         return generate_survey_from_vibes(
-            cls, description, num_questions=num_questions, model=model, temperature=temperature
+            cls,
+            description,
+            num_questions=num_questions,
+            model=model,
+            temperature=temperature,
         )
 
     def vibe_edit(
@@ -3318,6 +3323,7 @@ Design tips:
             - Translations will apply to both question text and options
         """
         from .vibes import edit_survey_with_vibes
+
         return edit_survey_with_vibes(
             self, edit_instructions, model=model, temperature=temperature
         )
@@ -3375,6 +3381,7 @@ Design tips:
             - Existing skip logic in the survey is preserved
         """
         from .vibes import add_questions_with_vibes
+
         return add_questions_with_vibes(
             self, add_instructions, model=model, temperature=temperature
         )
@@ -3384,7 +3391,7 @@ Design tips:
         *,
         model: str = "gpt-4o",
         temperature: float = 0.7,
-    ) -> 'Scenario':
+    ) -> "Scenario":
         """Generate a title and description for the survey.
 
         This method uses an LLM to analyze the survey questions and generate
@@ -3419,10 +3426,10 @@ Design tips:
             - Analyzes all questions to understand the overall survey theme
         """
         from .vibes import describe_survey_with_vibes
-        d =  describe_survey_with_vibes(
-            self, model=model, temperature=temperature
-        )
+
+        d = describe_survey_with_vibes(self, model=model, temperature=temperature)
         from ..scenarios import Scenario
+
         return Scenario(**d)
 
     @classmethod
