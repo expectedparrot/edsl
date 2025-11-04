@@ -20,7 +20,6 @@ from edsl.questions import (
     QuestionNumerical, QuestionList
 )
 from edsl import Survey, Model, ScenarioList
-from edsl.surveys import Rule
 
 # Constants
 LOG_DIR = Path(".") / "benchmark_logs"

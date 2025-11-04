@@ -7,7 +7,6 @@ across different data types and filtering criteria.
 
 import pytest
 from unittest.mock import patch, Mock
-from edsl import Agent, AgentList
 from edsl.dataset import Dataset
 
 

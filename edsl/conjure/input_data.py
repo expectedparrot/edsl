@@ -2,7 +2,6 @@ import base64
 from abc import ABC, abstractmethod
 from typing import Dict, Callable, Optional, List, Generator, Union
 from collections import namedtuple
-from typing import List, Union
 
 from edsl.questions import QuestionBase
 from edsl.scenarios import ScenarioList

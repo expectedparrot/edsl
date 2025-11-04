@@ -9,7 +9,6 @@ from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ...agents import AgentList
-    from ...results import Results
     from ...scenarios import ScenarioList
 
 from ...questions import QuestionFreeText

@@ -151,7 +151,6 @@ def test_notebook_code():
 
 def test_notebook_linting_parameter():
     """Tests that notebook linting parameter is respected."""
-    import subprocess
     import shutil
     import copy
     
