@@ -258,3 +258,93 @@ class AgentListTraitOperations:
         for agent, value in zip(agent_list.data, values):
             new_agents.append(agent.add_trait(trait, value))
         return AgentList(new_agents)
+
+    @staticmethod
+    def numberify(agent_list: "AgentList") -> "AgentList":
+        """Convert string traits to numeric types where possible.
+
+        This method attempts to convert string values to integers or floats
+        for all traits across all agents. It handles missing and None values
+        gracefully by leaving them unchanged.
+
+        Conversion rules:
+        - None values remain None
+        - Already numeric values (int, float) remain unchanged
+        - String values that can be parsed as integers are converted to int
+        - String values that can be parsed as floats are converted to float
+        - String values that cannot be parsed remain as strings
+        - Empty strings remain as empty strings
+
+        Args:
+            agent_list: The AgentList to operate on
+
+        Returns:
+            AgentList: A new AgentList with numeric conversions applied
+
+        Examples:
+            >>> from edsl import Agent, AgentList
+            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
+            >>> al = AgentList([
+            ...     Agent(traits={'age': '30', 'height': '5.5', 'name': 'Alice'}),
+            ...     Agent(traits={'age': '25', 'height': '6.0', 'name': 'Bob'})
+            ... ])
+            >>> al_numeric = AgentListTraitOperations.numberify(al)
+            >>> al_numeric[0].traits
+            {'age': 30, 'height': 5.5, 'name': 'Alice'}
+            >>> al_numeric[1].traits
+            {'age': 25, 'height': 6.0, 'name': 'Bob'}
+        """
+        from .agent_list import AgentList
+
+        def convert_to_number(value: Any) -> Any:
+            """Convert a value to a number if possible."""
+            # Keep None as None
+            if value is None:
+                return None
+
+            # Already a number, return as is
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                return value
+
+            # Try to convert strings to numbers
+            if isinstance(value, str):
+                # Keep empty strings as empty strings
+                if value == "":
+                    return value
+
+                # Try integer first
+                try:
+                    return int(value)
+                except ValueError:
+                    pass
+
+                # Try float
+                try:
+                    return float(value)
+                except ValueError:
+                    pass
+
+                # If both fail, return original string
+                return value
+
+            # For any other type, return as is
+            return value
+
+        # Create new agents with converted traits
+        new_agents = []
+        for agent in agent_list.data:
+            new_traits = {
+                key: convert_to_number(value) for key, value in agent.traits.items()
+            }
+            # Create a new agent with the converted traits
+            from .agent import Agent
+
+            new_agent = Agent(
+                traits=new_traits,
+                name=agent.name,
+                codebook=agent.codebook if hasattr(agent, "codebook") else None,
+                instruction=agent.instruction,
+            )
+            new_agents.append(new_agent)
+
+        return AgentList(new_agents)
