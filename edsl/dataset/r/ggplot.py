@@ -68,6 +68,15 @@ class GGPlot:
         if self._saved:
             return "<GGPlot saved>"
 
+        # Check if we're in a notebook - if so, don't open system viewer
+        # (Jupyter will use _repr_html_ instead)
+        try:
+            from IPython import get_ipython
+            if get_ipython() is not None:
+                return "<GGPlot>"
+        except ImportError:
+            pass
+
         # Generate and open PNG in terminal
         import platform
         import os
