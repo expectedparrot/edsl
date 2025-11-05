@@ -559,6 +559,84 @@ Output:
      - Green
 
 
+Piping with additional options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In addition to piping answer lists directly as `question_options`, you can use a dict format to pipe options while adding additional static options.
+This is useful when you want to include piped options plus additional choices like "None of the above" or "Other".
+
+The dict format uses two keys:
+
+* `"from"` - A template string referencing the piped options (e.g., `"{{ q1.answer }}"`)
+* `"add"` - A list of additional static options to append
+
+For example:
+
+.. code-block:: python
+
+   from edsl import QuestionList, QuestionMultipleChoice, Survey, Agent
+
+   q1 = QuestionList(
+      question_name = "colors",
+      question_text = "What are your 3 favorite colors?",
+      max_list_items = 3
+   )
+
+   # Use dict format to pipe options from q1 AND add additional options
+   q2 = QuestionMultipleChoice(
+      question_name = "top_choice",
+      question_text = "Which is your #1 favorite color?",
+      question_options = {
+         "from": "{{ colors.answer }}",
+         "add": ["None of the above", "Other"]
+      }
+   )
+
+   survey = Survey([q1, q2])
+
+   agent = Agent(traits = {"persona": "You are a botanist."})
+
+   results = survey.by(agent).run()
+
+   results.select("colors", "top_choice")
+
+
+In this example, q2 will have the three colors from q1's answer, plus "None of the above" and "Other" as additional options.
+
+Output:
+
+.. list-table::
+   :header-rows: 1
+
+   * - answer.colors
+     - answer.top_choice
+   * - ['Green', 'Brown', 'Yellow']
+     - Green
+
+
+The dict format also works when piping from scenario data:
+
+.. code-block:: python
+
+   from edsl import Scenario, QuestionMultipleChoice
+
+   scenario = Scenario({"available_colors": ["Red", "Blue", "Green"]})
+
+   q = QuestionMultipleChoice(
+      question_name = "favorite_color",
+      question_text = "What's your favorite color?",
+      question_options = {
+         "from": "{{ scenario.available_colors }}",
+         "add": ["Other", "Prefer not to say"]
+      }
+   )
+
+   results = q.by(scenario).run()
+
+
+Agent traits
+^^^^^^^^^^^^
+
 This can also be done with agent traits. For example:
 
 .. code-block:: python
@@ -568,12 +646,12 @@ This can also be done with agent traits. For example:
    a = Agent(traits = {'first_name': 'John'})
 
    q = QuestionFreeText(
-      question_text = 'What is your last name, {{ agent.first_name }}?', 
+      question_text = 'What is your last name, {{ agent.first_name }}?',
       question_name = "last_name"
    )
 
    job = q.by(a)
-   
+
    job.prompts().select('user_prompt')
 
 
