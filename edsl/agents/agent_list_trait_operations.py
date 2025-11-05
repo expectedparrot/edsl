@@ -348,3 +348,108 @@ class AgentListTraitOperations:
             new_agents.append(new_agent)
 
         return AgentList(new_agents)
+
+    @staticmethod
+    def filter_na(
+        agent_list: "AgentList", fields: Union[str, List[str]] = "*"
+    ) -> "AgentList":
+        """Remove agents where specified traits contain None or NaN values.
+
+        This method filters out agents that have null/NaN values in the specified
+        traits. It's similar to pandas' dropna() functionality. Values considered as
+        NA include: None, float('nan'), and string representations like 'nan', 'none', 'null'.
+
+        Args:
+            agent_list: The AgentList to operate on
+            fields: Trait name(s) to check for NA values. Can be:
+                    - "*" (default): Check all traits in each agent
+                    - A single trait name (str): Check only that trait
+                    - A list of trait names: Check all specified traits
+
+                    An agent is kept only if NONE of the specified traits contain NA values.
+
+        Returns:
+            AgentList: A new AgentList containing only agents without NA values
+                      in the specified traits.
+
+        Examples:
+            >>> from edsl import Agent, AgentList
+            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
+            >>> al = AgentList([
+            ...     Agent(traits={'a': 1, 'b': 2}),
+            ...     Agent(traits={'a': None, 'b': 3}),
+            ...     Agent(traits={'a': 4, 'b': 5})
+            ... ])
+            >>> filtered = AgentListTraitOperations.filter_na(al)
+            >>> len(filtered)
+            2
+            >>> filtered[0].traits
+            {'a': 1, 'b': 2}
+
+            Filter by specific trait:
+            >>> al = AgentList([
+            ...     Agent(name='Alice', traits={'age': 30}),
+            ...     Agent(name='Bob', traits={'age': None}),
+            ...     Agent(name='Charlie', traits={'age': 25})
+            ... ])
+            >>> filtered = AgentListTraitOperations.filter_na(al, 'age')
+            >>> len(filtered)
+            2
+
+            Handle float NaN values:
+            >>> import math
+            >>> al = AgentList([
+            ...     Agent(traits={'x': 1.0, 'y': 2.0}),
+            ...     Agent(traits={'x': float('nan'), 'y': 3.0}),
+            ...     Agent(traits={'x': 4.0, 'y': 5.0})
+            ... ])
+            >>> filtered = AgentListTraitOperations.filter_na(al, 'x')
+            >>> len(filtered)
+            2
+        """
+        from .agent_list import AgentList
+        import math
+
+        def is_na(val):
+            """Check if a value is considered NA (None or NaN)."""
+            if val is None:
+                return True
+            # Check for float NaN
+            if isinstance(val, float) and math.isnan(val):
+                return True
+            # Check for string representations of null values
+            if hasattr(val, "__str__"):
+                str_val = str(val).lower()
+                if str_val in ["nan", "none", "null"]:
+                    return True
+            return False
+
+        # Determine which traits to check
+        if fields == "*":
+            # Check all traits - need to collect all unique trait keys across agents
+            check_traits = set()
+            for agent in agent_list:
+                check_traits.update(agent.traits.keys())
+            check_traits = list(check_traits)
+        elif isinstance(fields, str):
+            check_traits = [fields]
+        else:
+            check_traits = list(fields)
+
+        # Filter agents
+        new_agents = []
+        for agent in agent_list.data:
+            # Check if any of the specified traits contain NA
+            has_na = False
+            for trait in check_traits:
+                # Only check traits that exist in this agent
+                if trait in agent.traits:
+                    if is_na(agent.traits[trait]):
+                        has_na = True
+                        break
+
+            # Keep agent only if it has no NA values in checked traits
+            if not has_na:
+                new_agents.append(agent)
+
+        return AgentList(new_agents)
