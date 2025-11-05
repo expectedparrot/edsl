@@ -995,7 +995,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         Args:
             description: A description of the vibe.
         """
-        from .vibe_example import ScenarioGenerator
+        from edsl.dataset.vibes.scenario_generator import ScenarioGenerator
 
         gen = ScenarioGenerator(model="gpt-4o", temperature=0.7)
         result = gen.generate_scenarios(description)
@@ -1213,6 +1213,147 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         # Convert to list if necessary for random.sample
         data_list = list(sl.data)
         return ScenarioList(random.sample(data_list, n))
+
+    def few_shot_examples(
+        self,
+        n: int,
+        x_fields: List[str],
+        y_fields: List[str],
+        seed: Optional[Union[str, int]] = None,
+        separator: str = " --> ",
+        field_name: str = "few_shot_examples",
+        presence_field_name: str = "current_scenario_present_in_examples",
+        line_separator: str = "\n",
+        x_format: str = "({x})",
+        y_format: str = "{y}",
+        field_separator: str = ", ",
+    ) -> ScenarioList:
+        """Create few-shot learning examples from sampled scenarios.
+
+        This method samples n scenarios and creates a formatted string of examples
+        that can be used for few-shot learning prompts. Each scenario in the returned
+        ScenarioList will have the few-shot examples string added as a new field, along
+        with a boolean indicator showing whether that specific scenario was included
+        in the sampled examples.
+
+        Args:
+            n: Number of examples to sample for the few-shot prompt
+            x_fields: List of field names to use as input/context (x values)
+            y_fields: List of field names to use as output/target (y values)
+            seed: Optional seed for reproducible sampling
+            separator: String to separate x from y (default: " --> ")
+            field_name: Name of field to store the examples string (default: "few_shot_examples")
+            presence_field_name: Name of boolean field indicating if scenario is in examples
+                                (default: "current_scenario_present_in_examples")
+            line_separator: String to separate each example (default: "\\n")
+            x_format: Format string for x values, use {x} as placeholder (default: "({x})")
+            y_format: Format string for y values, use {y} as placeholder (default: "{y}")
+            field_separator: String to separate multiple field values (default: ", ")
+
+        Returns:
+            A new ScenarioList where each scenario has:
+            - A field with the few-shot examples string
+            - A boolean field indicating if that scenario was in the sampled examples
+
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList([
+            ...     Scenario({'x': 1, 'y': 'a'}),
+            ...     Scenario({'x': 2, 'y': 'b'}),
+            ...     Scenario({'x': 3, 'y': 'c'}),
+            ...     Scenario({'x': 4, 'y': 'd'})
+            ... ])
+            >>> result = sl.few_shot_examples(n=2, x_fields=['x'], y_fields=['y'], seed=42)
+            >>> len(result) == len(sl)
+            True
+            >>> 'few_shot_examples' in result[0]
+            True
+            >>> 'current_scenario_present_in_examples' in result[0]
+            True
+            >>> isinstance(result[0]['current_scenario_present_in_examples'], bool)
+            True
+
+            >>> # Multi-field example
+            >>> sl2 = ScenarioList([
+            ...     Scenario({'name': 'Alice', 'age': 30, 'city': 'NYC', 'job': 'Engineer'}),
+            ...     Scenario({'name': 'Bob', 'age': 25, 'city': 'LA', 'job': 'Designer'}),
+            ... ])
+            >>> result2 = sl2.few_shot_examples(
+            ...     n=1,
+            ...     x_fields=['name', 'age'],
+            ...     y_fields=['city', 'job'],
+            ...     seed=42
+            ... )
+            >>> 'few_shot_examples' in result2[0]
+            True
+        """
+        # Validate inputs
+        if n > len(self):
+            raise ScenarioError(
+                f"Cannot sample {n} examples from ScenarioList with only {len(self)} scenarios"
+            )
+
+        if not x_fields or not y_fields:
+            raise ScenarioError("Both x_fields and y_fields must be non-empty lists")
+
+        # Validate that all fields exist in at least one scenario
+        all_fields = set(x_fields + y_fields)
+        available_fields = set()
+        for scenario in self:
+            available_fields.update(scenario.keys())
+
+        missing_fields = all_fields - available_fields
+        if missing_fields:
+            raise ScenarioError(
+                f"Fields not found in any scenario: {missing_fields}. "
+                f"Available fields: {available_fields}"
+            )
+
+        # Sample n scenarios
+        sampled_scenarios = self.sample(n=n, seed=seed)
+
+        # Create a set of scenario hashes for quick lookup
+        sampled_hashes = {hash(str(scenario.to_dict())) for scenario in sampled_scenarios}
+
+        # Build the few-shot examples string
+        example_lines = []
+        for scenario in sampled_scenarios:
+            # Format x values
+            x_values = []
+            for field in x_fields:
+                value = scenario.get(field, "")
+                x_values.append(str(value))
+            x_str = field_separator.join(x_values)
+            x_formatted = x_format.format(x=x_str)
+
+            # Format y values
+            y_values = []
+            for field in y_fields:
+                value = scenario.get(field, "")
+                y_values.append(str(value))
+            y_str = field_separator.join(y_values)
+            y_formatted = y_format.format(y=y_str)
+
+            # Combine into example
+            example = f"{x_formatted}{separator}{y_formatted}"
+            example_lines.append(example)
+
+        # Join all examples
+        examples_string = line_separator.join(example_lines)
+
+        # Create new ScenarioList with added fields
+        new_scenarios = []
+        for scenario in self:
+            new_scenario = scenario.copy()
+            new_scenario[field_name] = examples_string
+
+            # Check if this scenario was in the sampled examples
+            scenario_hash = hash(str(scenario.to_dict()))
+            new_scenario[presence_field_name] = scenario_hash in sampled_hashes
+
+            new_scenarios.append(new_scenario)
+
+        return ScenarioList(new_scenarios, codebook=self.codebook)
 
     def expand(self, *expand_fields: str, number_field: bool = False) -> ScenarioList:
         """Expand the ScenarioList by one or more fields.
@@ -1763,6 +1904,48 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         new_sl = ScenarioList(data=[], codebook=self.codebook)
         for scenario in self:
             new_sl.append(scenario.keep(fields))
+        return new_sl
+
+    def numberify(self) -> ScenarioList:
+        """Convert string values to numeric types where possible.
+
+        This method attempts to convert string values to integers or floats
+        for all fields across all scenarios. It's particularly useful when loading
+        data from CSV files where numeric fields may be stored as strings.
+
+        Conversion rules:
+        - None values remain None
+        - Already numeric values (int, float) remain unchanged
+        - String values that can be parsed as integers are converted to int
+        - String values that can be parsed as floats are converted to float
+        - String values that cannot be parsed remain as strings
+        - Empty strings remain as empty strings
+
+        Returns:
+            ScenarioList: A new ScenarioList with numeric conversions applied
+
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList([
+            ...     Scenario({'age': '30', 'height': '5.5', 'name': 'Alice'}),
+            ...     Scenario({'age': '25', 'height': '6.0', 'name': 'Bob'})
+            ... ])
+            >>> sl_numeric = sl.numberify()
+            >>> sl_numeric[0]
+            Scenario({'age': 30, 'height': 5.5, 'name': 'Alice'})
+            >>> sl_numeric[1]
+            Scenario({'age': 25, 'height': 6.0, 'name': 'Bob'})
+
+            Works with None values and mixed types:
+
+            >>> sl = ScenarioList([Scenario({'count': '100', 'value': None, 'label': 'test'})])
+            >>> sl_numeric = sl.numberify()
+            >>> sl_numeric[0]
+            Scenario({'count': 100, 'value': None, 'label': 'test'})
+        """
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
+        for scenario in self:
+            new_sl.append(scenario.numberify())
         return new_sl
 
     @classmethod
