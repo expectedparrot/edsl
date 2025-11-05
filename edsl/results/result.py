@@ -515,7 +515,7 @@ class Result(Base, UserDict):
 
         Each Scenario in the returned ScenarioList has these keys:
         - "question_name": The internal question name/identifier
-        - "question_text": The rendered question text
+        - "question_text": The rendered question text (with scenario placeholders filled in)
         - "answer": The recorded answer value
         - "comment": The recorded comment for the question (if any)
 
@@ -538,6 +538,7 @@ class Result(Base, UserDict):
         qt_attrs = self.data.get("question_to_attributes", {})
         comments_direct = self.data.get("comments_dict", {})
         comments_sub = self.sub_dicts.get("comment", {})
+        prompts = self.data.get("prompt", {})
 
         # Normalize comments so they can be accessed by base question key
         # e.g., "question_0_comment" -> key "question_0"
@@ -553,7 +554,27 @@ class Result(Base, UserDict):
 
         for question_name, answer_value in self.answer.items():
             q_meta = qt_attrs.get(question_name, {})
-            q_text = q_meta.get("question_text", question_name)
+
+            # Try to get the rendered user_prompt (with scenario placeholders filled in)
+            user_prompt_key = f"{question_name}_user_prompt"
+            q_text = None
+
+            if user_prompt_key in prompts:
+                # Get the rendered prompt text
+                prompt_obj = prompts[user_prompt_key]
+                if hasattr(prompt_obj, 'text'):
+                    prompt_text = prompt_obj.text
+                else:
+                    # Fallback if it's stored as a string
+                    prompt_text = str(prompt_obj)
+
+                # Only use the prompt text if it's not "NA" (placeholder for missing prompts)
+                if prompt_text and prompt_text != "NA":
+                    q_text = prompt_text
+
+            # Fallback to question_text from metadata if prompt wasn't available or was "NA"
+            if q_text is None:
+                q_text = q_meta.get("question_text", question_name)
 
             row = {
                 "question_name": question_name,
