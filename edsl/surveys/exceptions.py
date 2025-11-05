@@ -229,3 +229,28 @@ class SurveyQuestionsToRandomizeError(SurveyCreationError):
     """
 
     doc_anchor = "creating-surveys"
+
+
+class DuplicateQuestionNameError(SurveyCreationError):
+    """
+    Exception raised when duplicate question names are detected in a survey.
+
+    This exception occurs when:
+    - A survey is created or modified with multiple questions having the same name
+    - Question names must be unique within a survey to ensure proper identification
+
+    To fix this error:
+    1. Ensure all questions in the survey have unique names
+    2. Check the duplicate_names property to see which names are duplicated
+    3. Rename questions to have distinct identifiers
+
+    Examples:
+        ```python
+        # Creating a survey with duplicate names
+        q1 = QuestionFreeText(question_name="age", question_text="What is your age?")
+        q2 = QuestionMultipleChoice(question_name="age", question_text="Age group?", ...)
+        Survey([q1, q2])  # Raises DuplicateQuestionNameError: duplicate_names=['age']
+        ```
+    """
+
+    doc_anchor = "creating-surveys"
