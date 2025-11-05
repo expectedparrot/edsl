@@ -1007,6 +1007,84 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         return AgentListTraitOperations.numberify(self)
 
+    def filter_na(self, fields: Union[str, List[str]] = "*") -> AgentList:
+        """Remove agents where specified traits contain None or NaN values.
+
+        This method filters out agents that have null/NaN values in the specified
+        traits. It's similar to pandas' dropna() functionality. Values considered as
+        NA include: None, float('nan'), and string representations like 'nan', 'none', 'null'.
+
+        Args:
+            fields: Trait name(s) to check for NA values. Can be:
+                    - "*" (default): Check all traits in each agent
+                    - A single trait name (str): Check only that trait
+                    - A list of trait names: Check all specified traits
+
+                    An agent is kept only if NONE of the specified traits contain NA values.
+
+        Returns:
+            AgentList: A new AgentList containing only agents without NA values
+                      in the specified traits.
+
+        Examples:
+            Remove agents with any NA values in any trait:
+
+            >>> from edsl import Agent, AgentList
+            >>> al = AgentList([
+            ...     Agent(traits={'a': 1, 'b': 2}),
+            ...     Agent(traits={'a': None, 'b': 3}),
+            ...     Agent(traits={'a': 4, 'b': 5})
+            ... ])
+            >>> filtered = al.filter_na()
+            >>> len(filtered)
+            2
+            >>> filtered[0].traits
+            {'a': 1, 'b': 2}
+
+            Remove agents with NA in specific trait:
+
+            >>> al = AgentList([
+            ...     Agent(name='Alice', traits={'age': 30}),
+            ...     Agent(name='Bob', traits={'age': None}),
+            ...     Agent(name='Charlie', traits={'age': 25})
+            ... ])
+            >>> filtered = al.filter_na('age')
+            >>> len(filtered)
+            2
+            >>> filtered[0].name
+            'Alice'
+            >>> filtered[1].name
+            'Charlie'
+
+            Remove agents with NA in multiple specific traits:
+
+            >>> al = AgentList([
+            ...     Agent(traits={'name': 'Alice', 'age': 30}),
+            ...     Agent(traits={'name': None, 'age': 25}),
+            ...     Agent(traits={'name': 'Bob', 'age': None})
+            ... ])
+            >>> filtered = al.filter_na(['name', 'age'])
+            >>> len(filtered)
+            1
+            >>> filtered[0].traits['name']
+            'Alice'
+
+            Handle float NaN values:
+
+            >>> import math
+            >>> al = AgentList([
+            ...     Agent(traits={'x': 1.0, 'y': 2.0}),
+            ...     Agent(traits={'x': float('nan'), 'y': 3.0}),
+            ...     Agent(traits={'x': 4.0, 'y': 5.0})
+            ... ])
+            >>> filtered = al.filter_na('x')
+            >>> len(filtered)
+            2
+        """
+        from .agent_list_trait_operations import AgentListTraitOperations
+
+        return AgentListTraitOperations.filter_na(self, fields)
+
     @classmethod
     def from_results(
         cls, results: "Results", question_names: Optional[List[str]] = None
