@@ -890,6 +890,77 @@ class Scenario(Base, UserDict):
 
         return ScenarioSelector(self).keep(*args)
 
+    def numberify(self) -> "Scenario":
+        """Convert string values to numeric types where possible.
+
+        This method attempts to convert string values to integers or floats
+        for all fields in the scenario. It's particularly useful when loading
+        data from CSV files where numeric fields may be stored as strings.
+
+        Conversion rules:
+        - None values remain None
+        - Already numeric values (int, float) remain unchanged
+        - String values that can be parsed as integers are converted to int
+        - String values that can be parsed as floats are converted to float
+        - String values that cannot be parsed remain as strings
+        - Empty strings remain as empty strings
+
+        Returns:
+            Scenario: A new Scenario with numeric conversions applied
+
+        Examples:
+            >>> s = Scenario({'age': '30', 'height': '5.5', 'name': 'Alice'})
+            >>> s_numeric = s.numberify()
+            >>> s_numeric
+            Scenario({'age': 30, 'height': 5.5, 'name': 'Alice'})
+
+            Works with None values and mixed types:
+
+            >>> s = Scenario({'count': '100', 'value': None, 'label': 'test'})
+            >>> s_numeric = s.numberify()
+            >>> s_numeric
+            Scenario({'count': 100, 'value': None, 'label': 'test'})
+        """
+
+        def convert_to_number(value: Any) -> Any:
+            """Convert a value to a number if possible."""
+            # Keep None as None
+            if value is None:
+                return None
+
+            # Already a number, return as is
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                return value
+
+            # Try to convert strings to numbers
+            if isinstance(value, str):
+                # Keep empty strings as empty strings
+                if value == "":
+                    return value
+
+                # Try integer first
+                try:
+                    return int(value)
+                except ValueError:
+                    pass
+
+                # Try float
+                try:
+                    return float(value)
+                except ValueError:
+                    pass
+
+                # If both fail, return original string
+                return value
+
+            # For any other type, return as is
+            return value
+
+        # Create new data with converted values
+        new_data = {key: convert_to_number(value) for key, value in self.data.items()}
+
+        return Scenario(new_data, name=self.name)
+
     @classmethod
     def from_url(
         cls, url: str, field_name: Optional[str] = "text", testing: bool = False
