@@ -387,6 +387,11 @@ class Transcripts:
                     opt_list = [f"{html_module.escape(str(opt))}" for opt in options]
                     options_html = f'<div style="margin-top: 6px; font-size: 13px; color: #57606a; font-style: italic;">Options: {" • ".join(opt_list)}</div>'
 
+                # Calculate heights: 500px total, distributed based on whether comments are shown
+                question_height = 200 if (self.show_comments and comment) else 250
+                answer_height = 120 if (self.show_comments and comment) else 250
+                comment_height = 180
+
                 html_parts.append(
                     f"""
         <div class="slide-{transcripts_id}" data-result="{result_idx}" data-question="{question_idx}" style="
@@ -394,20 +399,23 @@ class Transcripts:
             border: 1px solid #d4d4d4;
             border-radius: 4px;
             background: transparent;
-            height: 350px;
-            overflow-y: auto;
+            height: 500px;
+            overflow: hidden;
         ">
             <!-- Question -->
             <div style="
-                padding: 12px;
                 background: #f6f8fa;
                 border-bottom: 1px solid #d4d4d4;
+                height: {question_height}px;
+                display: flex;
+                flex-direction: column;
             ">
                 <div style="
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    margin-bottom: 6px;
+                    padding: 8px 12px;
+                    flex-shrink: 0;
                 ">
                     <div style="
                         font-size: 11px;
@@ -416,7 +424,7 @@ class Transcripts:
                         text-transform: uppercase;
                         letter-spacing: 0.5px;
                     ">Question {question_idx+1} of {total_questions}</div>
-                    <div 
+                    <div
                         onmouseover="showAgentTooltip_{transcripts_id}(event)"
                         onmouseout="hideAgentTooltip_{transcripts_id}()"
                         style="
@@ -435,36 +443,51 @@ class Transcripts:
                     ">ⓘ</div>
                 </div>
                 <div style="
-                    font-size: 14px;
-                    color: #24292e;
-                    line-height: 1.5;
-                    white-space: pre-wrap;
-                    word-wrap: break-word;
-                ">{html_module.escape(str(q_text))} <span style="color: #57606a; font-size: 12px;">({html_module.escape(str(question_name))})</span></div>
-                {options_html}
+                    padding: 0 12px 12px 12px;
+                    overflow-y: auto;
+                    flex: 1;
+                ">
+                    <div style="
+                        font-size: 14px;
+                        color: #24292e;
+                        line-height: 1.5;
+                        white-space: pre-wrap;
+                        word-wrap: break-word;
+                    ">{html_module.escape(str(q_text))} <span style="color: #57606a; font-size: 12px;">({html_module.escape(str(question_name))})</span></div>
+                    {options_html}
+                </div>
             </div>
-            
+
             <!-- Answer -->
             <div style="
-                padding: 12px;
                 background: #f0fdf4;
                 {'' if not (self.show_comments and comment) else 'border-bottom: 1px solid #d4d4d4;'}
+                height: {answer_height}px;
+                display: flex;
+                flex-direction: column;
             ">
                 <div style="
                     font-size: 11px;
                     font-weight: bold;
                     color: #166534;
-                    margin-bottom: 6px;
+                    padding: 8px 12px;
                     text-transform: uppercase;
                     letter-spacing: 0.5px;
+                    flex-shrink: 0;
                 ">Answer</div>
                 <div style="
-                    font-size: 14px;
-                    color: #15803d;
-                    line-height: 1.5;
-                    white-space: pre-wrap;
-                    word-wrap: break-word;
-                ">{html_module.escape(str(answer))}</div>
+                    padding: 0 12px 12px 12px;
+                    overflow-y: auto;
+                    flex: 1;
+                ">
+                    <div style="
+                        font-size: 14px;
+                        color: #15803d;
+                        line-height: 1.5;
+                        white-space: pre-wrap;
+                        word-wrap: break-word;
+                    ">{html_module.escape(str(answer))}</div>
+                </div>
             </div>
 """
                 )
@@ -476,25 +499,34 @@ class Transcripts:
                         f"""
             <!-- Comment -->
             <div style="
-                padding: 12px;
                 background: #faf5ff;
+                height: {comment_height}px;
+                display: flex;
+                flex-direction: column;
             ">
                 <div style="
                     font-size: 11px;
                     font-weight: bold;
                     color: #6b21a8;
-                    margin-bottom: 6px;
+                    padding: 8px 12px;
                     text-transform: uppercase;
                     letter-spacing: 0.5px;
+                    flex-shrink: 0;
                 ">💭 Comment</div>
                 <div style="
-                    font-size: 13px;
-                    color: #7c3aed;
-                    font-style: italic;
-                    line-height: 1.5;
-                    white-space: pre-wrap;
-                    word-wrap: break-word;
-                ">{comment_html}</div>
+                    padding: 0 12px 12px 12px;
+                    overflow-y: auto;
+                    flex: 1;
+                ">
+                    <div style="
+                        font-size: 13px;
+                        color: #7c3aed;
+                        font-style: italic;
+                        line-height: 1.5;
+                        white-space: pre-wrap;
+                        word-wrap: break-word;
+                    ">{comment_html}</div>
+                </div>
             </div>
 """
                     )
