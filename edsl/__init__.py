@@ -1,7 +1,7 @@
 """
 EDSL: Experimental Design Specification Language
 
-EDSL is a Python library for conducting virtual social science experiments, surveys, 
+EDSL is a Python library for conducting virtual social science experiments, surveys,
 and interviews with large language models.
 """
 
