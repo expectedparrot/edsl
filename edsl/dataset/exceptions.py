@@ -130,3 +130,20 @@ class DatasetRuntimeError(DatasetError):
     """
 
     relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset.html"
+
+
+class DatasetNotConfusionMatrixError(DatasetError):
+    """
+    Exception raised when a confusion matrix-specific operation is called on a non-confusion matrix.
+
+    This exception occurs when trying to call methods that require a confusion matrix
+    (like perplexity()) on a Dataset that was not created by the confusion_matrix() method.
+
+    Examples:
+        ```python
+        dataset = Dataset([{"a": [1, 2, 3]}])
+        dataset.perplexity()  # Raises DatasetNotConfusionMatrixError
+        ```
+    """
+
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset.html"

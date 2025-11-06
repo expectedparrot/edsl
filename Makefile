@@ -302,7 +302,7 @@ typing-report:
 	open typing_report/index.html
 
 format: ## Run code autoformatters (black).
-	pre-commit run black-jupyter --all-files --all
+	poetry run black edsl/
 	@bash scripts/mark_check_complete.sh BLACK
 
 lint: ## Run ruff linter with --fix --verbose. Use 'make lint DIR' to lint specific directory/file
@@ -440,24 +440,24 @@ test-doctests: ## Run doctests for a specific directory (e.g., make test-doctest
 		fi; \
 	else \
 		echo "Running doctests for all directories"; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/instructions; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/key_management; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/prompts; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/tasks; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/results; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/dataset; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/interviews; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/tokens; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/jobs/; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/surveys; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/agents; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/scenarios; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/questions; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/utilities; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/language_models; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/caching; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/invigilators; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/instructions && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/key_management && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/prompts && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/tasks && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/results && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/dataset && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/interviews && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/tokens && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/jobs/ && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/surveys && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/agents && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/scenarios && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/questions && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/utilities && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/language_models && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/caching && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/invigilators && \
 		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/inference_services; \
 	fi
 	@bash scripts/mark_check_complete.sh DOCTESTS

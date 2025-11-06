@@ -5,7 +5,6 @@ including proper handling of name and traits_presentation_template preservation.
 """
 
 import warnings
-import pytest
 from edsl.agents import Agent
 
 

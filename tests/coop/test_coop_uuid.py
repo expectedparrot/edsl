@@ -2,7 +2,6 @@ import unittest
 
 from edsl.surveys import Survey
 from edsl.results import Results
-from edsl.jobs import Jobs
 from edsl.scenarios import ScenarioList
 from edsl.notebooks import Notebook
 import pytest

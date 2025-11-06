@@ -360,9 +360,11 @@ class DataFrameGridChartsWidget(EDSLBaseWidget):
         if self.chart_type not in ["pie"]:
             options["axes"] = [
                 {
-                    "type": "category"
-                    if self.chart_x_column in self.categorical_columns
-                    else "number",
+                    "type": (
+                        "category"
+                        if self.chart_x_column in self.categorical_columns
+                        else "number"
+                    ),
                     "position": "bottom",
                     "title": {"text": self.chart_x_column},
                 },

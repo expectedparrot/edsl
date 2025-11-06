@@ -994,16 +994,17 @@ class Cache(Base):
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
         output = Text()
-        output.append("Cache(", style="bold cyan")
-        output.append(f"entries={len(self.data)}", style="white")
+        output.append("Cache(", style=RICH_STYLES["primary"])
+        output.append(f"entries={len(self.data)}", style=RICH_STYLES["default"])
 
         if hasattr(self, "filename") and self.filename:
-            output.append(", ", style="white")
-            output.append(f'filename="{self.filename}"', style="green")
+            output.append(", ", style=RICH_STYLES["default"])
+            output.append(f'filename="{self.filename}"', style=RICH_STYLES["key"])
 
-        output.append(")", style="bold cyan")
+        output.append(")", style=RICH_STYLES["primary"])
 
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
         console.print(output, end="")

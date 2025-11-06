@@ -39,6 +39,7 @@ class QuestionsDescriptor(BaseDescriptor):
     def validate(self, value: Any, instance) -> None:
         """Validate the value. If it is invalid, raise an exception. If it is valid, do nothing."""
         from ..questions import QuestionBase
+        from .exceptions import DuplicateQuestionNameError
 
         if not isinstance(value, list):
             raise TypeError("Questions must be a list.")
@@ -46,7 +47,19 @@ class QuestionsDescriptor(BaseDescriptor):
             raise TypeError("Questions must be a list of Question objects.")
         question_names = [question.question_name for question in value]
         if len(question_names) != len(set(question_names)):
-            raise ValueError("Question names must be unique.")
+            # Find which names are duplicated
+            seen = set()
+            duplicates = set()
+            for name in question_names:
+                if name in seen:
+                    duplicates.add(name)
+                else:
+                    seen.add(name)
+
+            duplicate_list = sorted(list(duplicates))
+            raise DuplicateQuestionNameError(
+                f"Question names must be unique. Duplicate names found: {duplicate_list}"
+            )
 
     def __set__(self, instance, value: Any) -> None:
         """Set the value of the attribute."""

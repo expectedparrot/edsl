@@ -299,6 +299,19 @@ class CacheEntry(RepresentationMixin):
             f"validated={self.validated})"
         )
 
+    def _eval_repr_(self) -> str:
+        """
+        Return an eval-able string representation of the CacheEntry object.
+
+        This representation can be used with eval() to recreate the CacheEntry object.
+        Used primarily for doctests and debugging.
+
+        Returns:
+            A string representation that can be passed to eval() to recreate
+            this cache entry
+        """
+        return self.__repr__()
+
     @classmethod
     def example(cls, randomize: bool = False) -> CacheEntry:
         """

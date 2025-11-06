@@ -433,19 +433,20 @@ class AgentListDeltas(Base):
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
         output = Text()
-        output.append("AgentListDeltas(", style="bold cyan")
-        output.append(f"num_agents={len(self.deltas)}", style="white")
+        output.append("AgentListDeltas(", style=RICH_STYLES["primary"])
+        output.append(f"num_agents={len(self.deltas)}", style=RICH_STYLES["default"])
 
         if self.deltas:
-            output.append(", ", style="white")
+            output.append(", ", style=RICH_STYLES["default"])
             agents_str = ", ".join(list(self.deltas.keys())[:3])
             if len(self.deltas) > 3:
                 agents_str += f", ... ({len(self.deltas) - 3} more)"
-            output.append(f"agents=[{agents_str}]", style="yellow")
+            output.append(f"agents=[{agents_str}]", style=RICH_STYLES["secondary"])
 
-        output.append(")", style="bold cyan")
+        output.append(")", style=RICH_STYLES["primary"])
 
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
         console.print(output, end="")

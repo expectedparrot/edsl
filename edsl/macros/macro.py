@@ -16,7 +16,6 @@ from ..surveys import Survey
 from .base_macro import BaseMacro
 
 if TYPE_CHECKING:
-    from ..scenarios import ScenarioList
     from ..surveys import Survey
     from ..jobs import Jobs
     from ..results import Results
@@ -31,7 +30,8 @@ if TYPE_CHECKING:
 
 else:
     # At runtime, we can use a simple string annotation
-    Self = "MyClass"  # Adjust to your class name
+    Self = "Macro"  # Adjust to your class name
+
 from .output_formatter import OutputFormatter, OutputFormatters
 from .api_payload import build_api_payload, reconstitute_from_api_payload
 from .answers_collector import AnswersCollector
@@ -169,6 +169,7 @@ class Macro(BaseMacro):
         default_params: Optional[dict[str, Any]] = None,
         fixed_params: Optional[dict[str, Any]] = None,
         client_mode: bool = False,
+        pseudo_run: bool = False,
     ):
         """Instantiate a Macro object.
 
@@ -199,13 +200,21 @@ class Macro(BaseMacro):
                     "To load from server, use: Macro('owner/alias')"
                 )
             if display_name is None:
-                raise TypeError("Macro.__init__() missing required argument: 'display_name'")
+                raise TypeError(
+                    "Macro.__init__() missing required argument: 'display_name'"
+                )
             if short_description is None:
-                raise TypeError("Macro.__init__() missing required argument: 'short_description'")
+                raise TypeError(
+                    "Macro.__init__() missing required argument: 'short_description'"
+                )
             if long_description is None:
-                raise TypeError("Macro.__init__() missing required argument: 'long_description'")
+                raise TypeError(
+                    "Macro.__init__() missing required argument: 'long_description'"
+                )
             if initial_survey is None:
-                raise TypeError("Macro.__init__() missing required argument: 'initial_survey'")
+                raise TypeError(
+                    "Macro.__init__() missing required argument: 'initial_survey'"
+                )
 
         self.jobs_object = jobs_object
         # Set via descriptors (handles validation)
@@ -246,6 +255,7 @@ class Macro(BaseMacro):
         MacroRegistry.register(self)
 
         self.client_mode = client_mode
+        self.pseudo_run = pseudo_run
 
         # Mark as initialized to prevent re-initialization
         self._initialized = True
@@ -303,10 +313,13 @@ class Macro(BaseMacro):
             results = cache[jobs_hash]
             return results
 
-        results = modified_jobs_object.run(
-            stop_on_exception=stop_on_exception,
-            disable_remote_inference=disable_remote_inference,
-        )
+        if self.pseudo_run:
+            results = modified_jobs_object.pseudo_run()
+        else:
+            results = modified_jobs_object.run(
+                stop_on_exception=stop_on_exception,
+                disable_remote_inference=disable_remote_inference,
+            )
         cache[jobs_hash] = results
         return results
 
@@ -509,7 +522,6 @@ class Macro(BaseMacro):
     ) -> Any:
         """Run output remotely and return the locally rendered result using server-returned Results + formatters."""
         import requests
-        from uuid import UUID
 
         # Configuration
         from ..coop import Coop
@@ -538,8 +550,6 @@ class Macro(BaseMacro):
         from ..results import Results
 
         reconstructed_results = Results.pull(results_uuid)
-
-        from .output_formatter import OutputFormatters
 
         ofs = self.output_formatters
         return MacroRunOutput(
@@ -1070,7 +1080,9 @@ class Macro(BaseMacro):
         jobs_object = survey.to_jobs()
 
         output_formatter = (
-            OutputFormatter(description="Ranked Scenario List", output_type="ScenarioList")
+            OutputFormatter(
+                description="Ranked Scenario List", output_type="ScenarioList"
+            )
             .to_scenario_list()
             .to_ranked_scenario_list(
                 option_fields=option_fields,

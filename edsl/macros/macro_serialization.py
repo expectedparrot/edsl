@@ -18,11 +18,29 @@ class MacroSerialization:
         attachment_formatters_data = None
         if hasattr(macro, "attachment_formatters") and macro.attachment_formatters:
             attachment_formatters_data = [
-                formatter.to_dict()
-                if hasattr(formatter, "to_dict")
-                else formatter.__dict__
+                (
+                    formatter.to_dict()
+                    if hasattr(formatter, "to_dict")
+                    else formatter.__dict__
+                )
                 for formatter in macro.attachment_formatters
             ]
+
+        # Serialize fixed_params - handle EDSL objects using same pattern as _serialize_params
+        fixed_params_data = {}
+        if macro.fixed_params:
+            for key, value in macro.fixed_params.items():
+                if hasattr(value, "to_dict"):
+                    # Serialize EDSL objects (AgentList, Scenario, etc.)
+                    fixed_params_data[key] = {
+                        "__edsl_object__": True,
+                        "__edsl_type__": value.__class__.__name__,
+                        "__edsl_module__": value.__class__.__module__,
+                        "data": value.to_dict(),
+                    }
+                else:
+                    # Keep primitive types as-is
+                    fixed_params_data[key] = value
 
         return {
             "initial_survey": (
@@ -41,7 +59,9 @@ class MacroSerialization:
             ),
             "attachment_formatters": attachment_formatters_data,
             "default_params": macro._default_params,
+            "fixed_params": fixed_params_data,
             "default_formatter_name": macro.output_formatters.default,
+            "pseudo_run": macro.pseudo_run,
         }
 
     @staticmethod
@@ -75,6 +95,31 @@ class MacroSerialization:
                     formatter = ObjectFormatter.from_dict(formatter_data)
                     attachment_formatters.append(formatter)
 
+        # Deserialize fixed_params - reconstruct EDSL objects using same pattern as _deserialize_params
+        fixed_params = {}
+        if data.get("fixed_params"):
+            import importlib
+
+            for key, value in data["fixed_params"].items():
+                if isinstance(value, dict) and value.get("__edsl_object__"):
+                    # Reconstruct EDSL object
+                    obj_type = value["__edsl_type__"]
+                    obj_module = value["__edsl_module__"]
+                    obj_data = value["data"]
+
+                    try:
+                        # Import the module and get the class
+                        module = importlib.import_module(obj_module)
+                        obj_class = getattr(module, obj_type)
+                        # Reconstruct the object
+                        fixed_params[key] = obj_class.from_dict(obj_data)
+                    except (ImportError, AttributeError, TypeError):
+                        # If reconstruction fails, keep the serialized data
+                        fixed_params[key] = value
+                else:
+                    # Keep primitive types as-is
+                    fixed_params[key] = value
+
         kwargs = {
             "application_name": data.get("application_name"),
             "display_name": data.get("display_name"),
@@ -87,8 +132,10 @@ class MacroSerialization:
             ),
             "attachment_formatters": attachment_formatters,
             "default_params": data.get("default_params"),
+            "fixed_params": fixed_params if fixed_params else None,
             "default_formatter_name": data.get("default_formatter_name"),
             "client_mode": data.get("client_mode", False),
+            "pseudo_run": data.get("pseudo_run", False),
         }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
 

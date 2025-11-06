@@ -63,14 +63,12 @@ class Dimension(Generic[T]):
     # Construction helpers
     # ------------------------------------------------------------------
     @overload
-    def __init__(self, *, name: str, description: str, values: Sequence[T]):
-        ...
+    def __init__(self, *, name: str, description: str, values: Sequence[T]): ...
 
     @overload
     def __init__(
         self, *, name: str, description: str, values: Sequence[Tuple[T, float]]
-    ):
-        ...
+    ): ...
 
     def __init__(
         self,

@@ -23,6 +23,7 @@
     top: 0;
     z-index: 1;
     text-align: left !important;
+    vertical-align: top;  /* Top-justify text in header cells */
     padding: 8px;
     font-weight: bold;
     white-space: nowrap;  /* Prevent header text from wrapping */

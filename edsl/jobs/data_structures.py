@@ -34,9 +34,9 @@ class RunEnvironment:
     """
 
     cache: Optional["Cache"] = None
-    bucket_collection: Optional[
-        Any
-    ] = None  # Using Any to avoid circular import of BucketCollection
+    bucket_collection: Optional[Any] = (
+        None  # Using Any to avoid circular import of BucketCollection
+    )
     key_lookup: Optional["KeyLookup"] = None
     jobs_runner_status: Optional["JobsRunnerStatus"] = None
 
@@ -97,13 +97,15 @@ class RunParameters(Base):
     fresh: bool = (
         False  # if True, will not use cache and will save new results to cache
     )
-    memory_threshold: Optional[
-        int
-    ] = None  # Threshold in bytes for Results SQLList memory management
-    new_format: bool = True  # if True, uses remote_inference_create, if False uses old_remote_inference_create
-    expected_parrot_api_key: Optional[
-        str
-    ] = None  # Custom EXPECTED_PARROT_API_KEY to use for this job run
+    memory_threshold: Optional[int] = (
+        None  # Threshold in bytes for Results SQLList memory management
+    )
+    new_format: bool = (
+        True  # if True, uses remote_inference_create, if False uses old_remote_inference_create
+    )
+    expected_parrot_api_key: Optional[str] = (
+        None  # Custom EXPECTED_PARROT_API_KEY to use for this job run
+    )
 
     def to_dict(self, add_edsl_version=False) -> dict:
         d = asdict(self)
@@ -139,6 +141,8 @@ class RunParameters(Base):
         Returns:
             str: A formatted summary representation of the RunParameters
         """
+        from edsl.config import RICH_STYLES
+
         # Only show non-default values for brevity
         non_defaults = []
         defaults = RunParameters()
@@ -174,7 +178,7 @@ class RunParameters(Base):
             non_defaults.append(f"job_uuid='{self.job_uuid}'")
 
         params_str = ", ".join(non_defaults) if non_defaults else "all defaults"
-        return f"[cyan]RunParameters[/cyan]({params_str})"
+        return f"[{RICH_STYLES['primary']}]RunParameters[/{RICH_STYLES['primary']}]({params_str})"
 
 
 @dataclass
@@ -286,9 +290,9 @@ class Answers(UserDict):
             self[question.question_name + "_comment"] = comment
 
         if getattr(response, "reasoning_summary", None):
-            self[
-                question.question_name + "_reasoning_summary"
-            ] = response.reasoning_summary
+            self[question.question_name + "_reasoning_summary"] = (
+                response.reasoning_summary
+            )
 
     def replace_missing_answers_with_none(self, survey: "Survey") -> None:
         """

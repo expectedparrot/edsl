@@ -2,7 +2,6 @@ import pytest
 from edsl.agents import Agent
 
 from edsl.agents.exceptions import (
-    AgentCombinationError,
     AgentDirectAnswerFunctionError,
     AgentDynamicTraitsFunctionError,
     AgentNameError,

@@ -14,6 +14,13 @@ from pathlib import Path
 import importlib
 import sys
 
+# Import EDSL components at module level to avoid timing import overhead in benchmarks
+from edsl.questions import (
+    QuestionMultipleChoice, QuestionFreeText, QuestionCheckBox,
+    QuestionNumerical, QuestionList
+)
+from edsl import Survey, Model, ScenarioList
+
 # Constants
 LOG_DIR = Path(".") / "benchmark_logs"
 COMPONENT_LOG_FILE = LOG_DIR / "component_timing_log.jsonl"
@@ -80,11 +87,6 @@ def benchmark_all_submodules():
 @timed
 def benchmark_question_types():
     """Benchmark creating different question types."""
-    from edsl.questions import (
-        QuestionMultipleChoice, QuestionFreeText, QuestionCheckBox,
-        QuestionNumerical, QuestionList
-    )
-    
     questions = []
     
     # Create 100 questions of each type
@@ -131,9 +133,6 @@ def benchmark_question_types():
 @timed
 def benchmark_large_survey_dag():
     """Benchmark creating a large survey with a complex DAG."""
-    from edsl import Survey, QuestionMultipleChoice
-    from edsl.surveys import Rule
-    
     # Create 100 questions
     questions = []
     for i in range(100):
@@ -163,8 +162,6 @@ def benchmark_large_survey_dag():
 @timed
 def benchmark_model_setup():
     """Benchmark setting up various language models."""
-    from edsl import Model
-    
     models = []
     
     # Create instances of various models
@@ -177,8 +174,6 @@ def benchmark_model_setup():
 @timed
 def benchmark_scenario_creation(size=1000):
     """Benchmark creating a large scenario list."""
-    from edsl import ScenarioList
-    
     scenarios = []
     for i in range(size):
         scenario = {

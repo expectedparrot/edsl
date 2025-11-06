@@ -35,6 +35,7 @@ from .file_store_list import FileStoreList
 from .dimension import Dimension, DimensionValue
 from .conjoint_profile_generator import ConjointProfileGenerator
 from .agent_blueprint import AgentBlueprint
+from .scenario_source_inferrer import ScenarioSourceInferrer, from_any
 
 __all__ = [
     "Scenario",
@@ -50,4 +51,6 @@ __all__ = [
     "DimensionValue",
     "ConjointProfileGenerator",
     "AgentBlueprint",
+    "ScenarioSourceInferrer",
+    "from_any",
 ]

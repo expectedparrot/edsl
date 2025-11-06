@@ -346,9 +346,9 @@ class MatrixResponseValidator(ResponseValidatorABC):
                                     if isinstance(
                                         option_idx, (int, float)
                                     ) and 0 <= option_idx < len(self.question_options):
-                                        direct_mapped_answer[
-                                            item
-                                        ] = self.question_options[option_idx]
+                                        direct_mapped_answer[item] = (
+                                            self.question_options[option_idx]
+                                        )
                                         if verbose:
                                             print(
                                                 f"Mapped option_idx {option_idx} to {self.question_options[option_idx]}"
@@ -507,9 +507,9 @@ class MatrixResponseValidator(ResponseValidatorABC):
                                             ) and 0 <= value < len(
                                                 self.question_options
                                             ):
-                                                mapped_answer[
-                                                    item_map[key]
-                                                ] = self.question_options[value]
+                                                mapped_answer[item_map[key]] = (
+                                                    self.question_options[value]
+                                                )
                                             else:
                                                 mapped_answer[item_map[key]] = value
 

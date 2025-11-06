@@ -1,8 +1,6 @@
 """Tests for the QuestionMultipleChoiceWithOther class."""
 
-import pytest
 from edsl.questions import QuestionMultipleChoiceWithOther
-from edsl import Model
 
 
 def test_question_multiple_choice_with_other_basics():

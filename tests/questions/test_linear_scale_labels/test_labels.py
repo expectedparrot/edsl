@@ -3,7 +3,6 @@ Test label handling in linear scale questions.
 This tests the fix for issue #1921 where a model may return a label instead of an integer.
 """
 
-import pytest
 from edsl.questions import QuestionLinearScale
 
 

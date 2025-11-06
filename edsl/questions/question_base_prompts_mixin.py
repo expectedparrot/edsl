@@ -26,9 +26,9 @@ class TemplateManager:
                 resources.files(f"edsl.questions.templates.{question_type}")
                 / template_name
             )
-            self._template_cache[
-                (question_type, template_name)
-            ] = template_file.read_text()
+            self._template_cache[(question_type, template_name)] = (
+                template_file.read_text()
+            )
         return self._template_cache[(question_type, template_name)]
 
 
@@ -57,6 +57,14 @@ class QuestionBasePromptsMixin:
                 txt += value
             elif isinstance(value, list):
                 txt += "".join(str(value))
+            elif isinstance(value, dict):
+                # Handle dict-based question options (for piping with additional options)
+                # Extract template strings from dict values
+                for dict_key, dict_value in value.items():
+                    if isinstance(dict_value, str):
+                        txt += dict_value
+                    elif isinstance(dict_value, list):
+                        txt += "".join(str(dict_value))
         return txt
 
     @model_instructions.setter

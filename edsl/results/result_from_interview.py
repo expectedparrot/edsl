@@ -115,6 +115,10 @@ class ResultFromInterview:
 
         validated_dictionary = self._get_validated_dictionary(model_response_objects)
 
+        # Build question_to_attributes from the actual question instances
+        # These have been updated by the invigilator (e.g., resolved dict-based options)
+        question_to_attributes = self._build_question_to_attributes(survey_copy)
+
         # Import Result here to avoid circular imports
         from .result import Result
 
@@ -135,6 +139,7 @@ class ResultFromInterview:
             indices=indices_copy,
             cache_keys=cache_keys,
             validated_dict=validated_dictionary,
+            question_to_attributes=question_to_attributes,
         )
 
         # Store only the hash, not the interview
@@ -253,12 +258,12 @@ class ResultFromInterview:
         """Create dictionary of prompts for each question."""
         prompt_dictionary = {}
         for answer_key_name in answer_key_names:
-            prompt_dictionary[
-                answer_key_name + "_user_prompt"
-            ] = question_name_to_prompts[answer_key_name]["user_prompt"]
-            prompt_dictionary[
-                answer_key_name + "_system_prompt"
-            ] = question_name_to_prompts[answer_key_name]["system_prompt"]
+            prompt_dictionary[answer_key_name + "_user_prompt"] = (
+                question_name_to_prompts[answer_key_name]["user_prompt"]
+            )
+            prompt_dictionary[answer_key_name + "_system_prompt"] = (
+                question_name_to_prompts[answer_key_name]["system_prompt"]
+            )
         return prompt_dictionary
 
     def _get_raw_model_results_and_cache_used_dictionary(self, model_response_objects):
@@ -267,15 +272,15 @@ class ResultFromInterview:
         cache_used_dictionary = {}
         for result in model_response_objects:
             question_name = result.question_name
-            raw_model_results_dictionary[
-                question_name + "_raw_model_response"
-            ] = result.raw_model_response
-            raw_model_results_dictionary[
-                question_name + "_input_tokens"
-            ] = result.input_tokens
-            raw_model_results_dictionary[
-                question_name + "_output_tokens"
-            ] = result.output_tokens
+            raw_model_results_dictionary[question_name + "_raw_model_response"] = (
+                result.raw_model_response
+            )
+            raw_model_results_dictionary[question_name + "_input_tokens"] = (
+                result.input_tokens
+            )
+            raw_model_results_dictionary[question_name + "_output_tokens"] = (
+                result.output_tokens
+            )
             raw_model_results_dictionary[
                 question_name + "_input_price_per_million_tokens"
             ] = result.input_price_per_million_tokens
@@ -301,3 +306,29 @@ class ResultFromInterview:
         for result in model_response_objects:
             validated_dict[f"{result.question_name}_validated"] = result.validated
         return validated_dict
+
+    def _build_question_to_attributes(self, survey):
+        """Build question_to_attributes from the actual question instances in the survey.
+
+        This is important because the invigilator may have updated question attributes
+        (like resolving dict-based question_options into lists).
+
+        Args:
+            survey: Survey object containing the question instances
+
+        Returns:
+            Dictionary mapping question names to their attributes
+        """
+        if survey is None:
+            return {}
+
+        return {
+            q.question_name: {
+                "question_text": q.question_text,
+                "question_type": q.question_type,
+                "question_options": (
+                    None if not hasattr(q, "question_options") else q.question_options
+                ),
+            }
+            for q in survey.questions
+        }

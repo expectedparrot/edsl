@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Tuple
 
 import pandas as pd
 
-from .models import AgentResponseRecord, NormalizedSurvey, QuestionSpec
+from .models import AgentResponseRecord, QuestionSpec
 
 
 def load_questions_yaml(path: Path) -> Tuple[List[QuestionSpec], Dict[str, Any]]:

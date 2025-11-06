@@ -1,5 +1,4 @@
 from edsl.questions import QuestionMultipleChoice
-from edsl.language_models import Model
 
 new_instructions = """You are being asked the following question: {{question_text}}
     The options are
