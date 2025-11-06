@@ -477,8 +477,10 @@ class InvigilatorAI(InvigilatorBase):
                     if new_max_value != self.question.data["max_value"]:
                         self.question.max_value = new_max_value
 
+                
+                replacement_dict = self.scenario | prior_answers_dict | {"agent": self.agent.traits}
                 question_with_validators = self.question.render(
-                    self.scenario | prior_answers_dict | {"agent": self.agent.traits}
+                    replacement_dict
                 )
                 question_with_validators.use_code = self.question.use_code
             else:
