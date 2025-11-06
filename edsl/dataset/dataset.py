@@ -287,8 +287,17 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         return self.to_scenario_list().collapse(field, separator).to_dataset()
 
-    def long(self, exclude_fields: list[str] = None) -> Dataset:
+    def long(self, *args, exclude_fields: Union[list[str], str] = None) -> Dataset:
         """Convert the dataset from wide to long format.
+
+        Args:
+            *args: Field names to exclude, passed as separate positional arguments.
+                Example: .long('field1', 'field2')
+            exclude_fields: Alternative way to specify fields to exclude. Can be:
+                - A list of field names: ['field1', 'field2']
+                - A comma-separated string: 'field1, field2'
+                - Shorthand names without prefixes (e.g., 'city' instead of 'scenario.city')
+                  are allowed if unambiguous
 
         Examples:
             >>> d = Dataset([{'a': [1, 2], 'b': [3, 4]}])
@@ -298,9 +307,44 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             >>> d = Dataset([{'x': [1, 2], 'y': [3, 4], 'z': [5, 6]}])
             >>> d.long(exclude_fields=['z']).data
             [{'row': [0, 0, 1, 1]}, {'key': ['x', 'y', 'x', 'y']}, {'value': [1, 3, 2, 4]}, {'z': [5, 5, 6, 6]}]
+
+            >>> # Can use comma-separated string
+            >>> d.long(exclude_fields='z').data
+            [{'row': [0, 0, 1, 1]}, {'key': ['x', 'y', 'x', 'y']}, {'value': [1, 3, 2, 4]}, {'z': [5, 5, 6, 6]}]
+
+            >>> # Can use multiple positional arguments
+            >>> d.long('y', 'z').data
+            [{'row': [0, 1]}, {'key': ['x', 'x']}, {'value': [1, 2]}, {'y': [3, 4]}, {'z': [5, 6]}]
         """
         headers, data = self._tabular()
-        exclude_fields = exclude_fields or []
+
+        # Handle different input methods
+        if args:
+            # Positional arguments provided: .long('field1', 'field2')
+            exclude_fields = list(args)
+        elif exclude_fields is None:
+            exclude_fields = []
+        elif isinstance(exclude_fields, str):
+            # Comma-separated string: .long(exclude_fields='field1, field2')
+            exclude_fields = [f.strip() for f in exclude_fields.split(',')]
+
+        # Resolve shorthand field names to full names
+        resolved_exclude_fields = []
+        for field in exclude_fields:
+            if field in headers:
+                # Exact match found
+                resolved_exclude_fields.append(field)
+            else:
+                # Look for fields that end with this name (after a dot)
+                matches = [h for h in headers if h.endswith('.' + field)]
+                if len(matches) == 0:
+                    raise DatasetValueError(f"Field '{field}' not found in headers: {headers}")
+                elif len(matches) > 1:
+                    raise DatasetValueError(f"Field '{field}' is ambiguous. Could refer to: {matches}")
+                else:
+                    resolved_exclude_fields.append(matches[0])
+
+        exclude_fields = resolved_exclude_fields
 
         # Initialize result dictionaries for each column
         result_dict = {}
