@@ -131,7 +131,7 @@ class QuestionGenerator:
 
     Examples
     --------
-    >>> gen = QuestionGenerator()
+    >>> gen = QuestionGenerator()  # doctest: +SKIP
     >>> result = gen.generate_question("Ask the user what their favorite color is")  # doctest: +SKIP
     >>> print(json.dumps(result, indent=2))  # doctest: +SKIP
     """
@@ -164,7 +164,7 @@ class QuestionGenerator:
 
         Examples
         --------
-        >>> gen = QuestionGenerator(model="gpt-4o", temperature=0.7)
+        >>> gen = QuestionGenerator(model="gpt-4o", temperature=0.7)  # doctest: +SKIP
         >>> result = gen.generate_question("Ask what their favorite color is")  # doctest: +SKIP
         >>> result["question_type"] in ["free_text", "multiple_choice"]  # doctest: +SKIP
         True
