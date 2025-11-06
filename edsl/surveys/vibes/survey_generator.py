@@ -147,7 +147,7 @@ class SurveyGenerator:
 
     Examples
     --------
-    >>> gen = SurveyGenerator()
+    >>> gen = SurveyGenerator()  # doctest: +SKIP
     >>> result = gen.generate_survey("Survey about a new consumer brand of vitamin water")  # doctest: +SKIP
     >>> print(json.dumps(result, indent=2))  # doctest: +SKIP
     """
@@ -186,7 +186,7 @@ class SurveyGenerator:
 
         Examples
         --------
-        >>> gen = SurveyGenerator(model="gpt-4o", temperature=0.7)
+        >>> gen = SurveyGenerator(model="gpt-4o", temperature=0.7)  # doctest: +SKIP
         >>> result = gen.generate_survey("Survey about a new consumer brand of vitamin water")  # doctest: +SKIP
         >>> result["questions"][0]["question_type"] in ["free_text", "multiple_choice", "likert_five"]  # doctest: +SKIP
         True
