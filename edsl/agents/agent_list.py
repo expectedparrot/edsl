@@ -332,7 +332,9 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         return AgentList(random.sample(self.data, n))
 
     @polly_command
-    def split(self, frac_left: float, seed: Optional[int] = None) -> tuple[AgentList, AgentList]:
+    def split(
+        self, frac_left: float, seed: Optional[int] = None
+    ) -> tuple[AgentList, AgentList]:
         """Split the AgentList into two random groups.
 
         Randomly assigns agents to two groups (left and right) based on the specified
