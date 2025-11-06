@@ -125,7 +125,7 @@ class VibeFilter:
         >>> sample = [{"age": 25, "occupation": "student"}]  # doctest: +SKIP
         >>> expr = filter_tool.create_filter(keys, sample, "age over 30")  # doctest: +SKIP
         >>> "age" in expr and "30" in expr  # doctest: +SKIP
-        True
+        True  # doctest: +SKIP
         """
         system = (
             "You are an expert at writing data filtering expressions. "
