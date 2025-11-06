@@ -72,6 +72,7 @@ class DataTablesRenderer(DataTablesRendererABC):
     def render_html(self) -> str:
         # Generate a unique ID for this table instance to avoid conflicts
         import uuid
+
         table_id = f"interactive-table-{uuid.uuid4().hex[:8]}"
 
         html_template = """
@@ -175,7 +176,8 @@ class PandasStyleRenderer(DataTablesRendererABC):
         html_parts = []
 
         # Add styles
-        html_parts.append("""
+        html_parts.append(
+            """
         <style>
             .edsl-table {
                 border-collapse: collapse;
@@ -212,32 +214,35 @@ class PandasStyleRenderer(DataTablesRendererABC):
                 background-color: #e3f2fd;
             }
         </style>
-        """)
+        """
+        )
 
         # Start table
-        html_parts.append('<div style="max-height: 500px; overflow: auto; width: 100%;"><table class="edsl-table">')
+        html_parts.append(
+            '<div style="max-height: 500px; overflow: auto; width: 100%;"><table class="edsl-table">'
+        )
 
         # Add header
-        html_parts.append('<thead><tr>')
+        html_parts.append("<thead><tr>")
         for header in self.table_data.headers:
             escaped_header = escape_and_colorize_html(header)
-            html_parts.append(f'<th>{escaped_header}</th>')
-        html_parts.append('</tr></thead>')
+            html_parts.append(f"<th>{escaped_header}</th>")
+        html_parts.append("</tr></thead>")
 
         # Add body
-        html_parts.append('<tbody>')
+        html_parts.append("<tbody>")
         for row in self.table_data.data:
-            html_parts.append('<tr>')
+            html_parts.append("<tr>")
             for cell in row:
                 escaped_cell = escape_and_colorize_html(cell).replace("$", "\\$")
-                html_parts.append(f'<td>{escaped_cell}</td>')
-            html_parts.append('</tr>')
-        html_parts.append('</tbody>')
+                html_parts.append(f"<td>{escaped_cell}</td>")
+            html_parts.append("</tr>")
+        html_parts.append("</tbody>")
 
         # Close table
-        html_parts.append('</table></div>')
+        html_parts.append("</table></div>")
 
-        return ''.join(html_parts)
+        return "".join(html_parts)
 
     @classmethod
     def get_css(cls) -> str:

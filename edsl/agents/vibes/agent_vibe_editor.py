@@ -90,7 +90,9 @@ class AgentVibeEdit:
     temperature: float = 0.7
 
     def __post_init__(self):
-        self.client = create_openai_client()  # reads OPENAI_API_KEY from env with proper error handling
+        self.client = (
+            create_openai_client()
+        )  # reads OPENAI_API_KEY from env with proper error handling
 
     def edit_agent_list(
         self,

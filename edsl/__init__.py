@@ -25,7 +25,14 @@ from edsl import logger
 # Set up logger with configuration from environment/config
 # (We'll configure the logger after CONFIG is initialized below)
 
-__all__ = ["logger", "Config", "CONFIG", "__version__", "modify_settings", "show_settings"]
+__all__ = [
+    "logger",
+    "Config",
+    "CONFIG",
+    "__version__",
+    "modify_settings",
+    "show_settings",
+]
 
 # Define modules for lazy loading
 _LAZY_MODULES = {

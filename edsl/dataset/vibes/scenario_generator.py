@@ -69,7 +69,9 @@ class ScenarioGenerator:
     temperature: float = 0.7
 
     def __post_init__(self):
-        self.client = create_openai_client()  # reads OPENAI_API_KEY from env with proper error handling
+        self.client = (
+            create_openai_client()
+        )  # reads OPENAI_API_KEY from env with proper error handling
 
     def _create_dynamic_schema(self, fields: List[str]) -> type[BaseModel]:
         """
