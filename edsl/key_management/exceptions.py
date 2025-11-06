@@ -63,3 +63,42 @@ class KeyManagementDuplicateError(KeyManagementError):
     """
 
     relevant_doc = "https://docs.expectedparrot.com/en/latest/api_keys.html"
+
+
+class KeyManagementMissingKeyError(KeyManagementError):
+    """
+    Exception raised when a required API key is missing.
+
+    This exception occurs when:
+    - Attempting to use a service (like OpenAI) without setting the required API key
+    - The API key environment variable is not set
+    - The API key has not been registered through the key management system
+
+    Examples:
+        ```python
+        # Using a vibe method without setting OPENAI_API_KEY
+        ScenarioList.from_vibes("Types of fruit")  # Raises KeyManagementMissingKeyError
+        ```
+    """
+
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/api_keys.html"
+    doc_page = "api_keys"
+
+    def __init__(
+        self,
+        service: str = "OpenAI",
+        env_var: str = "OPENAI_API_KEY",
+        message: str = None,
+        **kwargs
+    ):
+        if message is None:
+            message = (
+                f"The {service} API key is required but not found.\n\n"
+                f"To use this feature, you need to set your {service} API key. "
+                f"You can do this by:\n"
+                f"1. Setting the {env_var} environment variable\n"
+                f"2. Adding it to a .env file in your project root\n"
+                f"3. Passing it directly when creating the client\n\n"
+                f"For more information on managing API keys, see the documentation link below."
+            )
+        super().__init__(message, **kwargs)
