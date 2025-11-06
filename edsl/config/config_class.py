@@ -31,6 +31,13 @@ EDSL_RUN_MODES = [
     "production",
 ]
 
+# valid values for EDSL_DEFAULT_TABLE_RENDERER
+EDSL_TABLE_RENDERERS = [
+    "pandas",
+    "datatables",
+    "rich",
+]
+
 # `default` is used to impute values only in "production" mode
 # `info` gives a brief description of the env var
 CONFIG_MAP = {
@@ -123,6 +130,11 @@ CONFIG_MAP = {
         "default": "False",
         "info": "This config var determines whether to enable verbose output mode throughout the application.",
     },
+    "EDSL_DEFAULT_TABLE_RENDERER": {
+        "default": "pandas",
+        "info": "This config var determines the default table renderer for displaying datasets in notebooks (options: 'pandas', 'datatables', 'rich').",
+        "valid_values": EDSL_TABLE_RENDERERS,
+    },
 }
 
 
@@ -182,6 +194,7 @@ class Config:
         Sets env vars as class attributes.
         - EDSL_RUN_MODE is not set my this method, but by _set_run_mode
         - If an env var is not set and has a default value in the CONFIG_MAP, sets it to the default value.
+        - Validates values against valid_values if specified in CONFIG_MAP
         """
         # for each env var in the CONFIG_MAP
         for env_var, config in CONFIG_MAP.items():
@@ -190,8 +203,17 @@ class Config:
                 continue
             value = os.getenv(env_var)
             default_value = config.get("default")
-            # if an env var exists, set it as a class attribute
+            valid_values = config.get("valid_values")
+
+            # if an env var exists, validate and set it as a class attribute
             if value:
+                # Validate the value if valid_values is specified
+                if valid_values and value not in valid_values:
+                    logger.error(f"Invalid value for {env_var}: {value}")
+                    raise InvalidEnvironmentVariableError(
+                        f"Invalid value '{value}' for {env_var}. "
+                        f"Valid values are: {', '.join(valid_values)}"
+                    )
                 setattr(self, env_var, value)
             # otherwise, if EDSL_RUN_MODE == "production" set it to its default value
             elif self.EDSL_RUN_MODE == "production":
@@ -255,3 +277,107 @@ class Config:
 # Note: Python modules are singletons. As such, once this module is imported
 # the same instance of it is reused across the application.
 CONFIG = Config()
+
+
+def modify_settings(**kwargs) -> None:
+    """
+    Modify EDSL configuration settings at runtime and persist them to .env file.
+
+    This function allows you to update configuration settings interactively. It will:
+    1. Validate that the setting names are valid
+    2. Update the in-memory CONFIG object
+    3. Update or create the .env file in the current working directory
+
+    Args:
+        **kwargs: Key-value pairs of configuration settings to update.
+                 Keys should be valid CONFIG_MAP variable names (e.g., EDSL_DEFAULT_TABLE_RENDERER).
+
+    Raises:
+        InvalidEnvironmentVariableError: If an invalid configuration variable name is provided.
+
+    Examples:
+        >>> from edsl import modify_settings
+        >>> modify_settings(EDSL_DEFAULT_TABLE_RENDERER="datatables")
+        >>> modify_settings(EDSL_LOG_LEVEL="INFO", EDSL_VERBOSE_MODE="True")
+
+    Note:
+        Changes take effect immediately in the current session and are persisted to .env
+        for future sessions.
+    """
+    import os
+    from pathlib import Path
+
+    # Validate all settings first
+    for key, value in kwargs.items():
+        if key not in CONFIG_MAP:
+            available = ", ".join(CONFIG_MAP.keys())
+            raise InvalidEnvironmentVariableError(
+                f"'{key}' is not a valid configuration variable. "
+                f"Available settings: {available}"
+            )
+
+        # Validate the value if valid_values is specified
+        config = CONFIG_MAP[key]
+        valid_values = config.get("valid_values")
+        if valid_values and str(value) not in valid_values:
+            raise InvalidEnvironmentVariableError(
+                f"Invalid value '{value}' for {key}. "
+                f"Valid values are: {', '.join(valid_values)}"
+            )
+
+    # Update the in-memory CONFIG object
+    for key, value in kwargs.items():
+        setattr(CONFIG, key, str(value))
+        logger.info(f"Updated {key} to {value}")
+
+    # Update the .env file
+    env_path = Path.cwd() / ".env"
+
+    # Read existing .env content if it exists
+    existing_lines = []
+    existing_keys = set()
+    if env_path.exists():
+        with open(env_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    key = line.split("=")[0].strip()
+                    if key not in kwargs:
+                        existing_lines.append(line)
+                    else:
+                        existing_keys.add(key)
+                else:
+                    existing_lines.append(line)
+
+    # Write back the .env file with updated values
+    with open(env_path, "w") as f:
+        # Write existing lines that weren't updated
+        for line in existing_lines:
+            f.write(line + "\n")
+
+        # Write updated/new values
+        for key, value in kwargs.items():
+            f.write(f"{key}={value}\n")
+
+    print(f"Configuration updated successfully. Changes saved to {env_path}")
+    print("\nUpdated settings:")
+    for key, value in kwargs.items():
+        print(f"  {key} = {value}")
+
+
+def show_settings() -> None:
+    """
+    Display all current EDSL configuration settings.
+
+    This is a convenience wrapper around CONFIG.show() that displays
+    all configuration variables and their current values.
+
+    Examples:
+        >>> from edsl import show_settings
+        >>> show_settings()  # doctest: +SKIP
+        Here are the current configuration settings:
+        EDSL_RUN_MODE              : production
+        EDSL_DEFAULT_TABLE_RENDERER: pandas
+        ...
+    """
+    CONFIG.show()

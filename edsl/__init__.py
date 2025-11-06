@@ -15,6 +15,7 @@ ROOT_DIR = os.path.dirname(BASE_DIR)
 
 from edsl.__version__ import __version__
 from edsl.config import Config, CONFIG
+from edsl.config.config_class import modify_settings, show_settings
 
 # NOTE: `ext` is lazily imported below via __getattr__ to avoid circular-import issues.
 
@@ -24,7 +25,7 @@ from edsl import logger
 # Set up logger with configuration from environment/config
 # (We'll configure the logger after CONFIG is initialized below)
 
-__all__ = ["logger", "Config", "CONFIG", "__version__"]
+__all__ = ["logger", "Config", "CONFIG", "__version__", "modify_settings", "show_settings"]
 
 # Define modules for lazy loading
 _LAZY_MODULES = {
