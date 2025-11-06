@@ -74,12 +74,12 @@ class VibeFilter:
 
     Examples
     --------
-    >>> filter_tool = VibeFilter()
-    >>> filter_expr = filter_tool.create_filter(
+    >>> filter_tool = VibeFilter()  # doctest: +SKIP
+    >>> filter_expr = filter_tool.create_filter(  # doctest: +SKIP
     ...     columns=["age", "occupation"],
     ...     sample_data=[{"age": 25, "occupation": "student"}, {"age": 35, "occupation": "engineer"}],
     ...     criteria="Keep only people over 30"
-    ... )
+    ... )  # doctest: +SKIP
     """
 
     model: str = "gpt-4o"
