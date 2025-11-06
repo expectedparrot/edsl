@@ -1104,8 +1104,6 @@ class DataOperationsBase:
             >>> sorted(cm_norm.keys())
             ['actual', 'cat', 'dog']
         """
-        from collections import Counter
-
         # Validate normalize parameter
         if normalize not in [None, "true", "pred", "all"]:
             raise DatasetValueError(
@@ -1256,7 +1254,6 @@ class DataOperationsBase:
         # Get metadata
         metadata = self._confusion_matrix_metadata
         actual_field = metadata["actual_field"]
-        predicted_values = metadata["predicted_values"]
         actual_values = metadata["actual_values"]
 
         # Get the data as a pandas DataFrame for easier manipulation
@@ -1275,9 +1272,7 @@ class DataOperationsBase:
                 continue
 
             # Extract probability values (all columns except the actual_field column)
-            prob_cols = [
-                col for col in df.columns if col != actual_field
-            ]
+            prob_cols = [col for col in df.columns if col != actual_field]
             probs = row[prob_cols].values[0]
 
             # Normalize if needed (convert counts to probabilities)
@@ -1308,10 +1303,9 @@ class DataOperationsBase:
             # Return a Dataset with per-class perplexity
             from ..dataset import Dataset
 
-            return Dataset([
-                {actual_field: list(actual_values)},
-                {"perplexity": perplexities}
-            ])
+            return Dataset(
+                [{actual_field: list(actual_values)}, {"perplexity": perplexities}]
+            )
         else:
             # Return weighted average perplexity
             # Weight by the number of samples in each class
@@ -1413,10 +1407,12 @@ class DataOperationsBase:
             # Return a Dataset with per-class counts
             from ..dataset import Dataset
 
-            return Dataset([
-                {actual_field: list(actual_values)},
-                {"true_positive_count": tp_counts}
-            ])
+            return Dataset(
+                [
+                    {actual_field: list(actual_values)},
+                    {"true_positive_count": tp_counts},
+                ]
+            )
         else:
             # Return total count
             return sum(tp_counts)
@@ -1511,15 +1507,19 @@ class DataOperationsBase:
             # Return a Dataset with per-class counts
             from ..dataset import Dataset
 
-            return Dataset([
-                {actual_field: list(actual_values)},
-                {"false_negative_count": fn_counts}
-            ])
+            return Dataset(
+                [
+                    {actual_field: list(actual_values)},
+                    {"false_negative_count": fn_counts},
+                ]
+            )
         else:
             # Return total count
             return sum(fn_counts)
 
-    def percent_correctly_predicted(self, per_class: bool = False) -> Union[float, "Dataset"]:
+    def percent_correctly_predicted(
+        self, per_class: bool = False
+    ) -> Union[float, "Dataset"]:
         """
         Calculate the percentage of correctly predicted instances from a confusion matrix.
 
@@ -1617,10 +1617,9 @@ class DataOperationsBase:
             # Return a Dataset with per-class percentages
             from ..dataset import Dataset
 
-            return Dataset([
-                {actual_field: list(actual_values)},
-                {"percent_correct": percentages}
-            ])
+            return Dataset(
+                [{actual_field: list(actual_values)}, {"percent_correct": percentages}]
+            )
         else:
             # Return overall accuracy
             if total_samples > 0:
