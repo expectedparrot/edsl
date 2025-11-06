@@ -562,7 +562,7 @@ class Result(Base, UserDict):
             if user_prompt_key in prompts:
                 # Get the rendered prompt text
                 prompt_obj = prompts[user_prompt_key]
-                if hasattr(prompt_obj, 'text'):
+                if hasattr(prompt_obj, "text"):
                     prompt_text = prompt_obj.text
                 else:
                     # Fallback if it's stored as a string

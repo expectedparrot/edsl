@@ -326,7 +326,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             exclude_fields = []
         elif isinstance(exclude_fields, str):
             # Comma-separated string: .long(exclude_fields='field1, field2')
-            exclude_fields = [f.strip() for f in exclude_fields.split(',')]
+            exclude_fields = [f.strip() for f in exclude_fields.split(",")]
 
         # Resolve shorthand field names to full names
         resolved_exclude_fields = []
@@ -336,11 +336,15 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
                 resolved_exclude_fields.append(field)
             else:
                 # Look for fields that end with this name (after a dot)
-                matches = [h for h in headers if h.endswith('.' + field)]
+                matches = [h for h in headers if h.endswith("." + field)]
                 if len(matches) == 0:
-                    raise DatasetValueError(f"Field '{field}' not found in headers: {headers}")
+                    raise DatasetValueError(
+                        f"Field '{field}' not found in headers: {headers}"
+                    )
                 elif len(matches) > 1:
-                    raise DatasetValueError(f"Field '{field}' is ambiguous. Could refer to: {matches}")
+                    raise DatasetValueError(
+                        f"Field '{field}' is ambiguous. Could refer to: {matches}"
+                    )
                 else:
                     resolved_exclude_fields.append(matches[0])
 
