@@ -1313,7 +1313,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         sampled_scenarios = self.sample(n=n, seed=seed)
 
         # Create a set of scenario hashes for quick lookup
-        sampled_hashes = {hash(str(scenario.to_dict())) for scenario in sampled_scenarios}
+        sampled_hashes = {
+            hash(str(scenario.to_dict())) for scenario in sampled_scenarios
+        }
 
         # Build the few-shot examples string
         example_lines = []

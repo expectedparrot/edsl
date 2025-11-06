@@ -87,30 +87,31 @@ class ScenarioGenerator:
         """
         # Create field definitions - all fields are strings by default
         field_definitions = {
-            field: (str, Field(description=f"The {field} value"))
-            for field in fields
+            field: (str, Field(description=f"The {field} value")) for field in fields
         }
 
         # Create the scenario item model
         ScenarioItem = type(
-            'ScenarioItem',
+            "ScenarioItem",
             (BaseModel,),
             {
-                '__annotations__': {k: v[0] for k, v in field_definitions.items()},
+                "__annotations__": {k: v[0] for k, v in field_definitions.items()},
                 **{k: v[1] for k, v in field_definitions.items()},
-                'model_config': {'extra': 'forbid'}
-            }
+                "model_config": {"extra": "forbid"},
+            },
         )
 
         # Create the reply model with a list of scenario items
         ScenariosReply = type(
-            'ScenariosReply',
+            "ScenariosReply",
             (BaseModel,),
             {
-                '__annotations__': {'scenarios': List[ScenarioItem]},
-                'scenarios': Field(description="List of scenario dictionaries with the specified fields"),
-                'model_config': {'extra': 'forbid'}
-            }
+                "__annotations__": {"scenarios": List[ScenarioItem]},
+                "scenarios": Field(
+                    description="List of scenario dictionaries with the specified fields"
+                ),
+                "model_config": {"extra": "forbid"},
+            },
         )
 
         return ScenariosReply
