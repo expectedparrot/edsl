@@ -70,10 +70,12 @@ class DataTablesRenderer(DataTablesRendererABC):
     """Interactive DataTables renderer implementation"""
 
     def render_html(self) -> str:
+        # Generate a unique ID for this table instance to avoid conflicts
+        import uuid
+        table_id = f"interactive-table-{uuid.uuid4().hex[:8]}"
+
         html_template = """
-        <!DOCTYPE html>
-        <html>
-        <head>
+        <div>
             <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
             <link href="https://cdnjs.cloudflare.com/ajax/libs/datatables.net-bs5/1.13.6/dataTables.bootstrap5.min.css" rel="stylesheet">
             <link href="https://cdnjs.cloudflare.com/ajax/libs/datatables.net-buttons-bs5/2.4.1/buttons.bootstrap5.min.css" rel="stylesheet">
@@ -81,10 +83,8 @@ class DataTablesRenderer(DataTablesRendererABC):
             <style>
                 {css}
             </style>
-        </head>
-        <body>
-            <div class="container">
-                <table id="interactive-table" class="table table-striped" style="width:100%">
+            <div class="container" style="max-width: 100%; margin: 20px 0;">
+                <table id="{table_id}" class="table table-striped" style="width:100%">
                     <thead>
                         <tr>{header_cells}</tr>
                     </thead>
@@ -95,24 +95,43 @@ class DataTablesRenderer(DataTablesRendererABC):
             <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables.net/1.13.6/jquery.dataTables.min.js"></script>
             <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables.net-bs5/1.13.6/dataTables.bootstrap5.min.js"></script>
             <script>
-                $(document).ready(function() {{
-                    $('#interactive-table').DataTable({{
-                        pageLength: 10,
-                        lengthMenu: [[5, 10, 25, -1], [5, 10, 25, "All"]],
-                        scrollX: true,
-                        responsive: true,
-                        dom: 'Bfrtip',
-                        buttons: [
-                            {{
-                                extend: 'colvis',
-                                text: 'Show/Hide Columns'
-                            }}
-                        ]
-                    }});
-                }});
+                (function() {{
+                    // Wait for dependencies to load
+                    function initTable() {{
+                        if (typeof jQuery === 'undefined' || typeof jQuery.fn.DataTable === 'undefined') {{
+                            setTimeout(initTable, 100);
+                            return;
+                        }}
+
+                        // Check if table already initialized
+                        if (jQuery.fn.DataTable.isDataTable('#{table_id}')) {{
+                            jQuery('#{table_id}').DataTable().destroy();
+                        }}
+
+                        jQuery('#{table_id}').DataTable({{
+                            pageLength: 10,
+                            lengthMenu: [[5, 10, 25, -1], [5, 10, 25, "All"]],
+                            scrollX: true,
+                            responsive: true,
+                            dom: 'Bfrtip',
+                            buttons: [
+                                {{
+                                    extend: 'colvis',
+                                    text: 'Show/Hide Columns'
+                                }}
+                            ]
+                        }});
+                    }}
+
+                    // Initialize immediately if DOM is ready, otherwise wait
+                    if (document.readyState === 'loading') {{
+                        document.addEventListener('DOMContentLoaded', initTable);
+                    }} else {{
+                        initTable();
+                    }}
+                }})();
             </script>
-        </body>
-        </html>
+        </div>
         """
 
         header_cells = "".join(
@@ -134,7 +153,7 @@ class DataTablesRenderer(DataTablesRendererABC):
             css = self.css_parameterizer(css).apply_parameters(parameters)
 
         return html_template.format(
-            css=css, header_cells=header_cells, body_rows=body_rows
+            css=css, header_cells=header_cells, body_rows=body_rows, table_id=table_id
         )
 
     @classmethod
@@ -148,47 +167,77 @@ class PandasStyleRenderer(DataTablesRendererABC):
     """Pandas-based styled renderer implementation"""
 
     def render_html(self) -> str:
-        import pandas as pd
+        # Handle empty data case
+        if not self.table_data.data and not self.table_data.headers:
+            return "<p>Empty table</p>"
 
-        from contextlib import redirect_stderr
-        import io
+        # Build HTML table manually for better compatibility
+        html_parts = []
 
-        stderr = io.StringIO()
-        with redirect_stderr(stderr):
-            if self.table_data.raw_data_set is not None and hasattr(
-                self.table_data.raw_data_set, "to_pandas"
-            ):
-                df = self.table_data.raw_data_set.to_pandas()
-            else:
-                # Handle empty data case
-                if not self.table_data.data and not self.table_data.headers:
-                    return "<p>Empty table</p>"
-                df = pd.DataFrame(self.table_data.data, columns=self.table_data.headers)
+        # Add styles
+        html_parts.append("""
+        <style>
+            .edsl-table {
+                border-collapse: collapse;
+                width: 100%;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+                font-size: 12px;
+            }
+            .edsl-table th {
+                background-color: #ffffff;
+                color: #333;
+                font-weight: 600;
+                padding: 12px 8px;
+                text-align: left;
+                vertical-align: top;
+                border: 1px solid #ddd;
+                border-bottom: 2px solid #999;
+                position: sticky;
+                top: 0;
+                z-index: 10;
+            }
+            .edsl-table td {
+                padding: 8px;
+                text-align: left;
+                vertical-align: top;
+                white-space: pre-wrap;
+                max-width: 300px;
+                word-wrap: break-word;
+                border: 1px solid #ddd;
+            }
+            .edsl-table tbody tr:nth-child(odd) {
+                background-color: #f9f9f9;
+            }
+            .edsl-table tbody tr:hover {
+                background-color: #e3f2fd;
+            }
+        </style>
+        """)
 
-            # Escape HTML special characters, colorize tags, and escape dollar signs to prevent MathJax rendering
-            df = df.map(
-                lambda x: (
-                    escape_and_colorize_html(x).replace("$", "\\$")
-                    if isinstance(x, str)
-                    else x
-                )
-            )
+        # Start table
+        html_parts.append('<div style="max-height: 500px; overflow: auto; width: 100%;"><table class="edsl-table">')
 
-            styled_df = df.style.set_properties(
-                **{
-                    "text-align": "left",
-                    "vertical-align": "top",  # Top-justify text in cells
-                    "white-space": "pre-wrap",  # Allows text wrapping
-                    "max-width": "300px",  # Maximum width before wrapping
-                    "word-wrap": "break-word",  # Breaks words that exceed max-width
-                }
-            ).background_gradient()
+        # Add header
+        html_parts.append('<thead><tr>')
+        for header in self.table_data.headers:
+            escaped_header = escape_and_colorize_html(header)
+            html_parts.append(f'<th>{escaped_header}</th>')
+        html_parts.append('</tr></thead>')
 
-            return f"""
-            <div style="max-height: 500px; overflow-y: auto;">
-                {styled_df.to_html()}
-            </div>
-            """
+        # Add body
+        html_parts.append('<tbody>')
+        for row in self.table_data.data:
+            html_parts.append('<tr>')
+            for cell in row:
+                escaped_cell = escape_and_colorize_html(cell).replace("$", "\\$")
+                html_parts.append(f'<td>{escaped_cell}</td>')
+            html_parts.append('</tr>')
+        html_parts.append('</tbody>')
+
+        # Close table
+        html_parts.append('</table></div>')
+
+        return ''.join(html_parts)
 
     @classmethod
     def get_css(cls) -> str:
