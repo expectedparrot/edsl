@@ -1215,7 +1215,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         data_list = list(sl.data)
         return ScenarioList(random.sample(data_list, n))
 
-    def split(self, frac_left: float, seed: Optional[int] = None) -> tuple[ScenarioList, ScenarioList]:
+    def split(
+        self, frac_left: float, seed: Optional[int] = None
+    ) -> tuple[ScenarioList, ScenarioList]:
         """Split the ScenarioList into two random groups.
 
         Randomly assigns scenarios to two groups (left and right) based on the specified
