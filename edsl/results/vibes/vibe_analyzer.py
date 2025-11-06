@@ -38,13 +38,10 @@ class VibeAnalyzer:
     def client(self) -> "OpenAI":
         """Lazy initialization of OpenAI client to avoid event loop issues."""
         if self._client is None:
-            try:
-                # Import here to avoid issues at module load time
-                from openai import OpenAI as OpenAIClient
+            # Import here to avoid issues at module load time
+            from ...base.openai_utils import create_openai_client
 
-                self._client = OpenAIClient()
-            except Exception as e:
-                raise RuntimeError(f"Failed to initialize OpenAI client: {e}")
+            self._client = create_openai_client()
         return self._client
 
     def _extract_question_metadata(self, question: "QuestionBase") -> Dict[str, Any]:
