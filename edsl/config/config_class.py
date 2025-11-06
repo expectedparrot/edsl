@@ -331,6 +331,7 @@ class Config(RepresentationMixin):
 
         # Update the .env file using dotenv's set_key for safe updates
         from dotenv import set_key
+
         env_path = Path.cwd() / ".env"
 
         # Use dotenv's set_key which properly handles updating existing files
@@ -368,7 +369,9 @@ class Config(RepresentationMixin):
         # Build the Rich text
         output = Text()
         output.append("Config(\n", style=RICH_STYLES["primary"])
-        output.append(f"    num_settings={num_settings},\n", style=RICH_STYLES["default"])
+        output.append(
+            f"    num_settings={num_settings},\n", style=RICH_STYLES["default"]
+        )
         output.append("    settings={\n", style=RICH_STYLES["default"])
 
         # Add each config setting with its info
@@ -411,11 +414,7 @@ class Config(RepresentationMixin):
             info = config_entry.get("info", "")
 
             scenarios.append(
-                Scenario({
-                    "setting": key,
-                    "value": str(value),
-                    "description": info
-                })
+                Scenario({"setting": key, "value": str(value), "description": info})
             )
 
         return ScenarioList(scenarios)

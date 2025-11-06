@@ -89,7 +89,7 @@ class KeyManagementMissingKeyError(KeyManagementError):
         service: str = "OpenAI",
         env_var: str = "OPENAI_API_KEY",
         message: str = None,
-        **kwargs
+        **kwargs,
     ):
         if message is None:
             message = (

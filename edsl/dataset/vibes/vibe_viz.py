@@ -242,7 +242,9 @@ class GGPlotGenerator:
     temperature: float = 0.2
 
     def __post_init__(self):
-        self.client = create_openai_client()  # reads OPENAI_API_KEY from env with proper error handling
+        self.client = (
+            create_openai_client()
+        )  # reads OPENAI_API_KEY from env with proper error handling
 
     def make_plot_code(
         self,
