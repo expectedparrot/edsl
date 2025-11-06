@@ -1059,14 +1059,14 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             Remove agents with NA in multiple specific traits:
 
             >>> al = AgentList([
-            ...     Agent(traits={'name': 'Alice', 'age': 30}),
-            ...     Agent(traits={'name': None, 'age': 25}),
-            ...     Agent(traits={'name': 'Bob', 'age': None})
+            ...     Agent(traits={'person_name': 'Alice', 'age': 30}),
+            ...     Agent(traits={'person_name': None, 'age': 25}),
+            ...     Agent(traits={'person_name': 'Bob', 'age': None})
             ... ])
-            >>> filtered = al.filter_na(['name', 'age'])
+            >>> filtered = al.filter_na(['person_name', 'age'])
             >>> len(filtered)
             1
-            >>> filtered[0].traits['name']
+            >>> filtered[0].traits['person_name']
             'Alice'
 
             Handle float NaN values:
