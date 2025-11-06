@@ -88,6 +88,7 @@ from ..utilities import (
     is_valid_variable_name,
     dict_hash,
     memory_profile,
+    list_split,
 )
 from ..dataset import ScenarioListOperationsMixin
 
@@ -1213,6 +1214,43 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         # Convert to list if necessary for random.sample
         data_list = list(sl.data)
         return ScenarioList(random.sample(data_list, n))
+
+    def split(self, frac_left: float, seed: Optional[int] = None) -> tuple[ScenarioList, ScenarioList]:
+        """Split the ScenarioList into two random groups.
+
+        Randomly assigns scenarios to two groups (left and right) based on the specified
+        fraction. Useful for creating train/test splits or other random partitions.
+
+        Args:
+            frac_left: Fraction (0-1) of scenarios to assign to the left group.
+            seed: Optional random seed for reproducibility.
+
+        Returns:
+            tuple[ScenarioList, ScenarioList]: A tuple containing (left, right) ScenarioLists.
+
+        Raises:
+            ValueError: If frac_left is not between 0 and 1.
+
+        Examples:
+            Split a scenario list 70/30:
+
+            >>> from edsl import Scenario, ScenarioList
+            >>> sl = ScenarioList([Scenario({'id': i}) for i in range(10)])
+            >>> left, right = sl.split(0.7, seed=42)
+            >>> len(left)
+            7
+            >>> len(right)
+            3
+
+            Create reproducible splits:
+
+            >>> sl = ScenarioList([Scenario({'id': i}) for i in range(5)])
+            >>> left1, right1 = sl.split(0.6, seed=123)
+            >>> left2, right2 = sl.split(0.6, seed=123)
+            >>> len(left1) == len(left2) and len(right1) == len(right2)
+            True
+        """
+        return list_split(self, frac_left, seed)
 
     def few_shot_examples(
         self,

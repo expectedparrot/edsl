@@ -32,6 +32,7 @@ from .spinner import with_spinner, silent_spinner
 from .is_notebook import is_notebook
 from .is_valid_variable_name import is_valid_variable_name
 from .naming_utilities import sanitize_string
+from .list_split import list_split
 
 # Interface module - note: print_results_long is imported directly in results.py
 
@@ -60,4 +61,5 @@ __all__ = [
     "sanitize_string",
     "object_disk_cache",
     "edsl_load",
+    "list_split",
 ]

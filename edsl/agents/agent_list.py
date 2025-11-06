@@ -18,7 +18,7 @@ from typing import Any, Callable, List, Optional, Union, TYPE_CHECKING
 # simpleeval imports moved to agent_list_filter.py
 
 from ..base import Base
-from ..utilities import is_notebook, remove_edsl_version, dict_hash
+from ..utilities import is_notebook, remove_edsl_version, dict_hash, list_split
 from ..dataset.dataset_operations_mixin import AgentListOperationsMixin
 from ..config import RICH_STYLES
 
@@ -330,6 +330,44 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         if seed:
             random.seed(seed)
         return AgentList(random.sample(self.data, n))
+
+    @polly_command
+    def split(self, frac_left: float, seed: Optional[int] = None) -> tuple[AgentList, AgentList]:
+        """Split the AgentList into two random groups.
+
+        Randomly assigns agents to two groups (left and right) based on the specified
+        fraction. Useful for creating train/test splits or other random partitions.
+
+        Args:
+            frac_left: Fraction (0-1) of agents to assign to the left group.
+            seed: Optional random seed for reproducibility.
+
+        Returns:
+            tuple[AgentList, AgentList]: A tuple containing (left, right) AgentLists.
+
+        Raises:
+            ValueError: If frac_left is not between 0 and 1.
+
+        Examples:
+            Split an agent list 70/30:
+
+            >>> from edsl import Agent, AgentList
+            >>> al = AgentList([Agent(traits={'id': i}) for i in range(10)])
+            >>> left, right = al.split(0.7, seed=42)
+            >>> len(left)
+            7
+            >>> len(right)
+            3
+
+            Create reproducible splits:
+
+            >>> al = AgentList([Agent(traits={'id': i}) for i in range(5)])
+            >>> left1, right1 = al.split(0.6, seed=123)
+            >>> left2, right2 = al.split(0.6, seed=123)
+            >>> len(left1) == len(left2) and len(right1) == len(right2)
+            True
+        """
+        return list_split(self, frac_left, seed)
 
     def apply_deltas(self, deltas: "AgentListDeltas") -> AgentList:
         """Apply an AgentListDeltas to create a new agent list with updated agents.
