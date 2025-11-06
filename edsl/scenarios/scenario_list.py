@@ -88,6 +88,7 @@ from ..utilities import (
     is_valid_variable_name,
     dict_hash,
     memory_profile,
+    list_split,
 )
 from ..dataset import ScenarioListOperationsMixin
 
@@ -986,28 +987,100 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         This representation can be used with eval() to recreate the ScenarioList object.
         Used primarily for doctests and debugging.
         """
-        return f"ScenarioList({list(self.data)})"
+        return f"ScenarioList([{', '.join([x._eval_repr_() for x in self.data])}])"
 
-    def _summary_repr(self, MAX_SCENARIOS: int = 10, MAX_FIELDS: int = 10) -> str:
+    @classmethod
+    def from_vibes(cls, description: str) -> ScenarioList:
+        """Create a ScenarioList from a vibe description.
+
+        Args:
+            description: A description of the vibe.
+        """
+        from edsl.dataset.vibes.scenario_generator import ScenarioGenerator
+
+        gen = ScenarioGenerator(model="gpt-4o", temperature=0.7)
+        result = gen.generate_scenarios(description)
+        return cls([Scenario(scenario) for scenario in result["scenarios"]])
+
+    def vibe_describe(
+        self,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.7,
+        max_sample_values: int = 5,
+    ) -> dict:
+        """Generate a title and description for the scenario list.
+
+        This method uses an LLM to analyze the scenario list and generate
+        a descriptive title and detailed description of what the scenario list represents.
+
+        Args:
+            model: OpenAI model to use for generation (default: "gpt-4o")
+            temperature: Temperature for generation (default: 0.7)
+            max_sample_values: Maximum number of sample values to include per key (default: 5)
+
+        Returns:
+            dict: Dictionary with keys:
+                - "proposed_title": A single sentence title for the scenario list
+                - "description": A paragraph-length description of the scenario list
+
+        Examples:
+            Basic usage:
+
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList([  # doctest: +SKIP
+            ...     Scenario({"name": "Alice", "age": 30, "city": "NYC"}),  # doctest: +SKIP
+            ...     Scenario({"name": "Bob", "age": 25, "city": "SF"})  # doctest: +SKIP
+            ... ])  # doctest: +SKIP
+            >>> description = sl.vibe_describe()  # doctest: +SKIP
+            >>> print(description["proposed_title"])  # doctest: +SKIP
+            >>> print(description["description"])  # doctest: +SKIP
+
+            Using a different model:
+
+            >>> sl = ScenarioList.from_vibes("Customer demographics")  # doctest: +SKIP
+            >>> description = sl.vibe_describe(model="gpt-4o-mini")  # doctest: +SKIP
+
+        Notes:
+            - Requires OPENAI_API_KEY environment variable to be set
+            - The title will be a single sentence that captures the scenario list's essence
+            - The description will be a paragraph explaining what the data represents
+            - Analyzes all unique keys and samples values to understand the data theme
+            - If a codebook is present, it will be included in the analysis
+        """
+        from .vibes import describe_scenario_list_with_vibes
+
+        d = describe_scenario_list_with_vibes(
+            self,
+            model=model,
+            temperature=temperature,
+            max_sample_values=max_sample_values,
+        )
+        from ..scenarios import Scenario
+
+        return Scenario(**d)
+
+    def _summary_repr(self, MAX_SCENARIOS: int = 10, MAX_FIELDS: int = 500) -> str:
         """Generate a summary representation of the ScenarioList with Rich formatting.
 
         Args:
             MAX_SCENARIOS: Maximum number of scenarios to show (default: 10)
-            MAX_FIELDS: Maximum number of fields to show per scenario (default: 10)
+            MAX_FIELDS: Maximum number of fields to show per scenario (default: 500)
         """
         from rich.console import Console
         from rich.text import Text
         import io
         import shutil
+        from edsl.config import RICH_STYLES
 
         # Get terminal width
         terminal_width = shutil.get_terminal_size().columns
 
         # Build the Rich text
         output = Text()
-        output.append("ScenarioList(\n", style="bold cyan")
-        output.append(f"    num_scenarios={len(self)},\n", style="white")
-        output.append("    scenarios=[\n", style="white")
+        output.append("ScenarioList(\n", style=RICH_STYLES["primary"])
+        output.append(f"    num_scenarios={len(self)},\n", style=RICH_STYLES["default"])
+        output.append("    scenarios=[\n", style=RICH_STYLES["default"])
 
         # Show the first MAX_SCENARIOS scenarios
         num_to_show = min(MAX_SCENARIOS, len(self))
@@ -1020,9 +1093,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             was_truncated = num_fields > MAX_FIELDS
 
             # Build scenario repr with indentation
-            output.append("        Scenario(\n", style="bold cyan")
-            output.append(f"            num_keys={num_fields},\n", style="white")
-            output.append("            data={\n", style="white")
+            output.append("        Scenario(\n", style=RICH_STYLES["primary"])
+            output.append(
+                f"            num_keys={num_fields},\n", style=RICH_STYLES["default"]
+            )
+            output.append("            data={\n", style=RICH_STYLES["default"])
 
             # Show fields
             for key, value in scenario_data.items():
@@ -1030,36 +1105,36 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 max_value_length = max(terminal_width - 30, 50)
                 value_repr = repr(value)
                 if len(value_repr) > max_value_length:
-                    value_repr = value_repr[:max_value_length - 3] + "..."
+                    value_repr = value_repr[: max_value_length - 3] + "..."
 
-                output.append("                ", style="white")
-                output.append(f"'{key}'", style="bold yellow")
-                output.append(f": {value_repr},\n", style="white")
+                output.append("                ", style=RICH_STYLES["default"])
+                output.append(f"'{key}'", style=RICH_STYLES["key"])
+                output.append(f": {value_repr},\n", style=RICH_STYLES["default"])
 
             if was_truncated:
                 output.append(
                     f"                ... ({num_fields - MAX_FIELDS} more fields)\n",
-                    style="dim"
+                    style=RICH_STYLES["dim"],
                 )
 
-            output.append("            }\n", style="white")
-            output.append("        )", style="bold cyan")
+            output.append("            }\n", style=RICH_STYLES["default"])
+            output.append("        )", style=RICH_STYLES["primary"])
 
             # Add comma and newline unless it's the last one
             if i < num_to_show - 1:
-                output.append(",\n", style="white")
+                output.append(",\n", style=RICH_STYLES["default"])
             else:
-                output.append("\n", style="white")
+                output.append("\n", style=RICH_STYLES["default"])
 
         # Add ellipsis if there are more scenarios
         if len(self) > MAX_SCENARIOS:
             output.append(
                 f"        ... ({len(self) - MAX_SCENARIOS} more scenarios)\n",
-                style="dim"
+                style=RICH_STYLES["dim"],
             )
 
-        output.append("    ]\n", style="white")
-        output.append(")", style="bold cyan")
+        output.append("    ]\n", style=RICH_STYLES["default"])
+        output.append(")", style=RICH_STYLES["primary"])
 
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=terminal_width)
@@ -1139,6 +1214,188 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         # Convert to list if necessary for random.sample
         data_list = list(sl.data)
         return ScenarioList(random.sample(data_list, n))
+
+    def split(
+        self, frac_left: float, seed: Optional[int] = None
+    ) -> tuple[ScenarioList, ScenarioList]:
+        """Split the ScenarioList into two random groups.
+
+        Randomly assigns scenarios to two groups (left and right) based on the specified
+        fraction. Useful for creating train/test splits or other random partitions.
+
+        Args:
+            frac_left: Fraction (0-1) of scenarios to assign to the left group.
+            seed: Optional random seed for reproducibility.
+
+        Returns:
+            tuple[ScenarioList, ScenarioList]: A tuple containing (left, right) ScenarioLists.
+
+        Raises:
+            ValueError: If frac_left is not between 0 and 1.
+
+        Examples:
+            Split a scenario list 70/30:
+
+            >>> from edsl import Scenario, ScenarioList
+            >>> sl = ScenarioList([Scenario({'id': i}) for i in range(10)])
+            >>> left, right = sl.split(0.7, seed=42)
+            >>> len(left)
+            7
+            >>> len(right)
+            3
+
+            Create reproducible splits:
+
+            >>> sl = ScenarioList([Scenario({'id': i}) for i in range(5)])
+            >>> left1, right1 = sl.split(0.6, seed=123)
+            >>> left2, right2 = sl.split(0.6, seed=123)
+            >>> len(left1) == len(left2) and len(right1) == len(right2)
+            True
+        """
+        return list_split(self, frac_left, seed)
+
+    def few_shot_examples(
+        self,
+        n: int,
+        x_fields: List[str],
+        y_fields: List[str],
+        seed: Optional[Union[str, int]] = None,
+        separator: str = " --> ",
+        field_name: str = "few_shot_examples",
+        presence_field_name: str = "current_scenario_present_in_examples",
+        line_separator: str = "\n",
+        x_format: str = "({x})",
+        y_format: str = "{y}",
+        field_separator: str = ", ",
+    ) -> ScenarioList:
+        """Create few-shot learning examples from sampled scenarios.
+
+        This method samples n scenarios and creates a formatted string of examples
+        that can be used for few-shot learning prompts. Each scenario in the returned
+        ScenarioList will have the few-shot examples string added as a new field, along
+        with a boolean indicator showing whether that specific scenario was included
+        in the sampled examples.
+
+        Args:
+            n: Number of examples to sample for the few-shot prompt
+            x_fields: List of field names to use as input/context (x values)
+            y_fields: List of field names to use as output/target (y values)
+            seed: Optional seed for reproducible sampling
+            separator: String to separate x from y (default: " --> ")
+            field_name: Name of field to store the examples string (default: "few_shot_examples")
+            presence_field_name: Name of boolean field indicating if scenario is in examples
+                                (default: "current_scenario_present_in_examples")
+            line_separator: String to separate each example (default: "\\n")
+            x_format: Format string for x values, use {x} as placeholder (default: "({x})")
+            y_format: Format string for y values, use {y} as placeholder (default: "{y}")
+            field_separator: String to separate multiple field values (default: ", ")
+
+        Returns:
+            A new ScenarioList where each scenario has:
+            - A field with the few-shot examples string
+            - A boolean field indicating if that scenario was in the sampled examples
+
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList([
+            ...     Scenario({'x': 1, 'y': 'a'}),
+            ...     Scenario({'x': 2, 'y': 'b'}),
+            ...     Scenario({'x': 3, 'y': 'c'}),
+            ...     Scenario({'x': 4, 'y': 'd'})
+            ... ])
+            >>> result = sl.few_shot_examples(n=2, x_fields=['x'], y_fields=['y'], seed=42)
+            >>> len(result) == len(sl)
+            True
+            >>> 'few_shot_examples' in result[0]
+            True
+            >>> 'current_scenario_present_in_examples' in result[0]
+            True
+            >>> isinstance(result[0]['current_scenario_present_in_examples'], bool)
+            True
+
+            >>> # Multi-field example
+            >>> sl2 = ScenarioList([
+            ...     Scenario({'name': 'Alice', 'age': 30, 'city': 'NYC', 'job': 'Engineer'}),
+            ...     Scenario({'name': 'Bob', 'age': 25, 'city': 'LA', 'job': 'Designer'}),
+            ... ])
+            >>> result2 = sl2.few_shot_examples(
+            ...     n=1,
+            ...     x_fields=['name', 'age'],
+            ...     y_fields=['city', 'job'],
+            ...     seed=42
+            ... )
+            >>> 'few_shot_examples' in result2[0]
+            True
+        """
+        # Validate inputs
+        if n > len(self):
+            raise ScenarioError(
+                f"Cannot sample {n} examples from ScenarioList with only {len(self)} scenarios"
+            )
+
+        if not x_fields or not y_fields:
+            raise ScenarioError("Both x_fields and y_fields must be non-empty lists")
+
+        # Validate that all fields exist in at least one scenario
+        all_fields = set(x_fields + y_fields)
+        available_fields = set()
+        for scenario in self:
+            available_fields.update(scenario.keys())
+
+        missing_fields = all_fields - available_fields
+        if missing_fields:
+            raise ScenarioError(
+                f"Fields not found in any scenario: {missing_fields}. "
+                f"Available fields: {available_fields}"
+            )
+
+        # Sample n scenarios
+        sampled_scenarios = self.sample(n=n, seed=seed)
+
+        # Create a set of scenario hashes for quick lookup
+        sampled_hashes = {
+            hash(str(scenario.to_dict())) for scenario in sampled_scenarios
+        }
+
+        # Build the few-shot examples string
+        example_lines = []
+        for scenario in sampled_scenarios:
+            # Format x values
+            x_values = []
+            for field in x_fields:
+                value = scenario.get(field, "")
+                x_values.append(str(value))
+            x_str = field_separator.join(x_values)
+            x_formatted = x_format.format(x=x_str)
+
+            # Format y values
+            y_values = []
+            for field in y_fields:
+                value = scenario.get(field, "")
+                y_values.append(str(value))
+            y_str = field_separator.join(y_values)
+            y_formatted = y_format.format(y=y_str)
+
+            # Combine into example
+            example = f"{x_formatted}{separator}{y_formatted}"
+            example_lines.append(example)
+
+        # Join all examples
+        examples_string = line_separator.join(example_lines)
+
+        # Create new ScenarioList with added fields
+        new_scenarios = []
+        for scenario in self:
+            new_scenario = scenario.copy()
+            new_scenario[field_name] = examples_string
+
+            # Check if this scenario was in the sampled examples
+            scenario_hash = hash(str(scenario.to_dict()))
+            new_scenario[presence_field_name] = scenario_hash in sampled_hashes
+
+            new_scenarios.append(new_scenario)
+
+        return ScenarioList(new_scenarios, codebook=self.codebook)
 
     def expand(self, *expand_fields: str, number_field: bool = False) -> ScenarioList:
         """Expand the ScenarioList by one or more fields.
@@ -1538,6 +1795,75 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return ScenarioListTransformer.filter(self, expression)
 
+    def vibe_filter(
+        self,
+        criteria: str,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.1,
+        show_expression: bool = False,
+    ) -> ScenarioList:
+        """
+        Filter the scenario list using natural language criteria.
+
+        This method uses an LLM to generate a filter expression based on
+        natural language criteria, then applies it using the scenario list's filter method.
+
+        Args:
+            criteria: Natural language description of the filtering criteria.
+                Examples:
+                - "Keep only people over 30"
+                - "Remove scenarios with missing data"
+                - "Only include scenarios from the US"
+                - "Filter out any scenarios where age is less than 18"
+            model: OpenAI model to use for generating the filter (default: "gpt-4o")
+            temperature: Temperature for generation (default: 0.1 for consistent logic)
+            show_expression: If True, prints the generated filter expression
+
+        Returns:
+            ScenarioList: A new ScenarioList containing only the scenarios that match the criteria
+
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList([
+            ...     Scenario({'age': 25, 'occupation': 'student'}),
+            ...     Scenario({'age': 35, 'occupation': 'engineer'}),
+            ...     Scenario({'age': 42, 'occupation': 'teacher'})
+            ... ])
+            >>> filtered = sl.vibe_filter("Keep only people over 30")  # doctest: +SKIP
+
+        Notes:
+            - Requires OPENAI_API_KEY environment variable to be set
+            - The LLM generates a filter expression using scenario keys directly
+            - Uses the scenario list's built-in filter() method for safe evaluation
+            - Use show_expression=True to see the generated filter logic
+        """
+        from .vibes.vibe_filter import VibeFilter
+
+        # Collect all unique keys across all scenarios
+        all_keys = set()
+        for scenario in self.data:
+            all_keys.update(scenario.keys())
+
+        # Get sample scenarios to help the LLM understand the data structure
+        sample_scenarios = []
+        for scenario in self.data[:5]:  # Get up to 5 sample scenarios
+            sample_scenarios.append(dict(scenario))
+
+        # Create the filter generator
+        filter_gen = VibeFilter(model=model, temperature=temperature)
+
+        # Generate the filter expression
+        filter_expr = filter_gen.create_filter(
+            sorted(list(all_keys)), sample_scenarios, criteria
+        )
+
+        if show_expression:
+            print(f"Generated filter expression: {filter_expr}")
+
+        # Use the scenario list's built-in filter method which returns ScenarioList
+        return self.filter(filter_expr)
+
     @classmethod
     def from_urls(
         cls, urls: list[str], field_name: Optional[str] = "text"
@@ -1620,6 +1946,48 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         new_sl = ScenarioList(data=[], codebook=self.codebook)
         for scenario in self:
             new_sl.append(scenario.keep(fields))
+        return new_sl
+
+    def numberify(self) -> ScenarioList:
+        """Convert string values to numeric types where possible.
+
+        This method attempts to convert string values to integers or floats
+        for all fields across all scenarios. It's particularly useful when loading
+        data from CSV files where numeric fields may be stored as strings.
+
+        Conversion rules:
+        - None values remain None
+        - Already numeric values (int, float) remain unchanged
+        - String values that can be parsed as integers are converted to int
+        - String values that can be parsed as floats are converted to float
+        - String values that cannot be parsed remain as strings
+        - Empty strings remain as empty strings
+
+        Returns:
+            ScenarioList: A new ScenarioList with numeric conversions applied
+
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList([
+            ...     Scenario({'age': '30', 'height': '5.5', 'name': 'Alice'}),
+            ...     Scenario({'age': '25', 'height': '6.0', 'name': 'Bob'})
+            ... ])
+            >>> sl_numeric = sl.numberify()
+            >>> sl_numeric[0]
+            Scenario({'age': 30, 'height': 5.5, 'name': 'Alice'})
+            >>> sl_numeric[1]
+            Scenario({'age': 25, 'height': 6.0, 'name': 'Bob'})
+
+            Works with None values and mixed types:
+
+            >>> sl = ScenarioList([Scenario({'count': '100', 'value': None, 'label': 'test'})])
+            >>> sl_numeric = sl.numberify()
+            >>> sl_numeric[0]
+            Scenario({'count': 100, 'value': None, 'label': 'test'})
+        """
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
+        for scenario in self:
+            new_sl.append(scenario.numberify())
         return new_sl
 
     @classmethod
@@ -2010,6 +2378,41 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_scenario = scenario.rename(replacement_dict)
             new_sl.append(new_scenario)
         return new_sl
+
+    def snakify(self) -> ScenarioList:
+        """Convert all scenario keys to valid Python identifiers (snake_case).
+
+        This method delegates to ScenarioSnakifier to transform all keys to lowercase,
+        replace spaces and special characters with underscores, and ensure all keys are
+        valid Python identifiers. If multiple keys would map to the same snakified name,
+        numbers are appended to ensure uniqueness.
+
+        Returns:
+            ScenarioList: A new ScenarioList with snakified keys.
+
+        Examples:
+            >>> s = ScenarioList([Scenario({'First Name': 'Alice', 'Age Group': '30s'})])
+            >>> result = s.snakify()
+            >>> sorted(result[0].keys())
+            ['age_group', 'first_name']
+            >>> result[0]['first_name']
+            'Alice'
+            >>> result[0]['age_group']
+            '30s'
+
+            >>> s = ScenarioList([Scenario({'name': 'Alice', 'Name': 'Bob', 'NAME': 'Charlie'})])
+            >>> result = s.snakify()
+            >>> sorted(result[0].keys())
+            ['name', 'name_1', 'name_2']
+
+            >>> s = ScenarioList([Scenario({'User-Name': 'Alice', '123field': 'test', 'valid_key': 'keep'})])
+            >>> result = s.snakify()
+            >>> sorted(result[0].keys())
+            ['_123field', 'user_name', 'valid_key']
+        """
+        from .scenario_snakifier import ScenarioSnakifier
+
+        return ScenarioSnakifier(self).snakify()
 
     def replace_names(self, new_names: list) -> ScenarioList:
         """Replace the field names in the scenarios with a new list of names.
@@ -2777,6 +3180,117 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 new_sl.append(Scenario(new_scenario))
             return new_sl
 
+    def filter_na(self, fields: Union[str, List[str]] = "*") -> "ScenarioList":
+        """
+        Remove scenarios where specified fields contain None or NaN values.
+
+        This method filters out scenarios that have null/NaN values in the specified
+        fields. It's similar to pandas' dropna() functionality. Values considered as
+        NA include: None, float('nan'), and string representations like 'nan', 'none', 'null'.
+
+        Args:
+            fields: Field name(s) to check for NA values. Can be:
+                    - "*" (default): Check all fields in each scenario
+                    - A single field name (str): Check only that field
+                    - A list of field names: Check all specified fields
+
+                    A scenario is kept only if NONE of the specified fields contain NA values.
+
+        Returns:
+            ScenarioList: A new ScenarioList containing only scenarios without NA values
+                         in the specified fields.
+
+        Examples:
+            Remove scenarios with any NA values in any field:
+            >>> scenarios = ScenarioList([
+            ...     Scenario({'a': 1, 'b': 2}),
+            ...     Scenario({'a': None, 'b': 3}),
+            ...     Scenario({'a': 4, 'b': 5})
+            ... ])
+            >>> filtered = scenarios.filter_na()
+            >>> len(filtered)
+            2
+            >>> filtered[0]['a']
+            1
+
+            Remove scenarios with NA in specific field:
+            >>> scenarios = ScenarioList([
+            ...     Scenario({'name': 'Alice', 'age': 30}),
+            ...     Scenario({'name': None, 'age': 25}),
+            ...     Scenario({'name': 'Bob', 'age': None})
+            ... ])
+            >>> filtered = scenarios.filter_na('name')
+            >>> len(filtered)
+            2
+            >>> filtered[0]['name']
+            'Alice'
+            >>> filtered[1]['name']
+            'Bob'
+
+            Remove scenarios with NA in multiple specific fields:
+            >>> filtered = scenarios.filter_na(['name', 'age'])
+            >>> len(filtered)
+            1
+            >>> filtered[0]['name']
+            'Alice'
+
+            Handle float NaN values:
+            >>> import math
+            >>> scenarios = ScenarioList([
+            ...     Scenario({'x': 1.0, 'y': 2.0}),
+            ...     Scenario({'x': float('nan'), 'y': 3.0}),
+            ...     Scenario({'x': 4.0, 'y': 5.0})
+            ... ])
+            >>> filtered = scenarios.filter_na('x')
+            >>> len(filtered)
+            2
+        """
+        import math
+
+        def is_na(val):
+            """Check if a value is considered NA (None or NaN)."""
+            if val is None:
+                return True
+            # Check for float NaN
+            if isinstance(val, float) and math.isnan(val):
+                return True
+            # Check for string representations of null values
+            if hasattr(val, "__str__"):
+                str_val = str(val).lower()
+                if str_val in ["nan", "none", "null"]:
+                    return True
+            return False
+
+        # Determine which fields to check
+        if fields == "*":
+            # Check all fields - need to collect all unique keys across scenarios
+            check_fields = set()
+            for scenario in self:
+                check_fields.update(scenario.keys())
+            check_fields = list(check_fields)
+        elif isinstance(fields, str):
+            check_fields = [fields]
+        else:
+            check_fields = list(fields)
+
+        # Filter scenarios
+        new_sl = ScenarioList(data=[], codebook=self.codebook)
+        for scenario in self:
+            # Check if any of the specified fields contain NA
+            has_na = False
+            for field in check_fields:
+                # Only check fields that exist in this scenario
+                if field in scenario:
+                    if is_na(scenario[field]):
+                        has_na = True
+                        break
+
+            # Keep scenario only if it has no NA values in checked fields
+            if not has_na:
+                new_sl.append(scenario)
+
+        return new_sl
+
     def create_conjoint_comparisons(
         self,
         attribute_field: str = "attribute",
@@ -2835,34 +3349,79 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return generator.generate_batch(count)
 
     @classmethod
-    def from_source(cls, source_type: str, *args, **kwargs) -> "ScenarioList":
+    def from_source(
+        cls, source_type_or_data: Any, *args, snakify: bool = True, **kwargs
+    ) -> "ScenarioList":
         """
-        Create a ScenarioList from a specified source type.
+        Create a ScenarioList from a specified source type or infer it automatically.
 
         This method serves as the main entry point for creating ScenarioList objects,
-        providing a unified interface for various data sources.
+        providing a unified interface for various data sources. By default, column names
+        are automatically converted to valid Python identifiers (snake_case).
+
+        **Two modes of operation:**
+
+        1. **Explicit source type** (2+ arguments): Specify the source type explicitly
+           Example: ScenarioList.from_source('csv', 'data.csv')
+
+        2. **Auto-detect source** (1 argument): Pass only the data and let it infer the type
+           Example: ScenarioList.from_source('data.csv')
 
         Args:
-            source_type: The type of source to create a ScenarioList from.
-                         Valid values include: 'urls', 'directory', 'csv', 'tsv',
-                         'excel', 'pdf', 'pdf_to_image', and others.
-            *args: Positional arguments to pass to the source-specific method.
+            source_type_or_data: Either:
+                - A string specifying the source type ('csv', 'excel', 'pdf', etc.)
+                  when using explicit mode with additional args
+                - The actual data source (file path, URL, dict, DataFrame, etc.)
+                  when using auto-detect mode
+            *args: Positional arguments to pass to the source-specific method
+                   (only used in explicit mode).
+            snakify: If True (default), automatically convert all scenario keys to
+                     valid Python identifiers (snake_case). Set to False to preserve
+                     original column names.
             **kwargs: Keyword arguments to pass to the source-specific method.
 
         Returns:
-            A ScenarioList object created from the specified source.
+            A ScenarioList object created from the specified source, with snakified keys
+            if snakify=True.
 
         Examples:
-            >>> # This is a simplified example for doctest
-            >>> # In real usage, you would provide a path to your CSV file:
-            >>> # sl_csv = ScenarioList.from_source('csv', 'your_data.csv')
-            >>> # Or use other source types like 'directory', 'excel', etc.
-            >>> # Examples of other source types:
-            >>> # sl_dir = ScenarioList.from_source('directory', '/path/to/files')
+            >>> # Explicit source type (original behavior)
+            >>> # sl = ScenarioList.from_source('csv', 'data.csv')
+
+            >>> # Auto-detect source type (new behavior)
+            >>> sl = ScenarioList.from_source({'name': ['Alice', 'Bob'], 'age': [25, 30]})
+            Detected source type: dictionary
+
+            >>> # Auto-detect from file with snakify
+            >>> # sl = ScenarioList.from_source('data.csv')  # Keys will be snakified
+            >>> # Detected source type: CSV file at data.csv
+
+            >>> # Preserve original column names
+            >>> sl = ScenarioList.from_source({'First Name': ['Alice']}, snakify=False)
+            Detected source type: dictionary
+            >>> 'First Name' in sl[0]
+            True
         """
         from .scenario_source import ScenarioSource
+        from .scenario_source_inferrer import ScenarioSourceInferrer
 
-        return ScenarioSource.from_source(source_type, *args, **kwargs)
+        # If no additional positional args, assume user wants auto-detection
+        if len(args) == 0:
+            # Auto-detect mode: source_type_or_data is actually the data
+            scenario_list = ScenarioSourceInferrer.infer_and_create(
+                source_type_or_data, verbose=True, **kwargs
+            )
+        else:
+            # Explicit mode: source_type_or_data is the source type string
+            scenario_list = ScenarioSource.from_source(
+                source_type_or_data, *args, **kwargs
+            )
+
+        # Apply snakify transformation if requested
+        if snakify:
+            scenario_list = scenario_list.snakify()
+
+        return scenario_list
 
 
 if __name__ == "__main__":

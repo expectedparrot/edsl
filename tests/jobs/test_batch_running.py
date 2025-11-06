@@ -1,6 +1,5 @@
 """Unit tests for the Jobs.run_batch method."""
 
-import pytest
 from edsl.jobs import Jobs
 from edsl import Model, Question, Agent, Scenario, Survey
 

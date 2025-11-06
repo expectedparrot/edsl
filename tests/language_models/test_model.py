@@ -1,12 +1,11 @@
 import pytest
-from unittest.mock import Mock, MagicMock, patch, PropertyMock
-from typing import Dict, List, Any, Optional
+from unittest.mock import Mock, patch
+from typing import List, Any
 
 from edsl.language_models.model import Model
 from edsl.language_models.exceptions import LanguageModelValueError
 #from edsl.inference_services.inference_service_registry import InferenceServiceRegistry
 from edsl.inference_services.inference_service_abc import InferenceServiceABC
-from edsl.inference_services import InferenceServiceError
 
 
 class MockInferenceService(InferenceServiceABC):

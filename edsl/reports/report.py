@@ -480,6 +480,255 @@ class OutputWrapper:
 
             display(chart)
 
+    def terminal_chart(self):
+        """
+        Generate and display a terminal-based visualization using termplotlib.
+
+        This method creates ASCII-based visualizations suitable for display in a terminal,
+        which is useful for scripts, SSH sessions, or environments without graphical display.
+
+        Returns:
+            str: The terminal visualization as a string (also prints it)
+
+        Example:
+            >>> from edsl import Results
+            >>> results = Results.example()
+            >>> analysis = results.analyze('how_feeling')
+            >>> analysis.bar_chart_output.terminal_chart()
+
+        Note:
+            Requires termplotlib to be installed: pip install termplotlib
+        """
+        try:
+            import termplotlib as tpl
+            from collections import Counter
+            import numpy as np
+        except ImportError:
+            error_msg = (
+                "termplotlib is required for terminal charts.\n"
+                "Install it with: pip install termplotlib"
+            )
+            print(error_msg)
+            return error_msg
+
+        # Get question information
+        questions = [
+            self._report.results.survey.get(qname) for qname in self._question_names
+        ]
+
+        # Print header
+        output_lines = []
+        output_lines.append("=" * 70)
+        for qname, question in zip(self._question_names, questions):
+            output_lines.append(f"Question: {question.question_text}")
+            output_lines.append(f"Type: {question.question_type}")
+            output_lines.append(f"Name: {qname}")
+
+        pretty_name = getattr(self._output_obj, "pretty_name", self._output_name)
+        output_lines.append(f"\nVisualization: {pretty_name}")
+        output_lines.append("=" * 70)
+        output_lines.append("")
+
+        # Get the answers for this question
+        results = self._report.results
+
+        # Handle single vs multiple questions
+        if len(self._question_names) == 1:
+            question_name = self._question_names[0]
+            question = questions[0]
+            question_type = question.question_type
+
+            # Get answers
+            answers = results.get_answers(question_name)
+            # Filter out None values
+            valid_answers = [a for a in answers if a is not None]
+
+            if not valid_answers:
+                msg = "No valid responses to visualize"
+                output_lines.append(msg)
+                result = "\n".join(output_lines)
+                print(result)
+                return result
+
+            # Generate appropriate visualization based on question type
+            if question_type in [
+                "multiple_choice",
+                "yes_no",
+                "linear_scale",
+                "likert_five",
+            ]:
+                # Bar chart for categorical/scale data
+                counts = Counter(valid_answers)
+
+                # Get options from question if available
+                if hasattr(question, "question_options"):
+                    options = question.question_options
+                    labels = [str(opt) for opt in options]
+                    values = [counts.get(opt, 0) for opt in options]
+                else:
+                    sorted_items = counts.most_common()
+                    labels = [str(item[0]) for item in sorted_items]
+                    values = [item[1] for item in sorted_items]
+
+                # Add summary statistics
+                total = len(valid_answers)
+                output_lines.append(f"Total responses: {total}")
+                output_lines.append("")
+
+                # Create bar chart
+                fig = tpl.figure()
+                fig.barh(values, labels, force_ascii=False)
+
+                # Capture output
+                import io
+                import sys
+
+                old_stdout = sys.stdout
+                sys.stdout = buffer = io.StringIO()
+                fig.show()
+                viz_output = buffer.getvalue()
+                sys.stdout = old_stdout
+
+                output_lines.append(viz_output)
+
+            elif question_type in ["numerical"]:
+                # Histogram for numerical data
+                values = np.array(valid_answers, dtype=float)
+
+                output_lines.append(f"Total responses: {len(values)}")
+                output_lines.append(f"Mean: {np.mean(values):.2f}")
+                output_lines.append(f"Median: {np.median(values):.2f}")
+                output_lines.append(f"Std Dev: {np.std(values):.2f}")
+                output_lines.append(
+                    f"Min: {np.min(values):.2f}, Max: {np.max(values):.2f}"
+                )
+                output_lines.append("")
+
+                counts, bin_edges = np.histogram(values)
+                fig = tpl.figure()
+                fig.hist(counts, bin_edges, orientation="horizontal", force_ascii=False)
+
+                import io
+                import sys
+
+                old_stdout = sys.stdout
+                sys.stdout = buffer = io.StringIO()
+                fig.show()
+                viz_output = buffer.getvalue()
+                sys.stdout = old_stdout
+
+                output_lines.append(viz_output)
+
+            elif question_type in ["checkbox"]:
+                # Bar chart for checkbox (multiple selections)
+                all_selections = []
+                for answer in valid_answers:
+                    if isinstance(answer, list):
+                        all_selections.extend(answer)
+                    else:
+                        all_selections.append(answer)
+
+                counts = Counter(all_selections)
+                sorted_items = counts.most_common()
+
+                output_lines.append(f"Total respondents: {len(valid_answers)}")
+                output_lines.append(f"Total selections: {len(all_selections)}")
+                output_lines.append(
+                    f"Avg selections per respondent: {len(all_selections)/len(valid_answers):.1f}"
+                )
+                output_lines.append("")
+
+                labels = [str(item[0]) for item in sorted_items]
+                values = [item[1] for item in sorted_items]
+
+                fig = tpl.figure()
+                fig.barh(values, labels, force_ascii=False)
+
+                import io
+                import sys
+
+                old_stdout = sys.stdout
+                sys.stdout = buffer = io.StringIO()
+                fig.show()
+                viz_output = buffer.getvalue()
+                sys.stdout = old_stdout
+
+                output_lines.append(viz_output)
+
+            elif question_type in ["free_text"]:
+                # Text length distribution
+                lengths = np.array([len(str(answer)) for answer in valid_answers])
+
+                output_lines.append(f"Total responses: {len(valid_answers)}")
+                output_lines.append(f"Avg characters: {np.mean(lengths):.1f}")
+                output_lines.append(
+                    f"Shortest: {np.min(lengths)}, Longest: {np.max(lengths)}"
+                )
+                output_lines.append("")
+                output_lines.append("Response Length Distribution:")
+                output_lines.append("")
+
+                counts, bin_edges = np.histogram(lengths)
+                fig = tpl.figure()
+                fig.hist(counts, bin_edges, orientation="horizontal", force_ascii=False)
+
+                import io
+                import sys
+
+                old_stdout = sys.stdout
+                sys.stdout = buffer = io.StringIO()
+                fig.show()
+                viz_output = buffer.getvalue()
+                sys.stdout = old_stdout
+
+                output_lines.append(viz_output)
+
+            else:
+                # Default: frequency bar chart
+                counts = Counter(valid_answers)
+                sorted_items = counts.most_common(10)  # Top 10
+
+                output_lines.append(f"Total responses: {len(valid_answers)}")
+                output_lines.append(f"Unique values: {len(counts)}")
+                output_lines.append(f"Showing top {min(10, len(counts))} values")
+                output_lines.append("")
+
+                labels = [str(item[0])[:30] for item in sorted_items]  # Truncate labels
+                values = [item[1] for item in sorted_items]
+
+                fig = tpl.figure()
+                fig.barh(values, labels, force_ascii=False)
+
+                import io
+                import sys
+
+                old_stdout = sys.stdout
+                sys.stdout = buffer = io.StringIO()
+                fig.show()
+                viz_output = buffer.getvalue()
+                sys.stdout = old_stdout
+
+                output_lines.append(viz_output)
+
+        else:
+            # Multiple questions - show a note
+            output_lines.append(
+                "Multi-question terminal visualizations not yet supported."
+            )
+            output_lines.append(f"Questions: {', '.join(self._question_names)}")
+            output_lines.append("\nFor now, analyze each question individually:")
+            for qname in self._question_names:
+                output_lines.append(
+                    f"  results.analyze('{qname}').bar_chart_output.terminal_chart()"
+                )
+
+        output_lines.append("")
+        output_lines.append("=" * 70)
+
+        result = "\n".join(output_lines)
+        print(result)
+        return result
+
 
 class QuestionAnalysis:
     """
@@ -597,8 +846,239 @@ class QuestionAnalysis:
             print(f"  .{snake_name:<30} ({pretty_name})")
 
     def __repr__(self):
-        """Return a string representation."""
-        return f"QuestionAnalysis({self._question_names}) with {len(self._outputs)} outputs"
+        """Return a rich-formatted string representation with question details, statistics, and terminal plot."""
+        try:
+            from rich.console import Console
+            from rich.table import Table
+            from rich import box
+            from collections import Counter
+            import numpy as np
+            import io
+
+            console = Console(file=io.StringIO(), force_terminal=True, width=100)
+
+            # Get question information
+            questions = [
+                self._report.results.survey.get(qname) for qname in self._question_names
+            ]
+
+            # Question Details Section (compact)
+            for i, (qname, question) in enumerate(zip(self._question_names, questions)):
+                # Question info table
+                q_table = Table(
+                    show_header=False,
+                    box=box.SIMPLE,
+                    border_style="blue",
+                    padding=(0, 1),
+                    collapse_padding=True,
+                )
+                q_table.add_column("Field", style="cyan bold", width=15)
+                q_table.add_column("Value", style="white")
+
+                q_table.add_row("Question", f"[bold yellow]{qname}[/bold yellow]")
+                q_table.add_row("Type", f"[green]{question.question_type}[/green]")
+                q_table.add_row("Text", question.question_text)
+
+                # Add options if available
+                if hasattr(question, "question_options") and question.question_options:
+                    options_str = ", ".join(
+                        [str(opt) for opt in question.question_options[:10]]
+                    )
+                    if len(question.question_options) > 10:
+                        options_str += f" ... ({len(question.question_options)} total)"
+                    q_table.add_row("Options", options_str)
+
+                console.print(q_table)
+
+            # Answer Statistics Section (only for single questions)
+            if len(self._question_names) == 1:
+                question_name = self._question_names[0]
+                question = questions[0]
+                answers = self._report.results.get_answers(question_name)
+                valid_answers = [a for a in answers if a is not None]
+
+                if valid_answers:
+                    # Statistics table (compact)
+                    stats_table = Table(
+                        title="[bold cyan]Statistics[/bold cyan]",
+                        box=box.SIMPLE,
+                        border_style="cyan",
+                        padding=(0, 1),
+                        collapse_padding=True,
+                    )
+                    stats_table.add_column("Metric", style="cyan", width=22)
+                    stats_table.add_column("Value", style="yellow", width=28)
+
+                    stats_table.add_row("Total Responses", str(len(answers)))
+                    stats_table.add_row("Valid Responses", str(len(valid_answers)))
+
+                    if len(answers) > len(valid_answers):
+                        stats_table.add_row(
+                            "Missing/None", str(len(answers) - len(valid_answers))
+                        )
+
+                    # Type-specific statistics
+                    question_type = question.question_type
+
+                    if question_type in ["numerical"]:
+                        values = np.array(valid_answers, dtype=float)
+                        stats_table.add_row("Mean", f"{np.mean(values):.2f}")
+                        stats_table.add_row("Median", f"{np.median(values):.2f}")
+                        stats_table.add_row("Std Dev", f"{np.std(values):.2f}")
+                        stats_table.add_row(
+                            "Range", f"{np.min(values):.2f} - {np.max(values):.2f}"
+                        )
+
+                    elif question_type in [
+                        "multiple_choice",
+                        "yes_no",
+                        "linear_scale",
+                        "likert_five",
+                    ]:
+                        counts = Counter(valid_answers)
+                        stats_table.add_row("Unique Values", str(len(counts)))
+                        most_common = counts.most_common(1)[0]
+                        stats_table.add_row(
+                            "Most Common", f"{most_common[0]} ({most_common[1]} times)"
+                        )
+
+                    elif question_type in ["checkbox"]:
+                        all_selections = []
+                        for answer in valid_answers:
+                            if isinstance(answer, list):
+                                all_selections.extend(answer)
+                        stats_table.add_row(
+                            "Total Selections", str(len(all_selections))
+                        )
+                        stats_table.add_row(
+                            "Avg per Respondent",
+                            f"{len(all_selections)/len(valid_answers):.1f}",
+                        )
+
+                    elif question_type in ["free_text"]:
+                        lengths = [len(str(a)) for a in valid_answers]
+                        stats_table.add_row(
+                            "Avg Length", f"{np.mean(lengths):.1f} chars"
+                        )
+                        stats_table.add_row(
+                            "Length Range", f"{min(lengths)} - {max(lengths)} chars"
+                        )
+
+                    console.print(stats_table)
+
+                    # Terminal Plot Section
+                    try:
+                        import termplotlib as tpl
+
+                        console.print("[bold cyan]Distribution[/bold cyan]")
+
+                        # Generate appropriate plot based on question type
+                        if question_type in [
+                            "multiple_choice",
+                            "yes_no",
+                            "linear_scale",
+                            "likert_five",
+                        ]:
+                            counts = Counter(valid_answers)
+
+                            # Get options from question if available
+                            if hasattr(question, "question_options"):
+                                options = question.question_options
+                                labels = [str(opt) for opt in options]
+                                values = [counts.get(opt, 0) for opt in options]
+                            else:
+                                sorted_items = counts.most_common()
+                                labels = [str(item[0]) for item in sorted_items]
+                                values = [item[1] for item in sorted_items]
+
+                            fig = tpl.figure()
+                            fig.barh(values, labels, force_ascii=False)
+
+                            # Capture plot output
+                            old_stdout = console.file
+                            plot_buffer = io.StringIO()
+                            import sys
+
+                            sys.stdout = plot_buffer
+                            fig.show()
+                            plot_output = plot_buffer.getvalue()
+                            sys.stdout = old_stdout
+
+                            console.print(plot_output)
+
+                        elif question_type in ["numerical"]:
+                            values = np.array(valid_answers, dtype=float)
+                            counts, bin_edges = np.histogram(values)
+
+                            fig = tpl.figure()
+                            fig.hist(
+                                counts,
+                                bin_edges,
+                                orientation="horizontal",
+                                force_ascii=False,
+                            )
+
+                            old_stdout = console.file
+                            plot_buffer = io.StringIO()
+                            import sys
+
+                            sys.stdout = plot_buffer
+                            fig.show()
+                            plot_output = plot_buffer.getvalue()
+                            sys.stdout = old_stdout
+
+                            console.print(plot_output)
+
+                    except ImportError:
+                        console.print(
+                            "[dim italic]Install termplotlib for visualizations: pip install termplotlib[/dim italic]"
+                        )
+
+            else:
+                # Multi-question analysis
+                console.print("[yellow]Multi-question analysis[/yellow]")
+                console.print(
+                    f"Analyzing {len(self._question_names)} questions together"
+                )
+
+            # Available Outputs Section (compact)
+            outputs_table = Table(
+                title="[bold cyan]Available Methods[/bold cyan]",
+                box=box.SIMPLE,
+                border_style="cyan",
+                padding=(0, 1),
+                collapse_padding=True,
+            )
+            outputs_table.add_column("Method/Attribute", style="green", width=35)
+            outputs_table.add_column("Description", style="white", width=55)
+
+            # Add output methods
+            for snake_name, output_name in sorted(self._name_mapping.items()):
+                output_obj = self._outputs[output_name]
+                pretty_name = getattr(output_obj, "pretty_name", output_name)
+                outputs_table.add_row(f".{snake_name}", pretty_name)
+
+            # Add utility methods
+            outputs_table.add_section()
+            outputs_table.add_row(".list_outputs()", "List all available outputs")
+            outputs_table.add_row(".question_names", "Get question names tuple")
+            outputs_table.add_row(".outputs", "Access raw outputs dictionary")
+
+            # Add terminal_chart method if single question
+            if len(self._question_names) == 1:
+                outputs_table.add_section()
+                outputs_table.add_row(
+                    ".bar_chart_output.terminal_chart()",
+                    "Show full terminal visualization",
+                )
+
+            console.print(outputs_table)
+
+            return console.file.getvalue()
+
+        except Exception as e:
+            # Fallback to simple repr if rich formatting fails
+            return f"QuestionAnalysis({self._question_names}) with {len(self._outputs)} outputs\n(Error in rich formatting: {e})"
 
     def _repr_html_(self):
         """Return an HTML representation of the QuestionAnalysis."""
@@ -986,9 +1466,9 @@ class Report(UserDict):
             include_interactions=include_interactions,
             exclude_interactions=exclude_interactions,
             analyses=analyses if analyses else None,
-            analysis_output_filters=analysis_output_filters
-            if analysis_output_filters
-            else None,
+            analysis_output_filters=(
+                analysis_output_filters if analysis_output_filters else None
+            ),
             lorem_ipsum=lorem_ipsum,
             include_questions_table=include_questions_table,
             include_respondents_section=include_respondents_section,

@@ -61,9 +61,7 @@ markdown_formatter = (
 # before attaching it to the jobs object.
 sa = ScenarioAttachmentFormatter(
     name="Scenario Attachment Formatter", output_type="ScenarioList"
-).chunk_text(
-    field="input_text", chunk_size_field="words_per_chunk", unit="word"
-)
+).chunk_text(field="input_text", chunk_size_field="words_per_chunk", unit="word")
 
 macro = Macro(
     application_name="jeopardy",

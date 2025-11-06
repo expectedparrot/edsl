@@ -113,8 +113,9 @@ class DirectAnswerMethod(Protocol):
         The answer to the question
     """
 
-    def __call__(self, self_: A, question: "QuestionBase", scenario: "Scenario") -> Any:
-        ...
+    def __call__(
+        self, self_: A, question: "QuestionBase", scenario: "Scenario"
+    ) -> Any: ...
 
 
 class Agent(Base):
@@ -171,11 +172,13 @@ class Agent(Base):
         dynamic_traits_function_name: Optional[str] = None,
         answer_question_directly_source_code: Optional[str] = None,
         answer_question_directly_function_name: Optional[str] = None,
+        **kwargs: Any,
     ):
         """Initialize a new Agent instance with specified traits and capabilities.
 
         Args:
-            traits: Dictionary of agent characteristics (e.g., {"age": 30, "occupation": "doctor"})
+            traits: Dictionary of agent characteristics (e.g., {"age": 30, "occupation": "doctor"}).
+                If None and additional keyword arguments are provided, those kwargs will be used as traits.
             name: Optional name identifier for the agent
             codebook: Dictionary mapping trait keys to human-readable descriptions for prompts.
                 This provides more descriptive labels for traits when rendering prompts.
@@ -187,6 +190,7 @@ class Agent(Base):
             dynamic_traits_function_name: Name of the dynamic traits function
             answer_question_directly_source_code: Source code for direct question answering method
             answer_question_directly_function_name: Name of the direct answering function
+            **kwargs: Additional keyword arguments. If traits is None, these will be used as traits.
 
         The Agent class brings together several key concepts:
 
@@ -197,6 +201,11 @@ class Agent(Base):
 
         Example:
         >>> a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
+        >>> a.traits
+        {'age': 10, 'hair': 'brown', 'height': 5.5}
+
+        You can also pass traits directly as keyword arguments:
+        >>> a = Agent(age=10, hair="brown", height=5.5)
         >>> a.traits
         {'age': 10, 'hair': 'brown', 'height': 5.5}
 
@@ -234,6 +243,10 @@ class Agent(Base):
         For details on how these components are used to construct prompts, see
         :py:class:`edsl.agents.Invigilator.InvigilatorBase`.
         """
+        # If traits is None and kwargs are provided, use kwargs as traits
+        if traits is None and kwargs:
+            traits = kwargs
+
         # Initialize basic attributes directly
         self.name = name
 
@@ -285,6 +298,47 @@ class Agent(Base):
         )
 
         self.trait_categories = trait_categories or {}
+
+    @property
+    def base_name(self) -> str | None:
+        """Get the base name of the agent.
+
+        Extracts the base name from various name formats:
+        - If name is a dict, returns the "name" key value
+        - If name is a string representation of a dict, parses it and returns the "name" key value
+        - Otherwise, returns the name as-is
+
+        Examples:
+        >>> from edsl.agents import Agent
+        >>> a = Agent(name="Alice")
+        >>> a.base_name
+        'Alice'
+
+        >>> a = Agent(name="{'name': 'Bob', 'title': 'Dr'}")
+        >>> a.base_name
+        'Bob'
+
+        >>> a = Agent(name="{'title': 'Dr', 'id': '123'}")
+        >>> a.base_name
+        "{'title': 'Dr', 'id': '123'}"
+
+        >>> a = Agent()
+        >>> a.base_name is None
+        True
+        """
+        import ast
+
+        if isinstance(self.name, dict):
+            return self.name.get("name", None)
+
+        try:
+            naming_dict = ast.literal_eval(self.name)
+            if "name" in naming_dict:
+                return naming_dict["name"]
+            else:
+                return self.name
+        except ValueError:
+            return self.name
 
     @property
     def traits_presentation_template(self):
@@ -1200,72 +1254,80 @@ class Agent(Base):
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
         # Build the Rich text
         output = Text()
         class_name = self.__class__.__name__
 
-        output.append(f"{class_name}(\n", style="bold cyan")
+        output.append(f"{class_name}(\n", style=RICH_STYLES["primary"])
 
         # Name (if present)
         if self.name:
-            output.append("    name=", style="white")
-            output.append(f'"{self.name}"', style="green")
-            output.append(",\n", style="white")
+            output.append("    name=", style=RICH_STYLES["default"])
+            output.append(f'"{self.name}"', style=RICH_STYLES["key"])
+            output.append(",\n", style=RICH_STYLES["default"])
 
         # Traits
         traits = self.traits
         num_traits = len(traits)
-        output.append(f"    num_traits={num_traits}", style="white")
+        output.append(f"    num_traits={num_traits}", style=RICH_STYLES["default"])
 
         if num_traits > 0:
-            output.append(",\n    traits={\n", style="white")
+            output.append(",\n    traits={\n", style=RICH_STYLES["default"])
 
             for i, (key, value) in enumerate(list(traits.items())[:max_traits]):
                 value_repr = repr(value)
                 if len(value_repr) > 40:
                     value_repr = value_repr[:37] + "..."
 
-                output.append("        ", style="white")
-                output.append(f"'{key}'", style="bold yellow")
-                output.append(f": {value_repr},\n", style="white")
+                output.append("        ", style=RICH_STYLES["default"])
+                output.append(f"'{key}'", style=RICH_STYLES["secondary"])
+                output.append(f": {value_repr},\n", style=RICH_STYLES["default"])
 
             if num_traits > max_traits:
                 output.append(
-                    f"        ... ({num_traits - max_traits} more)\n", style="dim"
+                    f"        ... ({num_traits - max_traits} more)\n",
+                    style=RICH_STYLES["dim"],
                 )
 
-            output.append("    }", style="white")
+            output.append("    }", style=RICH_STYLES["default"])
 
         # Codebook (if present)
         if self.codebook:
             num_codebook = len(self.codebook)
-            output.append(",\n    ", style="white")
-            output.append(f"num_codebook_entries={num_codebook}", style="magenta")
+            output.append(",\n    ", style=RICH_STYLES["default"])
+            output.append(
+                f"num_codebook_entries={num_codebook}", style=RICH_STYLES["highlight"]
+            )
 
         # Instruction (if custom)
         if self.instruction != self.default_instruction:
             instruction_text = self.instruction
             if len(instruction_text) > 50:
                 instruction_text = instruction_text[:47] + "..."
-            output.append(",\n    instruction=", style="white")
-            output.append(f'"{instruction_text}"', style="cyan")
+            output.append(",\n    instruction=", style=RICH_STYLES["default"])
+            output.append(f'"{instruction_text}"', style=RICH_STYLES["key"])
 
         # Dynamic traits function (if present)
         if self.has_dynamic_traits_function:
             func_name = self.dynamic_traits_function_name or "anonymous"
-            output.append(",\n    ", style="white")
-            output.append(f"dynamic_traits_function='{func_name}'", style="blue")
+            output.append(",\n    ", style=RICH_STYLES["default"])
+            output.append(
+                f"dynamic_traits_function='{func_name}'", style=RICH_STYLES["key"]
+            )
 
         # Direct answering method (if present)
         if hasattr(self, "answer_question_directly"):
             func_name = getattr(
                 self, "answer_question_directly_function_name", "anonymous"
             )
-            output.append(",\n    ", style="white")
-            output.append(f"direct_answer_method='{func_name}'", style="blue")
+            output.append(",\n    ", style=RICH_STYLES["default"])
+            output.append(
+                f"direct_answer_method='{func_name}'", style=RICH_STYLES["key"]
+            )
 
-        output.append("\n)", style="bold cyan")
+        output.append("\n)", style=RICH_STYLES["primary"])
 
         # Render to string
         string_io = io.StringIO()

@@ -1,6 +1,5 @@
 import inspect
-import typing
-from typing import get_type_hints, Any, Dict, List, Optional, Tuple, Union
+from typing import get_type_hints, Any, Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
 import re
@@ -163,7 +162,7 @@ class TypeInspector:
                 is_async=is_async
             )
             
-        except Exception as e:
+        except Exception:
             return None
     
     def get_all_methods(self) -> List[MethodInfo]:
@@ -298,7 +297,7 @@ class TypeInspector:
         print(f"\nSignature: {method.name}{method.signature}")
         
         if method.parameters:
-            print(f"\nParameters:")
+            print("\nParameters:")
             for p in method.parameters:
                 param_str = f"  - {p.name}: {p.type_str}"
                 if p.has_default:
@@ -306,7 +305,7 @@ class TypeInspector:
                 print(param_str)
         
         if method.docstring:
-            print(f"\nDocstring:")
+            print("\nDocstring:")
             print(f"{method.docstring}")
     
     def generate_stub(self) -> str:
@@ -315,13 +314,13 @@ class TypeInspector:
         
         for method in self.get_all_methods():
             if method.method_type == MethodType.PROPERTY:
-                lines.append(f"    @property")
+                lines.append("    @property")
             elif method.method_type == MethodType.STATIC:
-                lines.append(f"    @staticmethod")
+                lines.append("    @staticmethod")
             elif method.method_type == MethodType.CLASS:
-                lines.append(f"    @classmethod")
+                lines.append("    @classmethod")
             elif method.method_type == MethodType.CACHED_PROPERTY:
-                lines.append(f"    @cached_property")
+                lines.append("    @cached_property")
             
             # Build parameter list
             params = []
@@ -330,7 +329,7 @@ class TypeInspector:
                 if p.type_hint != inspect.Parameter.empty:
                     param_str += f": {p.type_str}"
                 if p.has_default:
-                    param_str += f" = ..."
+                    param_str += " = ..."
                 params.append(param_str)
             
             # Add async if needed
@@ -347,8 +346,7 @@ class TypeInspector:
 # Example usage and demonstration
 if __name__ == "__main__":
     # Example class with various method types and annotations
-    from functools import cached_property
-    from typing import List, Dict, Optional, AsyncIterator
+    from typing import List, Dict, Optional
     
     from edsl import AgentList
     

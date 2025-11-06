@@ -1,4 +1,3 @@
-import pytest
 from edsl.base import BaseException
 from edsl.surveys.exceptions import SurveyError, SurveyCreationError
 

@@ -193,9 +193,11 @@ class MacroHTMLRenderer:
             title=title_html,
             desc=desc_html,
             table=table_html,
-            formatters_section=f'<h3 style="margin-top:1.25rem;">Output Formatters</h3>\n{formatters_table_html}'
-            if formatters_table_html
-            else "",
+            formatters_section=(
+                f'<h3 style="margin-top:1.25rem;">Output Formatters</h3>\n{formatters_table_html}'
+                if formatters_table_html
+                else ""
+            ),
             usage=usage_block,
         )
 

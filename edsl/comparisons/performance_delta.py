@@ -688,24 +688,27 @@ class PerformanceDelta(Base):
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
         summary = self.summary()
 
         output = Text()
-        output.append("PerformanceDelta(", style="bold cyan")
-        output.append(f"improvements={summary['improvements']}", style="green")
-        output.append(", ", style="white")
-        output.append(f"unchanged={summary['unchanged']}", style="white")
-        output.append(", ", style="white")
+        output.append("PerformanceDelta(", style=RICH_STYLES["primary"])
+        output.append(
+            f"improvements={summary['improvements']}", style=RICH_STYLES["key"]
+        )
+        output.append(", ", style=RICH_STYLES["default"])
+        output.append(f"unchanged={summary['unchanged']}", style=RICH_STYLES["default"])
+        output.append(", ", style=RICH_STYLES["default"])
         output.append(f"worsenings={summary['worsenings']}", style="red")
-        output.append(", ", style="white")
+        output.append(", ", style=RICH_STYLES["default"])
 
         if summary["is_pareto"]:
-            output.append("✓ Pareto", style="bold green")
+            output.append("✓ Pareto", style=RICH_STYLES["secondary"])
         else:
-            output.append("✗ Not Pareto", style="dim")
+            output.append("✗ Not Pareto", style=RICH_STYLES["dim"])
 
-        output.append(")", style="bold cyan")
+        output.append(")", style=RICH_STYLES["primary"])
 
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
         console.print(output, end="")

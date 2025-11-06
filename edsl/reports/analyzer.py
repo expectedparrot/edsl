@@ -187,9 +187,11 @@ class AnalyzeQuestion(ABC):
         # Clean and truncate long responses for display
         max_length = 300
         df["Response"] = df["Response"].apply(
-            lambda x: (str(x)[:max_length] + "...")
-            if x and len(str(x)) > max_length
-            else str(x)
+            lambda x: (
+                (str(x)[:max_length] + "...")
+                if x and len(str(x)) > max_length
+                else str(x)
+            )
         )
 
         # Add styling to the DataFrame

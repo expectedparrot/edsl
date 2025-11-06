@@ -215,9 +215,9 @@ class DataFrameGridChartsEnterpriseWidget(EDSLBaseWidget):
                 col_def.update(
                     {
                         "type": "numericColumn",
-                        "filter": "agNumberColumnFilter"
-                        if self.enable_filtering
-                        else False,
+                        "filter": (
+                            "agNumberColumnFilter" if self.enable_filtering else False
+                        ),
                         "enableValue": True,  # Enable aggregation for numeric columns
                         "aggFunc": "sum",  # Default aggregation
                         "allowedAggFuncs": ["sum", "avg", "count", "min", "max"],
@@ -230,9 +230,9 @@ class DataFrameGridChartsEnterpriseWidget(EDSLBaseWidget):
             elif pd.api.types.is_datetime64_any_dtype(dtype):
                 col_def.update(
                     {
-                        "filter": "agDateColumnFilter"
-                        if self.enable_filtering
-                        else False,
+                        "filter": (
+                            "agDateColumnFilter" if self.enable_filtering else False
+                        ),
                         "enableValue": False,  # Dates typically used for grouping, not values
                     }
                 )
@@ -248,9 +248,9 @@ class DataFrameGridChartsEnterpriseWidget(EDSLBaseWidget):
             else:  # String/categorical columns
                 col_def.update(
                     {
-                        "filter": "agTextColumnFilter"
-                        if self.enable_filtering
-                        else False,
+                        "filter": (
+                            "agTextColumnFilter" if self.enable_filtering else False
+                        ),
                         "enableValue": False,  # Text columns used for grouping
                     }
                 )

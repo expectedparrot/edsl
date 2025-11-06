@@ -218,7 +218,9 @@ def main():
     print("\n" + "=" * 80)
     print("📊 HYBRID CSS TEST SUMMARY")
     print(f"Traditional CSS Classes: {'✅ PASSED' if css_test else '❌ FAILED'}")
-    print(f"React Component Compatibility: {'✅ PASSED' if react_test else '❌ FAILED'}")
+    print(
+        f"React Component Compatibility: {'✅ PASSED' if react_test else '❌ FAILED'}"
+    )
     print(f"Compiled JavaScript: {'✅ PASSED' if js_test else '❌ FAILED'}")
 
     all_passed = css_test and react_test and js_test

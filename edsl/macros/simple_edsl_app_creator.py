@@ -283,7 +283,9 @@ Provide a detailed, realistic response that fits this agent's profile."""
                 print("Goodbye! 👋")
                 break
             elif choice == "1":
-                description = input("\n📝 Describe the app you want to create: ").strip()
+                description = input(
+                    "\n📝 Describe the app you want to create: "
+                ).strip()
                 if not description:
                     print("❌ Description cannot be empty")
                     continue

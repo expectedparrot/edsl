@@ -1570,6 +1570,24 @@ class Jobs(Base):
 
         return converted_object
 
+    def pseudo_run(self) -> Optional["Results"]:
+        """Used to create a results object with the survey, agents and scenarios but with no answers.
+
+        This is a method used by Macros.
+        """
+        from ..results import Result, Results
+
+        results = []
+        for agent in self.agents or []:
+            for scenario in self.scenarios or [None]:
+                for model in self.models or [None]:
+                    r = Result.example()
+                    r.agent = agent
+                    r.scenario = scenario
+                    r.model = model
+                    results.append(r)
+        return Results(survey=self.survey, data=results)
+
     @with_config
     def run(self, *, config: RunConfig) -> Optional["Results"]:
         """Run the job by conducting interviews and return their results.
@@ -2091,18 +2109,21 @@ class Jobs(Base):
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
         # Build the Rich text
         output = Text()
-        output.append("Jobs(\n", style="bold cyan")
-        output.append(f"    num_interviews={self.num_interviews},\n", style="white")
+        output.append("Jobs(\n", style=RICH_STYLES["primary"])
+        output.append(
+            f"    num_interviews={self.num_interviews},\n", style=RICH_STYLES["default"]
+        )
 
         # Survey information
         if self.survey:
             num_questions = len(self.survey.questions)
             output.append(
                 f"    survey: {num_questions} question{'s' if num_questions != 1 else ''},\n",
-                style="yellow",
+                style=RICH_STYLES["secondary"],
             )
 
             # Show first few question names
@@ -2112,13 +2133,15 @@ class Jobs(Base):
                 ]
                 if num_questions > max_items:
                     question_names.append(f"... ({num_questions - max_items} more)")
-                output.append(f"        questions: {question_names},\n", style="dim")
+                output.append(
+                    f"        questions: {question_names},\n", style=RICH_STYLES["dim"]
+                )
 
         # Agents information
         num_agents = len(self.agents) if self.agents else 0
         output.append(
             f"    agents: {num_agents} agent{'s' if num_agents != 1 else ''},\n",
-            style="green",
+            style=RICH_STYLES["key"],
         )
 
         if num_agents > 0 and hasattr(self.agents, "trait_keys"):
@@ -2128,13 +2151,15 @@ class Jobs(Base):
                     f"... ({len(self.agents.trait_keys) - max_items} more)"
                 )
             if trait_keys:
-                output.append(f"        traits: {trait_keys},\n", style="dim")
+                output.append(
+                    f"        traits: {trait_keys},\n", style=RICH_STYLES["dim"]
+                )
 
         # Models information
         num_models = len(self.models) if self.models else 0
         output.append(
             f"    models: {num_models} model{'s' if num_models != 1 else ''},\n",
-            style="magenta",
+            style=RICH_STYLES["secondary"],
         )
 
         if num_models > 0:
@@ -2146,13 +2171,13 @@ class Jobs(Base):
                 model_names.append(model_name)
             if num_models > max_items:
                 model_names.append(f"... ({num_models - max_items} more)")
-            output.append(f"        models: {model_names},\n", style="dim")
+            output.append(f"        models: {model_names},\n", style=RICH_STYLES["dim"])
 
         # Scenarios information
         num_scenarios = len(self.scenarios) if self.scenarios else 0
         output.append(
             f"    scenarios: {num_scenarios} scenario{'s' if num_scenarios != 1 else ''},\n",
-            style="blue",
+            style=RICH_STYLES["secondary"],
         )
 
         if num_scenarios > 0 and hasattr(self.scenarios, "parameters"):
@@ -2162,9 +2187,11 @@ class Jobs(Base):
                     f"... ({len(self.scenarios.parameters) - max_items} more)"
                 )
             if params:
-                output.append(f"        parameters: {params},\n", style="dim")
+                output.append(
+                    f"        parameters: {params},\n", style=RICH_STYLES["dim"]
+                )
 
-        output.append(")", style="bold cyan")
+        output.append(")", style=RICH_STYLES["primary"])
 
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=120)

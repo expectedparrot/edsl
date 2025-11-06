@@ -3,7 +3,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Dict, Tuple, Optional
 from pathlib import Path
-import io, contextlib, uuid, yaml
+import io
+import contextlib
+import uuid
+import yaml
 
 from edsl import Results
 from reports.research import Research
@@ -18,7 +21,8 @@ results_cache: Optional[Results] = None
 
 # Helper to load Results from bytes (raw JSON or gzip)
 def _load_results_from_bytes(data: bytes) -> Results:
-    import json, gzip
+    import json
+    import gzip
 
     # First, attempt gzip
     try:
@@ -40,12 +44,12 @@ class PreferencesModel(BaseModel):
     include_questions: Optional[List[str]] = None
     exclude_questions: Optional[List[str]] = None
     analyses: Optional[List[List[str]]] = None
-    analysis_output_filters: Optional[
-        Dict[str, List[str]]
-    ] = None  # keys will be pipe-joined tuples
-    analysis_writeup_filters: Optional[
-        Dict[str, bool]
-    ] = None  # keys will be pipe-joined tuples
+    analysis_output_filters: Optional[Dict[str, List[str]]] = (
+        None  # keys will be pipe-joined tuples
+    )
+    analysis_writeup_filters: Optional[Dict[str, bool]] = (
+        None  # keys will be pipe-joined tuples
+    )
 
     # New interaction filtering options
     include_interactions: Optional[List[List[str]]] = None
@@ -188,12 +192,16 @@ def export_config(prefs: PreferencesModel):
         for analysis in prefs.analyses:
             analysis_key = "|".join(analysis)
             config["analyses"][analysis_key] = {
-                "outputs": prefs.analysis_output_filters.get(analysis_key, [])
-                if prefs.analysis_output_filters
-                else [],
-                "writeup": prefs.analysis_writeup_filters.get(analysis_key, True)
-                if prefs.analysis_writeup_filters
-                else True,
+                "outputs": (
+                    prefs.analysis_output_filters.get(analysis_key, [])
+                    if prefs.analysis_output_filters
+                    else []
+                ),
+                "writeup": (
+                    prefs.analysis_writeup_filters.get(analysis_key, True)
+                    if prefs.analysis_writeup_filters
+                    else True
+                ),
             }
 
     yaml_content = yaml.dump(config, default_flow_style=False)

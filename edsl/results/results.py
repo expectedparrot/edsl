@@ -55,6 +55,8 @@ if TYPE_CHECKING:
     from ..language_models import ModelList
     from ..dataset import Dataset
     from ..caching import Cache
+    from .results_transcript import Transcripts
+    from .vibes import ResultsVibeAnalysis
 
 
 from ..utilities import dict_hash
@@ -280,6 +282,48 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         return ResultsViewerWidget(results=self)
 
+    def transcripts(self, show_comments: bool = True) -> "Transcripts":
+        """Return a Transcripts object for viewing interview responses across multiple respondents.
+
+        This method creates a carousel-style viewer that allows navigation across different
+        Result objects (respondents) while keeping the same question in focus. This is useful
+        for comparing how different respondents answered the same question.
+
+        The Transcripts viewer provides:
+        - Navigation between respondents (Result objects)
+        - Navigation between questions
+        - Agent name display for each respondent
+        - Synchronized question viewing across respondents
+        - Copy button for plain text export
+
+        In HTML/Jupyter, displays as an interactive carousel with:
+        - "Prev/Next Respondent" buttons to navigate between agents
+        - "Prev Q/Next Q" buttons to navigate between questions
+
+        In terminal, displays Rich formatted output with agent headers and Q&A pairs.
+
+        Args:
+            show_comments: Whether to include respondent comments in the transcripts.
+                Defaults to True.
+
+        Returns:
+            A Transcripts object that adapts its display to the environment.
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> results = Results.example()
+            >>> transcripts = results.transcripts()
+            >>> # In Jupyter: Interactive carousel navigation
+            >>> # In terminal: Rich formatted display
+            >>> # As string: Plain text format
+
+            >>> # Without comments
+            >>> transcripts_no_comments = results.transcripts(show_comments=False)
+        """
+        from .results_transcript import Transcripts
+
+        return Transcripts(self, show_comments=show_comments)
+
     @classmethod
     def from_job_info(cls, job_info: dict) -> "Results":
         """Instantiate a Results object from a job info dictionary.
@@ -408,6 +452,80 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             self._report = Report(self)
 
         return self._report.analyze(*question_names)
+
+    def vibe_analyze(
+        self,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.7,
+        include_visualizations: bool = False,
+        generate_summary: bool = True,
+    ) -> "ResultsVibeAnalysis":
+        """Analyze all questions with LLM-powered insights.
+
+        This method iterates through each question in the survey, generates
+        standard analysis using the existing analyze() method, and uses an LLM
+        to provide natural language insights about the data patterns. Optionally,
+        it can also send visualizations to OpenAI's vision API for analysis.
+
+        In a Jupyter notebook, the results will display automatically with rich
+        formatting. For the best experience with interactive plots, call .display()
+        on the returned object.
+
+        Args:
+            model: OpenAI model to use for generating insights (default: "gpt-4o")
+            temperature: Temperature for LLM generation (default: 0.7)
+            include_visualizations: Whether to send visualizations to OpenAI for analysis
+                (default: False). WARNING: This can significantly increase API costs.
+            generate_summary: Whether to generate an overall summary report across
+                all questions (default: True)
+
+        Returns:
+            ResultsVibeAnalysis: Container object with analyses for all questions.
+                In Jupyter notebooks, will display automatically with HTML formatting.
+                For interactive plots, call .display() method.
+
+        Raises:
+            ValueError: If no survey is available or visualization dependencies missing
+            ImportError: If required packages are not installed
+
+        Examples:
+            >>> results = Results.example()  # doctest: +SKIP
+
+            >>> # Basic usage - will show HTML summary in notebooks
+            >>> results.vibe_analyze()  # doctest: +SKIP
+
+            >>> # For interactive plots and rich display
+            >>> analysis = results.vibe_analyze()  # doctest: +SKIP
+            >>> analysis.display()  # Shows plots inline with insights  # doctest: +SKIP
+
+            >>> # Access a specific question's analysis
+            >>> q_analysis = analysis["how_feeling"]  # doctest: +SKIP
+            >>> q_analysis.analysis.bar_chart  # doctest: +SKIP
+            >>> print(q_analysis.llm_insights)  # doctest: +SKIP
+            >>> # Charts are stored as PNG bytes for serialization
+            >>> q_analysis.chart_png  # PNG bytes  # doctest: +SKIP
+
+            >>> # With visualization analysis (more expensive - uses vision API)
+            >>> analysis = results.vibe_analyze(  # doctest: +SKIP
+            ...     include_visualizations=True
+            ... )  # doctest: +SKIP
+            >>> analysis.display()  # doctest: +SKIP
+
+            >>> # Export to serializable format for notebooks
+            >>> data = analysis.to_dict()  # doctest: +SKIP
+            >>> import json  # doctest: +SKIP
+            >>> json.dumps(data)  # Fully serializable  # doctest: +SKIP
+        """
+        from .vibes import analyze_with_vibes
+
+        return analyze_with_vibes(
+            self,
+            model=model,
+            temperature=temperature,
+            include_visualizations=include_visualizations,
+            generate_summary=generate_summary,
+        )
 
     def agent_answers_by_question(
         self, agent_key_fields: Optional[List[str]] = None, separator: str = ","
@@ -547,14 +665,27 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """Return a string representation of the Results.
 
         Uses traditional repr format when running doctests, otherwise uses
-        rich-based display for better readability.
+        rich-based display for better readability. In Jupyter notebooks,
+        returns a minimal string since _repr_html_ handles the display.
         """
         import os
 
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
-        else:
-            return self._summary_repr()
+
+        # Check if we're in a Jupyter notebook environment
+        # If so, return minimal representation since _repr_html_ will handle display
+        try:
+            from IPython import get_ipython
+
+            ipy = get_ipython()
+            if ipy is not None and "IPKernelApp" in ipy.config:
+                # We're in a Jupyter notebook/kernel, not IPython terminal
+                return "Results(...)"
+        except (NameError, ImportError):
+            pass
+
+        return self._summary_repr()
 
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the Results.
@@ -564,7 +695,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
-    def _summary_repr(self, max_text_preview: int = 60, max_items: int = 5) -> str:
+    def _summary_repr(self, max_text_preview: int = 60, max_items: int = 25) -> str:
         """Generate a summary representation of the Results with Rich formatting.
 
         Args:
@@ -574,56 +705,70 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
         # Build the Rich text
         output = Text()
-        output.append("Results(\n", style="bold cyan")
-        output.append(f"    num_observations={len(self)},\n", style="white")
-        output.append(f"    num_agents={len(set(self.agents))},\n", style="white")
-        output.append(f"    num_models={len(set(self.models))},\n", style="white")
-        output.append(f"    num_scenarios={len(set(self.scenarios))},\n", style="white")
+        output.append("Results(\n", style=RICH_STYLES["primary"])
+        output.append(
+            f"    num_observations={len(self)},\n", style=RICH_STYLES["default"]
+        )
+        output.append(
+            f"    num_agents={len(set(self.agents))},\n", style=RICH_STYLES["default"]
+        )
+        output.append(
+            f"    num_models={len(set(self.models))},\n", style=RICH_STYLES["default"]
+        )
+        output.append(
+            f"    num_scenarios={len(set(self.scenarios))},\n",
+            style=RICH_STYLES["default"],
+        )
 
         # Show agent traits
         if len(self.agents) > 0:
             agent_keys = self.agent_keys
             if agent_keys:
-                output.append("    agent_traits: [", style="white")
+                output.append("    agent_traits: [", style=RICH_STYLES["default"])
                 # Filter out internal fields
                 trait_keys = [k for k in agent_keys if not k.startswith("agent_")]
                 if trait_keys:
                     output.append(
                         f"{', '.join(repr(k) for k in trait_keys[:max_items])}",
-                        style="yellow",
+                        style=RICH_STYLES["secondary"],
                     )
                     if len(trait_keys) > max_items:
                         output.append(
-                            f", ... ({len(trait_keys) - max_items} more)", style="dim"
+                            f", ... ({len(trait_keys) - max_items} more)",
+                            style=RICH_STYLES["dim"],
                         )
-                output.append("],\n", style="white")
+                output.append("],\n", style=RICH_STYLES["default"])
 
         # Show scenario fields
         if len(self.scenarios) > 0:
             scenario_keys = self.scenario_keys
             if scenario_keys:
-                output.append("    scenario_fields: [", style="white")
+                output.append("    scenario_fields: [", style=RICH_STYLES["default"])
                 # Filter out internal fields
                 field_keys = [k for k in scenario_keys if not k.startswith("scenario_")]
                 if field_keys:
                     output.append(
                         f"{', '.join(repr(k) for k in field_keys[:max_items])}",
-                        style="magenta",
+                        style=RICH_STYLES["secondary"],
                     )
                     if len(field_keys) > max_items:
                         output.append(
-                            f", ... ({len(field_keys) - max_items} more)", style="dim"
+                            f", ... ({len(field_keys) - max_items} more)",
+                            style=RICH_STYLES["dim"],
                         )
-                output.append("],\n", style="white")
+                output.append("],\n", style=RICH_STYLES["default"])
 
         # Show question information with text previews
         if self.survey and hasattr(self.survey, "questions"):
             questions = self.survey.questions
-            output.append(f"    num_questions={len(questions)},\n", style="white")
-            output.append("    questions: [\n", style="white")
+            output.append(
+                f"    num_questions={len(questions)},\n", style=RICH_STYLES["default"]
+            )
+            output.append("    questions: [\n", style=RICH_STYLES["default"])
 
             # Show up to max_items questions with text previews
             for question in questions[:max_items]:
@@ -634,26 +779,28 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 if len(q_text) > max_text_preview:
                     q_text = q_text[:max_text_preview] + "..."
 
-                output.append("        ", style="white")
-                output.append(f"'{q_name}'", style="bold yellow")
-                output.append(": ", style="white")
-                output.append(f'"{q_text}"', style="dim")
-                output.append(",\n", style="white")
+                output.append("        ", style=RICH_STYLES["default"])
+                output.append(f"'{q_name}'", style=RICH_STYLES["secondary"])
+                output.append(": ", style=RICH_STYLES["default"])
+                output.append(f'"{q_text}"', style=RICH_STYLES["dim"])
+                output.append(",\n", style=RICH_STYLES["default"])
 
             if len(questions) > max_items:
                 output.append(
-                    f"        ... ({len(questions) - max_items} more)\n", style="dim"
+                    f"        ... ({len(questions) - max_items} more)\n",
+                    style=RICH_STYLES["dim"],
                 )
 
-            output.append("    ],\n", style="white")
+            output.append("    ],\n", style=RICH_STYLES["default"])
 
         # Show created columns if any
         if self.created_columns:
             output.append(
-                f"    created_columns={self.created_columns}\n", style="green"
+                f"    created_columns={self.created_columns}\n",
+                style=RICH_STYLES["key"],
             )
 
-        output.append(")", style="bold cyan")
+        output.append(")", style=RICH_STYLES["primary"])
 
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=120)

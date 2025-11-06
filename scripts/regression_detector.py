@@ -11,7 +11,7 @@ import yaml
 import argparse
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np

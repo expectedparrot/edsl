@@ -1,4 +1,5 @@
 """Unit tests for edsl.macros.macro module."""
+
 from __future__ import annotations
 import pytest
 

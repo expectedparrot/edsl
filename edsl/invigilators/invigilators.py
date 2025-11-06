@@ -477,9 +477,10 @@ class InvigilatorAI(InvigilatorBase):
                     if new_max_value != self.question.data["max_value"]:
                         self.question.max_value = new_max_value
 
-                question_with_validators = self.question.render(
+                replacement_dict = (
                     self.scenario | prior_answers_dict | {"agent": self.agent.traits}
                 )
+                question_with_validators = self.question.render(replacement_dict)
                 question_with_validators.use_code = self.question.use_code
             else:
                 question_with_validators = self.question
@@ -545,6 +546,26 @@ class InvigilatorHuman(InvigilatorBase):
 
         def __repr__(self):
             return f"{self.literal}"
+
+        # Process question parameters (like dict-based question_options) before answering
+        # Only process if the question has parameters AND needs option processing
+        try:
+            if (
+                hasattr(self.question, "parameters")
+                and self.question.parameters
+                and hasattr(self.question, "data")
+                and isinstance(self.question.data, dict)
+                and "question_options" in self.question.data
+            ):
+                new_question_options = self.prompt_constructor.get_question_options(
+                    self.question.data
+                )
+                if new_question_options != self.question.data["question_options"]:
+                    self.question.question_options = new_question_options
+        except Exception:
+            # If parameter processing fails, continue without it
+            # This can happen with mocked objects in tests
+            pass
 
         exception_occurred = None
         validated = False

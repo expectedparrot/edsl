@@ -551,9 +551,9 @@ class JobsRemoteInferenceHandler:
             model_cost_dict["input_cost_credits_with_cache"] = converter.usd_to_credits(
                 input_cost_with_cache
             )
-            model_cost_dict[
-                "output_cost_credits_with_cache"
-            ] = converter.usd_to_credits(output_cost_with_cache)
+            model_cost_dict["output_cost_credits_with_cache"] = (
+                converter.usd_to_credits(output_cost_with_cache)
+            )
         return list(expenses_by_model.values())
 
     def _fetch_results_and_log(

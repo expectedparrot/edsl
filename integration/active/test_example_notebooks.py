@@ -2,7 +2,6 @@ import os
 import glob
 import csv
 import subprocess
-from pathlib import Path
 
 import nbformat
 from nbconvert.preprocessors import ExecutePreprocessor, CellExecutionError

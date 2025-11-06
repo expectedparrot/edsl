@@ -10,7 +10,7 @@ functionality shared between Macro and CompositeMacro, including:
 """
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional, Any, Union
+from typing import TYPE_CHECKING, Optional, Any
 from abc import ABC, abstractmethod
 import re
 from html import escape
@@ -151,7 +151,6 @@ class BaseMacro(Base, MacroMixin, ABC):
         # Normal construction
         return super().__new__(cls)
 
-
     @classmethod
     def list(cls) -> "ScenarioList":
         """List all macros.
@@ -160,7 +159,7 @@ class BaseMacro(Base, MacroMixin, ABC):
             List of macro information.
         """
         scenario_list = super().list()
-        return scenario_list.select('description', 'owner_username', 'alias').table()
+        return scenario_list.select("description", "owner_username", "alias").table()
 
     @classmethod
     def _load_from_server(cls, identifier: str) -> "BaseMacro":
@@ -239,7 +238,9 @@ class BaseMacro(Base, MacroMixin, ABC):
             m = cls.from_dict(macro_dict)
             m.macro_id = cls.get_public_macro_uuid(owner, alias)
             m.client_mode = True
-            m._initialized = True  # Mark as initialized to prevent __init__ from re-running
+            m._initialized = (
+                True  # Mark as initialized to prevent __init__ from re-running
+            )
             return m
         else:
             # Assume it's a macro_id
@@ -256,7 +257,9 @@ class BaseMacro(Base, MacroMixin, ABC):
             m = cls.from_dict(macro_dict)
             m.client_mode = True
             m.macro_id = qualified_name
-            m._initialized = True  # Mark as initialized to prevent __init__ from re-running
+            m._initialized = (
+                True  # Mark as initialized to prevent __init__ from re-running
+            )
             return m
 
     def alias(self) -> str:
@@ -334,8 +337,17 @@ class BaseMacro(Base, MacroMixin, ABC):
     def parameters(self) -> "Table":
         """Return ScenarioList of parameter info derived from the initial survey."""
         sl = self.parameters_scenario_list
-        return sl.select('question_name', 'question_text', 'question_type').rename({'question_name': 'parameter', 'question_text': 'description', 'question_type': 'input_type'}).table()
-
+        return (
+            sl.select("question_name", "question_text", "question_type")
+            .rename(
+                {
+                    "question_name": "parameter",
+                    "question_text": "description",
+                    "question_type": "input_type",
+                }
+            )
+            .table()
+        )
 
     @property
     def parameters_scenario_list(self) -> "ScenarioList":
@@ -399,15 +411,23 @@ class BaseMacro(Base, MacroMixin, ABC):
     def __repr__(self) -> str:
         """Return a string representation of the macro.
 
-        Uses traditional repr format when running doctests, otherwise uses
-        rich-based display for better readability.
+        Uses traditional repr format when running doctests or in notebooks
+        (where _repr_html_ handles rich display), otherwise uses rich-based
+        display for better readability in terminals.
         """
         import os
+        from ..utilities.utilities import is_notebook
 
+        # Use simple repr for doctests
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
-        else:
-            return self._summary_repr()
+
+        # Use simple repr in notebooks to avoid double-display with _repr_html_
+        if is_notebook():
+            return self._eval_repr_()
+
+        # Use rich terminal display for standard Python interpreter
+        return self._summary_repr()
 
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the macro.
@@ -433,37 +453,38 @@ class BaseMacro(Base, MacroMixin, ABC):
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
         # Build the Rich text
         output = Text()
         cls_name = self.__class__.__name__
 
-        output.append(f"{cls_name}(\n", style="bold cyan")
+        output.append(f"{cls_name}(\n", style=RICH_STYLES["primary"])
 
         # Application info
-        output.append("    application_name=", style="white")
-        output.append(f"'{self.application_name}'", style="yellow")
-        output.append(",\n", style="white")
+        output.append("    application_name=", style=RICH_STYLES["default"])
+        output.append(f"'{self.application_name}'", style=RICH_STYLES["secondary"])
+        output.append(",\n", style=RICH_STYLES["default"])
 
-        output.append("    display_name=", style="white")
-        output.append(f"'{self.display_name}'", style="green")
-        output.append(",\n", style="white")
+        output.append("    display_name=", style=RICH_STYLES["default"])
+        output.append(f"'{self.display_name}'", style=RICH_STYLES["key"])
+        output.append(",\n", style=RICH_STYLES["default"])
 
         # Short description (truncate if too long)
         desc = self.short_description
         if len(desc) > 60:
             desc = desc[:57] + "..."
-        output.append("    short_description=", style="white")
-        output.append(f"'{desc}'", style="cyan")
-        output.append(",\n", style="white")
+        output.append("    short_description=", style=RICH_STYLES["default"])
+        output.append(f"'{desc}'", style=RICH_STYLES["primary"])
+        output.append(",\n", style=RICH_STYLES["default"])
 
         # Application type - use getattr to get the actual class attribute value
         app_type = getattr(self.__class__, "application_type", "base")
         if not isinstance(app_type, str):
             app_type = self.__class__.__name__
-        output.append("    application_type=", style="white")
-        output.append(f"'{app_type}'", style="magenta")
-        output.append(",\n", style="white")
+        output.append("    application_type=", style=RICH_STYLES["default"])
+        output.append(f"'{app_type}'", style=RICH_STYLES["secondary"])
+        output.append(",\n", style=RICH_STYLES["default"])
 
         # Parameters
         try:
@@ -473,24 +494,26 @@ class BaseMacro(Base, MacroMixin, ABC):
             param_names = []
             num_params = 0
 
-        output.append(f"    num_parameters={num_params}", style="white")
+        output.append(f"    num_parameters={num_params}", style=RICH_STYLES["default"])
 
         if num_params > 0:
-            output.append(",\n    parameters=[", style="white")
+            output.append(",\n    parameters=[", style=RICH_STYLES["default"])
             for i, name in enumerate(param_names[:max_params]):
-                output.append(f"'{name}'", style="bold yellow")
+                output.append(f"'{name}'", style=RICH_STYLES["secondary"])
                 if i < min(num_params, max_params) - 1:
-                    output.append(", ", style="white")
+                    output.append(", ", style=RICH_STYLES["default"])
             if num_params > max_params:
-                output.append(f", ... ({num_params - max_params} more)", style="dim")
-            output.append("]", style="white")
+                output.append(
+                    f", ... ({num_params - max_params} more)", style=RICH_STYLES["dim"]
+                )
+            output.append("]", style=RICH_STYLES["default"])
 
-        output.append(",\n", style="white")
+        output.append(",\n", style=RICH_STYLES["default"])
 
         # Subclass-specific info
         self._add_summary_details(output, max_formatters)
 
-        output.append("\n)", style="bold cyan")
+        output.append("\n)", style=RICH_STYLES["primary"])
 
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
@@ -502,6 +525,8 @@ class BaseMacro(Base, MacroMixin, ABC):
 
         Override in subclasses to add custom information.
         """
+        from edsl.config import RICH_STYLES
+
         # Formatters
         try:
             fmt_names_list = list(getattr(self.output_formatters, "mapping", {}).keys())
@@ -510,19 +535,22 @@ class BaseMacro(Base, MacroMixin, ABC):
             fmt_names_list = []
             num_formatters = 0
 
-        output.append(f"    num_formatters={num_formatters}", style="white")
+        output.append(
+            f"    num_formatters={num_formatters}", style=RICH_STYLES["default"]
+        )
 
         if num_formatters > 0:
-            output.append(",\n    formatters=[", style="white")
+            output.append(",\n    formatters=[", style=RICH_STYLES["default"])
             for i, name in enumerate(fmt_names_list[:max_formatters]):
-                output.append(f"'{name}'", style="yellow")
+                output.append(f"'{name}'", style=RICH_STYLES["secondary"])
                 if i < min(num_formatters, max_formatters) - 1:
-                    output.append(", ", style="white")
+                    output.append(", ", style=RICH_STYLES["default"])
             if num_formatters > max_formatters:
                 output.append(
-                    f", ... ({num_formatters - max_formatters} more)", style="dim"
+                    f", ... ({num_formatters - max_formatters} more)",
+                    style=RICH_STYLES["dim"],
                 )
-            output.append("]", style="white")
+            output.append("]", style=RICH_STYLES["default"])
 
         # Default formatter
         try:
@@ -540,8 +568,8 @@ class BaseMacro(Base, MacroMixin, ABC):
             default_fmt = "<none>"
 
         if default_fmt != "<none>":
-            output.append(",\n    default_formatter=", style="white")
-            output.append(f"'{default_fmt}'", style="bold green")
+            output.append(",\n    default_formatter=", style=RICH_STYLES["default"])
+            output.append(f"'{default_fmt}'", style=RICH_STYLES["secondary"])
 
     def _repr_html_(self) -> str:
         """Rich HTML representation used in notebooks and rich console renderers."""
