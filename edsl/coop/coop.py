@@ -3854,14 +3854,14 @@ class Coop(CoopFunctionsMixin):
 
         url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
 
-        # Check if we're in marimo by trying to import it
-        in_marimo = False
-        try:
-            import marimo as mo
-
-            in_marimo = True
-        except ImportError:
-            pass
+        # Check if we're in marimo by checking sys.modules
+        in_marimo = "marimo" in sys.modules
+        mo = None
+        if in_marimo:
+            try:
+                import marimo as mo
+            except ImportError:
+                in_marimo = False
 
         description = (
             link_description
@@ -3878,16 +3878,12 @@ class Coop(CoopFunctionsMixin):
         </div>
         """
 
-        if in_marimo:
-            # marimo: use mo.Html()
+        if in_marimo and mo is not None:
+            # marimo: create and return HTML object
+            # marimo automatically linkifies URLs in output, so we'll use mo.Html
             html_obj = mo.Html(html_content)
-            # In marimo, we need to output it in a way that marimo can capture
-            # Using mo.output.replace() to replace the cell output
-            try:
-                mo.output.replace(html_obj)
-            except (AttributeError, NameError):
-                # If mo.output doesn't work, try just printing it
-                print(html_obj)
+            # Store it for the login() method to return
+            return html_obj
         elif console.is_terminal:
             # Running in a standard terminal, show the full URL
             if link_description:
@@ -3934,10 +3930,15 @@ class Coop(CoopFunctionsMixin):
 
         edsl_auth_token = secrets.token_urlsafe(16)
 
-        self._display_login_url(
+        html_obj = self._display_login_url(
             edsl_auth_token=edsl_auth_token,
             link_description="\n🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key.",
         )
+
+        # If in marimo, print the HTML object so it displays
+        if html_obj is not None:
+            print(html_obj)
+
         api_key = self._poll_for_api_key(edsl_auth_token)
 
         if api_key is None:
