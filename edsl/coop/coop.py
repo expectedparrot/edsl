@@ -3847,6 +3847,7 @@ class Coop(CoopFunctionsMixin):
 
         - We need this function because URL detection with print() does not work alongside animations in VSCode.
         """
+        import sys
         from rich import print as rich_print
         from rich.console import Console
 
@@ -3854,7 +3855,27 @@ class Coop(CoopFunctionsMixin):
 
         url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
 
-        if console.is_terminal:
+        # Check if we're in marimo
+        if "marimo" in sys.modules:
+            # marimo: use HTML display
+            from IPython.display import HTML, display
+
+            link_text = "Log in and automatically store key"
+            description = (
+                link_description
+                if link_description
+                else "\n🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key."
+            )
+            html_output = f"""
+            <div style="margin: 10px 0;">
+                <p>{description}</p>
+                <a href="{url}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-size: 14px;">
+                    {link_text}
+                </a>
+            </div>
+            """
+            display(HTML(html_output))
+        elif console.is_terminal:
             # Running in a standard terminal, show the full URL
             if link_description:
                 rich_print(
