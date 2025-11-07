@@ -3847,7 +3847,6 @@ class Coop(CoopFunctionsMixin):
 
         - We need this function because URL detection with print() does not work alongside animations in VSCode.
         """
-        import sys
         from rich import print as rich_print
         from rich.console import Console
 
@@ -3855,31 +3854,31 @@ class Coop(CoopFunctionsMixin):
 
         url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
 
-        # Check if we're in marimo
-        if "marimo" in sys.modules:
-            # marimo: use marimo.Html for display
-            try:
-                import marimo as mo
+        # Check if we're in marimo by trying to import it
+        in_marimo = False
+        try:
+            import marimo as mo
 
-                link_text = "Log in and automatically store key"
-                description = (
-                    link_description
-                    if link_description
-                    else "🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key."
-                )
-                html_output = f"""
-                <div style="margin: 10px 0;">
-                    <p>{description}</p>
-                    <a href="{url}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-size: 14px;">
-                        {link_text}
-                    </a>
-                </div>
-                """
-                # In marimo, we need to print the HTML object to display it
-                print(mo.Html(html_output))
-            except Exception:
-                # Fallback to plain print if marimo import fails
-                print(f"{link_description if link_description else ''}\n{url}")
+            in_marimo = True
+        except ImportError:
+            pass
+
+        if in_marimo:
+            # marimo: use mo.md() with markdown link to render clickable link
+            description = (
+                link_description
+                if link_description
+                else "🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key."
+            )
+            # Use marimo markdown - marimo supports markdown links
+            link_md = mo.md(
+                f"""{description}
+
+[Log in and automatically store key]({url})
+"""
+            )
+            # Print the markdown object - marimo will render it
+            print(link_md)
         elif console.is_terminal:
             # Running in a standard terminal, show the full URL
             if link_description:
