@@ -268,12 +268,18 @@ class TabulatorRenderer(DataTablesRendererABC):
             return "<p>Empty table</p>"
 
         # Convert data to format Tabulator expects
-        columns = [{"title": str(header), "field": f"col_{i}"} for i, header in enumerate(self.table_data.headers)]
+        columns = [
+            {"title": str(header), "field": f"col_{i}"}
+            for i, header in enumerate(self.table_data.headers)
+        ]
 
         # Build data rows as dictionaries
         data_rows = []
         for row in self.table_data.data:
-            row_dict = {f"col_{i}": str(cell) if cell is not None else "" for i, cell in enumerate(row)}
+            row_dict = {
+                f"col_{i}": str(cell) if cell is not None else ""
+                for i, cell in enumerate(row)
+            }
             data_rows.append(row_dict)
 
         html_template = """
@@ -399,7 +405,7 @@ class TabulatorRenderer(DataTablesRendererABC):
             table_id=table_id,
             js_id=js_id,
             data_json=json.dumps(data_rows),
-            columns_json=json.dumps(columns)
+            columns_json=json.dumps(columns),
         )
 
     @classmethod

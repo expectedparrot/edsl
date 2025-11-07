@@ -405,9 +405,9 @@ class Survey(Base):
         """Return instructions that are relevant to the question."""
         return self._relevant_instructions_dict[question]
 
-    def show_flow(self, filename: Optional[str] = None) -> None:
+    def show_flow(self, filename: Optional[str] = None):
         """Show the flow of the survey."""
-        SurveyFlowVisualization(self).show_flow(filename=filename)
+        return SurveyFlowVisualization(self).show_flow(filename=filename)
 
     def add_instruction(
         self, instruction: Union["Instruction", "ChangeInstruction"]
