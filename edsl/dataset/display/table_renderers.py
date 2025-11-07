@@ -197,6 +197,8 @@ class PandasStyleRenderer(DataTablesRendererABC):
                 position: sticky;
                 top: 0;
                 z-index: 10;
+                white-space: nowrap;
+                min-width: fit-content;
             }
             .edsl-table td {
                 padding: 8px;
@@ -247,6 +249,162 @@ class PandasStyleRenderer(DataTablesRendererABC):
     @classmethod
     def get_css(cls) -> str:
         return ""  # Pandas styling handles its own CSS
+
+
+class TabulatorRenderer(DataTablesRendererABC):
+    """Tabulator-based interactive table renderer implementation"""
+
+    def render_html(self) -> str:
+        # Generate a unique ID for this table instance
+        import uuid
+        import json
+
+        unique_id = uuid.uuid4().hex[:8]
+        table_id = f"tabulator-table-{unique_id}"
+        js_id = f"tabulator_table_{unique_id}"  # JavaScript-safe ID (no hyphens)
+
+        # Handle empty data
+        if not self.table_data.data or not self.table_data.headers:
+            return "<p>Empty table</p>"
+
+        # Convert data to format Tabulator expects
+        columns = [{"title": str(header), "field": f"col_{i}"} for i, header in enumerate(self.table_data.headers)]
+
+        # Build data rows as dictionaries
+        data_rows = []
+        for row in self.table_data.data:
+            row_dict = {f"col_{i}": str(cell) if cell is not None else "" for i, cell in enumerate(row)}
+            data_rows.append(row_dict)
+
+        html_template = """
+        <div>
+            <link href="https://unpkg.com/tabulator-tables@6.2.1/dist/css/tabulator_bootstrap5.min.css" rel="stylesheet">
+            <style>
+                .layout-toggle-{table_id} {{
+                    display: flex;
+                    justify-content: flex-end;
+                    margin-bottom: 5px;
+                    font-size: 11px;
+                    color: #666;
+                }}
+                .toggle-switch-{table_id} {{
+                    position: relative;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                }}
+                .toggle-switch-{table_id} input {{
+                    opacity: 0;
+                    width: 0;
+                    height: 0;
+                }}
+                .toggle-slider-{table_id} {{
+                    position: relative;
+                    display: inline-block;
+                    width: 36px;
+                    height: 20px;
+                    background-color: #ccc;
+                    border-radius: 20px;
+                    cursor: pointer;
+                    transition: background-color 0.3s;
+                }}
+                .toggle-slider-{table_id}:before {{
+                    content: "";
+                    position: absolute;
+                    height: 14px;
+                    width: 14px;
+                    left: 3px;
+                    bottom: 3px;
+                    background-color: white;
+                    border-radius: 50%;
+                    transition: transform 0.3s;
+                }}
+                .toggle-switch-{table_id} input:checked + .toggle-slider-{table_id} {{
+                    background-color: #007bff;
+                }}
+                .toggle-switch-{table_id} input:checked + .toggle-slider-{table_id}:before {{
+                    transform: translateX(16px);
+                }}
+            </style>
+            <div class="layout-toggle-{table_id}">
+                <label class="toggle-switch-{table_id}">
+                    <span style="order: -1;">Collapse</span>
+                    <input type="checkbox" id="toggle-{table_id}" checked onchange="window.setLayout_{js_id}(this.checked)">
+                    <span class="toggle-slider-{table_id}"></span>
+                    <span>Scroll</span>
+                </label>
+            </div>
+            <div id="{table_id}"></div>
+            <script src="https://unpkg.com/tabulator-tables@6.2.1/dist/js/tabulator.min.js"></script>
+            <script>
+                (function() {{
+                    let table_{js_id};
+
+                    function initTable() {{
+                        if (typeof Tabulator === 'undefined') {{
+                            setTimeout(initTable, 100);
+                            return;
+                        }}
+
+                        try {{
+                            table_{js_id} = new Tabulator("#{table_id}", {{
+                                data: {data_json},
+                                columns: {columns_json},
+                                layout: "fitDataFill",
+                                pagination: true,
+                                paginationSize: 10,
+                                paginationSizeSelector: [5, 10, 25, 50, 100],
+                                movableColumns: true,
+                                resizableColumns: true,
+                                responsiveLayout: false,
+                                height: "500px",
+                            }});
+                        }} catch(e) {{
+                            console.error("Tabulator initialization error:", e);
+                            document.getElementById("{table_id}").innerHTML = "<p style='color: red;'>Error initializing table: " + e.message + "</p>";
+                        }}
+                    }}
+
+                    window.setLayout_{js_id} = function(isScrollMode) {{
+                        // Get current data
+                        const currentData = table_{js_id}.getData();
+
+                        // Destroy and recreate table with new responsive layout
+                        table_{js_id}.destroy();
+                        table_{js_id} = new Tabulator("#{table_id}", {{
+                            data: currentData,
+                            columns: {columns_json},
+                            layout: "fitDataFill",
+                            pagination: true,
+                            paginationSize: 10,
+                            paginationSizeSelector: [5, 10, 25, 50, 100],
+                            movableColumns: true,
+                            resizableColumns: true,
+                            responsiveLayout: isScrollMode ? false : "collapse",
+                            height: "500px",
+                        }});
+                    }}
+
+                    if (document.readyState === 'loading') {{
+                        document.addEventListener('DOMContentLoaded', initTable);
+                    }} else {{
+                        initTable();
+                    }}
+                }})();
+            </script>
+        </div>
+        """
+
+        return html_template.format(
+            table_id=table_id,
+            js_id=js_id,
+            data_json=json.dumps(data_rows),
+            columns_json=json.dumps(columns)
+        )
+
+    @classmethod
+    def get_css(cls) -> str:
+        return ""  # Tabulator handles its own CSS
 
 
 class RichRenderer(DataTablesRendererABC):
