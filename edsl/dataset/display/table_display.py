@@ -12,7 +12,12 @@ if TYPE_CHECKING:
 
 from .table_data_class import TableData
 
-from .table_renderers import DataTablesRenderer, PandasStyleRenderer, RichRenderer, TabulatorRenderer
+from .table_renderers import (
+    DataTablesRenderer,
+    PandasStyleRenderer,
+    RichRenderer,
+    TabulatorRenderer,
+)
 from ...config import CONFIG
 
 Row = Sequence[Union[str, int, float, bool, None]]

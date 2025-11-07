@@ -304,7 +304,6 @@ class Config(RepresentationMixin):
             Changes take effect immediately in the current session and are persisted
             to .env for future sessions.
         """
-        import os
         from pathlib import Path
 
         # Validate all settings first
