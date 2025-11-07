@@ -3863,22 +3863,31 @@ class Coop(CoopFunctionsMixin):
         except ImportError:
             pass
 
-        if in_marimo:
-            # marimo: use mo.md() with markdown link to render clickable link
-            description = (
-                link_description
-                if link_description
-                else "🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key."
-            )
-            # Use marimo markdown - marimo supports markdown links
-            link_md = mo.md(
-                f"""{description}
+        description = (
+            link_description
+            if link_description
+            else "🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key."
+        )
+        html_content = f"""
+        <div style="margin: 15px 0; padding: 10px; border-left: 3px solid #38bdf8; background-color: #f8fafc;">
+            <p style="margin: 0 0 10px 0; color: #334155;">{description}</p>
+            <a href="{url}" target="_blank"
+               style="color: #38bdf8; text-decoration: none; font-weight: 500; font-size: 14px;">
+                🔗 Log in and automatically store key
+            </a>
+        </div>
+        """
 
-[Log in and automatically store key]({url})
-"""
-            )
-            # Print the markdown object - marimo will render it
-            print(link_md)
+        if in_marimo:
+            # marimo: use mo.Html()
+            html_obj = mo.Html(html_content)
+            # In marimo, we need to output it in a way that marimo can capture
+            # Using mo.output.replace() to replace the cell output
+            try:
+                mo.output.replace(html_obj)
+            except (AttributeError, NameError):
+                # If mo.output doesn't work, try just printing it
+                print(html_obj)
         elif console.is_terminal:
             # Running in a standard terminal, show the full URL
             if link_description:
@@ -3888,15 +3897,11 @@ class Coop(CoopFunctionsMixin):
             else:
                 rich_print(f"[#38bdf8][link={url}]{url}[/link][/#38bdf8]")
         else:
-            # Running in an interactive environment (e.g., Jupyter Notebook), hide the URL
-            if link_description:
-                rich_print(
-                    f"{link_description}\n[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]"
-                )
-            else:
-                rich_print(
-                    f"[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]"
-                )
+            # Running in an interactive environment (e.g., Jupyter Notebook)
+            # Use IPython HTML display
+            from IPython.display import HTML, display
+
+            display(HTML(html_content))
 
         print("Logging in will activate the following features:")
         print("  - Remote inference: Runs jobs remotely on the Expected Parrot server.")
