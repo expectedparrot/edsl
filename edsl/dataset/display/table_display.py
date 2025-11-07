@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 from .table_data_class import TableData
 
-from .table_renderers import DataTablesRenderer, PandasStyleRenderer, RichRenderer
+from .table_renderers import DataTablesRenderer, PandasStyleRenderer, RichRenderer, TabulatorRenderer
 from ...config import CONFIG
 
 Row = Sequence[Union[str, int, float, bool, None]]
@@ -29,6 +29,7 @@ def _get_default_renderer():
         "pandas": PandasStyleRenderer,
         "datatables": DataTablesRenderer,
         "rich": RichRenderer,
+        "tabulator": TabulatorRenderer,
     }
 
     return renderer_map.get(renderer_name, PandasStyleRenderer)

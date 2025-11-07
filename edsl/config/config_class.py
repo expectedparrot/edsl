@@ -37,6 +37,7 @@ EDSL_TABLE_RENDERERS = [
     "pandas",
     "datatables",
     "rich",
+    "tabulator",
 ]
 
 # `default` is used to impute values only in "production" mode
@@ -133,7 +134,7 @@ CONFIG_MAP = {
     },
     "EDSL_DEFAULT_TABLE_RENDERER": {
         "default": "pandas",
-        "info": "This config var determines the default table renderer for displaying datasets in notebooks (options: 'pandas', 'datatables', 'rich').",
+        "info": "This config var determines the default table renderer for displaying datasets in notebooks (options: 'pandas', 'datatables', 'rich', 'tabulator').",
         "valid_values": EDSL_TABLE_RENDERERS,
     },
 }
