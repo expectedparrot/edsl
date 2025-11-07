@@ -3857,24 +3857,29 @@ class Coop(CoopFunctionsMixin):
 
         # Check if we're in marimo
         if "marimo" in sys.modules:
-            # marimo: use HTML display
-            from IPython.display import HTML, display
+            # marimo: use marimo.Html for display
+            try:
+                import marimo as mo
 
-            link_text = "Log in and automatically store key"
-            description = (
-                link_description
-                if link_description
-                else "\n🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key."
-            )
-            html_output = f"""
-            <div style="margin: 10px 0;">
-                <p>{description}</p>
-                <a href="{url}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-size: 14px;">
-                    {link_text}
-                </a>
-            </div>
-            """
-            display(HTML(html_output))
+                link_text = "Log in and automatically store key"
+                description = (
+                    link_description
+                    if link_description
+                    else "🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key."
+                )
+                html_output = f"""
+                <div style="margin: 10px 0;">
+                    <p>{description}</p>
+                    <a href="{url}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-size: 14px;">
+                        {link_text}
+                    </a>
+                </div>
+                """
+                # In marimo, we need to print the HTML object to display it
+                print(mo.Html(html_output))
+            except Exception:
+                # Fallback to plain print if marimo import fails
+                print(f"{link_description if link_description else ''}\n{url}")
         elif console.is_terminal:
             # Running in a standard terminal, show the full URL
             if link_description:
