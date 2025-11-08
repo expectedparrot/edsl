@@ -197,7 +197,12 @@ class DataOperationsBase:
         return _num_observations if _num_observations is not None else 0
 
     def vibe_plot(
-        self, description: str, show_code: bool = False, show_expression: bool = False
+        self,
+        description: str,
+        show_code: bool = False,
+        show_expression: bool = False,
+        height: float = 4,
+        width: float = 6,
     ):
         """
         Generate and display a ggplot2 visualization using natural language description.
@@ -206,6 +211,8 @@ class DataOperationsBase:
             description: Natural language description of the desired plot
             show_code: If True, displays the generated R code alongside the plot
             show_expression: If True, prints the R code used (alias for show_code)
+            height: Plot height in inches (default: 4)
+            width: Plot width in inches (default: 6)
 
         Returns:
             A plot object that renders in Jupyter notebooks
@@ -217,6 +224,8 @@ class DataOperationsBase:
             >>> # plot = r.vibe_plot("bar chart of how_feeling")
             >>> # Display with R code shown:
             >>> # plot = r.vibe_plot("bar chart of how_feeling", show_expression=True)
+            >>> # Custom dimensions:
+            >>> # plot = r.vibe_plot("scatter plot of age vs income", height=8, width=10)
         """
         from .vibes.vibe_viz import GGPlotGenerator
 
@@ -252,7 +261,7 @@ class DataOperationsBase:
             # Get just the code string
             r_code = gen.make_plot_code(self.to_pandas(remove_prefix=True), description)
 
-        return self.ggplot2(r_code)
+        return self.ggplot2(r_code, height=height, width=width)
 
     def vibe_sql(
         self,
