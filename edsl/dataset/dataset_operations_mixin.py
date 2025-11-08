@@ -254,6 +254,78 @@ class DataOperationsBase:
 
         return self.ggplot2(r_code)
 
+    def vibe_sql(
+        self,
+        description: str,
+        show_query: bool = False,
+        show_expression: bool = False,
+        transpose: bool = None,
+        transpose_by: str = None,
+        remove_prefix: bool = True,
+        shape: str = "wide",
+    ):
+        """
+        Generate and execute a SQL query using natural language description.
+
+        Parameters:
+            description: Natural language description of the desired query
+            show_query: If True, prints the generated SQL query
+            show_expression: If True, prints the generated SQL query (alias for show_query)
+            transpose: Whether to transpose the resulting table (rows become columns)
+            transpose_by: Column to use as the new index when transposing
+            remove_prefix: Whether to remove type prefixes from column names
+            shape: Data shape to use ("wide" or "long")
+
+        Returns:
+            A Dataset object containing the query results
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> # Generate and execute a query from a description:
+            >>> # result = r.vibe_sql("Show all people over 30")
+            >>> # With query shown:
+            >>> # result = r.vibe_sql("Count by occupation", show_expression=True)
+            >>> # Aggregation query:
+            >>> # result = r.vibe_sql("Average age by city")
+        """
+        from .vibes.vibe_sql import VibeSQLGenerator
+
+        gen = VibeSQLGenerator(model="gpt-4o", temperature=0.1)
+
+        # Either show_query or show_expression will trigger displaying the query
+        should_show = show_query or show_expression
+
+        # Generate the SQL query
+        sql_query = gen.make_sql_query(
+            self.to_pandas(remove_prefix=remove_prefix), description
+        )
+
+        if should_show:
+            # Display the query (in Jupyter it will show formatted, in terminal just the query)
+            try:
+                from IPython.display import display, Code
+                from ..utilities.utilities import is_notebook
+
+                if is_notebook():
+                    display(Code(sql_query, language="sql"))
+                else:
+                    print("Generated SQL query:")
+                    print(sql_query)
+            except ImportError:
+                # Not in a notebook environment
+                print("Generated SQL query:")
+                print(sql_query)
+
+        # Execute the query and return the result
+        return self.sql(
+            sql_query,
+            transpose=transpose,
+            transpose_by=transpose_by,
+            remove_prefix=remove_prefix,
+            shape=shape,
+        )
+
     def chart(self):
         """
         Create a chart from the results.
