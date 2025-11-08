@@ -1517,9 +1517,42 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         """Return the codebook for the AgentList."""
         if self._codebook is None:
             codebook = self[0].codebook
-            for agent in self:
+            for i, agent in enumerate(self):
                 if agent.codebook != codebook:
-                    raise AgentListError("All agents must have the same codebook.")
+                    # Find the differences
+                    first_keys = set(codebook.keys())
+                    current_keys = set(agent.codebook.keys())
+
+                    missing_keys = first_keys - current_keys
+                    extra_keys = current_keys - first_keys
+                    different_values = {
+                        k for k in (first_keys & current_keys)
+                        if codebook[k] != agent.codebook[k]
+                    }
+
+                    error_parts = [
+                        f"Codebook mismatch: Agent at index {i} has a different codebook than agent at index 0.",
+                        ""
+                    ]
+
+                    if missing_keys:
+                        error_parts.append(f"  Missing keys in agent {i}: {sorted(missing_keys)}")
+                    if extra_keys:
+                        error_parts.append(f"  Extra keys in agent {i}: {sorted(extra_keys)}")
+                    if different_values:
+                        error_parts.append(f"  Different descriptions for: {sorted(different_values)}")
+                        for key in sorted(different_values):
+                            error_parts.append(f"    - '{key}': agent 0 has '{codebook[key]}' vs agent {i} has '{agent.codebook[key]}'")
+
+                    error_parts.extend([
+                        "",
+                        "Fix options:",
+                        "  1. Ensure all agents use the same codebook when creating them",
+                        "  2. Remove codebooks from all agents if not needed",
+                        f"  3. Update agent {i}'s codebook to match agent 0's codebook"
+                    ])
+
+                    raise AgentListError("\n".join(error_parts))
             self._codebook = codebook
         return self._codebook
 
