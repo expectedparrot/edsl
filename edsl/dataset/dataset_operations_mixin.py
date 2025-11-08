@@ -2397,6 +2397,70 @@ class ScenarioListOperationsMixin(DataOperationsBase):
     via the to_dataset decorator applied in __init_subclass__.
     """
 
+    def kl_divergence(
+        self,
+        group_field: str,
+        value_field: str,
+        from_group: Optional[str] = None,
+        to_group: Optional[str] = None,
+        bins: Optional[Union[int, str]] = None,
+        base: float = 2.0,
+        laplace_smooth: float = 1e-10,
+    ) -> Union[float, dict]:
+        """
+        Compute KL divergence between distributions defined by groups.
+
+        Measures how much one probability distribution diverges from another.
+        Useful for comparing distributions across experimental conditions, agent
+        personas, prompt variations, etc.
+
+        Parameters:
+            group_field: Field that defines the groups (e.g., 'condition', 'persona')
+            value_field: Field containing values to compare distributions of
+            from_group: The reference group (P in KL(P||Q)). If None, compute all pairs.
+            to_group: The comparison group (Q in KL(P||Q)). Required if from_group specified.
+            bins: For continuous data - number of bins or 'auto' (default: None = categorical)
+            base: Logarithm base (2=bits, e=nats, 10=dits, default: 2)
+            laplace_smooth: Small value to avoid log(0) (default: 1e-10)
+
+        Returns:
+            float: KL divergence value if from_group and to_group specified
+            dict: All pairwise KL divergences if groups not specified
+
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList([
+            ...     Scenario({'condition': 'control', 'response': 'positive'}),
+            ...     Scenario({'condition': 'control', 'response': 'positive'}),
+            ...     Scenario({'condition': 'control', 'response': 'neutral'}),
+            ...     Scenario({'condition': 'treatment', 'response': 'negative'}),
+            ...     Scenario({'condition': 'treatment', 'response': 'neutral'}),
+            ... ])
+            >>> # Compare two specific groups
+            >>> kl = sl.kl_divergence('condition', 'response', 'control', 'treatment')  # doctest: +SKIP
+            >>> # Get all pairwise comparisons
+            >>> kl_all = sl.kl_divergence('condition', 'response')  # doctest: +SKIP
+
+        Notes:
+            - KL divergence is asymmetric: KL(P||Q) ≠ KL(Q||P)
+            - KL(P||Q) measures how much P diverges from Q
+            - For categorical data, leave bins=None
+            - For continuous data, set bins to number or 'auto'
+            - Use base=2 for bits, base=e for nats
+        """
+        from .kl_divergence import kl_divergence
+
+        return kl_divergence(
+            self,
+            group_field=group_field,
+            value_field=value_field,
+            from_group=from_group,
+            to_group=to_group,
+            bins=bins,
+            base=base,
+            laplace_smooth=laplace_smooth,
+        )
+
     def __init_subclass__(cls, **kwargs):
         """
         Automatically decorate all methods from DatasetOperationsMixin.
