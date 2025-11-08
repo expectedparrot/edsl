@@ -289,6 +289,8 @@ class TabulatorRenderer(DataTablesRendererABC):
                 .layout-toggle-{table_id} {{
                     display: flex;
                     justify-content: flex-end;
+                    align-items: center;
+                    gap: 20px;
                     margin-bottom: 5px;
                     font-size: 11px;
                     color: #666;
@@ -331,13 +333,26 @@ class TabulatorRenderer(DataTablesRendererABC):
                 .toggle-switch-{table_id} input:checked + .toggle-slider-{table_id}:before {{
                     transform: translateX(16px);
                 }}
+                .expandable-cell-{table_id} {{
+                    cursor: pointer;
+                    user-select: none;
+                }}
+                .expandable-cell-{table_id}:hover {{
+                    background-color: rgba(0, 123, 255, 0.1);
+                }}
             </style>
             <div class="layout-toggle-{table_id}">
                 <label class="toggle-switch-{table_id}">
                     <span style="order: -1;">Collapse</span>
-                    <input type="checkbox" id="toggle-{table_id}" checked onchange="window.setLayout_{js_id}(this.checked)">
+                    <input type="checkbox" id="toggle-layout-{table_id}" checked onchange="window.setLayout_{js_id}(this.checked)">
                     <span class="toggle-slider-{table_id}"></span>
                     <span>Scroll</span>
+                </label>
+                <label class="toggle-switch-{table_id}">
+                    <span style="order: -1;">Truncate</span>
+                    <input type="checkbox" id="toggle-text-{table_id}" onchange="window.setTextMode_{js_id}(this.checked)">
+                    <span class="toggle-slider-{table_id}"></span>
+                    <span>Wrap</span>
                 </label>
             </div>
             <div id="{table_id}"></div>
@@ -345,24 +360,79 @@ class TabulatorRenderer(DataTablesRendererABC):
             <script>
                 (function() {{
                     let table_{js_id};
+                    let isScrollMode_{js_id} = true;
+                    let isWrapMode_{js_id} = false;
+                    const baseColumns_{js_id} = {columns_json};
+                    const originalData_{js_id} = {data_json};
 
-                    function initTable() {{
-                        if (typeof Tabulator === 'undefined') {{
-                            setTimeout(initTable, 100);
-                            return;
+                    // Store expanded state for each cell (row_index, col_index)
+                    const expandedCells_{js_id} = new Set();
+
+                    function createColumns(wrapMode) {{
+                        if (wrapMode) {{
+                            // Wrap mode: use variableHeight for all columns
+                            return baseColumns_{js_id}.map(col => ({{
+                                ...col,
+                                variableHeight: true,
+                                formatter: "textarea"
+                            }}));
+                        }} else {{
+                            // Truncate mode: custom formatter with click-to-expand
+                            return baseColumns_{js_id}.map((col, colIndex) => ({{
+                                ...col,
+                                formatter: function(cell) {{
+                                    const value = cell.getValue();
+                                    if (!value) return '';
+
+                                    const rowIndex = cell.getRow().getPosition();
+                                    const cellKey = rowIndex + '_' + colIndex;
+                                    const isExpanded = expandedCells_{js_id}.has(cellKey);
+                                    const maxLength = 100;
+
+                                    if (value.length <= maxLength) {{
+                                        return value;
+                                    }}
+
+                                    if (isExpanded) {{
+                                        return '<div class="expandable-cell-{table_id}" data-cell="' + cellKey + '">' + value + '</div>';
+                                    }} else {{
+                                        return '<div class="expandable-cell-{table_id}" data-cell="' + cellKey + '">' +
+                                               value.substring(0, maxLength) + '...</div>';
+                                    }}
+                                }},
+                                cellClick: function(e, cell) {{
+                                    if (!e.target.classList.contains('expandable-cell-{table_id}')) return;
+
+                                    const cellKey = e.target.getAttribute('data-cell');
+                                    if (expandedCells_{js_id}.has(cellKey)) {{
+                                        expandedCells_{js_id}.delete(cellKey);
+                                    }} else {{
+                                        expandedCells_{js_id}.add(cellKey);
+                                    }}
+
+                                    // Redraw the specific row
+                                    cell.getRow().reformat();
+                                }}
+                            }}));
+                        }}
+                    }}
+
+                    function createTable(scrollMode, wrapMode) {{
+                        if (table_{js_id}) {{
+                            table_{js_id}.destroy();
                         }}
 
                         try {{
                             table_{js_id} = new Tabulator("#{table_id}", {{
-                                data: {data_json},
-                                columns: {columns_json},
+                                data: originalData_{js_id},
+                                columns: createColumns(wrapMode),
                                 layout: "fitDataFill",
                                 pagination: true,
                                 paginationSize: 10,
                                 paginationSizeSelector: [5, 10, 25, 50, 100],
                                 movableColumns: true,
                                 resizableColumns: true,
-                                responsiveLayout: false,
+                                responsiveLayout: scrollMode ? false : "collapse",
                                 height: "500px",
                             }});
                         }} catch(e) {{
@@ -371,24 +441,24 @@ class TabulatorRenderer(DataTablesRendererABC):
                         }}
                     }}
 
-                    window.setLayout_{js_id} = function(isScrollMode) {{
-                        // Get current data
-                        const currentData = table_{js_id}.getData();
+                    function initTable() {{
+                        if (typeof Tabulator === 'undefined') {{
+                            setTimeout(initTable, 100);
+                            return;
+                        }}
+                        createTable(isScrollMode_{js_id}, isWrapMode_{js_id});
+                    }}
 
-                        // Destroy and recreate table with new responsive layout
-                        table_{js_id}.destroy();
-                        table_{js_id} = new Tabulator("#{table_id}", {{
-                            data: currentData,
-                            columns: {columns_json},
-                            layout: "fitDataFill",
-                            pagination: true,
-                            paginationSize: 10,
-                            paginationSizeSelector: [5, 10, 25, 50, 100],
-                            movableColumns: true,
-                            resizableColumns: true,
-                            responsiveLayout: isScrollMode ? false : "collapse",
-                            height: "500px",
-                        }});
+                    window.setLayout_{js_id} = function(isScrollMode) {{
+                        isScrollMode_{js_id} = isScrollMode;
+                        createTable(isScrollMode, isWrapMode_{js_id});
+                    }}
+
+                    window.setTextMode_{js_id} = function(isWrapMode) {{
+                        isWrapMode_{js_id} = isWrapMode;
+                        // Clear expanded state when switching modes
+                        expandedCells_{js_id}.clear();
+                        createTable(isScrollMode_{js_id}, isWrapMode);
                     }}
 
                     if (document.readyState === 'loading') {{
