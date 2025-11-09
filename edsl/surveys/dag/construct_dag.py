@@ -1,6 +1,6 @@
 from ..base import EndOfSurvey
 from . import DAG
-from ..exceptions import SurveyError
+from ..exceptions import SurveyError, SurveyPipingReferenceError
 
 
 class ConstructDAG:
@@ -34,6 +34,8 @@ class ConstructDAG:
         {1: {0}}
         """
         d = {}
+        forward_references = []
+
         for question_name, depenencies in self.parameters_by_question.items():
             if depenencies:
                 question_index = self.question_name_to_index[question_name]
@@ -42,9 +44,36 @@ class ConstructDAG:
                         pass
                     else:
                         dependency_index = self.question_name_to_index[dependency]
+
+                        # Check for forward reference: question depends on a later question
+                        if question_index < dependency_index:
+                            forward_references.append({
+                                'question': question_name,
+                                'question_index': question_index,
+                                'depends_on': dependency,
+                                'depends_on_index': dependency_index
+                            })
+
                         if question_index not in d:
                             d[question_index] = set()
                         d[question_index].add(dependency_index)
+
+        # Raise error if forward references detected
+        if forward_references:
+            error_details = []
+            for ref in forward_references:
+                error_details.append(
+                    f"Question '{ref['question']}' (index {ref['question_index']}) "
+                    f"references '{ref['depends_on']}' (index {ref['depends_on_index']}), "
+                    f"which comes later in the survey"
+                )
+            error_message = (
+                "Survey has invalid question ordering with forward piping references:\n" +
+                "\n".join(f"  - {detail}" for detail in error_details) +
+                "\n\nQuestions can only reference answers from questions that appear earlier in the survey."
+            )
+            raise SurveyPipingReferenceError(error_message)
+
         return d
 
     def textify(self, index_dag: DAG) -> DAG:

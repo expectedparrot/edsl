@@ -275,6 +275,10 @@ class Survey(Base):
 
         self._exporter = SurveyExport(self)
 
+        # Validate survey structure (e.g., check for forward piping references)
+        # This will raise SurveyPipingReferenceError if questions are in wrong order
+        self.dag()
+
     def clipboard_data(self):
         """Return the clipboard data for the survey."""
         text = []
