@@ -76,6 +76,7 @@ from .results_transformer import ResultsTransformer
 from .results_properties import ResultsProperties
 from .results_container import ResultsContainer
 from .results_grouper import ResultsGrouper
+from .results_weighting import ResultsWeighting
 
 from .exceptions import (
     ResultsError,
@@ -1696,6 +1697,68 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         scorer = ResultsScorer(self)
         return scorer.score_with_answer_key(answer_key)
+
+    def find_weights_for_target_distribution(
+        self,
+        question_name: str,
+        target_dist: dict,
+        method: str = "optimization",
+        max_iter: int = 100,
+    ):
+        """Find optimal weights that minimize KL divergence to a target distribution.
+
+        This method computes weights for each result (survey response) such that when
+        applied to the responses for a given question, the weighted empirical distribution
+        minimizes the KL divergence from a target distribution.
+
+        This is useful for:
+        - Survey reweighting to match population demographics
+        - Importance sampling for distribution matching
+        - Post-stratification adjustments
+
+        The algorithm solves the convex optimization problem:
+            minimize KL(P||Q) where P is the weighted empirical distribution
+            subject to wᵢ ≥ 0 for all weights
+
+        Args:
+            question_name: Name of the question to compute weights for
+            target_dist: Dictionary mapping response categories to target probabilities.
+                        Must sum to 1.0. Example: {'yes': 0.6, 'no': 0.4}
+            method: Algorithm to use - either "optimization" (scipy L-BFGS-B, default)
+                   or "iterative" (Iterative Proportional Fitting)
+            max_iter: Maximum iterations for iterative method (ignored for optimization)
+
+        Returns:
+            numpy.ndarray: Array of normalized weights (one per result), summing to 1.0
+
+        Raises:
+            ValueError: If target_dist doesn't sum to 1.0, or if question responses
+                       contain categories not in target_dist
+            KeyError: If question_name doesn't exist in results
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> # Define target distribution for how_feeling responses
+            >>> target = {'Great': 0.5, 'OK': 0.3, 'Terrible': 0.2}
+            >>> weights = r.find_weights_for_target_distribution('how_feeling', target)
+            >>> len(weights) == len(r)
+            True
+            >>> abs(weights.sum() - 1.0) < 1e-6  # Weights are normalized
+            True
+
+            >>> # Verify the weighted distribution matches the target
+            >>> weighter = ResultsWeighting(r)
+            >>> weighted_dist = weighter.get_weighted_distribution('how_feeling', weights)
+            >>> # Check that weighted_dist is close to target
+        """
+        weighter = ResultsWeighting(self)
+        return weighter.find_optimal_weights(
+            question_name=question_name,
+            target_dist=target_dist,
+            method=method,
+            max_iter=max_iter,
+        )
 
     def fetch_remote(self, job_info: Any) -> bool:
         """Fetch remote Results object and update this instance with the data.
