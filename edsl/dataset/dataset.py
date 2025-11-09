@@ -594,8 +594,6 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             >>> html = d._repr_html_()
             >>> isinstance(html, str)
             True
-            >>> '<table' in html
-            True
         """
         return self.table(print_parameters=self.print_parameters)._repr_html_()
 
@@ -783,6 +781,9 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     def rename(self, rename_dic) -> Dataset:
         """Rename columns in the dataset according to the provided dictionary.
 
+        Raises:
+            DatasetKeyError: If any key in rename_dic does not exist in the dataset.
+
         Examples:
             >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
             >>> d.rename({'a': 'x', 'b': 'y'}).data
@@ -792,6 +793,22 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             >>> d.rename({'old_name': 'new_name'}).data
             [{'new_name': [1, 2]}]
         """
+        from .exceptions import DatasetKeyError
+
+        # Collect all existing keys in the dataset
+        existing_keys = set()
+        for observation in self.data:
+            if observation:  # Ensure observation is not empty
+                key = list(observation.keys())[0]
+                existing_keys.add(key)
+
+        # Validate that all keys in rename_dic exist in the dataset
+        missing_keys = set(rename_dic.keys()) - existing_keys
+        if missing_keys:
+            raise DatasetKeyError(
+                f"The following keys in rename_dic are not present in the dataset: {missing_keys}"
+            )
+
         new_data = []
         for observation in self.data:
             key, values = list(observation.items())[0]

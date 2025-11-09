@@ -17,6 +17,7 @@ from .exceptions import (
     ResultsBadMutationstringError,
     ResultsInvalidNameError,
     ResultsMutateError,
+    ResultsColumnNotFoundError,
 )
 
 
@@ -195,6 +196,9 @@ class ResultsTransformer:
         Returns:
             Results: A new Results object with the column renamed
 
+        Raises:
+            ResultsColumnNotFoundError: If old_name does not exist in the results.
+
         Examples:
             >>> from edsl.results import Results
             >>> r = Results.example()
@@ -205,6 +209,13 @@ class ResultsTransformer:
         """
         # Import here to avoid circular import
         from . import Results
+
+        # Validate that old_name exists in all results
+        for obs in self.results.data:
+            if old_name not in obs.get("answer", {}):
+                raise ResultsColumnNotFoundError(
+                    f"The column '{old_name}' is not present in the results."
+                )
 
         # Create new Results object with same properties but empty data
         new_results = Results(
