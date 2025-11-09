@@ -120,6 +120,49 @@ class DataOperationsBase:
             ggplot_code, shape, sql, remove_prefix, debug, height, width, factor_orders
         )
 
+    def plot(
+        self,
+        ggplot_code: str,
+        shape: str = "wide",
+        sql: Optional[str] = None,
+        remove_prefix: bool = True,
+        debug: bool = False,
+        height: float = 4,
+        width: float = 6,
+        factor_orders: Optional[dict] = None,
+    ):
+        """
+        Create visualizations using R's ggplot2 library.
+
+        This is an alias for the ggplot2 method, provided for symmetry with vibe_plot.
+
+        Parameters:
+            ggplot_code: R code string containing ggplot2 commands
+            shape: Data shape to use ("wide" or "long")
+            sql: Optional SQL query to transform data before visualization
+            remove_prefix: Whether to remove prefixes (like "answer.") from column names
+            debug: Whether to display debugging information
+            height: Plot height in inches
+            width: Plot width in inches
+            factor_orders: Dictionary mapping factor variables to their desired order
+
+        Returns:
+            A plot object that renders in Jupyter notebooks
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> # The following would create a plot if R is installed (not shown in doctest):
+            >>> # r.plot('''
+            >>> #     ggplot(df, aes(x=how_feeling)) +
+            >>> #     geom_bar() +
+            >>> #     labs(title="Distribution of Feelings")
+            >>> # ''')
+        """
+        return self.ggplot2(
+            ggplot_code, shape, sql, remove_prefix, debug, height, width, factor_orders
+        )
+
     def relevant_columns(
         self, data_type: Optional[str] = None, remove_prefix: bool = False
     ) -> list:
@@ -199,7 +242,7 @@ class DataOperationsBase:
     def vibe_plot(
         self,
         description: str,
-        show_code: bool = False,
+        show_code: bool = True,
         show_expression: bool = False,
         height: float = 4,
         width: float = 6,
@@ -266,7 +309,7 @@ class DataOperationsBase:
     def vibe_sql(
         self,
         description: str,
-        show_query: bool = False,
+        show_code: bool = True,
         show_expression: bool = False,
         transpose: bool = None,
         transpose_by: str = None,
@@ -278,8 +321,8 @@ class DataOperationsBase:
 
         Parameters:
             description: Natural language description of the desired query
-            show_query: If True, prints the generated SQL query
-            show_expression: If True, prints the generated SQL query (alias for show_query)
+            show_code: If True, displays the generated SQL query with copy button
+            show_expression: If True, displays the generated SQL query (alias for show_code)
             transpose: Whether to transpose the resulting table (rows become columns)
             transpose_by: Column to use as the new index when transposing
             remove_prefix: Whether to remove type prefixes from column names
@@ -302,29 +345,38 @@ class DataOperationsBase:
 
         gen = VibeSQLGenerator(model="gpt-4o", temperature=0.1)
 
-        # Either show_query or show_expression will trigger displaying the query
-        should_show = show_query or show_expression
-
-        # Generate the SQL query
-        sql_query = gen.make_sql_query(
-            self.to_pandas(remove_prefix=remove_prefix), description
-        )
+        # Either show_code or show_expression will trigger displaying the code
+        should_show = show_code or show_expression
 
         if should_show:
-            # Display the query (in Jupyter it will show formatted, in terminal just the query)
+            # Get the SQL query with display object
+            query_display = gen.make_sql_query(
+                self.to_pandas(remove_prefix=remove_prefix),
+                description,
+                return_display=True,
+                show_code=True,
+            )
+            # Extract the actual SQL query string
+            sql_query = query_display.code
+
+            # Display the code (in Jupyter it will show with copy button, in terminal just the query)
             try:
-                from IPython.display import display, Code
+                from IPython.display import display
                 from ..utilities.utilities import is_notebook
 
                 if is_notebook():
-                    display(Code(sql_query, language="sql"))
+                    display(query_display)
                 else:
-                    print("Generated SQL query:")
                     print(sql_query)
             except ImportError:
                 # Not in a notebook environment
                 print("Generated SQL query:")
                 print(sql_query)
+        else:
+            # Get just the SQL query string without display
+            sql_query = gen.make_sql_query(
+                self.to_pandas(remove_prefix=remove_prefix), description
+            )
 
         # Execute the query and return the result
         return self.sql(
