@@ -15,6 +15,7 @@ import json
 from dotenv import load_dotenv
 from pathlib import Path
 from pydantic import BaseModel, Field
+import html
 from ...base.openai_utils import create_openai_client
 
 
@@ -149,7 +150,104 @@ def summarize_df_for_sql(df: pd.DataFrame, sample_n: int = 3) -> Dict[str, Any]:
     return schema
 
 
-# ---------- 3) The main SQL generator ----------
+# ---------- 3) SQL Code Display Wrapper ----------
+@dataclass
+class SQLCodeDisplay:
+    """
+    Wrapper for SQL code with display options including syntax highlighting and copy functionality.
+
+    In HTML/Jupyter environments, displays the code with syntax highlighting and a click-to-copy button.
+    In terminal environments, displays the plain code string.
+
+    Parameters
+    ----------
+    code : str
+        The SQL code to display.
+    show_code : bool, default True
+        Whether to show the code. If False, returns empty string.
+
+    Examples
+    --------
+    >>> sql_code = "SELECT * FROM self WHERE age > 30"
+    >>> display = SQLCodeDisplay(sql_code)
+    >>> # In Jupyter: displays with HTML formatting and copy button
+    >>> # In terminal: displays plain code string
+    >>> print(display)  # Always prints plain string
+    SELECT * FROM self WHERE age > 30
+    """
+
+    code: str
+    show_code: bool = True
+
+    def _repr_html_(self) -> str:
+        """
+        Generate HTML representation with syntax highlighting and click-to-copy button.
+        """
+        if not self.show_code:
+            return ""
+
+        # Escape HTML special characters
+        escaped_code = html.escape(self.code)
+
+        # Generate a unique ID for this code block
+        import random
+        import string
+
+        code_id = "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
+
+        # HTML with syntax highlighting (using CSS classes for SQL) and copy button
+        html_output = f"""
+        <div style="margin: 10px 0; font-family: monospace; position: relative;">
+            <div style="background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 10px; position: relative;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 8px;">
+                    <span style="font-weight: bold; color: #666; font-size: 12px;">SQL CODE</span>
+                    <button onclick="copyCode_{code_id}()"
+                            style="background: #4CAF50; color: white; border: none; padding: 4px 12px; border-radius: 3px; cursor: pointer; font-size: 11px; font-family: sans-serif;"
+                            onmouseover="this.style.background='#45a049'"
+                            onmouseout="this.style.background='#4CAF50'"
+                            id="copy_btn_{code_id}">
+                        Copy
+                    </button>
+                </div>
+                <pre id="code_{code_id}" style="margin: 0; overflow-x: auto; background: white; padding: 8px; border-radius: 3px;"><code class="language-sql">{escaped_code}</code></pre>
+            </div>
+        </div>
+        <script>
+        function copyCode_{code_id}() {{
+            const code = document.getElementById('code_{code_id}').textContent;
+            navigator.clipboard.writeText(code).then(function() {{
+                const btn = document.getElementById('copy_btn_{code_id}');
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.style.background = '#2196F3';
+                setTimeout(function() {{
+                    btn.textContent = originalText;
+                    btn.style.background = '#4CAF50';
+                }}, 2000);
+            }}, function(err) {{
+                console.error('Failed to copy: ', err);
+            }});
+        }}
+        </script>
+        """
+        return html_output
+
+    def __repr__(self) -> str:
+        """
+        Plain text representation for terminal display.
+        """
+        if not self.show_code:
+            return ""
+        return self.code
+
+    def __str__(self) -> str:
+        """
+        Return just the code string.
+        """
+        return self.code
+
+
+# ---------- 4) The main SQL generator ----------
 @dataclass
 class VibeSQLGenerator:
     """
@@ -189,7 +287,9 @@ class VibeSQLGenerator:
         user_request: str,
         *,
         sample_n: int = 3,
-    ) -> str:
+        return_display: bool = False,
+        show_code: bool = True,
+    ) -> str | SQLCodeDisplay:
         """
         Generate a SQL query from a natural language request.
 
@@ -202,11 +302,19 @@ class VibeSQLGenerator:
             (e.g., "Show all people over 30", "Count by occupation", "Average age by city")
         sample_n : int, default 3
             Number of sample rows to include for context
+        return_display : bool, default False
+            If True, return an SQLCodeDisplay object with HTML formatting and copy button.
+            If False, return the plain SQL query string.
+        show_code : bool, default True
+            If return_display is True, controls whether the code is displayed.
+            Only relevant when return_display=True.
 
         Returns
         -------
-        str
-            A SQL query string that operates on a table named 'self'
+        str or SQLCodeDisplay
+            A SQL query string that operates on a table named 'self'.
+            If return_display=True, returns SQLCodeDisplay object with HTML support.
+            If return_display=False, returns plain string.
 
         Examples
         --------
@@ -281,6 +389,8 @@ class VibeSQLGenerator:
                 r"\bFROM\s+\w+\b", "FROM self", query, flags=re.IGNORECASE, count=1
             )
 
+        if return_display:
+            return SQLCodeDisplay(code=query, show_code=show_code)
         return query
 
 
@@ -320,3 +430,12 @@ if __name__ == "__main__":
     print("Example 4: Top earners")
     query4 = gen.make_sql_query(df, "Show me the top 3 highest paid people")
     print(f"Query: {query4}")
+    print()
+
+    # Example 5: Return SQLCodeDisplay object (for HTML/Jupyter with copy button)
+    print("Example 5: Display object with copy button")
+    query_display = gen.make_sql_query(
+        df, "Show me the top 3 highest paid people", return_display=True
+    )
+    print("Display object (shows fancy HTML in Jupyter, plain code in terminal):")
+    print(query_display)
