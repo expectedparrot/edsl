@@ -39,7 +39,7 @@ class TemplateRenderer:
         if not isinstance(template_str, str):
             return False
         # Check for Jinja2 delimiters
-        return '{{' in template_str or '{%' in template_str or '{#' in template_str
+        return "{{" in template_str or "{%" in template_str or "{#" in template_str
 
     def has_unrendered_variables(self, template_str: str) -> bool:
         """Check if the template string has any unrendered variables.

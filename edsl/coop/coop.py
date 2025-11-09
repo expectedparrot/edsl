@@ -3864,7 +3864,9 @@ class Coop(CoopFunctionsMixin):
                 in_marimo = False
 
         # Debug output
-        print(f"DEBUG: in_marimo={in_marimo}, console.is_terminal={console.is_terminal}")
+        print(
+            f"DEBUG: in_marimo={in_marimo}, console.is_terminal={console.is_terminal}"
+        )
 
         description = (
             link_description
@@ -3884,12 +3886,14 @@ class Coop(CoopFunctionsMixin):
         if in_marimo and mo is not None:
             # marimo: use mo.callout with markdown link
             callout = mo.callout(
-                mo.md(f"""
+                mo.md(
+                    f"""
 {description}
 
 [🔗 Log in and automatically store key]({url})
-                """),
-                kind="info"
+                """
+                ),
+                kind="info",
             )
             return callout
         elif console.is_terminal:
