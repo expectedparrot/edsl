@@ -182,33 +182,9 @@ def _display_notebook_login(login_url: str):
     </div>
     """
 
-    # Try marimo first
-    try:
-        import marimo as mo
-
-        if mo.running_in_notebook():
-            # In marimo, we can't directly display - need to return the HTML object
-            # But since this function is called from login(), we'll print the URL instead
-            # marimo will auto-detect and make it clickable
-            print(
-                "🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key."
-            )
-            print(f"Log in and automatically store key: {login_url}")
-            print("\nLogging in will activate the following features:")
-            print(
-                "  - Remote inference: Runs jobs remotely on the Expected Parrot server."
-            )
-            print(
-                "  - Remote logging: Sends error messages to the Expected Parrot server."
-            )
-            return
-    except (ImportError, AttributeError):
-        pass
-
-    # Try IPython/Jupyter
+    # Try IPython display (works in both Jupyter and marimo)
     try:
         from IPython.display import display, HTML
-
         display(HTML(html_content))
         return
     except ImportError:
