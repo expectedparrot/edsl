@@ -47,12 +47,14 @@ class ConstructDAG:
 
                         # Check for forward reference: question depends on a later question
                         if question_index < dependency_index:
-                            forward_references.append({
-                                'question': question_name,
-                                'question_index': question_index,
-                                'depends_on': dependency,
-                                'depends_on_index': dependency_index
-                            })
+                            forward_references.append(
+                                {
+                                    "question": question_name,
+                                    "question_index": question_index,
+                                    "depends_on": dependency,
+                                    "depends_on_index": dependency_index,
+                                }
+                            )
 
                         if question_index not in d:
                             d[question_index] = set()
@@ -68,9 +70,9 @@ class ConstructDAG:
                     f"which comes later in the survey"
                 )
             error_message = (
-                "Survey has invalid question ordering with forward piping references:\n" +
-                "\n".join(f"  - {detail}" for detail in error_details) +
-                "\n\nQuestions can only reference answers from questions that appear earlier in the survey."
+                "Survey has invalid question ordering with forward piping references:\n"
+                + "\n".join(f"  - {detail}" for detail in error_details)
+                + "\n\nQuestions can only reference answers from questions that appear earlier in the survey."
             )
             raise SurveyPipingReferenceError(error_message)
 
