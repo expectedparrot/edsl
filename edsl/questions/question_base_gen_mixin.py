@@ -27,6 +27,20 @@ class TemplateRenderer:
         self.max_nesting = max_nesting
         self.jinja_env = jinja_env or Environment()
 
+    def has_jinja_syntax(self, template_str: str) -> bool:
+        """Check if the template string contains any Jinja2 syntax.
+
+        Args:
+            template_str: The template string to check
+
+        Returns:
+            True if there is Jinja2 syntax (variables, expressions, statements), False otherwise
+        """
+        if not isinstance(template_str, str):
+            return False
+        # Check for Jinja2 delimiters
+        return '{{' in template_str or '{%' in template_str or '{#' in template_str
+
     def has_unrendered_variables(self, template_str: str) -> bool:
         """Check if the template string has any unrendered variables.
 
@@ -67,7 +81,10 @@ class TemplateRenderer:
             result = value
             nesting_count = 0
 
-            while self.has_unrendered_variables(result):
+            # Render at least once if there's any Jinja2 syntax, then continue while there are unrendered variables
+            should_render = self.has_jinja_syntax(result)
+
+            while should_render:
                 if nesting_count >= self.max_nesting:
                     raise exception_class(
                         f"Template rendering exceeded {self.max_nesting} levels of nesting. "
@@ -80,6 +97,9 @@ class TemplateRenderer:
                     break
                 result = new_result
                 nesting_count += 1
+
+                # After first render, only continue if there are unrendered variables
+                should_render = self.has_unrendered_variables(result)
 
             return result
         except exception_class:
