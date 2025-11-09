@@ -272,6 +272,7 @@ class Scenario(Base, UserDict):
 
         Raises:
             TypeError: If old_name_or_replacement_dict is a string but new_name is None.
+            KeyScenarioError: If any key in the replacement dictionary does not exist in the scenario.
 
         Examples:
             Using a dictionary:
@@ -284,6 +285,8 @@ class Scenario(Base, UserDict):
             >>> s.rename("food", "snack")
             Scenario({'snack': 'wood chips'})
         """
+        from .exceptions import KeyScenarioError
+
         if isinstance(old_name_or_replacement_dict, str):
             if new_name is None:
                 raise TypeError(
@@ -292,6 +295,13 @@ class Scenario(Base, UserDict):
             replacement_dict = {old_name_or_replacement_dict: new_name}
         else:
             replacement_dict = old_name_or_replacement_dict
+
+        # Validate that all keys in replacement_dict exist in the scenario
+        missing_keys = set(replacement_dict.keys()) - set(self.keys())
+        if missing_keys:
+            raise KeyScenarioError(
+                f"The following keys in replacement_dict are not present in the scenario: {missing_keys}"
+            )
 
         new_scenario = Scenario()
         for key, value in self.items():

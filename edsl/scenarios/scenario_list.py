@@ -2363,6 +2363,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         :param replacement_dict: A dictionary with the old names as keys and the new names as values.
 
+        Raises:
+            KeyScenarioError: If any key in replacement_dict is not present in any scenario.
+
         Example:
 
         >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
@@ -2370,6 +2373,8 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
 
         """
+        from .exceptions import KeyScenarioError
+
         # Collect all keys present across all scenarios
         all_keys = set()
         for scenario in self:
@@ -2378,7 +2383,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         # Check for keys in replacement_dict that are not present in any scenario
         missing_keys = [key for key in replacement_dict.keys() if key not in all_keys]
         if missing_keys:
-            warnings.warn(
+            raise KeyScenarioError(
                 f"The following keys in replacement_dict are not present in any scenario: {', '.join(missing_keys)}"
             )
 
