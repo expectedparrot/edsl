@@ -185,6 +185,7 @@ def _display_notebook_login(login_url: str):
     # Try IPython display (works in both Jupyter and marimo)
     try:
         from IPython.display import display, HTML
+
         display(HTML(html_content))
         return
     except ImportError:

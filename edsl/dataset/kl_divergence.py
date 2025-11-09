@@ -115,7 +115,7 @@ class KLDivergenceCalculator:
         for values in grouped_data.values():
             all_values.extend(values)
 
-        if self.bins == 'auto':
+        if self.bins == "auto":
             # Use Sturges' formula
             n_bins = int(np.ceil(np.log2(len(all_values)) + 1))
         else:
@@ -131,15 +131,12 @@ class KLDivergenceCalculator:
 
             # Convert to probabilities, using bin indices as keys
             distributions[group] = {
-                i: (count / total) if total > 0 else 0
-                for i, count in enumerate(hist)
+                i: (count / total) if total > 0 else 0 for i, count in enumerate(hist)
             }
 
         return distributions
 
-    def kl_divergence(
-        self, from_group: Any, to_group: Any
-    ) -> float:
+    def kl_divergence(self, from_group: Any, to_group: Any) -> float:
         """
         Compute KL divergence KL(P||Q) where P=from_group and Q=to_group.
 
@@ -201,9 +198,7 @@ class KLDivergenceCalculator:
 
         return results
 
-    def symmetric_kl_divergence(
-        self, group1: Any, group2: Any
-    ) -> tuple[float, float]:
+    def symmetric_kl_divergence(self, group1: Any, group2: Any) -> tuple[float, float]:
         """
         Compute both directions of KL divergence.
 
