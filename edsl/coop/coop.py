@@ -3863,6 +3863,9 @@ class Coop(CoopFunctionsMixin):
             except ImportError:
                 in_marimo = False
 
+        # Debug output
+        print(f"DEBUG: in_marimo={in_marimo}, console.is_terminal={console.is_terminal}")
+
         description = (
             link_description
             if link_description
@@ -3879,11 +3882,16 @@ class Coop(CoopFunctionsMixin):
         """
 
         if in_marimo and mo is not None:
-            # marimo: create and return HTML object
-            # marimo automatically linkifies URLs in output, so we'll use mo.Html
-            html_obj = mo.Html(html_content)
-            # Store it for the login() method to return
-            return html_obj
+            # marimo: use mo.callout with markdown link
+            callout = mo.callout(
+                mo.md(f"""
+{description}
+
+[🔗 Log in and automatically store key]({url})
+                """),
+                kind="info"
+            )
+            return callout
         elif console.is_terminal:
             # Running in a standard terminal, show the full URL
             if link_description:
