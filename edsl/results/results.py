@@ -1702,31 +1702,36 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         self,
         question_name: str,
         target_dist: dict,
-        method: str = "optimization",
+        strategy: str = "categorical_kl",
+        method: Optional[str] = None,
         max_iter: int = 100,
+        **kwargs,
     ):
-        """Find optimal weights that minimize KL divergence to a target distribution.
+        """Find optimal weights that match a target distribution.
 
         This method computes weights for each result (survey response) such that when
         applied to the responses for a given question, the weighted empirical distribution
-        minimizes the KL divergence from a target distribution.
+        matches the target distribution as closely as possible.
 
         This is useful for:
         - Survey reweighting to match population demographics
         - Importance sampling for distribution matching
         - Post-stratification adjustments
 
-        The algorithm solves the convex optimization problem:
-            minimize KL(P||Q) where P is the weighted empirical distribution
-            subject to wᵢ ≥ 0 for all weights
+        Multiple strategies are supported for different data types and algorithms.
 
         Args:
             question_name: Name of the question to compute weights for
-            target_dist: Dictionary mapping response categories to target probabilities.
+            target_dist: Target distribution (format depends on strategy)
+                        - For categorical (default): Dict[str, float] mapping categories to probabilities
+                        - For continuous_binned: Dict[Tuple[float, float], float] mapping ranges to probabilities
                         Must sum to 1.0. Example: {'yes': 0.6, 'no': 0.4}
-            method: Algorithm to use - either "optimization" (scipy L-BFGS-B, default)
-                   or "iterative" (Iterative Proportional Fitting)
-            max_iter: Maximum iterations for iterative method (ignored for optimization)
+            strategy: Weighting strategy to use (default: "categorical_kl")
+                     Options: "categorical_kl", "categorical_ipf", "continuous_binned"
+            method: DEPRECATED - use strategy instead. For backward compatibility:
+                   "optimization" -> "categorical_kl", "iterative" -> "categorical_ipf"
+            max_iter: Maximum iterations for iterative methods (default: 100)
+            **kwargs: Additional strategy-specific parameters
 
         Returns:
             numpy.ndarray: Array of normalized weights (one per result), summing to 1.0
@@ -1739,25 +1744,108 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Examples:
             >>> from edsl.results import Results
             >>> r = Results.example()
-            >>> # Define target distribution for how_feeling responses
+            >>> # Categorical data with KL divergence (default)
             >>> target = {'Great': 0.5, 'OK': 0.3, 'Terrible': 0.2}
             >>> weights = r.find_weights_for_target_distribution('how_feeling', target)
             >>> len(weights) == len(r)
             True
-            >>> abs(weights.sum() - 1.0) < 1e-6  # Weights are normalized
+            >>> bool(abs(weights.sum() - 1.0) < 1e-6)  # Weights are normalized
             True
 
-            >>> # Verify the weighted distribution matches the target
-            >>> weighter = ResultsWeighting(r)
-            >>> weighted_dist = weighter.get_weighted_distribution('how_feeling', weights)
-            >>> # Check that weighted_dist is close to target
+            >>> # Using iterative proportional fitting
+            >>> weights_ipf = r.find_weights_for_target_distribution(
+            ...     'how_feeling', target, strategy='categorical_ipf'
+            ... )
+
+            >>> # Continuous data with binning (if you have numerical responses)
+            >>> # target_bins = {(0, 30): 0.3, (30, 50): 0.5, (50, 100): 0.2}
+            >>> # weights = r.find_weights_for_target_distribution(
+            >>> #     'age', target_bins, strategy='continuous_binned'
+            >>> # )
         """
         weighter = ResultsWeighting(self)
         return weighter.find_optimal_weights(
             question_name=question_name,
             target_dist=target_dist,
+            strategy=strategy,
             method=method,
             max_iter=max_iter,
+            **kwargs,
+        )
+
+    def find_weights_for_multiple_targets(
+        self,
+        targets: dict,
+        metric_weights: Optional[dict] = None,
+        strategies: Optional[dict] = None,
+        aggregation: str = "weighted_sum",
+        **kwargs,
+    ):
+        """Find optimal weights that simultaneously match multiple target distributions.
+
+        This method finds a single set of weights that balances matching multiple
+        target distributions at once. This is particularly useful for survey reweighting
+        where you need to match multiple marginal distributions simultaneously
+        (e.g., age AND gender AND location).
+
+        The method minimizes a combination of divergences across all questions:
+        - weighted_sum: Σᵢ αᵢ * KL(Pᵢ||Qᵢ) (default)
+        - max: max(α₁*KL₁, α₂*KL₂, ...) (minimax approach)
+        - weighted_product: Πᵢ KLᵢ^αᵢ (geometric mean-like)
+
+        Args:
+            targets: Dictionary mapping question names to their target distributions
+                    Example: {'age': {(0,30): 0.3, (30,50): 0.7}, 'gender': {'M': 0.5, 'F': 0.5}}
+            metric_weights: Relative importance of each question (will be auto-normalized)
+                           Default: equal weights. Example: {'age': 2.0, 'gender': 1.0}
+            strategies: Strategy to use for each question (per-question strategies)
+                       Default: "categorical_kl" for all
+                       Example: {'age': 'continuous_binned', 'gender': 'categorical_kl'}
+            aggregation: How to combine metrics - "weighted_sum" (default), "max", "weighted_product"
+            **kwargs: Additional parameters for optimization
+
+        Returns:
+            numpy.ndarray: Normalized weights (sum to 1.0) balancing all targets
+
+        Raises:
+            ValueError: If targets is empty, strategies are invalid, or aggregation is unknown
+            KeyError: If question names don't exist in results
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+
+            >>> # Match two distributions simultaneously with equal importance
+            >>> targets = {
+            ...     'how_feeling': {'Great': 0.5, 'OK': 0.3, 'Terrible': 0.2},
+            ...     'how_feeling_yesterday': {'Great': 0.4, 'Good': 0.3, 'OK': 0.2, 'Terrible': 0.1}
+            ... }
+            >>> weights = r.find_weights_for_multiple_targets(targets)
+            >>> len(weights) == len(r)
+            True
+
+            >>> # With custom importance (first question 2x more important)
+            >>> metric_weights = {'how_feeling': 2.0, 'how_feeling_yesterday': 1.0}
+            >>> weights = r.find_weights_for_multiple_targets(targets, metric_weights)
+
+            >>> # Using max aggregation (minimax approach)
+            >>> weights = r.find_weights_for_multiple_targets(targets, aggregation='max')
+
+            >>> # Mixed strategies for different question types
+            >>> # targets_mixed = {
+            >>> #     'age': {(0, 30): 0.3, (30, 50): 0.5, (50, 100): 0.2},
+            >>> #     'gender': {'Male': 0.48, 'Female': 0.52}
+            >>> # }
+            >>> # strategies = {'age': 'continuous_binned', 'gender': 'categorical_kl'}
+            >>> # weights = r.find_weights_for_multiple_targets(targets_mixed, strategies=strategies)
+        """
+        weighter = ResultsWeighting(self)
+        return weighter.find_weights_for_multiple_targets(
+            targets=targets,
+            metric_weights=metric_weights,
+            strategies=strategies,
+            aggregation=aggregation,
+            **kwargs,
         )
 
     def fetch_remote(self, job_info: Any) -> bool:
