@@ -6072,7 +6072,7 @@ tests = ["matplotlib (>=3.5.0)", "mypy (>=1.15)", "numpydoc (>=1.2.0)", "pandas 
 name = "scipy"
 version = "1.15.3"
 description = "Fundamental algorithms for scientific computing in Python"
-optional = true
+optional = false
 python-versions = ">=3.10"
 files = [
     {file = "scipy-1.15.3-cp310-cp310-macosx_10_13_x86_64.whl", hash = "sha256:a345928c86d535060c9c2b25e71e87c39ab2f22fc96e9636bd74d1dbf9de448c"},
@@ -7533,4 +7533,4 @@ viz = ["altair", "nbclient", "nbformat", "pyyaml", "termplotlib"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.14"
-content-hash = "4a84dc215c9e78ad7e0d908d6839ceed1d8a0f084aa821fd6ad06b11e0bc24e0"
+content-hash = "5aa2149c6227de796c6ff09265521f87397842c4ca2d4dada6ed3bf73d93a676"
