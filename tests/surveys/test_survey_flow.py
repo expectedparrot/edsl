@@ -322,6 +322,29 @@ class TestSurveyFlow(unittest.TestCase):
         end_result = survey.next_question_with_instructions(third)
         self.assertEqual(end_result, EndOfSurvey)
 
+    def test_skip_rule_basic(self):
+        """Test that skip rules work with next_question_with_instructions."""
+        survey = Survey([self.q0, self.q1, self.q2])
+
+        # Add skip rule: skip q1 if q0.answer == 'yes'
+        survey = survey.add_skip_rule(self.q1, "{{ q0.answer }} == 'yes'")
+
+        # Start with q0
+        current = survey.next_question_with_instructions()
+        self.assertEqual(current.question_name, "q0")
+
+        # After answering 'yes' to q0, q1 should be skipped, so we get q2
+        next_item = survey.next_question_with_instructions(
+            current, {"q0.answer": "yes"}
+        )
+        self.assertEqual(next_item.question_name, "q2")
+
+        # After answering 'no' to q0, q1 should NOT be skipped, so we get q1
+        next_item_no = survey.next_question_with_instructions(
+            current, {"q0.answer": "no"}
+        )
+        self.assertEqual(next_item_no.question_name, "q1")
+
     def test_empty_survey(self):
         """Test behavior with an empty survey."""
         survey = Survey([])
