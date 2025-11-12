@@ -50,7 +50,12 @@ class HeadAttachmentsBuilder:
             try:
                 from ..scenarios import FileStore
 
-                return FileStore(path=v)
+                if isinstance(v, str):
+                    return FileStore(path=v)
+                elif isinstance(v, FileStore):
+                    return v
+                else:
+                    return v
             except Exception:
                 return v
 

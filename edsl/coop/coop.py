@@ -3832,6 +3832,7 @@ class Coop(CoopFunctionsMixin):
                 "description": response_json.get("description"),
                 "object_type": object_type,
                 "url": f"{self.url}/content/{object_uuid}",
+                "alias": object_alias,
                 "alias_url": self._get_alias_url(owner_username, object_alias),
                 "uuid": object_uuid,
                 "version": self._edsl_version,
