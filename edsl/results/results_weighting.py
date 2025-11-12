@@ -245,9 +245,7 @@ class ResultsWeighting:
 
         return strategy_obj.get_weighted_distribution(responses, weights)
 
-    def compute_kl_divergence(
-        self, empirical_dist: Dict, target_dist: Dict
-    ) -> float:
+    def compute_kl_divergence(self, empirical_dist: Dict, target_dist: Dict) -> float:
         """
         Compute KL divergence between empirical and target distributions.
 
@@ -427,7 +425,7 @@ class ResultsWeighting:
             product = 1.0
             for weight, metric in metrics:
                 if metric > 0:
-                    product *= metric ** weight
+                    product *= metric**weight
             return product
 
         # Select aggregation function
@@ -459,9 +457,7 @@ class ResultsWeighting:
                 )
 
                 # Compute metric
-                metric = data["strategy"].compute_metric(
-                    weighted_dist, data["target"]
-                )
+                metric = data["strategy"].compute_metric(weighted_dist, data["target"])
 
                 metrics.append((data["weight"], metric))
 
