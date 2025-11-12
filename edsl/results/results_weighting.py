@@ -53,9 +53,9 @@ class ResultsWeighting:
         >>> target = {'Great': 0.5, 'OK': 0.3, 'Terrible': 0.2}
         >>> weights = weighter.find_optimal_weights('how_feeling', target)
 
-        >>> # Continuous data with binning
-        >>> target_bins = {(0, 30): 0.3, (30, 50): 0.5, (50, 100): 0.2}
-        >>> weights = weighter.find_optimal_weights('age', target_bins, strategy='continuous_binned')
+        >>> # Continuous data with binning (requires numeric data)
+        >>> # target_bins = {(0, 30): 0.3, (30, 50): 0.5, (50, 100): 0.2}
+        >>> # weights = weighter.find_optimal_weights('age', target_bins, strategy='continuous_binned')
     """
 
     def __init__(self, results: "Results"):
