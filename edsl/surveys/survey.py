@@ -1915,8 +1915,62 @@ class Survey(Base):
                     return next_item
             return EndOfSurvey
 
+        # Check if the next question has any "before rules" (skip rules)
+        candidate_next_q = next_question_object.next_q
+
+        # Keep checking for skip rules until we find a question that shouldn't be skipped
+        while candidate_next_q < len(self.questions):
+            # Check if this question should be skipped (has before rules that evaluate to True)
+            if self.rule_collection.skip_question_before_running(
+                candidate_next_q, answer_dict
+            ):
+                # This question should be skipped, find where it should go
+                try:
+                    skip_result = self.rule_collection.next_question(
+                        candidate_next_q, answer_dict
+                    )
+                    if skip_result.next_q == EndOfSurvey:
+                        # Check if there are any instructions after the current question before ending
+                        next_position = current_position + 1
+                        if next_position < len(combined_items):
+                            next_item = combined_items[next_position]
+                            if hasattr(next_item, "text") and not hasattr(
+                                next_item, "question_name"
+                            ):
+                                return next_item
+                        return EndOfSurvey
+                    elif skip_result.next_q >= len(self.questions):
+                        # Check if there are any instructions after the current question before ending
+                        next_position = current_position + 1
+                        if next_position < len(combined_items):
+                            next_item = combined_items[next_position]
+                            if hasattr(next_item, "text") and not hasattr(
+                                next_item, "question_name"
+                            ):
+                                return next_item
+                        return EndOfSurvey
+                    else:
+                        candidate_next_q = skip_result.next_q
+                except Exception:
+                    # If there's an error finding where to skip to, just go to next question
+                    candidate_next_q += 1
+            else:
+                # This question should not be skipped, use it
+                break
+
+        if candidate_next_q >= len(self.questions):
+            # Check if there are any instructions after the current question before ending
+            next_position = current_position + 1
+            if next_position < len(combined_items):
+                next_item = combined_items[next_position]
+                if hasattr(next_item, "text") and not hasattr(
+                    next_item, "question_name"
+                ):
+                    return next_item
+            return EndOfSurvey
+
         # Find the target question in the combined list
-        target_question = self.questions[next_question_object.next_q]
+        target_question = self.questions[candidate_next_q]
         try:
             target_position = combined_items.index(target_question)
         except ValueError:
