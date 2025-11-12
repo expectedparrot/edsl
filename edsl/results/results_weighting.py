@@ -1,15 +1,27 @@
 """
-Results weighting functionality for KL divergence minimization.
+Results weighting functionality for distribution matching.
 
-This module provides the ResultsWeighting class which handles weighting operations
-for Results objects, including finding optimal weights that minimize KL divergence
-between empirical and target distributions.
+This module provides the ResultsWeighting class which coordinates weighting
+operations for Results objects. It uses a strategy pattern to support different
+weighting algorithms and distribution types.
+
+Strategies available:
+    - categorical_kl: KL divergence minimization for categorical data (default)
+    - categorical_ipf: Iterative Proportional Fitting for categorical data
+    - continuous_binned: KL divergence for continuous data via binning
+
+For implementation details, see results_weighting_strategies.py
 """
 
 import numpy as np
-from scipy.optimize import minimize
-from collections import Counter
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import Dict, List, Optional, Union, Tuple, TYPE_CHECKING, Any
+
+from .results_weighting_strategies import (
+    WeightingStrategy,
+    CategoricalKLStrategy,
+    IterativeProportionalFittingStrategy,
+    BinnedContinuousKLStrategy,
+)
 
 if TYPE_CHECKING:
     from . import Results
@@ -17,80 +29,163 @@ if TYPE_CHECKING:
 
 class ResultsWeighting:
     """
-    Handles weighting operations for Results objects to minimize KL divergence.
+    Coordinator for weighting operations on Results objects.
 
-    This class implements algorithms to find optimal weights for survey responses
-    such that the weighted empirical distribution matches a target distribution
-    as closely as possible (minimizing KL divergence).
+    This class manages different weighting strategies and provides a unified
+    interface for finding optimal weights that match target distributions.
+    Uses the Strategy pattern to support multiple algorithms and data types.
 
-    The problem formulation:
-    Given responses x₁, x₂, ..., xₙ and a target distribution Q over categories,
-    find weights w₁, w₂, ..., wₙ that minimize KL(P||Q) where P is the weighted
-    empirical distribution:
-        P(c) = Σᵢ wᵢ · 𝟙(xᵢ = c) / Σᵢ wᵢ
+    The general problem formulation:
+    Given responses x₁, x₂, ..., xₙ and a target distribution Q,
+    find weights w₁, w₂, ..., wₙ that minimize distance/divergence between
+    the weighted empirical distribution P and Q.
 
-    Two algorithms are provided:
-    1. Optimization-based approach using scipy (more accurate, convex problem)
-    2. Iterative Proportional Fitting (simpler, iterative approach)
+    Attributes:
+        results: The Results object to perform weighting on
+        strategies: Dictionary of available weighting strategies
+
+    Examples:
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> weighter = ResultsWeighting(r)
+
+        >>> # Categorical data with KL divergence
+        >>> target = {'Great': 0.5, 'OK': 0.3, 'Terrible': 0.2}
+        >>> weights = weighter.find_optimal_weights('how_feeling', target)
+
+        >>> # Continuous data with binning
+        >>> target_bins = {(0, 30): 0.3, (30, 50): 0.5, (50, 100): 0.2}
+        >>> weights = weighter.find_optimal_weights('age', target_bins, strategy='continuous_binned')
     """
 
     def __init__(self, results: "Results"):
         """
-        Initialize the ResultsWeighting with a Results object.
+        Initialize the ResultsWeighting coordinator.
 
         Args:
             results: The Results object to perform weighting operations on
         """
         self.results = results
 
+        # Initialize available strategies
+        self._strategies: Dict[str, WeightingStrategy] = {
+            "categorical_kl": CategoricalKLStrategy(),
+            "categorical_ipf": IterativeProportionalFittingStrategy(),
+            "continuous_binned": BinnedContinuousKLStrategy(),
+        }
+
+    def register_strategy(self, name: str, strategy: WeightingStrategy) -> None:
+        """Register a custom weighting strategy.
+
+        This allows users to add their own weighting algorithms without
+        modifying the core code.
+
+        Args:
+            name: Name to identify the strategy
+            strategy: Instance of a WeightingStrategy subclass
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> from edsl.results.results_weighting_strategies import WeightingStrategy
+            >>> # Define custom strategy class...
+            >>> # custom_strategy = MyCustomStrategy()
+            >>> # weighter = ResultsWeighting(Results.example())
+            >>> # weighter.register_strategy('my_method', custom_strategy)
+        """
+        if not isinstance(strategy, WeightingStrategy):
+            raise TypeError(
+                f"Strategy must be an instance of WeightingStrategy, got {type(strategy)}"
+            )
+        self._strategies[name] = strategy
+
+    def list_strategies(self) -> List[str]:
+        """List available strategy names.
+
+        Returns:
+            List of strategy names that can be used with find_optimal_weights
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> weighter = ResultsWeighting(Results.example())
+            >>> strategies = weighter.list_strategies()
+            >>> 'categorical_kl' in strategies
+            True
+        """
+        return list(self._strategies.keys())
+
     def find_optimal_weights(
         self,
         question_name: str,
-        target_dist: Dict[str, float],
-        method: str = "optimization",
+        target_dist: Union[Dict, Any],
+        strategy: str = "categorical_kl",
+        method: Optional[str] = None,
         max_iter: int = 100,
+        **kwargs,
     ) -> np.ndarray:
         """
-        Find optimal weights to minimize KL divergence between empirical and target distributions.
+        Find optimal weights to match a target distribution.
 
-        This method returns weights (same length as the results object) that, when applied
-        to the responses for the specified question, minimize the KL divergence between
-        the weighted empirical distribution and the target distribution.
+        This is the main entry point for computing weights. It delegates to
+        the specified strategy to handle the actual computation.
 
         Args:
-            question_name: The name of the question to compute weights for
-            target_dist: Dictionary mapping category names to target probabilities.
-                        Values should sum to 1.0.
-            method: Algorithm to use - either "optimization" (scipy-based, default)
-                   or "iterative" (iterative proportional fitting)
-            max_iter: Maximum iterations for iterative method (ignored for optimization method)
+            question_name: Name of the question to compute weights for
+            target_dist: Target distribution (format depends on strategy)
+                        - For categorical: Dict[str, float] mapping categories to probabilities
+                        - For continuous_binned: Dict[Tuple[float, float], float] mapping ranges to probabilities
+            strategy: Strategy to use (default: "categorical_kl")
+                     Options: "categorical_kl", "categorical_ipf", "continuous_binned"
+            method: DEPRECATED - use strategy instead. For backward compatibility:
+                   "optimization" -> "categorical_kl", "iterative" -> "categorical_ipf"
+            max_iter: Maximum iterations for iterative methods
+            **kwargs: Additional strategy-specific parameters
 
         Returns:
-            np.ndarray: Array of normalized weights, one for each result in the Results object.
-                       Weights sum to 1.0.
+            np.ndarray: Normalized weights (sum to 1.0), one per result
 
         Raises:
-            ValueError: If target_dist probabilities don't sum to ~1.0, if question_name
-                       doesn't exist, or if target_dist contains categories not in the data.
-            KeyError: If question_name is not found in the results.
+            ValueError: If strategy is unknown or inputs are invalid
+            KeyError: If question_name doesn't exist in results
 
         Examples:
             >>> from edsl.results import Results
             >>> r = Results.example()
-            >>> weighting = ResultsWeighting(r)
+            >>> weighter = ResultsWeighting(r)
+
+            >>> # Categorical with KL divergence (default)
             >>> target = {'Great': 0.5, 'OK': 0.3, 'Terrible': 0.2}
-            >>> weights = weighting.find_optimal_weights('how_feeling', target)
+            >>> weights = weighter.find_optimal_weights('how_feeling', target)
             >>> len(weights) == len(r)
             True
             >>> bool(abs(weights.sum() - 1.0) < 1e-6)
             True
+
+            >>> # Categorical with IPF
+            >>> weights = weighter.find_optimal_weights('how_feeling', target, strategy='categorical_ipf')
+
+            >>> # Continuous with binning
+            >>> target_bins = {(0.0, 2.5): 0.5, (2.5, 5.0): 0.5}
+            >>> # weights = weighter.find_optimal_weights('some_score', target_bins, strategy='continuous_binned')
         """
-        # Validate target distribution sums to 1.0
-        total = sum(target_dist.values())
-        if not np.isclose(total, 1.0, rtol=1e-5):
-            raise ValueError(
-                f"Target distribution probabilities must sum to 1.0, got {total}"
+        # Handle backward compatibility with old 'method' parameter
+        if method is not None:
+            import warnings
+
+            warnings.warn(
+                "The 'method' parameter is deprecated. Use 'strategy' instead. "
+                "'method=\"optimization\"' -> 'strategy=\"categorical_kl\"', "
+                "'method=\"iterative\"' -> 'strategy=\"categorical_ipf\"'",
+                DeprecationWarning,
+                stacklevel=2,
             )
+            if method == "optimization":
+                strategy = "categorical_kl"
+            elif method == "iterative":
+                strategy = "categorical_ipf"
+            else:
+                raise ValueError(
+                    f"Unknown method '{method}'. Use strategy parameter instead."
+                )
 
         # Get responses for the specified question
         try:
@@ -101,172 +196,64 @@ class ResultsWeighting:
                 f"Available questions: {self.results.question_names}"
             )
 
-        n = len(responses)
-        if n == 0:
+        if len(responses) == 0:
             raise ValueError("No responses found for the specified question")
 
-        # Validate that all responses are in target_dist
-        unique_responses = set(responses)
-        missing_in_target = unique_responses - set(target_dist.keys())
-        if missing_in_target:
+        # Get the strategy
+        strategy_obj = self._strategies.get(strategy)
+        if strategy_obj is None:
             raise ValueError(
-                f"Responses {missing_in_target} are not present in target distribution. "
-                f"All response categories must be included in target_dist."
+                f"Unknown strategy '{strategy}'. Available strategies: {self.list_strategies()}"
             )
 
-        # Use the selected method
-        if method == "optimization":
-            weights = self._optimize_weights(responses, target_dist)
-        elif method == "iterative":
-            weights = self._iterative_proportional_fitting(
-                responses, target_dist, max_iter
-            )
-        else:
-            raise ValueError(
-                f"Unknown method '{method}'. Choose 'optimization' or 'iterative'"
-            )
-
-        return weights
-
-    def _optimize_weights(
-        self, responses: List[str], target_dist: Dict[str, float]
-    ) -> np.ndarray:
-        """
-        Find optimal weights using scipy optimization.
-
-        This method formulates the problem as a convex optimization problem and
-        uses L-BFGS-B to find the optimal weights. The weights are parameterized
-        in log space to ensure positivity.
-
-        Args:
-            responses: List of categorical responses
-            target_dist: Dictionary with target probabilities for each category
-
-        Returns:
-            np.ndarray: Normalized weights that minimize KL divergence
-        """
-        n = len(responses)
-        categories = list(target_dist.keys())
-
-        # Create indicator matrix: n x num_categories
-        # indicators[i, j] = 1 if responses[i] == categories[j], else 0
-        indicators = np.zeros((n, len(categories)))
-        for i, resp in enumerate(responses):
-            if resp in target_dist:
-                j = categories.index(resp)
-                indicators[i, j] = 1
-
-        # Objective function: KL divergence KL(P||Q)
-        def kl_divergence(log_weights):
-            weights = np.exp(log_weights)  # Ensure positivity
-            weights = weights / weights.sum()  # Normalize
-
-            # Compute weighted distribution P
-            p = indicators.T @ weights
-
-            # Compute KL divergence: Σ P(c) log(P(c)/Q(c))
-            kl = 0.0
-            for j, cat in enumerate(categories):
-                if p[j] > 1e-10:  # Avoid log(0)
-                    kl += p[j] * np.log(p[j] / target_dist[cat])
-            return kl
-
-        # Initialize with uniform weights in log space
-        log_w0 = np.zeros(n)
-
-        # Optimize using L-BFGS-B
-        result = minimize(kl_divergence, log_w0, method="L-BFGS-B")
-
-        # Extract and normalize weights
-        weights = np.exp(result.x)
-        return weights / weights.sum()
-
-    def _iterative_proportional_fitting(
-        self, responses: List[str], target_dist: Dict[str, float], max_iter: int = 100
-    ) -> np.ndarray:
-        """
-        Find optimal weights using Iterative Proportional Fitting (IPF).
-
-        This is a simpler, iterative algorithm that updates weights proportionally
-        to match the target distribution. It's easier to understand but may converge
-        more slowly than the optimization approach.
-
-        Args:
-            responses: List of categorical responses
-            target_dist: Dictionary with target probabilities for each category
-            max_iter: Maximum number of iterations
-
-        Returns:
-            np.ndarray: Normalized weights
-        """
-        n = len(responses)
-        weights = np.ones(n)
-
-        for iteration in range(max_iter):
-            # Compute current weighted distribution
-            current_dist = {}
-            for i, resp in enumerate(responses):
-                current_dist[resp] = current_dist.get(resp, 0.0) + weights[i]
-
-            # Normalize current distribution
-            total = sum(current_dist.values())
-            for key in current_dist:
-                current_dist[key] /= total
-
-            # Update weights proportionally
-            for i, resp in enumerate(responses):
-                if current_dist[resp] > 1e-10:  # Avoid division by zero
-                    weights[i] *= target_dist[resp] / current_dist[resp]
-
-        # Normalize and return
-        return weights / weights.sum()
+        # Delegate to strategy
+        return strategy_obj.find_weights(
+            responses, target_dist, max_iter=max_iter, **kwargs
+        )
 
     def get_weighted_distribution(
-        self, question_name: str, weights: np.ndarray
-    ) -> Dict[str, float]:
+        self, question_name: str, weights: np.ndarray, strategy: str = "categorical_kl"
+    ) -> Dict:
         """
         Compute the weighted empirical distribution for a question.
 
         Args:
             question_name: The name of the question
             weights: Array of weights (same length as results)
+            strategy: Strategy to use for computing distribution (default: "categorical_kl")
 
         Returns:
-            Dictionary mapping response categories to their weighted probabilities
+            Dictionary mapping response values to their weighted probabilities
 
         Examples:
             >>> from edsl.results import Results
             >>> r = Results.example()
-            >>> weighting = ResultsWeighting(r)
+            >>> weighter = ResultsWeighting(r)
             >>> target = {'Great': 0.5, 'OK': 0.3, 'Terrible': 0.2}
-            >>> weights = weighting.find_optimal_weights('how_feeling', target)
-            >>> dist = weighting.get_weighted_distribution('how_feeling', weights)
+            >>> weights = weighter.find_optimal_weights('how_feeling', target)
+            >>> dist = weighter.get_weighted_distribution('how_feeling', weights)
             >>> isinstance(dist, dict)
             True
         """
         responses = self.results.get_answers(question_name)
 
-        if len(responses) != len(weights):
+        strategy_obj = self._strategies.get(strategy)
+        if strategy_obj is None:
             raise ValueError(
-                f"Length mismatch: {len(responses)} responses but {len(weights)} weights"
+                f"Unknown strategy '{strategy}'. Available strategies: {self.list_strategies()}"
             )
 
-        # Compute weighted counts
-        weighted_counts = {}
-        for resp, w in zip(responses, weights):
-            weighted_counts[resp] = weighted_counts.get(resp, 0.0) + w
-
-        # Normalize to probabilities
-        total = sum(weighted_counts.values())
-        return {k: v / total for k, v in weighted_counts.items()}
+        return strategy_obj.get_weighted_distribution(responses, weights)
 
     def compute_kl_divergence(
-        self, empirical_dist: Dict[str, float], target_dist: Dict[str, float]
+        self, empirical_dist: Dict, target_dist: Dict
     ) -> float:
         """
         Compute KL divergence between empirical and target distributions.
 
         Computes KL(P||Q) = Σ P(c) log(P(c)/Q(c))
+
+        This is a convenience method that delegates to the categorical KL strategy.
 
         Args:
             empirical_dist: The empirical (actual) distribution
@@ -278,23 +265,215 @@ class ResultsWeighting:
         Examples:
             >>> from edsl.results import Results
             >>> r = Results.example()
-            >>> weighting = ResultsWeighting(r)
+            >>> weighter = ResultsWeighting(r)
             >>> p = {'Great': 0.5, 'OK': 0.3, 'Terrible': 0.2}
             >>> q = {'Great': 0.4, 'OK': 0.4, 'Terrible': 0.2}
-            >>> kl = weighting.compute_kl_divergence(p, q)
+            >>> kl = weighter.compute_kl_divergence(p, q)
             >>> bool(kl >= 0)
             True
         """
-        kl = 0.0
-        for category in empirical_dist:
-            p_c = empirical_dist[category]
-            q_c = target_dist.get(category, 0.0)
+        # Use categorical KL strategy for metric computation
+        strategy = self._strategies["categorical_kl"]
+        return strategy.compute_metric(empirical_dist, target_dist)
 
-            if p_c > 1e-10:  # Avoid log(0)
-                if q_c < 1e-10:
-                    # If target has 0 probability but empirical doesn't,
-                    # KL divergence is infinite
-                    return float("inf")
-                kl += p_c * np.log(p_c / q_c)
+    def compute_metric(
+        self, empirical_dist: Dict, target_dist: Dict, strategy: str = "categorical_kl"
+    ) -> float:
+        """
+        Compute distance/divergence metric using specified strategy.
 
-        return kl
+        More general version of compute_kl_divergence that allows specifying
+        which strategy's metric to use.
+
+        Args:
+            empirical_dist: The empirical (actual) distribution
+            target_dist: The target distribution
+            strategy: Strategy whose metric to use (default: "categorical_kl")
+
+        Returns:
+            float: The distance/divergence value
+        """
+        strategy_obj = self._strategies.get(strategy)
+        if strategy_obj is None:
+            raise ValueError(
+                f"Unknown strategy '{strategy}'. Available strategies: {self.list_strategies()}"
+            )
+
+        return strategy_obj.compute_metric(empirical_dist, target_dist)
+
+    def find_weights_for_multiple_targets(
+        self,
+        targets: Dict[str, Union[Dict, Any]],
+        metric_weights: Optional[Dict[str, float]] = None,
+        strategies: Optional[Dict[str, str]] = None,
+        aggregation: str = "weighted_sum",
+        **kwargs,
+    ) -> np.ndarray:
+        """
+        Find optimal weights that simultaneously match multiple target distributions.
+
+        This method extends single-target weighting to handle multiple questions at once,
+        finding a single set of weights that balances matching all target distributions.
+        This is useful for survey reweighting where you need to match multiple marginal
+        distributions (e.g., age AND gender AND location).
+
+        Args:
+            targets: Dictionary mapping question names to their target distributions
+                    Format: {question_name: target_dist}
+                    Example: {'age': {(0,30): 0.3, (30,50): 0.7}, 'gender': {'M': 0.5, 'F': 0.5}}
+            metric_weights: Dictionary of relative importance for each question (will be normalized)
+                           Default: equal weights for all questions
+                           Example: {'age': 2.0, 'gender': 1.0} means age is 2x more important
+            strategies: Dictionary mapping question names to strategy names
+                       Default: "categorical_kl" for all questions
+                       Example: {'age': 'continuous_binned', 'gender': 'categorical_kl'}
+            aggregation: How to combine metrics across questions
+                        - "weighted_sum" (default): Σᵢ αᵢ * metric_i
+                        - "max": max(α₁*metric₁, α₂*metric₂, ...)
+                        - "weighted_product": Πᵢ metric_i^αᵢ
+            **kwargs: Additional parameters passed to optimization
+
+        Returns:
+            np.ndarray: Normalized weights (sum to 1.0) that balance all target distributions
+
+        Raises:
+            ValueError: If targets is empty, strategies are invalid, or aggregation is unknown
+            KeyError: If question names don't exist in results
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> weighter = ResultsWeighting(r)
+
+            >>> # Match two distributions simultaneously
+            >>> targets = {
+            ...     'how_feeling': {'Great': 0.5, 'OK': 0.3, 'Terrible': 0.2},
+            ...     'how_feeling_yesterday': {'Great': 0.4, 'Good': 0.3, 'OK': 0.2, 'Terrible': 0.1}
+            ... }
+            >>> weights = weighter.find_weights_for_multiple_targets(targets)
+            >>> len(weights) == len(r)
+            True
+            >>> bool(abs(weights.sum() - 1.0) < 1e-6)
+            True
+
+            >>> # With custom importance weights (age 2x more important than gender)
+            >>> metric_weights = {'how_feeling': 2.0, 'how_feeling_yesterday': 1.0}
+            >>> weights = weighter.find_weights_for_multiple_targets(targets, metric_weights)
+        """
+        from scipy.optimize import minimize
+
+        if not targets:
+            raise ValueError("targets dictionary cannot be empty")
+
+        # Normalize metric weights
+        if metric_weights is None:
+            metric_weights = {q: 1.0 for q in targets.keys()}
+        else:
+            # Auto-normalize to sum to 1.0
+            total = sum(metric_weights.values())
+            metric_weights = {q: w / total for q, w in metric_weights.items()}
+
+        # Set default strategies
+        if strategies is None:
+            strategies = {q: "categorical_kl" for q in targets.keys()}
+
+        # Validate all questions exist and strategies are valid
+        for question_name in targets.keys():
+            try:
+                _ = self.results.get_answers(question_name)
+            except KeyError:
+                raise KeyError(
+                    f"Question '{question_name}' not found in results. "
+                    f"Available questions: {self.results.question_names}"
+                )
+
+            strategy_name = strategies.get(question_name, "categorical_kl")
+            if strategy_name not in self._strategies:
+                raise ValueError(
+                    f"Unknown strategy '{strategy_name}' for question '{question_name}'. "
+                    f"Available strategies: {self.list_strategies()}"
+                )
+
+        # Pre-fetch all responses and strategies to avoid repeated lookups
+        question_data = {}
+        for question_name, target_dist in targets.items():
+            responses = self.results.get_answers(question_name)
+            strategy_name = strategies.get(question_name, "categorical_kl")
+            strategy_obj = self._strategies[strategy_name]
+
+            # Validate inputs for this strategy
+            strategy_obj.validate_inputs(responses, target_dist)
+
+            question_data[question_name] = {
+                "responses": responses,
+                "target": target_dist,
+                "strategy": strategy_obj,
+                "weight": metric_weights.get(question_name, 1.0),
+            }
+
+        n = len(self.results)
+
+        # Define aggregation functions
+        def aggregate_weighted_sum(metrics: List[Tuple[float, float]]) -> float:
+            """Weighted sum: Σᵢ αᵢ * metric_i"""
+            return sum(weight * metric for weight, metric in metrics)
+
+        def aggregate_max(metrics: List[Tuple[float, float]]) -> float:
+            """Max: max(α₁*metric₁, α₂*metric₂, ...)"""
+            return max(weight * metric for weight, metric in metrics)
+
+        def aggregate_weighted_product(metrics: List[Tuple[float, float]]) -> float:
+            """Weighted product: Πᵢ metric_i^αᵢ"""
+            product = 1.0
+            for weight, metric in metrics:
+                if metric > 0:
+                    product *= metric ** weight
+            return product
+
+        # Select aggregation function
+        aggregation_funcs = {
+            "weighted_sum": aggregate_weighted_sum,
+            "max": aggregate_max,
+            "weighted_product": aggregate_weighted_product,
+        }
+
+        if aggregation not in aggregation_funcs:
+            raise ValueError(
+                f"Unknown aggregation '{aggregation}'. "
+                f"Available: {list(aggregation_funcs.keys())}"
+            )
+
+        aggregate_func = aggregation_funcs[aggregation]
+
+        # Objective function
+        def objective(log_weights):
+            weights = np.exp(log_weights)
+            weights = weights / weights.sum()
+
+            # Compute metric for each question
+            metrics = []
+            for question_name, data in question_data.items():
+                # Get weighted distribution
+                weighted_dist = data["strategy"].get_weighted_distribution(
+                    data["responses"], weights
+                )
+
+                # Compute metric
+                metric = data["strategy"].compute_metric(
+                    weighted_dist, data["target"]
+                )
+
+                metrics.append((data["weight"], metric))
+
+            # Aggregate metrics
+            return aggregate_func(metrics)
+
+        # Initialize with uniform weights
+        log_w0 = np.zeros(n)
+
+        # Optimize
+        result = minimize(objective, log_w0, method="L-BFGS-B")
+
+        # Extract and normalize weights
+        weights = np.exp(result.x)
+        return weights / weights.sum()
