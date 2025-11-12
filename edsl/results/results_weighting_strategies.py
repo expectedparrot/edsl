@@ -16,7 +16,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Union, Tuple
 import numpy as np
 from scipy.optimize import minimize
-from collections import Counter
 
 
 class WeightingStrategy(ABC):
@@ -468,7 +467,7 @@ class BinnedContinuousKLStrategy(WeightingStrategy):
         """
         # Check that responses are numeric
         try:
-            numeric_responses = [float(r) for r in responses]
+            [float(r) for r in responses]
         except (ValueError, TypeError):
             raise ValueError("All responses must be numeric for continuous binning")
 
