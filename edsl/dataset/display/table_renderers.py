@@ -186,14 +186,13 @@ class PandasStyleRenderer(DataTablesRendererABC):
                 font-size: 12px;
             }
             .edsl-table th {
-                background-color: #ffffff;
-                color: #333;
+                background-color: rgba(127, 127, 127, 0.1);
                 font-weight: 600;
                 padding: 12px 8px;
                 text-align: left;
                 vertical-align: top;
-                border: 1px solid #ddd;
-                border-bottom: 2px solid #999;
+                border: 1px solid rgba(127, 127, 127, 0.3);
+                border-bottom: 2px solid rgba(127, 127, 127, 0.5);
                 position: sticky;
                 top: 0;
                 z-index: 10;
@@ -207,13 +206,13 @@ class PandasStyleRenderer(DataTablesRendererABC):
                 white-space: pre-wrap;
                 max-width: 300px;
                 word-wrap: break-word;
-                border: 1px solid #ddd;
+                border: 1px solid rgba(127, 127, 127, 0.3);
             }
             .edsl-table tbody tr:nth-child(odd) {
-                background-color: #f9f9f9;
+                background-color: rgba(127, 127, 127, 0.05);
             }
             .edsl-table tbody tr:hover {
-                background-color: #e3f2fd;
+                background-color: rgba(59, 130, 246, 0.15);
             }
         </style>
         """
