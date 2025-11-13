@@ -469,6 +469,75 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return result
 
+    def uniquify(self, field: str) -> "ScenarioList":
+        """
+        Make all values of a field unique by appending suffixes (_1, _2, etc.) as needed.
+
+        This method ensures that all values for the specified field are unique across
+        all scenarios in the list. When duplicate values are encountered, they are made
+        unique by appending suffixes like "_1", "_2", "_3", etc. The first occurrence
+        of a value remains unchanged.
+
+        Args:
+            field: The name of the field whose values should be made unique.
+
+        Returns:
+            A new ScenarioList with unique field values.
+
+        Raises:
+            ScenarioError: If the field does not exist in any scenario.
+
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList([
+            ...     Scenario({"id": "item", "value": 1}),
+            ...     Scenario({"id": "item", "value": 2}),
+            ...     Scenario({"id": "item", "value": 3}),
+            ...     Scenario({"id": "other", "value": 4})
+            ... ])
+            >>> unique_sl = sl.uniquify("id")
+            >>> [s["id"] for s in unique_sl]
+            ['item', 'item_1', 'item_2', 'other']
+
+        Notes:
+            - The original ScenarioList is not modified
+            - Scenarios without the specified field are left unchanged
+            - The codebook is preserved in the result
+            - Suffixes are numbered sequentially starting from 1
+        """
+        # Check if field exists in at least one scenario
+        if not any(field in scenario for scenario in self.data):
+            raise ScenarioError(f"Field '{field}' not found in any scenario")
+
+        seen_values = {}  # Maps original value to count of occurrences
+        result = ScenarioList(codebook=self.codebook)
+
+        for scenario in self.data:
+            # Skip scenarios that don't have this field
+            if field not in scenario:
+                result.append(scenario)
+                continue
+
+            original_value = scenario[field]
+
+            # Determine the new unique value
+            if original_value not in seen_values:
+                # First occurrence - use original value
+                new_value = original_value
+                seen_values[original_value] = 1
+            else:
+                # Duplicate - append suffix
+                suffix_num = seen_values[original_value]
+                new_value = f"{original_value}_{suffix_num}"
+                seen_values[original_value] += 1
+
+            # Create new scenario with updated field value
+            new_scenario_dict = dict(scenario)
+            new_scenario_dict[field] = new_value
+            result.append(Scenario(new_scenario_dict))
+
+        return result
+
     def to_agent_traits(self, agent_name: Optional[str] = None) -> "Agent":
         """Convert all Scenario objects into traits of a single Agent.
 
