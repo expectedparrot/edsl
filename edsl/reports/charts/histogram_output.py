@@ -51,7 +51,7 @@ class HistogramOutput(ChartOutput):
             .encode(
                 x=alt.X(
                     "value:Q",
-                    title=self.question.question_text,
+                    title=self.sanitize_text_for_chart(self.question.question_text),
                     bin=alt.Bin(maxbins=20),
                 ),  # Automatically determine bin size with max 20 bins
                 y=alt.Y("count()", title="Count"),
