@@ -1080,7 +1080,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         temperature: float = 0.0,
         instructions: str = "",
         max_rows: Optional[int] = None,
-    ) -> tuple[ScenarioList, Dict[str, Any]]:
+    ) -> ScenarioList:
         """Create a ScenarioList by extracting table data from HTML using LLM.
 
         Uses an LLM to analyze HTML content containing tables and extract
@@ -1094,16 +1094,13 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             max_rows: Maximum number of rows to extract (None = all rows)
 
         Returns:
-            tuple: (ScenarioList, metadata) where metadata contains:
-                - headers: List of column headers
-                - notes: Extraction notes
-                - num_scenarios: Number of scenarios extracted
+            ScenarioList: The extracted scenarios
 
         Examples:
             From HTML string:
 
             >>> html = "<table><tr><th>Name</th><th>Age</th></tr><tr><td>Alice</td><td>30</td></tr></table>"  # doctest: +SKIP
-            >>> sl, metadata = ScenarioList.vibe_extract(html)  # doctest: +SKIP
+            >>> sl = ScenarioList.vibe_extract(html)  # doctest: +SKIP
             >>> len(sl)  # doctest: +SKIP
             1
             >>> sl[0]["name"]  # doctest: +SKIP
@@ -1111,11 +1108,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
             From HTML file:
 
-            >>> sl, metadata = ScenarioList.vibe_extract("/path/to/file.html")  # doctest: +SKIP
+            >>> sl = ScenarioList.vibe_extract("/path/to/file.html")  # doctest: +SKIP
 
             With custom instructions:
 
-            >>> sl, metadata = ScenarioList.vibe_extract(  # doctest: +SKIP
+            >>> sl = ScenarioList.vibe_extract(  # doctest: +SKIP
             ...     html_content,  # doctest: +SKIP
             ...     instructions="Extract only the first table, ignore footer rows"  # doctest: +SKIP
             ... )  # doctest: +SKIP
@@ -1133,13 +1130,18 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         from .vibes import extract_from_html_with_vibes
 
-        return extract_from_html_with_vibes(
+        scenario_list, metadata = extract_from_html_with_vibes(
             html_content,
             model=model,
             temperature=temperature,
             instructions=instructions,
             max_rows=max_rows,
         )
+
+        # Store metadata as an attribute on the ScenarioList for reference
+        scenario_list._extraction_metadata = metadata
+
+        return scenario_list
 
     def vibe_describe(
         self,
