@@ -42,23 +42,27 @@ class HistogramOutput(ChartOutput):
             An Altair chart object showing the histogram
         """
         # Create DataFrame with answers
-        df = pd.DataFrame({"value": self.answers})
+        df = pd.DataFrame({"response_value": self.answers})
 
-        # Create the histogram
+        # Use simple axis labels without question text to avoid JS parsing issues
+        # The question text is shown in the header above the chart
         chart = (
             alt.Chart(df)
             .mark_bar()
             .encode(
                 x=alt.X(
-                    "value:Q",
-                    title=self.sanitize_text_for_chart(self.question.question_text),
+                    "response_value:Q",
+                    title="Response Value",
                     bin=alt.Bin(maxbins=20),
-                ),  # Automatically determine bin size with max 20 bins
+                ),
                 y=alt.Y("count()", title="Count"),
-                tooltip=["value:Q", "count()"],
+                tooltip=[
+                    alt.Tooltip("response_value:Q", title="Value", format=".2f"),
+                    alt.Tooltip("count()", title="Count"),
+                ],
             )
             .properties(
-                title=f"Distribution of {self.question_names[0]}", width=600, height=400
+                title=f"Distribution of Responses", width=600, height=400
             )
         )
 
