@@ -285,29 +285,11 @@ class OutputWrapper:
 
         if is_notebook():
             try:
-                from IPython.display import display
+                from IPython.display import display, HTML
 
-                # Get the chart
-                chart = self.chart
-
-                # For Altair charts, display them directly so their Vega-Lite spec is preserved
-                try:
-                    import altair as alt
-                    if isinstance(chart, (alt.Chart, alt.LayerChart, alt.FacetChart, alt.ConcatChart)):
-                        # Display the chart directly - Altair handles its own display
-                        display(chart)
-                        return
-                except ImportError:
-                    pass
-
-                # For other content (tables, etc.) or if altair not available,
-                # display the chart object directly if it has rich display methods
-                if hasattr(chart, "_repr_mimebundle_") or hasattr(chart, "_repr_html_"):
-                    display(chart)
-                else:
-                    # Fallback: use our HTML wrapper
-                    from IPython.display import HTML
-                    display(HTML(self._repr_html_()))
+                # Display the full HTML which includes header and chart
+                # This ensures both the question info and chart render properly
+                display(HTML(self._repr_html_()))
             except ImportError:
                 # Fallback if IPython is somehow not available
                 print(repr(self))
