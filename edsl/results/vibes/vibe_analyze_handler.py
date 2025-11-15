@@ -368,6 +368,93 @@ class ResultsVibeAnalysis:
         html_parts.append("</div>")
         return "".join(html_parts)
 
+    def to_markdown(self, filename: Optional[str] = None, save_charts: bool = True, chart_dir: str = "charts") -> str:
+        """Export the analysis to a markdown report.
+
+        Args:
+            filename: Optional filename to save the markdown to. If None, returns the markdown string.
+            save_charts: Whether to save chart images to files (default: True)
+            chart_dir: Directory to save chart images (default: "charts")
+
+        Returns:
+            The markdown content as a string
+
+        Examples:
+            >>> analysis = results.vibe_analyze()  # doctest: +SKIP
+            >>> # Get markdown as string
+            >>> md = analysis.to_markdown()  # doctest: +SKIP
+            >>> # Save to file with chart images
+            >>> analysis.to_markdown('report.md', save_charts=True)  # doctest: +SKIP
+            >>> # Save without chart images
+            >>> analysis.to_markdown('report.md', save_charts=False)  # doctest: +SKIP
+        """
+        import os
+        import base64
+
+        # Prepare chart directory if saving charts
+        if save_charts and filename:
+            os.makedirs(chart_dir, exist_ok=True)
+
+        md_parts = []
+
+        # Title
+        md_parts.append("# Survey Analysis Report\n\n")
+
+        # Overall summary first (if available)
+        if self.summary_report:
+            md_parts.append("## Overall Summary\n\n")
+            md_parts.append(self.summary_report)
+            md_parts.append("\n\n---\n\n")
+
+        # Each question's analysis
+        for q_name, q_analysis in self.question_analyses.items():
+            # Question header
+            md_parts.append(f"## {q_analysis.question_text}\n\n")
+            md_parts.append(f"**Question Name:** `{q_name}`  \n")
+            md_parts.append(f"**Question Type:** `{q_analysis.question_type}`\n\n")
+
+            # Chart image
+            if q_analysis.chart_png:
+                if save_charts and filename:
+                    # Save chart to file
+                    chart_filename = f"{q_name}_chart.png"
+                    chart_path = os.path.join(chart_dir, chart_filename)
+                    with open(chart_path, 'wb') as f:
+                        f.write(q_analysis.chart_png)
+                    # Reference in markdown
+                    md_parts.append(f"![Chart for {q_name}]({chart_path})\n\n")
+                else:
+                    # Embed as base64 data URI (works but makes markdown large)
+                    b64_data = base64.b64encode(q_analysis.chart_png).decode('utf-8')
+                    md_parts.append(f"![Chart for {q_name}](data:image/png;base64,{b64_data})\n\n")
+
+            # LLM Insights
+            if q_analysis.llm_insights:
+                md_parts.append("### 💡 AI Insights\n\n")
+                md_parts.append(q_analysis.llm_insights)
+                md_parts.append("\n\n")
+
+            # Visualization analysis if available
+            if q_analysis.visualization_analysis:
+                md_parts.append("### 📊 Visualization Analysis\n\n")
+                md_parts.append(q_analysis.visualization_analysis)
+                md_parts.append("\n\n")
+
+            # Separator between questions
+            md_parts.append("---\n\n")
+
+        markdown_content = "".join(md_parts)
+
+        # Save to file if filename provided
+        if filename:
+            with open(filename, 'w') as f:
+                f.write(markdown_content)
+            print(f"Markdown report saved to {filename}")
+            if save_charts:
+                print(f"Chart images saved to {chart_dir}/")
+
+        return markdown_content
+
 
 def analyze_with_vibes(
     results: "Results",
