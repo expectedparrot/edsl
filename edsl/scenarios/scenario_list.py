@@ -1071,6 +1071,76 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         result = gen.generate_scenarios(description)
         return cls([Scenario(scenario) for scenario in result["scenarios"]])
 
+    @classmethod
+    def vibe_extract(
+        cls,
+        html_source: str,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.0,
+        instructions: str = "",
+        max_rows: Optional[int] = None,
+    ) -> tuple[ScenarioList, Dict[str, Any]]:
+        """Create a ScenarioList by extracting table data from HTML using LLM.
+
+        Uses an LLM to analyze HTML content containing tables and extract
+        structured data to create scenarios.
+
+        Args:
+            html_source: Either HTML string content or path to an HTML file
+            model: OpenAI model to use for extraction (default: "gpt-4o")
+            temperature: Temperature for generation (default: 0.0 for consistency)
+            instructions: Additional extraction instructions (optional)
+            max_rows: Maximum number of rows to extract (None = all rows)
+
+        Returns:
+            tuple: (ScenarioList, metadata) where metadata contains:
+                - headers: List of column headers
+                - notes: Extraction notes
+                - num_scenarios: Number of scenarios extracted
+
+        Examples:
+            From HTML string:
+
+            >>> html = "<table><tr><th>Name</th><th>Age</th></tr><tr><td>Alice</td><td>30</td></tr></table>"  # doctest: +SKIP
+            >>> sl, metadata = ScenarioList.vibe_extract(html)  # doctest: +SKIP
+            >>> len(sl)  # doctest: +SKIP
+            1
+            >>> sl[0]["name"]  # doctest: +SKIP
+            'Alice'
+
+            From HTML file:
+
+            >>> sl, metadata = ScenarioList.vibe_extract("/path/to/file.html")  # doctest: +SKIP
+
+            With custom instructions:
+
+            >>> sl, metadata = ScenarioList.vibe_extract(  # doctest: +SKIP
+            ...     html_content,  # doctest: +SKIP
+            ...     instructions="Extract only the first table, ignore footer rows"  # doctest: +SKIP
+            ... )  # doctest: +SKIP
+        """
+        import os
+
+        # Check if html_source is a file path
+        if os.path.exists(html_source) and os.path.isfile(html_source):
+            # Read the file
+            with open(html_source, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+        else:
+            # Treat as HTML content string
+            html_content = html_source
+
+        from .vibes import extract_from_html_with_vibes
+
+        return extract_from_html_with_vibes(
+            html_content,
+            model=model,
+            temperature=temperature,
+            instructions=instructions,
+            max_rows=max_rows,
+        )
+
     def vibe_describe(
         self,
         *,
