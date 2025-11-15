@@ -368,8 +368,49 @@ class OutputWrapper:
         if is_notebook():
             try:
                 from IPython.display import display, HTML
-                # Force display using the HTML representation
-                display(HTML(self._repr_html_()))
+
+                # Get question information
+                questions = [
+                    self._get_question_or_comment_field(qname) for qname in self._question_names
+                ]
+
+                # Build header HTML
+                html_parts = []
+                html_parts.append(
+                    '<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;">'
+                )
+
+                # Question details section
+                for i, (qname, question) in enumerate(zip(self._question_names, questions)):
+                    html_parts.append(
+                        f'''
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #007bff;">
+                        <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 16px;">
+                            {qname} <span style="color: #6c757d; font-weight: normal; font-size: 13px;">({question.question_type})</span>
+                        </h4>
+                        <p style="margin: 0; color: #212529; font-size: 14px;">{question.question_text}</p>
+                    </div>
+                    '''
+                    )
+
+                # Add the output name/title
+                pretty_name = getattr(self._output_obj, "pretty_name", self._output_name)
+                html_parts.append(
+                    f'''
+                    <div style="margin-bottom: 10px;">
+                        <h4 style="color: #007bff; margin: 0; font-size: 15px;">{pretty_name}</h4>
+                    </div>
+                    '''
+                )
+                html_parts.append('</div>')
+
+                # Display the header
+                display(HTML(''.join(html_parts)))
+
+                # Display the chart separately so it renders properly
+                chart = self.chart
+                display(chart)
+
             except ImportError:
                 # Fallback if IPython is somehow not available
                 print(repr(self))
