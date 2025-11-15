@@ -103,6 +103,27 @@ class ChartOutput:  # TODO: Should inherit from Output when available
 
         return get_data_column_name(question_or_field)
 
+    @staticmethod
+    def sanitize_text_for_chart(text):
+        """Sanitize text for use in chart specifications.
+
+        Removes or escapes template variables and other characters that could
+        break Altair/Vega-Lite JavaScript expressions.
+
+        Args:
+            text: The text to sanitize (e.g., question text)
+
+        Returns:
+            Sanitized text safe for use in chart titles, tooltips, etc.
+        """
+        import re
+        # Remove Jinja2 template variables like {{ variable }} or {% if %}
+        text = re.sub(r'\{\{[^}]+\}\}', '[template]', text)
+        text = re.sub(r'\{%[^%]+%\}', '', text)
+        # Remove any remaining curly braces that could break JS
+        text = text.replace('{', '').replace('}', '')
+        return text.strip()
+
     def __init_subclass__(cls, **kwargs):
         """Automatically register all subclasses"""
         super().__init_subclass__(**kwargs)
