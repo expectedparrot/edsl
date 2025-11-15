@@ -13,10 +13,8 @@ class RegressionTable(TableOutput):
         super().__init__(results, *question_names)
 
         # Get questions
-        self.dep_var = self.results.survey.get(self.question_names[0])
-        self.ind_vars = [
-            self.results.survey.get(name) for name in self.question_names[1:]
-        ]
+        self.dep_var = self.questions[0]
+        self.ind_vars = self.questions[1:]  # Already populated by parent __init__
 
     @property
     def narrative(self):
@@ -46,7 +44,7 @@ class RegressionTable(TableOutput):
             A pandas DataFrame containing regression statistics
         """
         # Get dependent variable data
-        y = self.results.select(f"answer.{self.question_names[0]}").to_list()
+        y = self.results.select(self.get_data_column(self.questions[0])).to_list()
 
         # Create DataFrame for independent variables
         X_data = {}

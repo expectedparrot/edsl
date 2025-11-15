@@ -16,7 +16,7 @@ class BoxPlotOutput(ChartOutput):
         super().__init__(results, *question_names)
 
         # Get questions and determine which is numerical/categorical
-        q1, q2 = [self.results.survey.get(name) for name in question_names]
+        q1, q2 = self.questions[0], self.questions[1]
         if q1.question_type == "numerical":
             self.num_question = q1
             self.cat_question = q2

@@ -11,7 +11,7 @@ class BarChartOutput(ChartOutput):
         if len(question_names) != 1:
             raise ValueError("BarChartOutput requires exactly one question name")
         super().__init__(results, *question_names)
-        self.question = self.results.survey.get(self.question_names[0])
+        self.question = self.questions[0]
 
         # Handle options based on question type
         if self.question.question_type == "yes_no":
@@ -29,7 +29,7 @@ class BarChartOutput(ChartOutput):
         else:
             self.question_options = None
 
-        self.answers = self.results.select(f"answer.{self.question_names[0]}").to_list()
+        self.answers = self.results.select(self.get_data_column(self.questions[0])).to_list()
 
     @property
     def narrative(self):
