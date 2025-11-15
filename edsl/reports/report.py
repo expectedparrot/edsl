@@ -804,6 +804,22 @@ class QuestionAnalysis:
             snake_name = self._camel_to_snake(output_name)
             self._name_mapping[snake_name] = output_name
 
+    def _get_question_or_comment_field(self, name):
+        """Get a question or comment field object by name.
+
+        Args:
+            name: Question name or comment field name
+
+        Returns:
+            Question object or CommentField object
+        """
+        from .comment_field import is_comment_field, create_comment_field
+
+        if is_comment_field(name):
+            return create_comment_field(name, self._report.results)
+        else:
+            return self._report.results.survey.get(name)
+
     @staticmethod
     def _camel_to_snake(name):
         """Convert CamelCase or camelCase to snake_case."""
@@ -897,7 +913,7 @@ class QuestionAnalysis:
 
             # Get question information
             questions = [
-                self._report.results.survey.get(qname) for qname in self._question_names
+                self._get_question_or_comment_field(qname) for qname in self._question_names
             ]
 
             # Question Details Section (compact)
@@ -932,7 +948,10 @@ class QuestionAnalysis:
             if len(self._question_names) == 1:
                 question_name = self._question_names[0]
                 question = questions[0]
-                answers = self._report.results.get_answers(question_name)
+                # Get answers using the correct column (answer.* or comment.*)
+                from .comment_field import get_data_column_name
+                column_name = get_data_column_name(question)
+                answers = self._report.results.select(column_name).to_list()
                 valid_answers = [a for a in answers if a is not None]
 
                 if valid_answers:
@@ -1122,7 +1141,7 @@ class QuestionAnalysis:
         """Return an HTML representation of the QuestionAnalysis."""
         # Get question information
         questions = [
-            self._report.results.survey.get(qname) for qname in self._question_names
+            self._get_question_or_comment_field(qname) for qname in self._question_names
         ]
 
         # Build HTML
@@ -1158,8 +1177,11 @@ class QuestionAnalysis:
         """
         )
 
-        for qname in self._question_names:
-            responses = self._report.results.select(f"answer.{qname}").to_list()
+        for qname, question in zip(self._question_names, questions):
+            # Get responses using the correct column (answer.* or comment.*)
+            from .comment_field import get_data_column_name
+            column_name = get_data_column_name(question)
+            responses = self._report.results.select(column_name).to_list()
 
             # Get first 5 and last 5
             total = len(responses)
