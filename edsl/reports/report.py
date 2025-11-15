@@ -180,6 +180,25 @@ class WriteupResult:
 
         return "".join(formatted_paragraphs)
 
+    def _ipython_display_(self):
+        """
+        IPython display hook for Jupyter notebooks.
+        This method is called automatically by IPython/Jupyter when displaying the object.
+        Forces the use of rich HTML/Vega-Lite representation instead of plain text __repr__.
+        """
+        from edsl.utilities.is_notebook import is_notebook
+
+        if is_notebook():
+            try:
+                from IPython.display import display, HTML
+                # Force display using the HTML representation
+                display(HTML(self._repr_html_()))
+            except ImportError:
+                # Fallback if IPython is somehow not available
+                print(repr(self))
+        else:
+            print(repr(self))
+
     def __repr__(self):
         """Return string representation."""
         return f"WriteupResult(chart={type(self.chart).__name__}, analysis_length={len(self.analysis_text)})"
@@ -322,6 +341,25 @@ class OutputWrapper:
         html_parts.append("</div>")
 
         return "".join(html_parts)
+
+    def _ipython_display_(self):
+        """
+        IPython display hook for Jupyter notebooks.
+        This method is called automatically by IPython/Jupyter when displaying the object.
+        Forces the use of rich HTML/Vega-Lite representation instead of plain text __repr__.
+        """
+        from edsl.utilities.is_notebook import is_notebook
+
+        if is_notebook():
+            try:
+                from IPython.display import display, HTML
+                # Force display using the HTML representation
+                display(HTML(self._repr_html_()))
+            except ImportError:
+                # Fallback if IPython is somehow not available
+                print(repr(self))
+        else:
+            print(repr(self))
 
     def __repr__(self):
         """Return string representation."""
