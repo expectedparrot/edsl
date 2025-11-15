@@ -54,6 +54,7 @@ from .charts import (
     BoxPlotOutput,
     WeightedCheckboxBarChart,
     ThemeFinderOutput,
+    WordCloudOutput,
     PNGLocation,
 )
 from .tables import (
@@ -100,6 +101,7 @@ __all__ = [
     "BoxPlotOutput",
     "WeightedCheckboxBarChart",
     "ThemeFinderOutput",
+    "WordCloudOutput",
     "TableOutput",
     "SummaryStatisticsTable",
     "FacetedSummaryStatsTable",
