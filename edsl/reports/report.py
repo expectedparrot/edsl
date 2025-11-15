@@ -275,6 +275,45 @@ class OutputWrapper:
             self._chart = self._output_obj.output()
         return self._chart
 
+    def _ipython_display_(self):
+        """
+        IPython display hook for Jupyter notebooks.
+        This method is called automatically by IPython/Jupyter when displaying the object.
+        Forces the use of rich HTML/Vega-Lite representation instead of plain text __repr__.
+        """
+        from edsl.utilities.is_notebook import is_notebook
+
+        if is_notebook():
+            try:
+                from IPython.display import display
+
+                # Get the chart
+                chart = self.chart
+
+                # For Altair charts, display them directly so their Vega-Lite spec is preserved
+                try:
+                    import altair as alt
+                    if isinstance(chart, (alt.Chart, alt.LayerChart, alt.FacetChart, alt.ConcatChart)):
+                        # Display the chart directly - Altair handles its own display
+                        display(chart)
+                        return
+                except ImportError:
+                    pass
+
+                # For other content (tables, etc.) or if altair not available,
+                # display the chart object directly if it has rich display methods
+                if hasattr(chart, "_repr_mimebundle_") or hasattr(chart, "_repr_html_"):
+                    display(chart)
+                else:
+                    # Fallback: use our HTML wrapper
+                    from IPython.display import HTML
+                    display(HTML(self._repr_html_()))
+            except ImportError:
+                # Fallback if IPython is somehow not available
+                print(repr(self))
+        else:
+            print(repr(self))
+
     def _repr_mimebundle_(self, include=None, exclude=None):
         """
         Return a MIME bundle with multiple representations of the chart.
