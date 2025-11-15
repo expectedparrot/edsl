@@ -1744,9 +1744,54 @@ class Report(UserDict):
 
         # Check if this analysis exists in the report
         if key not in self:
-            print_error(f"Analysis for {parsed_names} not found in report.")
-            print_info(f"Available analyses: {list(self.keys())}")
-            return None
+            # Try to create the analysis on-demand
+            from .comment_field import (
+                get_available_comment_fields,
+                is_comment_field,
+                normalize_comment_field,
+            )
+
+            all_question_names = [q.question_name for q in self.results.survey.questions]
+            all_comment_fields = get_available_comment_fields(self.results)
+            all_analyzable_fields = all_question_names + all_comment_fields
+
+            # Normalize comment field names
+            normalized_names = [
+                normalize_comment_field(name) if is_comment_field(name) else name
+                for name in parsed_names
+            ]
+
+            # Validate that all fields exist
+            invalid_fields = [
+                name for name in normalized_names if name not in all_analyzable_fields
+            ]
+            if invalid_fields:
+                print_error(
+                    f"Analysis for {parsed_names} not found in report and fields are invalid."
+                )
+                print_error(f"Invalid fields: {invalid_fields}")
+                print_info(f"Available fields: {all_analyzable_fields}")
+                return None
+
+            # Create the analysis on-demand
+            try:
+                research_item = Research(
+                    self.results,
+                    normalized_names,
+                    free_text_sample_config=self.free_text_sample_config,
+                )
+                # Add to the report's dictionary
+                normalized_key = tuple(normalized_names)
+                self[normalized_key] = research_item.generated_outputs
+                key = normalized_key  # Use the normalized key
+            except Exception as e:
+                print_error(
+                    f"Failed to create analysis for {parsed_names} on-demand: {e}"
+                )
+                import traceback
+
+                traceback.print_exc()
+                return None
 
         # Get the output dictionary for these questions
         output_dict = self[key]
