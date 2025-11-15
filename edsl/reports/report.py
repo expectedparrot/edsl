@@ -1351,32 +1351,55 @@ class Report(UserDict):
         # ---------------------------------------------------------------------
         # Determine which questions to analyse based on include/exclude filters
         # ---------------------------------------------------------------------
+        from .comment_field import (
+            get_available_comment_fields,
+            is_comment_field,
+            normalize_comment_field,
+        )
 
         all_question_names: list[str] = [
             q.question_name for q in results.survey.questions
         ]
+        all_comment_fields: list[str] = get_available_comment_fields(results)
+        all_analyzable_fields: list[str] = all_question_names + all_comment_fields
 
         # Normalise None to empty list for easier handling later on
         include_questions = (
             list(include_questions)
             if include_questions is not None
-            else all_question_names
+            else all_question_names  # By default, only include questions, not comments
         )
         exclude_questions = (
             list(exclude_questions) if exclude_questions is not None else []
         )
 
-        # Validate provided question names
-        invalid_includes = [q for q in include_questions if q not in all_question_names]
+        # Normalize comment field names in the include/exclude lists
+        include_questions = [
+            normalize_comment_field(q) if is_comment_field(q) else q
+            for q in include_questions
+        ]
+        exclude_questions = [
+            normalize_comment_field(q) if is_comment_field(q) else q
+            for q in exclude_questions
+        ]
+
+        # Validate provided question names and comment fields
+        invalid_includes = [
+            q for q in include_questions if q not in all_analyzable_fields
+        ]
         if invalid_includes:
             raise ValueError(
-                f"Unknown question names in include_questions: {invalid_includes}"
+                f"Unknown question names or comment fields in include_questions: {invalid_includes}. "
+                f"Available fields: {all_analyzable_fields}"
             )
 
-        invalid_excludes = [q for q in exclude_questions if q not in all_question_names]
+        invalid_excludes = [
+            q for q in exclude_questions if q not in all_analyzable_fields
+        ]
         if invalid_excludes:
             raise ValueError(
-                f"Unknown question names in exclude_questions: {invalid_excludes}"
+                f"Unknown question names or comment fields in exclude_questions: {invalid_excludes}. "
+                f"Available fields: {all_analyzable_fields}"
             )
 
         # Apply exclusion
@@ -1389,6 +1412,10 @@ class Report(UserDict):
             question_type_map = {
                 q.question_name: q.question_type for q in results.survey.questions
             }
+            # Add comment fields to the type map (they're always free_text)
+            for comment_field in all_comment_fields:
+                question_type_map[comment_field] = "free_text"
+
             filtered_questions = [
                 q
                 for q in filtered_questions
@@ -1662,13 +1689,14 @@ class Report(UserDict):
 
     def analyze(self, *question_names):
         """
-        Get a QuestionAnalysis object for convenient access to all outputs for specific question(s).
+        Get a QuestionAnalysis object for convenient access to all outputs for specific question(s) or comment fields.
 
         Args:
-            *question_names: One or more question names. Can be passed as:
-                - Single string: analyze('gender')
+            *question_names: One or more question names or comment field names. Can be passed as:
+                - Single string: analyze('gender') or analyze('gender_comment')
                 - Multiple strings: analyze('gender', 'employment')
                 - Comma-separated string: analyze('gender,employment')
+                - Mixed questions and comments: analyze('gender', 'gender_comment')
 
         Returns:
             QuestionAnalysis object with dot notation access to outputs
@@ -1680,6 +1708,11 @@ class Report(UserDict):
             analysis.frequency_table  # Get the frequency table
             analysis.list_outputs()  # See all available outputs
 
+            # Single comment field (always treated as free text)
+            analysis = report.analyze('gender_comment')
+            analysis.word_cloud  # Get word cloud of comments
+            analysis.frequency_table  # Get frequency table of comments
+
             # Multiple questions (interaction)
             analysis = report.analyze('gender', 'employment')
             analysis.heatmap
@@ -1690,8 +1723,10 @@ class Report(UserDict):
             analysis.heatmap
 
         Note:
-            For pairwise analyses, order matters! analyze('q1', 'q2') and analyze('q2', 'q1')
-            will produce different visualizations (e.g., different axes in charts).
+            - For pairwise analyses, order matters! analyze('q1', 'q2') and analyze('q2', 'q1')
+              will produce different visualizations (e.g., different axes in charts).
+            - Comment fields are always treated as free_text question types.
+            - Comment field names can be specified as 'question_name_comment' or 'comment.question_name_comment'.
         """
         # Parse the question names
         if len(question_names) == 1 and "," in question_names[0]:

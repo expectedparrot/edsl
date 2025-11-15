@@ -89,16 +89,17 @@ class AllResponsesTable(TableOutput):
 
     def output(self):
         """
-        Generate a table containing all raw responses for the selected questions.
+        Generate a table containing all raw responses for the selected questions or comment fields.
 
         Returns:
             A pandas DataFrame containing all responses
         """
         # Create a dictionary to store all answers
         data = {}
-        for question_name in self.question_names:
-            question = self.results.survey.get(question_name)
-            answers = self.results.select(f"answer.{question_name}").to_list()
+        for question in self.questions:
+            # Use the get_data_column helper to get the correct column name
+            column_name = self.get_data_column(question)
+            answers = self.results.select(column_name).to_list()
             data[question.question_text] = answers
 
         # Create DataFrame with question texts as column names

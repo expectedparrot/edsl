@@ -2,10 +2,14 @@ from edsl import Results
 from .utilities import HTMLSnippet
 from .charts import ChartOutput
 from .tables import TableOutput
+from .comment_field import is_comment_field, create_comment_field
 
 
 class Research:
-    """Analysis on a question or set of questions from an edsl Results object."""
+    """Analysis on a question or set of questions from an edsl Results object.
+
+    Supports analyzing both question responses and question comments.
+    """
 
     def __init__(
         self,
@@ -17,7 +21,13 @@ class Research:
     ):
         self.results = results
         self.question_names = tuple(question_names)
-        self.questions = [self.results.survey.get(name) for name in self.question_names]
+        # Handle both regular questions and comment fields
+        self.questions = []
+        for name in self.question_names:
+            if is_comment_field(name):
+                self.questions.append(create_comment_field(name, results))
+            else:
+                self.questions.append(self.results.survey.get(name))
         self._allowed_output_names = (
             set(allowed_output_names) if allowed_output_names is not None else None
         )
@@ -87,8 +97,16 @@ class Research:
 
         This inspects all registered ChartOutput and TableOutput subclasses and
         applies their *can_handle* logic without instantiating a Research object.
+
+        Supports both regular questions and comment fields.
         """
-        questions = [results.survey.get(name) for name in question_names]
+        # Handle both regular questions and comment fields
+        questions = []
+        for name in question_names:
+            if is_comment_field(name):
+                questions.append(create_comment_field(name, results))
+            else:
+                questions.append(results.survey.get(name))
         possible = []
         for output_class in [ChartOutput, TableOutput]:
             available = output_class.get_available_outputs()
