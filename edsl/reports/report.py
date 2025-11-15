@@ -45,6 +45,22 @@ class WriteupResult:
         self._report = report
         self._output_obj = output_obj
 
+    def _get_question_or_comment_field(self, name):
+        """Get a question or comment field object by name.
+
+        Args:
+            name: Question name or comment field name
+
+        Returns:
+            Question object or CommentField object
+        """
+        from edsl.reports.comment_field import is_comment_field, create_comment_field
+
+        if is_comment_field(name):
+            return create_comment_field(name, self._report.results)
+        else:
+            return self._report.results.survey.get(name)
+
     def _repr_mimebundle_(self, include=None, exclude=None):
         """
         Return a MIME bundle with multiple representations.
@@ -94,7 +110,7 @@ class WriteupResult:
         if self._question_names and self._report:
             try:
                 questions = [
-                    self._report.results.survey.get(qname)
+                    self._get_question_or_comment_field(qname)
                     for qname in self._question_names
                 ]
 
@@ -236,6 +252,22 @@ class OutputWrapper:
         self._report = report
         self._chart = None
 
+    def _get_question_or_comment_field(self, name):
+        """Get a question or comment field object by name.
+
+        Args:
+            name: Question name or comment field name
+
+        Returns:
+            Question object or CommentField object
+        """
+        from edsl.reports.comment_field import is_comment_field, create_comment_field
+
+        if is_comment_field(name):
+            return create_comment_field(name, self._report.results)
+        else:
+            return self._report.results.survey.get(name)
+
     @property
     def chart(self):
         """Get the chart/output, caching it."""
@@ -285,7 +317,7 @@ class OutputWrapper:
         """Return HTML representation for Jupyter display."""
         # Get question information
         questions = [
-            self._report.results.survey.get(qname) for qname in self._question_names
+            self._get_question_or_comment_field(qname) for qname in self._question_names
         ]
 
         # Build header with question information
