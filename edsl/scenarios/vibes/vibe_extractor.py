@@ -115,6 +115,152 @@ class VibeExtract:
     def __post_init__(self):
         self.client = create_openai_client()
 
+    def _process_react_data(self, react_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process React data-page JSON to extract table data.
+
+        Looks for common patterns in React apps where table data is embedded
+        in the props.
+
+        Args:
+            react_data: Parsed JSON from data-page attribute
+
+        Returns:
+            Dictionary with scenarios, headers, etc.
+        """
+        # Look for common table data locations
+        props = react_data.get('props', {})
+
+        # Check for various common patterns
+        table_data = None
+        data_key = None
+
+        # Pattern 1: Look for 'funding_prospects', 'items', 'rows', 'data', etc.
+        for key in ['funding_prospects', 'items', 'rows', 'data', 'records', 'results']:
+            if key in props and isinstance(props[key], list) and len(props[key]) > 0:
+                table_data = props[key]
+                data_key = key
+                break
+
+        # Pattern 2: Check nested in another object (e.g., props.round.funding_prospects)
+        if not table_data:
+            for key, value in props.items():
+                if isinstance(value, dict):
+                    for subkey in ['funding_prospects', 'items', 'rows', 'data', 'records', 'results']:
+                        if subkey in value and isinstance(value[subkey], list) and len(value[subkey]) > 0:
+                            table_data = value[subkey]
+                            data_key = f"{key}.{subkey}"
+                            break
+                    if table_data:
+                        break
+
+        if not table_data:
+            return {
+                "scenarios": [],
+                "headers": [],
+                "notes": "Could not find table data in React props. Available keys: " + str(list(props.keys())),
+                "num_scenarios": 0,
+            }
+
+        # Flatten the nested dictionaries and extract all fields
+        scenarios = []
+        all_keys = set()
+
+        for item in table_data:
+            flattened = self._flatten_dict(item)
+            scenarios.append(flattened)
+            all_keys.update(flattened.keys())
+
+        headers = sorted(list(all_keys))
+
+        return {
+            "scenarios": scenarios,
+            "headers": headers,
+            "notes": f"Extracted {len(scenarios)} rows from React data-page JSON (key: {data_key}). Total of {len(headers)} columns found.",
+            "num_scenarios": len(scenarios),
+        }
+
+    def _flatten_dict(self, d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+        """Flatten nested dictionaries for easier scenario creation.
+
+        Args:
+            d: Dictionary to flatten
+            parent_key: Parent key for nested items
+            sep: Separator for nested keys
+
+        Returns:
+            Flattened dictionary
+        """
+        items = []
+        for k, v in d.items():
+            new_key = f"{parent_key}{sep}{k}" if parent_key else k
+
+            if isinstance(v, dict) and v:
+                # Recursively flatten nested dicts
+                items.extend(self._flatten_dict(v, new_key, sep=sep).items())
+            elif isinstance(v, list) and len(v) > 0 and isinstance(v[0], dict):
+                # For lists of dicts, just take the first one and flatten it
+                items.extend(self._flatten_dict(v[0], new_key, sep=sep).items())
+            else:
+                # Keep the value as is
+                items.append((new_key, v))
+
+        return dict(items)
+
+    def _extract_table_content_with_bs4(self, html_content: str) -> Optional[Dict[str, Any]]:
+        """Use BeautifulSoup to extract table content from HTML.
+
+        This pre-processes the HTML to find table-like structures or React data
+        and extract just the relevant content, reducing the size sent to the LLM.
+
+        Returns:
+            Dictionary with type and content/data, or None if BS4 not available
+        """
+        try:
+            from bs4 import BeautifulSoup
+            import re as regex
+        except ImportError:
+            # If BeautifulSoup not available, return None to fall back to full HTML
+            return None
+
+        soup = BeautifulSoup(html_content, 'html.parser')
+
+        # First, check if this is a React app with data in data-page attribute
+        data_page_div = soup.find('div', attrs={'data-page': True})
+        if data_page_div:
+            try:
+                import json as json_lib
+                data_page_json = data_page_div.get('data-page')
+                data = json_lib.loads(data_page_json)
+                # Return the parsed data structure
+                return {"type": "react_data", "data": data}
+            except:
+                pass
+
+        # Try to find standard HTML tables
+        tables = soup.find_all('table')
+        if tables:
+            # Return the largest table as HTML string
+            largest_table = max(tables, key=lambda t: len(str(t)))
+            return {"type": "html", "content": str(largest_table)}
+
+        # Look for divs with role="table" or table-like classes
+        table_divs = soup.find_all('div', role='table')
+        if table_divs:
+            return {"type": "html", "content": str(table_divs[0])}
+
+        # Look for common data grid classes
+        for class_pattern in ['data-table', 'datagrid', 'grid', 'table-container']:
+            elements = soup.find_all(class_=regex.compile(class_pattern, regex.I))
+            if elements:
+                # Return the first substantial one
+                for elem in elements:
+                    elem_str = str(elem)
+                    if len(elem_str) > 500:  # Has substantial content
+                        return {"type": "html", "content": elem_str}
+
+        # No table found - return None to use full HTML
+        return None
+
     def extract_table_from_html(
         self,
         html_content: str,
@@ -149,6 +295,21 @@ class VibeExtract:
         >>> result["scenarios"]  # doctest: +SKIP
         [{"name": "Alice", "age": 30}]
         """
+        # Try to extract data directly if it's a React app with JSON data
+        extracted_data = self._extract_table_content_with_bs4(html_content)
+
+        if extracted_data and extracted_data.get("type") == "react_data":
+            # Handle React app with JSON data directly
+            return self._process_react_data(extracted_data["data"])
+
+        # Otherwise use LLM for extraction
+        if extracted_data and extracted_data.get("type") == "html":
+            html_to_analyze = extracted_data["content"]
+            preprocessing_note = f"Pre-processed with BeautifulSoup. Original size: {len(html_content)} chars, extracted table size: {len(html_to_analyze)} chars."
+        else:
+            html_to_analyze = html_content
+            preprocessing_note = "Using full HTML content (BeautifulSoup extraction not used)."
+
         max_rows_instruction = f"\n- Extract up to {max_rows} rows" if max_rows else "\n- Extract ALL rows from the table (IMPORTANT: do not truncate or limit the number of rows)"
 
         system = (
@@ -156,31 +317,32 @@ class VibeExtract:
             "Given HTML content containing a table, your task is to: "
             "\n\n"
             "1. Identify the table structure (headers and rows)\n"
-            "2. Extract ALL data from the table (every single row)\n"
+            "2. Extract ALL data from the table (every single row and every single column)\n"
             "3. Clean and normalize the column headers to be valid variable names (lowercase, underscores)\n"
             "4. Convert data to appropriate types (numbers, strings, etc.)\n"
             "5. Return each row as a dictionary mapping headers to values\n"
             "6. Note any issues or observations about the data\n"
             "\n"
-            "CRITICAL: You MUST extract EVERY row from the table. Do not truncate or summarize.\n"
-            "If the HTML is too large and you cannot see all rows, note this in the 'notes' field.\n"
+            "CRITICAL: You MUST extract EVERY row and EVERY column from the table. Do not truncate or summarize.\n"
+            "If the HTML is too large and you cannot see all rows/columns, note this in the 'notes' field.\n"
             "\n"
             "Guidelines:\n"
             "- Headers should be lowercase with underscores (snake_case)\n"
             "- Remove any special characters from headers\n"
-            "- Each row should be a dictionary where keys match the headers\n"
+            "- Each row should be a dictionary where keys match ALL the headers\n"
             "- Preserve the original data values as much as possible\n"
             "- If a value looks like a number, extract it as a number (int or float)\n"
             "- If a value is clearly boolean (yes/no, true/false), extract as boolean\n"
             "- If there are multiple tables, extract the most relevant/largest one (or follow user instructions)"
             + max_rows_instruction + "\n"
             "- Note any missing values, formatting issues, or ambiguities\n"
-            "- In the notes field, include the total number of rows you were able to extract\n"
+            "- In the notes field, include: (1) total number of rows extracted, (2) total number of columns extracted, (3) any warnings about truncation\n"
         )
 
         user_prompt = {
             "task": "Extract table data from the following HTML",
-            "html_content": html_content,
+            "html_content": html_to_analyze,
+            "preprocessing_info": preprocessing_note,
         }
 
         if instructions:
