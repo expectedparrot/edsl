@@ -122,6 +122,8 @@ class ChartOutput:  # TODO: Should inherit from Output when available
         text = re.sub(r'\{%[^%]+%\}', '', text)
         # Remove any remaining curly braces that could break JS
         text = text.replace('{', '').replace('}', '')
+        # Replace colons which have special meaning in Altair field specs
+        text = text.replace(':', ' -')
         return text.strip()
 
     def __init_subclass__(cls, **kwargs):
