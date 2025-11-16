@@ -120,6 +120,7 @@ service_to_api_keyname = {
     InferenceServiceType.DEEPSEEK.value: "DEEPSEEK_API_KEY",
     InferenceServiceType.XAI.value: "XAI_API_KEY",
     InferenceServiceType.OPEN_ROUTER.value: "OPEN_ROUTER_API_KEY",
+    InferenceServiceType.OLLAMA.value: "OLLAMA_API_KEY",
 }
 
 
