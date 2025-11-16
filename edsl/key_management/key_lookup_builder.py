@@ -186,6 +186,17 @@ class KeyLookupBuilder:
 
         # Always include a test service
         d.update({"test": LanguageModelInput(api_token="test", rpm=10, tpm=2000000)})
+
+        # Always include Ollama service with default API key (required but ignored by Ollama)
+        if "ollama" not in d:
+            d.update(
+                {
+                    "ollama": LanguageModelInput(
+                        api_token="ollama", rpm=1000, tpm=2000000
+                    )
+                }
+            )
+
         return KeyLookup(d)
 
     def get_language_model_input(self, service: str) -> LanguageModelInput:
