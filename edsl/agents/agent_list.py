@@ -865,22 +865,34 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     @classmethod
     def from_source(
         cls,
-        source_type: str,
+        source_type_or_data,
         *args,
         instructions: Optional[str] = None,
         codebook: Optional[dict[str, str]] = None,
         name_field: Optional[str] = None,
         **kwargs,
     ) -> "AgentList":
-        """Create an AgentList from a specified source type.
+        """Create an AgentList from a specified source type or infer it automatically.
 
         This method serves as the main entry point for creating AgentList objects,
         providing a unified interface for various data sources.
 
+        **Two modes of operation:**
+
+        1. **Explicit source type** (2+ arguments): Specify the source type explicitly
+           Example: AgentList.from_source('csv', 'data.csv')
+
+        2. **Auto-detect source** (1 argument): Pass only the data and let it infer the type
+           Example: AgentList.from_source('data.csv') or AgentList.from_source({'key': [1,2,3]})
+
         Args:
-            source_type: The type of source to create an AgentList from.
-                        Valid values include: 'csv', 'tsv', 'excel', 'pandas', etc.
-            *args: Positional arguments to pass to the source-specific method.
+            source_type_or_data: Either:
+                - A string specifying the source type ('csv', 'excel', 'pdf', etc.)
+                  when using explicit mode with additional args
+                - The actual data source (file path, URL, dict, DataFrame, etc.)
+                  when using auto-detect mode
+            *args: Positional arguments to pass to the source-specific method
+                   (only used in explicit mode).
             instructions: Optional instructions to apply to all created agents.
             codebook: Optional dictionary mapping trait names to descriptions, or a path to a CSV file.
                      If a CSV file is provided, it should have 2 columns: original keys and descriptions.
@@ -892,22 +904,28 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             An AgentList object created from the specified source.
 
         Examples:
-            >>> # Create agents from a CSV file with instructions
+            >>> # Explicit source type (original behavior)
             >>> # agents = AgentList.from_source(
             >>> #     'csv', 'agents.csv',
             >>> #     instructions="Answer as if you were the person described"
             >>> # )
             >>> #
-            >>> # Create agents with a CSV codebook file
+            >>> # Auto-detect source type (new behavior)
             >>> # agents = AgentList.from_source(
-            >>> #     'csv', 'agents.csv',
-            >>> #     codebook='codebook.csv'  # CSV with keys like "Age in years" -> "age_in_years"
+            >>> #     'agents.csv',
+            >>> #     instructions="Answer as if you were the person described"
+            >>> # )
+            >>> #
+            >>> # Auto-detect from dictionary
+            >>> # agents = AgentList.from_source(
+            >>> #     {'age': [25, 30], 'name': ['Alice', 'Bob']},
+            >>> #     instructions="You are this person"
             >>> # )
         """
         from .agent_list_builder import AgentListBuilder
 
         return AgentListBuilder.from_source(
-            source_type,
+            source_type_or_data,
             *args,
             instructions=instructions,
             codebook=codebook,
