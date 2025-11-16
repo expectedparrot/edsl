@@ -1341,6 +1341,32 @@ class Coop(CoopFunctionsMixin):
                 )
             return [object_type]
 
+    def _validate_alias(self, alias: Optional[str]) -> None:
+        """
+        Validate that an alias contains only letters, numbers, and hyphens.
+
+        Args:
+            alias: The alias string to validate
+
+        Raises:
+            CoopValueError: If the alias contains invalid characters
+
+        Example:
+            >>> coop = Coop()
+            >>> coop._validate_alias("my-valid-alias123")  # OK
+            >>> coop._validate_alias("invalid alias!")  # Raises CoopValueError
+        """
+        if alias is None:
+            return
+
+        import re
+        # Check if alias contains only letters, numbers, and hyphens
+        if not re.match(r'^[a-zA-Z0-9-]+$', alias):
+            raise CoopValueError(
+                f"Invalid alias: '{alias}'. "
+                "Alias must contain only letters, numbers, and hyphens."
+            )
+
     def _validate_visibility_types(
         self, visibility: Union[VisibilityType, List[VisibilityType]]
     ) -> List[VisibilityType]:
@@ -1544,6 +1570,9 @@ class Coop(CoopFunctionsMixin):
         :param value: Optional new object value
         :param visibility: Optional new visibility setting
         """
+        # Validate alias before attempting to patch
+        self._validate_alias(alias)
+
         if (
             description is None
             and visibility is None
@@ -3684,6 +3713,9 @@ class Coop(CoopFunctionsMixin):
             >>> # Use the signed_url to upload the object directly
         """
         from ..scenarios import Scenario
+
+        # Validate alias before attempting to push
+        self._validate_alias(alias)
 
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
         object_dict = object.to_dict()
