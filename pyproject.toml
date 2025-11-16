@@ -55,6 +55,7 @@ google-genai = "^1.30.0"
 firecrawl-py = "^3.2.1"
 textual = "^6.1.0"
 scipy = "^1.11.0"
+mammoth = "^1.11.0"
 
 [tool.poetry.dependencies.altair]
 version = "^5.0.0"
