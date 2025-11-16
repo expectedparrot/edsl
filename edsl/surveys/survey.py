@@ -1435,18 +1435,17 @@ class Survey(Base):
             Jobs: A Jobs object that can be run to execute the survey.
 
         Examples:
-            Create a runnable Jobs object with an agent and scenario:
+            Create a runnable Jobs object with an agent:
 
             >>> s = Survey.example()
             >>> from edsl.agents import Agent
-            >>> from edsl import Scenario
-            >>> s.by(Agent.example()).by(Scenario.example())
+            >>> s.by(Agent.example())
             Jobs(...)
 
             Chain all components in a single call:
 
             >>> from edsl.language_models import LanguageModel
-            >>> s.by(Agent.example(), Scenario.example(), LanguageModel.example())
+            >>> s.by(Agent.example(), LanguageModel.example())
             Jobs(...)
         """
         from edsl.jobs import Jobs

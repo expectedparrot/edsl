@@ -14,7 +14,7 @@ from edsl.language_models import ModelList, Model, LanguageModel
 @pytest.fixture(scope="function")
 def valid_job():
     q = QuestionMultipleChoice(
-        question_text="How are you?",
+        question_text="How are you when the price is {{price}} and quantity is {{quantity}}?",
         question_options=["Good", "Great", "OK", "Bad"],
         question_name="how_feeling",
     )
@@ -85,14 +85,14 @@ def test_jobs_by_agents():
 
 def test_jobs_by_scenarios():
     q = QuestionMultipleChoice(
-        question_text="How are you?",
+        question_text="How are you when the price is {{price}}?",
         question_options=["Good", "Great", "OK", "Bad"],
         question_name="how_feeling",
     )
 
     survey = Survey(name="Test Survey", questions=[q])
     scenario1 = Scenario({"price": "100"})
-    scenario2 = Scenario({"value": "200"})
+    scenario2 = Scenario({"price": "150", "value": "200"})
     scenario3 = Scenario({"price": "200"})
     # by without existing scenarios
     job = survey.by(scenario1)
