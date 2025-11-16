@@ -1,0 +1,185 @@
+---
+title: "EDSL with Offline Inference Services"
+description: "Learn how to use EDSL with offline inference services like Ollama for local model deployment and data labeling tasks."
+---
+
+This notebook demonstrates how to use EDSL with offline inference services, focusing on Ollama as a popular local LLM deployment solution.
+
+## Overview
+
+Using offline inference services provides several benefits:
+- **Privacy**: Data never leaves your local environment
+- **Cost control**: No API usage costs
+- **Reliability**: No dependency on external services
+- **Customization**: Use any model supported by your local service
+
+## Requirements
+
+1. **Ollama installed and running**: Follow the [Ollama quickstart guide](https://docs.ollama.com/quickstart)
+2. **Models downloaded**: Use `ollama pull <model-name>` to download models locally
+3. **EDSL installed**: `pip install edsl`
+
+## Example: Data Labeling with Ollama
+
+### Step 1: Check Available Models
+
+First, let's see what models are available in your local Ollama instance:
+
+```python
+from edsl import Model
+
+# List all available Ollama models
+ollama_models = Model.available(service_name="ollama", force_refresh=True)
+print(f"Found {len(ollama_models)} Ollama models:")
+for model in ollama_models:
+    print(f"- {model.model_name}")
+```
+
+### Step 2: Basic Question Answering
+
+Let's start with a simple question to test the setup:
+
+```python
+from edsl import Model, QuestionFreeText
+
+# Use a specific model (replace with your available model)
+model = Model('llama3.1:latest', service_name='ollama')
+
+# Create a simple question
+q = QuestionFreeText(
+    question_name="capital",
+    question_text="What is the capital of France?"
+)
+
+# Run the question with local inference
+result = q.by(model).run(disable_remote_inference=True)
+print(result.select("answer.*"))
+```
+
+### Step 3: Data Labeling Task
+
+Now let's use Ollama for a practical data labeling task. We'll classify customer support tickets:
+
+```python
+from edsl import Model, QuestionMultipleChoice, Scenario, ScenarioList
+
+# Sample customer support tickets
+tickets = [
+    {"ticket_id": 1, "message": "My order hasn't arrived yet and it's been 2 weeks"},
+    {"ticket_id": 2, "message": "I can't log into my account, forgot my password"},
+    {"ticket_id": 3, "message": "The product I received is damaged"},
+    {"ticket_id": 4, "message": "Can you help me understand how to use this feature?"},
+    {"ticket_id": 5, "message": "I want to return this item, it doesn't fit"},
+]
+
+# Convert to EDSL scenarios
+scenarios = ScenarioList([Scenario(ticket) for ticket in tickets])
+
+# Create classification question
+q_category = QuestionMultipleChoice(
+    question_name="category",
+    question_text="Classify this customer support ticket: {{ message }}",
+    question_options=[
+        "Shipping Issue",
+        "Account Problem", 
+        "Product Defect",
+        "Usage Question",
+        "Return Request",
+        "Other"
+    ]
+)
+
+# Create urgency assessment question  
+q_urgency = QuestionMultipleChoice(
+    question_name="urgency",
+    question_text="Rate the urgency of this ticket: {{ message }}",
+    question_options=["Low", "Medium", "High", "Critical"]
+)
+
+# Use local Ollama model
+model = Model('gemma3:4b', service_name='ollama')
+
+# Run the labeling task
+results = q_category.add_question(q_urgency).by(scenarios).by(model).run(
+    disable_remote_inference=True
+)
+
+# Display results
+print(results.select("ticket_id", "message", "answer.*").print(format="rich"))
+```
+
+### Step 4: Advanced Analysis with Reasoning
+
+For more complex analysis, let's add a reasoning component:
+
+```python
+from edsl import QuestionFreeText
+
+# Add reasoning question
+q_reasoning = QuestionFreeText(
+    question_name="reasoning",
+    question_text="""Analyze this customer support ticket and explain your classification reasoning:
+
+Ticket: {{ message }}
+Category: {{ category }}
+Urgency: {{ urgency }}
+
+Provide a brief explanation for why you classified it this way."""
+)
+
+# Run with reasoning
+results_with_reasoning = q_category.add_question(q_urgency).add_question(q_reasoning).by(scenarios).by(model).run(
+    disable_remote_inference=True
+)
+
+# Show detailed analysis for first ticket
+first_result = results_with_reasoning.filter("ticket_id == 1").select("message", "category", "urgency", "reasoning")
+print(first_result.print(format="rich"))
+```
+
+### Step 5: Model Comparison
+
+Compare different local models if you have multiple available:
+
+```python
+# Get available models
+available_models = Model.available(service_name="ollama", force_refresh=True)
+
+if len(available_models) >= 2:
+    # Use first two available models
+    model1 = available_models[0]
+    model2 = available_models[1]
+    
+    print(f"Comparing {model1.model_name} vs {model2.model_name}")
+    
+    # Test with same question on both models
+    test_question = QuestionFreeText(
+        question_name="response",
+        question_text="Summarize the main issue in this customer ticket: {{ message }}"
+    )
+    
+    # Run on both models
+    results1 = test_question.by(scenarios[0]).by(model1).run(disable_remote_inference=True)
+    results2 = test_question.by(scenarios[0]).by(model2).run(disable_remote_inference=True)
+    
+    print(f"\n{model1.model_name}:", results1.select("response").first())
+    print(f"{model2.model_name}:", results2.select("response").first())
+```
+
+## Performance Considerations
+
+When using offline inference services:
+
+- **Model size**: Larger models provide better quality but require more resources
+- **Batch processing**: Process multiple scenarios together when possible
+- **Caching**: Enable caching to avoid re-running identical queries
+- **Resource monitoring**: Monitor CPU/GPU usage and memory consumption
+
+## Next Steps
+
+- Explore other offline services that EDSL supports
+- Combine offline and online models in hybrid workflows  
+- Use EDSL's caching and result management features
+- Scale up to larger datasets with batch processing
+
+For more examples and advanced usage, see the [EDSL documentation](https://docs.expectedparrot.com).
