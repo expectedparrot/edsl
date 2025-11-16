@@ -81,7 +81,16 @@ class SourcePreferenceHandler:
                 # Pass service_name to fetch method
                 model_info_fetcher.fetch(service_name=service_name)
 
+                # Check if we got data and if it contains the requested service (if specified)
                 if len(model_info_fetcher) > 0:
+                    # If a specific service was requested, check if we have models for it
+                    if service_name and service_name not in model_info_fetcher.data:
+                        if self.verbose:
+                            print(
+                                f"[SOURCE_HANDLER] Source '{source}' returned data but no models for service '{service_name}', trying next source"
+                            )
+                        continue
+
                     if self.verbose:
                         print(
                             f"[SOURCE_HANDLER] Successfully fetched data from source: {source}"
