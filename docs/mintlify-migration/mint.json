@@ -158,6 +158,7 @@
         "en/latest/notebooks/data_labeling_validation_example",
         "en/latest/notebooks/data_labeling_agent",
         "en/latest/notebooks/data_labeling_example",
+        "en/latest/notebooks/edsl_with_offline_inference_services",
         "en/latest/notebooks/data_cleaning",
         "en/latest/notebooks/yoga_studio_name_survey",
         "en/latest/notebooks/summarizing_transcripts",
