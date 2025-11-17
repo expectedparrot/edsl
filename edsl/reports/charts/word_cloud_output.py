@@ -17,7 +17,9 @@ class WordCloudOutput(ChartOutput):
             raise ValueError("WordCloudOutput requires exactly one question name")
         super().__init__(results, *question_names)
         self.question = self.questions[0]
-        self.answers = self.results.select(self.get_data_column(self.questions[0])).to_list()
+        self.answers = self.results.select(
+            self.get_data_column(self.questions[0])
+        ).to_list()
         self.free_text_sample_config = free_text_sample_config or {}
 
         # Apply sampling if configured (similar to ThemeFinderOutput)
@@ -73,7 +75,8 @@ class WordCloudOutput(ChartOutput):
         try:
             from wordcloud import WordCloud
             import matplotlib
-            matplotlib.use('Agg')  # Use non-interactive backend
+
+            matplotlib.use("Agg")  # Use non-interactive backend
             import matplotlib.pyplot as plt
         except ImportError:
             # Return a helpful message if wordcloud is not installed
@@ -92,27 +95,27 @@ class WordCloudOutput(ChartOutput):
         wordcloud = WordCloud(
             width=800,
             height=400,
-            background_color='white',
-            colormap='viridis',
+            background_color="white",
+            colormap="viridis",
             max_words=100,
             relative_scaling=0.5,
-            min_font_size=10
+            min_font_size=10,
         ).generate(text)
 
         # Create matplotlib figure
         fig, ax = plt.subplots(figsize=(10, 5))
-        ax.imshow(wordcloud, interpolation='bilinear')
-        ax.axis('off')
-        ax.set_title('Word Cloud', fontsize=16, pad=20)
+        ax.imshow(wordcloud, interpolation="bilinear")
+        ax.axis("off")
+        ax.set_title("Word Cloud", fontsize=16, pad=20)
 
         # Save to bytes buffer
         buf = io.BytesIO()
-        plt.savefig(buf, format='png', bbox_inches='tight', dpi=150)
+        plt.savefig(buf, format="png", bbox_inches="tight", dpi=150)
         plt.close(fig)
         buf.seek(0)
 
         # Encode as base64
-        img_base64 = base64.b64encode(buf.read()).decode('utf-8')
+        img_base64 = base64.b64encode(buf.read()).decode("utf-8")
         buf.close()
 
         # Return as HTML img tag wrapped in a simple container
@@ -149,7 +152,8 @@ class WordCloudImage:
     def save(self, filename):
         """Save the word cloud image to a file."""
         import base64
-        with open(filename, 'wb') as f:
+
+        with open(filename, "wb") as f:
             f.write(base64.b64decode(self.img_base64))
 
     def __repr__(self):
@@ -164,13 +168,13 @@ class WordCloudMessage:
 
     def _repr_html_(self):
         """Return HTML representation for Jupyter display."""
-        return f'''
+        return f"""
         <div style="padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 5px;">
             <p style="margin: 0; color: #856404; font-family: -apple-system, sans-serif;">
                 {self.message}
             </p>
         </div>
-        '''
+        """
 
     def to_html(self):
         """Return HTML representation (for consistency with Altair charts)."""

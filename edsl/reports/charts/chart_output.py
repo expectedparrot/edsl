@@ -117,13 +117,14 @@ class ChartOutput:  # TODO: Should inherit from Output when available
             Sanitized text safe for use in chart titles, tooltips, etc.
         """
         import re
+
         # Remove Jinja2 template variables like {{ variable }} or {% if %}
-        text = re.sub(r'\{\{[^}]+\}\}', '[template]', text)
-        text = re.sub(r'\{%[^%]+%\}', '', text)
+        text = re.sub(r"\{\{[^}]+\}\}", "[template]", text)
+        text = re.sub(r"\{%[^%]+%\}", "", text)
         # Remove any remaining curly braces that could break JS
-        text = text.replace('{', '').replace('}', '')
+        text = text.replace("{", "").replace("}", "")
         # Replace colons which have special meaning in Altair field specs
-        text = text.replace(':', ' -')
+        text = text.replace(":", " -")
         return text.strip()
 
     def __init_subclass__(cls, **kwargs):

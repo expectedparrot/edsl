@@ -368,7 +368,12 @@ class ResultsVibeAnalysis:
         html_parts.append("</div>")
         return "".join(html_parts)
 
-    def to_markdown(self, filename: Optional[str] = None, save_charts: bool = True, chart_dir: str = "charts") -> str:
+    def to_markdown(
+        self,
+        filename: Optional[str] = None,
+        save_charts: bool = True,
+        chart_dir: str = "charts",
+    ) -> str:
         """Export the analysis to a markdown report.
 
         Args:
@@ -419,14 +424,16 @@ class ResultsVibeAnalysis:
                     # Save chart to file
                     chart_filename = f"{q_name}_chart.png"
                     chart_path = os.path.join(chart_dir, chart_filename)
-                    with open(chart_path, 'wb') as f:
+                    with open(chart_path, "wb") as f:
                         f.write(q_analysis.chart_png)
                     # Reference in markdown
                     md_parts.append(f"![Chart for {q_name}]({chart_path})\n\n")
                 else:
                     # Embed as base64 data URI (works but makes markdown large)
-                    b64_data = base64.b64encode(q_analysis.chart_png).decode('utf-8')
-                    md_parts.append(f"![Chart for {q_name}](data:image/png;base64,{b64_data})\n\n")
+                    b64_data = base64.b64encode(q_analysis.chart_png).decode("utf-8")
+                    md_parts.append(
+                        f"![Chart for {q_name}](data:image/png;base64,{b64_data})\n\n"
+                    )
 
             # LLM Insights
             if q_analysis.llm_insights:
@@ -447,7 +454,7 @@ class ResultsVibeAnalysis:
 
         # Save to file if filename provided
         if filename:
-            with open(filename, 'w') as f:
+            with open(filename, "w") as f:
                 f.write(markdown_content)
             print(f"Markdown report saved to {filename}")
             if save_charts:

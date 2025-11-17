@@ -17,7 +17,9 @@ class HistogramOutput(ChartOutput):
 
         # Get question and answers
         self.question = self.questions[0]
-        self.answers = self.results.select(self.get_data_column(self.questions[0])).to_list()
+        self.answers = self.results.select(
+            self.get_data_column(self.questions[0])
+        ).to_list()
 
     @property
     def narrative(self):
@@ -61,9 +63,7 @@ class HistogramOutput(ChartOutput):
                     alt.Tooltip("count()", title="Count"),
                 ],
             )
-            .properties(
-                title=f"Distribution of Responses", width=600, height=400
-            )
+            .properties(title=f"Distribution of Responses", width=600, height=400)
         )
 
         return chart

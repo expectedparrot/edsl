@@ -1122,7 +1122,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         # Check if html_source is a file path
         if os.path.exists(html_source) and os.path.isfile(html_source):
             # Read the file
-            with open(html_source, 'r', encoding='utf-8') as f:
+            with open(html_source, "r", encoding="utf-8") as f:
                 html_content = f.read()
         else:
             # Treat as HTML content string

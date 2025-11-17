@@ -29,7 +29,9 @@ class BarChartOutput(ChartOutput):
         else:
             self.question_options = None
 
-        self.answers = self.results.select(self.get_data_column(self.questions[0])).to_list()
+        self.answers = self.results.select(
+            self.get_data_column(self.questions[0])
+        ).to_list()
 
     @property
     def narrative(self):
