@@ -12,7 +12,12 @@ class CheckSurveyScenarioCompatibility:
         self.survey = survey
         self.scenarios = scenarios
 
-    def check(self, strict: bool = False, warn: bool = False, check_unused_scenarios: bool = True) -> None:
+    def check(
+        self,
+        strict: bool = False,
+        warn: bool = False,
+        check_unused_scenarios: bool = True,
+    ) -> None:
         """Check if the parameters in the survey and scenarios are consistent.
 
         >>> from edsl.jobs import Jobs
@@ -65,7 +70,7 @@ class CheckSurveyScenarioCompatibility:
         except TypeError:
             # Empty survey - no questions to check
             survey_parameters = set()
-        
+
         scenario_parameters: set = self.scenarios.parameters
 
         msg0, msg1, msg2, msg3 = None, None, None, None
@@ -80,16 +85,24 @@ class CheckSurveyScenarioCompatibility:
 
         # Check if scenarios are attached but none of their fields are used
         # Skip this check if the survey has no questions (empty survey)
-        if check_unused_scenarios and scenario_parameters and len(self.survey.questions) > 0:
+        if (
+            check_unused_scenarios
+            and scenario_parameters
+            and len(self.survey.questions) > 0
+        ):
             # Check if any question is a functional question (uses scenario data directly in functions)
             has_functional_question = any(
                 q.question_type == "functional" for q in self.survey.questions
             )
-            
+
             # Check if any scenario parameter is used in the survey
             # Also check if 'scenario' itself is used (for {{scenario.field}} pattern)
             # Skip validation if there's a functional question (scenarios are used directly in functions)
-            if not has_functional_question and not (scenario_parameters & survey_parameters) and 'scenario' not in survey_parameters:
+            if (
+                not has_functional_question
+                and not (scenario_parameters & survey_parameters)
+                and "scenario" not in survey_parameters
+            ):
                 msg3 = f"Scenario with fields {scenario_parameters} is attached but none of these fields are used in any question. At least one scenario field must be referenced in the survey."
                 raise JobsCompatibilityError(msg3)
 

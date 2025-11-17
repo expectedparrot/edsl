@@ -13,7 +13,9 @@ class BarChartOutput(ChartOutput):
 
     def __init__(self, results, *question_names):
         if len(question_names) != 1:
-            raise ValueError("BarChartOutput requires exactly one question name or comment field")
+            raise ValueError(
+                "BarChartOutput requires exactly one question name or comment field"
+            )
         super().__init__(results, *question_names)
         self.question = self.questions[0]  # Use the question from parent's __init__
 

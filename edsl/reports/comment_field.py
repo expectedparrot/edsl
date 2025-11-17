@@ -73,7 +73,7 @@ def normalize_comment_field(field_name: str) -> str:
         'how_feeling_comment'
     """
     if field_name.startswith("comment."):
-        return field_name[len("comment."):]
+        return field_name[len("comment.") :]
     return field_name
 
 
@@ -94,7 +94,7 @@ def extract_question_name_from_comment(comment_field: str) -> str:
     """
     normalized = normalize_comment_field(comment_field)
     if normalized.endswith("_comment"):
-        return normalized[:-len("_comment")]
+        return normalized[: -len("_comment")]
     return normalized
 
 
@@ -158,7 +158,10 @@ def get_data_column_name(question_or_field) -> str:
         >>> get_data_column_name(comment_field)  # Returns "comment.how_feeling_comment"
     """
     # Check if this is a comment field
-    if hasattr(question_or_field, "_is_comment_field") and question_or_field._is_comment_field:
+    if (
+        hasattr(question_or_field, "_is_comment_field")
+        and question_or_field._is_comment_field
+    ):
         return f"comment.{question_or_field.question_name}"
     else:
         return f"answer.{question_or_field.question_name}"

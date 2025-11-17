@@ -19,7 +19,9 @@ class ResponsesWithThemesTable(TableOutput):
 
         # Get the question and answers
         self.question = self.questions[0]
-        self.answers = self.results.select(self.get_data_column(self.questions[0])).to_list()
+        self.answers = self.results.select(
+            self.get_data_column(self.questions[0])
+        ).to_list()
         self.free_text_sample_config = free_text_sample_config or {}
 
         # Get question text and survey context if available

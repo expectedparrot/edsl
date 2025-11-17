@@ -60,6 +60,7 @@ if env_path:
 # ---------- 1) Pydantic schema for extracted table data ----------
 from typing import Union
 
+
 class ExtractedTableSchema(BaseModel):
     """
     Schema for extracted table data from HTML.
@@ -82,7 +83,7 @@ class ExtractedTableSchema(BaseModel):
     )
     notes: str = Field(
         default="",
-        description="Any notes about data quality, missing values, or extraction issues"
+        description="Any notes about data quality, missing values, or extraction issues",
     )
 
 
@@ -128,14 +129,14 @@ class VibeExtract:
             Dictionary with scenarios, headers, etc.
         """
         # Look for common table data locations
-        props = react_data.get('props', {})
+        props = react_data.get("props", {})
 
         # Check for various common patterns
         table_data = None
         data_key = None
 
         # Pattern 1: Look for 'funding_prospects', 'items', 'rows', 'data', etc.
-        for key in ['funding_prospects', 'items', 'rows', 'data', 'records', 'results']:
+        for key in ["funding_prospects", "items", "rows", "data", "records", "results"]:
             if key in props and isinstance(props[key], list) and len(props[key]) > 0:
                 table_data = props[key]
                 data_key = key
@@ -145,8 +146,19 @@ class VibeExtract:
         if not table_data:
             for key, value in props.items():
                 if isinstance(value, dict):
-                    for subkey in ['funding_prospects', 'items', 'rows', 'data', 'records', 'results']:
-                        if subkey in value and isinstance(value[subkey], list) and len(value[subkey]) > 0:
+                    for subkey in [
+                        "funding_prospects",
+                        "items",
+                        "rows",
+                        "data",
+                        "records",
+                        "results",
+                    ]:
+                        if (
+                            subkey in value
+                            and isinstance(value[subkey], list)
+                            and len(value[subkey]) > 0
+                        ):
                             table_data = value[subkey]
                             data_key = f"{key}.{subkey}"
                             break
@@ -157,7 +169,8 @@ class VibeExtract:
             return {
                 "scenarios": [],
                 "headers": [],
-                "notes": "Could not find table data in React props. Available keys: " + str(list(props.keys())),
+                "notes": "Could not find table data in React props. Available keys: "
+                + str(list(props.keys())),
                 "num_scenarios": 0,
             }
 
@@ -179,7 +192,9 @@ class VibeExtract:
             "num_scenarios": len(scenarios),
         }
 
-    def _flatten_dict(self, d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    def _flatten_dict(
+        self, d: Dict[str, Any], parent_key: str = "", sep: str = "_"
+    ) -> Dict[str, Any]:
         """Flatten nested dictionaries for easier scenario creation.
 
         Args:
@@ -206,7 +221,9 @@ class VibeExtract:
 
         return dict(items)
 
-    def _extract_table_content_with_bs4(self, html_content: str) -> Optional[Dict[str, Any]]:
+    def _extract_table_content_with_bs4(
+        self, html_content: str
+    ) -> Optional[Dict[str, Any]]:
         """Use BeautifulSoup to extract table content from HTML.
 
         This pre-processes the HTML to find table-like structures or React data
@@ -222,14 +239,15 @@ class VibeExtract:
             # If BeautifulSoup not available, return None to fall back to full HTML
             return None
 
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = BeautifulSoup(html_content, "html.parser")
 
         # First, check if this is a React app with data in data-page attribute
-        data_page_div = soup.find('div', attrs={'data-page': True})
+        data_page_div = soup.find("div", attrs={"data-page": True})
         if data_page_div:
             try:
                 import json as json_lib
-                data_page_json = data_page_div.get('data-page')
+
+                data_page_json = data_page_div.get("data-page")
                 data = json_lib.loads(data_page_json)
                 # Return the parsed data structure
                 return {"type": "react_data", "data": data}
@@ -237,19 +255,19 @@ class VibeExtract:
                 pass
 
         # Try to find standard HTML tables
-        tables = soup.find_all('table')
+        tables = soup.find_all("table")
         if tables:
             # Return the largest table as HTML string
             largest_table = max(tables, key=lambda t: len(str(t)))
             return {"type": "html", "content": str(largest_table)}
 
         # Look for divs with role="table" or table-like classes
-        table_divs = soup.find_all('div', role='table')
+        table_divs = soup.find_all("div", role="table")
         if table_divs:
             return {"type": "html", "content": str(table_divs[0])}
 
         # Look for common data grid classes
-        for class_pattern in ['data-table', 'datagrid', 'grid', 'table-container']:
+        for class_pattern in ["data-table", "datagrid", "grid", "table-container"]:
             elements = soup.find_all(class_=regex.compile(class_pattern, regex.I))
             if elements:
                 # Return the first substantial one
@@ -308,9 +326,15 @@ class VibeExtract:
             preprocessing_note = f"Pre-processed with BeautifulSoup. Original size: {len(html_content)} chars, extracted table size: {len(html_to_analyze)} chars."
         else:
             html_to_analyze = html_content
-            preprocessing_note = "Using full HTML content (BeautifulSoup extraction not used)."
+            preprocessing_note = (
+                "Using full HTML content (BeautifulSoup extraction not used)."
+            )
 
-        max_rows_instruction = f"\n- Extract up to {max_rows} rows" if max_rows else "\n- Extract ALL rows from the table (IMPORTANT: do not truncate or limit the number of rows)"
+        max_rows_instruction = (
+            f"\n- Extract up to {max_rows} rows"
+            if max_rows
+            else "\n- Extract ALL rows from the table (IMPORTANT: do not truncate or limit the number of rows)"
+        )
 
         system = (
             "You are an expert data extraction specialist. "
@@ -334,7 +358,8 @@ class VibeExtract:
             "- If a value looks like a number, extract it as a number (int or float)\n"
             "- If a value is clearly boolean (yes/no, true/false), extract as boolean\n"
             "- If there are multiple tables, extract the most relevant/largest one (or follow user instructions)"
-            + max_rows_instruction + "\n"
+            + max_rows_instruction
+            + "\n"
             "- Note any missing values, formatting issues, or ambiguities\n"
             "- In the notes field, include: (1) total number of rows extracted, (2) total number of columns extracted, (3) any warnings about truncation\n"
         )

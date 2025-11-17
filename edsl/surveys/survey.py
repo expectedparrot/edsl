@@ -1513,9 +1513,9 @@ class Survey(Base):
             # Replace the template variable in question_text
             template_var = f"{{{{ {ref_name}.{answer_template_var} }}}}"
             if template_var in followup_dict.get("question_text", ""):
-                followup_dict["question_text"] = followup_dict[
-                    "question_text"
-                ].replace(template_var, str(option))
+                followup_dict["question_text"] = followup_dict["question_text"].replace(
+                    template_var, str(option)
+                )
 
             # Create the new question from the modified dict
             new_question = followup_template.__class__.from_dict(followup_dict)
@@ -1533,7 +1533,11 @@ class Survey(Base):
         # Fix the default rule from the reference question to point to first followup
         first_followup_index = insert_index
         for rule in modified_survey.rule_collection:
-            if rule.current_q == ref_index and rule.expression == "True" and rule.priority == -1:
+            if (
+                rule.current_q == ref_index
+                and rule.expression == "True"
+                and rule.priority == -1
+            ):
                 # This is the default rule from the reference question
                 # Update it to point to the first followup
                 rule.next_q = first_followup_index
@@ -1546,9 +1550,11 @@ class Survey(Base):
             next_index = insert_index + i + 1
 
             for rule in modified_survey.rule_collection:
-                if (rule.current_q == current_followup_index and
-                    rule.expression == "True" and
-                    rule.priority == -1):
+                if (
+                    rule.current_q == current_followup_index
+                    and rule.expression == "True"
+                    and rule.priority == -1
+                ):
                     # This is a default rule for a followup question
                     # Update it to point to the next question in sequence
                     rule.next_q = next_index

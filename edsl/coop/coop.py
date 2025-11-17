@@ -1360,8 +1360,9 @@ class Coop(CoopFunctionsMixin):
             return
 
         import re
+
         # Check if alias contains only letters, numbers, and hyphens
-        if not re.match(r'^[a-zA-Z0-9-]+$', alias):
+        if not re.match(r"^[a-zA-Z0-9-]+$", alias):
             raise CoopValueError(
                 f"Invalid alias: '{alias}'. "
                 "Alias must contain only letters, numbers, and hyphens."

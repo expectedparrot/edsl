@@ -17,7 +17,9 @@ class SummaryStatisticsTable(TableOutput):
         super().__init__(results, *question_names)
 
         self.question = self.questions[0]
-        self.answers = self.results.select(self.get_data_column(self.questions[0])).to_list()
+        self.answers = self.results.select(
+            self.get_data_column(self.questions[0])
+        ).to_list()
 
     @property
     def narrative(self):
