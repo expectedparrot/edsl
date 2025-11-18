@@ -905,7 +905,8 @@ class LanguageModel(
             TIMEOUT = self._compute_timeout(files_list)
 
             # Execute the model call with timeout
-            response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
+            task = asyncio.create_task(f(**params))
+            response = await asyncio.wait_for(task, timeout=TIMEOUT)
 
             # Store the response in the cache
             new_cache_key = cache.store(
