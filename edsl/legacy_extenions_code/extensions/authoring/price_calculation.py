@@ -38,7 +38,6 @@ class PriceCalculationError(Exception):
 
 _ALLOWED_AST_NODES: tuple[type, ...] = (
     ast.Expression,
-    ast.Num,  # py<3.8 fallback
     ast.Constant,  # numbers in py>=3.8
     ast.BinOp,
     ast.UnaryOp,
