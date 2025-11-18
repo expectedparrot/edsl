@@ -8,7 +8,7 @@ tables and extracts structured data to create a ScenarioList.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 import os
 import json
@@ -58,7 +58,6 @@ if env_path:
 
 
 # ---------- 1) Pydantic schema for extracted table data ----------
-from typing import Union
 
 
 class ExtractedTableSchema(BaseModel):
@@ -251,7 +250,7 @@ class VibeExtract:
                 data = json_lib.loads(data_page_json)
                 # Return the parsed data structure
                 return {"type": "react_data", "data": data}
-            except:
+            except (json.JSONDecodeError, TypeError):
                 pass
 
         # Try to find standard HTML tables
