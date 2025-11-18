@@ -6517,14 +6517,14 @@ files = [
 
 [[package]]
 name = "simpleeval"
-version = "0.9.13"
+version = "1.0.3"
 description = "A simple, safe single expression evaluator library."
 optional = false
-python-versions = "*"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "simpleeval-0.9.13-py2.py3-none-any.whl", hash = "sha256:22a2701a5006e4188d125d34accf2405c2c37c93f6b346f2484b6422415ae54a"},
-    {file = "simpleeval-0.9.13.tar.gz", hash = "sha256:4a30f9cc01825fe4c719c785e3762623e350c4840d5e6855c2a8496baaa65fac"},
+    {file = "simpleeval-1.0.3-py3-none-any.whl", hash = "sha256:e3bdbb8c82c26297c9a153902d0fd1858a6c3774bf53ff4f134788c3f2035c38"},
+    {file = "simpleeval-1.0.3.tar.gz", hash = "sha256:67bbf246040ac3b57c29cf048657b9cf31d4e7b9d6659684daa08ca8f1e45829"},
 ]
 
 [[package]]
@@ -7895,4 +7895,4 @@ viz = ["altair", "nbclient", "nbformat", "pyyaml", "termplotlib"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.15"
-content-hash = "2e4d589f40b8504586b286f83490e9e00b010f566510978988706a0ae112fd33"
+content-hash = "183bb018ae80ef22aefed0afdc517d3c7f07acecb021d378476f624b42dae3ce"

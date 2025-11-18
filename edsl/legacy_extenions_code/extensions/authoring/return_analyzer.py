@@ -98,12 +98,10 @@ class ReturnAnalyzer(ast.NodeVisitor):
             if isinstance(value_node, ast.Dict):
                 # Nested dictionary
                 nested_structures[key] = self._analyze_dict(value_node)
-            elif isinstance(value_node, (ast.Str, ast.Num, ast.Constant)):
+            elif isinstance(value_node, (ast.Constant)):
                 # Literal values
                 literal_values[key] = (
-                    value_node.s
-                    if isinstance(value_node, ast.Str)
-                    else value_node.value
+                    value_node.s if isinstance(value_node, str) else value_node.value
                 )
             else:
                 # Computed or complex values
