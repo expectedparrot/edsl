@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - main
-      - python_3_14
   pull_request:
     branches:
       - main
