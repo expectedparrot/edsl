@@ -79,7 +79,8 @@ def test_html_empty_cache(cache_empty):
     html = cache_empty._repr_html_()
     # Check that the HTML contains the expected text for an empty cache
     assert "Empty cache" in html
-    
+
+
 def test_html_non_empty_cache(cache_example):
     """Test that a non-empty cache can generate HTML representation."""
     # This should not raise an exception
@@ -147,6 +148,7 @@ def test_cache_comparison_and_operations(cache_empty, cache_example):
 
 def test_throw_file_note_found_error():
     from edsl.caching.exceptions import CacheFileNotFoundError
+
     try:
         Cache.from_jsonl("non_existent_file.jsonl")
     except CacheFileNotFoundError:
@@ -156,15 +158,25 @@ def test_throw_file_note_found_error():
 def test_caching():
 
     m = Model("test")
-    #m.remote = False
+    # m.remote = False
     c = Cache()
-    results1 = QuestionFreeText.example().by(m).run(cache = c, disable_remote_inference = True)
+    results1 = (
+        QuestionFreeText.example().by(m).run(cache=c, disable_remote_inference=True)
+    )
     # assert not results.select(
     #     "raw_model_response.how_are_you_raw_model_response"
     # ).first()
-    results2 = QuestionFreeText.example().by(m).run(cache = c, disable_remote_inference = True)
+    results2 = (
+        QuestionFreeText.example().by(m).run(cache=c, disable_remote_inference=True)
+    )
     print(results1)
     print("####")
     print(results2)
+    print("Dict comparison ####")
+    print(results1.to_dict())
+    print(results2.to_dict())
+    print("Hash comparison ####")
+    print(hash(results1))
+    print(hash(results2))
     assert results1 == results2
     # assert results.select("raw_model_response.how_are_you_raw_model_response").first()
