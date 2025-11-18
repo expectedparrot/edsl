@@ -7895,4 +7895,4 @@ viz = ["altair", "nbclient", "nbformat", "pyyaml", "termplotlib"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.15"
-content-hash = "3f4e5ff51316518381fe4c5572e85c69f8d9f4a8fe306a7cd8d17b9947721391"
+content-hash = "2e4d589f40b8504586b286f83490e9e00b010f566510978988706a0ae112fd33"
