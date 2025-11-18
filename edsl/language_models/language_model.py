@@ -28,6 +28,7 @@ from functools import wraps
 import asyncio
 import json
 import os
+import sys
 import warnings
 from abc import ABC, abstractmethod
 
@@ -905,8 +906,22 @@ class LanguageModel(
             TIMEOUT = self._compute_timeout(files_list)
 
             # Execute the model call with timeout
-            task = asyncio.create_task(f(**params))
-            response = await asyncio.wait_for(task, timeout=TIMEOUT)
+            if sys.version_info >= (3, 11):
+                from asyncio import timeout as asyncio_timeout
+
+                async def wait_with_timeout(coro, timeout_seconds):
+                    try:
+                        async with asyncio_timeout(timeout_seconds):
+                            return await coro
+                    except TimeoutError:
+                        raise asyncio.TimeoutError()
+
+            else:
+
+                async def wait_with_timeout(coro, timeout_seconds):
+                    return await asyncio.wait_for(coro, timeout=timeout_seconds)
+
+            response = await wait_with_timeout(f(**params), TIMEOUT)
 
             # Store the response in the cache
             new_cache_key = cache.store(
