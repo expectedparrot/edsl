@@ -712,6 +712,24 @@ class LanguageModel(
         Returns:
             The model response
         """
+        # Debug: Check if we're in a task context when called synchronously
+        try:
+            current_task = asyncio.current_task()
+            if current_task is not None:
+                print(
+                    f"[DEBUG execute_model_call] Current task: {current_task.get_name()}, task={current_task}",
+                    flush=True,
+                )
+            else:
+                print(
+                    "[DEBUG execute_model_call] No current task found (sync call)",
+                    flush=True,
+                )
+        except RuntimeError:
+            print(
+                "[DEBUG execute_model_call] No event loop running (sync call)",
+                flush=True,
+            )
 
         async def main():
             results = await asyncio.gather(
@@ -905,8 +923,37 @@ class LanguageModel(
             # Get timeout from configuration
             TIMEOUT = self._compute_timeout(files_list)
 
+            # Ensure timeout is a valid positive number (Python 3.14+ requires this)
+            if TIMEOUT is None or TIMEOUT <= 0:
+                from ..config import CONFIG
+
+                TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT", "60"))
+            TIMEOUT = max(float(TIMEOUT), 0.1)  # Ensure at least 0.1 seconds
+
             # Execute the model call with timeout
-            response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
+            # We're already in a task context (created by AsyncInterviewRunner._process_chunk)
+            # In Python 3.14+, asyncio.timeout() works when we're in a task, but we should
+            # await the coroutine directly, not wrap it in another task
+            coro = f(**params)
+
+            # Debug: Print current task information
+            current_task = asyncio.current_task()
+            if current_task is not None:
+                print(
+                    f"[DEBUG] Current task: {current_task.get_name()}, task={current_task}",
+                    flush=True,
+                )
+            else:
+                print("[DEBUG] No current task found!", flush=True)
+
+            try:
+                # Try using asyncio.timeout() context manager (Python 3.11+)
+                # This works when we're already in a task context
+                async with asyncio.timeout(TIMEOUT):
+                    response = await coro
+            except AttributeError:
+                # Fallback to asyncio.wait_for for older Python versions (< 3.11)
+                response = await asyncio.wait_for(coro, timeout=TIMEOUT)
 
             # Store the response in the cache
             new_cache_key = cache.store(
