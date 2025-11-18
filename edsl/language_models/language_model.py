@@ -905,18 +905,8 @@ class LanguageModel(
             # Get timeout from configuration
             TIMEOUT = self._compute_timeout(files_list)
 
-            async def wait_with_timeout(coro, timeout_seconds):
-                if sys.version_info >= (3, 14):
-                    # Python 3.14 requires the coroutine to be a task
-                    if not asyncio.iscoroutine(coro):
-                        task = coro  # Already a task
-                    else:
-                        task = asyncio.create_task(coro)
-                    return await asyncio.wait_for(task, timeout=timeout_seconds)
-                else:
-                    return await asyncio.wait_for(coro, timeout=timeout_seconds)
-
-            response = await wait_with_timeout(f(**params), TIMEOUT)
+            # Execute the model call with timeout
+            response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
 
             # Store the response in the cache
             new_cache_key = cache.store(
