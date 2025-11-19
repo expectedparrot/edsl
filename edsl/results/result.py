@@ -273,6 +273,9 @@ class Result(Base, UserDict):
         Returns:
             A new Result object with renamed question keys throughout all sub-dictionaries.
 
+        Raises:
+            ResultsColumnNotFoundError: If any key in rename_dict does not exist in the result.
+
         Examples:
             >>> result = Result.example()
             >>> result.answer
@@ -281,6 +284,15 @@ class Result(Base, UserDict):
             >>> renamed.answer
             {'mood': 'OK', 'mood_yesterday': 'Great'}
         """
+        from .exceptions import ResultsColumnNotFoundError
+
+        # Validate that all keys in rename_dict exist in the answer dictionary
+        existing_keys = set(self.data.get("answer", {}).keys())
+        missing_keys = set(rename_dict.keys()) - existing_keys
+        if missing_keys:
+            raise ResultsColumnNotFoundError(
+                f"The following keys in rename_dict are not present in the result: {missing_keys}"
+            )
 
         def rename_keys(d: dict, handle_prefixes: bool = False) -> dict:
             """Helper to rename keys in a dictionary.

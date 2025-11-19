@@ -469,6 +469,75 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return result
 
+    def uniquify(self, field: str) -> "ScenarioList":
+        """
+        Make all values of a field unique by appending suffixes (_1, _2, etc.) as needed.
+
+        This method ensures that all values for the specified field are unique across
+        all scenarios in the list. When duplicate values are encountered, they are made
+        unique by appending suffixes like "_1", "_2", "_3", etc. The first occurrence
+        of a value remains unchanged.
+
+        Args:
+            field: The name of the field whose values should be made unique.
+
+        Returns:
+            A new ScenarioList with unique field values.
+
+        Raises:
+            ScenarioError: If the field does not exist in any scenario.
+
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList([
+            ...     Scenario({"id": "item", "value": 1}),
+            ...     Scenario({"id": "item", "value": 2}),
+            ...     Scenario({"id": "item", "value": 3}),
+            ...     Scenario({"id": "other", "value": 4})
+            ... ])
+            >>> unique_sl = sl.uniquify("id")
+            >>> [s["id"] for s in unique_sl]
+            ['item', 'item_1', 'item_2', 'other']
+
+        Notes:
+            - The original ScenarioList is not modified
+            - Scenarios without the specified field are left unchanged
+            - The codebook is preserved in the result
+            - Suffixes are numbered sequentially starting from 1
+        """
+        # Check if field exists in at least one scenario
+        if not any(field in scenario for scenario in self.data):
+            raise ScenarioError(f"Field '{field}' not found in any scenario")
+
+        seen_values = {}  # Maps original value to count of occurrences
+        result = ScenarioList(codebook=self.codebook)
+
+        for scenario in self.data:
+            # Skip scenarios that don't have this field
+            if field not in scenario:
+                result.append(scenario)
+                continue
+
+            original_value = scenario[field]
+
+            # Determine the new unique value
+            if original_value not in seen_values:
+                # First occurrence - use original value
+                new_value = original_value
+                seen_values[original_value] = 1
+            else:
+                # Duplicate - append suffix
+                suffix_num = seen_values[original_value]
+                new_value = f"{original_value}_{suffix_num}"
+                seen_values[original_value] += 1
+
+            # Create new scenario with updated field value
+            new_scenario_dict = dict(scenario)
+            new_scenario_dict[field] = new_value
+            result.append(Scenario(new_scenario_dict))
+
+        return result
+
     def to_agent_traits(self, agent_name: Optional[str] = None) -> "Agent":
         """Convert all Scenario objects into traits of a single Agent.
 
@@ -1002,6 +1071,78 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         result = gen.generate_scenarios(description)
         return cls([Scenario(scenario) for scenario in result["scenarios"]])
 
+    @classmethod
+    def vibe_extract(
+        cls,
+        html_source: str,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.0,
+        instructions: str = "",
+        max_rows: Optional[int] = None,
+    ) -> ScenarioList:
+        """Create a ScenarioList by extracting table data from HTML using LLM.
+
+        Uses an LLM to analyze HTML content containing tables and extract
+        structured data to create scenarios.
+
+        Args:
+            html_source: Either HTML string content or path to an HTML file
+            model: OpenAI model to use for extraction (default: "gpt-4o")
+            temperature: Temperature for generation (default: 0.0 for consistency)
+            instructions: Additional extraction instructions (optional)
+            max_rows: Maximum number of rows to extract (None = all rows)
+
+        Returns:
+            ScenarioList: The extracted scenarios
+
+        Examples:
+            From HTML string:
+
+            >>> html = "<table><tr><th>Name</th><th>Age</th></tr><tr><td>Alice</td><td>30</td></tr></table>"  # doctest: +SKIP
+            >>> sl = ScenarioList.vibe_extract(html)  # doctest: +SKIP
+            >>> len(sl)  # doctest: +SKIP
+            1
+            >>> sl[0]["name"]  # doctest: +SKIP
+            'Alice'
+
+            From HTML file:
+
+            >>> sl = ScenarioList.vibe_extract("/path/to/file.html")  # doctest: +SKIP
+
+            With custom instructions:
+
+            >>> sl = ScenarioList.vibe_extract(  # doctest: +SKIP
+            ...     html_content,  # doctest: +SKIP
+            ...     instructions="Extract only the first table, ignore footer rows"  # doctest: +SKIP
+            ... )  # doctest: +SKIP
+        """
+        import os
+
+        # Check if html_source is a file path
+        if os.path.exists(html_source) and os.path.isfile(html_source):
+            # Read the file
+            with open(html_source, "r", encoding="utf-8") as f:
+                html_content = f.read()
+        else:
+            # Treat as HTML content string
+            html_content = html_source
+
+        from .vibes import extract_from_html_with_vibes
+
+        scenario_list, metadata = extract_from_html_with_vibes(
+            html_content,
+            model=model,
+            temperature=temperature,
+            instructions=instructions,
+            max_rows=max_rows,
+        )
+
+        # Store metadata as an attribute on the ScenarioList for reference
+        scenario_list._extraction_metadata = metadata
+
+        return scenario_list
+
     def vibe_describe(
         self,
         *,
@@ -1216,7 +1357,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return ScenarioList(random.sample(data_list, n))
 
     def split(
-        self, frac_left: float, seed: Optional[int] = None
+        self, frac_left: float = 0.5, seed: Optional[int] = None
     ) -> tuple[ScenarioList, ScenarioList]:
         """Split the ScenarioList into two random groups.
 
@@ -1224,7 +1365,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         fraction. Useful for creating train/test splits or other random partitions.
 
         Args:
-            frac_left: Fraction (0-1) of scenarios to assign to the left group.
+            frac_left: Fraction (0-1) of scenarios to assign to the left group. Defaults to 0.5.
             seed: Optional random seed for reproducibility.
 
         Returns:
@@ -1234,9 +1375,18 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             ValueError: If frac_left is not between 0 and 1.
 
         Examples:
-            Split a scenario list 70/30:
+            Split a scenario list 50/50 (default):
 
             >>> from edsl import Scenario, ScenarioList
+            >>> sl = ScenarioList([Scenario({'id': i}) for i in range(10)])
+            >>> left, right = sl.split(seed=42)
+            >>> len(left)
+            5
+            >>> len(right)
+            5
+
+            Split a scenario list 70/30:
+
             >>> sl = ScenarioList([Scenario({'id': i}) for i in range(10)])
             >>> left, right = sl.split(0.7, seed=42)
             >>> len(left)
@@ -2354,6 +2504,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         :param replacement_dict: A dictionary with the old names as keys and the new names as values.
 
+        Raises:
+            KeyScenarioError: If any key in replacement_dict is not present in any scenario.
+
         Example:
 
         >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
@@ -2361,6 +2514,8 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
 
         """
+        from .exceptions import KeyScenarioError
+
         # Collect all keys present across all scenarios
         all_keys = set()
         for scenario in self:
@@ -2369,7 +2524,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         # Check for keys in replacement_dict that are not present in any scenario
         missing_keys = [key for key in replacement_dict.keys() if key not in all_keys]
         if missing_keys:
-            warnings.warn(
+            raise KeyScenarioError(
                 f"The following keys in replacement_dict are not present in any scenario: {', '.join(missing_keys)}"
             )
 

@@ -124,6 +124,7 @@ from .question_numerical import QuestionNumerical
 from .question_budget import QuestionBudget
 from .question_demand import QuestionDemand
 from .question_rank import QuestionRank
+from .question_random import QuestionRandom
 
 # Questions derived from core questions
 from .question_likert_five import QuestionLikertFive
@@ -174,6 +175,7 @@ __all__ = [
     "QuestionBudget",
     "QuestionDemand",
     "QuestionRank",
+    "QuestionRandom",
     # Derived question types
     "QuestionLinearScale",
     "QuestionTopK",

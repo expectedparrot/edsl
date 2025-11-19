@@ -1183,6 +1183,39 @@ class LanguageModel(
             + ")"
         )
 
+    def _eval_repr_(self) -> str:
+        """Generate a clean, eval-able string representation of the model.
+
+        This method produces a string that can be executed with eval() to recreate
+        the model object, without any rich formatting or ANSI color codes.
+
+        Returns:
+            str: A clean string representation that can be used with eval()
+        """
+        # Format the parameters as a string, ensuring proper quoting
+        param_parts = []
+        for key, value in self.parameters.items():
+            if isinstance(value, str):
+                if key == "canned_response":
+                    # Multi-line strings need triple quotes
+                    param_parts.append(f'{key}="""{value}"""')
+                else:
+                    # Regular strings need single quotes, escape any existing quotes
+                    escaped_value = value.replace("'", "\\'")
+                    param_parts.append(f"{key}='{escaped_value}'")
+            else:
+                # Non-string values can be represented directly
+                param_parts.append(f"{key}={value}")
+
+        param_string = ", ".join(param_parts)
+
+        # Create the eval-able representation
+        return (
+            f"Model('{self.model}'"
+            + (f", {param_string}" if param_string else "")
+            + ")"
+        )
+
     def __add__(self, other_model: "LanguageModel") -> "LanguageModel":
         """Define behavior when models are combined with the + operator.
 

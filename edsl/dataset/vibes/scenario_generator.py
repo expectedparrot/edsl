@@ -3,11 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
-from openai import OpenAI
 import os
 import json
 from dotenv import load_dotenv
 from pathlib import Path
+from ...base.openai_utils import create_openai_client
 
 
 def find_dotenv_upwards(start_path: Optional[str] = None) -> Optional[Path]:
@@ -69,7 +69,9 @@ class ScenarioGenerator:
     temperature: float = 0.7
 
     def __post_init__(self):
-        self.client = OpenAI()  # reads OPENAI_API_KEY from env
+        self.client = (
+            create_openai_client()
+        )  # reads OPENAI_API_KEY from env with proper error handling
 
     def _create_dynamic_schema(self, fields: List[str]) -> type[BaseModel]:
         """

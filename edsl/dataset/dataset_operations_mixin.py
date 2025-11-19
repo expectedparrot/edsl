@@ -120,6 +120,49 @@ class DataOperationsBase:
             ggplot_code, shape, sql, remove_prefix, debug, height, width, factor_orders
         )
 
+    def plot(
+        self,
+        ggplot_code: str,
+        shape: str = "wide",
+        sql: Optional[str] = None,
+        remove_prefix: bool = True,
+        debug: bool = False,
+        height: float = 4,
+        width: float = 6,
+        factor_orders: Optional[dict] = None,
+    ):
+        """
+        Create visualizations using R's ggplot2 library.
+
+        This is an alias for the ggplot2 method, provided for symmetry with vibe_plot.
+
+        Parameters:
+            ggplot_code: R code string containing ggplot2 commands
+            shape: Data shape to use ("wide" or "long")
+            sql: Optional SQL query to transform data before visualization
+            remove_prefix: Whether to remove prefixes (like "answer.") from column names
+            debug: Whether to display debugging information
+            height: Plot height in inches
+            width: Plot width in inches
+            factor_orders: Dictionary mapping factor variables to their desired order
+
+        Returns:
+            A plot object that renders in Jupyter notebooks
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> # The following would create a plot if R is installed (not shown in doctest):
+            >>> # r.plot('''
+            >>> #     ggplot(df, aes(x=how_feeling)) +
+            >>> #     geom_bar() +
+            >>> #     labs(title="Distribution of Feelings")
+            >>> # ''')
+        """
+        return self.ggplot2(
+            ggplot_code, shape, sql, remove_prefix, debug, height, width, factor_orders
+        )
+
     def relevant_columns(
         self, data_type: Optional[str] = None, remove_prefix: bool = False
     ) -> list:
@@ -197,7 +240,12 @@ class DataOperationsBase:
         return _num_observations if _num_observations is not None else 0
 
     def vibe_plot(
-        self, description: str, show_code: bool = False, show_expression: bool = False
+        self,
+        description: str,
+        show_code: bool = True,
+        show_expression: bool = False,
+        height: float = 4,
+        width: float = 6,
     ):
         """
         Generate and display a ggplot2 visualization using natural language description.
@@ -206,6 +254,8 @@ class DataOperationsBase:
             description: Natural language description of the desired plot
             show_code: If True, displays the generated R code alongside the plot
             show_expression: If True, prints the R code used (alias for show_code)
+            height: Plot height in inches (default: 4)
+            width: Plot width in inches (default: 6)
 
         Returns:
             A plot object that renders in Jupyter notebooks
@@ -217,6 +267,8 @@ class DataOperationsBase:
             >>> # plot = r.vibe_plot("bar chart of how_feeling")
             >>> # Display with R code shown:
             >>> # plot = r.vibe_plot("bar chart of how_feeling", show_expression=True)
+            >>> # Custom dimensions:
+            >>> # plot = r.vibe_plot("scatter plot of age vs income", height=8, width=10)
         """
         from .vibes.vibe_viz import GGPlotGenerator
 
@@ -252,7 +304,88 @@ class DataOperationsBase:
             # Get just the code string
             r_code = gen.make_plot_code(self.to_pandas(remove_prefix=True), description)
 
-        return self.ggplot2(r_code)
+        return self.ggplot2(r_code, height=height, width=width)
+
+    def vibe_sql(
+        self,
+        description: str,
+        show_code: bool = True,
+        show_expression: bool = False,
+        transpose: bool = None,
+        transpose_by: str = None,
+        remove_prefix: bool = True,
+        shape: str = "wide",
+    ):
+        """
+        Generate and execute a SQL query using natural language description.
+
+        Parameters:
+            description: Natural language description of the desired query
+            show_code: If True, displays the generated SQL query with copy button
+            show_expression: If True, displays the generated SQL query (alias for show_code)
+            transpose: Whether to transpose the resulting table (rows become columns)
+            transpose_by: Column to use as the new index when transposing
+            remove_prefix: Whether to remove type prefixes from column names
+            shape: Data shape to use ("wide" or "long")
+
+        Returns:
+            A Dataset object containing the query results
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> # Generate and execute a query from a description:
+            >>> # result = r.vibe_sql("Show all people over 30")
+            >>> # With query shown:
+            >>> # result = r.vibe_sql("Count by occupation", show_expression=True)
+            >>> # Aggregation query:
+            >>> # result = r.vibe_sql("Average age by city")
+        """
+        from .vibes.vibe_sql import VibeSQLGenerator
+
+        gen = VibeSQLGenerator(model="gpt-4o", temperature=0.1)
+
+        # Either show_code or show_expression will trigger displaying the code
+        should_show = show_code or show_expression
+
+        if should_show:
+            # Get the SQL query with display object
+            query_display = gen.make_sql_query(
+                self.to_pandas(remove_prefix=remove_prefix),
+                description,
+                return_display=True,
+                show_code=True,
+            )
+            # Extract the actual SQL query string
+            sql_query = query_display.code
+
+            # Display the code (in Jupyter it will show with copy button, in terminal just the query)
+            try:
+                from IPython.display import display
+                from ..utilities.utilities import is_notebook
+
+                if is_notebook():
+                    display(query_display)
+                else:
+                    print(sql_query)
+            except ImportError:
+                # Not in a notebook environment
+                print("Generated SQL query:")
+                print(sql_query)
+        else:
+            # Get just the SQL query string without display
+            sql_query = gen.make_sql_query(
+                self.to_pandas(remove_prefix=remove_prefix), description
+            )
+
+        # Execute the query and return the result
+        return self.sql(
+            sql_query,
+            transpose=transpose,
+            transpose_by=transpose_by,
+            remove_prefix=remove_prefix,
+            shape=shape,
+        )
 
     def chart(self):
         """
@@ -2315,6 +2448,70 @@ class ScenarioListOperationsMixin(DataOperationsBase):
     ScenarioList objects are converted to Dataset objects before method execution
     via the to_dataset decorator applied in __init_subclass__.
     """
+
+    def kl_divergence(
+        self,
+        group_field: str,
+        value_field: str,
+        from_group: Optional[str] = None,
+        to_group: Optional[str] = None,
+        bins: Optional[Union[int, str]] = None,
+        base: float = 2.0,
+        laplace_smooth: float = 1e-10,
+    ) -> Union[float, dict]:
+        """
+        Compute KL divergence between distributions defined by groups.
+
+        Measures how much one probability distribution diverges from another.
+        Useful for comparing distributions across experimental conditions, agent
+        personas, prompt variations, etc.
+
+        Parameters:
+            group_field: Field that defines the groups (e.g., 'condition', 'persona')
+            value_field: Field containing values to compare distributions of
+            from_group: The reference group (P in KL(P||Q)). If None, compute all pairs.
+            to_group: The comparison group (Q in KL(P||Q)). Required if from_group specified.
+            bins: For continuous data - number of bins or 'auto' (default: None = categorical)
+            base: Logarithm base (2=bits, e=nats, 10=dits, default: 2)
+            laplace_smooth: Small value to avoid log(0) (default: 1e-10)
+
+        Returns:
+            float: KL divergence value if from_group and to_group specified
+            dict: All pairwise KL divergences if groups not specified
+
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList([
+            ...     Scenario({'condition': 'control', 'response': 'positive'}),
+            ...     Scenario({'condition': 'control', 'response': 'positive'}),
+            ...     Scenario({'condition': 'control', 'response': 'neutral'}),
+            ...     Scenario({'condition': 'treatment', 'response': 'negative'}),
+            ...     Scenario({'condition': 'treatment', 'response': 'neutral'}),
+            ... ])
+            >>> # Compare two specific groups
+            >>> kl = sl.kl_divergence('condition', 'response', 'control', 'treatment')  # doctest: +SKIP
+            >>> # Get all pairwise comparisons
+            >>> kl_all = sl.kl_divergence('condition', 'response')  # doctest: +SKIP
+
+        Notes:
+            - KL divergence is asymmetric: KL(P||Q) ≠ KL(Q||P)
+            - KL(P||Q) measures how much P diverges from Q
+            - For categorical data, leave bins=None
+            - For continuous data, set bins to number or 'auto'
+            - Use base=2 for bits, base=e for nats
+        """
+        from .kl_divergence import kl_divergence
+
+        return kl_divergence(
+            self,
+            group_field=group_field,
+            value_field=value_field,
+            from_group=from_group,
+            to_group=to_group,
+            bins=bins,
+            base=base,
+            laplace_smooth=laplace_smooth,
+        )
 
     def __init_subclass__(cls, **kwargs):
         """
