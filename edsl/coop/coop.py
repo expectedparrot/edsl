@@ -1341,6 +1341,33 @@ class Coop(CoopFunctionsMixin):
                 )
             return [object_type]
 
+    def _validate_alias(self, alias: Optional[str]) -> None:
+        """
+        Validate that an alias contains only letters, numbers, and hyphens.
+
+        Args:
+            alias: The alias string to validate
+
+        Raises:
+            CoopValueError: If the alias contains invalid characters
+
+        Example:
+            >>> coop = Coop()
+            >>> coop._validate_alias("my-valid-alias123")  # OK
+            >>> coop._validate_alias("invalid alias!")  # Raises CoopValueError
+        """
+        if alias is None:
+            return
+
+        import re
+
+        # Check if alias contains only letters, numbers, and hyphens
+        if not re.match(r"^[a-zA-Z0-9-]+$", alias):
+            raise CoopValueError(
+                f"Invalid alias: '{alias}'. "
+                "Alias must contain only letters, numbers, and hyphens."
+            )
+
     def _validate_visibility_types(
         self, visibility: Union[VisibilityType, List[VisibilityType]]
     ) -> List[VisibilityType]:
@@ -1544,6 +1571,9 @@ class Coop(CoopFunctionsMixin):
         :param value: Optional new object value
         :param visibility: Optional new visibility setting
         """
+        # Validate alias before attempting to patch
+        self._validate_alias(alias)
+
         if (
             description is None
             and visibility is None
@@ -3685,6 +3715,9 @@ class Coop(CoopFunctionsMixin):
         """
         from ..scenarios import Scenario
 
+        # Validate alias before attempting to push
+        self._validate_alias(alias)
+
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
         object_dict = object.to_dict()
         object_hash = object.get_hash() if hasattr(object, "get_hash") else None
@@ -3855,7 +3888,49 @@ class Coop(CoopFunctionsMixin):
 
         url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
 
-        if console.is_terminal:
+        # Check if we're in marimo by checking sys.modules
+        in_marimo = "marimo" in sys.modules
+        mo = None
+        if in_marimo:
+            try:
+                import marimo as mo
+            except ImportError:
+                in_marimo = False
+
+        # Debug output
+        print(
+            f"DEBUG: in_marimo={in_marimo}, console.is_terminal={console.is_terminal}"
+        )
+
+        description = (
+            link_description
+            if link_description
+            else "🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key."
+        )
+        html_content = f"""
+        <div style="margin: 15px 0; padding: 10px; border-left: 3px solid #38bdf8; background-color: #f8fafc;">
+            <p style="margin: 0 0 10px 0; color: #334155;">{description}</p>
+            <a href="{url}" target="_blank"
+               style="color: #38bdf8; text-decoration: none; font-weight: 500; font-size: 14px;">
+                🔗 Log in and automatically store key
+            </a>
+        </div>
+        """
+
+        if in_marimo and mo is not None:
+            # marimo: use mo.callout with markdown link
+            callout = mo.callout(
+                mo.md(
+                    f"""
+{description}
+
+[🔗 Log in and automatically store key]({url})
+                """
+                ),
+                kind="info",
+            )
+            return callout
+        elif console.is_terminal:
             # Running in a standard terminal, show the full URL
             if link_description:
                 rich_print(
@@ -3864,15 +3939,11 @@ class Coop(CoopFunctionsMixin):
             else:
                 rich_print(f"[#38bdf8][link={url}]{url}[/link][/#38bdf8]")
         else:
-            # Running in an interactive environment (e.g., Jupyter Notebook), hide the URL
-            if link_description:
-                rich_print(
-                    f"{link_description}\n[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]"
-                )
-            else:
-                rich_print(
-                    f"[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]"
-                )
+            # Running in an interactive environment (e.g., Jupyter Notebook)
+            # Use IPython HTML display
+            from IPython.display import HTML, display
+
+            display(HTML(html_content))
 
         print("Logging in will activate the following features:")
         print("  - Remote inference: Runs jobs remotely on the Expected Parrot server.")
@@ -3905,10 +3976,15 @@ class Coop(CoopFunctionsMixin):
 
         edsl_auth_token = secrets.token_urlsafe(16)
 
-        self._display_login_url(
+        html_obj = self._display_login_url(
             edsl_auth_token=edsl_auth_token,
             link_description="\n🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key.",
         )
+
+        # If in marimo, print the HTML object so it displays
+        if html_obj is not None:
+            print(html_obj)
+
         api_key = self._poll_for_api_key(edsl_auth_token)
 
         if api_key is None:

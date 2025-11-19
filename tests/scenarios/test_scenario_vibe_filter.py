@@ -22,12 +22,12 @@ def mock_openai_response(filter_expression):
 class TestScenarioListVibeFilterBasic:
     """Test cases for the vibe_filter method on ScenarioList - basic functionality."""
 
-    @patch('edsl.scenarios.vibes.vibe_filter.OpenAI')
-    def test_vibe_filter_numeric_greater_than(self, mock_openai_client):
+    @patch('edsl.scenarios.vibes.vibe_filter.create_openai_client')
+    def test_vibe_filter_numeric_greater_than(self, mock_create_client):
         """Test filtering ScenarioList with numeric greater-than criteria."""
         # Mock the OpenAI API response
         mock_client = Mock()
-        mock_openai_client.return_value = mock_client
+        mock_create_client.return_value = mock_client
         mock_client.chat.completions.create.return_value = mock_openai_response("age > 30")
 
         scenario_list = ScenarioList([
@@ -45,12 +45,12 @@ class TestScenarioListVibeFilterBasic:
         assert 35 in ages
         assert 42 in ages
 
-    @patch('edsl.scenarios.vibes.vibe_filter.OpenAI')
-    def test_vibe_filter_empty_result(self, mock_openai_client):
+    @patch('edsl.scenarios.vibes.vibe_filter.create_openai_client')
+    def test_vibe_filter_empty_result(self, mock_create_client):
         """Test filtering that returns no results."""
         # Mock the OpenAI API response
         mock_client = Mock()
-        mock_openai_client.return_value = mock_client
+        mock_create_client.return_value = mock_client
         mock_client.chat.completions.create.return_value = mock_openai_response("age > 50")
 
         scenario_list = ScenarioList([
@@ -62,12 +62,12 @@ class TestScenarioListVibeFilterBasic:
 
         assert len(filtered) == 0
 
-    @patch('edsl.scenarios.vibes.vibe_filter.OpenAI')
-    def test_vibe_filter_compound_criteria(self, mock_openai_client):
+    @patch('edsl.scenarios.vibes.vibe_filter.create_openai_client')
+    def test_vibe_filter_compound_criteria(self, mock_create_client):
         """Test filtering with compound AND criteria on ScenarioList."""
         # Mock the OpenAI API response
         mock_client = Mock()
-        mock_openai_client.return_value = mock_client
+        mock_create_client.return_value = mock_client
         mock_client.chat.completions.create.return_value = mock_openai_response(
             "occupation == 'engineer' and city == 'Boston'"
         )
@@ -86,12 +86,12 @@ class TestScenarioListVibeFilterBasic:
         assert filtered[0]['city'] == 'Boston'
         assert filtered[0]['age'] == 42
 
-    @patch('edsl.scenarios.vibes.vibe_filter.OpenAI')
-    def test_vibe_filter_show_expression(self, mock_openai_client, capsys):
+    @patch('edsl.scenarios.vibes.vibe_filter.create_openai_client')
+    def test_vibe_filter_show_expression(self, mock_create_client, capsys):
         """Test that show_expression parameter prints the filter expression."""
         # Mock the OpenAI API response
         mock_client = Mock()
-        mock_openai_client.return_value = mock_client
+        mock_create_client.return_value = mock_client
         mock_client.chat.completions.create.return_value = mock_openai_response("age > 30")
 
         scenario_list = ScenarioList([
@@ -104,12 +104,12 @@ class TestScenarioListVibeFilterBasic:
         assert 'Generated filter expression:' in captured.out
         assert 'age' in captured.out
 
-    @patch('edsl.scenarios.vibes.vibe_filter.OpenAI')
-    def test_vibe_filter_preserves_all_keys(self, mock_openai_client):
+    @patch('edsl.scenarios.vibes.vibe_filter.create_openai_client')
+    def test_vibe_filter_preserves_all_keys(self, mock_create_client):
         """Test that filtering preserves all keys from original scenarios."""
         # Mock the OpenAI API response
         mock_client = Mock()
-        mock_openai_client.return_value = mock_client
+        mock_create_client.return_value = mock_client
         mock_client.chat.completions.create.return_value = mock_openai_response("age > 30")
 
         scenario_list = ScenarioList([
@@ -125,12 +125,12 @@ class TestScenarioListVibeFilterBasic:
         assert 'city' in filtered[0]
         assert 'score' in filtered[0]
 
-    @patch('edsl.scenarios.vibes.vibe_filter.OpenAI')
-    def test_vibe_filter_string_criteria(self, mock_openai_client):
+    @patch('edsl.scenarios.vibes.vibe_filter.create_openai_client')
+    def test_vibe_filter_string_criteria(self, mock_create_client):
         """Test filtering with string matching on ScenarioList."""
         # Mock the OpenAI API response
         mock_client = Mock()
-        mock_openai_client.return_value = mock_client
+        mock_create_client.return_value = mock_client
         mock_client.chat.completions.create.return_value = mock_openai_response(
             "occupation == 'engineer'"
         )
@@ -148,12 +148,12 @@ class TestScenarioListVibeFilterBasic:
         occupations = [s['occupation'] for s in filtered]
         assert all(occ == 'engineer' for occ in occupations)
 
-    @patch('edsl.scenarios.vibes.vibe_filter.OpenAI')
-    def test_vibe_filter_or_criteria(self, mock_openai_client):
+    @patch('edsl.scenarios.vibes.vibe_filter.create_openai_client')
+    def test_vibe_filter_or_criteria(self, mock_create_client):
         """Test filtering with OR criteria on ScenarioList."""
         # Mock the OpenAI API response
         mock_client = Mock()
-        mock_openai_client.return_value = mock_client
+        mock_create_client.return_value = mock_client
         mock_client.chat.completions.create.return_value = mock_openai_response(
             "occupation == 'engineer' or occupation == 'teacher'"
         )
@@ -173,12 +173,12 @@ class TestScenarioListVibeFilterBasic:
         assert 'teacher' in occupations
         assert 'doctor' not in occupations
 
-    @patch('edsl.scenarios.vibes.vibe_filter.OpenAI')
-    def test_vibe_filter_negation(self, mock_openai_client):
+    @patch('edsl.scenarios.vibes.vibe_filter.create_openai_client')
+    def test_vibe_filter_negation(self, mock_create_client):
         """Test filtering with negation criteria on ScenarioList."""
         # Mock the OpenAI API response
         mock_client = Mock()
-        mock_openai_client.return_value = mock_client
+        mock_create_client.return_value = mock_client
         mock_client.chat.completions.create.return_value = mock_openai_response(
             "occupation != 'engineer'"
         )

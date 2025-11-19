@@ -416,6 +416,15 @@ class Jobs(Base):
         else:
             self._scenarios = ScenarioList([])
 
+        # Validate that scenario fields are used in the survey
+        if hasattr(self, "survey") and self.survey is not None:
+            from .check_survey_scenario_compatibility import (
+                CheckSurveyScenarioCompatibility,
+            )
+
+            checker = CheckSurveyScenarioCompatibility(self.survey, self._scenarios)
+            checker.check()
+
     def by(
         self,
         *args: Union[

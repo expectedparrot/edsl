@@ -254,3 +254,35 @@ class DuplicateQuestionNameError(SurveyCreationError):
     """
 
     doc_anchor = "creating-surveys"
+
+
+class SurveyPipingReferenceError(SurveyCreationError):
+    """
+    Exception raised when a question pipes/references data from a question that comes later in the survey.
+
+    This exception occurs when:
+    - A question's text uses Jinja2 templating to reference answers from questions that haven't been asked yet
+    - The survey order is invalid because a question depends on future data
+
+    Forward references in piping create an impossible situation where a question needs
+    data that doesn't exist yet. Questions can only reference answers from questions
+    that appear earlier in the survey.
+
+    To fix this error:
+    1. Reorder your survey so dependent questions come after the questions they reference
+    2. Ensure piping only references previous questions, not future ones
+    3. Check your survey.dag() to visualize dependencies
+
+    Examples:
+        ```python
+        # Invalid: q2 references q1 but comes before it
+        q1 = QuestionFreeText(question_name="q1", question_text="What is your name?")
+        q2 = QuestionFreeText(question_name="q2", question_text="Hello {{ q1.answer }}, what is your age?")
+        Survey([q2, q1])  # Raises SurveyPipingReferenceError
+
+        # Valid: q2 comes after q1
+        Survey([q1, q2])  # OK
+        ```
+    """
+
+    doc_anchor = "creating-surveys"

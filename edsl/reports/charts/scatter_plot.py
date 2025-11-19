@@ -13,15 +13,15 @@ class ScatterPlotOutput(ChartOutput):
         super().__init__(results, *question_names)
 
         # Get questions and their options
-        self.x_question = self.results.survey.get(self.question_names[0])
-        self.y_question = self.results.survey.get(self.question_names[1])
+        self.x_question = self.questions[0]
+        self.y_question = self.questions[1]
 
         # Get answers for both questions
         self.x_answers = self.results.select(
-            f"answer.{self.question_names[0]}"
+            self.get_data_column(self.questions[0])
         ).to_list()
         self.y_answers = self.results.select(
-            f"answer.{self.question_names[1]}"
+            self.get_data_column(self.questions[1])
         ).to_list()
 
     @property

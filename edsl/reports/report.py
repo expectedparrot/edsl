@@ -45,6 +45,22 @@ class WriteupResult:
         self._report = report
         self._output_obj = output_obj
 
+    def _get_question_or_comment_field(self, name):
+        """Get a question or comment field object by name.
+
+        Args:
+            name: Question name or comment field name
+
+        Returns:
+            Question object or CommentField object
+        """
+        from edsl.reports.comment_field import is_comment_field, create_comment_field
+
+        if is_comment_field(name):
+            return create_comment_field(name, self._report.results)
+        else:
+            return self._report.results.survey.get(name)
+
     def _repr_mimebundle_(self, include=None, exclude=None):
         """
         Return a MIME bundle with multiple representations.
@@ -94,7 +110,7 @@ class WriteupResult:
         if self._question_names and self._report:
             try:
                 questions = [
-                    self._report.results.survey.get(qname)
+                    self._get_question_or_comment_field(qname)
                     for qname in self._question_names
                 ]
 
@@ -180,6 +196,26 @@ class WriteupResult:
 
         return "".join(formatted_paragraphs)
 
+    def _ipython_display_(self):
+        """
+        IPython display hook for Jupyter notebooks.
+        This method is called automatically by IPython/Jupyter when displaying the object.
+        Forces the use of rich HTML/Vega-Lite representation instead of plain text __repr__.
+        """
+        from edsl.utilities.is_notebook import is_notebook
+
+        if is_notebook():
+            try:
+                from IPython.display import display, HTML
+
+                # Force display using the HTML representation
+                display(HTML(self._repr_html_()))
+            except ImportError:
+                # Fallback if IPython is somehow not available
+                print(repr(self))
+        else:
+            print(repr(self))
+
     def __repr__(self):
         """Return string representation."""
         return f"WriteupResult(chart={type(self.chart).__name__}, analysis_length={len(self.analysis_text)})"
@@ -217,6 +253,22 @@ class OutputWrapper:
         self._report = report
         self._chart = None
 
+    def _get_question_or_comment_field(self, name):
+        """Get a question or comment field object by name.
+
+        Args:
+            name: Question name or comment field name
+
+        Returns:
+            Question object or CommentField object
+        """
+        from edsl.reports.comment_field import is_comment_field, create_comment_field
+
+        if is_comment_field(name):
+            return create_comment_field(name, self._report.results)
+        else:
+            return self._report.results.survey.get(name)
+
     @property
     def chart(self):
         """Get the chart/output, caching it."""
@@ -224,49 +276,32 @@ class OutputWrapper:
             self._chart = self._output_obj.output()
         return self._chart
 
-    def _repr_mimebundle_(self, include=None, exclude=None):
+    def _ipython_display_(self):
         """
-        Return a MIME bundle with multiple representations of the chart.
-
-        This allows Jupyter and other platforms (like Coop) to choose the best
-        representation. For Altair charts, this includes the Vega-Lite spec which
-        can be rendered without JavaScript.
+        IPython display hook for Jupyter notebooks.
+        This method is called automatically by IPython/Jupyter when displaying the object.
+        Forces the use of rich HTML/Vega-Lite representation instead of plain text __repr__.
         """
-        chart = self.chart
-        bundle = {}
+        from edsl.utilities.is_notebook import is_notebook
 
-        # Try to get the Vega-Lite spec if this is an Altair chart
-        if hasattr(chart, "to_dict"):
+        if is_notebook():
             try:
-                vega_spec = chart.to_dict()
-                # Determine the schema version
-                schema = vega_spec.get("$schema", "")
-                if "v5" in schema:
-                    mime_type = "application/vnd.vegalite.v5+json"
-                elif "v4" in schema:
-                    mime_type = "application/vnd.vegalite.v4+json"
-                elif "v3" in schema:
-                    mime_type = "application/vnd.vegalite.v3+json"
-                else:
-                    mime_type = "application/vnd.vegalite.v2+json"
+                from IPython.display import display, HTML
 
-                bundle[mime_type] = vega_spec
-            except:
-                pass
-
-        # Always include HTML as fallback
-        bundle["text/html"] = self._repr_html_()
-
-        # Include plain text representation
-        bundle["text/plain"] = repr(self)
-
-        return bundle
+                # Display the full HTML which includes header and chart
+                # This ensures both the question info and chart render properly
+                display(HTML(self._repr_html_()))
+            except ImportError:
+                # Fallback if IPython is somehow not available
+                print(repr(self))
+        else:
+            print(repr(self))
 
     def _repr_html_(self):
         """Return HTML representation for Jupyter display."""
         # Get question information
         questions = [
-            self._report.results.survey.get(qname) for qname in self._question_names
+            self._get_question_or_comment_field(qname) for qname in self._question_names
         ]
 
         # Build header with question information
@@ -322,6 +357,71 @@ class OutputWrapper:
         html_parts.append("</div>")
 
         return "".join(html_parts)
+
+    def _ipython_display_(self):
+        """
+        IPython display hook for Jupyter notebooks.
+        This method is called automatically by IPython/Jupyter when displaying the object.
+        Forces the use of rich HTML/Vega-Lite representation instead of plain text __repr__.
+        """
+        from edsl.utilities.is_notebook import is_notebook
+
+        if is_notebook():
+            try:
+                from IPython.display import display, HTML
+
+                # Get question information
+                questions = [
+                    self._get_question_or_comment_field(qname)
+                    for qname in self._question_names
+                ]
+
+                # Build header HTML
+                html_parts = []
+                html_parts.append(
+                    "<div style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\">"
+                )
+
+                # Question details section
+                for i, (qname, question) in enumerate(
+                    zip(self._question_names, questions)
+                ):
+                    html_parts.append(
+                        f"""
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #007bff;">
+                        <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 16px;">
+                            {qname} <span style="color: #6c757d; font-weight: normal; font-size: 13px;">({question.question_type})</span>
+                        </h4>
+                        <p style="margin: 0; color: #212529; font-size: 14px;">{question.question_text}</p>
+                    </div>
+                    """
+                    )
+
+                # Add the output name/title
+                pretty_name = getattr(
+                    self._output_obj, "pretty_name", self._output_name
+                )
+                html_parts.append(
+                    f"""
+                    <div style="margin-bottom: 10px;">
+                        <h4 style="color: #007bff; margin: 0; font-size: 15px;">{pretty_name}</h4>
+                    </div>
+                    """
+                )
+                html_parts.append("</div>")
+
+                # Display the header
+                display(HTML("".join(html_parts)))
+
+                # Display the chart separately so it renders properly
+                chart = self.chart
+                display(chart)
+
+            except ImportError:
+                # Fallback if IPython is somehow not available
+                print(repr(self))
+        else:
+            print(repr(self))
 
     def __repr__(self):
         """Return string representation."""
@@ -766,6 +866,22 @@ class QuestionAnalysis:
             snake_name = self._camel_to_snake(output_name)
             self._name_mapping[snake_name] = output_name
 
+    def _get_question_or_comment_field(self, name):
+        """Get a question or comment field object by name.
+
+        Args:
+            name: Question name or comment field name
+
+        Returns:
+            Question object or CommentField object
+        """
+        from .comment_field import is_comment_field, create_comment_field
+
+        if is_comment_field(name):
+            return create_comment_field(name, self._report.results)
+        else:
+            return self._report.results.survey.get(name)
+
     @staticmethod
     def _camel_to_snake(name):
         """Convert CamelCase or camelCase to snake_case."""
@@ -859,7 +975,8 @@ class QuestionAnalysis:
 
             # Get question information
             questions = [
-                self._report.results.survey.get(qname) for qname in self._question_names
+                self._get_question_or_comment_field(qname)
+                for qname in self._question_names
             ]
 
             # Question Details Section (compact)
@@ -894,7 +1011,11 @@ class QuestionAnalysis:
             if len(self._question_names) == 1:
                 question_name = self._question_names[0]
                 question = questions[0]
-                answers = self._report.results.get_answers(question_name)
+                # Get answers using the correct column (answer.* or comment.*)
+                from .comment_field import get_data_column_name
+
+                column_name = get_data_column_name(question)
+                answers = self._report.results.select(column_name).to_list()
                 valid_answers = [a for a in answers if a is not None]
 
                 if valid_answers:
@@ -1084,7 +1205,7 @@ class QuestionAnalysis:
         """Return an HTML representation of the QuestionAnalysis."""
         # Get question information
         questions = [
-            self._report.results.survey.get(qname) for qname in self._question_names
+            self._get_question_or_comment_field(qname) for qname in self._question_names
         ]
 
         # Build HTML
@@ -1120,8 +1241,12 @@ class QuestionAnalysis:
         """
         )
 
-        for qname in self._question_names:
-            responses = self._report.results.select(f"answer.{qname}").to_list()
+        for qname, question in zip(self._question_names, questions):
+            # Get responses using the correct column (answer.* or comment.*)
+            from .comment_field import get_data_column_name
+
+            column_name = get_data_column_name(question)
+            responses = self._report.results.select(column_name).to_list()
 
             # Get first 5 and last 5
             total = len(responses)
@@ -1313,32 +1438,55 @@ class Report(UserDict):
         # ---------------------------------------------------------------------
         # Determine which questions to analyse based on include/exclude filters
         # ---------------------------------------------------------------------
+        from .comment_field import (
+            get_available_comment_fields,
+            is_comment_field,
+            normalize_comment_field,
+        )
 
         all_question_names: list[str] = [
             q.question_name for q in results.survey.questions
         ]
+        all_comment_fields: list[str] = get_available_comment_fields(results)
+        all_analyzable_fields: list[str] = all_question_names + all_comment_fields
 
         # Normalise None to empty list for easier handling later on
         include_questions = (
             list(include_questions)
             if include_questions is not None
-            else all_question_names
+            else all_question_names  # By default, only include questions, not comments
         )
         exclude_questions = (
             list(exclude_questions) if exclude_questions is not None else []
         )
 
-        # Validate provided question names
-        invalid_includes = [q for q in include_questions if q not in all_question_names]
+        # Normalize comment field names in the include/exclude lists
+        include_questions = [
+            normalize_comment_field(q) if is_comment_field(q) else q
+            for q in include_questions
+        ]
+        exclude_questions = [
+            normalize_comment_field(q) if is_comment_field(q) else q
+            for q in exclude_questions
+        ]
+
+        # Validate provided question names and comment fields
+        invalid_includes = [
+            q for q in include_questions if q not in all_analyzable_fields
+        ]
         if invalid_includes:
             raise ValueError(
-                f"Unknown question names in include_questions: {invalid_includes}"
+                f"Unknown question names or comment fields in include_questions: {invalid_includes}. "
+                f"Available fields: {all_analyzable_fields}"
             )
 
-        invalid_excludes = [q for q in exclude_questions if q not in all_question_names]
+        invalid_excludes = [
+            q for q in exclude_questions if q not in all_analyzable_fields
+        ]
         if invalid_excludes:
             raise ValueError(
-                f"Unknown question names in exclude_questions: {invalid_excludes}"
+                f"Unknown question names or comment fields in exclude_questions: {invalid_excludes}. "
+                f"Available fields: {all_analyzable_fields}"
             )
 
         # Apply exclusion
@@ -1351,6 +1499,10 @@ class Report(UserDict):
             question_type_map = {
                 q.question_name: q.question_type for q in results.survey.questions
             }
+            # Add comment fields to the type map (they're always free_text)
+            for comment_field in all_comment_fields:
+                question_type_map[comment_field] = "free_text"
+
             filtered_questions = [
                 q
                 for q in filtered_questions
@@ -1624,13 +1776,14 @@ class Report(UserDict):
 
     def analyze(self, *question_names):
         """
-        Get a QuestionAnalysis object for convenient access to all outputs for specific question(s).
+        Get a QuestionAnalysis object for convenient access to all outputs for specific question(s) or comment fields.
 
         Args:
-            *question_names: One or more question names. Can be passed as:
-                - Single string: analyze('gender')
+            *question_names: One or more question names or comment field names. Can be passed as:
+                - Single string: analyze('gender') or analyze('gender_comment')
                 - Multiple strings: analyze('gender', 'employment')
                 - Comma-separated string: analyze('gender,employment')
+                - Mixed questions and comments: analyze('gender', 'gender_comment')
 
         Returns:
             QuestionAnalysis object with dot notation access to outputs
@@ -1642,6 +1795,11 @@ class Report(UserDict):
             analysis.frequency_table  # Get the frequency table
             analysis.list_outputs()  # See all available outputs
 
+            # Single comment field (always treated as free text)
+            analysis = report.analyze('gender_comment')
+            analysis.word_cloud  # Get word cloud of comments
+            analysis.frequency_table  # Get frequency table of comments
+
             # Multiple questions (interaction)
             analysis = report.analyze('gender', 'employment')
             analysis.heatmap
@@ -1652,8 +1810,10 @@ class Report(UserDict):
             analysis.heatmap
 
         Note:
-            For pairwise analyses, order matters! analyze('q1', 'q2') and analyze('q2', 'q1')
-            will produce different visualizations (e.g., different axes in charts).
+            - For pairwise analyses, order matters! analyze('q1', 'q2') and analyze('q2', 'q1')
+              will produce different visualizations (e.g., different axes in charts).
+            - Comment fields are always treated as free_text question types.
+            - Comment field names can be specified as 'question_name_comment' or 'comment.question_name_comment'.
         """
         # Parse the question names
         if len(question_names) == 1 and "," in question_names[0]:
@@ -1671,9 +1831,56 @@ class Report(UserDict):
 
         # Check if this analysis exists in the report
         if key not in self:
-            print_error(f"Analysis for {parsed_names} not found in report.")
-            print_info(f"Available analyses: {list(self.keys())}")
-            return None
+            # Try to create the analysis on-demand
+            from .comment_field import (
+                get_available_comment_fields,
+                is_comment_field,
+                normalize_comment_field,
+            )
+
+            all_question_names = [
+                q.question_name for q in self.results.survey.questions
+            ]
+            all_comment_fields = get_available_comment_fields(self.results)
+            all_analyzable_fields = all_question_names + all_comment_fields
+
+            # Normalize comment field names
+            normalized_names = [
+                normalize_comment_field(name) if is_comment_field(name) else name
+                for name in parsed_names
+            ]
+
+            # Validate that all fields exist
+            invalid_fields = [
+                name for name in normalized_names if name not in all_analyzable_fields
+            ]
+            if invalid_fields:
+                print_error(
+                    f"Analysis for {parsed_names} not found in report and fields are invalid."
+                )
+                print_error(f"Invalid fields: {invalid_fields}")
+                print_info(f"Available fields: {all_analyzable_fields}")
+                return None
+
+            # Create the analysis on-demand
+            try:
+                research_item = Research(
+                    self.results,
+                    normalized_names,
+                    free_text_sample_config=self.free_text_sample_config,
+                )
+                # Add to the report's dictionary
+                normalized_key = tuple(normalized_names)
+                self[normalized_key] = research_item.generated_outputs
+                key = normalized_key  # Use the normalized key
+            except Exception as e:
+                print_error(
+                    f"Failed to create analysis for {parsed_names} on-demand: {e}"
+                )
+                import traceback
+
+                traceback.print_exc()
+                return None
 
         # Get the output dictionary for these questions
         output_dict = self[key]

@@ -103,16 +103,84 @@ Example:
 .. code-block:: python
 
     from edsl import Dataset
-    
+
     # Create a dataset
     d = Dataset([
         {'name': ['Alice', 'Bob', 'Charlie', 'David']},
         {'age': [25, 32, 45, 19]},
         {'city': ['New York', 'Los Angeles', 'Chicago', 'Boston']}
     ])
-    
+
     # Display with rich formatting
     d.table(tablefmt="rich")
+
+Configuring Default Table Renderer
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+EDSL provides multiple table renderers for displaying datasets in Jupyter notebooks and other environments. You can configure the default renderer globally:
+
+Available Renderers
+~~~~~~~~~~~~~~~~~~~
+
+1. **pandas** (default) - Uses pandas styling with background gradients
+2. **datatables** - Interactive tables with sorting, searching, and pagination
+3. **rich** - Terminal-optimized display with colors and formatting
+
+Setting the Default Renderer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use ``modify_settings()`` to change the default renderer for all tables:
+
+.. code-block:: python
+
+    from edsl import modify_settings
+
+    # Use DataTables for interactive tables
+    modify_settings(EDSL_DEFAULT_TABLE_RENDERER="datatables")
+
+    # Use pandas styling (default)
+    modify_settings(EDSL_DEFAULT_TABLE_RENDERER="pandas")
+
+    # Use rich formatting
+    modify_settings(EDSL_DEFAULT_TABLE_RENDERER="rich")
+
+This setting is saved to your ``.env`` file and persists across sessions.
+
+Per-Table Renderer Override
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can override the default renderer for a specific table:
+
+.. code-block:: python
+
+    from edsl.dataset.display.table_display import TableDisplay
+    from edsl.dataset.display.table_renderers import DataTablesRenderer
+
+    # Create a table with a specific renderer
+    table = TableDisplay.from_dataset(dataset, renderer_class=DataTablesRenderer)
+
+Viewing and Managing Settings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To view your current configuration:
+
+.. code-block:: python
+
+    from edsl import show_settings
+
+    # Display all current settings
+    show_settings()
+
+To update multiple settings at once:
+
+.. code-block:: python
+
+    from edsl import modify_settings
+
+    modify_settings(
+        EDSL_DEFAULT_TABLE_RENDERER="datatables",
+        EDSL_VERBOSE_MODE="True"
+    )
 
 Data Manipulation
 ---------------

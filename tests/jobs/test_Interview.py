@@ -14,7 +14,7 @@ def create_survey():
         for i in range(num_questions):
             if take_scenario:
                 q = QuestionFreeText(
-                    question_text=f"XX{i}XX and {{scenario_value }}",
+                    question_text=f"XX{i}XX and {{{{scenario_value}}}}",
                     question_name=f"question_{i}",
                 )
             else:

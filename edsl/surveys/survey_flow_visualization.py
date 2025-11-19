@@ -30,7 +30,12 @@ class SurveyFlowVisualization:
         # self.scenario = Scenario({'hello': 'world'})
 
     def show_flow(self, filename: Optional[str] = None):
-        """Create an image showing the flow of users through the survey and question parameters."""
+        """Create an image showing the flow of users through the survey and question parameters.
+
+        In marimo notebooks, returns a PIL Image that will be displayed automatically.
+        In Jupyter/Colab, displays the image inline using IPython.display.
+        Otherwise, opens the image in the system viewer.
+        """
         # Create a graph object
         import pydot
 
@@ -246,14 +251,23 @@ class SurveyFlowVisualization:
                     """
                 )
             from edsl.utilities.is_notebook import is_notebook
+            import sys
 
             if is_notebook():
-                from IPython.display import Image, display
+                # Check if we're in marimo
+                if "marimo" in sys.modules:
+                    # marimo can display PIL Images directly
+                    from PIL import Image as PILImage
 
-                display(Image(tmp_file.name))
+                    img = PILImage.open(tmp_file.name)
+                    return img
+                else:
+                    # Jupyter/Colab: use IPython display
+                    from IPython.display import Image, display
+
+                    display(Image(tmp_file.name))
             else:
                 import os
-                import sys
 
                 if os.name == "nt":  # Windows
                     os.system(f"start {tmp_file.name}")

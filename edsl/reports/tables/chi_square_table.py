@@ -15,15 +15,15 @@ class ChiSquareTable(TableOutput):
         super().__init__(results, *question_names)
 
         # Get questions
-        self.q1 = self.results.survey.get(self.question_names[0])
-        self.q2 = self.results.survey.get(self.question_names[1])
+        self.q1 = self.questions[0]
+        self.q2 = self.questions[1]
 
         # Get answers
         self.answers1 = self.results.select(
-            f"answer.{self.question_names[0]}"
+            self.get_data_column(self.questions[0])
         ).to_list()
         self.answers2 = self.results.select(
-            f"answer.{self.question_names[1]}"
+            self.get_data_column(self.questions[1])
         ).to_list()
 
     @property

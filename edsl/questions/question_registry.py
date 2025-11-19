@@ -124,7 +124,7 @@ class Question(metaclass=Meta):
 
         >>> from edsl import Question
         >>> Question.list_question_types()
-        ['checkbox', 'compute', 'demand', 'dict', 'edsl_object', 'extract', 'file_upload', 'free_text', 'functional', 'likert_five', 'linear_scale', 'list', 'markdown', 'matrix', 'multiple_choice', 'multiple_choice_with_other', 'numerical', 'pydantic', 'rank', 'top_k', 'yes_no']
+        ['checkbox', 'compute', 'demand', 'dict', 'edsl_object', 'extract', 'file_upload', 'free_text', 'functional', 'likert_five', 'linear_scale', 'list', 'markdown', 'matrix', 'multiple_choice', 'multiple_choice_with_other', 'numerical', 'pydantic', 'random', 'rank', 'top_k', 'yes_no']
         """
         return [
             q
