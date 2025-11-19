@@ -181,12 +181,12 @@ class PandasStyleRenderer(DataTablesRendererABC):
         <style>
             .edsl-table {
                 border-collapse: collapse;
-                width: 100%;
+                width: auto;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
                 font-size: 12px;
             }
             .edsl-table th {
-                background-color: rgba(127, 127, 127, 0.1);
+                background-color: #f8f9fa;
                 font-weight: 600;
                 padding: 12px 8px;
                 text-align: left;
@@ -197,14 +197,15 @@ class PandasStyleRenderer(DataTablesRendererABC):
                 top: 0;
                 z-index: 10;
                 white-space: nowrap;
-                min-width: fit-content;
+                min-width: 120px;
             }
             .edsl-table td {
                 padding: 8px;
                 text-align: left;
                 vertical-align: top;
                 white-space: pre-wrap;
-                max-width: 300px;
+                min-width: 120px;
+                max-width: 400px;
                 word-wrap: break-word;
                 border: 1px solid rgba(127, 127, 127, 0.3);
             }
@@ -220,7 +221,7 @@ class PandasStyleRenderer(DataTablesRendererABC):
 
         # Start table
         html_parts.append(
-            '<div style="max-height: 500px; overflow: auto; width: 100%;"><table class="edsl-table">'
+            '<div style="max-height: 500px; overflow-x: auto; overflow-y: auto; width: 100%;"><table class="edsl-table">'
         )
 
         # Add header
