@@ -174,6 +174,7 @@ class PandasStyleRenderer(DataTablesRendererABC):
 
         # Generate unique ID for this table instance
         import uuid
+
         unique_id = uuid.uuid4().hex[:8]
         table_id = f"pandas-table-{unique_id}"
 
@@ -319,7 +320,9 @@ class PandasStyleRenderer(DataTablesRendererABC):
                     cell_val = str(row[col_idx]).strip()
                     try:
                         # Try to parse as float
-                        num_val = float(cell_val.replace(',', ''))  # Handle comma separators
+                        num_val = float(
+                            cell_val.replace(",", "")
+                        )  # Handle comma separators
                         column_values.append(num_val)
                     except (ValueError, TypeError):
                         # Not a number, skip this column
@@ -335,9 +338,13 @@ class PandasStyleRenderer(DataTablesRendererABC):
                     if col_idx < len(row) and row[col_idx] is not None:
                         cell_val = str(row[col_idx]).strip()
                         try:
-                            num_val = float(cell_val.replace(',', ''))
+                            num_val = float(cell_val.replace(",", ""))
                             # Find percentile (0-100)
-                            percentile = (sum(1 for v in column_values if v <= num_val) - 1) / (n - 1) * 100
+                            percentile = (
+                                (sum(1 for v in column_values if v <= num_val) - 1)
+                                / (n - 1)
+                                * 100
+                            )
                             percentiles[row_idx] = min(100, max(0, percentile))
                         except (ValueError, TypeError):
                             pass
@@ -364,7 +371,6 @@ class PandasStyleRenderer(DataTablesRendererABC):
         html_parts.append("</table></div>")
 
         # Add JavaScript for conditional formatting
-        import json
         html_parts.append(
             f"""
             <script>

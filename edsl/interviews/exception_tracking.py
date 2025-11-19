@@ -101,10 +101,10 @@ class InterviewExceptionEntry:
         lines = []
         lines.append("from edsl import Question, Model, Scenario, Agent")
 
-        lines.append(f"q = {repr(self.invigilator.question)}")
-        lines.append(f"scenario = {repr(self.invigilator.scenario)}")
-        lines.append(f"agent = {repr(self.invigilator.agent)}")
-        lines.append(f"model = {repr(self.invigilator.model)}")
+        lines.append(f"q = {self.invigilator.question._eval_repr_()}")
+        lines.append(f"scenario = {self.invigilator.scenario._eval_repr_()}")
+        lines.append(f"agent = {self.invigilator.agent._eval_repr_()}")
+        lines.append(f"model = {self.invigilator.model._eval_repr_()}")
         lines.append("results = q.by(model).by(agent).by(scenario).run()")
         code_str = "\n".join(lines)
 
