@@ -172,21 +172,28 @@ class PandasStyleRenderer(DataTablesRendererABC):
         if not self.table_data.data and not self.table_data.headers:
             return "<p>Empty table</p>"
 
+        # Generate unique ID for this table instance
+        import uuid
+        unique_id = uuid.uuid4().hex[:8]
+        table_id = f"pandas-table-{unique_id}"
+
         # Build HTML table manually for better compatibility
         html_parts = []
 
         # Add styles
         html_parts.append(
-            """
+            f"""
         <style>
-            .edsl-table {
+            .edsl-table-{unique_id} {{
                 border-collapse: collapse;
                 width: auto;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
                 font-size: 12px;
-            }
-            .edsl-table th {
-                background-color: #f8f9fa;
+            }}
+            .edsl-table-{unique_id} th {{
+                background-color: rgba(127, 127, 127, 0.2);
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
                 font-weight: 600;
                 padding: 12px 8px;
                 text-align: left;
@@ -198,8 +205,20 @@ class PandasStyleRenderer(DataTablesRendererABC):
                 z-index: 10;
                 white-space: nowrap;
                 min-width: 120px;
-            }
-            .edsl-table td {
+            }}
+            @media (prefers-color-scheme: light) {{
+                .edsl-table-{unique_id} th {{
+                    background-color: rgba(248, 249, 250, 0.9);
+                    color: #333;
+                }}
+            }}
+            @media (prefers-color-scheme: dark) {{
+                .edsl-table-{unique_id} th {{
+                    background-color: rgba(40, 44, 52, 0.9);
+                    color: #e6e6e6;
+                }}
+            }}
+            .edsl-table-{unique_id} td {{
                 padding: 8px;
                 text-align: left;
                 vertical-align: top;
@@ -208,20 +227,80 @@ class PandasStyleRenderer(DataTablesRendererABC):
                 max-width: 400px;
                 word-wrap: break-word;
                 border: 1px solid rgba(127, 127, 127, 0.3);
-            }
-            .edsl-table tbody tr:nth-child(odd) {
+            }}
+            .edsl-table-{unique_id} tbody tr:nth-child(odd) {{
                 background-color: rgba(127, 127, 127, 0.05);
-            }
-            .edsl-table tbody tr:hover {
+            }}
+            .edsl-table-{unique_id} tbody tr:hover {{
                 background-color: rgba(59, 130, 246, 0.15);
-            }
+            }}
+            .toggle-container-{unique_id} {{
+                display: flex;
+                justify-content: flex-end;
+                align-items: center;
+                margin-bottom: 5px;
+                font-size: 11px;
+                color: #666;
+            }}
+            .toggle-switch-{unique_id} {{
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+            }}
+            .toggle-switch-{unique_id} input {{
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }}
+            .toggle-slider-{unique_id} {{
+                position: relative;
+                display: inline-block;
+                width: 36px;
+                height: 20px;
+                background-color: #ccc;
+                border-radius: 20px;
+                cursor: pointer;
+                transition: background-color 0.3s;
+            }}
+            .toggle-slider-{unique_id}:before {{
+                content: "";
+                position: absolute;
+                height: 14px;
+                width: 14px;
+                left: 3px;
+                bottom: 3px;
+                background-color: white;
+                border-radius: 50%;
+                transition: transform 0.3s;
+            }}
+            .toggle-switch-{unique_id} input:checked + .toggle-slider-{unique_id} {{
+                background-color: #007bff;
+            }}
+            .toggle-switch-{unique_id} input:checked + .toggle-slider-{unique_id}:before {{
+                transform: translateX(16px);
+            }}
         </style>
         """
         )
 
+        # Add toggle for conditional formatting
+        html_parts.append(
+            f"""
+            <div class="toggle-container-{unique_id}">
+                <label class="toggle-switch-{unique_id}">
+                    <span style="order: -1;">Off</span>
+                    <input type="checkbox" id="toggle-heatmap-{unique_id}" onchange="window.toggleHeatmap_{unique_id}(this.checked)">
+                    <span class="toggle-slider-{unique_id}"></span>
+                    <span>Heat Map</span>
+                </label>
+            </div>
+            """
+        )
+
         # Start table
         html_parts.append(
-            '<div style="max-height: 500px; overflow-x: auto; overflow-y: auto; width: 100%;"><table class="edsl-table">'
+            f'<div style="max-height: 500px; overflow-x: auto; overflow-y: auto; width: 100%;"><table id="{table_id}" class="edsl-table-{unique_id}">'
         )
 
         # Add header
@@ -231,18 +310,90 @@ class PandasStyleRenderer(DataTablesRendererABC):
             html_parts.append(f"<th>{escaped_header}</th>")
         html_parts.append("</tr></thead>")
 
-        # Add body
+        # Detect numeric columns and calculate percentiles
+        numeric_columns = {}
+        for col_idx, header in enumerate(self.table_data.headers):
+            column_values = []
+            for row in self.table_data.data:
+                if col_idx < len(row) and row[col_idx] is not None:
+                    cell_val = str(row[col_idx]).strip()
+                    try:
+                        # Try to parse as float
+                        num_val = float(cell_val.replace(',', ''))  # Handle comma separators
+                        column_values.append(num_val)
+                    except (ValueError, TypeError):
+                        # Not a number, skip this column
+                        break
+
+            # If we have at least 2 numeric values, treat as numeric column
+            if len(column_values) >= 2:
+                # Calculate percentiles
+                column_values.sort()
+                n = len(column_values)
+                percentiles = {}
+                for row_idx, row in enumerate(self.table_data.data):
+                    if col_idx < len(row) and row[col_idx] is not None:
+                        cell_val = str(row[col_idx]).strip()
+                        try:
+                            num_val = float(cell_val.replace(',', ''))
+                            # Find percentile (0-100)
+                            percentile = (sum(1 for v in column_values if v <= num_val) - 1) / (n - 1) * 100
+                            percentiles[row_idx] = min(100, max(0, percentile))
+                        except (ValueError, TypeError):
+                            pass
+                numeric_columns[col_idx] = percentiles
+
+        # Add body with data attributes for conditional formatting
         html_parts.append("<tbody>")
-        for row in self.table_data.data:
+        for row_idx, row in enumerate(self.table_data.data):
             html_parts.append("<tr>")
-            for cell in row:
+            for col_idx, cell in enumerate(row):
                 escaped_cell = escape_and_colorize_html(cell).replace("$", "\\$")
-                html_parts.append(f"<td>{escaped_cell}</td>")
+
+                # Add data attribute if this is a numeric cell
+                data_attr = ""
+                if col_idx in numeric_columns and row_idx in numeric_columns[col_idx]:
+                    percentile = numeric_columns[col_idx][row_idx]
+                    data_attr = f' data-percentile="{percentile:.1f}"'
+
+                html_parts.append(f"<td{data_attr}>{escaped_cell}</td>")
             html_parts.append("</tr>")
         html_parts.append("</tbody>")
 
         # Close table
         html_parts.append("</table></div>")
+
+        # Add JavaScript for conditional formatting
+        import json
+        html_parts.append(
+            f"""
+            <script>
+                (function() {{
+                    const tableId = '{table_id}';
+                    let heatmapEnabled = false;
+
+                    window.toggleHeatmap_{unique_id} = function(enabled) {{
+                        heatmapEnabled = enabled;
+                        const table = document.getElementById(tableId);
+                        if (!table) return;
+
+                        const cells = table.querySelectorAll('td[data-percentile]');
+                        cells.forEach(cell => {{
+                            if (enabled) {{
+                                const percentile = parseFloat(cell.getAttribute('data-percentile'));
+                                // Single color intensity: light blue to dark blue
+                                const intensity = percentile / 100;
+                                const alpha = 0.1 + (intensity * 0.6); // From 10% to 70% opacity
+                                cell.style.backgroundColor = `rgba(59, 130, 246, ${{alpha}})`;
+                            }} else {{
+                                cell.style.backgroundColor = '';
+                            }}
+                        }});
+                    }};
+                }})();
+            </script>
+            """
+        )
 
         return "".join(html_parts)
 
