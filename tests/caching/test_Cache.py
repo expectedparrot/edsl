@@ -172,11 +172,5 @@ def test_caching():
     print(results1)
     print("####")
     print(results2)
-    print("Dict comparison ####")
-    print(results1.to_dict())
-    print(results2.to_dict())
-    print("Hash comparison ####")
-    print(hash(results1))
-    print(hash(results2))
     assert results1 == results2
     # assert results.select("raw_model_response.how_are_you_raw_model_response").first()

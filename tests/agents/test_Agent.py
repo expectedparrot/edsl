@@ -119,20 +119,28 @@ def test_agent_dyanmic_traits():
     assert a.traits == {"age": 30}
 
 
-# def test_agent_dynamic_traits_answering():
-#     from edsl import Agent
-#     from edsl import Model
-#     from edsl import QuestionFreeText
+def test_agent_dynamic_traits_answering():
+    from edsl import Agent
+    from edsl import Model
+    from edsl import QuestionFreeText
 
-#     def dynamic_traits_function(question):
-#         if question.question_name == "age":
-#             return {"age": 10}
-#         elif question.question_name == "hair":
-#             return {"hair": "brown"}
+    def dynamic_traits_function(question):
+        if question.question_name == "age":
+            return {"age": 10}
+        elif question.question_name == "hair":
+            return {"hair": "brown"}
 
-#     a = Agent(dynamic_traits_function=dynamic_traits_function)
+    a = Agent(dynamic_traits_function=dynamic_traits_function)
 
-#     q = QuestionFreeText(question_name="age", question_text="How old are you?")
-#     m = Model("test")
-#     results = q.by(m).by(a).run(disable_remote_inference=True, disable_remote_cache=True, stop_on_exception=True)
-#     assert results.select("answer.age").to_list()
+    q = QuestionFreeText(question_name="age", question_text="How old are you?")
+    m = Model("gpt-4o-mini")
+    results = (
+        q.by(m)
+        .by(a)
+        .run(
+            disable_remote_inference=True,
+            disable_remote_cache=True,
+            stop_on_exception=True,
+        )
+    )
+    assert results.select("answer.age").to_list()
