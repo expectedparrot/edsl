@@ -939,7 +939,17 @@ class LanguageModel(
                     flush=True,
                 )
 
-            response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
+            # In Python 3.14+, asyncio.wait_for() requires the calling coroutine to be in a task context.
+            # To work around this, we wrap the wait_for call itself in a task to ensure it has task context.
+            coro = f(**params)
+
+            async def _run_with_wait_for():
+                """Helper to run wait_for within a task context."""
+                return await asyncio.wait_for(coro, timeout=TIMEOUT)
+
+            # Always wrap in a task to ensure wait_for has the required task context
+            timeout_task = asyncio.create_task(_run_with_wait_for())
+            response = await timeout_task
 
             # Store the response in the cache
             new_cache_key = cache.store(
