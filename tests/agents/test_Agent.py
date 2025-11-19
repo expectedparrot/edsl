@@ -133,7 +133,7 @@ def test_agent_dynamic_traits_answering():
     a = Agent(dynamic_traits_function=dynamic_traits_function)
 
     q = QuestionFreeText(question_name="age", question_text="How old are you?")
-    m = Model("gpt-4o-mini")
+    m = Model("test")
     results = (
         q.by(m)
         .by(a)
