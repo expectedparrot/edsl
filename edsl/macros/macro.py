@@ -261,16 +261,52 @@ class Macro(BaseMacro):
         self._initialized = True
 
     @disabled_in_client_mode
-    def push(self, *args, **kwargs) -> dict:
+    def push(self, *args, force: bool = False, **kwargs) -> dict:
         """Push the macro to the server.
 
-        Uses the Base class 'push' method.
+        Args:
+            force: If True, patch the existing object instead of creating a new one.
+                   Prints a message indicating the patching operation.
+            *args: Positional arguments passed to the base push method.
+            **kwargs: Keyword arguments passed to the base push method.
+
+        Uses the Base class 'push' method or 'patch' method when force=True.
         """
         if "alias" not in kwargs:
             kwargs["alias"] = self.alias()
         if "description" not in kwargs:
             kwargs["description"] = self.short_description
-        return super().push(*args, **kwargs)
+
+        if force:
+            # When force=True, patch the existing object instead of pushing a new one
+            print(f"Force mode enabled: patching existing macro '{kwargs['alias']}' instead of creating new version")
+
+            try:
+                from edsl.coop import Coop
+                from edsl.config import CONFIG
+                coop = Coop()
+
+                # Get current username from profile
+                profile = coop.get_profile()
+                username = profile["username"]
+
+                # Construct full URL format for patching (like pull method does)
+                alias_url = f"{CONFIG.EXPECTED_PARROT_URL}/content/{username}/{kwargs['alias']}"
+
+                # Patch the existing object
+                return self.patch(
+                    url_or_uuid=alias_url,
+                    description=kwargs.get("description"),
+                    value=self,
+                    visibility=kwargs.get("visibility")
+                )
+
+            except Exception as e:
+                print(f"Error during force patch: {e}")
+                print("Falling back to regular push...")
+                return super().push(*args, **kwargs)
+        else:
+            return super().push(*args, **kwargs)
 
     @disabled_in_client_mode
     def to_dict_for_client(self) -> dict:
