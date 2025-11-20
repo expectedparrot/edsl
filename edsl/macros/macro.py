@@ -279,11 +279,14 @@ class Macro(BaseMacro):
 
         if force:
             # When force=True, patch the existing object instead of pushing a new one
-            print(f"Force mode enabled: patching existing macro '{kwargs['alias']}' instead of creating new version")
+            print(
+                f"Force mode enabled: patching existing macro '{kwargs['alias']}' instead of creating new version"
+            )
 
             try:
                 from edsl.coop import Coop
                 from edsl.config import CONFIG
+
                 coop = Coop()
 
                 # Get current username from profile
@@ -291,14 +294,16 @@ class Macro(BaseMacro):
                 username = profile["username"]
 
                 # Construct full URL format for patching (like pull method does)
-                alias_url = f"{CONFIG.EXPECTED_PARROT_URL}/content/{username}/{kwargs['alias']}"
+                alias_url = (
+                    f"{CONFIG.EXPECTED_PARROT_URL}/content/{username}/{kwargs['alias']}"
+                )
 
                 # Patch the existing object
                 return self.patch(
                     url_or_uuid=alias_url,
                     description=kwargs.get("description"),
                     value=self,
-                    visibility=kwargs.get("visibility")
+                    visibility=kwargs.get("visibility"),
                 )
 
             except Exception as e:

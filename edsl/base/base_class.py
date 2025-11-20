@@ -187,7 +187,7 @@ class PersistenceMixin:
         alias: Optional[str] = None,
         visibility: Optional[str] = "unlisted",
         expected_parrot_url: Optional[str] = None,
-        overwrite: bool = False,
+        force: bool = False,
     ) -> dict:
         """
         Get a signed URL for directly uploading an object to Google Cloud Storage.
@@ -196,7 +196,11 @@ class PersistenceMixin:
         especially for large files, by generating a direct signed URL to the storage bucket.
 
         Args:
-            expected_parrot_url (str, optional): Optional custom URL for the coop service
+            description: Optional text description of the object
+            alias: Optional human-readable identifier for the object
+            visibility: Access level setting ("private", "unlisted", or "public")
+            expected_parrot_url: Optional custom URL for the coop service
+            force: If True, patch existing object instead of creating new one when alias conflicts occur.
 
         Returns:
             dict: A response containing the signed_url for direct upload and optionally a job_id
@@ -211,7 +215,7 @@ class PersistenceMixin:
         from edsl.coop import Coop
 
         c = Coop(url=expected_parrot_url)
-        return c.push(self, description, alias, visibility, overwrite)
+        return c.push(self, description, alias, visibility, force)
 
     def to_yaml(self, add_edsl_version=False, filename: str = None) -> Union[str, None]:
         """Convert the object to YAML format.
