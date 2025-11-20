@@ -66,6 +66,61 @@ check-status: ## Show status of pre-push checks for current commit
 find: ## Search for a pattern. Use `make find term="pattern"`
 	@find . -type d \( -name '.venv' -o -name '__pycache__' \) -prune -o -type f -print | xargs grep -l "$(term)"
 
+###############
+##@Environment Management 🔧
+###############
+#
+# Manage multiple .env configurations for different scenarios (testing, prod, dev, etc.)
+#
+# HOW IT WORKS:
+# - Environment files: .env.testing, .env.prod, .env.dev, etc. (these are your "source" files)
+# - Working file: .env (this is what you always edit during development)
+# - Active tracking: .env.current (tracks which environment is currently loaded)
+# - Bidirectional sync: Changes to .env are saved back to source files when switching
+#
+# TYPICAL WORKFLOW:
+# 1. Create your environments:
+#    make env-create name=testing
+#    make env-create name=prod
+#
+# 2. Switch between environments:
+#    make env testing          # Load .env.testing → .env, save any previous changes
+#    # ... edit .env normally during development ...
+#    make env prod             # Save .env → .env.testing, load .env.prod → .env
+#
+# 3. Your changes persist in each environment automatically!
+#
+# COMMANDS:
+env-list: ## List all available environment configurations
+	@python scripts/env_manager.py list
+
+env-current: ## Show the currently active environment (and working/source file paths)
+	@python scripts/env_manager.py current
+
+env-create: ## Create new environment file. Ex: make env-create name=testing
+	@if [ -z "$(name)" ]; then \
+		echo "Usage: make env-create name=<env-name>"; \
+		echo "Example: make env-create name=testing"; \
+		exit 1; \
+	fi
+	@python scripts/env_manager.py create $(name)
+
+env-save: ## Manually save current .env back to its source (auto-saved when switching)
+	@python scripts/env_manager.py save
+
+env-backup: ## Create timestamped backup of current .env (e.g., .env.backup.20231120_143022)
+	@python scripts/env_manager.py backup
+
+env: ## Switch environments with bidirectional sync. Ex: make env testing, make env prod
+	@if [ -z "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		echo "Usage: make env <env-name>"; \
+		echo "Examples: make env testing, make env prod"; \
+		echo ""; \
+		python scripts/env_manager.py list; \
+		exit 1; \
+	fi
+	@python scripts/env_manager.py switch $(filter-out $@,$(MAKECMDGOALS))
+
 clean: ## Clean temp files
 	@echo "Cleaning tempfiles..."
 	[ ! -f .coverage ] || rm .coverage
