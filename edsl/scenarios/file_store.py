@@ -1171,6 +1171,127 @@ class FileStore(Scenario):
         with Image.open(self.path) as img:
             return img.size  # Returns (width, height)
 
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the FileStore.
+
+        This representation can be used with eval() to recreate the FileStore object.
+        Used primarily for doctests and debugging.
+        """
+        class_name = self.__class__.__name__
+        items = []
+
+        # Include the most essential parameters for recreation
+        if self._path:
+            items.append(f"path={repr(self._path)}")
+        if self.mime_type != "application/octet-stream":  # Only if not default
+            items.append(f"mime_type={repr(self.mime_type)}")
+        if self.binary:  # Only if True
+            items.append(f"binary={self.binary}")
+        if self.suffix:
+            items.append(f"suffix={repr(self.suffix)}")
+        if self.base64_string and self.base64_string != "offloaded":
+            # Truncate very long base64 strings for readability
+            b64_repr = repr(self.base64_string)
+            if len(b64_repr) > 100:
+                b64_repr = b64_repr[:47] + "..." + b64_repr[-47:]
+            items.append(f"base64_string={b64_repr}")
+        if self.external_locations:
+            items.append(f"external_locations={repr(self.external_locations)}")
+        if self.extracted_text:
+            # Truncate long extracted text for readability
+            text_repr = repr(self.extracted_text)
+            if len(text_repr) > 100:
+                text_repr = text_repr[:47] + "..." + text_repr[-47:]
+            items.append(f"extracted_text={text_repr}")
+
+        return f"{class_name}({', '.join(items)})"
+
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the FileStore with Rich formatting.
+
+        Returns:
+            A Rich-formatted string showing key FileStore information.
+        """
+        from rich.console import Console
+        from rich.text import Text
+        import io
+        from edsl.config import RICH_STYLES
+
+        # Build the Rich text
+        output = Text()
+        class_name = self.__class__.__name__
+
+        output.append(f"{class_name}(\n", style=RICH_STYLES["primary"])
+
+        # File path
+        if self._path:
+            output.append("    path=", style=RICH_STYLES["default"])
+            path_display = self._path
+            if len(path_display) > 50:
+                path_display = "..." + path_display[-47:]
+            output.append(f'"{path_display}"', style=RICH_STYLES["key"])
+            output.append(",\n", style=RICH_STYLES["default"])
+
+        # File size (in human readable format)
+        try:
+            size_bytes = int(self.size)
+            if size_bytes < 1024:
+                size_str = f"{size_bytes} bytes"
+            elif size_bytes < 1024 * 1024:
+                size_str = f"{size_bytes / 1024:.1f} KB"
+            elif size_bytes < 1024 * 1024 * 1024:
+                size_str = f"{size_bytes / (1024 * 1024):.1f} MB"
+            else:
+                size_str = f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
+            output.append("    size=", style=RICH_STYLES["default"])
+            output.append(size_str, style=RICH_STYLES["secondary"])
+            output.append(",\n", style=RICH_STYLES["default"])
+        except:
+            pass
+
+        # MIME type
+        output.append("    mime_type=", style=RICH_STYLES["default"])
+        output.append(f'"{self.mime_type}"', style=RICH_STYLES["secondary"])
+        output.append(",\n", style=RICH_STYLES["default"])
+
+        # File extension
+        output.append("    suffix=", style=RICH_STYLES["default"])
+        output.append(f'"{self.suffix}"', style=RICH_STYLES["secondary"])
+
+        # Binary flag
+        if self.binary:
+            output.append(",\n    binary=", style=RICH_STYLES["default"])
+            output.append("True", style=RICH_STYLES["highlight"])
+
+        # Extracted text availability
+        if self.extracted_text:
+            text_length = len(self.extracted_text)
+            output.append(",\n    ", style=RICH_STYLES["default"])
+            output.append(f"extracted_text_length={text_length}", style=RICH_STYLES["secondary"])
+
+        # External locations
+        if self.external_locations:
+            locations = list(self.external_locations.keys())
+            output.append(",\n    external_locations=", style=RICH_STYLES["default"])
+            output.append(f"{locations}", style=RICH_STYLES["key"])
+
+        # Base64 status
+        if self.base64_string == "offloaded":
+            output.append(",\n    ", style=RICH_STYLES["default"])
+            output.append("status=offloaded", style=RICH_STYLES["dim"])
+        elif self.base64_string:
+            b64_length = len(self.base64_string)
+            output.append(",\n    ", style=RICH_STYLES["default"])
+            output.append(f"base64_length={b64_length}", style=RICH_STYLES["dim"])
+
+        output.append("\n)", style=RICH_STYLES["primary"])
+
+        # Render to string
+        string_io = io.StringIO()
+        console = Console(file=string_io, force_terminal=True, width=120)
+        console.print(output, end="")
+        return string_io.getvalue()
+
     def __getattr__(self, name):
         """
         Delegate pandas DataFrame methods to the underlying DataFrame if this is a CSV file
