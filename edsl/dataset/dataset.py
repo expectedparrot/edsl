@@ -1466,18 +1466,33 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         from collections.abc import Iterable
 
-        # Find the field in the dataset
+        # Find the field in the dataset using flexible lookup
         field_data = None
+        resolved_field_name = None
+        potential_matches = []
+
+        # First try exact match, then suffix match
         for entry in self.data:
             key = list(entry.keys())[0]
-            if key == field:
+            if field == key:
                 field_data = entry[key]
+                resolved_field_name = key
                 break
+            if field == key.split(".")[-1]:
+                potential_matches.append((key, entry[key]))
 
+        # If no exact match found, check suffix matches
         if field_data is None:
-            raise DatasetKeyError(
-                f"Field '{field}' not found in dataset. Available fields are: {self.keys()}"
-            )
+            if len(potential_matches) == 1:
+                resolved_field_name, field_data = potential_matches[0]
+            elif len(potential_matches) > 1:
+                raise DatasetKeyError(
+                    f"Field '{field}' found in more than one location: {[m[0] for m in potential_matches]}. Available fields are: {self.keys()}"
+                )
+            else:
+                raise DatasetKeyError(
+                    f"Field '{field}' not found in dataset. Available fields are: {self.keys()}"
+                )
 
         # Validate that the field contains lists
         if not all(isinstance(v, list) for v in field_data):
@@ -1497,7 +1512,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             key, values = list(entry.items())[0]
             new_values = []
 
-            if key == field:
+            if key == resolved_field_name:
                 # This is the field to expand - flatten all sublists
                 for row_values in values:
                     if not isinstance(row_values, Iterable) or isinstance(
