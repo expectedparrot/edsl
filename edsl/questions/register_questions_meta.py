@@ -10,6 +10,90 @@ class RegisterQuestionsMeta(ABCMeta):
 
     _registry = {}  # Initialize the registry as a dictionary
 
+    def __call__(cls, *args, **kwargs):
+        """
+        Create a new instance with enhanced error handling for initialization.
+
+        This method intercepts question instantiation and provides helpful,
+        EDSL-specific error messages for common initialization mistakes.
+        """
+        from .exceptions import QuestionInitializationError
+        import re
+
+        try:
+            # Attempt normal object creation
+            return super().__call__(*args, **kwargs)
+        except TypeError as e:
+            error_msg = str(e)
+
+            # Check if this is an "unexpected keyword argument" error
+            if "unexpected keyword argument" in error_msg:
+                # Extract the invalid parameter name from the error message
+                match = re.search(r"unexpected keyword argument '([^']+)'", error_msg)
+                invalid_param = match.group(1) if match else "unknown"
+
+                # Get valid parameters by inspecting the __init__ method
+                try:
+                    init_signature = inspect.signature(cls.__init__)
+                    valid_params = [
+                        param_name
+                        for param_name in init_signature.parameters.keys()
+                        if param_name != "self"
+                    ]
+                except Exception:
+                    valid_params = ["question_name", "question_text"]  # fallback
+
+                # Create enhanced error message
+                question_type = getattr(cls, "question_type", cls.__name__)
+
+                raise QuestionInitializationError(
+                    f"Unknown parameter '{invalid_param}' for {cls.__name__}",
+                    question_type=question_type,
+                    invalid_parameter=invalid_param,
+                    valid_parameters=valid_params,
+                ) from e
+
+            elif "missing" in error_msg and "required positional argument" in error_msg:
+                # Handle missing required parameters
+                try:
+                    init_signature = inspect.signature(cls.__init__)
+                    valid_params = [
+                        param_name
+                        for param_name in init_signature.parameters.keys()
+                        if param_name != "self"
+                    ]
+                except Exception:
+                    valid_params = ["question_name", "question_text"]  # fallback
+
+                question_type = getattr(cls, "question_type", cls.__name__)
+
+                raise QuestionInitializationError(
+                    f"Missing required parameters for {cls.__name__}: {error_msg}",
+                    question_type=question_type,
+                    valid_parameters=valid_params,
+                    suggested_fix="Ensure you provide all required parameters",
+                ) from e
+
+            else:
+                # For other TypeErrors, still convert to EDSL exception but with less specific info
+                try:
+                    init_signature = inspect.signature(cls.__init__)
+                    valid_params = [
+                        param_name
+                        for param_name in init_signature.parameters.keys()
+                        if param_name != "self"
+                    ]
+                except Exception:
+                    valid_params = []
+
+                question_type = getattr(cls, "question_type", cls.__name__)
+
+                raise QuestionInitializationError(
+                    f"Failed to initialize {cls.__name__}: {error_msg}",
+                    question_type=question_type,
+                    valid_parameters=valid_params,
+                ) from e
+
     def __init__(cls, name, bases, dct):
         """Initialize the class and adds it to the registry if it's not the base class."""
         super(RegisterQuestionsMeta, cls).__init__(name, bases, dct)

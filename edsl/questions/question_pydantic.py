@@ -214,8 +214,7 @@ class QuestionPydantic(QuestionBase):
                                   question, overrides default presentation.
 
         Raises:
-            TypeError: If pydantic_model is not a Pydantic BaseModel subclass.
-            ValueError: If neither pydantic_model nor pydantic_model_schema is provided.
+            QuestionInitializationError: If initialization parameters are invalid or misspelled.
 
         Examples:
             >>> from pydantic import BaseModel
@@ -232,6 +231,8 @@ class QuestionPydantic(QuestionBase):
             >>> q.user_pydantic_model == Product
             True
         """
+        from .exceptions import QuestionInitializationError
+
         self.question_name = question_name
         self.question_text = question_text
         self.answering_instructions = answering_instructions
@@ -245,9 +246,12 @@ class QuestionPydantic(QuestionBase):
                 isinstance(pydantic_model, type)
                 and issubclass(pydantic_model, BaseModel)
             ):
-                raise TypeError(
-                    f"pydantic_model must be a Pydantic BaseModel subclass, "
-                    f"got {type(pydantic_model)}"
+                raise QuestionInitializationError(
+                    f"The 'pydantic_model' parameter must be a Pydantic BaseModel subclass, "
+                    f"but got {type(pydantic_model).__name__}",
+                    question_type="QuestionPydantic",
+                    invalid_parameter="pydantic_model",
+                    suggested_fix="Ensure you're passing a class that inherits from pydantic.BaseModel",
                 )
         elif pydantic_model_schema is not None:
             # Reconstruct model from schema (deserialization path)
@@ -255,8 +259,10 @@ class QuestionPydantic(QuestionBase):
                 pydantic_model_schema
             )
         else:
-            raise ValueError(
-                "Either pydantic_model or pydantic_model_schema must be provided"
+            raise QuestionInitializationError(
+                "QuestionPydantic requires either 'pydantic_model' or 'pydantic_model_schema' parameter",
+                question_type="QuestionPydantic",
+                suggested_fix="Provide either a pydantic_model (Pydantic class) or pydantic_model_schema (dict)",
             )
 
     @staticmethod
