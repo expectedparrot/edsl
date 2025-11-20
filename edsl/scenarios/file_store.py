@@ -1246,7 +1246,7 @@ class FileStore(Scenario):
             output.append("    size=", style=RICH_STYLES["default"])
             output.append(size_str, style=RICH_STYLES["secondary"])
             output.append(",\n", style=RICH_STYLES["default"])
-        except:
+        except (ValueError, TypeError):
             pass
 
         # MIME type
@@ -1267,7 +1267,9 @@ class FileStore(Scenario):
         if self.extracted_text:
             text_length = len(self.extracted_text)
             output.append(",\n    ", style=RICH_STYLES["default"])
-            output.append(f"extracted_text_length={text_length}", style=RICH_STYLES["secondary"])
+            output.append(
+                f"extracted_text_length={text_length}", style=RICH_STYLES["secondary"]
+            )
 
         # External locations
         if self.external_locations:
