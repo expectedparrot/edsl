@@ -1192,7 +1192,224 @@ class Survey(Base):
                     f"New group overlaps with the end of existing group {existing_group_name}."
                 )
 
+        # Validate that questions in the group can be fully rendered
+        self._validate_group_dependencies(start_index, end_index, group_name)
+
         self.question_groups[group_name] = (start_index, end_index)
+        return self
+
+    def _validate_group_dependencies(self, start_index: int, end_index: int, group_name: str) -> None:
+        """Validate that questions in a group don't have dependencies on each other.
+
+        Args:
+            start_index: Starting index of the group
+            end_index: Ending index of the group
+            group_name: Name of the group (for error messages)
+
+        Raises:
+            SurveyCreationError: If any question in the group depends on another
+                question in the same group.
+        """
+        # Get the complete dependency DAG
+        dag = self.dag()
+
+        # Get all question indices in the proposed group
+        group_indices = set(range(start_index, end_index + 1))
+
+        # Check each question in the group for dependencies on other group members
+        violations = []
+        for question_idx in group_indices:
+            # Get dependencies for this question
+            dependencies = dag.get(question_idx, set())
+
+            # Check if any dependencies are within the same group
+            internal_deps = dependencies.intersection(group_indices)
+
+            if internal_deps:
+                question_name = self.questions[question_idx].question_name
+                dep_names = [self.questions[dep_idx].question_name for dep_idx in internal_deps]
+                violations.append(f"Question '{question_name}' depends on {dep_names}")
+
+        if violations:
+            error_msg = (
+                f"Group '{group_name}' contains questions with internal dependencies:\n" +
+                "\n".join(f"  - {violation}" for violation in violations) +
+                "\n\nQuestions in a group must be able to render independently of other questions in the same group."
+            )
+            raise SurveyCreationError(error_msg)
+
+    def suggest_dependency_aware_groups(self, group_name_prefix: str = "group") -> dict:
+        """Suggest valid question groups that respect dependency constraints.
+
+        This method analyzes the survey's dependency graph to suggest question groups
+        where every question in a group can be fully rendered without depending on
+        any other question in the same group.
+
+        Args:
+            group_name_prefix: Prefix for suggested group names.
+
+        Returns:
+            dict: A dictionary mapping suggested group names to (start_idx, end_idx) tuples.
+
+        Examples:
+            >>> from edsl import Survey, QuestionFreeText
+            >>> q1 = QuestionFreeText(question_text="What's your name?", question_name="q1")
+            >>> q2 = QuestionFreeText(question_text="What's your age?", question_name="q2")
+            >>> q3 = QuestionFreeText(question_text="Hi {{q1}}, based on your age {{q2}}, ...", question_name="q3")
+            >>> s = Survey([q1, q2, q3])
+            >>> suggestions = s.suggest_dependency_aware_groups("section")
+            >>> # Might return: {"section_0": (0, 1), "section_1": (2, 2)}
+        """
+        # Get the complete dependency DAG
+        dag = self.dag()
+
+        # Track which questions have been grouped
+        grouped_questions = set()
+        suggested_groups = {}
+        group_counter = 0
+
+        # Process questions in order
+        for i in range(len(self.questions)):
+            if i in grouped_questions:
+                continue
+
+            # Start a new group with the current question
+            current_group = [i]  # Use list to maintain order
+            grouped_questions.add(i)
+
+            # Try to add more questions to this group (only look forward to maintain contiguous groups)
+            j = i + 1
+            while j < len(self.questions):
+                if j in grouped_questions:
+                    j += 1
+                    continue
+
+                # Check if this question depends on any question already in the current group
+                candidate_deps = dag.get(j, set())
+                current_group_set = set(current_group)
+
+                if not candidate_deps.intersection(current_group_set):
+                    # Also check if any question in current group depends on candidate
+                    group_depends_on_candidate = any(
+                        j in dag.get(group_member, set()) for group_member in current_group_set
+                    )
+                    if not group_depends_on_candidate:
+                        # No dependencies either way, add it to the group
+                        current_group.append(j)
+                        grouped_questions.add(j)
+                        j += 1
+                    else:
+                        # Can't add this question, stop looking for more
+                        break
+                else:
+                    # Can't add this question, stop looking for more
+                    break
+
+            # Create the suggested group if it's not just a single question
+            # or if it's the last remaining question(s)
+            if len(current_group) >= 1:
+                group_name = f"{group_name_prefix}_{group_counter}"
+                suggested_groups[group_name] = (current_group[0], current_group[-1])
+                group_counter += 1
+
+        return suggested_groups
+
+    def create_allowable_groups(
+        self,
+        group_name_prefix: str = "group",
+        max_group_size: Optional[int] = None
+    ) -> Survey:
+        """Create and apply allowable question groups that respect dependency constraints.
+
+        This method automatically creates and applies question groups to the survey,
+        ensuring that every question in a group can be fully rendered without depending
+        on any other question in the same group. Optionally limits the maximum size of
+        each group.
+
+        Args:
+            group_name_prefix: Prefix for automatically generated group names.
+                Groups will be named as "{prefix}_0", "{prefix}_1", etc.
+            max_group_size: Maximum number of questions allowed in each group.
+                If None, groups can be any size that respects dependencies.
+                If specified, groups will be split when they exceed this size.
+
+        Returns:
+            Survey: The modified survey instance with new dependency-aware groups applied.
+
+        Examples:
+            Create groups with no size limit:
+            >>> survey = Survey([q1, q2, q3, q4])
+            >>> survey.create_allowable_groups("section")
+
+            Create groups with maximum 2 questions each:
+            >>> survey = Survey([q1, q2, q3, q4])
+            >>> survey.create_allowable_groups("part", max_group_size=2)
+
+            Create single-question groups only:
+            >>> survey = Survey([q1, q2, q3, q4])
+            >>> survey.create_allowable_groups("individual", max_group_size=1)
+        """
+        # Clear existing groups to rebuild them
+        self.question_groups.clear()
+
+        # Get the complete dependency DAG
+        dag = self.dag()
+
+        # Track which questions have been grouped
+        grouped_questions = set()
+        group_counter = 0
+
+        # Process questions in order
+        for i in range(len(self.questions)):
+            if i in grouped_questions:
+                continue
+
+            # Start a new group with the current question
+            current_group = [i]
+            grouped_questions.add(i)
+
+            # Try to add more questions to this group (respecting max_group_size)
+            j = i + 1
+            while j < len(self.questions):
+                if j in grouped_questions:
+                    j += 1
+                    continue
+
+                # Check max group size constraint
+                if max_group_size is not None and len(current_group) >= max_group_size:
+                    break
+
+                # Check if this question depends on any question already in the current group
+                candidate_deps = dag.get(j, set())
+                current_group_set = set(current_group)
+
+                if not candidate_deps.intersection(current_group_set):
+                    # Also check if any question in current group depends on candidate
+                    group_depends_on_candidate = any(
+                        j in dag.get(group_member, set()) for group_member in current_group_set
+                    )
+                    if not group_depends_on_candidate:
+                        # No dependencies either way, add it to the group
+                        current_group.append(j)
+                        grouped_questions.add(j)
+                        j += 1
+                    else:
+                        # Can't add this question, stop looking for more
+                        break
+                else:
+                    # Can't add this question, stop looking for more
+                    break
+
+            # Create and apply the group
+            if current_group:
+                group_name = f"{group_name_prefix}_{group_counter}"
+                start_question = self.questions[current_group[0]].question_name
+                end_question = self.questions[current_group[-1]].question_name
+
+                # Use the existing add_question_group method (which includes validation)
+                self.add_question_group(start_question, end_question, group_name)
+                group_counter += 1
+
         return self
 
     def show_rules(self) -> None:
@@ -1761,6 +1978,160 @@ class Survey(Base):
                     return EndOfSurvey
                 else:
                     return self.questions[candidate_next_q]
+
+    def next_question_group(
+        self,
+        current_question: Optional[Union[str, "QuestionBase"]] = None,
+        answers: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Tuple[str, List[Union["QuestionBase", EndOfSurveyParent]]]]:
+        """
+        Find the next question group and return its name along with all renderable questions in it.
+
+        This method handles the complexity that even if questions within a group have no internal
+        dependencies, some questions in the group might be skipped due to rules based on answers
+        from previous groups. It returns all non-skipped questions in the group so the UI can
+        render them all at once.
+
+        Args:
+            current_question: The current question in the survey. If None, finds the first group.
+            answers: The answers for the survey so far, used to evaluate skip rules.
+
+        Returns:
+            A tuple of (group_name, list_of_renderable_questions) or None if no more groups.
+            The list contains all questions in the group that would not be skipped, in order.
+            If the entire group is skipped, returns (group_name, [EndOfSurvey]).
+
+        Examples:
+            >>> survey = Survey([q1, q2, q3, q4])
+            >>> survey.create_allowable_groups("section", max_group_size=2)
+            >>> # Group has q3, q4 but q3 gets skipped due to rules
+            >>> result = survey.next_question_group("q1", answers)
+            >>> # Returns ("section_1", [q4]) - only non-skipped questions
+
+            >>> # If no questions are skipped in the group
+            >>> result = survey.next_question_group("q1", other_answers)
+            >>> # Returns ("section_1", [q3, q4]) - all questions in group
+        """
+        if not self.question_groups:
+            return None
+
+        # Get current question index
+        if current_question is None:
+            current_index = -1  # Before the first question
+        else:
+            if isinstance(current_question, str):
+                current_question = self._get_question_by_name(current_question)
+            current_index = self.question_name_to_index[current_question.question_name]
+
+        # Find which group contains the current question (if any)
+        current_group_end = -1
+        for group_name, (start_idx, end_idx) in self.question_groups.items():
+            if start_idx <= current_index <= end_idx:
+                current_group_end = end_idx
+                break
+
+        # Find the next group after the current one
+        next_group = None
+        min_start_idx = float('inf')
+
+        for group_name, (start_idx, end_idx) in self.question_groups.items():
+            if start_idx > current_group_end and start_idx < min_start_idx:
+                min_start_idx = start_idx
+                next_group = (group_name, start_idx, end_idx)
+
+        if next_group is None:
+            return None  # No more groups
+
+        group_name, start_idx, end_idx = next_group
+
+        # Collect all non-skipped questions in this group
+        answers = answers or {}
+        renderable_questions = []
+
+        for question_idx in range(start_idx, end_idx + 1):
+            if question_idx >= len(self.questions):
+                continue
+
+            # Check if this question would be skipped
+            if not self.rule_collection.skip_question_before_running(question_idx, answers):
+                # This question would not be skipped, add it to renderable list
+                renderable_questions.append(self.questions[question_idx])
+
+        # If we found renderable questions, return them
+        if renderable_questions:
+            return (group_name, renderable_questions)
+
+        # If we get here, all questions in the group would be skipped
+        # Find where the skip rules would take us and continue recursively
+        for question_idx in range(start_idx, end_idx + 1):
+            if question_idx >= len(self.questions):
+                continue
+
+            try:
+                # Use the same logic as next_question to find where skipped questions go
+                skip_result = self.rule_collection.next_question(question_idx, answers)
+                if skip_result.next_q == EndOfSurvey:
+                    return (group_name, [EndOfSurvey])
+                elif skip_result.next_q >= len(self.questions):
+                    return (group_name, [EndOfSurvey])
+                else:
+                    # The skip takes us to another question
+                    # Check if that question is in a different group or past our current group
+                    if skip_result.next_q > end_idx:
+                        # Skip takes us past this group, recursively find the next group
+                        if skip_result.next_q < len(self.questions):
+                            return self.next_question_group(self.questions[skip_result.next_q - 1], answers)
+                        else:
+                            return (group_name, [EndOfSurvey])
+            except Exception:
+                continue
+
+        # If no rules found, the group leads to the next sequential question
+        next_sequential = end_idx + 1
+        if next_sequential >= len(self.questions):
+            return (group_name, [EndOfSurvey])
+        else:
+            # Recursively check the next group
+            return self.next_question_group(self.questions[next_sequential - 1], answers)
+
+    def get_question_group(
+        self, question: Union[str, "QuestionBase"]
+    ) -> Optional[str]:
+        """
+        Get the group name that contains the specified question.
+
+        Args:
+            question: The question to find the group for, either as a question name string
+                     or a QuestionBase object.
+
+        Returns:
+            The name of the group containing the question, or None if the question
+            is not in any group.
+
+        Examples:
+            >>> survey = Survey([q1, q2, q3, q4])
+            >>> survey.create_allowable_groups("section", max_group_size=2)
+            >>> survey.get_question_group("q1")
+            'section_0'
+            >>> survey.get_question_group("q3")
+            'section_1'
+        """
+        if isinstance(question, str):
+            question_name = question
+        else:
+            question_name = question.question_name
+
+        try:
+            question_index = self.question_name_to_index[question_name]
+        except KeyError:
+            return None
+
+        # Find which group contains this question
+        for group_name, (start_idx, end_idx) in self.question_groups.items():
+            if start_idx <= question_index <= end_idx:
+                return group_name
+
+        return None
 
     def next_question_with_instructions(
         self,

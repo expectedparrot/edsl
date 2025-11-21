@@ -55,6 +55,43 @@ class SurveyFlowVisualization:
             "default": "grey",
         }
 
+        # Build a mapping of questions to their groups
+        question_to_group = {}
+        if self.survey.question_groups:
+            for group_name, (start_idx, end_idx) in self.survey.question_groups.items():
+                for q_idx in range(start_idx, end_idx + 1):
+                    if q_idx < len(self.survey.questions):
+                        question_to_group[q_idx] = group_name
+
+        # Create question groups as subgraph clusters first
+        group_colors = [
+            "lightblue",
+            "lightgreen",
+            "lightyellow",
+            "lightcyan",
+            "lightpink",
+            "lavender",
+            "mistyrose",
+            "honeydew"
+        ]
+
+        group_clusters = {}
+        if self.survey.question_groups:
+            for i, (group_name, (start_idx, end_idx)) in enumerate(self.survey.question_groups.items()):
+                color = group_colors[i % len(group_colors)]
+
+                # Create a subgraph cluster for the group
+                cluster = pydot.Cluster(
+                    f"cluster_{group_name}",
+                    label=f"Group: {group_name}",
+                    style="filled",
+                    fillcolor=color,
+                    color="black",
+                    fontsize=str(int(FONT_SIZE) + 2),
+                    fontname="Arial Bold"
+                )
+                group_clusters[group_name] = cluster
+
         # First pass: collect parameters and their question associations
         for index, question in enumerate(self.survey.questions):
             question_node = pydot.Node(
@@ -63,7 +100,13 @@ class SurveyFlowVisualization:
                 shape="ellipse",
                 fontsize=FONT_SIZE,
             )
-            graph.add_node(question_node)
+
+            # Add node to appropriate cluster or main graph
+            if index in question_to_group:
+                group_name = question_to_group[index]
+                group_clusters[group_name].add_node(question_node)
+            else:
+                graph.add_node(question_node)
 
             if hasattr(question, "detailed_parameters"):
                 for param in question.detailed_parameters:
@@ -89,6 +132,10 @@ class SurveyFlowVisualization:
                         if param not in param_to_questions:
                             param_to_questions[param] = []
                         param_to_questions[param].append(index)
+
+        # Add group clusters to the graph
+        for cluster in group_clusters.values():
+            graph.add_subgraph(cluster)
 
         # Add edges for all reference types
         for ref_type, references in reference_types.items():
