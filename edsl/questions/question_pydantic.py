@@ -13,7 +13,7 @@ Key features:
 """
 
 from __future__ import annotations
-from typing import Optional, Any, Dict, Type
+from typing import Optional, Any, Dict, Type, List
 from uuid import uuid4
 import json
 
@@ -281,23 +281,34 @@ class QuestionPydantic(QuestionBase):
         properties = schema.get("properties", {})
         required_fields = schema.get("required", [])
 
-        # Build field definitions for create_model
+        # Map JSON types to Python types for *scalar* values
+        scalar_type_map = {
+            "string": str,
+            "integer": int,
+            "number": float,
+            "boolean": bool,
+            "object": dict,
+        }
+
         field_definitions = {}
         for field_name, field_info in properties.items():
             field_type = field_info.get("type", "string")
             is_required = field_name in required_fields
 
-            # Map JSON schema types to Python types
-            type_map = {
-                "string": str,
-                "integer": int,
-                "number": float,
-                "boolean": bool,
-                "array": list,
-                "object": dict,
-            }
+            # --------- NEW LOGIC FOR ARRAYS ----------
+            if field_type == "array":
+                items_schema = field_info.get("items", {}) or {}
+                item_type_name = items_schema.get("type", "string")
 
-            python_type = type_map.get(field_type, str)
+                # Default to Any if we don't recognize it
+                item_python_type = scalar_type_map.get(item_type_name, Any)
+
+                # This is the key: use List[item_type], not bare list
+                python_type = List[item_python_type]
+            else:
+                # Scalar or object types
+                python_type = scalar_type_map.get(field_type, str)
+            # --------- END NEW LOGIC ----------
 
             # Extract Field metadata from JSON schema
             field_kwargs = {}
@@ -336,10 +347,7 @@ class QuestionPydantic(QuestionBase):
             # Create the field with metadata
             if is_required:
                 if field_kwargs:
-                    field_definitions[field_name] = (
-                        python_type,
-                        Field(..., **field_kwargs),
-                    )
+                    field_definitions[field_name] = (python_type, Field(..., **field_kwargs))
                 else:
                     field_definitions[field_name] = (python_type, ...)
             else:
@@ -351,9 +359,99 @@ class QuestionPydantic(QuestionBase):
                 else:
                     field_definitions[field_name] = (python_type, None)
 
-        # Create a dynamic model
         model_name = schema.get("title", "DynamicModel")
         return create_model(model_name, **field_definitions)
+
+
+    # @staticmethod
+    # def _create_model_from_schema(schema: Dict[str, Any]) -> Type[BaseModel]:
+    #     """
+    #     Create a dynamic Pydantic model from a JSON schema.
+
+    #     Args:
+    #         schema: JSON schema dictionary.
+
+    #     Returns:
+    #         A dynamically created Pydantic model class.
+    #     """
+    #     from pydantic import create_model, Field
+
+    #     properties = schema.get("properties", {})
+    #     required_fields = schema.get("required", [])
+
+    #     # Build field definitions for create_model
+    #     field_definitions = {}
+    #     for field_name, field_info in properties.items():
+    #         field_type = field_info.get("type", "string")
+    #         is_required = field_name in required_fields
+
+    #         # Map JSON schema types to Python types
+    #         type_map = {
+    #             "string": str,
+    #             "integer": int,
+    #             "number": float,
+    #             "boolean": bool,
+    #             "array": list,
+    #             "object": dict,
+    #         }
+
+    #         python_type = type_map.get(field_type, str)
+
+    #         # Extract Field metadata from JSON schema
+    #         field_kwargs = {}
+
+    #         # Description
+    #         if "description" in field_info:
+    #             field_kwargs["description"] = field_info["description"]
+
+    #         # Constraints for numeric types
+    #         if field_type in ("integer", "number"):
+    #             if "minimum" in field_info:
+    #                 field_kwargs["ge"] = field_info["minimum"]
+    #             if "maximum" in field_info:
+    #                 field_kwargs["le"] = field_info["maximum"]
+    #             if "exclusiveMinimum" in field_info:
+    #                 field_kwargs["gt"] = field_info["exclusiveMinimum"]
+    #             if "exclusiveMaximum" in field_info:
+    #                 field_kwargs["lt"] = field_info["exclusiveMaximum"]
+
+    #         # Constraints for strings
+    #         if field_type == "string":
+    #             if "minLength" in field_info:
+    #                 field_kwargs["min_length"] = field_info["minLength"]
+    #             if "maxLength" in field_info:
+    #                 field_kwargs["max_length"] = field_info["maxLength"]
+    #             if "pattern" in field_info:
+    #                 field_kwargs["pattern"] = field_info["pattern"]
+
+    #         # Constraints for arrays
+    #         if field_type == "array":
+    #             if "minItems" in field_info:
+    #                 field_kwargs["min_length"] = field_info["minItems"]
+    #             if "maxItems" in field_info:
+    #                 field_kwargs["max_length"] = field_info["maxItems"]
+
+    #         # Create the field with metadata
+    #         if is_required:
+    #             if field_kwargs:
+    #                 field_definitions[field_name] = (
+    #                     python_type,
+    #                     Field(..., **field_kwargs),
+    #                 )
+    #             else:
+    #                 field_definitions[field_name] = (python_type, ...)
+    #         else:
+    #             if field_kwargs:
+    #                 field_definitions[field_name] = (
+    #                     python_type,
+    #                     Field(None, **field_kwargs),
+    #                 )
+    #             else:
+    #                 field_definitions[field_name] = (python_type, None)
+
+    #     # Create a dynamic model
+    #     model_name = schema.get("title", "DynamicModel")
+    #     return create_model(model_name, **field_definitions)
 
     @property
     def user_pydantic_model(self) -> Type[BaseModel]:
