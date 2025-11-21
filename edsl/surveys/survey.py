@@ -70,7 +70,6 @@ from .exceptions import (
     SurveyCreationError,
     SurveyHasNoRulesError,
     SurveyError,
-    SurveyQuestionsToRandomizeError,
 )
 
 

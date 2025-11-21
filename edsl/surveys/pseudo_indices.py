@@ -6,10 +6,6 @@ can be interspersed between integer-indexed questions while maintaining order.
 """
 
 from collections import UserDict
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .survey import Survey
 
 
 class PseudoIndices(UserDict):
