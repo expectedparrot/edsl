@@ -155,6 +155,99 @@ class PersistenceMixin:
         return ObjectDocsViewerWidget(cls.example())
         # print(cls.__doc__)
 
+    @classmethod
+    def vibe_help(
+        cls,
+        question: str,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.1,
+        include_source: bool = False,
+        return_string: bool = False,
+    ):
+        """
+        Answer questions about how to use this class's methods using introspection.
+
+        This method uses inspect to analyze the class and its methods, then uses an LLM
+        to provide helpful explanations and code examples based on the user's question.
+
+        Parameters:
+            question: Natural language question about class usage.
+                Examples:
+                - "How do I filter data?"
+                - "What methods are available for data manipulation?"
+                - "How do I convert to different formats?"
+                - "Show me examples of working with this class"
+            model: OpenAI model to use for generating the response (default: "gpt-4o")
+            temperature: Temperature for generation (default: 0.1 for consistent responses)
+            include_source: If True, includes actual source code in the analysis
+            return_string: If True, always return a string instead of rendered markdown
+
+        Returns:
+            In Jupyter notebooks: Displays rendered markdown and returns None
+            In other environments: Returns markdown-formatted string
+
+        Examples:
+            >>> from edsl.dataset import Dataset
+            >>> Dataset.vibe_help("How do I select specific columns?", return_string=True)
+            >>>
+            >>> from edsl.questions import QuestionMultipleChoice
+            >>> QuestionMultipleChoice.vibe_help("How do I create a multiple choice question?")
+
+        Notes:
+            - Requires OPENAI_API_KEY environment variable to be set
+            - Uses inspect module to gather method signatures and docstrings
+            - In Jupyter: Renders as rich markdown with syntax highlighting
+            - In terminal: Returns formatted string
+            - Works with any EDSL class that inherits from Base
+        """
+        from ..dataset.vibes.vibe_help import VibeHelp
+
+        # Create an example instance to provide context
+        try:
+            example_instance = cls.example()
+        except:
+            # If example() fails, create a minimal context
+            example_instance = None
+
+        # Create the help generator
+        help_gen = VibeHelp(
+            model=model,
+            temperature=temperature,
+            include_source=include_source
+        )
+
+        # Generate the help response using the class directly
+        response = help_gen.get_help_for_class(question, cls, example_instance)
+
+        # Check display environment and render appropriately
+        if not return_string:
+            from ..utilities.is_notebook import is_notebook
+
+            if is_notebook():
+                # We're in a notebook environment, use IPython display
+                try:
+                    from IPython.display import Markdown, display
+                    display(Markdown(response))
+                    return None
+                except (NameError, ImportError):
+                    pass
+            else:
+                # We're in a terminal, use Rich markdown formatting
+                try:
+                    from rich.console import Console
+                    from rich.markdown import Markdown
+
+                    console = Console()
+                    console.print(Markdown(response))
+                    return None
+                except ImportError:
+                    # Rich not available, fall back to plain text
+                    pass
+
+        # Return the string for non-Jupyter environments or when explicitly requested
+        return response
+
     # def push(
     #     self,
     #     description: Optional[str] = None,
