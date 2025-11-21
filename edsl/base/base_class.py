@@ -212,9 +212,7 @@ class PersistenceMixin:
 
         # Create the help generator
         help_gen = VibeHelp(
-            model=model,
-            temperature=temperature,
-            include_source=include_source
+            model=model, temperature=temperature, include_source=include_source
         )
 
         # Generate the help response using the class directly
@@ -228,6 +226,7 @@ class PersistenceMixin:
                 # We're in a notebook environment, use IPython display
                 try:
                     from IPython.display import Markdown, display
+
                     display(Markdown(response))
                     return None
                 except (NameError, ImportError):

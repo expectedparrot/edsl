@@ -2839,7 +2839,13 @@ class Survey(Base):
         from .survey_generator import SurveyGenerator
 
         return SurveyGenerator.generate_from_questions(
-            cls, question_texts, question_types, question_names, model, scenario_keys, verbose
+            cls,
+            question_texts,
+            question_types,
+            question_names,
+            model,
+            scenario_keys,
+            verbose,
         )
 
     @classmethod

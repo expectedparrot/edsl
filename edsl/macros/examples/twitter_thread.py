@@ -10,9 +10,9 @@ from edsl.questions import (
 from edsl.surveys import Survey
 from edsl.macros import Macro
 from edsl.macros import OutputFormatter
-from edsl import Model 
+from edsl import Model
 
-m = Model('gemini-3-pro-preview', service_name = 'google')
+m = Model("gemini-3-pro-preview", service_name="google")
 # Initial survey to gather parameters
 initial_survey = Survey(
     [
