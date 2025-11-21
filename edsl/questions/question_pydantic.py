@@ -347,7 +347,10 @@ class QuestionPydantic(QuestionBase):
             # Create the field with metadata
             if is_required:
                 if field_kwargs:
-                    field_definitions[field_name] = (python_type, Field(..., **field_kwargs))
+                    field_definitions[field_name] = (
+                        python_type,
+                        Field(..., **field_kwargs),
+                    )
                 else:
                     field_definitions[field_name] = (python_type, ...)
             else:
@@ -361,7 +364,6 @@ class QuestionPydantic(QuestionBase):
 
         model_name = schema.get("title", "DynamicModel")
         return create_model(model_name, **field_definitions)
-
 
     # @staticmethod
     # def _create_model_from_schema(schema: Dict[str, Any]) -> Type[BaseModel]:
