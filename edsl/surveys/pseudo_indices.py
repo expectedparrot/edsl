@@ -6,6 +6,10 @@ can be interspersed between integer-indexed questions while maintaining order.
 """
 
 from collections import UserDict
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .survey import Survey
 
 
 class PseudoIndices(UserDict):
@@ -28,6 +32,7 @@ class PseudoIndices(UserDict):
             float: The highest pseudo-index value currently assigned, or -1 if empty.
 
         Examples:
+            >>> from edsl.surveys.survey import Survey
             >>> Survey.example()._pseudo_indices.max_pseudo_index
             2
         """
@@ -47,6 +52,7 @@ class PseudoIndices(UserDict):
             bool: True if the last added item was an instruction, False otherwise.
 
         Examples:
+            >>> from edsl.surveys.survey import Survey
             >>> s = Survey.example()
             >>> s._pseudo_indices.last_item_was_instruction
             False
