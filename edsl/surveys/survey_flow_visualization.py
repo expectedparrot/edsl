@@ -72,12 +72,14 @@ class SurveyFlowVisualization:
             "lightpink",
             "lavender",
             "mistyrose",
-            "honeydew"
+            "honeydew",
         ]
 
         group_clusters = {}
         if self.survey.question_groups:
-            for i, (group_name, (start_idx, end_idx)) in enumerate(self.survey.question_groups.items()):
+            for i, (group_name, (start_idx, end_idx)) in enumerate(
+                self.survey.question_groups.items()
+            ):
                 color = group_colors[i % len(group_colors)]
 
                 # Create a subgraph cluster for the group
@@ -88,7 +90,7 @@ class SurveyFlowVisualization:
                     fillcolor=color,
                     color="black",
                     fontsize=str(int(FONT_SIZE) + 2),
-                    fontname="Arial Bold"
+                    fontname="Arial Bold",
                 )
                 group_clusters[group_name] = cluster
 
