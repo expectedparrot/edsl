@@ -3691,7 +3691,7 @@ class Coop(CoopFunctionsMixin):
         description: Optional[str] = None,
         alias: Optional[str] = None,
         visibility: Optional[VisibilityType] = "unlisted",
-        overwrite: bool = False,
+        force: bool = False,
     ) -> "Scenario":
         """
         Generate a signed URL for pushing an object directly to Google Cloud Storage.
@@ -3749,9 +3749,9 @@ class Coop(CoopFunctionsMixin):
             url = f"{self.api_url}/api/v0/object/push"
             error_message = response.text
 
-            # Check if this is an alias conflict error and overwrite is enabled
+            # Check if this is an alias conflict error and force is enabled
             if (
-                overwrite
+                force
                 and alias
                 and "already have an object with the alias" in error_message
             ):

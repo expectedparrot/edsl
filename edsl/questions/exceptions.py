@@ -176,6 +176,109 @@ class QuestionCreationValidationError(QuestionErrors):
         super().__init__(message)
 
 
+class QuestionInitializationError(QuestionErrors):
+    """
+    Exception raised when question initialization fails due to parameter issues.
+
+    This exception occurs when attempting to create a question with initialization
+    problems, such as:
+    - Misspelled parameter names (e.g., 'pydnatic_model' instead of 'pydantic_model')
+    - Unknown keyword arguments
+    - Required parameters missing
+    - Incorrect parameter types
+
+    To fix this error:
+    1. Check the spelling of all parameter names
+    2. Verify all required parameters are provided
+    3. Review the question type's documentation for valid parameters
+    4. Ensure parameter types match expectations
+
+    Examples:
+        ```python
+        # Misspelled parameter name
+        QuestionPydantic(question_name="test", question_text="Test", pydnatic_model=Model)  # Raises QuestionInitializationError
+
+        # Unknown parameter
+        QuestionMultipleChoice(question_name="test", question_text="Test", invalid_param="value")  # Raises QuestionInitializationError
+        ```
+    """
+
+    documentation = (
+        "https://docs.expectedparrot.com/en/latest/questions.html#initialization"
+    )
+
+    def __init__(
+        self,
+        message: str,
+        question_type: str = None,
+        invalid_parameter: str = None,
+        valid_parameters: list = None,
+        suggested_fix: str = None,
+        **kwargs,
+    ):
+        self.question_type = question_type
+        self.invalid_parameter = invalid_parameter
+        self.valid_parameters = valid_parameters or []
+        self.suggested_fix = suggested_fix
+
+        # Build comprehensive error message
+        formatted_msg = message
+
+        if invalid_parameter and valid_parameters:
+            # Try to suggest the closest matching parameter
+            closest_match = self._find_closest_parameter(
+                invalid_parameter, valid_parameters
+            )
+            if closest_match and closest_match != invalid_parameter:
+                formatted_msg += f"\n\nDid you mean '{closest_match}'?"
+
+        if invalid_parameter:
+            formatted_msg += f"\n\nInvalid parameter: '{invalid_parameter}'"
+
+        if valid_parameters:
+            formatted_msg += f"\nValid parameters for {question_type or 'this question type'}: {', '.join(sorted(valid_parameters))}"
+
+        if suggested_fix:
+            formatted_msg += f"\n\nSuggested fix: {suggested_fix}"
+
+        super().__init__(formatted_msg, **kwargs)
+
+    def _find_closest_parameter(self, invalid_param: str, valid_params: list) -> str:
+        """Find the closest matching parameter name using simple string similarity."""
+        if not invalid_param or not valid_params:
+            return None
+
+        # Simple similarity check - count common characters and length difference
+        def similarity_score(a: str, b: str) -> float:
+            if not a or not b:
+                return 0.0
+
+            # Common characters
+            common = set(a.lower()) & set(b.lower())
+            common_score = len(common) / max(len(set(a.lower())), len(set(b.lower())))
+
+            # Length similarity
+            length_score = 1.0 - abs(len(a) - len(b)) / max(len(a), len(b))
+
+            # Substring check
+            substring_score = (
+                0.5 if a.lower() in b.lower() or b.lower() in a.lower() else 0.0
+            )
+
+            return (common_score * 0.5) + (length_score * 0.3) + (substring_score * 0.2)
+
+        best_match = None
+        best_score = 0.0
+
+        for param in valid_params:
+            score = similarity_score(invalid_param, param)
+            if score > best_score and score > 0.3:  # Only suggest if reasonably similar
+                best_score = score
+                best_match = param
+
+        return best_match
+
+
 class QuestionResponseValidationError(QuestionErrors):
     """
     Exception raised when a response fails structural validation.
