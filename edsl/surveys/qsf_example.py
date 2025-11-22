@@ -27,7 +27,7 @@ def create_example_qsf():
             "SurveyID": "SV_example123",
             "SurveyName": "Customer Feedback Survey",
             "SurveyDescription": "A sample customer feedback survey",
-            "SurveyLanguage": "EN"
+            "SurveyLanguage": "EN",
         },
         "SurveyElements": [
             # Single choice question
@@ -45,10 +45,10 @@ def create_example_qsf():
                         "2": {"Display": "Dissatisfied"},
                         "3": {"Display": "Neutral"},
                         "4": {"Display": "Satisfied"},
-                        "5": {"Display": "Very Satisfied"}
+                        "5": {"Display": "Very Satisfied"},
                     },
-                    "ChoiceOrder": ["1", "2", "3", "4", "5"]
-                }
+                    "ChoiceOrder": ["1", "2", "3", "4", "5"],
+                },
             },
             # Text input question
             {
@@ -59,8 +59,8 @@ def create_example_qsf():
                     "QuestionType": "TE",
                     "Selector": "SL",
                     "DataExportTag": "feedback",
-                    "QuestionText": "Please tell us what we could improve:"
-                }
+                    "QuestionText": "Please tell us what we could improve:",
+                },
             },
             # Multiple choice (checkbox) question
             {
@@ -77,10 +77,10 @@ def create_example_qsf():
                         "2": {"Display": "Phone Support"},
                         "3": {"Display": "Email Support"},
                         "4": {"Display": "Knowledge Base"},
-                        "5": {"Display": "Video Tutorials"}
+                        "5": {"Display": "Video Tutorials"},
                     },
-                    "ChoiceOrder": ["1", "2", "3", "4", "5"]
-                }
+                    "ChoiceOrder": ["1", "2", "3", "4", "5"],
+                },
             },
             # Yes/No question
             {
@@ -92,12 +92,9 @@ def create_example_qsf():
                     "Selector": "SAVR",
                     "DataExportTag": "recommend",
                     "QuestionText": "Would you recommend our service to a friend?",
-                    "Choices": {
-                        "1": {"Display": "Yes"},
-                        "2": {"Display": "No"}
-                    },
-                    "ChoiceOrder": ["1", "2"]
-                }
+                    "Choices": {"1": {"Display": "Yes"}, "2": {"Display": "No"}},
+                    "ChoiceOrder": ["1", "2"],
+                },
             },
             # Block definition
             {
@@ -111,25 +108,20 @@ def create_example_qsf():
                             {"Type": "Question", "QuestionID": "QID1"},
                             {"Type": "Question", "QuestionID": "QID2"},
                             {"Type": "Question", "QuestionID": "QID3"},
-                            {"Type": "Question", "QuestionID": "QID4"}
-                        ]
+                            {"Type": "Question", "QuestionID": "QID4"},
+                        ],
                     }
-                ]
+                ],
             },
             # Flow definition
             {
                 "Element": "FL",
                 "Payload": {
                     "Type": "Root",
-                    "Flow": [
-                        {
-                            "Type": "Block",
-                            "ID": "BL_main"
-                        }
-                    ]
-                }
-            }
-        ]
+                    "Flow": [{"Type": "Block", "ID": "BL_main"}],
+                },
+            },
+        ],
     }
     return sample_qsf
 
@@ -142,7 +134,7 @@ def example_basic_usage():
     sample_qsf = create_example_qsf()
 
     # Save to temporary file
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.qsf', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".qsf", delete=False) as f:
         json.dump(sample_qsf, f, indent=2)
         qsf_path = f.name
 
@@ -154,16 +146,18 @@ def example_basic_usage():
         survey = Survey.from_qsf(qsf_path)
 
         print("✅ Conversion successful!")
-        print(f"Survey questions: {len([q for q in survey.questions if hasattr(q, 'question_name')])}")
+        print(
+            f"Survey questions: {len([q for q in survey.questions if hasattr(q, 'question_name')])}"
+        )
 
         # Display question details
         print("\nConverted Questions:")
         for i, question in enumerate(survey.questions):
-            if hasattr(question, 'question_name'):
+            if hasattr(question, "question_name"):
                 q_type = type(question).__name__
                 print(f"  {i+1}. {question.question_name} ({q_type})")
                 print(f"     Text: {question.question_text}")
-                if hasattr(question, 'question_options') and question.question_options:
+                if hasattr(question, "question_options") and question.question_options:
                     print(f"     Options: {question.question_options}")
                 print()
 
@@ -243,7 +237,7 @@ def example_survey_customization():
         print("Setting question groups...")
         survey.question_groups = {
             "satisfaction_section": (0, 1),  # satisfaction and feedback questions
-            "usage_section": (2, 3)          # features and recommendation questions
+            "usage_section": (2, 3),  # features and recommendation questions
         }
 
         # Add questions to randomize

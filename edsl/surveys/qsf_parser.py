@@ -37,6 +37,7 @@ def strip_html(text: Optional[str]) -> str:
 # Normalized schema dataclasses
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Choice:
     id: str
@@ -56,21 +57,21 @@ class Validation:
 
 @dataclass
 class Question:
-    id: str                              # Qualtrics QID
+    id: str  # Qualtrics QID
     export_tag: Optional[str]
-    text: str                            # stripped text
-    raw_text: str                        # original HTML
-    type: str                            # logical type: single_choice, text, matrix_single, ...
-    metadata: Dict[str, Any]             # original qsf type/selector/subselector/etc.
+    text: str  # stripped text
+    raw_text: str  # original HTML
+    type: str  # logical type: single_choice, text, matrix_single, ...
+    metadata: Dict[str, Any]  # original qsf type/selector/subselector/etc.
     choices: List[Choice] = field(default_factory=list)
-    scale: List[Choice] = field(default_factory=list)   # for matrix, likert, etc.
+    scale: List[Choice] = field(default_factory=list)  # for matrix, likert, etc.
     validation: Optional[Validation] = None
     randomization: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class BlockElement:
-    kind: str                            # "question" | "page_break" | "descriptive" | "other"
+    kind: str  # "question" | "page_break" | "descriptive" | "other"
     question_id: Optional[str]
     raw: Dict[str, Any] = field(default_factory=dict)
 
@@ -79,7 +80,7 @@ class BlockElement:
 class Block:
     id: str
     name: str
-    type: str                            # "default", "standard", ...
+    type: str  # "default", "standard", ...
     elements: List[BlockElement] = field(default_factory=list)
     raw: Dict[str, Any] = field(default_factory=dict)
 
@@ -87,7 +88,7 @@ class Block:
 @dataclass
 class EmbeddedField:
     name: str
-    source: str                          # "custom" | "recipient" | ...
+    source: str  # "custom" | "recipient" | ...
     value: Optional[str] = None
     analyze_text: Optional[bool] = None
     raw: Dict[str, Any] = field(default_factory=dict)
@@ -115,7 +116,7 @@ class FlowRandomizer:
 @dataclass
 class FlowNode:
     id: Optional[str]
-    type: str                            # "root", "block", "branch", "randomizer", ...
+    type: str  # "root", "block", "branch", "randomizer", ...
     block_id: Optional[str] = None
     embedded_fields: List[EmbeddedField] = field(default_factory=list)
     branch_logic: Optional[Dict[str, Any]] = None
@@ -147,6 +148,7 @@ class StandardSurvey:
 # ---------------------------------------------------------------------------
 # QSF Parser
 # ---------------------------------------------------------------------------
+
 
 class QSFParser:
     """
@@ -315,8 +317,8 @@ class QSFParser:
             answers_norm = self._normalize_choice_dict(
                 payload.get("Answers") or {},
                 payload.get("AnswerOrder"),
-                {},   # rarely recoded at this level
-                {},   # rarely export tags at this level
+                {},  # rarely recoded at this level
+                {},  # rarely export tags at this level
             )
             # Decide convention: treat Answers as "scale" and Choices as "choices"
             # or vice versa. Here, we put Answers into scale.
@@ -458,7 +460,9 @@ class QSFParser:
 
             name = b_payload.get("Description") or ""
             btype = (b_payload.get("Type") or "Standard").lower()
-            elements = self._normalize_block_elements(b_payload.get("BlockElements") or [])
+            elements = self._normalize_block_elements(
+                b_payload.get("BlockElements") or []
+            )
 
             result.append(
                 Block(
@@ -473,7 +477,9 @@ class QSFParser:
         return result
 
     @staticmethod
-    def _normalize_block_elements(block_elements: List[Dict[str, Any]]) -> List[BlockElement]:
+    def _normalize_block_elements(
+        block_elements: List[Dict[str, Any]]
+    ) -> List[BlockElement]:
         result: List[BlockElement] = []
 
         for be in block_elements:
@@ -481,12 +487,16 @@ class QSFParser:
 
             if etype == "Question":
                 result.append(
-                    BlockElement(kind="question", question_id=be.get("QuestionID"), raw=be)
+                    BlockElement(
+                        kind="question", question_id=be.get("QuestionID"), raw=be
+                    )
                 )
             elif etype == "Page Break":
                 result.append(BlockElement(kind="page_break", question_id=None, raw=be))
             elif etype == "DescriptiveText":
-                result.append(BlockElement(kind="descriptive", question_id=None, raw=be))
+                result.append(
+                    BlockElement(kind="descriptive", question_id=None, raw=be)
+                )
             else:
                 result.append(
                     BlockElement(kind="other", question_id=be.get("QuestionID"), raw=be)
@@ -615,9 +625,7 @@ class QSFParser:
             )
 
         # Group, Authenticator, Loop & Merge, etc.
-        children = [
-            self._normalize_flow_node(ch) for ch in node_raw.get("Flow", [])
-        ]
+        children = [self._normalize_flow_node(ch) for ch in node_raw.get("Flow", [])]
         return FlowNode(
             id=flow_id,
             type=(node_type or "unknown").lower(),

@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 import random
 from uuid import uuid4
+from pathlib import Path
 
 from typing import (
     Any,
@@ -626,7 +627,9 @@ class Survey(Base):
         return survey
 
     @classmethod
-    def from_qsf(cls, qsf_path: Union[str, "Path"], encoding: str = "utf-8") -> "Survey":
+    def from_qsf(
+        cls, qsf_path: Union[str, "Path"], encoding: str = "utf-8"
+    ) -> "Survey":
         """Create a Survey from a Qualtrics QSF file or URL.
 
         This class method converts a Qualtrics Survey Format (QSF) file into an EDSL Survey.
@@ -668,18 +671,22 @@ class Survey(Base):
         from .qsf_parser import QSFParser
 
         # Check if qsf_path is a URL
-        if isinstance(qsf_path, str) and (qsf_path.startswith('http://') or qsf_path.startswith('https://')):
+        if isinstance(qsf_path, str) and (
+            qsf_path.startswith("http://") or qsf_path.startswith("https://")
+        ):
             print(f"Downloading QSF from URL: {qsf_path}")
 
             try:
                 # Create a temporary file to store the downloaded QSF
-                with tempfile.NamedTemporaryFile(mode='w+b', suffix='.qsf', delete=False) as temp_file:
+                with tempfile.NamedTemporaryFile(
+                    mode="w+b", suffix=".qsf", delete=False
+                ) as temp_file:
                     # Create request with user agent to avoid 403 errors
                     req = urllib.request.Request(
                         qsf_path,
                         headers={
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                        }
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                        },
                     )
 
                     # Download the file
@@ -699,24 +706,26 @@ class Survey(Base):
 
             except Exception as e:
                 # Clean up temp file if it was created
-                if 'temp_file_path' in locals() and Path(temp_file_path).exists():
+                if "temp_file_path" in locals() and Path(temp_file_path).exists():
                     Path(temp_file_path).unlink()
 
                 # Try curl as fallback
-                print(f"urllib failed, trying curl as fallback...")
+                print("urllib failed, trying curl as fallback...")
                 try:
                     import subprocess
                     import tempfile
 
-                    with tempfile.NamedTemporaryFile(mode='w+b', suffix='.qsf', delete=False) as temp_file:
+                    with tempfile.NamedTemporaryFile(
+                        mode="w+b", suffix=".qsf", delete=False
+                    ) as temp_file:
                         temp_file_path = temp_file.name
 
                     # Use curl to download
                     result = subprocess.run(
-                        ['curl', '-L', qsf_path, '-o', temp_file_path],
+                        ["curl", "-L", qsf_path, "-o", temp_file_path],
                         capture_output=True,
                         text=True,
-                        timeout=60
+                        timeout=60,
                     )
 
                     if result.returncode == 0:
@@ -736,9 +745,11 @@ class Survey(Base):
 
                 except Exception as curl_error:
                     # Clean up temp file
-                    if 'temp_file_path' in locals() and Path(temp_file_path).exists():
+                    if "temp_file_path" in locals() and Path(temp_file_path).exists():
                         Path(temp_file_path).unlink()
-                    raise Exception(f"Failed to download QSF from URL. urllib error: {e}, curl error: {curl_error}")
+                    raise Exception(
+                        f"Failed to download QSF from URL. urllib error: {e}, curl error: {curl_error}"
+                    )
 
         else:
             # Handle as local file path
@@ -752,17 +763,21 @@ class Survey(Base):
         question_groups = cls._extract_question_groups(qsf_survey.blocks, questions)
 
         # Extract questions to randomize from QSF flow
-        questions_to_randomize = cls._extract_randomized_questions(qsf_survey.flow, qsf_survey.blocks, questions)
+        questions_to_randomize = cls._extract_randomized_questions(
+            qsf_survey.flow, qsf_survey.blocks, questions
+        )
 
         # Create the Survey
         survey = cls(
             questions=questions,
             question_groups=question_groups if question_groups else None,
-            questions_to_randomize=questions_to_randomize if questions_to_randomize else None,
+            questions_to_randomize=(
+                questions_to_randomize if questions_to_randomize else None
+            ),
         )
 
         # Set survey name from QSF
-        if hasattr(survey, '_name'):
+        if hasattr(survey, "_name"):
             survey._name = qsf_survey.name
 
         return survey
@@ -797,66 +812,105 @@ class Survey(Base):
 
             # Ensure question text meets EDSL minimum length requirements
             if not question_text or len(question_text.strip()) < 3:
-                question_text = f"Question {question_name}" if not question_text else f"Question {question_name}: {question_text}"
+                question_text = (
+                    f"Question {question_name}"
+                    if not question_text
+                    else f"Question {question_name}: {question_text}"
+                )
 
             try:
                 if qsf_q.type == "descriptive":
                     # Convert descriptive text to instructions
-                    edsl_questions.append(Instruction(
-                        name=question_name,
-                        text=question_text
-                    ))
+                    edsl_questions.append(
+                        Instruction(name=question_name, text=question_text)
+                    )
 
                 elif qsf_q.type == "single_choice":
-                    options = [choice.text for choice in qsf_q.choices if choice.text and choice.text.strip()]
+                    options = [
+                        choice.text
+                        for choice in qsf_q.choices
+                        if choice.text and choice.text.strip()
+                    ]
                     if not options:
-                        options = ["Option 1", "Option 2"]  # Default options if none found
+                        options = [
+                            "Option 1",
+                            "Option 2",
+                        ]  # Default options if none found
 
                     if len(options) == 2 and cls._is_yes_no(options):
-                        edsl_questions.append(QuestionYesNo(
-                            question_name=question_name,
-                            question_text=question_text,
-                            question_options=options
-                        ))
+                        edsl_questions.append(
+                            QuestionYesNo(
+                                question_name=question_name,
+                                question_text=question_text,
+                                question_options=options,
+                            )
+                        )
                     else:
-                        edsl_questions.append(QuestionMultipleChoice(
-                            question_name=question_name,
-                            question_text=question_text,
-                            question_options=options
-                        ))
+                        edsl_questions.append(
+                            QuestionMultipleChoice(
+                                question_name=question_name,
+                                question_text=question_text,
+                                question_options=options,
+                            )
+                        )
 
                 elif qsf_q.type == "multi_choice":
-                    options = [choice.text for choice in qsf_q.choices if choice.text and choice.text.strip()]
+                    options = [
+                        choice.text
+                        for choice in qsf_q.choices
+                        if choice.text and choice.text.strip()
+                    ]
                     if not options:
-                        options = ["Option 1", "Option 2", "Option 3"]  # Default options if none found
+                        options = [
+                            "Option 1",
+                            "Option 2",
+                            "Option 3",
+                        ]  # Default options if none found
 
-                    edsl_questions.append(QuestionCheckBox(
-                        question_name=question_name,
-                        question_text=question_text,
-                        question_options=options
-                    ))
+                    edsl_questions.append(
+                        QuestionCheckBox(
+                            question_name=question_name,
+                            question_text=question_text,
+                            question_options=options,
+                        )
+                    )
 
                 elif qsf_q.type == "text":
-                    edsl_questions.append(QuestionFreeText(
-                        question_name=question_name,
-                        question_text=question_text
-                    ))
+                    edsl_questions.append(
+                        QuestionFreeText(
+                            question_name=question_name, question_text=question_text
+                        )
+                    )
 
                 elif qsf_q.type == "matrix_single":
-                    options = [choice.text for choice in qsf_q.choices if choice.text and choice.text.strip()]
-                    items = [scale_item.text for scale_item in qsf_q.scale if scale_item.text and scale_item.text.strip()] if qsf_q.scale else []
+                    options = [
+                        choice.text
+                        for choice in qsf_q.choices
+                        if choice.text and choice.text.strip()
+                    ]
+                    items = (
+                        [
+                            scale_item.text
+                            for scale_item in qsf_q.scale
+                            if scale_item.text and scale_item.text.strip()
+                        ]
+                        if qsf_q.scale
+                        else []
+                    )
 
                     if not options:
                         options = ["Poor", "Fair", "Good", "Excellent"]
                     if not items:
                         items = ["Item 1", "Item 2"]
 
-                    edsl_questions.append(QuestionMatrix(
-                        question_name=question_name,
-                        question_text=question_text,
-                        question_options=options,
-                        question_items=items
-                    ))
+                    edsl_questions.append(
+                        QuestionMatrix(
+                            question_name=question_name,
+                            question_text=question_text,
+                            question_options=options,
+                            question_items=items,
+                        )
+                    )
 
                 elif qsf_q.type == "slider":
                     try:
@@ -871,70 +925,101 @@ class Survey(Base):
                                     options.append(choice.order)
                                     option_labels[choice.order] = choice.text
 
-                            edsl_questions.append(QuestionLinearScale(
-                                question_name=question_name,
-                                question_text=question_text,
-                                question_options=sorted(options),
-                                option_labels=option_labels if option_labels else {}
-                            ))
+                            edsl_questions.append(
+                                QuestionLinearScale(
+                                    question_name=question_name,
+                                    question_text=question_text,
+                                    question_options=sorted(options),
+                                    option_labels=(
+                                        option_labels if option_labels else {}
+                                    ),
+                                )
+                            )
                         else:
-                            edsl_questions.append(QuestionLinearScale(
-                                question_name=question_name,
-                                question_text=question_text,
-                                question_options=list(range(1, 8))
-                            ))
+                            edsl_questions.append(
+                                QuestionLinearScale(
+                                    question_name=question_name,
+                                    question_text=question_text,
+                                    question_options=list(range(1, 8)),
+                                )
+                            )
                     except Exception:
                         # Fallback to multiple choice
-                        options = [choice.text for choice in qsf_q.choices if choice.text and choice.text.strip()]
+                        options = [
+                            choice.text
+                            for choice in qsf_q.choices
+                            if choice.text and choice.text.strip()
+                        ]
                         if not options:
-                            options = ["1", "2", "3", "4", "5"]  # Default scale if none found
+                            options = [
+                                "1",
+                                "2",
+                                "3",
+                                "4",
+                                "5",
+                            ]  # Default scale if none found
 
-                        edsl_questions.append(QuestionMultipleChoice(
-                            question_name=question_name,
-                            question_text=question_text,
-                            question_options=options
-                        ))
+                        edsl_questions.append(
+                            QuestionMultipleChoice(
+                                question_name=question_name,
+                                question_text=question_text,
+                                question_options=options,
+                            )
+                        )
 
                 elif qsf_q.type in ["dropdown", "choice"]:
-                    options = [choice.text for choice in qsf_q.choices if choice.text and choice.text.strip()]
+                    options = [
+                        choice.text
+                        for choice in qsf_q.choices
+                        if choice.text and choice.text.strip()
+                    ]
                     if not options:
-                        options = ["Option 1", "Option 2", "Option 3"]  # Default options if none found
+                        options = [
+                            "Option 1",
+                            "Option 2",
+                            "Option 3",
+                        ]  # Default options if none found
 
-                    edsl_questions.append(QuestionMultipleChoice(
-                        question_name=question_name,
-                        question_text=question_text,
-                        question_options=options
-                    ))
+                    edsl_questions.append(
+                        QuestionMultipleChoice(
+                            question_name=question_name,
+                            question_text=question_text,
+                            question_options=options,
+                        )
+                    )
 
                 else:
                     # Default to free text for unknown types
-                    edsl_questions.append(QuestionFreeText(
-                        question_name=question_name,
-                        question_text=question_text
-                    ))
+                    edsl_questions.append(
+                        QuestionFreeText(
+                            question_name=question_name, question_text=question_text
+                        )
+                    )
 
             except Exception as e:
                 print(f"Warning: Could not convert question '{question_name}': {e}")
                 # Fallback to free text
-                edsl_questions.append(QuestionFreeText(
-                    question_name=question_name,
-                    question_text=question_text
-                ))
+                edsl_questions.append(
+                    QuestionFreeText(
+                        question_name=question_name, question_text=question_text
+                    )
+                )
 
         return edsl_questions
 
     @classmethod
-    def _extract_question_groups(cls, qsf_blocks: List, edsl_questions: List) -> Dict[str, Tuple[int, int]]:
+    def _extract_question_groups(
+        cls, qsf_blocks: List, edsl_questions: List
+    ) -> Dict[str, Tuple[int, int]]:
         """Extract question groups from QSF blocks."""
         question_groups = {}
-        current_index = 0
 
         # Map EDSL questions by their names for lookup
         question_name_to_index = {}
         for i, q in enumerate(edsl_questions):
-            if hasattr(q, 'question_name'):
+            if hasattr(q, "question_name"):
                 question_name_to_index[q.question_name] = i
-            elif hasattr(q, 'name'):
+            elif hasattr(q, "name"):
                 question_name_to_index[q.name] = i
 
         for block in qsf_blocks:
@@ -948,29 +1033,43 @@ class Survey(Base):
 
             if block_questions:
                 group_name = cls._sanitize_name(block.name or f"block_{block.id}")
-                question_groups[group_name] = (min(block_questions), max(block_questions))
+                question_groups[group_name] = (
+                    min(block_questions),
+                    max(block_questions),
+                )
 
         return question_groups
 
     @classmethod
-    def _extract_randomized_questions(cls, qsf_flow, qsf_blocks: List, edsl_questions: List) -> List[str]:
+    def _extract_randomized_questions(
+        cls, qsf_flow, qsf_blocks: List, edsl_questions: List
+    ) -> List[str]:
         """Extract questions that should be randomized from QSF flow."""
         randomized_questions = []
 
         def process_flow_node(node):
-            if hasattr(node, 'type') and node.type == "randomizer":
-                for child in getattr(node, 'children', []):
-                    if hasattr(child, 'type') and child.type == "block" and hasattr(child, 'block_id'):
+            if hasattr(node, "type") and node.type == "randomizer":
+                for child in getattr(node, "children", []):
+                    if (
+                        hasattr(child, "type")
+                        and child.type == "block"
+                        and hasattr(child, "block_id")
+                    ):
                         # Find questions in this block
                         for block in qsf_blocks:
                             if block.id == child.block_id:
                                 for element in block.elements:
-                                    if element.kind == "question" and element.question_id:
-                                        qsf_name = cls._sanitize_name(element.question_id)
+                                    if (
+                                        element.kind == "question"
+                                        and element.question_id
+                                    ):
+                                        qsf_name = cls._sanitize_name(
+                                            element.question_id
+                                        )
                                         if qsf_name not in randomized_questions:
                                             randomized_questions.append(qsf_name)
 
-            for child in getattr(node, 'children', []):
+            for child in getattr(node, "children", []):
                 process_flow_node(child)
 
         process_flow_node(qsf_flow)
@@ -980,22 +1079,23 @@ class Survey(Base):
     def _sanitize_name(cls, name: str) -> str:
         """Convert a string to a valid Python variable name."""
         import re
+
         if not name:
             return "question"
 
         # Remove HTML tags and decode entities
-        name = re.sub(r'<[^>]+>', '', name)
-        name = name.replace('&nbsp;', ' ').replace('&amp;', '&')
+        name = re.sub(r"<[^>]+>", "", name)
+        name = name.replace("&nbsp;", " ").replace("&amp;", "&")
 
         # Replace invalid characters with underscores
-        name = re.sub(r'[^a-zA-Z0-9_]', '_', name)
+        name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
 
         # Ensure it starts with a letter or underscore
         if name and name[0].isdigit():
             name = f"q_{name}"
 
         # Remove consecutive underscores and strip
-        name = re.sub(r'_+', '_', name).strip('_')
+        name = re.sub(r"_+", "_", name).strip("_")
 
         # Ensure it's not empty and not too long
         name = name or "question"
@@ -1011,11 +1111,12 @@ class Survey(Base):
             return False
 
         options_lower = [opt.lower().strip() for opt in options]
-        yes_variants = {'yes', 'y', 'true', '1', 'agree', 'si', 'oui'}
-        no_variants = {'no', 'n', 'false', '0', 'disagree', 'non', 'non'}
+        yes_variants = {"yes", "y", "true", "1", "agree", "si", "oui"}
+        no_variants = {"no", "n", "false", "0", "disagree", "non", "non"}
 
-        return (any(opt in yes_variants for opt in options_lower) and
-                any(opt in no_variants for opt in options_lower))
+        return any(opt in yes_variants for opt in options_lower) and any(
+            opt in no_variants for opt in options_lower
+        )
 
     @property
     def scenario_attributes(self) -> list[str]:
