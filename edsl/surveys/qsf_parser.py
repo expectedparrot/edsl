@@ -156,12 +156,7 @@ class QSFParser:
 
     Usage
     -----
-    >>> parser = QSFParser.from_file("survey.qsf")
-    >>> survey = parser.parse()
-    >>> json.dumps(survey.to_dict())[:40]  # doctest: +ELLIPSIS
-    '{\"id\": ...'
-
-    You can also pass in a pre-loaded dict:
+    You can pass in a pre-loaded dict:
 
     >>> data = {"SurveyEntry": {"SurveyID": "S1", "SurveyName": "Test", "SurveyDescription": "", "SurveyLanguage": "EN"}, "SurveyElements": []}
     >>> parser = QSFParser(data)
@@ -169,6 +164,26 @@ class QSFParser:
     Traceback (most recent call last):
         ...
     ValueError: No flow (FL) element found in QSF.
+
+    For a minimal working example:
+
+    >>> minimal_data = {
+    ...     "SurveyEntry": {
+    ...         "SurveyID": "SV_test",
+    ...         "SurveyName": "Test Survey",
+    ...         "SurveyDescription": "A test survey",
+    ...         "SurveyLanguage": "EN"
+    ...     },
+    ...     "SurveyElements": [
+    ...         {"Element": "FL", "Payload": {"Type": "Root", "Flow": []}}
+    ...     ]
+    ... }
+    >>> parser = QSFParser(minimal_data)
+    >>> survey = parser.parse()
+    >>> survey.name
+    'Test Survey'
+    >>> survey.id
+    'SV_test'
     """
 
     def __init__(self, qsf: Dict[str, Any]) -> None:
