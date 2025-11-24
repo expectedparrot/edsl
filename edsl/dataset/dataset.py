@@ -1234,65 +1234,6 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         return cls(data["data"])
 
-    def to_docx(self, output_file: str, title: str = None) -> None:
-        """
-        Convert the dataset to a Word document.
-
-        Args:
-            output_file (str): Path to save the Word document
-            title (str, optional): Title for the document
-
-        Examples:
-            >>> import tempfile
-            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
-            >>> with tempfile.NamedTemporaryFile(suffix='.docx') as tmp:
-            ...     d.to_docx(tmp.name, title='Test Document')
-            ...     import os
-            ...     os.path.exists(tmp.name)
-            True
-        """
-        from docx import Document
-        from docx.shared import Inches
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
-
-        # Create document
-        doc = Document()
-
-        # Add title if provided
-        if title:
-            title_heading = doc.add_heading(title, level=1)
-            title_heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-        # Get headers and data
-        headers, data = self._tabular()
-
-        # Create table
-        table = doc.add_table(rows=len(data) + 1, cols=len(headers))
-        table.style = "Table Grid"
-
-        # Add headers
-        for j, header in enumerate(headers):
-            cell = table.cell(0, j)
-            cell.text = str(header)
-
-        # Add data
-        for i, row in enumerate(data):
-            for j, cell_content in enumerate(row):
-                cell = table.cell(i + 1, j)
-                cell.text = str(cell_content) if cell_content is not None else ""
-
-        # Adjust column widths
-        for column in table.columns:
-            max_width = 0
-            for cell in column.cells:
-                text_width = len(str(cell.text))
-                max_width = max(max_width, text_width)
-            for cell in column.cells:
-                cell.width = Inches(min(max_width * 0.1 + 0.5, 6))
-
-        # Save the document
-        doc.save(output_file)
-
     def to_markdown(
         self,
         filename: Optional[str] = None,
