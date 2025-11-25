@@ -1011,7 +1011,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         return self._properties.columns
 
-    def show_columns(self) -> "ColumnTreeVisualization":
+    def show_columns(self):
         """Display columns in a tree format using a mermaid diagram.
 
         This method creates a hierarchical visualization of all columns in the Results object,
@@ -1036,16 +1036,16 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         # Group columns by data type
         data_types = {}
         for col in relevant_cols:
-            if '.' in col:
-                data_type, key = col.split('.', 1)
+            if "." in col:
+                data_type, key = col.split(".", 1)
                 if data_type not in data_types:
                     data_types[data_type] = []
                 data_types[data_type].append(key)
             else:
                 # Handle columns without prefix (shouldn't happen in normal cases)
-                if 'other' not in data_types:
-                    data_types['other'] = []
-                data_types['other'].append(col)
+                if "other" not in data_types:
+                    data_types["other"] = []
+                data_types["other"].append(col)
 
         return ColumnTreeVisualization(data_types)
 
