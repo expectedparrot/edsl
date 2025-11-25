@@ -1011,6 +1011,44 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         return self._properties.columns
 
+    def show_columns(self):
+        """Display columns in a tree format using a mermaid diagram.
+
+        This method creates a hierarchical visualization of all columns in the Results object,
+        organized by data type. Unlike the columns() property which returns a flat list,
+        this method shows the relationship between data types and their corresponding keys.
+
+        Returns:
+            ColumnTreeVisualization: An object that displays as a mermaid diagram in Jupyter
+            notebooks and as formatted text in terminals.
+
+        Example:
+
+        >>> r = Results.example()
+        >>> r.show_columns()  # doctest: +SKIP
+        # Shows a tree diagram with data types as parent nodes and keys as children
+        """
+        from .column_tree_visualization import ColumnTreeVisualization
+
+        # Get the hierarchical columns
+        relevant_cols = self.relevant_columns()
+
+        # Group columns by data type
+        data_types = {}
+        for col in relevant_cols:
+            if "." in col:
+                data_type, key = col.split(".", 1)
+                if data_type not in data_types:
+                    data_types[data_type] = []
+                data_types[data_type].append(key)
+            else:
+                # Handle columns without prefix (shouldn't happen in normal cases)
+                if "other" not in data_types:
+                    data_types["other"] = []
+                data_types["other"].append(col)
+
+        return ColumnTreeVisualization(data_types)
+
     @property
     def answer_keys(self) -> dict[str, str]:
         """Return a mapping of answer keys to question text.
@@ -1246,6 +1284,51 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 rows.append(Scenario(question_row))
 
         return ScenarioList(rows)
+
+    def q_and_a(self, include_scenario: bool = False) -> "ScenarioList":
+        """Return a ScenarioList with question-answer pairs from all Results with result indices.
+
+        This method gets the q_and_a() from each component Result object and adds an
+        index field to indicate which Result object each entry came from. Each row
+        contains:
+        - "result_index": Index of the Result object (0-based)
+        - "question_name": The internal question name/identifier
+        - "question_text": The rendered question text (with scenario placeholders filled in)
+        - "answer": The recorded answer value
+        - "comment": The recorded comment for the question (if any)
+
+        If include_scenario is True, all scenario fields are also included.
+
+        Args:
+            include_scenario: Whether to include all scenario fields in each row.
+                Defaults to False.
+
+        Returns:
+            ScenarioList: Combined question-answer data from all Result objects.
+
+        Examples:
+            >>> r = Results.example()
+            >>> qa = r.q_and_a()
+            >>> "result_index" in qa.parameters
+            True
+            >>> {"question_name", "question_text", "answer", "comment"}.issubset(set(qa.parameters))
+            True
+        """
+        from ..scenarios import Scenario, ScenarioList
+
+        all_scenarios = []
+
+        for result_index, result in enumerate(self.data):
+            # Get q_and_a from each Result object
+            result_qa = result.q_and_a(include_scenario=include_scenario)
+
+            # Add result_index to each scenario in the list
+            for scenario in result_qa:
+                scenario_dict = dict(scenario)
+                scenario_dict["result_index"] = result_index
+                all_scenarios.append(Scenario(scenario_dict))
+
+        return ScenarioList(all_scenarios)
 
     @ensure_ready
     def rename(self, old_name: str, new_name: str) -> Results:

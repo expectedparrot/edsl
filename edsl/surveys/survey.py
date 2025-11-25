@@ -4,15 +4,12 @@ This module defines the Survey class, which is the central data structure for cr
 and managing surveys. A Survey consists of questions, instructions, and rules that
 determine the flow of questions based on previous answers.
 
-Surveys can include skip logic, memory management, and question groups, making them
-flexible for a variety of use cases from simple linear questionnaires to complex
-branching surveys with conditional logic.
+Surveys can include skip logic, memory management, and question groups.
 """
 
 from __future__ import annotations
 import re
 import random
-from collections import UserDict
 from uuid import uuid4
 
 from typing import (
@@ -59,7 +56,7 @@ from ..instructions import Instruction
 from ..instructions import ChangeInstruction
 
 from .base import EndOfSurvey, EndOfSurveyParent
-from .descriptors import QuestionsDescriptor
+from .descriptors import QuestionsDescriptor, QuestionsToRandomizeDescriptor
 from .memory import MemoryPlan
 from .survey_flow_visualization import SurveyFlowVisualization
 from ..instructions import InstructionHandler
@@ -68,62 +65,13 @@ from .survey_simulator import Simulator
 from .memory import MemoryManagement
 from .rules import RuleManager, RuleCollection
 from .survey_export import SurveyExport
+from .pseudo_indices import PseudoIndices
 from .exceptions import (
     SurveyCreationError,
     SurveyHasNoRulesError,
     SurveyError,
     SurveyQuestionsToRandomizeError,
 )
-
-
-class PseudoIndices(UserDict):
-    """A dictionary of pseudo-indices for the survey.
-
-    This class manages indices for both questions and instructions in a survey. It assigns
-    floating-point indices to instructions so they can be interspersed between integer-indexed
-    questions while maintaining order. This is crucial for properly serializing and deserializing
-    surveys with both questions and instructions.
-
-    Attributes:
-        data (dict): The underlying dictionary mapping item names to their pseudo-indices.
-    """
-
-    @property
-    def max_pseudo_index(self) -> float:
-        """Return the maximum pseudo index in the survey.
-
-        Returns:
-            float: The highest pseudo-index value currently assigned, or -1 if empty.
-
-        Examples:
-            >>> Survey.example()._pseudo_indices.max_pseudo_index
-            2
-        """
-        if len(self) == 0:
-            return -1
-        return max(self.values())
-
-    @property
-    def last_item_was_instruction(self) -> bool:
-        """Determine if the last item added to the survey was an instruction.
-
-        This is used to determine the pseudo-index of the next item added to the survey.
-        Instructions are assigned floating-point indices (e.g., 1.5) while questions
-        have integer indices.
-
-        Returns:
-            bool: True if the last added item was an instruction, False otherwise.
-
-        Examples:
-            >>> s = Survey.example()
-            >>> s._pseudo_indices.last_item_was_instruction
-            False
-            >>> from edsl.instructions import Instruction
-            >>> s = s.add_instruction(Instruction(text="Pay attention to the following questions.", name="intro"))
-            >>> s._pseudo_indices.last_item_was_instruction
-            True
-        """
-        return isinstance(self.max_pseudo_index, float)
 
 
 class Survey(Base):
@@ -163,6 +111,21 @@ class Survey(Base):
         - The presumed order of the survey is the order in which questions are added
         - Questions must have unique names within a survey
         - Each question can have rules associated with it that determine the next question
+    """
+
+    questions_to_randomize = QuestionsToRandomizeDescriptor()
+    """A descriptor that manages the list of question names to randomize.
+    
+    This descriptor validates that all question names in the list are strings
+    and exist in the survey. When set to None, it defaults to an empty list.
+    
+    The underlying list is stored in the protected `_questions_to_randomize` attribute,
+    while this property provides the public interface for accessing it.
+    
+    Notes:
+        - All question names must exist in the survey
+        - Only string values are allowed
+        - Defaults to an empty list if not specified
     """
 
     def __init__(
@@ -235,38 +198,10 @@ class Survey(Base):
         if rule_collection is not None:
             self.rule_collection = rule_collection
 
-        # if name is not None:
-        #     import warnings
-
-        #     warnings.warn("name parameter to a survey is deprecated.")
         self.name = name
 
-        if questions_to_randomize is not None:
-            self.questions_to_randomize = questions_to_randomize
-        else:
-            self.questions_to_randomize = []
-
-        # Validate questions_to_randomize
-        if self.questions_to_randomize:
-            # Check that each element is a string
-            for item in self.questions_to_randomize:
-                if not isinstance(item, str):
-                    raise SurveyQuestionsToRandomizeError(
-                        f"questions_to_randomize must be a list of strings. "
-                        f"Found non-string value: {item!r} (type: {type(item).__name__})"
-                    )
-
-            # Get all question names from the survey
-            question_names_in_survey = {q.question_name for q in self.questions}
-
-            # Check that each question name exists in the survey
-            for question_name in self.questions_to_randomize:
-                if question_name not in question_names_in_survey:
-                    raise SurveyQuestionsToRandomizeError(
-                        f"questions_to_randomize contains question name '{question_name}' "
-                        f"which is not present in the survey. "
-                        f"Valid question names are: {sorted(question_names_in_survey)}"
-                    )
+        # Set through descriptor (handles validation and None -> [] conversion)
+        self.questions_to_randomize = questions_to_randomize
 
         self._seed: Optional[int] = None
 
@@ -1470,124 +1405,11 @@ class Survey(Base):
             - "Why do you like Chinese?"
             - "Why do you like Mexican?"
         """
-        # Get the reference question
-        if isinstance(reference_question, str):
-            ref_q = self._get_question_by_name(reference_question)
-            ref_name = reference_question
-        else:
-            ref_q = reference_question
-            ref_name = ref_q.question_name
+        from .followup_questions import FollowupQuestionAdder
 
-        # Check if the question has options
-        if not hasattr(ref_q, "question_options"):
-            raise ValueError(
-                f"Reference question '{ref_name}' must have options "
-                f"(e.g., QuestionMultipleChoice or QuestionCheckBox)"
-            )
-
-        options = ref_q.question_options
-
-        # Find the index where we should insert follow-up questions (right after reference)
-        ref_index = self._get_question_index(ref_name)
-        insert_index = ref_index + 1
-
-        # Create a modified survey
-        modified_survey = self
-
-        # Store the followup question names
-        followup_names = []
-
-        # For each option, create a follow-up question
-        for i, option in enumerate(options):
-            # Clone the followup template
-            followup_dict = followup_template.to_dict()
-
-            # Remove edsl_version if present to avoid issues
-            followup_dict.pop("edsl_version", None)
-
-            # Create unique name for this followup
-            followup_name = f"{followup_template.question_name}_{ref_name}_{i}"
-            followup_dict["question_name"] = followup_name
-            followup_names.append(followup_name)
-
-            # Replace the template variable in question_text
-            template_var = f"{{{{ {ref_name}.{answer_template_var} }}}}"
-            if template_var in followup_dict.get("question_text", ""):
-                followup_dict["question_text"] = followup_dict["question_text"].replace(
-                    template_var, str(option)
-                )
-
-            # Create the new question from the modified dict
-            new_question = followup_template.__class__.from_dict(followup_dict)
-
-            # Add the question to the survey at the right position
-            modified_survey = modified_survey.add_question(
-                new_question, index=insert_index + i
-            )
-
-        # IMPORTANT: After inserting questions, the default rules got updated incorrectly.
-        # The rule from ref_question now points past all the followups to what used to be
-        # the next question. We need to fix this so it points to the first followup.
-        # Also, the default rules between followup questions point to wrong places.
-        #
-        # Fix the default rule from the reference question to point to first followup
-        first_followup_index = insert_index
-        for rule in modified_survey.rule_collection:
-            if (
-                rule.current_q == ref_index
-                and rule.expression == "True"
-                and rule.priority == -1
-            ):
-                # This is the default rule from the reference question
-                # Update it to point to the first followup
-                rule.next_q = first_followup_index
-                break
-
-        # Fix the default rules between followup questions
-        # Each followup should point to the next followup, except the last one
-        for i in range(len(options)):
-            current_followup_index = insert_index + i
-            next_index = insert_index + i + 1
-
-            for rule in modified_survey.rule_collection:
-                if (
-                    rule.current_q == current_followup_index
-                    and rule.expression == "True"
-                    and rule.priority == -1
-                ):
-                    # This is a default rule for a followup question
-                    # Update it to point to the next question in sequence
-                    rule.next_q = next_index
-                    break
-
-        # Now add skip logic for each follow-up
-        # Each follow-up should be skipped if the answer doesn't match its option
-        for i, option in enumerate(options):
-            followup_name = f"{followup_template.question_name}_{ref_name}_{i}"
-
-            # Determine the next question to jump to if this followup should be skipped
-            if i < len(options) - 1:
-                # Skip to the next followup
-                next_followup = f"{followup_template.question_name}_{ref_name}_{i + 1}"
-            else:
-                # This is the last followup, skip to whatever comes after all followups
-                # which is the question at insert_index + len(options)
-                next_index = insert_index + len(options)
-                if next_index < len(modified_survey.questions):
-                    next_followup = modified_survey.questions[next_index]
-                else:
-                    # No more questions, skip to end of survey
-                    from edsl.surveys.base import EndOfSurvey
-
-                    next_followup = EndOfSurvey
-
-            # Add before_rule: if answer != this option, skip this followup
-            skip_condition = f"{{{{ {ref_name}.answer }}}} != '{option}'"
-            modified_survey = modified_survey.add_rule(
-                followup_name, skip_condition, next_followup, before_rule=True
-            )
-
-        return modified_survey
+        return FollowupQuestionAdder.add_followup_questions(
+            self, reference_question, followup_template, answer_template_var
+        )
 
     def by(
         self,
@@ -2559,34 +2381,35 @@ class Survey(Base):
         new_survey.questions[new_survey.questions.index(question)] = new_question
         return new_survey
 
-    def edit(self):
-        import webbrowser
-        import time
+    # Could add back, but work with Polly instead
+    # def edit(self):
+    #     import webbrowser
+    #     import time
 
-        info = self.push()
-        print("Waiting for survey to be created on Coop...")
-        time.sleep(5)
-        url = f"https://www.expectedparrot.com/edit/survey/{info['uuid']}"
-        webbrowser.open(url)
-        print(f"Survey opened in web editor: {url}")
+    #     info = self.push()
+    #     print("Waiting for survey to be created on Coop...")
+    #     time.sleep(5)
+    #     url = f"https://chick.expectedparrot.com/edit/survey/{info['uuid']}"
+    #     webbrowser.open(url)
+    #     print(f"Survey opened in web editor: {url}")
 
-        # Wait for user to confirm editing is complete
-        while True:
-            user_input = input("Is editing complete [y/n]: ").strip().lower()
-            if user_input in ["y", "yes"]:
-                print("Waiting for changes to sync...")
-                time.sleep(5)
-                # Pull the updated survey and update current object
-                updated_survey = Survey.pull(info["uuid"])
-                # Update the current object's attributes with the pulled survey
-                self.__dict__.update(updated_survey.__dict__)
-                print("Survey updated with changes from web editor.")
-                break
-            elif user_input in ["n", "no"]:
-                print("Editing session ended. Survey remains unchanged.")
-                break
-            else:
-                print("Please enter 'y' for yes or 'n' for no.")
+    #     # Wait for user to confirm editing is complete
+    #     while True:
+    #         user_input = input("Is editing complete [y/n]: ").strip().lower()
+    #         if user_input in ["y", "yes"]:
+    #             print("Waiting for changes to sync...")
+    #             time.sleep(5)
+    #             # Pull the updated survey and update current object
+    #             updated_survey = Survey.pull(info["uuid"])
+    #             # Update the current object's attributes with the pulled survey
+    #             self.__dict__.update(updated_survey.__dict__)
+    #             print("Survey updated with changes from web editor.")
+    #             break
+    #         elif user_input in ["n", "no"]:
+    #             print("Editing session ended. Survey remains unchanged.")
+    #             break
+    #         else:
+    #             print("Please enter 'y' for yes or 'n' for no.")
 
     @classmethod
     def example(
@@ -2816,51 +2639,51 @@ class Survey(Base):
         """Create the Python code representation of a survey."""
         return self._exporter.code(filename, survey_var_name)
 
-    def html(
-        self,
-        scenario: Optional[dict] = None,
-        filename: Optional[str] = None,
-        return_link=False,
-        css: Optional[str] = None,
-        cta: str = "Open HTML file",
-        include_question_name=False,
-    ) -> FileStore:
-        """DEPRECATED: Use :py:meth:`to_html` instead."""
-        import warnings
+    # def html(
+    #     self,
+    #     scenario: Optional[dict] = None,
+    #     filename: Optional[str] = None,
+    #     return_link=False,
+    #     css: Optional[str] = None,
+    #     cta: str = "Open HTML file",
+    #     include_question_name=False,
+    # ) -> FileStore:
+    #     """DEPRECATED: Use :py:meth:`to_html` instead."""
+    #     import warnings
 
-        warnings.warn(
-            "Survey.html is deprecated and will be removed in a future release. Use Survey.to_html instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.to_html(
-            scenario,
-            filename,
-            return_link=return_link,
-            css=css,
-            cta=cta,
-            include_question_name=include_question_name,
-        )
+    #     warnings.warn(
+    #         "Survey.html is deprecated and will be removed in a future release. Use Survey.to_html instead.",
+    #         DeprecationWarning,
+    #         stacklevel=2,
+    #     )
+    #     return self.to_html(
+    #         scenario,
+    #         filename,
+    #         return_link=return_link,
+    #         css=css,
+    #         cta=cta,
+    #         include_question_name=include_question_name,
+    #     )
 
-    def latex(
-        self,
-        filename: Optional[str] = None,
-        include_question_name: bool = False,
-        standalone: bool = True,
-    ) -> "FileStore":
-        """Generate a LaTeX (.tex) representation of the survey.
+    # def latex(
+    #     self,
+    #     filename: Optional[str] = None,
+    #     include_question_name: bool = False,
+    #     standalone: bool = True,
+    # ) -> "FileStore":
+    #     """Generate a LaTeX (.tex) representation of the survey.
 
-        Parameters
-        ----------
-        filename : Optional[str]
-            The filename to write to. If not provided, a temporary file is created
-            in the current working directory with a ``.tex`` suffix.
-        include_question_name : bool
-            If True, includes the internal ``question_name`` of each question. Default False.
-        standalone : bool
-            If True, the LaTeX file is standalone. Default True.
-        """
-        return self._exporter.latex(filename, include_question_name, standalone)
+    #     Parameters
+    #     ----------
+    #     filename : Optional[str]
+    #         The filename to write to. If not provided, a temporary file is created
+    #         in the current working directory with a ``.tex`` suffix.
+    #     include_question_name : bool
+    #         If True, includes the internal ``question_name`` of each question. Default False.
+    #     standalone : bool
+    #         If True, the LaTeX file is standalone. Default True.
+    #     """
+    #     return self._exporter.latex(filename, include_question_name, standalone)
 
     def copy(self) -> "Survey":
         """Create a deep copy of the survey using serialization.
@@ -2915,158 +2738,30 @@ class Survey(Base):
             >>> # Rules are also updated
             >>> s_renamed.show_rules()  # doctest: +SKIP
         """
-        import re
-        from .exceptions import SurveyError
+        from .question_renamer import QuestionRenamer
 
-        # Validate inputs
-        if old_name not in self.question_name_to_index:
-            raise SurveyError(f"Question '{old_name}' not found in survey.")
+        return QuestionRenamer.with_renamed_question(self, old_name, new_name)
 
-        if new_name in self.question_name_to_index:
-            raise SurveyError(f"Question name '{new_name}' already exists in survey.")
+    # def inspect(self):
+    #     """Create an interactive inspector widget for this survey.
 
-        if not new_name.isidentifier():
-            raise SurveyError(
-                f"New question name '{new_name}' is not a valid Python identifier."
-            )
+    #     This method creates a SurveyInspectorWidget that provides an interactive
+    #     interface for exploring the survey structure, questions, and flow logic.
 
-        # Create a copy of the survey to work with
-        new_survey = self.duplicate()
+    #     Returns:
+    #         SurveyInspectorWidget instance: Interactive widget for inspecting this survey
 
-        # 1. Update the question name itself
-        question_index = new_survey.question_name_to_index[old_name]
-        target_question = new_survey.questions[question_index]
-        target_question.question_name = new_name
+    #     Raises:
+    #         ImportError: If the widgets module cannot be imported
+    #     """
+    #     try:
+    #         from ..widgets.survey_inspector import SurveyInspectorWidget
+    #     except ImportError as e:
+    #         raise ImportError(
+    #             "Survey inspector widget is not available. Make sure the widgets module is installed."
+    #         ) from e
 
-        # 2. Update all rules that reference the old question name
-        for rule in new_survey.rule_collection:
-            # Update expressions - handle both old format (q1) and new format ({{ q1.answer }})
-            # Old format: 'q1' or 'q1.answer' (standalone references)
-            rule.expression = re.sub(
-                rf"\b{re.escape(old_name)}\.answer\b",
-                f"{new_name}.answer",
-                rule.expression,
-            )
-            rule.expression = re.sub(
-                rf"\b{re.escape(old_name)}\b(?!\.)", new_name, rule.expression
-            )
-
-            # New format: {{ q1.answer }} (Jinja2 template references)
-            rule.expression = re.sub(
-                rf"\{{\{{\s*{re.escape(old_name)}\.answer\s*\}}\}}",
-                f"{{{{ {new_name}.answer }}}}",
-                rule.expression,
-            )
-            rule.expression = re.sub(
-                rf"\{{\{{\s*{re.escape(old_name)}\s*\}}\}}",
-                f"{{{{ {new_name} }}}}",
-                rule.expression,
-            )
-
-            # Update the question_name_to_index mapping in the rule
-            if old_name in rule.question_name_to_index:
-                index = rule.question_name_to_index.pop(old_name)
-                rule.question_name_to_index[new_name] = index
-
-        # 3. Update memory plans
-        new_memory_plan_data = {}
-        for focal_question, memory in new_survey.memory_plan.data.items():
-            # Update focal question name if it matches
-            new_focal = new_name if focal_question == old_name else focal_question
-
-            # Update prior questions list (Memory class stores questions in data attribute)
-            if hasattr(memory, "data"):
-                new_prior_questions = [
-                    new_name if prior_q == old_name else prior_q
-                    for prior_q in memory.data
-                ]
-                # Create new memory object with updated prior questions
-                from .memory.memory import Memory
-
-                new_memory = Memory(prior_questions=new_prior_questions)
-                new_memory_plan_data[new_focal] = new_memory
-            else:
-                new_memory_plan_data[new_focal] = memory
-
-        new_survey.memory_plan.data = new_memory_plan_data
-
-        # Update the memory plan's internal question name list
-        if hasattr(new_survey.memory_plan, "survey_question_names"):
-            new_survey.memory_plan.survey_question_names = [
-                new_name if q_name == old_name else q_name
-                for q_name in new_survey.memory_plan.survey_question_names
-            ]
-
-        # 4. Update piping references in all questions
-        def update_piping_in_text(text: str) -> str:
-            """Update piping references in text strings."""
-            # Handle {{ old_name.answer }} format
-            text = re.sub(
-                rf"\{{\{{\s*{re.escape(old_name)}\.answer\s*\}}\}}",
-                f"{{{{ {new_name}.answer }}}}",
-                text,
-            )
-            # Handle {{ old_name }} format
-            text = re.sub(
-                rf"\{{\{{\s*{re.escape(old_name)}\s*\}}\}}",
-                f"{{{{ {new_name} }}}}",
-                text,
-            )
-            return text
-
-        for question in new_survey.questions:
-            # Update question text
-            question.question_text = update_piping_in_text(question.question_text)
-
-            # Update question options if they exist
-            if hasattr(question, "question_options") and question.question_options:
-                question.question_options = [
-                    update_piping_in_text(option) if isinstance(option, str) else option
-                    for option in question.question_options
-                ]
-
-        # 5. Update instructions
-        for (
-            instruction_name,
-            instruction,
-        ) in new_survey._instruction_names_to_instructions.items():
-            if hasattr(instruction, "text"):
-                instruction.text = update_piping_in_text(instruction.text)
-
-        # 6. Update question groups - only if the renamed question is a key (not just in ranges)
-        # Question groups use indices for ranges, so we don't need to update those
-        # But if someone created a group with the same name as a question, we should handle that
-        if old_name in new_survey.question_groups:
-            group_range = new_survey.question_groups.pop(old_name)
-            new_survey.question_groups[new_name] = group_range
-
-        # 7. Update pseudo indices
-        if old_name in new_survey._pseudo_indices:
-            pseudo_index = new_survey._pseudo_indices.pop(old_name)
-            new_survey._pseudo_indices[new_name] = pseudo_index
-
-        return new_survey
-
-    def inspect(self):
-        """Create an interactive inspector widget for this survey.
-
-        This method creates a SurveyInspectorWidget that provides an interactive
-        interface for exploring the survey structure, questions, and flow logic.
-
-        Returns:
-            SurveyInspectorWidget instance: Interactive widget for inspecting this survey
-
-        Raises:
-            ImportError: If the widgets module cannot be imported
-        """
-        try:
-            from ..widgets.survey_inspector import SurveyInspectorWidget
-        except ImportError as e:
-            raise ImportError(
-                "Survey inspector widget is not available. Make sure the widgets module is installed."
-            ) from e
-
-        return SurveyInspectorWidget(self)
+    #     return SurveyInspectorWidget(self)
 
     @classmethod
     def generate_from_topic(
@@ -3098,189 +2793,11 @@ class Survey(Base):
             >>> survey = Survey.generate_from_topic("product feedback", scenario_keys=["product_name", "version"])  # doctest: +SKIP
             >>> survey = Survey.generate_from_topic("feedback", verbose=False)  # doctest: +SKIP
         """
-        from ..language_models import Model
-        from ..questions import (
-            QuestionList,
-            QuestionFreeText,
-            QuestionMultipleChoice,
-            QuestionLinearScale,
-            QuestionCheckBox,
+        from .survey_generator import SurveyGenerator
+
+        return SurveyGenerator.generate_from_topic(
+            cls, topic, n_questions, model, scenario_keys, verbose
         )
-
-        # Use default model if none provided
-        m = model or Model()
-
-        # Generate questions using LLM
-        scenario_instruction = ""
-        if scenario_keys:
-            scenario_vars = ", ".join(
-                [f"{{{{ scenario.{key} }}}}" for key in scenario_keys]
-            )
-            scenario_instruction = f"\n\nIMPORTANT: Include these scenario variables in your questions where appropriate: {scenario_vars}"
-
-        system_prompt = f"""
-Draft a concise, well-balanced survey for the given topic.
-Return only JSON (a list), where each element includes:
-- question_text
-- question_type ∈ {{"FreeText","MultipleChoice","LinearScale","CheckBox"}}
-- question_options (REQUIRED for all but FreeText; for LinearScale return a list of integers like [1,2,3,4,5])
-- question_name (optional, short slug like "feel_today" not "how_do_you_feel_today", max 20 chars)
-
-Design tips:
-- Prefer MultipleChoice for attitudes/preferences; FreeText for open feedback; LinearScale for intensity; CheckBox for multi-select.
-- Keep options 3–7 items where possible; be neutral & non-leading.
-- Avoid duplicative questions.
-- For LinearScale: use integer lists like [1,2,3,4,5] or [1,2,3,4,5,6,7,8,9,10]
-- Question names should be short, unique references (like "satisfaction", "age", "preference"){scenario_instruction}
-        """.strip()
-
-        q = QuestionList(
-            question_name="topic_questions",
-            question_text=(
-                f"{system_prompt}\n\nTOPIC: {topic}\nN_QUESTIONS: {n_questions}"
-                "\nReturn ONLY JSON."
-            ),
-            max_list_items=n_questions,
-        )
-
-        # Try LLM generation first
-        items = []
-        try:
-            if verbose:
-                result = q.by(m).run()
-            else:
-                # Suppress output when verbose=False
-                import sys
-                from io import StringIO
-
-                old_stdout = sys.stdout
-                sys.stdout = StringIO()
-                try:
-                    result = q.by(m).run()
-                finally:
-                    sys.stdout = old_stdout
-
-            items = result.select("topic_questions").to_list()[0]
-        except Exception:
-            # LLM call failed, will use fallback
-            pass
-
-        # Handle case where LLM doesn't return expected format or fails
-        if not items:
-            # Fallback: create simple questions based on topic with pattern-based types
-            questions = []
-            for i in range(n_questions):
-                # Add scenario variables to fallback questions if provided
-                if scenario_keys:
-                    scenario_vars = " ".join(
-                        [f"{{{{ scenario.{key} }}}}" for key in scenario_keys]
-                    )
-                    question_text = f"What are your thoughts on {topic} regarding {scenario_vars}? (Question {i+1})"
-                else:
-                    question_text = (
-                        f"What are your thoughts on {topic}? (Question {i+1})"
-                    )
-
-                # Use pattern-based type inference for fallback questions
-                text_lower = question_text.lower()
-                if any(
-                    word in text_lower
-                    for word in [
-                        "satisfied",
-                        "satisfaction",
-                        "happy",
-                        "pleased",
-                        "likely",
-                        "probability",
-                        "chance",
-                        "often",
-                        "frequency",
-                        "agree",
-                        "disagree",
-                        "opinion",
-                    ]
-                ):
-                    question_obj = QuestionMultipleChoice(
-                        question_name=f"q{i}",
-                        question_text=question_text,
-                        question_options=[
-                            "Very satisfied",
-                            "Satisfied",
-                            "Neutral",
-                            "Dissatisfied",
-                            "Very dissatisfied",
-                        ],
-                    )
-                elif any(
-                    word in text_lower
-                    for word in [
-                        "features",
-                        "functionality",
-                        "capabilities",
-                        "value",
-                        "like",
-                        "benefits",
-                        "advantages",
-                        "perks",
-                        "important",
-                        "channels",
-                        "methods",
-                        "ways",
-                        "prefer",
-                        "contact",
-                    ]
-                ):
-                    question_obj = QuestionCheckBox(
-                        question_name=f"q{i}",
-                        question_text=question_text,
-                        question_options=[
-                            "User interface",
-                            "Performance",
-                            "Security",
-                            "Customer support",
-                            "Pricing",
-                        ],
-                    )
-                elif any(
-                    word in text_lower
-                    for word in ["rate", "rating", "scale", "level", "score"]
-                ):
-                    question_obj = QuestionLinearScale(
-                        question_name=f"q{i}",
-                        question_text=question_text,
-                        question_options=[1, 2, 3, 4, 5],
-                    )
-                else:
-                    question_obj = QuestionFreeText(
-                        question_name=f"q{i}", question_text=question_text
-                    )
-
-                questions.append(question_obj)
-        else:
-            # Convert to proper question objects and ensure scenario variables are included
-            questions = []
-            for i, item in enumerate(items):
-                # Ensure scenario variables are included in question text
-                if scenario_keys and "question_text" in item:
-                    original_text = item["question_text"]
-                    # Check if scenario variables are already in the text
-                    has_scenario_vars = any(
-                        f"{{{{ scenario.{key} }}}}" in original_text
-                        for key in scenario_keys
-                    )
-                    if not has_scenario_vars:
-                        # Add scenario variables to the question text
-                        scenario_vars = " ".join(
-                            [f"{{{{ scenario.{key} }}}}" for key in scenario_keys]
-                        )
-                        item["question_text"] = (
-                            f"{original_text} (Context: {scenario_vars})"
-                        )
-
-                question_obj = cls._create_question_from_dict(item, f"q{i}")
-                questions.append(question_obj)
-
-        return cls(questions)
 
     @classmethod
     def generate_from_questions(
@@ -3319,135 +2836,11 @@ Design tips:
             >>> survey = Survey.generate_from_questions(texts, scenario_keys=["product_name"])  # doctest: +SKIP
             >>> survey = Survey.generate_from_questions(texts, verbose=False)  # doctest: +SKIP
         """
-        from ..language_models import Model
+        from .survey_generator import SurveyGenerator
 
-        # Use default model if none provided
-        m = model or Model()
-
-        # Prepare question data
-        question_data = []
-        for i, text in enumerate(question_texts):
-            # Add scenario variables to question text if provided
-            if scenario_keys:
-                # Create a prompt to enhance the question text with scenario variables
-                scenario_vars = ", ".join(
-                    [f"{{{{ scenario.{key} }}}}" for key in scenario_keys]
-                )
-                enhanced_text = (
-                    f"{text} (Use these variables where appropriate: {scenario_vars})"
-                )
-            else:
-                enhanced_text = text
-
-            data = {"question_text": enhanced_text}
-
-            # Add question type if provided
-            if question_types and i < len(question_types):
-                data["question_type"] = question_types[i]
-
-            # Add question name if provided
-            if question_names and i < len(question_names):
-                data["question_name"] = question_names[i]
-            else:
-                data["question_name"] = f"q{i}"
-
-            question_data.append(data)
-
-        # Infer missing question types
-        if question_types is None or any(not qt for qt in question_types):
-            # First try pattern-based inference (more reliable)
-            for data in question_data:
-                if "question_type" not in data or not data["question_type"]:
-                    text = data["question_text"].lower()
-                    if any(
-                        word in text
-                        for word in [
-                            "satisfied",
-                            "satisfaction",
-                            "happy",
-                            "pleased",
-                            "likely",
-                            "probability",
-                            "chance",
-                            "often",
-                            "frequency",
-                            "agree",
-                            "disagree",
-                            "opinion",
-                        ]
-                    ):
-                        data["question_type"] = "MultipleChoice"
-                    elif any(
-                        word in text
-                        for word in [
-                            "features",
-                            "functionality",
-                            "capabilities",
-                            "value",
-                            "like",
-                            "benefits",
-                            "advantages",
-                            "perks",
-                            "important",
-                            "channels",
-                            "methods",
-                            "ways",
-                            "prefer",
-                            "contact",
-                        ]
-                    ):
-                        data["question_type"] = "CheckBox"
-                    elif any(
-                        word in text
-                        for word in ["rate", "rating", "scale", "level", "score"]
-                    ):
-                        data["question_type"] = "LinearScale"
-                    else:
-                        data["question_type"] = "FreeText"
-
-            # Then try LLM inference to refine types and add options
-            try:
-                if verbose:
-                    question_data = cls._infer_question_types(question_data, m)
-                else:
-                    # Suppress output when verbose=False
-                    import sys
-                    from io import StringIO
-
-                    old_stdout = sys.stdout
-                    sys.stdout = StringIO()
-                    try:
-                        question_data = cls._infer_question_types(question_data, m)
-                    finally:
-                        sys.stdout = old_stdout
-            except Exception:
-                # LLM inference failed, but we already have types from pattern matching
-                pass
-
-        # Convert to proper question objects and ensure scenario variables are included
-        questions = []
-        for i, data in enumerate(question_data):
-            # Ensure scenario variables are included in question text
-            if scenario_keys and "question_text" in data:
-                original_text = data["question_text"]
-                # Check if scenario variables are already in the text
-                has_scenario_vars = any(
-                    f"{{{{ scenario.{key} }}}}" in original_text
-                    for key in scenario_keys
-                )
-                if not has_scenario_vars:
-                    # Add scenario variables to the question text
-                    scenario_vars = " ".join(
-                        [f"{{{{ scenario.{key} }}}}" for key in scenario_keys]
-                    )
-                    data["question_text"] = (
-                        f"{original_text} (Context: {scenario_vars})"
-                    )
-
-            question_obj = cls._create_question_from_dict(data, f"q{i}")
-            questions.append(question_obj)
-
-        return cls(questions)
+        return SurveyGenerator.generate_from_questions(
+            cls, question_texts, question_types, question_names, model, scenario_keys, verbose
+        )
 
     @classmethod
     @with_spinner("Generating survey from description...")
@@ -3677,336 +3070,18 @@ Design tips:
         cls, question_data: List[Dict[str, Any]], model: "LanguageModel"
     ) -> List[Dict[str, Any]]:
         """Infer question types for question data using an LLM."""
-        from ..questions import QuestionList
+        from .survey_generator import SurveyGenerator
 
-        prompt = """
-You are helping construct a structured survey schema.
-
-For EACH input item, output a JSON list of objects where every object has:
-- question_text (string; required)
-- question_type (one of: "FreeText", "MultipleChoice", "LinearScale", "CheckBox"; required)
-- question_name (short slug; lowercase letters, numbers, underscores; optional if provided already)
-- question_options (array; REQUIRED for all types except FreeText; for LinearScale, provide an ordered array of numeric labels)
-
-Guidelines:
-- Preserve intent and wording where possible.
-- If the input already includes 'question_type' and/or 'question_options', respect them unless obviously invalid.
-- If no name is provided, generate a SHORT slug from the text (max 20 chars, like "feel_today" not "how_do_you_feel_today").
-- ALWAYS generate appropriate question_options for MultipleChoice, LinearScale, and CheckBox questions.
-- For MultipleChoice/CheckBox: provide 3-7 relevant, mutually exclusive options.
-- For LinearScale: provide integer arrays like [1,2,3,4,5] or [1,2,3,4,5,6,7,8,9,10].
-- Keep options concise, neutral, and non-leading.
-- If the question text mentions scenario variables (like {{ scenario.key }}), incorporate them naturally into the final question_text.
-- Return ONLY valid JSON (a list). No commentary.
-        """.strip()
-
-        q = QuestionList(
-            question_name="design",
-            question_text=prompt + "\n\nINPUT:\n" + str(question_data),
-            max_list_items=len(question_data),
-        )
-
-        # Get the structured response
-        result = q.by(model).run()
-        out = result.select("design").to_list()[0]
-
-        # Handle case where LLM doesn't return expected format
-        if not out:
-            # Fallback: return original data with FreeText type
-            normalized = []
-            for i, data in enumerate(question_data):
-                normalized_row = {
-                    "question_text": data["question_text"],
-                    "question_type": data.get("question_type", "FreeText"),
-                    "question_name": data.get("question_name", f"q{i}"),
-                    "question_options": data.get("question_options", []),
-                }
-                normalized.append(normalized_row)
-            return normalized
-
-        # Normalize the response
-        normalized = []
-        for i, row in enumerate(out):
-            normalized_row = {
-                "question_text": row.get(
-                    "question_text", question_data[i]["question_text"]
-                ).strip(),
-                "question_type": row.get("question_type", "FreeText").strip(),
-                "question_name": row.get("question_name")
-                or question_data[i].get("question_name", f"q{i}"),
-                "question_options": row.get("question_options", []),
-            }
-            normalized.append(normalized_row)
-
-        return normalized
+        return SurveyGenerator._infer_question_types(question_data, model)
 
     @classmethod
     def _create_question_from_dict(
         cls, data: Dict[str, Any], default_name: str
     ) -> "QuestionBase":
         """Create a question object from a dictionary."""
-        from ..questions import (
-            QuestionFreeText,
-            QuestionMultipleChoice,
-            QuestionLinearScale,
-            QuestionCheckBox,
-            QuestionNumerical,
-            QuestionLikertFive,
-            QuestionYesNo,
-            QuestionRank,
-            QuestionBudget,
-            QuestionList,
-            QuestionMatrix,
-        )
-        import re
-        import uuid
+        from .survey_generator import SurveyGenerator
 
-        def _slugify(text: str, fallback_len: int = 8) -> str:
-            # Remove common question words and create shorter slugs
-            text = text.lower()
-
-            # Remove question marks and extra whitespace first
-            text = re.sub(r"[?]+", "", text).strip()
-
-            # Split into words
-            words = re.findall(r"\b\w+\b", text)
-
-            # Remove common question words from the beginning
-            question_words = {
-                "what",
-                "how",
-                "when",
-                "where",
-                "why",
-                "which",
-                "who",
-                "do",
-                "are",
-                "would",
-                "have",
-                "did",
-                "will",
-                "can",
-                "should",
-                "could",
-                "is",
-                "was",
-                "were",
-                "does",
-                "you",
-                "your",
-                "the",
-                "a",
-                "an",
-            }
-
-            # Filter out question words and common words
-            meaningful_words = [word for word in words if word not in question_words]
-
-            # Take first 2 meaningful words
-            if len(meaningful_words) >= 2:
-                slug = "_".join(meaningful_words[:2])
-            elif len(meaningful_words) == 1:
-                slug = meaningful_words[0]
-            elif len(words) >= 2:
-                # Fallback: use first 2 words even if they contain question words
-                slug = "_".join(words[:2])
-            elif len(words) == 1:
-                slug = words[0]
-            else:
-                slug = f"q_{uuid.uuid4().hex[:fallback_len]}"
-
-            # Clean up the slug
-            slug = re.sub(r"[^a-z0-9]+", "_", slug).strip("_")
-            if not slug:
-                slug = f"q_{uuid.uuid4().hex[:fallback_len]}"
-            return slug[:20]  # Shorter max length
-
-        qtype = data.get("question_type", "FreeText").lower()
-        name = data.get("question_name") or _slugify(data["question_text"])
-        text = data["question_text"]
-        opts = data.get("question_options", [])
-
-        if qtype in ("freetext", "free_text", "text"):
-            return QuestionFreeText(question_name=name, question_text=text)
-
-        if qtype in ("multiplechoice", "multiple_choice", "mc", "single_select"):
-            # Provide default options if none given
-            if not opts:
-                # Generate more contextual options based on question text
-                if any(
-                    word in text.lower()
-                    for word in ["satisfied", "satisfaction", "happy", "pleased"]
-                ):
-                    opts = [
-                        "Very satisfied",
-                        "Satisfied",
-                        "Neutral",
-                        "Dissatisfied",
-                        "Very dissatisfied",
-                    ]
-                elif any(
-                    word in text.lower() for word in ["likely", "probability", "chance"]
-                ):
-                    opts = [
-                        "Very likely",
-                        "Likely",
-                        "Neutral",
-                        "Unlikely",
-                        "Very unlikely",
-                    ]
-                elif any(
-                    word in text.lower() for word in ["often", "frequency", "regularly"]
-                ):
-                    opts = ["Very often", "Often", "Sometimes", "Rarely", "Never"]
-                elif any(
-                    word in text.lower() for word in ["agree", "disagree", "opinion"]
-                ):
-                    opts = [
-                        "Strongly agree",
-                        "Agree",
-                        "Neutral",
-                        "Disagree",
-                        "Strongly disagree",
-                    ]
-                else:
-                    opts = ["Yes", "No", "Maybe"]
-            return QuestionMultipleChoice(
-                question_name=name,
-                question_text=text,
-                question_options=opts,
-            )
-
-        if qtype in ("linearscale", "linear_scale", "scale", "likert"):
-            # Handle LinearScale options properly
-            if isinstance(opts, dict):
-                # Convert dict format to list of integers
-                if "min" in opts and "max" in opts:
-                    min_val = opts["min"]
-                    max_val = opts["max"]
-                    opts = list(range(min_val, max_val + 1))
-                elif "scale_min" in opts and "scale_max" in opts:
-                    min_val = opts["scale_min"]
-                    max_val = opts["scale_max"]
-                    opts = list(range(min_val, max_val + 1))
-                else:
-                    opts = [1, 2, 3, 4, 5]  # Default
-            elif not opts:
-                opts = [1, 2, 3, 4, 5]  # Default
-
-            return QuestionLinearScale(
-                question_name=name,
-                question_text=text,
-                question_options=opts,
-            )
-
-        if qtype in ("checkbox", "check_box", "multi_select", "multiselect"):
-            # Provide default options if none given
-            if not opts:
-                # Generate more contextual options based on question text
-                if any(
-                    word in text.lower()
-                    for word in [
-                        "features",
-                        "functionality",
-                        "capabilities",
-                        "value",
-                        "like",
-                    ]
-                ):
-                    opts = [
-                        "User interface",
-                        "Performance",
-                        "Security",
-                        "Customer support",
-                        "Pricing",
-                    ]
-                elif any(
-                    word in text.lower()
-                    for word in ["benefits", "advantages", "perks", "important"]
-                ):
-                    opts = [
-                        "Health insurance",
-                        "Retirement plan",
-                        "Remote work",
-                        "Paid time off",
-                        "Professional development",
-                    ]
-                elif any(
-                    word in text.lower()
-                    for word in ["channels", "methods", "ways", "prefer", "contact"]
-                ):
-                    opts = ["Email", "Phone", "In-person", "Online chat", "Mobile app"]
-                else:
-                    opts = ["Option 1", "Option 2", "Option 3", "Option 4"]
-            return QuestionCheckBox(
-                question_name=name,
-                question_text=text,
-                question_options=opts,
-            )
-
-        if qtype in ("numerical", "number", "numeric"):
-            min_val = data.get("min_value")
-            max_val = data.get("max_value")
-            return QuestionNumerical(
-                question_name=name,
-                question_text=text,
-                min_value=min_val,
-                max_value=max_val,
-            )
-
-        if qtype in ("likert_five", "likert5", "likert"):
-            return QuestionLikertFive(
-                question_name=name,
-                question_text=text,
-            )
-
-        if qtype in ("yes_no", "yesno", "boolean"):
-            return QuestionYesNo(
-                question_name=name,
-                question_text=text,
-            )
-
-        if qtype in ("rank", "ranking"):
-            if not opts:
-                opts = ["Option 1", "Option 2", "Option 3", "Option 4"]
-            return QuestionRank(
-                question_name=name,
-                question_text=text,
-                question_options=opts,
-            )
-
-        if qtype in ("budget", "allocation"):
-            if not opts:
-                opts = ["Option 1", "Option 2", "Option 3", "Option 4"]
-            return QuestionBudget(
-                question_name=name,
-                question_text=text,
-                question_options=opts,
-                budget_sum=100,  # Default budget
-            )
-
-        if qtype in ("list", "array"):
-            max_items = data.get("max_items", 10)
-            return QuestionList(
-                question_name=name,
-                question_text=text,
-                max_list_items=max_items,
-            )
-
-        if qtype in ("matrix", "grid"):
-            # Matrix requires rows (items) and columns (options)
-            rows = data.get("rows", opts if opts else ["Row 1", "Row 2", "Row 3"])
-            columns = data.get("columns", ["Column 1", "Column 2", "Column 3"])
-            return QuestionMatrix(
-                question_name=name,
-                question_text=text,
-                question_items=rows,
-                question_options=columns,
-            )
-
-        # Fallback to FreeText
-        return QuestionFreeText(question_name=name, question_text=text)
+        return SurveyGenerator._create_question_from_dict(data, default_name)
 
 
 def main():

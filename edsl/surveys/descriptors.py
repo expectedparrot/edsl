@@ -71,3 +71,74 @@ class QuestionsDescriptor(BaseDescriptor):
     def __set_name__(self, owner, name: str) -> None:
         """Set the name of the attribute."""
         self.name = "_" + name
+
+
+class QuestionsToRandomizeDescriptor(BaseDescriptor):
+    """Descriptor for questions_to_randomize list.
+    
+    This descriptor validates that:
+    1. The value is a list (or None, which is converted to [])
+    2. All items in the list are strings
+    3. All question names exist in the survey
+    """
+
+    def __get__(self, instance, owner):
+        """Get the value of the attribute."""
+        if instance is None:
+            return self
+        return instance.__dict__.get(self.name, [])
+
+    def validate(self, value: Any, instance) -> None:
+        """Validate the questions_to_randomize list.
+        
+        Args:
+            value: The list of question names to randomize
+            instance: The Survey instance
+            
+        Raises:
+            SurveyQuestionsToRandomizeError: If validation fails
+        """
+        from .exceptions import SurveyQuestionsToRandomizeError
+        
+        if value is None:
+            return  # Will be converted to [] in __set__
+            
+        if not isinstance(value, list):
+            raise SurveyQuestionsToRandomizeError(
+                f"questions_to_randomize must be a list of strings. "
+                f"Got type: {type(value).__name__}"
+            )
+        
+        # Check that each element is a string
+        for item in value:
+            if not isinstance(item, str):
+                raise SurveyQuestionsToRandomizeError(
+                    f"questions_to_randomize must be a list of strings. "
+                    f"Found non-string value: {item!r} (type: {type(item).__name__})"
+                )
+        
+        # Check that each question name exists in the survey
+        # Only validate if questions are already set
+        if hasattr(instance, '_questions') and instance._questions:
+            question_names_in_survey = {q.question_name for q in instance._questions}
+            
+            for question_name in value:
+                if question_name not in question_names_in_survey:
+                    raise SurveyQuestionsToRandomizeError(
+                        f"questions_to_randomize contains question name '{question_name}' "
+                        f"which is not present in the survey. "
+                        f"Valid question names are: {sorted(question_names_in_survey)}"
+                    )
+
+    def __set__(self, instance, value: Any) -> None:
+        """Set the value of the attribute, converting None to []."""
+        # Convert None to empty list
+        if value is None:
+            value = []
+        
+        self.validate(value, instance)
+        instance.__dict__[self.name] = value
+
+    def __set_name__(self, owner, name: str) -> None:
+        """Set the name of the attribute."""
+        self.name = "_" + name
