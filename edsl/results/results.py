@@ -1011,6 +1011,44 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         return self._properties.columns
 
+    def show_columns(self) -> "ColumnTreeVisualization":
+        """Display columns in a tree format using a mermaid diagram.
+
+        This method creates a hierarchical visualization of all columns in the Results object,
+        organized by data type. Unlike the columns() property which returns a flat list,
+        this method shows the relationship between data types and their corresponding keys.
+
+        Returns:
+            ColumnTreeVisualization: An object that displays as a mermaid diagram in Jupyter
+            notebooks and as formatted text in terminals.
+
+        Example:
+
+        >>> r = Results.example()
+        >>> r.show_columns()  # doctest: +SKIP
+        # Shows a tree diagram with data types as parent nodes and keys as children
+        """
+        from .column_tree_visualization import ColumnTreeVisualization
+
+        # Get the hierarchical columns
+        relevant_cols = self.relevant_columns()
+
+        # Group columns by data type
+        data_types = {}
+        for col in relevant_cols:
+            if '.' in col:
+                data_type, key = col.split('.', 1)
+                if data_type not in data_types:
+                    data_types[data_type] = []
+                data_types[data_type].append(key)
+            else:
+                # Handle columns without prefix (shouldn't happen in normal cases)
+                if 'other' not in data_types:
+                    data_types['other'] = []
+                data_types['other'].append(col)
+
+        return ColumnTreeVisualization(data_types)
+
     @property
     def answer_keys(self) -> dict[str, str]:
         """Return a mapping of answer keys to question text.
