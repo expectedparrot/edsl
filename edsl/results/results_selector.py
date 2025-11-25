@@ -223,23 +223,32 @@ class Selector:
             self._validate_matches(column, matches)
 
             if len(matches) == 1:
-                column = matches[0]
-
-            data_type, key = self._parse_column(column)
-            self._process_column(data_type, key, to_fetch)
+                # Single match - process normally
+                matched_column = matches[0]
+                data_type, key = self._parse_column(matched_column)
+                self._process_column(data_type, key, to_fetch)
+            elif len(matches) > 1:
+                # Multiple matches from wildcard - process each one
+                for matched_column in matches:
+                    data_type, key = self._parse_column(matched_column)
+                    self._process_column(data_type, key, to_fetch)
+            else:
+                # No matches but validation passed - this handles wildcard patterns like ".*"
+                data_type, key = self._parse_column(column)
+                self._process_column(data_type, key, to_fetch)
 
         return to_fetch
 
     def _find_matching_columns(self, partial_name: str) -> List[str]:
         """
-        Find columns that match a partial column name.
+        Find columns that match a partial column name or wildcard pattern.
 
         This method supports both fully qualified column names with data types
         (containing a dot) and simple column names, handling each case appropriately.
-        It finds all columns that start with the provided partial name.
+        It supports wildcard patterns using '*' that can match any substring.
 
         Args:
-            partial_name: A full or partial column name to match
+            partial_name: A full or partial column name to match, potentially with wildcards
 
         Returns:
             List of matching column names
@@ -256,13 +265,62 @@ class Selector:
             ['answer.q1', 'answer.q2']
             >>> s._find_matching_columns("q")
             ['q1', 'q2']
+            >>> s._find_matching_columns("answer.*")
+            ['answer.q1', 'answer.q2']
         """
         if "." in partial_name:
             search_in_list = self.columns
         else:
             search_in_list = [s.split(".")[1] for s in self.columns]
-        matches = [s for s in search_in_list if s.startswith(partial_name)]
+
+        # Handle wildcard patterns
+        if "*" in partial_name:
+            matches = self._match_wildcard_pattern(partial_name, search_in_list)
+        else:
+            matches = [s for s in search_in_list if s.startswith(partial_name)]
+
         return [partial_name] if partial_name in matches else matches
+
+    def _match_wildcard_pattern(self, pattern: str, candidates: List[str]) -> List[str]:
+        """
+        Match a wildcard pattern against a list of candidate strings.
+
+        This method supports patterns with '*' wildcards that can match any substring.
+        It handles patterns like:
+        - "prefix*" (match anything starting with prefix)
+        - "*suffix" (match anything ending with suffix)
+        - "prefix*suffix" (match anything starting with prefix and ending with suffix)
+        - "data_type.*suffix" (for qualified names with wildcards)
+
+        Args:
+            pattern: The pattern string containing wildcards (*)
+            candidates: List of strings to match against
+
+        Returns:
+            List of strings that match the pattern
+
+        Examples:
+            >>> s = Selector([], {}, {}, lambda dt, k: [], [])
+            >>> candidates = ["answer.q1_cost", "answer.q2_cost", "answer.q1_tokens", "agent.name"]
+            >>> s._match_wildcard_pattern("answer.*_cost", candidates)
+            ['answer.q1_cost', 'answer.q2_cost']
+            >>> s._match_wildcard_pattern("*_cost", ["q1_cost", "q2_cost", "q1_tokens"])
+            ['q1_cost', 'q2_cost']
+        """
+        import re
+
+        # Convert wildcard pattern to regex pattern
+        # Escape special regex characters except *
+        regex_pattern = re.escape(pattern)
+        # Replace escaped \* with .* to match any characters
+        regex_pattern = regex_pattern.replace(r'\*', '.*')
+        # Ensure full match from start to end
+        regex_pattern = f'^{regex_pattern}$'
+
+        compiled_pattern = re.compile(regex_pattern)
+
+        matches = [candidate for candidate in candidates if compiled_pattern.match(candidate)]
+        return matches
 
     def _validate_matches(self, column: str, matches: List[str]) -> None:
         """
@@ -271,6 +329,8 @@ class Selector:
         This method checks that the column specification resolves to exactly
         one column or a wildcard pattern. It raises appropriate exceptions
         for ambiguous matches or when no matches are found.
+
+        For wildcard patterns (containing '*'), multiple matches are allowed and expected.
 
         Args:
             column: The original column specification
@@ -282,6 +342,7 @@ class Selector:
         Examples:
             >>> s = Selector([], {}, {}, lambda dt, k: [], [])
             >>> s._validate_matches("col", ["col"])  # No exception
+            >>> s._validate_matches("*_cost", ["col1_cost", "col2_cost"])  # No exception - wildcard
             >>> try:
             ...     s._validate_matches("c", ["col1", "col2"])
             ... except ResultsColumnNotFoundError as e:
@@ -293,11 +354,12 @@ class Selector:
             ...     "not found" in str(e).lower()
             True
         """
-        if len(matches) > 1:
+        # Allow multiple matches for wildcard patterns
+        if len(matches) > 1 and "*" not in column:
             raise ResultsColumnNotFoundError(
                 f"Column '{column}' is ambiguous. Did you mean one of {matches}?"
             )
-        if len(matches) == 0 and ".*" not in column:
+        if len(matches) == 0 and ".*" not in column and "*" not in column:
             raise ResultsColumnNotFoundError(f"Column '{column}' not found in data.")
 
     def _parse_column(self, column: str) -> Tuple[str, str]:
