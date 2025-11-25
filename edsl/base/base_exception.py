@@ -1,6 +1,5 @@
 import sys
 from IPython.core.interactiveshell import InteractiveShell
-import traceback
 
 # Example logger import
 from .. import logger
