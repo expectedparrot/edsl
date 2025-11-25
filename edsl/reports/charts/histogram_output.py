@@ -63,7 +63,7 @@ class HistogramOutput(ChartOutput):
                     alt.Tooltip("count()", title="Count"),
                 ],
             )
-            .properties(title=f"Distribution of Responses", width=600, height=400)
+            .properties(title="Distribution of Responses", width=600, height=400)
         )
 
         return chart

@@ -76,7 +76,6 @@ class ChartOutput:  # TODO: Should inherit from Output when available
         from edsl.reports.comment_field import (
             is_comment_field,
             create_comment_field,
-            get_data_column_name,
         )
 
         self.results = results

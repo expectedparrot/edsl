@@ -1,6 +1,4 @@
 from .chart_output import ChartOutput
-import pandas as pd
-import tempfile
 import io
 import base64
 

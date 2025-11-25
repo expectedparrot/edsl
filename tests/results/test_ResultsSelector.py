@@ -399,19 +399,84 @@ class TestSelector(unittest.TestCase):
     def test_select_error_handling_non_notebook(self, mock_is_notebook):
         """Test error handling in non-notebook environment."""
         mock_is_notebook.return_value = False
-        
+
         # Mock _get_columns_to_fetch to raise an error
         with patch.object(
-            self.selector, 
-            '_get_columns_to_fetch', 
+            self.selector,
+            '_get_columns_to_fetch',
             side_effect=ResultsColumnNotFoundError("Column 'nonexistent' not found")
         ):
             # This should raise an exception
             with self.assertRaises(ResultsColumnNotFoundError) as context:
                 self.selector.select("nonexistent")
-            
+
             # Verify the error message
             self.assertIn("not found", str(context.exception))
+
+    def test_match_wildcard_pattern_suffix(self):
+        """Test wildcard pattern matching with suffix patterns."""
+        # Test suffix pattern matching
+        candidates = ["question1_cost", "question2_cost", "question1_tokens", "agent_name"]
+        matches = self.selector._match_wildcard_pattern("*_cost", candidates)
+        expected = ["question1_cost", "question2_cost"]
+        self.assertEqual(sorted(matches), sorted(expected))
+
+    def test_match_wildcard_pattern_prefix(self):
+        """Test wildcard pattern matching with prefix patterns."""
+        # Test prefix pattern matching
+        candidates = ["question1_cost", "question1_tokens", "question2_cost", "agent_name"]
+        matches = self.selector._match_wildcard_pattern("question1*", candidates)
+        expected = ["question1_cost", "question1_tokens"]
+        self.assertEqual(sorted(matches), sorted(expected))
+
+    def test_match_wildcard_pattern_prefix_and_suffix(self):
+        """Test wildcard pattern matching with both prefix and suffix."""
+        # Test prefix and suffix pattern matching
+        candidates = ["raw_model.q1_cost", "raw_model.q2_cost", "raw_model.q1_tokens", "other.q1_cost"]
+        matches = self.selector._match_wildcard_pattern("raw_model.*_cost", candidates)
+        expected = ["raw_model.q1_cost", "raw_model.q2_cost"]
+        self.assertEqual(sorted(matches), sorted(expected))
+
+    def test_match_wildcard_pattern_multiple_wildcards(self):
+        """Test wildcard pattern matching with multiple wildcards."""
+        # Test multiple wildcards
+        candidates = ["prefix_middle_suffix", "prefix_other_suffix", "other_middle_suffix", "nomatch"]
+        matches = self.selector._match_wildcard_pattern("prefix*suffix", candidates)
+        expected = ["prefix_middle_suffix", "prefix_other_suffix"]
+        self.assertEqual(sorted(matches), sorted(expected))
+
+    def test_find_matching_columns_wildcard_suffix(self):
+        """Test find matching columns with wildcard suffix patterns."""
+        # Add some mock columns with cost suffix to test realistic scenario
+        self.selector.columns.extend([
+            "raw_response_model.question1_cost",
+            "raw_response_model.question2_cost",
+            "raw_response_model.question1_tokens"
+        ])
+
+        # Test suffix wildcard pattern
+        matches = self.selector._find_matching_columns("raw_response_model.*_cost")
+        expected = ["raw_response_model.question1_cost", "raw_response_model.question2_cost"]
+        self.assertEqual(sorted(matches), sorted(expected))
+
+    def test_find_matching_columns_simple_suffix(self):
+        """Test find matching columns with simple suffix patterns."""
+        # Update the data structures to include cost columns
+        self.data_type_to_keys["answer"].extend(["question1_cost", "question2_cost"])
+        self.key_to_data_type.update({
+            "question1_cost": "answer",
+            "question2_cost": "answer"
+        })
+        # Also need to update the columns list for matching to work
+        self.selector.columns.extend([
+            "answer.question1_cost",
+            "answer.question2_cost"
+        ])
+
+        # Test simple suffix pattern
+        matches = self.selector._find_matching_columns("*_cost")
+        expected = ["question1_cost", "question2_cost"]
+        self.assertEqual(sorted(matches), sorted(expected))
 
 
 if __name__ == "__main__":

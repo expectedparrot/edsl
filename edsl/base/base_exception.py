@@ -1,6 +1,5 @@
 import sys
 from IPython.core.interactiveshell import InteractiveShell
-import traceback
 
 # Example logger import
 from .. import logger
@@ -180,14 +179,9 @@ class BaseException(Exception):
                     # except:
                     print(
                         f"❌ E[🦃]EDSL ERROR: {exc_type.__name__}: {exc_value}",
-                        exc_traceback,
                         file=sys.stderr,
                     )
                 # Suppress traceback
-                traceback.print_exception(
-                    exc_type, exc_value, exc_traceback, file=sys.stderr
-                )
-
                 return
             # Otherwise, use the default handler
             return original_excepthook(exc_type, exc_value, exc_traceback)
