@@ -313,13 +313,15 @@ class Selector:
         # Escape special regex characters except *
         regex_pattern = re.escape(pattern)
         # Replace escaped \* with .* to match any characters
-        regex_pattern = regex_pattern.replace(r'\*', '.*')
+        regex_pattern = regex_pattern.replace(r"\*", ".*")
         # Ensure full match from start to end
-        regex_pattern = f'^{regex_pattern}$'
+        regex_pattern = f"^{regex_pattern}$"
 
         compiled_pattern = re.compile(regex_pattern)
 
-        matches = [candidate for candidate in candidates if compiled_pattern.match(candidate)]
+        matches = [
+            candidate for candidate in candidates if compiled_pattern.match(candidate)
+        ]
         return matches
 
     def _validate_matches(self, column: str, matches: List[str]) -> None:
