@@ -48,15 +48,17 @@ class ColumnTreeVisualization:
                 lines.append(f"    {data_type_node} --> {key_node}[{key_display}]")
 
         # Add styling
-        lines.extend([
-            "",
-            "    classDef dataType fill:#e1f5fe,stroke:#01579b,stroke-width:2px",
-            "    classDef key fill:#f3e5f5,stroke:#4a148c,stroke-width:1px",
-            "    classDef root fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px",
-            "",
-            "    class Results root",
-            "    class Data_Types root"
-        ])
+        lines.extend(
+            [
+                "",
+                "    classDef dataType fill:#e1f5fe,stroke:#01579b,stroke-width:2px",
+                "    classDef key fill:#f3e5f5,stroke:#4a148c,stroke-width:1px",
+                "    classDef root fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px",
+                "",
+                "    class Results root",
+                "    class Data_Types root",
+            ]
+        )
 
         # Apply styling to data type nodes
         for data_type in self.data_types.keys():
@@ -81,14 +83,14 @@ class ColumnTreeVisualization:
 
         data_type_items = sorted(self.data_types.items())
         for i, (data_type, keys) in enumerate(data_type_items):
-            is_last_data_type = (i == len(data_type_items) - 1)
+            is_last_data_type = i == len(data_type_items) - 1
             data_type_prefix = "└─" if is_last_data_type else "├─"
             lines.append(f"   {data_type_prefix} {data_type} ({len(keys)} keys)")
 
             # Add keys for this data type
             sorted_keys = sorted(keys)
             for j, key in enumerate(sorted_keys):
-                is_last_key = (j == len(sorted_keys) - 1)
+                is_last_key = j == len(sorted_keys) - 1
                 if is_last_data_type:
                     key_prefix = "   └─" if is_last_key else "   ├─"
                 else:
@@ -158,10 +160,11 @@ class ColumnTreeVisualization:
         # Check if we're in IPython/Jupyter - if so, use summary since HTML will handle display
         try:
             from IPython import get_ipython
+
             ipy = get_ipython()
             if ipy is not None:
                 # Check if we're in Jupyter notebook/kernel vs IPython terminal
-                if hasattr(ipy, 'kernel'):
+                if hasattr(ipy, "kernel"):
                     # We're in Jupyter, use summary since _repr_html_ will be used
                     total_keys = sum(len(keys) for keys in self.data_types.values())
                     return f"ColumnTreeVisualization({len(self.data_types)} data types, {total_keys} total keys)"
@@ -193,7 +196,9 @@ class ColumnTreeVisualization:
         """
         if data_type not in self.data_types:
             available_types = list(self.data_types.keys())
-            raise KeyError(f"Data type '{data_type}' not found. Available types: {available_types}")
+            raise KeyError(
+                f"Data type '{data_type}' not found. Available types: {available_types}"
+            )
         return self.data_types[data_type].copy()
 
     def get_data_types(self) -> List[str]:
