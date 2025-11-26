@@ -55,7 +55,9 @@ class TestQuestionPydanticConstruction:
 
     def test_construction_with_invalid_model(self):
         """Test that construction fails with non-Pydantic model."""
-        with pytest.raises(TypeError, match="must be a Pydantic BaseModel subclass"):
+        from edsl.questions.exceptions import QuestionInitializationError
+
+        with pytest.raises(QuestionInitializationError, match="must be a Pydantic BaseModel subclass"):
             QuestionPydantic(
                 question_name="test",
                 question_text="Test",

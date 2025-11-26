@@ -121,7 +121,7 @@ macro = Macro(
         "survey_table": survey_table,
         "survey_with_weights": survey_with_weights,
     },
-    default_formatter_name="survey_table",
+    default_formatter_name="survey_with_weights",
 )
 
 

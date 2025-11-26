@@ -223,7 +223,18 @@ class InterviewExceptionEntry:
             return exception
 
         # Create instance of the original exception type if possible
-        return exception_class(message)
+        try:
+            return exception_class(message)
+        except TypeError:
+            # Some exception classes (like UnicodeDecodeError, QuestionAnswerValidationError)
+            # require more parameters than just a message. Fall back to generic Exception.
+            exception = Exception(message)
+            try:
+                exception.__class__.__name__ = exception_type
+            except (TypeError, AttributeError):
+                # Can't modify immutable type, that's fine - just return the Exception
+                pass
+            return exception
 
     def to_dict(self) -> dict:
         """Return the exception as a dictionary.
