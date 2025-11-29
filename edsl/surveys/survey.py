@@ -755,7 +755,7 @@ class Survey(Base):
         use_question_text_as_items: bool = True,
         remove_original_questions: bool = True,
         index: Optional[int] = None,
-        **kwargs
+        **kwargs,
     ) -> "Survey":
         """
         Combine multiple choice questions into a single matrix question.
@@ -807,6 +807,7 @@ class Survey(Base):
             ... )
         """
         from .matrix_combiner import combine_multiple_choice_to_matrix
+
         return combine_multiple_choice_to_matrix(
             survey=self,
             question_names=question_names,
@@ -815,7 +816,7 @@ class Survey(Base):
             use_question_text_as_items=use_question_text_as_items,
             remove_original_questions=remove_original_questions,
             index=index,
-            **kwargs
+            **kwargs,
         )
 
     def add_summation_question(
@@ -2910,7 +2911,13 @@ class Survey(Base):
         from .survey_generator import SurveyGenerator
 
         return SurveyGenerator.generate_from_questions(
-            cls, question_texts, question_types, question_names, model, scenario_keys, verbose
+            cls,
+            question_texts,
+            question_types,
+            question_names,
+            model,
+            scenario_keys,
+            verbose,
         )
 
     @property

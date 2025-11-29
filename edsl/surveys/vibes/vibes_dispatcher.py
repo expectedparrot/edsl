@@ -19,12 +19,14 @@ try:
     from .vibes_registry import RegisterVibesMethodsMeta
     from .vibes_handler_base import VibesHandlerError
     from .schemas import VibesDispatchRequest, VibesDispatchResponse
+
     # Import all handlers to ensure they are registered
     from .handlers import *
 except ImportError:
     from vibes_registry import RegisterVibesMethodsMeta
     from vibes_handler_base import VibesHandlerError
     from schemas import VibesDispatchRequest, VibesDispatchResponse
+
     # Import all handlers to ensure they are registered
     from handlers import *
 
@@ -38,8 +40,13 @@ logger = logging.getLogger(__name__)
 class VibesDispatchError(Exception):
     """Exception raised when vibes dispatch operations fail."""
 
-    def __init__(self, message: str, target: Optional[str] = None,
-                 method: Optional[str] = None, original_error: Optional[Exception] = None):
+    def __init__(
+        self,
+        message: str,
+        target: Optional[str] = None,
+        method: Optional[str] = None,
+        original_error: Optional[Exception] = None,
+    ):
         super().__init__(message)
         self.target = target
         self.method = method
@@ -50,7 +57,9 @@ class VibesDispatchError(Exception):
         if self.target and self.method:
             parts.append(f"Target.Method: {self.target}.{self.method}")
         if self.original_error:
-            parts.append(f"Caused by: {type(self.original_error).__name__}: {self.original_error}")
+            parts.append(
+                f"Caused by: {type(self.original_error).__name__}: {self.original_error}"
+            )
         return " | ".join(parts)
 
 
@@ -90,12 +99,7 @@ class VibesDispatcher:
         self._registry = RegisterVibesMethodsMeta
 
     def dispatch(
-        self,
-        target: str,
-        method: str,
-        *args,
-        remote: Optional[bool] = None,
-        **kwargs
+        self, target: str, method: str, *args, remote: Optional[bool] = None, **kwargs
     ) -> Any:
         """
         Dispatch a vibes method call through the registry system.
@@ -127,7 +131,8 @@ class VibesDispatcher:
                 raise VibesDispatchError(
                     f"Method '{method}' not registered for target '{target}'. "
                     f"Available methods for {target}: {available_methods}",
-                    target=target, method=method
+                    target=target,
+                    method=method,
                 )
 
             # Get handler information
@@ -135,7 +140,8 @@ class VibesDispatcher:
             if not handler_info:
                 raise VibesDispatchError(
                     f"Handler information not found for {target}.{method}",
-                    target=target, method=method
+                    target=target,
+                    method=method,
                 )
 
             # Get the handler class (should be a subclass of VibesHandlerBase)
@@ -143,7 +149,8 @@ class VibesDispatcher:
             if not registered_by:
                 raise VibesDispatchError(
                     f"No registered handler class found for {target}.{method}",
-                    target=target, method=method
+                    target=target,
+                    method=method,
                 )
 
             # Find the handler class by searching through all registered classes
@@ -158,7 +165,7 @@ class VibesDispatcher:
                 import sys
 
                 # Look for the handler class in the handlers module
-                handlers_module = sys.modules.get('edsl.surveys.vibes.handlers')
+                handlers_module = sys.modules.get("edsl.surveys.vibes.handlers")
                 if not handlers_module:
                     # Try to import handlers module
                     try:
@@ -176,14 +183,19 @@ class VibesDispatcher:
             if handler_class is None:
                 raise VibesDispatchError(
                     f"Handler class '{registered_by}' not found for {target}.{method}",
-                    target=target, method=method
+                    target=target,
+                    method=method,
                 )
 
             # Execute based on mode
             if use_remote:
-                return self._execute_remote(handler_class, target, method, *args, **kwargs)
+                return self._execute_remote(
+                    handler_class, target, method, *args, **kwargs
+                )
             else:
-                return self._execute_local(handler_class, target, method, *args, **kwargs)
+                return self._execute_local(
+                    handler_class, target, method, *args, **kwargs
+                )
 
         except VibesDispatchError:
             # Re-raise dispatch errors as-is
@@ -192,17 +204,13 @@ class VibesDispatcher:
             # Wrap other exceptions in dispatch error
             raise VibesDispatchError(
                 f"Unexpected error during dispatch",
-                target=target, method=method, original_error=e
+                target=target,
+                method=method,
+                original_error=e,
             ) from e
 
-
     def _execute_local(
-        self,
-        handler_class,
-        target: str,
-        method: str,
-        *args,
-        **kwargs
+        self, handler_class, target: str, method: str, *args, **kwargs
     ) -> Any:
         """
         Execute a vibes method locally through its handler.
@@ -221,7 +229,9 @@ class VibesDispatcher:
             VibesDispatchError: If local execution fails
         """
         try:
-            logger.debug(f"Executing {target}.{method} locally with handler {handler_class.__name__}")
+            logger.debug(
+                f"Executing {target}.{method} locally with handler {handler_class.__name__}"
+            )
 
             # Call the handler's execute_local method
             result = handler_class.execute_local(*args, **kwargs)
@@ -232,16 +242,13 @@ class VibesDispatcher:
         except Exception as e:
             raise VibesDispatchError(
                 f"Local execution failed for {target}.{method}",
-                target=target, method=method, original_error=e
+                target=target,
+                method=method,
+                original_error=e,
             ) from e
 
     def _execute_remote(
-        self,
-        handler_class,
-        target: str,
-        method: str,
-        *args,
-        **kwargs
+        self, handler_class, target: str, method: str, *args, **kwargs
     ) -> Any:
         """
         Execute a vibes method remotely through the server.
@@ -273,24 +280,27 @@ class VibesDispatcher:
             if not api_key:
                 raise VibesDispatchError(
                     "Remote execution requires EXPECTED_PARROT_API_KEY environment variable",
-                    target=target, method=method
+                    target=target,
+                    method=method,
                 )
 
             # Convert local arguments to remote request format
             try:
                 request_data = handler_class.to_remote_request(*args, **kwargs)
-                logger.debug(f"Converted to remote request: {list(request_data.keys())}")
+                logger.debug(
+                    f"Converted to remote request: {list(request_data.keys())}"
+                )
             except Exception as e:
                 raise VibesDispatchError(
                     f"Failed to convert arguments to remote format: {str(e)}",
-                    target=target, method=method, original_error=e
+                    target=target,
+                    method=method,
+                    original_error=e,
                 ) from e
 
             # Create dispatch request
             dispatch_request = VibesDispatchRequest(
-                target=target,
-                method=method,
-                request_data=request_data
+                target=target, method=method, request_data=request_data
             )
 
             # Send HTTP request to server
@@ -302,9 +312,7 @@ class VibesDispatcher:
             try:
                 with httpx.Client(timeout=300.0) as client:  # 5 minute timeout
                     response = client.post(
-                        endpoint,
-                        json=dispatch_request.model_dump(),
-                        headers=headers
+                        endpoint, json=dispatch_request.model_dump(), headers=headers
                     )
 
                 logger.debug(f"Server response status: {response.status_code}")
@@ -313,19 +321,28 @@ class VibesDispatcher:
                     error_detail = "Unknown error"
                     try:
                         error_data = response.json()
-                        error_detail = error_data.get("detail", error_data.get("error", str(error_data)))
+                        error_detail = error_data.get(
+                            "detail", error_data.get("error", str(error_data))
+                        )
                     except:
-                        error_detail = response.text[:200] if response.text else f"HTTP {response.status_code}"
+                        error_detail = (
+                            response.text[:200]
+                            if response.text
+                            else f"HTTP {response.status_code}"
+                        )
 
                     raise VibesDispatchError(
                         f"Server returned error: {error_detail}",
-                        target=target, method=method
+                        target=target,
+                        method=method,
                     )
 
             except httpx.RequestError as e:
                 raise VibesDispatchError(
                     f"Failed to connect to server at {endpoint}: {str(e)}",
-                    target=target, method=method, original_error=e
+                    target=target,
+                    method=method,
+                    original_error=e,
                 ) from e
 
             # Parse server response
@@ -336,7 +353,9 @@ class VibesDispatcher:
             except Exception as e:
                 raise VibesDispatchError(
                     f"Failed to parse server response: {str(e)}",
-                    target=target, method=method, original_error=e
+                    target=target,
+                    method=method,
+                    original_error=e,
                 ) from e
 
             # Check if execution was successful
@@ -344,7 +363,8 @@ class VibesDispatcher:
                 error_msg = dispatch_response.error or "Unknown server error"
                 raise VibesDispatchError(
                     f"Server execution failed: {error_msg}",
-                    target=target, method=method
+                    target=target,
+                    method=method,
                 )
 
             # Convert server response back to local format
@@ -354,15 +374,13 @@ class VibesDispatcher:
                     # survey_cls is passed as a keyword argument
                     survey_cls = kwargs.get("survey_cls")
                     result = handler_class.from_remote_response(
-                        dispatch_response.result,
-                        survey_cls=survey_cls
+                        dispatch_response.result, survey_cls=survey_cls
                     )
                 elif method in ["vibe_edit", "vibe_add", "vibe_describe"]:
                     # For instance methods, args[0] is the survey instance
                     survey = args[0] if args else None
                     result = handler_class.from_remote_response(
-                        dispatch_response.result,
-                        survey=survey
+                        dispatch_response.result, survey=survey
                     )
                 else:
                     # Generic fallback
@@ -376,7 +394,9 @@ class VibesDispatcher:
             except Exception as e:
                 raise VibesDispatchError(
                     f"Failed to convert server response to local format: {str(e)}",
-                    target=target, method=method, original_error=e
+                    target=target,
+                    method=method,
+                    original_error=e,
                 ) from e
 
         except VibesDispatchError:
@@ -386,17 +406,23 @@ class VibesDispatcher:
             if "httpx" in str(e):
                 raise VibesDispatchError(
                     f"Remote execution requires 'httpx' package. Install with: pip install httpx",
-                    target=target, method=method, original_error=e
+                    target=target,
+                    method=method,
+                    original_error=e,
                 ) from e
             else:
                 raise VibesDispatchError(
                     f"Import error during remote execution: {str(e)}",
-                    target=target, method=method, original_error=e
+                    target=target,
+                    method=method,
+                    original_error=e,
                 ) from e
         except Exception as e:
             raise VibesDispatchError(
                 f"Unexpected error during remote execution: {str(e)}",
-                target=target, method=method, original_error=e
+                target=target,
+                method=method,
+                original_error=e,
             ) from e
 
     def validate_request(self, target: str, method: str, **kwargs) -> Any:
@@ -419,7 +445,9 @@ class VibesDispatcher:
         except Exception as e:
             raise VibesDispatchError(
                 f"Request validation failed for {target}.{method}",
-                target=target, method=method, original_error=e
+                target=target,
+                method=method,
+                original_error=e,
             ) from e
 
     def get_available_methods(self, target: str) -> list[str]:
@@ -545,11 +573,15 @@ if __name__ == "__main__":
         print(f"\nMethods for {target}:")
         for method in methods:
             method_info = dispatcher.get_method_info(target, method)
-            description = method_info.get("metadata", {}).get("description", "No description")
+            description = method_info.get("metadata", {}).get(
+                "description", "No description"
+            )
             print(f"  {method}: {description}")
 
     # Show debug registry
     print(f"\n{dispatcher.debug_registry()}")
 
     print("\nDispatcher ready for method calls!")
-    print("Use dispatcher.dispatch(target, method, *args, **kwargs) to execute vibes methods.")
+    print(
+        "Use dispatcher.dispatch(target, method, *args, **kwargs) to execute vibes methods."
+    )

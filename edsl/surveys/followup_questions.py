@@ -198,4 +198,3 @@ class FollowupQuestionAdder:
             )
 
         return modified_survey
-

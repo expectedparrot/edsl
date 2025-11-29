@@ -59,7 +59,7 @@ class RegisterVibesMethodsMeta(ABCMeta):
         # Only register non-base classes that define vibes metadata
         if name not in ["VibesHandlerBase", "VibesMethodBase"]:
             # Check if this class defines vibes method registration
-            if hasattr(cls, 'vibes_target') and hasattr(cls, 'vibes_method'):
+            if hasattr(cls, "vibes_target") and hasattr(cls, "vibes_method"):
                 target = cls.vibes_target
                 method = cls.vibes_method
 
@@ -68,7 +68,7 @@ class RegisterVibesMethodsMeta(ABCMeta):
                     "handler_class",
                     "handler_function",
                     "request_schema",
-                    "response_schema"
+                    "response_schema",
                 ]
 
                 missing_attrs = []
@@ -103,7 +103,9 @@ class RegisterVibesMethodsMeta(ABCMeta):
 
                 # Check for duplicate registration
                 if method in cls._registry[target]:
-                    existing_handler = cls._registry[target][method].get("handler_class", "Unknown")
+                    existing_handler = cls._registry[target][method].get(
+                        "handler_class", "Unknown"
+                    )
                     raise ValueError(
                         f"Duplicate registration for {target}.{method}. "
                         f"Already registered by {existing_handler}, attempted by {name}"
@@ -121,7 +123,7 @@ class RegisterVibesMethodsMeta(ABCMeta):
                 }
 
                 # Store reverse mapping for debugging
-                if not hasattr(cls, '_reverse_registry'):
+                if not hasattr(cls, "_reverse_registry"):
                     cls._reverse_registry = {}
                 cls._reverse_registry[name] = (target, method)
 
@@ -297,7 +299,7 @@ class RegisterVibesMethodsMeta(ABCMeta):
             for method, info in methods.items():
                 registered_by = info.get("registered_by", "Unknown")
                 handler_func = info.get("handler_function", {})
-                handler_name = getattr(handler_func, '__name__', 'Unknown')
+                handler_name = getattr(handler_func, "__name__", "Unknown")
                 is_classmethod = info.get("is_classmethod", False)
                 method_type = "classmethod" if is_classmethod else "instance method"
 
@@ -306,7 +308,9 @@ class RegisterVibesMethodsMeta(ABCMeta):
                 lines.append(f"      Handler function: {handler_name}")
                 lines.append(f"      Handler class: {info.get('handler_class', {})}")
                 lines.append(f"      Request schema: {info.get('request_schema', {})}")
-                lines.append(f"      Response schema: {info.get('response_schema', {})}")
+                lines.append(
+                    f"      Response schema: {info.get('response_schema', {})}"
+                )
 
         return "\n".join(lines)
 

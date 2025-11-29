@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 # Core Question and Survey Schemas
 # ============================================================================
 
+
 class QuestionDefinition(BaseModel):
     """
     Schema for a single question in a survey.
@@ -108,6 +109,7 @@ class SkipRuleDefinition(BaseModel):
 # Survey-level Schemas
 # ============================================================================
 
+
 class SurveySchema(BaseModel):
     """
     Schema for a complete survey definition.
@@ -193,6 +195,7 @@ class SurveyDescriptionSchema(BaseModel):
 # Method-specific Request Schemas
 # ============================================================================
 
+
 class FromVibesRequest(BaseModel):
     """
     Request schema for Survey.from_vibes() method.
@@ -214,16 +217,12 @@ class FromVibesRequest(BaseModel):
     )
     num_questions: Optional[int] = Field(
         None,
-        description="Number of questions to generate (if not provided, determined automatically)"
+        description="Number of questions to generate (if not provided, determined automatically)",
     )
     model: str = Field(
-        default="gpt-4o",
-        description="OpenAI model to use for generation"
+        default="gpt-4o", description="OpenAI model to use for generation"
     )
-    temperature: float = Field(
-        default=0.7,
-        description="Temperature for generation"
-    )
+    temperature: float = Field(default=0.7, description="Temperature for generation")
 
 
 class VibeEditRequest(BaseModel):
@@ -248,14 +247,8 @@ class VibeEditRequest(BaseModel):
     edit_instructions: str = Field(
         description="Natural language description of the edits to apply"
     )
-    model: str = Field(
-        default="gpt-4o",
-        description="OpenAI model to use for editing"
-    )
-    temperature: float = Field(
-        default=0.7,
-        description="Temperature for generation"
-    )
+    model: str = Field(default="gpt-4o", description="OpenAI model to use for editing")
+    temperature: float = Field(default=0.7, description="Temperature for generation")
 
 
 class VibeAddRequest(BaseModel):
@@ -281,13 +274,9 @@ class VibeAddRequest(BaseModel):
         description="Natural language description of what questions to add"
     )
     model: str = Field(
-        default="gpt-4o",
-        description="OpenAI model to use for generation"
+        default="gpt-4o", description="OpenAI model to use for generation"
     )
-    temperature: float = Field(
-        default=0.7,
-        description="Temperature for generation"
-    )
+    temperature: float = Field(default=0.7, description="Temperature for generation")
 
 
 class VibeDescribeRequest(BaseModel):
@@ -308,18 +297,15 @@ class VibeDescribeRequest(BaseModel):
         description="Dictionary representation of the survey to describe"
     )
     model: str = Field(
-        default="gpt-4o",
-        description="OpenAI model to use for generation"
+        default="gpt-4o", description="OpenAI model to use for generation"
     )
-    temperature: float = Field(
-        default=0.7,
-        description="Temperature for generation"
-    )
+    temperature: float = Field(default=0.7, description="Temperature for generation")
 
 
 # ============================================================================
 # Generic Dispatch Schemas
 # ============================================================================
+
 
 class VibesDispatchRequest(BaseModel):
     """
@@ -370,28 +356,20 @@ class VibesDispatchResponse(BaseModel):
         Error message if success is False
     """
 
-    target: str = Field(
-        description="Target object type that was processed"
-    )
-    method: str = Field(
-        description="Method name that was executed"
-    )
-    success: bool = Field(
-        description="Whether the method execution was successful"
-    )
+    target: str = Field(description="Target object type that was processed")
+    method: str = Field(description="Method name that was executed")
+    success: bool = Field(description="Whether the method execution was successful")
     result: Optional[Dict[str, Any]] = Field(
         None,
-        description="Method-specific response data (validated against method's response schema)"
+        description="Method-specific response data (validated against method's response schema)",
     )
-    error: Optional[str] = Field(
-        None,
-        description="Error message if success is False"
-    )
+    error: Optional[str] = Field(None, description="Error message if success is False")
 
 
 # ============================================================================
 # Utility Functions
 # ============================================================================
+
 
 def get_request_schema(method: str) -> type[BaseModel]:
     """
@@ -414,7 +392,9 @@ def get_request_schema(method: str) -> type[BaseModel]:
     }
 
     if method not in schema_map:
-        raise ValueError(f"Unknown vibes method: {method}. Available methods: {list(schema_map.keys())}")
+        raise ValueError(
+            f"Unknown vibes method: {method}. Available methods: {list(schema_map.keys())}"
+        )
 
     return schema_map[method]
 
@@ -440,7 +420,9 @@ def get_response_schema(method: str) -> type[BaseModel]:
     }
 
     if method not in schema_map:
-        raise ValueError(f"Unknown vibes method: {method}. Available methods: {list(schema_map.keys())}")
+        raise ValueError(
+            f"Unknown vibes method: {method}. Available methods: {list(schema_map.keys())}"
+        )
 
     return schema_map[method]
 
@@ -461,7 +443,9 @@ def validate_dispatch_request(request: Dict[str, Any]) -> VibesDispatchRequest:
     return VibesDispatchRequest(**request)
 
 
-def validate_method_request(target: str, method: str, request_data: Dict[str, Any]) -> BaseModel:
+def validate_method_request(
+    target: str, method: str, request_data: Dict[str, Any]
+) -> BaseModel:
     """
     Validate method-specific request data.
 
@@ -478,7 +462,9 @@ def validate_method_request(target: str, method: str, request_data: Dict[str, An
         ValidationError: If request data doesn't match schema
     """
     if target != "survey":
-        raise ValueError(f"Unsupported target: {target}. Currently only 'survey' is supported.")
+        raise ValueError(
+            f"Unsupported target: {target}. Currently only 'survey' is supported."
+        )
 
     request_schema = get_request_schema(method)
     return request_schema(**request_data)
@@ -493,23 +479,19 @@ __all__ = [
     # Core schemas
     "QuestionDefinition",
     "SkipRuleDefinition",
-
     # Survey schemas
     "SurveySchema",
     "EditedSurveySchema",
     "AddedQuestionsSchema",
     "SurveyDescriptionSchema",
-
     # Request schemas
     "FromVibesRequest",
     "VibeEditRequest",
     "VibeAddRequest",
     "VibeDescribeRequest",
-
     # Dispatch schemas
     "VibesDispatchRequest",
     "VibesDispatchResponse",
-
     # Utility functions
     "get_request_schema",
     "get_response_schema",
@@ -528,7 +510,13 @@ if __name__ == "__main__":
         question_name="satisfaction",
         question_text="How satisfied are you with our product?",
         question_type="multiple_choice",
-        question_options=["Very satisfied", "Satisfied", "Neutral", "Dissatisfied", "Very dissatisfied"]
+        question_options=[
+            "Very satisfied",
+            "Satisfied",
+            "Neutral",
+            "Dissatisfied",
+            "Very dissatisfied",
+        ],
     )
     print(f"Sample question: {question.question_name} - {question.question_text}")
 
@@ -537,15 +525,13 @@ if __name__ == "__main__":
         description="Survey about customer satisfaction with a new product",
         num_questions=5,
         model="gpt-4o",
-        temperature=0.7
+        temperature=0.7,
     )
     print(f"From vibes request: {from_vibes_req.description}")
 
     # Test dispatch request
     dispatch_req = VibesDispatchRequest(
-        target="survey",
-        method="from_vibes",
-        request_data=from_vibes_req.model_dump()
+        target="survey", method="from_vibes", request_data=from_vibes_req.model_dump()
     )
     print(f"Dispatch request: {dispatch_req.target}.{dispatch_req.method}")
 

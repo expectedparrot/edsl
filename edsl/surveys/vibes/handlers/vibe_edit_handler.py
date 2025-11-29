@@ -67,7 +67,7 @@ class VibeEditHandler(VibesHandlerBase):
         *,
         model: str = "gpt-4o",
         temperature: float = 0.7,
-        **kwargs
+        **kwargs,
     ) -> "Survey":
         """
         Execute the vibe_edit method locally.
@@ -103,7 +103,7 @@ class VibeEditHandler(VibesHandlerBase):
         *,
         model: str = "gpt-4o",
         temperature: float = 0.7,
-        **kwargs
+        **kwargs,
     ) -> dict[str, Any]:
         """
         Convert local method arguments to remote request format.
@@ -129,7 +129,7 @@ class VibeEditHandler(VibesHandlerBase):
             survey_dict=survey_dict,
             edit_instructions=edit_instructions,
             model=model,
-            temperature=temperature
+            temperature=temperature,
         )
 
         return request_obj.model_dump()
@@ -158,7 +158,9 @@ class VibeEditHandler(VibesHandlerBase):
             ValueError: If survey is not provided
         """
         if survey is None:
-            raise ValueError("survey is required to construct Survey from remote response")
+            raise ValueError(
+                "survey is required to construct Survey from remote response"
+            )
 
         # Validate response using response schema
         response_obj = cls.response_schema(**response_data)
@@ -188,18 +190,24 @@ class VibeEditHandler(VibesHandlerBase):
                         "question_name": "satisfaction",
                         "question_text": "How satisfied are you with our product?",
                         "question_type": "multiple_choice",
-                        "question_options": ["Very satisfied", "Satisfied", "Neutral", "Dissatisfied", "Very dissatisfied"]
+                        "question_options": [
+                            "Very satisfied",
+                            "Satisfied",
+                            "Neutral",
+                            "Dissatisfied",
+                            "Very dissatisfied",
+                        ],
                     },
                     {
                         "question_name": "recommendation",
                         "question_text": "Would you recommend us to a friend?",
-                        "question_type": "yes_no"
-                    }
+                        "question_type": "yes_no",
+                    },
                 ]
             },
             "edit_instructions": "Translate all questions to Spanish",
             "model": "gpt-4o",
-            "temperature": 0.7
+            "temperature": 0.7,
         }
 
     @classmethod
@@ -216,13 +224,19 @@ class VibeEditHandler(VibesHandlerBase):
                     "question_name": "satisfaction",
                     "question_text": "¿Qué tan satisfecho está con nuestro producto?",
                     "question_type": "multiple_choice",
-                    "question_options": ["Muy satisfecho", "Satisfecho", "Neutral", "Insatisfecho", "Muy insatisfecho"]
+                    "question_options": [
+                        "Muy satisfecho",
+                        "Satisfecho",
+                        "Neutral",
+                        "Insatisfecho",
+                        "Muy insatisfecho",
+                    ],
                 },
                 {
                     "question_name": "recommendation",
                     "question_text": "¿Recomendaría nuestros servicios a un amigo?",
-                    "question_type": "yes_no"
-                }
+                    "question_type": "yes_no",
+                },
             ]
         }
 

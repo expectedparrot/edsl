@@ -56,7 +56,7 @@ def generate_survey_from_vibes(
             description=description,
             num_questions=num_questions,
             model=model,
-            temperature=temperature
+            temperature=temperature,
         )
     else:
         # Local execution path (existing code)
@@ -66,7 +66,9 @@ def generate_survey_from_vibes(
         generator = SurveyGenerator(model=model, temperature=temperature)
 
         # Generate the survey schema
-        survey_data = generator.generate_survey(description, num_questions=num_questions)
+        survey_data = generator.generate_survey(
+            description, num_questions=num_questions
+        )
 
     # Convert each question definition to a question object (same for both paths)
     questions = []

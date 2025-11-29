@@ -18,6 +18,7 @@ try:
 except ImportError:
     import sys
     import os
+
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from vibes_handler_base import VibesHandlerBase
     from survey_generator import SurveyGenerator
@@ -78,7 +79,7 @@ class FromVibesHandler(VibesHandlerBase):
         model: str = "gpt-4o",
         temperature: float = 0.7,
         remote: bool = False,
-        **kwargs
+        **kwargs,
     ) -> "Survey":
         """
         Execute the from_vibes method locally.
@@ -120,7 +121,7 @@ class FromVibesHandler(VibesHandlerBase):
         model: str = "gpt-4o",
         temperature: float = 0.7,
         remote: bool = False,
-        **kwargs
+        **kwargs,
     ) -> dict[str, Any]:
         """
         Convert local method arguments to remote request format.
@@ -146,7 +147,7 @@ class FromVibesHandler(VibesHandlerBase):
             description=description,
             num_questions=num_questions,
             model=model,
-            temperature=temperature
+            temperature=temperature,
         )
 
         return request_obj.model_dump()
@@ -175,7 +176,9 @@ class FromVibesHandler(VibesHandlerBase):
             ValueError: If survey_cls is not provided
         """
         if survey_cls is None:
-            raise ValueError("survey_cls is required to construct Survey from remote response")
+            raise ValueError(
+                "survey_cls is required to construct Survey from remote response"
+            )
 
         # Validate response using response schema
         response_obj = cls.response_schema(**response_data)
@@ -202,7 +205,7 @@ class FromVibesHandler(VibesHandlerBase):
             "description": "Survey about customer satisfaction with a new mobile app",
             "num_questions": 5,
             "model": "gpt-4o",
-            "temperature": 0.7
+            "temperature": 0.7,
         }
 
     @classmethod
@@ -219,20 +222,26 @@ class FromVibesHandler(VibesHandlerBase):
                     "question_name": "app_usage_frequency",
                     "question_text": "How often do you use the app?",
                     "question_type": "multiple_choice",
-                    "question_options": ["Daily", "Weekly", "Monthly", "Rarely", "Never"]
+                    "question_options": [
+                        "Daily",
+                        "Weekly",
+                        "Monthly",
+                        "Rarely",
+                        "Never",
+                    ],
                 },
                 {
                     "question_name": "overall_satisfaction",
                     "question_text": "The app meets my needs",
                     "question_type": "likert_five",
-                    "question_options": None
+                    "question_options": None,
                 },
                 {
                     "question_name": "recommendation",
                     "question_text": "Would you recommend this app to others?",
                     "question_type": "yes_no",
-                    "question_options": None
-                }
+                    "question_options": None,
+                },
             ]
         }
 

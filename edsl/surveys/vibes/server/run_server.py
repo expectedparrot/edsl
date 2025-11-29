@@ -20,9 +20,7 @@ def check_environment():
     Returns:
         bool: True if environment is properly configured, False otherwise
     """
-    required_vars = {
-        "OPENAI_API_KEY": "OpenAI API key for survey generation"
-    }
+    required_vars = {"OPENAI_API_KEY": "OpenAI API key for survey generation"}
 
     missing_vars = []
     for var, description in required_vars.items():

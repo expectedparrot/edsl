@@ -180,4 +180,3 @@ class QuestionRenamer:
             new_survey._pseudo_indices[new_name] = pseudo_index
 
         return new_survey
-

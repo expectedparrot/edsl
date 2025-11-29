@@ -57,7 +57,9 @@ class RemoteSurveyGenerationError(VibesError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html#remote-generation"
+    relevant_doc = (
+        "https://docs.expectedparrot.com/en/latest/surveys.html#remote-generation"
+    )
 
 
 class SurveyGenerationError(VibesError):
@@ -94,4 +96,6 @@ class SurveyGenerationError(VibesError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html#troubleshooting"
+    relevant_doc = (
+        "https://docs.expectedparrot.com/en/latest/surveys.html#troubleshooting"
+    )

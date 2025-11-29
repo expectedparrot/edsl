@@ -67,7 +67,7 @@ class VibeAddHandler(VibesHandlerBase):
         *,
         model: str = "gpt-4o",
         temperature: float = 0.7,
-        **kwargs
+        **kwargs,
     ) -> "Survey":
         """
         Execute the vibe_add method locally.
@@ -103,7 +103,7 @@ class VibeAddHandler(VibesHandlerBase):
         *,
         model: str = "gpt-4o",
         temperature: float = 0.7,
-        **kwargs
+        **kwargs,
     ) -> dict[str, Any]:
         """
         Convert local method arguments to remote request format.
@@ -129,7 +129,7 @@ class VibeAddHandler(VibesHandlerBase):
             survey_dict=survey_dict,
             add_instructions=add_instructions,
             model=model,
-            temperature=temperature
+            temperature=temperature,
         )
 
         return request_obj.model_dump()
@@ -158,7 +158,9 @@ class VibeAddHandler(VibesHandlerBase):
             ValueError: If survey is not provided
         """
         if survey is None:
-            raise ValueError("survey is required to construct Survey from remote response")
+            raise ValueError(
+                "survey is required to construct Survey from remote response"
+            )
 
         # Validate response using response schema
         response_obj = cls.response_schema(**response_data)
@@ -169,7 +171,9 @@ class VibeAddHandler(VibesHandlerBase):
         base_index = len(survey.questions)
         for i, q_data in enumerate(response_obj.questions):
             question_dict = q_data.model_dump()
-            question_obj = survey._create_question_from_dict(question_dict, f"q{base_index + i}")
+            question_obj = survey._create_question_from_dict(
+                question_dict, f"q{base_index + i}"
+            )
             new_questions.append(question_obj)
 
         # Create new survey with all questions AND preserve existing rule_collection
@@ -202,13 +206,19 @@ class VibeAddHandler(VibesHandlerBase):
                         "question_name": "satisfaction",
                         "question_text": "How satisfied are you with our product?",
                         "question_type": "multiple_choice",
-                        "question_options": ["Very satisfied", "Satisfied", "Neutral", "Dissatisfied", "Very dissatisfied"]
+                        "question_options": [
+                            "Very satisfied",
+                            "Satisfied",
+                            "Neutral",
+                            "Dissatisfied",
+                            "Very dissatisfied",
+                        ],
                     }
                 ]
             },
             "add_instructions": "Add a demographic question asking for age, and only show it if they are satisfied with the product",
             "model": "gpt-4o",
-            "temperature": 0.7
+            "temperature": 0.7,
         }
 
     @classmethod
@@ -226,15 +236,15 @@ class VibeAddHandler(VibesHandlerBase):
                     "question_text": "What is your age?",
                     "question_type": "numerical",
                     "min_value": 18,
-                    "max_value": 100
+                    "max_value": 100,
                 }
             ],
             "skip_rules": [
                 {
                     "target_question": "age",
-                    "condition": "{{ satisfaction.answer }} != 'Very satisfied' and {{ satisfaction.answer }} != 'Satisfied'"
+                    "condition": "{{ satisfaction.answer }} != 'Very satisfied' and {{ satisfaction.answer }} != 'Satisfied'",
                 }
-            ]
+            ],
         }
 
 
