@@ -17,8 +17,7 @@ import uuid
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -60,19 +59,13 @@ class SurveyGenerationRequest(BaseModel):
         description="Number of questions to generate (optional)",
         ge=1,
         le=50,
-        example=5
+        example=5,
     )
     model: str = Field(
-        "gpt-4o",
-        description="OpenAI model to use for generation",
-        example="gpt-4o"
+        "gpt-4o", description="OpenAI model to use for generation", example="gpt-4o"
     )
     temperature: float = Field(
-        0.7,
-        description="Temperature for generation",
-        ge=0.0,
-        le=2.0,
-        example=0.7
+        0.7, description="Temperature for generation", ge=0.0, le=2.0, example=0.7
     )
 
 
@@ -81,23 +74,29 @@ class QuestionDefinition(BaseModel):
 
     question_name: str = Field(..., description="Variable name for the question")
     question_text: str = Field(..., description="The actual question text")
-    question_type: str = Field(..., description="Type of question (e.g., 'multiple_choice', 'free_text')")
-    question_options: Optional[List[str]] = Field(None, description="Answer choices for multiple choice questions")
-    min_value: Optional[float] = Field(None, description="Minimum value for numerical questions")
-    max_value: Optional[float] = Field(None, description="Maximum value for numerical questions")
+    question_type: str = Field(
+        ..., description="Type of question (e.g., 'multiple_choice', 'free_text')"
+    )
+    question_options: Optional[List[str]] = Field(
+        None, description="Answer choices for multiple choice questions"
+    )
+    min_value: Optional[float] = Field(
+        None, description="Minimum value for numerical questions"
+    )
+    max_value: Optional[float] = Field(
+        None, description="Maximum value for numerical questions"
+    )
 
 
 class SurveyGenerationResponse(BaseModel):
     """Response model for survey generation."""
 
     questions: List[QuestionDefinition] = Field(
-        ...,
-        description="List of generated questions"
+        ..., description="List of generated questions"
     )
     request_id: str = Field(..., description="Unique identifier for this request")
     generated_with: Dict[str, Any] = Field(
-        ...,
-        description="Metadata about generation parameters"
+        ..., description="Metadata about generation parameters"
     )
 
 
@@ -111,7 +110,7 @@ class ErrorResponse(BaseModel):
 
 # Authentication dependency
 def verify_expected_parrot_key(
-    credentials: HTTPAuthorizationCredentials = Security(security)
+    credentials: HTTPAuthorizationCredentials = Security(security),
 ) -> str:
     """
     Verify the Expected Parrot API key from the Authorization header.
@@ -175,7 +174,7 @@ async def root():
             "docs": "/docs",
             "redoc": "/redoc",
         },
-        "authentication": "Bearer token required (Expected Parrot API key)"
+        "authentication": "Bearer token required (Expected Parrot API key)",
     }
 
 
@@ -189,7 +188,7 @@ async def health_check():
         "status": "healthy",
         "service": "EDSL Survey Generation API",
         "openai_configured": openai_key_available,
-        "timestamp": str(uuid.uuid4())  # Simple timestamp alternative
+        "timestamp": str(uuid.uuid4()),  # Simple timestamp alternative
     }
 
 
@@ -203,11 +202,10 @@ async def health_check():
         401: {"model": ErrorResponse, "description": "Authentication required"},
         422: {"model": ErrorResponse, "description": "Validation error"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
-    }
+    },
 )
 async def generate_survey_from_vibes(
-    request: SurveyGenerationRequest,
-    api_key: str = Depends(verify_expected_parrot_key)
+    request: SurveyGenerationRequest, api_key: str = Depends(verify_expected_parrot_key)
 ) -> SurveyGenerationResponse:
     """
     Generate a survey from a natural language description.
@@ -229,8 +227,12 @@ async def generate_survey_from_vibes(
         HTTPException: If survey generation fails
     """
     request_id = str(uuid.uuid4())
-    logger.info(f"[{request_id}] Received survey generation request: {request.description[:100]}...")
-    logger.info(f"[{request_id}] Parameters: model={request.model}, temp={request.temperature}, num_questions={request.num_questions}")
+    logger.info(
+        f"[{request_id}] Received survey generation request: {request.description[:100]}..."
+    )
+    logger.info(
+        f"[{request_id}] Parameters: model={request.model}, temp={request.temperature}, num_questions={request.num_questions}"
+    )
 
     # Check for OpenAI API key on server
     if not os.environ.get("OPENAI_API_KEY"):
@@ -240,8 +242,8 @@ async def generate_survey_from_vibes(
             detail=ErrorResponse(
                 detail="Server configuration error: OPENAI_API_KEY not set on server",
                 request_id=request_id,
-                error_type="configuration_error"
-            ).dict()
+                error_type="configuration_error",
+            ).dict(),
         )
 
     try:
@@ -250,16 +252,14 @@ async def generate_survey_from_vibes(
 
         # Create survey generator with request parameters
         generator = SurveyGenerator(
-            model=request.model,
-            temperature=request.temperature
+            model=request.model, temperature=request.temperature
         )
 
         logger.info(f"[{request_id}] Starting survey generation...")
 
         # Generate survey
         survey_data = generator.generate_survey(
-            description=request.description,
-            num_questions=request.num_questions
+            description=request.description, num_questions=request.num_questions
         )
 
         # Validate the generated data structure
@@ -271,8 +271,8 @@ async def generate_survey_from_vibes(
                 detail=ErrorResponse(
                     detail=f"Survey generation failed: {error_msg}",
                     request_id=request_id,
-                    error_type="generation_error"
-                ).dict()
+                    error_type="generation_error",
+                ).dict(),
             )
 
         questions = survey_data["questions"]
@@ -284,12 +284,14 @@ async def generate_survey_from_vibes(
                 detail=ErrorResponse(
                     detail=f"Survey generation failed: {error_msg}",
                     request_id=request_id,
-                    error_type="generation_error"
-                ).dict()
+                    error_type="generation_error",
+                ).dict(),
             )
 
         logger.info(f"[{request_id}] Successfully generated {len(questions)} questions")
-        logger.debug(f"[{request_id}] Question types: {[q.get('question_type') for q in questions]}")
+        logger.debug(
+            f"[{request_id}] Question types: {[q.get('question_type') for q in questions]}"
+        )
 
         # Create response
         response = SurveyGenerationResponse(
@@ -311,7 +313,7 @@ async def generate_survey_from_vibes(
                 "num_questions_requested": request.num_questions,
                 "num_questions_generated": len(questions),
                 "description_length": len(request.description),
-            }
+            },
         )
 
         logger.info(f"[{request_id}] Successfully completed survey generation")
@@ -329,8 +331,8 @@ async def generate_survey_from_vibes(
             detail=ErrorResponse(
                 detail=f"Server error: {error_msg}",
                 request_id=request_id,
-                error_type="import_error"
-            ).dict()
+                error_type="import_error",
+            ).dict(),
         )
 
     except Exception as e:
@@ -338,15 +340,15 @@ async def generate_survey_from_vibes(
         logger.error(f"[{request_id}] {error_msg}", exc_info=True)
 
         # Distinguish between different types of errors
-        error_type = "openai_error" if "openai" in str(e).lower() else "generation_error"
+        error_type = (
+            "openai_error" if "openai" in str(e).lower() else "generation_error"
+        )
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=ErrorResponse(
-                detail=error_msg,
-                request_id=request_id,
-                error_type=error_type
-            ).dict()
+                detail=error_msg, request_id=request_id, error_type=error_type
+            ).dict(),
         )
 
 
@@ -390,10 +392,4 @@ if __name__ == "__main__":
     print(f"Reload mode: {reload}")
     print(f"API documentation: http://{host}:{port}/docs")
 
-    uvicorn.run(
-        "app:app",
-        host=host,
-        port=port,
-        reload=reload,
-        log_level="info"
-    )
+    uvicorn.run("app:app", host=host, port=port, reload=reload, log_level="info")

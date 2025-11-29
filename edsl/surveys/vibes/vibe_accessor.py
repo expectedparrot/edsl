@@ -171,4 +171,3 @@ class SurveyVibeAccessor:
         from ...scenarios import Scenario
 
         return Scenario(**d)
-

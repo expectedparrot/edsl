@@ -30,14 +30,17 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def test_registry_system():
     """Test the core registry functionality."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTING REGISTRY SYSTEM")
-    print("="*60)
+    print("=" * 60)
 
     from vibes_dispatcher import VibesDispatcher
 
@@ -60,8 +63,10 @@ def test_registry_system():
             # Get method info
             method_info = dispatcher.get_method_info(target, method)
             if method_info:
-                description = method_info.get('metadata', {}).get('description', 'No description')
-                handler_class = method_info.get('registered_by', 'Unknown')
+                description = method_info.get("metadata", {}).get(
+                    "description", "No description"
+                )
+                handler_class = method_info.get("registered_by", "Unknown")
                 print(f"    Handler: {handler_class}")
                 print(f"    Description: {description}")
 
@@ -74,15 +79,23 @@ def test_registry_system():
 
 def test_local_vibes_methods():
     """Test all vibes methods with local execution."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTING LOCAL VIBES METHODS")
-    print("="*60)
+    print("=" * 60)
 
     # Mock the LLM calls to avoid requiring API keys for testing
-    with patch('edsl.surveys.vibes.survey_generator.create_openai_client') as mock_client_creator:
-        with patch('edsl.surveys.vibes.vibe_editor.create_openai_client') as mock_editor_client:
-            with patch('edsl.surveys.vibes.vibe_add_helper.create_openai_client') as mock_add_client:
-                with patch('edsl.surveys.vibes.vibe_describer.create_openai_client') as mock_describe_client:
+    with patch(
+        "edsl.surveys.vibes.survey_generator.create_openai_client"
+    ) as mock_client_creator:
+        with patch(
+            "edsl.surveys.vibes.vibe_editor.create_openai_client"
+        ) as mock_editor_client:
+            with patch(
+                "edsl.surveys.vibes.vibe_add_helper.create_openai_client"
+            ) as mock_add_client:
+                with patch(
+                    "edsl.surveys.vibes.vibe_describer.create_openai_client"
+                ) as mock_describe_client:
 
                     # Create mock LLM responses
                     mock_client = MagicMock()
@@ -91,17 +104,27 @@ def test_local_vibes_methods():
                     # Mock from_vibes response
                     mock_survey_data = MagicMock()
                     mock_survey_data.questions = [
-                        MagicMock(model_dump=lambda: {
-                            "question_name": "satisfaction",
-                            "question_text": "How satisfied are you with our product?",
-                            "question_type": "multiple_choice",
-                            "question_options": ["Very satisfied", "Satisfied", "Neutral", "Dissatisfied", "Very dissatisfied"]
-                        }),
-                        MagicMock(model_dump=lambda: {
-                            "question_name": "recommendation",
-                            "question_text": "Would you recommend us?",
-                            "question_type": "yes_no"
-                        })
+                        MagicMock(
+                            model_dump=lambda: {
+                                "question_name": "satisfaction",
+                                "question_text": "How satisfied are you with our product?",
+                                "question_type": "multiple_choice",
+                                "question_options": [
+                                    "Very satisfied",
+                                    "Satisfied",
+                                    "Neutral",
+                                    "Dissatisfied",
+                                    "Very dissatisfied",
+                                ],
+                            }
+                        ),
+                        MagicMock(
+                            model_dump=lambda: {
+                                "question_name": "recommendation",
+                                "question_text": "Would you recommend us?",
+                                "question_type": "yes_no",
+                            }
+                        ),
                     ]
 
                     mock_response.output_parsed = mock_survey_data
@@ -130,7 +153,7 @@ def test_local_vibes_methods():
                             num_questions=5,
                             model="gpt-4o",
                             temperature=0.7,
-                            remote=False
+                            remote=False,
                         )
                         print("✓ from_vibes completed successfully!")
 
@@ -141,11 +164,17 @@ def test_local_vibes_methods():
                         q1 = QuestionMultipleChoice(
                             question_name="satisfaction",
                             question_text="How satisfied are you?",
-                            question_options=["Very satisfied", "Satisfied", "Neutral", "Dissatisfied", "Very dissatisfied"]
+                            question_options=[
+                                "Very satisfied",
+                                "Satisfied",
+                                "Neutral",
+                                "Dissatisfied",
+                                "Very dissatisfied",
+                            ],
                         )
                         q2 = QuestionYesNo(
                             question_name="recommend",
-                            question_text="Would you recommend us?"
+                            question_text="Would you recommend us?",
                         )
 
                         test_survey = Survey([q1, q2])
@@ -161,7 +190,7 @@ def test_local_vibes_methods():
                             survey=test_survey,
                             edit_instructions="Make more formal",
                             model="gpt-4o",
-                            temperature=0.7
+                            temperature=0.7,
                         )
                         print("✓ vibe_edit completed successfully!")
 
@@ -177,17 +206,19 @@ def test_local_vibes_methods():
                             survey=test_survey,
                             add_instructions="Add age question",
                             model="gpt-4o",
-                            temperature=0.7
+                            temperature=0.7,
                         )
                         print("✓ vibe_add completed successfully!")
 
                         print("🧪 Testing Survey.vibe_describe()...")
                         mock_describe_data = MagicMock()
-                        mock_describe_data.proposed_title = "Customer Satisfaction Survey"
+                        mock_describe_data.proposed_title = (
+                            "Customer Satisfaction Survey"
+                        )
                         mock_describe_data.description = "A survey to measure customer satisfaction and gather feedback."
                         mock_describe_data.model_dump.return_value = {
                             "proposed_title": "Customer Satisfaction Survey",
-                            "description": "A survey to measure customer satisfaction and gather feedback."
+                            "description": "A survey to measure customer satisfaction and gather feedback.",
                         }
                         mock_response.output_parsed = mock_describe_data
 
@@ -196,7 +227,7 @@ def test_local_vibes_methods():
                             method="vibe_describe",
                             survey=test_survey,
                             model="gpt-4o",
-                            temperature=0.7
+                            temperature=0.7,
                         )
                         print("✓ vibe_describe completed successfully!")
                         print(f"  Title: {description.get('proposed_title', 'N/A')}")
@@ -207,15 +238,16 @@ def test_local_vibes_methods():
                     except Exception as e:
                         print(f"❌ Error testing local vibes methods: {e}")
                         import traceback
+
                         traceback.print_exc()
                         return None
 
 
 def test_remote_fallback():
     """Test remote execution fallback behavior."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTING REMOTE EXECUTION FALLBACK")
-    print("="*60)
+    print("=" * 60)
 
     try:
         from vibes_dispatcher import VibesDispatcher
@@ -225,7 +257,9 @@ def test_remote_fallback():
         print("🧪 Testing remote=True fallback (should use local execution)...")
 
         # This will currently fall back to local execution since remote isn't implemented
-        with patch('edsl.surveys.vibes.survey_generator.create_openai_client') as mock_client_creator:
+        with patch(
+            "edsl.surveys.vibes.survey_generator.create_openai_client"
+        ) as mock_client_creator:
             mock_client = MagicMock()
             mock_response = MagicMock()
             mock_survey_data = MagicMock()
@@ -242,7 +276,7 @@ def test_remote_fallback():
                 method="from_vibes",
                 survey_cls=Survey,
                 description="Test survey",
-                remote=True  # This will fall back to local
+                remote=True,  # This will fall back to local
             )
 
             print("✓ Remote fallback working correctly (falls back to local)")
@@ -275,7 +309,7 @@ class MockVibesServer:
                         "question_name": "mock_satisfaction",
                         "question_text": "How would you rate your satisfaction?",
                         "question_type": "multiple_choice",
-                        "question_options": ["Excellent", "Good", "Fair", "Poor"]
+                        "question_options": ["Excellent", "Good", "Fair", "Poor"],
                     }
                 ]
             },
@@ -285,7 +319,7 @@ class MockVibesServer:
                         "question_name": "edited_satisfaction",
                         "question_text": "¿Cómo calificaría su satisfacción?",
                         "question_type": "multiple_choice",
-                        "question_options": ["Excelente", "Bueno", "Regular", "Malo"]
+                        "question_options": ["Excelente", "Bueno", "Regular", "Malo"],
                     }
                 ]
             },
@@ -296,31 +330,35 @@ class MockVibesServer:
                         "question_text": "What is your age?",
                         "question_type": "numerical",
                         "min_value": 18,
-                        "max_value": 100
+                        "max_value": 100,
                     }
                 ],
-                "skip_rules": []
+                "skip_rules": [],
             },
             "vibe_describe": {
                 "proposed_title": "Mock Customer Satisfaction Survey",
-                "description": "This is a mock survey generated by the test server to demonstrate remote vibes execution."
-            }
+                "description": "This is a mock survey generated by the test server to demonstrate remote vibes execution.",
+            },
         }
 
-        response_data = mock_responses.get(method, {"error": f"Unknown method: {method}"})
+        response_data = mock_responses.get(
+            method, {"error": f"Unknown method: {method}"}
+        )
 
         return {
             "target": target,
             "method": method,
             "success": True,
-            "result": response_data
+            "result": response_data,
         }
 
     def start(self):
         """Start the mock server (simulation)."""
         self.is_running = True
         logger.info(f"🚀 Mock vibes server started on {self.host}:{self.port}")
-        logger.info("   (This is a simulation - actual HTTP server would be implemented in Phase 4)")
+        logger.info(
+            "   (This is a simulation - actual HTTP server would be implemented in Phase 4)"
+        )
 
     def stop(self):
         """Stop the mock server."""
@@ -330,9 +368,9 @@ class MockVibesServer:
 
 def test_mock_server_architecture():
     """Test the mock server to demonstrate intended architecture."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTING MOCK SERVER ARCHITECTURE")
-    print("="*60)
+    print("=" * 60)
 
     server = MockVibesServer()
 
@@ -353,8 +391,8 @@ def test_mock_server_architecture():
                     "description": "Customer satisfaction survey",
                     "num_questions": 3,
                     "model": "gpt-4o",
-                    "temperature": 0.7
-                }
+                    "temperature": 0.7,
+                },
             },
             {
                 "target": "survey",
@@ -363,8 +401,8 @@ def test_mock_server_architecture():
                     "survey_dict": {"questions": [{"question_name": "q1"}]},
                     "edit_instructions": "Translate to Spanish",
                     "model": "gpt-4o",
-                    "temperature": 0.7
-                }
+                    "temperature": 0.7,
+                },
             },
             {
                 "target": "survey",
@@ -373,8 +411,8 @@ def test_mock_server_architecture():
                     "survey_dict": {"questions": [{"question_name": "q1"}]},
                     "add_instructions": "Add age question",
                     "model": "gpt-4o",
-                    "temperature": 0.7
-                }
+                    "temperature": 0.7,
+                },
             },
             {
                 "target": "survey",
@@ -382,9 +420,9 @@ def test_mock_server_architecture():
                 "request_data": {
                     "survey_dict": {"questions": [{"question_name": "q1"}]},
                     "model": "gpt-4o",
-                    "temperature": 0.7
-                }
-            }
+                    "temperature": 0.7,
+                },
+            },
         ]
 
         for request in test_requests:
@@ -414,23 +452,25 @@ def test_mock_server_architecture():
 
 def test_schema_validation():
     """Test schema validation functionality."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTING SCHEMA VALIDATION")
-    print("="*60)
+    print("=" * 60)
 
     try:
         from schemas import (
-            FromVibesRequest, VibeEditRequest, VibeAddRequest, VibeDescribeRequest,
-            VibesDispatchRequest, validate_dispatch_request, validate_method_request
+            FromVibesRequest,
+            VibeEditRequest,
+            VibeAddRequest,
+            VibeDescribeRequest,
+            VibesDispatchRequest,
+            validate_dispatch_request,
+            validate_method_request,
         )
 
         # Test FromVibesRequest validation
         print("🧪 Testing FromVibesRequest validation...")
         from_vibes_req = FromVibesRequest(
-            description="Test survey",
-            num_questions=5,
-            model="gpt-4o",
-            temperature=0.7
+            description="Test survey", num_questions=5, model="gpt-4o", temperature=0.7
         )
         print("✓ FromVibesRequest validation passed")
 
@@ -439,7 +479,7 @@ def test_schema_validation():
         dispatch_req = VibesDispatchRequest(
             target="survey",
             method="from_vibes",
-            request_data=from_vibes_req.model_dump()
+            request_data=from_vibes_req.model_dump(),
         )
         print("✓ VibesDispatchRequest validation passed")
 
@@ -458,15 +498,18 @@ def test_schema_validation():
     except Exception as e:
         print(f"❌ Error testing schema validation: {e}")
         import traceback
+
         traceback.print_exc()
 
 
 def main():
     """Run all tests."""
     print("🚀 EDSL VIBES SYSTEM TEST SUITE")
-    print("="*60)
+    print("=" * 60)
     print("Testing the new registry-based vibes system...")
-    print("Note: Remote execution currently falls back to local (Phase 4 not implemented)")
+    print(
+        "Note: Remote execution currently falls back to local (Phase 4 not implemented)"
+    )
 
     try:
         # Test 1: Registry system
@@ -484,9 +527,9 @@ def main():
         # Test 5: Mock server architecture
         test_mock_server_architecture()
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🎉 ALL TESTS COMPLETED!")
-        print("="*60)
+        print("=" * 60)
         print("✅ Registry system working correctly")
         print("✅ Local vibes methods functional")
         print("✅ Schema validation working")
@@ -502,6 +545,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Test suite failed: {e}")
         import traceback
+
         traceback.print_exc()
 
 

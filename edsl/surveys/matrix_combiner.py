@@ -72,8 +72,8 @@ def _find_common_prefix_and_items(question_texts: List[str]) -> Tuple[str, List[
 
         # Try cutting after punctuation followed by space
         for i, char in enumerate(common_prefix):
-            if char in ':.-' and i < len(common_prefix) - 1:
-                if common_prefix[i + 1] == ' ':
+            if char in ":.-" and i < len(common_prefix) - 1:
+                if common_prefix[i + 1] == " ":
                     potential_cutoffs.append(i)
 
         # If we found good cutoff points, use the last one
@@ -83,30 +83,30 @@ def _find_common_prefix_and_items(question_texts: List[str]) -> Tuple[str, List[
 
     # Remove common trailing patterns
     patterns_to_remove = [
-        r':\s*-?\s*$',  # ": -" or ": " or ":" at the end
-        r'-\s*$',       # "- " at the end
-        r'–\s*$',       # "– " at the end (em dash)
-        r':\s*$',       # ": " at the end
+        r":\s*-?\s*$",  # ": -" or ": " or ":" at the end
+        r"-\s*$",  # "- " at the end
+        r"–\s*$",  # "– " at the end (em dash)
+        r":\s*$",  # ": " at the end
     ]
 
     for pattern in patterns_to_remove:
-        common_prefix = re.sub(pattern, '', common_prefix).strip()
+        common_prefix = re.sub(pattern, "", common_prefix).strip()
 
     # Extract individual items
     items = []
     for text in question_texts:
-        remaining = text[len(common_prefix):].strip()
+        remaining = text[len(common_prefix) :].strip()
 
         # Remove leading separators from the remaining part
         leading_patterns = [
-            r'^:\s*-\s*',   # ": - "
-            r'^-\s*',       # "- "
-            r'^–\s*',       # "– "
-            r'^:\s*',       # ": "
+            r"^:\s*-\s*",  # ": - "
+            r"^-\s*",  # "- "
+            r"^–\s*",  # "– "
+            r"^:\s*",  # ": "
         ]
 
         for pattern in leading_patterns:
-            remaining = re.sub(pattern, '', remaining).strip()
+            remaining = re.sub(pattern, "", remaining).strip()
 
         if remaining:
             items.append(remaining)
@@ -129,7 +129,7 @@ def combine_multiple_choice_to_matrix(
     use_question_text_as_items: bool = True,
     remove_original_questions: bool = True,
     index: Optional[int] = None,
-    **kwargs
+    **kwargs,
 ) -> "Survey":
     """
     Combine multiple choice questions into a single matrix question.
@@ -197,7 +197,9 @@ def combine_multiple_choice_to_matrix(
     for q_name in question_names:
         question = survey.get(q_name)
         if not isinstance(question, QuestionMultipleChoice):
-            raise ValueError(f"Question '{q_name}' is not a multiple choice question. Found type: {type(question).__name__}")
+            raise ValueError(
+                f"Question '{q_name}' is not a multiple choice question. Found type: {type(question).__name__}"
+            )
         questions.append(question)
 
     # Validate that all questions have the same options
@@ -205,9 +207,11 @@ def combine_multiple_choice_to_matrix(
     first_options = first_question.question_options
     for question in questions[1:]:
         if question.question_options != first_options:
-            raise ValueError(f"All questions must have the same options. "
-                           f"Question '{question.question_name}' has options {question.question_options} "
-                           f"but expected {first_options}")
+            raise ValueError(
+                f"All questions must have the same options. "
+                f"Question '{question.question_name}' has options {question.question_options} "
+                f"but expected {first_options}"
+            )
 
     # Handle matrix question text and items - infer if needed
     if matrix_question_text is None and use_question_text_as_items:
@@ -228,7 +232,7 @@ def combine_multiple_choice_to_matrix(
             matrix_items = [q.question_name for q in questions]
 
     # Extract option labels if they exist from the first question
-    option_labels = getattr(first_question, 'option_labels', None)
+    option_labels = getattr(first_question, "option_labels", None)
 
     # Create the matrix question
     matrix_question = QuestionMatrix(
@@ -237,7 +241,7 @@ def combine_multiple_choice_to_matrix(
         question_items=matrix_items,
         question_options=first_options,
         option_labels=option_labels,
-        **kwargs
+        **kwargs,
     )
 
     # Create a new survey with the matrix question

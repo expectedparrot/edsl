@@ -34,11 +34,9 @@ __all__ = [
     "edit_survey_with_vibes",
     "add_questions_with_vibes",
     "describe_survey_with_vibes",
-
     # Remote generation
     "RemoteSurveyGenerator",
     "should_use_remote",
-
     # Exceptions
     "VibesError",
     "RemoteSurveyGenerationError",

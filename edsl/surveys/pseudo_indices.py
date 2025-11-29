@@ -58,4 +58,3 @@ class PseudoIndices(UserDict):
             True
         """
         return isinstance(self.max_pseudo_index, float)
-

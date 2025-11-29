@@ -141,8 +141,7 @@ class VibesHandlerBase(ABC, metaclass=RegisterVibesMethodsMeta):
             dict: Handler metadata from registry
         """
         return RegisterVibesMethodsMeta.get_method_handler(
-            cls.vibes_target,
-            cls.vibes_method
+            cls.vibes_target, cls.vibes_method
         )
 
     @classmethod
@@ -156,20 +155,24 @@ class VibesHandlerBase(ABC, metaclass=RegisterVibesMethodsMeta):
         Raises:
             ValueError: If handler registration is invalid
         """
-        if not hasattr(cls, 'vibes_target') or not hasattr(cls, 'vibes_method'):
-            raise ValueError(f"{cls.__name__} must define vibes_target and vibes_method")
+        if not hasattr(cls, "vibes_target") or not hasattr(cls, "vibes_method"):
+            raise ValueError(
+                f"{cls.__name__} must define vibes_target and vibes_method"
+            )
 
         handler_info = cls.get_handler_info()
         if not handler_info:
-            raise ValueError(f"{cls.__name__} is not registered for {cls.vibes_target}.{cls.vibes_method}")
+            raise ValueError(
+                f"{cls.__name__} is not registered for {cls.vibes_target}.{cls.vibes_method}"
+            )
 
         # Validate that registered info matches class attributes
         expected_attrs = {
-            'handler_class': cls.handler_class,
-            'handler_function': cls.handler_function,
-            'request_schema': cls.request_schema,
-            'response_schema': cls.response_schema,
-            'is_classmethod': cls.is_classmethod,
+            "handler_class": cls.handler_class,
+            "handler_function": cls.handler_function,
+            "request_schema": cls.request_schema,
+            "response_schema": cls.response_schema,
+            "is_classmethod": cls.is_classmethod,
         }
 
         for attr_name, expected_value in expected_attrs.items():
@@ -280,8 +283,13 @@ class VibesHandlerError(Exception):
     validation, or execution.
     """
 
-    def __init__(self, message: str, handler_class: Optional[str] = None,
-                 target: Optional[str] = None, method: Optional[str] = None):
+    def __init__(
+        self,
+        message: str,
+        handler_class: Optional[str] = None,
+        target: Optional[str] = None,
+        method: Optional[str] = None,
+    ):
         super().__init__(message)
         self.handler_class = handler_class
         self.target = target
@@ -297,6 +305,7 @@ class VibesHandlerError(Exception):
 
 
 # Utility functions for working with handlers
+
 
 def get_all_registered_handlers() -> Dict[str, Dict[str, Any]]:
     """
@@ -370,4 +379,6 @@ if __name__ == "__main__":
         print(f"Handlers for {target}: {methods}")
 
         for method in methods:
-            print(f"  {target}.{method} registered: {is_handler_registered(target, method)}")
+            print(
+                f"  {target}.{method} registered: {is_handler_registered(target, method)}"
+            )

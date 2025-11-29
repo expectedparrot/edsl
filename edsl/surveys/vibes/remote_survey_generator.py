@@ -234,7 +234,9 @@ class RemoteSurveyGenerator:
             self._logger.error(error_msg, exc_info=True)
             raise RemoteSurveyGenerationError(error_msg) from e
 
-    def _parse_successful_response(self, response: requests.Response) -> Dict[str, List[Dict[str, Any]]]:
+    def _parse_successful_response(
+        self, response: requests.Response
+    ) -> Dict[str, List[Dict[str, Any]]]:
         """
         Parse and validate a successful response from the server.
 
@@ -281,14 +283,16 @@ class RemoteSurveyGenerator:
             required_fields = ["question_name", "question_text", "question_type"]
             for field in required_fields:
                 if field not in question:
-                    error_msg = f"Invalid question at index {i}: missing '{field}' field"
+                    error_msg = (
+                        f"Invalid question at index {i}: missing '{field}' field"
+                    )
                     self._logger.error(error_msg)
                     raise RemoteSurveyGenerationError(error_msg)
 
-        self._logger.info(
-            f"Successfully generated {len(questions)} questions remotely"
+        self._logger.info(f"Successfully generated {len(questions)} questions remotely")
+        self._logger.debug(
+            f"Question types: {[q.get('question_type') for q in questions]}"
         )
-        self._logger.debug(f"Question types: {[q.get('question_type') for q in questions]}")
 
         return result
 
@@ -333,9 +337,7 @@ class RemoteSurveyGenerator:
                 health_url = self.base_url.rsplit("/", 1)[0] + "/health"
 
             response = requests.get(
-                health_url,
-                timeout=timeout,
-                headers={"Accept": "application/json"}
+                health_url, timeout=timeout, headers={"Accept": "application/json"}
             )
 
             return response.status_code in (200, 404)  # 404 is OK, means server is up

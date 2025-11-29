@@ -66,7 +66,7 @@ class VibeDescribeHandler(VibesHandlerBase):
         *,
         model: str = "gpt-4o",
         temperature: float = 0.7,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, str]:
         """
         Execute the vibe_describe method locally.
@@ -101,7 +101,7 @@ class VibeDescribeHandler(VibesHandlerBase):
         *,
         model: str = "gpt-4o",
         temperature: float = 0.7,
-        **kwargs
+        **kwargs,
     ) -> dict[str, Any]:
         """
         Convert local method arguments to remote request format.
@@ -123,9 +123,7 @@ class VibeDescribeHandler(VibesHandlerBase):
 
         # Create and validate the request using the schema
         request_obj = cls.request_schema(
-            survey_dict=survey_dict,
-            model=model,
-            temperature=temperature
+            survey_dict=survey_dict, model=model, temperature=temperature
         )
 
         return request_obj.model_dump()
@@ -173,22 +171,28 @@ class VibeDescribeHandler(VibesHandlerBase):
                         "question_name": "satisfaction",
                         "question_text": "How satisfied are you with our product?",
                         "question_type": "multiple_choice",
-                        "question_options": ["Very satisfied", "Satisfied", "Neutral", "Dissatisfied", "Very dissatisfied"]
+                        "question_options": [
+                            "Very satisfied",
+                            "Satisfied",
+                            "Neutral",
+                            "Dissatisfied",
+                            "Very dissatisfied",
+                        ],
                     },
                     {
                         "question_name": "recommendation",
                         "question_text": "Would you recommend us to a friend?",
-                        "question_type": "yes_no"
+                        "question_type": "yes_no",
                     },
                     {
                         "question_name": "feedback",
                         "question_text": "Please provide any additional feedback",
-                        "question_type": "free_text"
-                    }
+                        "question_type": "free_text",
+                    },
                 ]
             },
             "model": "gpt-4o",
-            "temperature": 0.7
+            "temperature": 0.7,
         }
 
     @classmethod
@@ -201,7 +205,7 @@ class VibeDescribeHandler(VibesHandlerBase):
         """
         return {
             "proposed_title": "Customer Satisfaction and Recommendation Survey",
-            "description": "This survey aims to gather feedback from customers about their satisfaction with our product and their likelihood to recommend our services to others. The survey covers key areas including overall satisfaction levels, recommendation behavior, and open-ended feedback to capture additional insights. This feedback will help us understand customer sentiment and identify areas for improvement in our product offerings and customer experience."
+            "description": "This survey aims to gather feedback from customers about their satisfaction with our product and their likelihood to recommend our services to others. The survey covers key areas including overall satisfaction levels, recommendation behavior, and open-ended feedback to capture additional insights. This feedback will help us understand customer sentiment and identify areas for improvement in our product offerings and customer experience.",
         }
 
 

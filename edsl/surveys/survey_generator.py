@@ -361,7 +361,9 @@ Design tips:
             # Then try LLM inference to refine types and add options
             try:
                 if verbose:
-                    question_data = SurveyGenerator._infer_question_types(question_data, m)
+                    question_data = SurveyGenerator._infer_question_types(
+                        question_data, m
+                    )
                 else:
                     # Suppress output when verbose=False
                     import sys
@@ -370,7 +372,9 @@ Design tips:
                     old_stdout = sys.stdout
                     sys.stdout = StringIO()
                     try:
-                        question_data = SurveyGenerator._infer_question_types(question_data, m)
+                        question_data = SurveyGenerator._infer_question_types(
+                            question_data, m
+                        )
                     finally:
                         sys.stdout = old_stdout
             except Exception:
@@ -735,4 +739,3 @@ Guidelines:
 
         # Fallback to FreeText
         return QuestionFreeText(question_name=name, question_text=text)
-

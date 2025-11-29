@@ -17,6 +17,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
 sys.path.insert(0, os.path.dirname(current_dir))
 
+
 def test_imports():
     """Test that all components can be imported."""
     print("🧪 Testing imports...")
@@ -24,24 +25,36 @@ def test_imports():
     try:
         # Test registry imports
         from vibes_registry import RegisterVibesMethodsMeta
+
         print("✓ vibes_registry imported")
 
         from vibes_handler_base import VibesHandlerBase
+
         print("✓ vibes_handler_base imported")
 
         from schemas import (
-            FromVibesRequest, VibeEditRequest, VibeAddRequest, VibeDescribeRequest,
-            VibesDispatchRequest, VibesDispatchResponse
+            FromVibesRequest,
+            VibeEditRequest,
+            VibeAddRequest,
+            VibeDescribeRequest,
+            VibesDispatchRequest,
+            VibesDispatchResponse,
         )
+
         print("✓ schemas imported")
 
         from vibes_dispatcher import VibesDispatcher, default_dispatcher
+
         print("✓ vibes_dispatcher imported")
 
         # Test handler imports (this should trigger registration)
         from handlers import (
-            FromVibesHandler, VibeEditHandler, VibeAddHandler, VibeDescribeHandler
+            FromVibesHandler,
+            VibeEditHandler,
+            VibeAddHandler,
+            VibeDescribeHandler,
         )
+
         print("✓ handlers imported")
 
         return True
@@ -49,6 +62,7 @@ def test_imports():
     except Exception as e:
         print(f"❌ Import failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -78,7 +92,9 @@ def test_registry():
                     info = default_dispatcher.get_method_info("survey", method)
                     if info:
                         handler_class = info.get("registered_by", "Unknown")
-                        description = info.get("metadata", {}).get("description", "No description")
+                        description = info.get("metadata", {}).get(
+                            "description", "No description"
+                        )
                         print(f"    Handler: {handler_class}")
                         print(f"    Description: {description}")
                 else:
@@ -93,6 +109,7 @@ def test_registry():
     except Exception as e:
         print(f"❌ Registry test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -109,7 +126,7 @@ def test_schema_validation():
             description="Test survey about customer satisfaction",
             num_questions=3,
             model="gpt-4o",
-            temperature=0.7
+            temperature=0.7,
         )
         print("✓ FromVibesRequest created successfully")
         print(f"  Description: {request.description}")
@@ -117,9 +134,7 @@ def test_schema_validation():
 
         # Test dispatch request
         dispatch_request = VibesDispatchRequest(
-            target="survey",
-            method="from_vibes",
-            request_data=request.model_dump()
+            target="survey", method="from_vibes", request_data=request.model_dump()
         )
         print("✓ VibesDispatchRequest created successfully")
         print(f"  Target: {dispatch_request.target}")
@@ -130,6 +145,7 @@ def test_schema_validation():
     except Exception as e:
         print(f"❌ Schema validation failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -152,18 +168,21 @@ def test_dispatcher_validation():
                 "from_vibes",
                 description="Test survey",
                 model="gpt-4o",
-                temperature=0.7
+                temperature=0.7,
             )
             print("✓ Request validation successful")
             print(f"  Validated description: {validated.description}")
         except Exception as e:
-            print(f"⚠️  Request validation failed (expected if handlers not fully set up): {e}")
+            print(
+                f"⚠️  Request validation failed (expected if handlers not fully set up): {e}"
+            )
 
         return True
 
     except Exception as e:
         print(f"❌ Dispatcher validation failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -180,7 +199,9 @@ def test_remote_fallback():
 
         # This should show that remote execution is not yet implemented
         print("ℹ️  Note: Remote execution is not yet implemented (Phase 4)")
-        print("   When remote=True is requested, the system falls back to local execution")
+        print(
+            "   When remote=True is requested, the system falls back to local execution"
+        )
         print("   This is the expected behavior until the server package is created")
 
         return True
@@ -193,7 +214,7 @@ def test_remote_fallback():
 def main():
     """Run simple tests."""
     print("🚀 EDSL VIBES SYSTEM - SIMPLE TEST")
-    print("="*50)
+    print("=" * 50)
 
     all_passed = True
 
@@ -216,7 +237,7 @@ def main():
             all_passed = False
 
     # Summary
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     if all_passed:
         print("🎉 ALL TESTS PASSED!")
         print("\nThe vibes registry system is working correctly!")
@@ -231,7 +252,7 @@ def main():
         print("❌ SOME TESTS FAILED")
         print("Please check the error messages above.")
 
-    print("="*50)
+    print("=" * 50)
 
 
 if __name__ == "__main__":
