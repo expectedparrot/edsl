@@ -10,7 +10,6 @@ helpful error messages for common configuration issues.
 import os
 import sys
 import argparse
-from pathlib import Path
 
 
 def check_environment():
@@ -149,7 +148,7 @@ Examples:
     # Override reload setting if --no-reload is specified
     reload = args.reload and not args.no_reload
 
-    print(f"Starting server:")
+    print("Starting server:")
     print(f"  Host: {args.host}")
     print(f"  Port: {args.port}")
     print(f"  Reload: {reload}")

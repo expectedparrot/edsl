@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from ..results import Results, Result
     from ..scenarios import ScenarioList
     from ..buckets.bucket_collection import BucketCollection
+    from .vibes.vibe_accessor import SurveyVibeAccessor
     from ..key_management.key_lookup import KeyLookup
     from ..scenarios import FileStore
 
@@ -70,7 +71,6 @@ from .exceptions import (
     SurveyCreationError,
     SurveyHasNoRulesError,
     SurveyError,
-    SurveyQuestionsToRandomizeError,
 )
 
 
