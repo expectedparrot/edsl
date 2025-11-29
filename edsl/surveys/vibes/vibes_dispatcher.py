@@ -12,26 +12,22 @@ Survey methods.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional
 import logging
 
 try:
     from .vibes_registry import RegisterVibesMethodsMeta
-    from .vibes_handler_base import VibesHandlerError
-    from .schemas import VibesDispatchRequest, VibesDispatchResponse
 
     # Import all handlers to ensure they are registered
-    from .handlers import *
+    from .handlers import *  # noqa: F403
 except ImportError:
     from vibes_registry import RegisterVibesMethodsMeta
-    from vibes_handler_base import VibesHandlerError
-    from schemas import VibesDispatchRequest, VibesDispatchResponse
 
     # Import all handlers to ensure they are registered
-    from handlers import *
+    from handlers import *  # noqa: F403
 
 if TYPE_CHECKING:
-    from ..survey import Survey
+    pass
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -203,7 +199,7 @@ class VibesDispatcher:
         except Exception as e:
             # Wrap other exceptions in dispatch error
             raise VibesDispatchError(
-                f"Unexpected error during dispatch",
+                "Unexpected error during dispatch",
                 target=target,
                 method=method,
                 original_error=e,
@@ -324,7 +320,7 @@ class VibesDispatcher:
                         error_detail = error_data.get(
                             "detail", error_data.get("error", str(error_data))
                         )
-                    except:
+                    except (ValueError, TypeError):
                         error_detail = (
                             response.text[:200]
                             if response.text
@@ -405,7 +401,7 @@ class VibesDispatcher:
         except ImportError as e:
             if "httpx" in str(e):
                 raise VibesDispatchError(
-                    f"Remote execution requires 'httpx' package. Install with: pip install httpx",
+                    "Remote execution requires 'httpx' package. Install with: pip install httpx",
                     target=target,
                     method=method,
                     original_error=e,

@@ -12,7 +12,6 @@ import requests
 from typing import Optional, Dict, List, Any
 import uuid
 
-from ...config import CONFIG
 from ...logger import get_logger
 from ...coop.ep_key_handling import ExpectedParrotKeyHandler
 from .exceptions import RemoteSurveyGenerationError, SurveyGenerationError
