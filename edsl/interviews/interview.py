@@ -745,10 +745,10 @@ class Interview:
 
         # Create context with interview components
         context = {
-            'scenario': self.scenario,
-            'agent': self.agent,
-            'model': self.model,
-            'survey': self.survey,
+            "scenario": self.scenario,
+            "agent": self.agent,
+            "model": self.model,
+            "survey": self.survey,
         }
 
         env = Environment()
@@ -757,9 +757,9 @@ class Interview:
 
         # Convert result to boolean
         result_lower = result.lower()
-        if result_lower in ('true', '1', 'yes'):
+        if result_lower in ("true", "1", "yes"):
             return True
-        elif result_lower in ('false', '0', 'no', ''):
+        elif result_lower in ("false", "0", "no", ""):
             return False
         else:
             raise ValueError(
