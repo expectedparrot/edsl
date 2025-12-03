@@ -78,10 +78,13 @@ class VibesDispatcher:
     Examples
     --------
     >>> dispatcher = VibesDispatcher()
-    >>> survey = dispatcher.dispatch(
-    ...     target="survey", method="from_vibes", survey_cls=Survey,
-    ...     description="Customer satisfaction survey", num_questions=5
-    ... )
+    >>> # Check if a method is available
+    >>> dispatcher.is_method_available("survey", "from_vibes")
+    True
+    >>> # Get available methods for a target
+    >>> methods = dispatcher.get_available_methods("survey")
+    >>> isinstance(methods, list)
+    True
     """
 
     def __init__(self, default_remote: bool = False):
