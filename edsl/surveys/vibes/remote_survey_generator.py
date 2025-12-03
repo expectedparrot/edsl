@@ -97,7 +97,7 @@ class RemoteSurveyGenerator:
 
         # Add Expected Parrot API key for authentication
         try:
-            api_key = self._key_handler.get_key()
+            api_key = self._key_handler.get_ep_api_key()
             if api_key:
                 base_headers["Authorization"] = f"Bearer {api_key}"
             else:
