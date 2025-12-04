@@ -85,7 +85,7 @@ from edsl import (
 ```python
 q_issues = QuestionCheckBox(
     question_name="issues",
-    question_text="Check all of the issues mentioned in this ticket: {{ scenario.ticket }}",
+    question_text="Check all of the issues mentioned in this ticket: `{{ scenario.ticket }}`",
     question_options=[
         "safety",
         "cleanliness",
@@ -100,14 +100,14 @@ q_issues = QuestionCheckBox(
 ```python
 q_primary_issue = QuestionFreeText(
     question_name="primary_issue",
-    question_text="What is the primary issue in this ticket? Ticket: {{ scenario.ticket }}",
+    question_text="What is the primary issue in this ticket? Ticket: `{{ scenario.ticket }}`",
 )
 ```
 
 ```python
 q_accident = QuestionMultipleChoice(
     question_name="accident",
-    question_text="If the primary issue in this ticket is safety, was there an accident where someone was hurt? Ticket: {{ scenario.ticket }}",
+    question_text="If the primary issue in this ticket is safety, was there an accident where someone was hurt? Ticket: `{{ scenario.ticket }}`",
     question_options=["Yes", "No", "Not applicable"],
 )
 ```
@@ -115,7 +115,7 @@ q_accident = QuestionMultipleChoice(
 ```python
 q_sentiment = QuestionMultipleChoice(
     question_name="sentiment",
-    question_text="What is the sentiment of this ticket? Ticket: {{ scenario.ticket }}",
+    question_text="What is the sentiment of this ticket? Ticket: `{{ scenario.ticket }}`",
     question_options=[
         "Very positive",
         "Somewhat positive",
@@ -129,14 +129,14 @@ q_sentiment = QuestionMultipleChoice(
 ```python
 q_refund = QuestionYesNo(
     question_name="refund",
-    question_text="Does the customer ask for a refund in this ticket? Ticket: {{ scenario.ticket }}",
+    question_text="Does the customer ask for a refund in this ticket? Ticket: `{{ scenario.ticket }}`",
 )
 ```
 
 ```python
 q_priority = QuestionLinearScale(
     question_name="priority",
-    question_text="On a scale from 0 to 5, what is the priority level of this ticket? Ticket: {{ scenario.ticket }}",
+    question_text="On a scale from 0 to 5, what is the priority level of this ticket? Ticket: `{{ scenario.ticket }}`",
     question_options=[0, 1, 2, 3, 4, 5],
     option_labels={0: "Lowest", 5: "Highest"},
 )
@@ -172,12 +172,12 @@ Survey # questions: 6; question_name list: ['issues', 'primary_issue', 'accident
 
 |  | question_text | question_options | question_type | question_name | option_labels |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| 0 | Check all of the issues mentioned in this ticket: {{ scenario.ticket }} | ['safety', 'cleanliness', 'driver performance', 'GPS/route', 'lost item', 'other'] | checkbox | issues | nan |
-| 1 | What is the primary issue in this ticket? Ticket: {{ scenario.ticket }} | nan | free_text | primary_issue | nan |
-| 2 | If the primary issue in this ticket is safety, was there an accident where someone was hurt? Ticket: {{ scenario.ticket }} | ['Yes', 'No', 'Not applicable'] | multiple_choice | accident | nan |
-| 3 | What is the sentiment of this ticket? Ticket: {{ scenario.ticket }} | ['Very positive', 'Somewhat positive', 'Neutral', 'Somewhat negative', 'Very negative'] | multiple_choice | sentiment | nan |
-| 4 | Does the customer ask for a refund in this ticket? Ticket: {{ scenario.ticket }} | ['No', 'Yes'] | yes_no | refund | nan |
-| 5 | On a scale from 0 to 5, what is the priority level of this ticket? Ticket: {{ scenario.ticket }} | [0, 1, 2, 3, 4, 5] | linear_scale | priority | `{0: 'Lowest', 5: 'Highest'}` |
+| 0 | Check all of the issues mentioned in this ticket: `{{ scenario.ticket }}` | ['safety', 'cleanliness', 'driver performance', 'GPS/route', 'lost item', 'other'] | checkbox | issues | nan |
+| 1 | What is the primary issue in this ticket? Ticket: `{{ scenario.ticket }}` | nan | free_text | primary_issue | nan |
+| 2 | If the primary issue in this ticket is safety, was there an accident where someone was hurt? Ticket: `{{ scenario.ticket }}` | ['Yes', 'No', 'Not applicable'] | multiple_choice | accident | nan |
+| 3 | What is the sentiment of this ticket? Ticket: `{{ scenario.ticket }}` | ['Very positive', 'Somewhat positive', 'Neutral', 'Somewhat negative', 'Very negative'] | multiple_choice | sentiment | nan |
+| 4 | Does the customer ask for a refund in this ticket? Ticket: `{{ scenario.ticket }}` | ['No', 'Yes'] | yes_no | refund | nan |
+| 5 | On a scale from 0 to 5, what is the priority level of this ticket? Ticket: `{{ scenario.ticket }}` | [0, 1, 2, 3, 4, 5] | linear_scale | priority | `{0: 'Lowest', 5: 'Highest'}` |
 
 ## Designing AI agents
 
