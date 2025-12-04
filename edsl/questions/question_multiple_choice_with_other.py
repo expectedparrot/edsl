@@ -429,7 +429,6 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
         question_presentation: Optional[str] = None,
         permissive: bool = False,
         other_option_text: str = "Other",
-        other_instructions: Optional[str] = None,
     ):
         """
         Initialize a new multiple choice with "Other" question.
@@ -465,10 +464,6 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
         other_option_text : str, default="Other"
             The text to use for the "Other" option. This will be added to the list of options.
 
-        other_instructions : Optional[str], default=None
-            Custom instructions for how to provide the "Other" response. If None,
-            default instructions will be used.
-
         Examples
         --------
         >>> q = QuestionMultipleChoiceWithOther(
@@ -490,7 +485,6 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
         self.question_presentation = question_presentation
         self.permissive = permissive
         self.other_option_text = other_option_text
-        self.other_instructions = other_instructions
 
     def create_response_model(self, replacement_dict: dict = None):
         """Create a response model that allows for the 'Other' option."""
