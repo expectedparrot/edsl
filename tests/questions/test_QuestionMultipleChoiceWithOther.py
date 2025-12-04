@@ -10,40 +10,17 @@ def test_question_multiple_choice_with_other_basics():
         question_text="Select a color:",
         question_options=["Red", "Green", "Blue"],
     )
-    
+
     # Check that the question has the correct attributes
     assert q.question_name == "test_question"
     assert q.question_text == "Select a color:"
     assert q.question_options == ["Red", "Green", "Blue"]
     assert q.other_option_text == "Other"
-    
+
     # Check that the validator has the correct attributes
     validator = q.response_validator
     assert validator.__class__.__name__ == "MultipleChoiceWithOtherResponseValidator"
     assert "Other" in validator.question_options
-
-
-def test_post_process_result_other_format():
-    """Test the post_process_result method with 'Other: X' format."""
-    # Create the question
-    q = QuestionMultipleChoiceWithOther(
-        question_name="capital",
-        question_text="What is the capital of France?",
-        question_options=["London", "Berlin", "Madrid"],
-    )
-    
-    # Create a result with 'Other: Paris' format
-    result = [{
-        'answer': {'capital': 'Other: Paris'},
-        'other_text': {}
-    }]
-    
-    # Apply post-processing
-    processed = q.post_process_result(result)
-    
-    # Check the results
-    assert processed[0]['answer']['capital'] == "Other"
-    assert processed[0]['other_text']['capital_other_text'] == "Paris"
 
 
 def test_validator_direct():
@@ -54,18 +31,16 @@ def test_validator_direct():
         question_text="What is the capital of France?",
         question_options=["London", "Berlin", "Madrid"],
     )
-    
+
     # Get the validator
     validator = q.response_validator
-    
+
     # Test with 'Other: X' format
     response = {"answer": "Other: Paris"}
     validated = validator.validate(response, verbose=True)
-    
-    # Check that we correctly parsed the 'Other: X' format
-    assert validated["answer"] == "Other"
-    assert "other_text" in validated
-    assert validated["other_text"] == "Paris"
+
+    # Check that we keep the full answer string (new behavior)
+    assert validated["answer"] == "Other: Paris"
 
 
 def test_validator_fix_method():
@@ -76,18 +51,16 @@ def test_validator_fix_method():
         question_text="What is the capital of France?",
         question_options=["London", "Berlin", "Madrid"],
     )
-    
+
     # Get the validator
     validator = q.response_validator
-    
+
     # Test with 'Other: X' format
     response = {"answer": "Other: Paris"}
     fixed = validator.fix(response, verbose=True)
-    
-    # Check that we correctly fixed the 'Other: X' format
-    assert fixed["answer"] == "Other"
-    assert "other_text" in fixed
-    assert fixed["other_text"] == "Paris"
+
+    # Check that we keep the full answer string (new behavior)
+    assert fixed["answer"] == "Other: Paris"
 
 
 def test_other_option_text_custom():
@@ -97,18 +70,93 @@ def test_other_option_text_custom():
         question_name="capital",
         question_text="What is the capital of France?",
         question_options=["London", "Berlin", "Madrid"],
-        other_option_text="Something else"
+        other_option_text="Something else",
     )
-    
-    # Create a result with 'Something else: Paris' format
-    result = [{
-        'answer': {'capital': 'Something else: Paris'},
-        'other_text': {}
-    }]
-    
-    # Apply post-processing - should still work because we use hardcoded "Other"
-    processed = q.post_process_result(result)
-    
-    # It should match the standard "Other" regardless of other_option_text
-    assert processed[0]['answer']['capital'] == "Other"
-    assert processed[0]['other_text']['capital_other_text'] == "Paris"
+
+    # Get the validator
+    validator = q.response_validator
+
+    # Test with 'Something else: Paris' format
+    response = {"answer": "Something else: Paris"}
+    validated = validator.validate(response, verbose=True)
+
+    # Check that we keep the full answer string (new behavior)
+    assert validated["answer"] == "Something else: Paris"
+
+
+def test_validator_regular_answer():
+    """Test that regular (non-other) answers are validated correctly."""
+    # Create the question
+    q = QuestionMultipleChoiceWithOther(
+        question_name="color",
+        question_text="What is your favorite color?",
+        question_options=["Red", "Green", "Blue"],
+    )
+
+    # Get the validator
+    validator = q.response_validator
+
+    # Test with a valid regular answer
+    response = {"answer": "Red"}
+    validated = validator.validate(response, verbose=False)
+
+    # Check that the answer is validated correctly
+    assert validated["answer"] == "Red"
+
+    # Test with another valid regular answer
+    response = {"answer": "Green"}
+    validated = validator.validate(response, verbose=False)
+    assert validated["answer"] == "Green"
+
+    # Test with "Blue"
+    response = {"answer": "Blue"}
+    validated = validator.validate(response, verbose=False)
+    assert validated["answer"] == "Blue"
+
+
+def test_validator_invalid_answer():
+    """Test that invalid answers (not in options) are rejected."""
+    # Create the question
+    q = QuestionMultipleChoiceWithOther(
+        question_name="color",
+        question_text="What is your favorite color?",
+        question_options=["Red", "Green", "Blue"],
+    )
+
+    # Get the validator
+    validator = q.response_validator
+
+    # Test with an invalid answer (not in options)
+    response = {"answer": "Yellow"}
+
+    # Should raise a validation error
+    try:
+        validator.validate(response, verbose=False)
+        assert False, "Expected validation error for invalid answer"
+    except Exception as e:
+        # Should be a validation error
+        assert (
+            "Yellow" in str(e)
+            or "Permitted values" in str(e)
+            or "validation" in str(e).lower()
+        )
+
+
+def test_validator_other_option_without_colon():
+    """Test that 'Other' option without colon format is still valid."""
+    # Create the question
+    q = QuestionMultipleChoiceWithOther(
+        question_name="feeling",
+        question_text="How are you feeling?",
+        question_options=["Good", "Great", "OK", "Bad"],
+    )
+
+    # Get the validator
+    validator = q.response_validator
+
+    # Test with just "Other" (without colon format) - it's a valid option
+    response = {"answer": "Other"}
+    validated = validator.validate(response, verbose=False)
+
+    # Check that it validates correctly - "Other" is a valid option
+    assert validated["answer"] == "Other"

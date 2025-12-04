@@ -440,6 +440,22 @@ class QuestionTextDescriptor(BaseDescriptor):
         return None
 
 
+class OtherOptionTextDescriptor(BaseDescriptor):
+    """Validate that the `other_option_text` attribute is a string with at least 1 character."""
+
+    def validate(self, value, instance):
+        """Validate the value is a string with at least 1 character."""
+        if not isinstance(value, str):
+            raise QuestionCreationValidationError(
+                f"`other_option_text` must be a string (got {value})."
+            )
+        if len(value) < 1:
+            raise QuestionCreationValidationError(
+                f"`other_option_text` must be at least 1 character long (got {value})."
+            )
+        return None
+
+
 class ValueTypesDescriptor(BaseDescriptor):
     def validate(self, value, instance):
         """Validate the value is a list of strings or None."""

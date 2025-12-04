@@ -6,9 +6,9 @@ Respond with a string corresponding to one of the options.
 {% endif %}
 
 If none of the options match, respond with:
-Other: [your specific response]
+{{other_option_text}}: [your specific response]
 
-For example: "Other: Paris" if your answer is Paris.
+For example: "{{other_option_text}}: Paris" if your answer is Paris.
 
 {% if include_comment %}
 After the answer, you can put a comment explaining why you chose that option on the next line.

@@ -125,7 +125,6 @@ def test_serialization_coverage():
             "CoopRegularObjects",
             "CoopJobsObjects",
             "CoopProlificFilters",
-            "QuestionMultipleChoiceWithOther",
             "Service",
             "AgentDelta",
             "AgentListDeltas",
