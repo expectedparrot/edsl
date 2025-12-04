@@ -448,8 +448,8 @@ We can alternatively specify that the paramater values be inserted in the questi
 from edsl import QuestionFreeText, ScenarioList, Scenario
 
 q = QuestionFreeText(
-   question_name = "favorite_{`{ item }`}",
-   question_text = "What is your favorite {`{ item }`}?",
+   question_name = "favorite_{{ item }}",
+   question_text = "What is your favorite {{ item }}?",
 )
 
 scenarios = ScenarioList(
@@ -478,7 +478,7 @@ results = survey.run()
 
 ### Piping
 
-Piping is a method for passing the answer or other components of previous questions into a subsequent question. Question components can be piped into question texts or options by using double braces with the name of the prior question and the key of the answer in the braces (e.g., {`{ <prior_question_name>.answer }`}). Note that piping can only be used when questions are run together in a survey.
+Piping is a method for passing the answer or other components of previous questions into a subsequent question. Question components can be piped into question texts or options by using double braces with the name of the prior question and the key of the answer in the braces (e.g., {{ <prior_question_name>.answer }}). Note that piping can only be used when questions are run together in a survey.
 
 For example:
 
@@ -493,7 +493,7 @@ q_age = QuestionNumerical(
 # Piping an answer in a question text
 q_prime = QuestionMultipleChoice(
    question_name = "prime",
-   question_text = "Is {`{ age.answer }`} a prime number?",
+   question_text = "Is {{ age.answer }} a prime number?",
    question_options = ["Yes", "No", "I don't know"]
 )
 
@@ -506,14 +506,14 @@ q_favorite_colors = QuestionList(
 # Using an item from a list response
 q_flowers = QuestionList(
    question_name = "flowers",
-   question_text = "Name some flowers that are {`{ favorite_colors.answer[0] }`}."
+   question_text = "Name some flowers that are {{ favorite_colors.answer[0] }}."
 )
 
 # Using a list response as a complete set of question options
 q_house_color = QuestionMultipleChoice(
    question_name = "house_color",
    question_text = "Pretend you are painting a house. Which color would you choose?",
-   question_options = "{`{ favorite_colors.answer }`}"
+   question_options = "{{ favorite_colors.answer }}"
 )
 
 # Itemizing options from a list response in question options
@@ -521,9 +521,9 @@ q_car_color = QuestionMultipleChoice(
    question_name = "car_color",
    question_text = "Pretend you are buying a car. Which color would you choose?",
    question_options = [
-      "{`{ favorite_colors.answer[0] }`}",
-      "{`{ favorite_colors.answer[1] }`}",
-      "{`{ favorite_colors.answer[2] }`}",
+      "{{ favorite_colors.answer[0] }}",
+      "{{ favorite_colors.answer[1] }}",
+      "{{ favorite_colors.answer[2] }}",
       "Other"
    ]
 )
@@ -560,7 +560,7 @@ scenarios = ScenarioList(
 for sentiment in sentiments:
    q = QuestionFreeText(
       question_name = f"{ sentiment }_activity",
-      question_text = f"How much do you { sentiment } {`{ activity }`}?"
+      question_text = f"How much do you { sentiment } {{ activity }}?"
    )
    q_list = q.loop(scenarios)
 
@@ -959,7 +959,7 @@ Validate that the question_text attribute is a string.
 ```
 ```python
 >>> _ = TestQuestion("What is the capital of France?")
->>> _ = TestQuestion("What is the capital of France? {`{variable}`}")
+>>> _ = TestQuestion("What is the capital of France? {{variable}}")
 ```
 
 > #### *property* response_validator*: ResponseValidatorABC* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/questions.py)
@@ -1314,7 +1314,7 @@ The actual text of the question to be asked. This is the prompt that will be pre
 
 **question_options:Union[list[str], list[list], list[float], list[int]]**
 
-The list of options the agent can select from. These can be: - Strings: [“Option A”, “Option B”, “Option C”] - Lists: Used for nested or complex options - Numbers: [1, 2, 3, 4, 5] or [0.1, 0.2, 0.3] - Template strings: [“\{`{var1}`\}”, “\{`{var2}`\}”] which will be rendered with scenario variables
+The list of options the agent can select from. These can be: - Strings: [“Option A”, “Option B”, “Option C”] - Lists: Used for nested or complex options - Numbers: [1, 2, 3, 4, 5] or [0.1, 0.2, 0.3] - Template strings: [“\{{var1}`\}”, “\{{var2}`\}”] which will be rendered with scenario variables
 
 **include_comment:bool, default=True**
 Whether to include a comment field in the response, allowing the model to provide additional explanation beyond just selecting an option.
@@ -1586,7 +1586,7 @@ Validate that the question_text attribute is a string.
 ```
 ```python
 >>> _ = TestQuestion("What is the capital of France?")
->>> _ = TestQuestion("What is the capital of France? {`{variable}`}")
+>>> _ = TestQuestion("What is the capital of France? {{variable}}")
 ```
 > #### response_validator_class [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/questions.py)
 
@@ -1684,7 +1684,7 @@ Validate that the question_text attribute is a string.
 
 ```python
 >>> _ = TestQuestion("What is the capital of France?")
->>> _ = TestQuestion("What is the capital of France? {`{variable}`}")
+>>> _ = TestQuestion("What is the capital of France? {{variable}}")
 ```
 > #### response_validator_class [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/questions.py)
 
@@ -2459,7 +2459,7 @@ from edsl import QuestionNumerical, Survey
 q = QuestionNumerical(
    question_name = "adding",
    question_text = "What is 1+1?",
-   question_presentation = "Please solve the following addition problem: {`{ question_text }`}",
+   question_presentation = "Please solve the following addition problem: {{ question_text }}",
    answering_instructions = "nnRespond with just your number on a single line."
 )
 
@@ -2497,4 +2497,3 @@ Settings for the questions module.
 > #### MAX_QUESTION_LENGTH *= 100000* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/questions/settings.py)
 
 > #### MIN_NUM_OPTIONS *= 2* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/questions/settings.py)
-

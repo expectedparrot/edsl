@@ -12,7 +12,7 @@ from edsl import QuestionFreeText, ScenarioList, Scenario
 
 q = QuestionFreeText(
     question_name = "favorite",
-    question_text = "What is your favorite {`{ scenario.thing }`}?"
+    question_text = "What is your favorite {{ scenario.thing }}?"
 )
 
 s = ScenarioList(
@@ -75,7 +75,7 @@ from edsl import QuestionFreeText
 
 q = QuestionFreeText(
     question_name = "features",
-    question_text = "Briefly describe the features of this sailboat model: {`{ scenario.sailboat_model `}}"
+    question_text = "Briefly describe the features of this sailboat model: {{ scenario.sailboat_model `}}"
 )
 ```
 
