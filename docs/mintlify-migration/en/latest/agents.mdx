@@ -356,7 +356,7 @@ For example:
 ```python
 a = Agent(
     traits = {'age': 22, 'hair': 'brown', 'gender': 'female'},
-    traits_presentation_template = "I am a {{ age }} year-old {{ gender }} with {{ hair }} hair."
+    traits_presentation_template = "I am a `{{ age }}` year-old `{{ gender }}` with `{{ hair }}` hair."
     )
 
 a.agent_persona.render(primary_replacement = a.traits)
@@ -378,7 +378,7 @@ codebook = {'age': 'The age of the agent'}
 a = Agent(
     traits = {'age': 22},
     codebook = codebook,
-    traits_presentation_template = "{{ codebook['age'] }} is {{ age }}."
+    traits_presentation_template = "`{{ codebook['age'] }}` is `{{ age }}`."
     )
 
 a.agent_persona.render(primary_replacement = a.traits)
@@ -397,7 +397,7 @@ from edsl import Agent, QuestionFreeText
 
 a = Agent(
     traits = {"age": 10},
-    traits_presentation_template = "(You are {{ age }} years old.)",
+    traits_presentation_template = "(You are `{{ age }}` years old.)",
     instruction = "Answer in German."
 )
 
@@ -462,7 +462,7 @@ from edsl import Agent, QuestionFreeText
 a = Agent(traits = {'first_name': 'John'})
 
 q = QuestionFreeText(
-    question_text = 'What is your last name, {{ agent.first_name }}?',
+    question_text = 'What is your last name, `{{ agent.first_name }}`?',
     question_name = "exmaple"
 )
 
@@ -789,7 +789,16 @@ Example: \>\>\> a = Agent(traits=\{“age”: 10\}, traits_presentation_template
 
 Codebooks provide human-readable descriptions for traits in prompts.
 
-Example: \>\>\> traits = \{“age”: 10, “hair”: “brown”, “height”: 5.5\} \>\>\> codebook = \{‘age’: ‘Their age is’\} \>\>\> a = Agent(traits=traits, codebook=codebook, … traits_presentation_template=”This agent is Dave. \{{codebook[‘age’]}`\} \{{age}`\}”) \>\>\> d = a.traits | \{‘codebook’: a.codebook\} \>\>\> a.agent_persona.render(d) Prompt(text=”””This agent is Dave. Their age is 10”””)
+Example:
+
+```python
+>>> traits = {"age": 10, "hair": "brown", "height": 5.5}
+>>> codebook = {'age': 'Their age is'}
+>>> a = Agent(traits=traits, codebook=codebook, traits_presentation_template="This agent is Dave. {{codebook['age']}} {{age}}")
+>>> d = a.traits | {'codebook': a.codebook}
+>>> a.agent_persona.render(d)
+Prompt(text="""This agent is Dave. Their age is 10""")
+```
 
 ### Instructions
 
@@ -1414,7 +1423,7 @@ The method is dynamic and responsive to changes in the agent’s state:
 2. If using the default template and the codebook has been updated since initialization, this method will recreate the template to reflect the current codebook values
 3. The template is rendered with access to all trait values, the complete traits dictionary, and the codebook
 
-The template rendering makes the following variables available: - All individual trait keys (e.g., {{age}}, {{occupation}}) - The full traits dictionary as {{traits}} - The codebook as {{codebook}}
+The template rendering makes the following variables available: - All individual trait keys (e.g., `{{ age }}`, `{{ occupation }}`) - The full traits dictionary as `{{ traits }}` - The codebook as `{{ codebook }}`
 
 > **Returns:**
 
@@ -1463,7 +1472,7 @@ True
 Custom templates can reference any trait directly:
 
 ```python
->>> template = "Profile: {{age}} year old {{occupation}}"
+>>> template = "Profile: `{{ age }}` year old `{{ occupation }}`"
 >>> agent = Agent(traits={"age": 45, "occupation": "teacher"},
 ...               traits_presentation_template=template)
 >>> agent.prompt().text
@@ -2557,7 +2566,7 @@ Depending on explode, format, return_string, and filestore: - For text format: S
 ```python
 >>> from edsl.results import Results
 >>> r = Results.example()
->>> template = "Person feels: {{ how_feeling }}"
+>>> template = "Person feels: `{{ how_feeling }}`"
 >>> report = r.select('how_feeling').report_from_template(template, return_string=True)
 >>> "Person feels: OK" in report
 True
@@ -2565,13 +2574,13 @@ True
 True
 ```
 ```python
-# Custom observation titles >>> custom_title = “Response {{ index }}: {{ how_feeling }}” >>> report = r.select(‘how_feeling’).report_from_template( … template, observation_title_template=custom_title, return_string=True) >>> “Response 1: OK” in report True
+# Custom observation titles >>> custom_title = “Response `{{ index }}`: `{{ how_feeling }}`” >>> report = r.select(‘how_feeling’).report_from_template( … template, observation_title_template=custom_title, return_string=True) >>> “Response 1: OK” in report True
 
 # HTML output (requires pandoc) >>> html_report = r.select(‘how_feeling’).report_from_template( … template, format=”html”, return_string=True) # doctest: +SKIP >>> # Creates HTML with proper document structure
 
 # PDF output (requires pandoc with XeLaTeX) >>> pdf_report = r.select(‘how_feeling’).report_from_template( … template, format=”pdf”) # doctest: +SKIP >>> # Returns PDF bytes
 
-# Basic template functionality >>> template2 = “Feeling: {{ how_feeling }}, Index: {{ index }}” >>> report2 = r.select(‘how_feeling’).report_from_template( … template2, return_string=True, top_n=2) >>> “Feeling: OK, Index: 1” in report2 True
+# Basic template functionality >>> template2 = “Feeling: `{{ how_feeling }}`, Index: `{{ index }}`” >>> report2 = r.select(‘how_feeling’).report_from_template( … template2, return_string=True, top_n=2) >>> “Feeling: OK, Index: 1” in report2 True
 ```
 
 > #### sample(*n: int*, *seed: str | None = None*) → [AgentList](/en/latest/#edsl.agents.AgentList "edsl.agents.agent_list.AgentList") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)
@@ -2819,7 +2828,7 @@ Dataset: A dataset containing the agents’ traits and optionally their paramete
 >>> al.to_dataset()
 Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}])
 >>> al.to_dataset(traits_only=False)
-Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}, {'agent_parameters': [{'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None, 'traits_presentation_template': 'Your traits: {{traits}}'}, {'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None, 'traits_presentation_template': 'Your traits: {{traits}}'}]}])
+Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}, {'agent_parameters': [{'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None, 'traits_presentation_template': 'Your traits: `{{ traits }}`'}, {'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None, 'traits_presentation_template': 'Your traits: `{{ traits }}`'}]}])
 ```
 
 > #### to_dict(*sorted=False*, *add_edsl_version=True*, *full_dict=False*) [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/agents.py)

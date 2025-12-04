@@ -281,14 +281,14 @@ scenarios.table()
 ```python
 q_memorable = QuestionLinearScale(
     question_name = "memorable",
-    question_text = "How memorable is this yoga studio name: {{ scenario.studio_name }}",
+    question_text = "How memorable is this yoga studio name: `{{ scenario.studio_name }}`",
     question_options = [1,2,3,4,5],
     option_labels = {1:"Not at all memorable", 5:"Very memorable"}
 )
 
 q_criticism = QuestionFreeText(
     question_name = "criticism",
-    question_text = "What are some criticisms people might have about this yoga studio name: {{ scenario.studio_name }}"
+    question_text = "What are some criticisms people might have about this yoga studio name: `{{ scenario.studio_name }}`"
 )
 
 survey = Survey([q_memorable, q_criticism])
@@ -498,4 +498,3 @@ nb = Notebook(path = "yoga_studio_name_survey.ipynb") # resave
 
 nb.patch("https://www.expectedparrot.com/content/RobinHorton/feedback-survey-notebook", value = nb)
 ```
-
