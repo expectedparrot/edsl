@@ -223,8 +223,15 @@ class MultipleChoiceWithOtherResponseValidator(MultipleChoiceResponseValidator):
                         print(
                             f"Validation failed for '{self.other_option_text}: X' format: {e}"
                         )
+                    # Even if validation fails, return the full string if it matches the pattern
+                    # This matches the behavior of the validate method which accepts "Other: X" format
+                    if verbose:
+                        print(
+                            f"Accepting '{self.other_option_text}: X' format despite validation failure: {response_text}"
+                        )
+                    return proposed_data
 
-        # If not an "Other" response or validation failed, try the parent class fix method
+        # If not an "Other" response, try the parent class fix method
         return super().fix(response, verbose)
 
     valid_examples = [
