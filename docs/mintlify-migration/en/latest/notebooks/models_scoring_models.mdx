@@ -43,8 +43,8 @@ survey
 
 |  | option_labels | question_text | question_name | question_options | question_type |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| 0 | nan | Please draft a haiku about {`{ scenario.topic }`}. | haiku | nan | free_text |
-| 1 | `{1: 'Totally unoriginal', 5: 'Highly original'}` | On a scale from 1 to 5, please rate the originality of this haiku: {`{ haiku.answer }`}. | originality | [1, 2, 3, 4, 5] | linear_scale |
+| 0 | nan | Please draft a haiku about {{ scenario.topic }}. | haiku | nan | free_text |
+| 1 | `{1: 'Totally unoriginal', 5: 'Highly original'}` | On a scale from 1 to 5, please rate the originality of this haiku: {{ haiku.answer }}. | originality | [1, 2, 3, 4, 5] | linear_scale |
 
 ```python
 results = survey.by(s).by(m).run()

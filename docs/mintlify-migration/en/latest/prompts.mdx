@@ -149,7 +149,7 @@ a = Agent(traits = {"first_name": "John"})
 
 q = QuestionFreeText(
    question_name = "exmaple",
-   question_text = "What is your last name, {`{agent.first_name }`}?"
+   question_text = "What is your last name, {{agent.first_name }}?"
 )
 
 job = q.by(a)
@@ -344,10 +344,10 @@ Create a Prompt from a dictionary.
 Example:
 
 ```python
->>> p = Prompt("Hello, {`{person}`}")
+>>> p = Prompt("Hello, {{person}}")
 >>> p2 = Prompt.from_dict(p.to_dict())
 >>> p2
-Prompt(text="""Hello, {`{person}`}""")
+Prompt(text="""Hello, {{person}}""")
 ```
 
 > #### *classmethod* from_template(*file_name: str*, *path_to_folder: str | Path | None = None*, ***kwargs: Dict[str, Any]*) → [Prompt](/en/latest/#edsl.prompts.Prompt "edsl.prompts.prompt.Prompt") [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/prompts.py)
@@ -379,7 +379,7 @@ Create a Prompt from text.
 Get the prompts for the question.
 
 ```python
->>> p = Prompt("Hello, {`{person}`}")
+>>> p = Prompt("Hello, {{person}}")
 ```
 
 > #### *property* has_variables*: *bool* [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/prompts.py)
@@ -389,7 +389,7 @@ Return True if the prompt has variables.
 Example:
 
 ```python
->>> p = Prompt("Hello, {`{person}`}")
+>>> p = Prompt("Hello, {{person}}")
 >>> p.has_variables
 True
 ```
@@ -413,24 +413,24 @@ Render the prompt with the replacements.
 - **additional_replacements** – Additional replacement dictionaries.
 
 ```python
->>> p = Prompt("Hello, {`{person}`}")
+>>> p = Prompt("Hello, {{person}}")
 >>> p.render({"person": "John"})
 Prompt(text="""Hello, John""")
 ```
 ```python
->>> p.render({"person": "Mr. {`{last_name}`}", "last_name": "Horton"})
+>>> p.render({"person": "Mr. {{last_name}}", "last_name": "Horton"})
 Prompt(text="""Hello, Mr. Horton""")
 ```
 ```python
->>> p.render({"person": "Mr. {`{last_name}`}", "last_name": "Ho{`{letter}`}ton"}, max_nesting = 1)
-Prompt(text="""Hello, Mr. Ho{`{letter }`}ton""")
+>>> p.render({"person": "Mr. {{last_name}}", "last_name": "Ho{{letter}}ton"}, max_nesting = 1)
+Prompt(text="""Hello, Mr. Ho{{letter }}ton""")
 ```
 ```python
->>> p.render({"person": "Mr. {`{last_name}`}"})
-Prompt(text="""Hello, Mr. {`{last_name }`}""")
+>>> p.render({"person": "Mr. {{last_name}}"})
+Prompt(text="""Hello, Mr. {{last_name }}""")
 ```
 ```python
->>> p = Prompt("The sum is {% set x = 2 + 3 %}{`{vars.set('x', x) }`}{`{x}`}")
+>>> p = Prompt("The sum is {% set x = 2 + 3 %}{{vars.set('x', x) }}{{x}}")
 >>> result = p.render({})
 >>> print(result.captured_variables)
 {'x': 5}
@@ -453,9 +453,9 @@ Return the Prompt as a dictionary.
 Example:
 
 ```python
->>> p = Prompt("Hello, {`{person}`}")
+>>> p = Prompt("Hello, {{person}}")
 >>> p.to_dict()
-{'text': 'Hello, {`{person}`}', 'class_name': 'Prompt'}
+{'text': 'Hello, {{person}}', 'class_name': 'Prompt'}
 ```
 
 > #### undefined_template_variables(*replacement_dict: dict*) → list[str] [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/prompts.py)
@@ -469,13 +469,13 @@ Return the variables in the template that are not in the replacement_dict.
 Example:
 
 ```python
->>> p = Prompt("Hello, {`{person}`}")
+>>> p = Prompt("Hello, {{person}}")
 >>> p.undefined_template_variables({"person": "John"})
 []
 ```
 
 ```python
->>> p = Prompt("Hello, {`{title}`} {`{person}`}")
+>>> p = Prompt("Hello, {{title}} {{person}}")
 >>> p.undefined_template_variables({"person": "John"})
 ['title']
 ```
