@@ -449,7 +449,7 @@ Example output:
 
 ## Scenarios
 
-We can also add external data or content to survey questions. This can be useful when you want to efficiently create and administer multiple versions of questions at once, e.g., for conducting data labeling tasks. This is done by creating Scenario dictionaries for the data or content to be used with a survey, where the keys match {`{ placeholder }`} names used in question texts (or question options) and the values are the content to be added. Scenarios can also be used to [add metadata to survey results](/en/latest/notebooks/adding_metadata), e.g., data sources or other information that you may want to include in the results for reference but not necessarily include in question texts.
+We can also add external data or content to survey questions. This can be useful when you want to efficiently create and administer multiple versions of questions at once, e.g., for conducting data labeling tasks. This is done by creating Scenario dictionaries for the data or content to be used with a survey, where the keys match {{ placeholder }} names used in question texts (or question options) and the values are the content to be added. Scenarios can also be used to [add metadata to survey results](/en/latest/notebooks/adding_metadata), e.g., data sources or other information that you may want to include in the results for reference but not necessarily include in question texts.
 
 In the next example we revise the prior survey questions about reading to take a parameter for other activities that we may want to add to the questions, and create simple scenarios for some activities. EDSL provides methods for automatically generating scenarios from a variety of data sources, including PDFs, CSVs, docs, images, tables and dicts. We use the from_list method to convert a list of activities into scenarios.
 
@@ -575,4 +575,3 @@ notebook.push(description="Starter Tutorial", alias = "example-notebook-new-alia
 ```
 
 You can view and download a notebook for this tutorial [at Coop](https://www.expectedparrot.com/content/RobinHorton/starter-tutorial).
-

@@ -50,9 +50,9 @@ Survey # questions: 3; question_name list: ['sentiment', 'themes', 'improvements
 
 |  | question_options | question_name | question_text | question_type | max_list_items |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| 0 | ['Positive', 'Neutral', 'Negative'] | sentiment | What is the overall sentiment of this evaluation: {`{ scenario.evaluation }`} | multiple_choice | nan |
-| 1 | nan | themes | Summarize the key points of this evaluation: {`{ scenario.evaluation }`} | list | 3.000000 |
-| 2 | nan | improvements | Identify areas for improvement based on this evaluation: {`{ scenario.evaluation }`} | list | 3.000000 |
+| 0 | ['Positive', 'Neutral', 'Negative'] | sentiment | What is the overall sentiment of this evaluation: {{ scenario.evaluation }} | multiple_choice | nan |
+| 1 | nan | themes | Summarize the key points of this evaluation: {{ scenario.evaluation }} | list | 3.000000 |
+| 2 | nan | improvements | Identify areas for improvement based on this evaluation: {{ scenario.evaluation }} | list | 3.000000 |
 
 ## Add data to the questions
 
@@ -568,4 +568,3 @@ nb = Notebook(path = "analyze_evaluations.ipynb") # resave
 
 nb.patch("https://www.expectedparrot.com/content/RobinHorton/course-evaluations-notebook", value = nb)
 ```
-
