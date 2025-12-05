@@ -1,0 +1,12 @@
+{# Question Presentation for Dropdown with BM25 Search #}
+{{question_text}}
+{% if use_code %}
+    {%- for i in sample_indices %}
+{{ i }}: {{ question_options[i] }}
+    {% endfor %}
+{% else %}
+    {% for i in sample_indices %}
+{{ question_options[i] }}
+    {% endfor %}
+{% endif %}
+Only 1 option may be selected from the {{ question_options|length }} available choices.
