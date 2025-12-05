@@ -843,6 +843,7 @@ class QuestionBase(
             max_text_length: Maximum length of question text before truncating
             max_options: Maximum number of options to show before truncating
         """
+        MAX_OPTION_LENGTH_VALUE = 160
         from rich.console import Console
         from rich.text import Text
         import io
@@ -882,9 +883,9 @@ class QuestionBase(
             elif part.startswith("{{") and part.endswith("}}"):
                 # Replace spaces with non-breaking spaces to prevent wrapping inside variables
                 part_no_break = part.replace(" ", "\u00A0")
-                # Highlight Jinja2 variables with highlight style
+                # Highlight Jinja2 variables with primary style (bold blue)
                 question_text_styled.append(
-                    part_no_break, style=RICH_STYLES["highlight"]
+                    part_no_break, style=RICH_STYLES["primary"]
                 )
             elif part.startswith("<") and part.endswith(">"):
                 # Replace spaces with non-breaking spaces in angle brackets too
@@ -894,8 +895,8 @@ class QuestionBase(
                     part_no_break, style=RICH_STYLES["secondary"]
                 )
             else:
-                # Regular text in default style
-                question_text_styled.append(part, style=RICH_STYLES["default"])
+                # Regular text in green style
+                question_text_styled.append(part, style=RICH_STYLES["secondary"])
 
         question_text_styled.append('"', style=RICH_STYLES["default"])
 
@@ -904,7 +905,6 @@ class QuestionBase(
 
         # Question options (if present)
         if hasattr(self, "question_options"):
-            output.append(",\n", style=RICH_STYLES["default"])
             num_options = len(self.question_options)
 
             if num_options > 0:
@@ -913,8 +913,8 @@ class QuestionBase(
 
                 for i, option in enumerate(list(self.question_options)[:max_options]):
                     option_str = str(option)
-                    if len(option_str) > 40:
-                        option_str = option_str[:37] + "..."
+                    if len(option_str) > MAX_OPTION_LENGTH_VALUE:
+                        option_str = option_str[:MAX_OPTION_LENGTH_VALUE-3] + "..."
                     output.append("        ", style=RICH_STYLES["default"])
                     output.append(f'"{option_str}"', style=RICH_STYLES["secondary"])
                     output.append(",\n", style=RICH_STYLES["default"])

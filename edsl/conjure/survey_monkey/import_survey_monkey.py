@@ -4,7 +4,7 @@ import csv
 import re
 import uuid
 from collections import Counter
-from typing import List, Optional, Callable, TYPE_CHECKING
+from typing import List, Optional, Callable, TYPE_CHECKING, Dict, Any
 
 from .data_classes import (
     Column,
@@ -16,6 +16,8 @@ from .data_classes import (
     QuestionMapping,
     SURVEY_MONKEY_HEADERS,
 )
+from .excel_date_repairer import ExcelDateRepairer
+from .option_semantic_orderer import OptionSemanticOrderer
 
 if TYPE_CHECKING:
     from edsl import Survey, ScenarioList, AgentList, Results
@@ -24,25 +26,45 @@ if TYPE_CHECKING:
 class ImportSurveyMonkey:
     """
     Import a Survey Monkey CSV export and generate EDSL objects.
-    
+
     This class parses Survey Monkey CSV exports and creates:
     - Survey: with questions matching the original survey
     - ScenarioList: for monadic questions with varying parameters
     - AgentList: one agent per respondent with their actual responses
     - Results: by running the agents through the survey
-    
-    Example:
+
+    Excel Date Repair:
+    When Excel opens CSV files, it auto-converts numeric ranges like "1-2", "3-5",
+    "6-10" into date formats like "2-Jan", "5-Mar", "10-Jun". This class can
+    automatically detect and repair these Excel-mangled formats using LLM calls.
+
+    Semantic Option Ordering:
+    Multiple choice options are often imported in random order. This class can
+    analyze question text and reorder options semantically (e.g., company sizes
+    from small to large, experience levels from beginner to expert, age ranges
+    in chronological order) using LLM calls for better survey readability.
+
+    Examples
+    --------
+    Basic usage (both Excel repair and semantic ordering enabled by default):
         importer = ImportSurveyMonkey("survey_results.csv")
-        survey = importer.survey
-        agents = importer.agents
-        scenarios = importer.scenarios
+        survey = importer.survey  # Options repaired and semantically ordered
+        importer.print_excel_date_repairs()       # See what was repaired
+        importer.print_semantic_ordering_changes() # See what was reordered
+        results = importer.run()
+
+    Disable features if not needed:
+        importer = ImportSurveyMonkey("survey_results.csv",
+                                    repair_excel_dates=False,
+                                    order_options_semantically=False)
+        survey = importer.survey  # No processing applied
         results = importer.run()
     """
     
-    def __init__(self, csv_file: str, verbose: bool = False, create_semantic_names: bool = False):
+    def __init__(self, csv_file: str, verbose: bool = False, create_semantic_names: bool = False, repair_excel_dates: bool = True, order_options_semantically: bool = True):
         """
         Initialize the importer with a CSV file path.
-        
+
         Parameters
         ----------
         csv_file : str
@@ -51,10 +73,20 @@ class ImportSurveyMonkey:
             If True, print progress information during parsing.
         create_semantic_names : bool
             If True, rename questions with semantic names derived from question text.
+        repair_excel_dates : bool, default True
+            If True, use LLM to detect and repair Excel-mangled date formatting
+            in answer options and response values (e.g., "5-Mar" → "3-5").
+            Enabled by default since Excel date mangling is very common.
+        order_options_semantically : bool, default True
+            If True, use LLM to analyze and reorder multiple choice options in
+            semantically correct order (e.g., company sizes from small to large,
+            experience levels from beginner to expert). Enabled by default.
         """
         self.csv_file = csv_file
         self.verbose = verbose
         self.create_semantic_names = create_semantic_names
+        self.repair_excel_dates = repair_excel_dates
+        self.order_options_semantically = order_options_semantically
         
         # Internal state
         self._columns: List[Column] = []
@@ -66,6 +98,32 @@ class ImportSurveyMonkey:
         self._question_mappings: List[QuestionMapping] = []
         self._response_records: List[dict] = []
         self._agent_to_scenario_idx: dict = {}
+
+        # Excel date repair functionality
+        self._excel_repairer: Optional[ExcelDateRepairer] = None
+        self._repair_mapping: Dict[str, str] = {}  # original_value -> repaired_value
+
+        # Initialize Excel date repairer if requested
+        if self.repair_excel_dates:
+            try:
+                self._excel_repairer = ExcelDateRepairer(verbose=self.verbose)
+                self._log("Excel date repair enabled")
+            except Exception as e:
+                self._log(f"Warning: Could not initialize Excel date repairer: {e}")
+                self.repair_excel_dates = False
+
+        # Semantic option ordering functionality
+        self._option_orderer: Optional[OptionSemanticOrderer] = None
+        self._ordering_changes: List[Dict[str, Any]] = []  # Track ordering changes
+
+        # Initialize semantic option orderer if requested
+        if self.order_options_semantically:
+            try:
+                self._option_orderer = OptionSemanticOrderer(verbose=self.verbose)
+                self._log("Semantic option ordering enabled")
+            except Exception as e:
+                self._log(f"Warning: Could not initialize semantic option orderer: {e}")
+                self.order_options_semantically = False
         
         # Output objects (lazily created)
         self._survey: Optional["Survey"] = None
@@ -301,8 +359,74 @@ class ImportSurveyMonkey:
         """Get unique non-empty response values from a column."""
         column = self._columns[column_index]
         responses_tally = Counter(column[2:])
-        return [x for x in list(responses_tally.keys()) if x != ""]
-    
+        options = [x for x in list(responses_tally.keys()) if x != ""]
+
+        # Apply Excel date repair if enabled
+        if self.repair_excel_dates and self._excel_repairer and options:
+            question_id = f"column_{column_index}"
+            try:
+                repair_result = self._excel_repairer.repair_question_options(question_id, options)
+                if repair_result.any_repairs_applied:
+                    self._log(f"Applied {len(repair_result.repairs_made)} repairs to options in column {column_index}")
+
+                    # Update repair mapping for response value translation
+                    for repair in repair_result.repairs_made:
+                        self._repair_mapping[repair.original] = repair.repaired
+
+                    return repair_result.repaired_options
+            except Exception as e:
+                self._log(f"Warning: Excel date repair failed for column {column_index}: {e}")
+
+        return options
+
+    def _apply_semantic_ordering(self, question_text: str, question_identifier: str, options: List[str]) -> List[str]:
+        """Apply semantic ordering to question options if enabled.
+
+        Parameters
+        ----------
+        question_text : str
+            The text of the survey question
+        question_identifier : str
+            Identifier for the question (for logging)
+        options : List[str]
+            List of answer options (already repaired if repair was enabled)
+
+        Returns
+        -------
+        List[str]
+            Semantically ordered options
+        """
+        if not self.order_options_semantically or not self._option_orderer or not options or len(options) < 2:
+            return options
+
+        try:
+            ordering_result = self._option_orderer.order_question_options(
+                question_text, question_identifier, options
+            )
+
+            if ordering_result.ordering_details.reordering_applied:
+                self._log(f"Semantically reordered options for {question_identifier}: "
+                         f"{ordering_result.ordering_details.ordering_type}")
+
+                # Track the ordering change for transparency
+                self._ordering_changes.append({
+                    'question_text': question_text,
+                    'question_identifier': question_identifier,
+                    'original_order': ordering_result.ordering_details.original_order,
+                    'semantic_order': ordering_result.ordering_details.semantic_order,
+                    'ordering_type': ordering_result.ordering_details.ordering_type,
+                    'confidence': ordering_result.ordering_details.confidence,
+                    'explanation': ordering_result.ordering_details.explanation
+                })
+
+                return ordering_result.ordering_details.semantic_order
+            else:
+                return options
+
+        except Exception as e:
+            self._log(f"Warning: Semantic ordering failed for {question_identifier}: {e}")
+            return options
+
     def _build_survey(self):
         """Build the Survey object from parsed groups."""
         from edsl import Survey
@@ -355,10 +479,15 @@ class ImportSurveyMonkey:
                 second_line = self._second_lines[group.start_index]
                 if second_line == "Response":
                     self._log("Adding a multiple choice question")
+                    # Get options (with Excel date repair applied if enabled)
+                    raw_options = self._tally_responses(group.start_index)
+                    # Apply semantic ordering
+                    ordered_options = self._apply_semantic_ordering(question_text, question_name, raw_options)
+
                     q = QuestionMultipleChoice(
                         question_name=question_name,
                         question_text=question_text,
-                        question_options=self._tally_responses(group.start_index),
+                        question_options=ordered_options,
                     )
                     self._survey.add_question(q)
                 elif second_line == "Open-ended response":
@@ -372,18 +501,44 @@ class ImportSurveyMonkey:
                 options = group.second_lines()
                 if options == ["Response", "Other (please specify)"]:
                     self._log("Adding a multiple choice question with other")
+                    # Get options (with Excel date repair applied if enabled)
+                    raw_options = self._tally_responses(group.start_index)
+                    # Apply semantic ordering
+                    ordered_options = self._apply_semantic_ordering(question_text, question_name, raw_options)
+
                     q = QuestionMultipleChoiceWithOther(
                         question_name=question_name,
                         question_text=question_text,
-                        question_options=self._tally_responses(group.start_index),
+                        question_options=ordered_options,
                     )
                     self._survey.add_question(q)
                 else:
                     self._log("Adding a check box question")
+
+                    # Apply Excel date repair to checkbox options if enabled
+                    repaired_options = options
+                    if self.repair_excel_dates and self._excel_repairer and options:
+                        question_id = f"{question_name}_checkbox"
+                        try:
+                            repair_result = self._excel_repairer.repair_question_options(question_id, options)
+                            if repair_result.any_repairs_applied:
+                                self._log(f"Applied {len(repair_result.repairs_made)} repairs to checkbox options for {question_name}")
+
+                                # Update repair mapping for response value translation
+                                for repair in repair_result.repairs_made:
+                                    self._repair_mapping[repair.original] = repair.repaired
+
+                                repaired_options = repair_result.repaired_options
+                        except Exception as e:
+                            self._log(f"Warning: Excel date repair failed for checkbox question {question_name}: {e}")
+
+                    # Apply semantic ordering to checkbox options
+                    ordered_options = self._apply_semantic_ordering(question_text, f"{question_name}_checkbox", repaired_options)
+
                     q = QuestionCheckBox(
                         question_name=question_name,
                         question_text=question_text,
-                        question_options=options,
+                        question_options=ordered_options,
                     )
                     self._survey.add_question(q)
     
@@ -476,20 +631,22 @@ class ImportSurveyMonkey:
         """Build response records from CSV data."""
         if not self._columns:
             return
-        
+
         num_rows = len(self._columns[0]) - 2  # Skip header rows
-        
+
         for row_idx in range(num_rows):
             data_row_idx = row_idx + 2
             record = {}
-            
+
             for mapping in self._question_mappings:
                 if mapping.is_checkbox:
                     selected = []
                     for col_idx in mapping.column_indices:
                         value = self._columns[col_idx][data_row_idx]
                         if value != "":
-                            selected.append(value)
+                            # Apply Excel date repair to checkbox response values
+                            repaired_value = self._repair_mapping.get(value, value)
+                            selected.append(repaired_value)
                     record[mapping.question_name] = selected
                 elif mapping.is_multiple_choice_with_other:
                     # First column is the response, second column is the "other" text
@@ -497,17 +654,22 @@ class ImportSurveyMonkey:
                     other_text = ""
                     if len(mapping.column_indices) > 1:
                         other_text = self._columns[mapping.column_indices[1]][data_row_idx]
-                    
+
                     # If second column has text, use that (they selected "Other")
-                    # Otherwise use the primary answer
+                    # Otherwise use the primary answer (with repair applied)
                     if other_text:
                         record[mapping.question_name] = other_text
                     else:
-                        record[mapping.question_name] = primary_answer
+                        # Apply Excel date repair to multiple choice response values
+                        repaired_answer = self._repair_mapping.get(primary_answer, primary_answer)
+                        record[mapping.question_name] = repaired_answer
                 else:
                     col_idx = mapping.column_indices[0]
-                    record[mapping.question_name] = self._columns[col_idx][data_row_idx]
-            
+                    value = self._columns[col_idx][data_row_idx]
+                    # Apply Excel date repair to response values
+                    repaired_value = self._repair_mapping.get(value, value)
+                    record[mapping.question_name] = repaired_value
+
             self._response_records.append(record)
     
     # -------------------------------------------------------------------------
@@ -570,7 +732,108 @@ class ImportSurveyMonkey:
     def prepend_data(self) -> List[PrependData]:
         """Metadata fields from the CSV (Respondent ID, dates, etc.)."""
         return self._prepend_data
-    
+
+    def get_excel_date_repairs(self) -> Dict[str, str]:
+        """
+        Get a dictionary of Excel date repairs that were applied.
+
+        Returns
+        -------
+        Dict[str, str]
+            Dictionary mapping original Excel-mangled values to repaired values.
+            Empty if repair_excel_dates=False or no repairs were needed.
+
+        Examples
+        --------
+        >>> importer = ImportSurveyMonkey("survey.csv", repair_excel_dates=True)
+        >>> repairs = importer.get_excel_date_repairs()
+        >>> print(repairs)
+        {'5-Mar': '3-5', '10-Jun': '6-10', '15-Jan': '1-15'}
+        """
+        return self._repair_mapping.copy()
+
+    def print_excel_date_repairs(self):
+        """
+        Print a summary of Excel date repairs that were applied.
+
+        This method provides transparency about what changes were made
+        to both question options and response values during import.
+        """
+        if not self.repair_excel_dates:
+            print("Excel date repair was not enabled for this import.")
+            return
+
+        if not self._repair_mapping:
+            print("No Excel date formatting issues were detected.")
+            return
+
+        print(f"Excel Date Repairs Applied ({len(self._repair_mapping)} total):")
+        print("-" * 50)
+        for original, repaired in self._repair_mapping.items():
+            print(f"'{original}' → '{repaired}'")
+
+        print("\nThese repairs were applied to:")
+        print("• Question answer options")
+        print("• Individual respondent answers")
+        print("\nThis ensures consistency between the survey structure and response data.")
+
+    def get_semantic_ordering_changes(self) -> List[Dict[str, Any]]:
+        """
+        Get a list of semantic ordering changes that were applied.
+
+        Returns
+        -------
+        List[Dict[str, Any]]
+            List of dictionaries with ordering change details including:
+            - question_text: The survey question text
+            - question_identifier: Question name/identifier
+            - original_order: Original option order
+            - semantic_order: Semantically ordered options
+            - ordering_type: Type of ordering applied
+            - confidence: Confidence score (0.0 to 1.0)
+            - explanation: Reasoning for the ordering
+            Empty if order_options_semantically=False or no changes were made.
+
+        Examples
+        --------
+        >>> importer = ImportSurveyMonkey("survey.csv", order_options_semantically=True)
+        >>> changes = importer.get_semantic_ordering_changes()
+        >>> for change in changes:
+        ...     print(f"{change['question_text']}: {change['ordering_type']}")
+        """
+        return self._ordering_changes.copy()
+
+    def print_semantic_ordering_changes(self):
+        """
+        Print a summary of semantic ordering changes that were applied.
+
+        This method provides transparency about what option reorderings were made
+        to improve the logical flow and readability of multiple choice questions.
+        """
+        if not self.order_options_semantically:
+            print("Semantic option ordering was not enabled for this import.")
+            return
+
+        if not self._ordering_changes:
+            print("No semantic ordering changes were needed.")
+            return
+
+        print(f"Semantic Ordering Changes Applied ({len(self._ordering_changes)} questions):")
+        print("=" * 70)
+
+        for change in self._ordering_changes:
+            print(f"\nQuestion: {change['question_text']}")
+            print(f"Ordering Type: {change['ordering_type']} (confidence: {change['confidence']:.2f})")
+            print(f"Reasoning: {change['explanation']}")
+            print("Before:", change['original_order'])
+            print("After: ", change['semantic_order'])
+            print("-" * 50)
+
+        print(f"\nSummary:")
+        print(f"• {len(self._ordering_changes)} questions had their options reordered")
+        print(f"• Common orderings: company sizes, experience levels, frequencies, ratings")
+        print(f"• This improves survey readability and respondent experience")
+
     # -------------------------------------------------------------------------
     # Run Method
     # -------------------------------------------------------------------------
