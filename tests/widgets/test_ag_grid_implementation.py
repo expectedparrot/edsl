@@ -10,10 +10,7 @@ import numpy as np
 import sys
 import os
 
-# Add the widgets directory to the path
-sys.path.insert(0, os.path.dirname(__file__))
-
-from dataframe_grid_widget import DataFrameGridWidget
+from edsl.widgets.dataframe_grid_widget import DataFrameGridWidget
 
 
 def create_sample_data():
