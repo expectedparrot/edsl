@@ -88,6 +88,7 @@ def test_normalize_and_roundtrip_simple_csv(tmp_path, pipeline_components):
 
 
 def test_conjure_auto_normalizes_qualtrics(tmp_path, monkeypatch):
+    pytest.importorskip("pyreadstat")
     monkeypatch.setenv("HOME", str(tmp_path))
 
     csv_path = tmp_path / "qualtrics.csv"
