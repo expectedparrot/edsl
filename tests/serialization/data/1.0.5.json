@@ -2589,6 +2589,21 @@
     }
   },
   {
+    "class_name": "QuestionDropdown",
+    "dict": {
+      "question_name": "test_dropdown",
+      "question_text": "Which option do you prefer?",
+      "question_options": ["Option A", "Option B", "Option C", "Option D"],
+      "sample_indices": [0, 2],
+      "max_options_shown": 2,
+      "feeling_lucky": false,
+      "permissive": false,
+      "question_type": "dropdown",
+      "edsl_version": "1.0.5.dev1",
+      "edsl_class_name": "QuestionBase"
+    }
+  },
+  {
     "class_name": "QuestionExtract",
     "dict": {
       "question_name": "extract_name",

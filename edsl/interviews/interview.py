@@ -687,6 +687,86 @@ class Interview:
             indices=self.indices,
         )
 
+    def include(self, jinja2_string: str) -> bool:
+        """Evaluate a Jinja2 template string to determine if this interview should be included.
+
+        The template string can reference scenario, agent, model, and survey using
+        dot notation. The expression inside the Jinja2 tags must evaluate to a
+        boolean value (True/False).
+
+        Args:
+            jinja2_string: A Jinja2 template string that evaluates to true or false.
+                Example: "{{ scenario.target_agent == agent.agent_name }}"
+
+        Returns:
+            bool: True if the evaluated expression is truthy, False otherwise.
+
+        Raises:
+            ValueError: If the rendered template cannot be interpreted as a boolean.
+
+        Examples:
+            >>> i = Interview.example()
+            >>> i.include("{{ True }}")
+            True
+            >>> i.include("{{ 1 == 1 }}")
+            True
+            >>> i.include("{{ 1 == 2 }}")
+            False
+
+            Accessing scenario attributes:
+
+            >>> i.include("{{ 'researcher' in scenario.persona }}")
+            False
+            >>> i.include("{{ 'reseacher' in scenario.persona }}")
+            True
+
+            Accessing agent traits:
+
+            >>> i.include("{{ agent.age == 22 }}")
+            True
+            >>> i.include("{{ agent.age > 18 }}")
+            True
+            >>> i.include("{{ agent.hair == 'brown' }}")
+            True
+
+            Accessing model attributes:
+
+            >>> i.include("{{ 'gpt' in model.model }}")
+            True
+
+            Combining conditions:
+
+            >>> i.include("{{ agent.age > 18 and agent.hair == 'brown' }}")
+            True
+            >>> i.include("{{ agent.age < 18 or agent.height > 5.0 }}")
+            True
+        """
+        from jinja2 import Environment
+
+        # Create context with interview components
+        context = {
+            "scenario": self.scenario,
+            "agent": self.agent,
+            "model": self.model,
+            "survey": self.survey,
+        }
+
+        env = Environment()
+        template = env.from_string(jinja2_string)
+        result = template.render(**context).strip()
+
+        # Convert result to boolean
+        result_lower = result.lower()
+        if result_lower in ("true", "1", "yes"):
+            return True
+        elif result_lower in ("false", "0", "no", ""):
+            return False
+        else:
+            raise ValueError(
+                f"Jinja2 template rendered to '{result}', which cannot be interpreted as a boolean. "
+                f"Ensure your expression evaluates to True or False."
+            )
+
     @classmethod
     def example(self, throw_exception: bool = False) -> "Interview":
         """Create an example Interview instance for testing and demonstrations.

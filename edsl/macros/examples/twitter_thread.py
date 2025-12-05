@@ -10,7 +10,9 @@ from edsl.questions import (
 from edsl.surveys import Survey
 from edsl.macros import Macro
 from edsl.macros import OutputFormatter
+from edsl import Model
 
+m = Model("gemini-3-pro-preview", service_name="google")
 # Initial survey to gather parameters
 initial_survey = Survey(
     [
@@ -179,7 +181,7 @@ macro = Macro(
     short_description="Generate Twitter threads from text.",
     long_description="This application converts long-form text into engaging Twitter threads by breaking content into tweet-sized chunks while maintaining narrative flow and engagement.",
     initial_survey=initial_survey,
-    jobs_object=survey.by(thread_writer),
+    jobs_object=survey.by(thread_writer).by(m),
     output_formatters={"markdown": markdown_formatter, "docx": docx_formatter},
     default_formatter_name="markdown",
 )
