@@ -30,6 +30,7 @@ Core Question Types:
 - QuestionRank: Ordering of items by preference or other criteria
 - QuestionExtract: Extraction of specific information from text or data
 - QuestionDropdown: BM25-powered search through large option sets
+- QuestionInterview: Simulates interview dialogue between interviewer and respondent
 
 Derived Question Types:
 - QuestionLikertFive: Standard 5-point Likert scale (agree/disagree)
@@ -127,6 +128,7 @@ from .question_demand import QuestionDemand
 from .question_rank import QuestionRank
 from .question_random import QuestionRandom
 from .question_dropdown import QuestionDropdown
+from .question_interview import QuestionInterview
 
 # Questions derived from core questions
 from .question_likert_five import QuestionLikertFive
@@ -179,6 +181,7 @@ __all__ = [
     "QuestionRank",
     "QuestionRandom",
     "QuestionDropdown",
+    "QuestionInterview",
     # Derived question types
     "QuestionLinearScale",
     "QuestionTopK",

@@ -408,6 +408,18 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
 
         return result
 
+    def convert_to_regular_multiple_choice(self):
+        """
+        Convert the question to a regular multiple choice question.
+        """
+        from .question_multiple_choice import QuestionMultipleChoice
+
+        return QuestionMultipleChoice(
+            question_name=self.question_name,
+            question_text=self.question_text,
+            question_options=self.question_options,
+        )
+
     @property
     def other_text(self):
         """
