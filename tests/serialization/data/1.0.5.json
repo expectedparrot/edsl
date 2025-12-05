@@ -2593,8 +2593,16 @@
     "dict": {
       "question_name": "test_dropdown",
       "question_text": "Which option do you prefer?",
-      "question_options": ["Option A", "Option B", "Option C", "Option D"],
-      "sample_indices": [0, 2],
+      "question_options": [
+        "Option A",
+        "Option B",
+        "Option C",
+        "Option D"
+      ],
+      "sample_indices": [
+        0,
+        2
+      ],
       "max_options_shown": 2,
       "feeling_lucky": false,
       "permissive": false,
@@ -11607,6 +11615,17 @@
       "question_name": "random_number",
       "question_text": "Generate a pseudo-random number between 0 and 1",
       "question_type": "random",
+      "edsl_version": "1.0.5.dev1",
+      "edsl_class_name": "QuestionBase"
+    }
+  },
+  {
+    "class_name": "QuestionInterview",
+    "dict": {
+      "question_name": "customer_experience",
+      "question_text": "Understanding customer satisfaction with our customer service",
+      "interview_guide": "Ask about their recent interactions, what went well, areas for improvement, and overall satisfaction rating.",
+      "question_type": "interview",
       "edsl_version": "1.0.5.dev1",
       "edsl_class_name": "QuestionBase"
     }
