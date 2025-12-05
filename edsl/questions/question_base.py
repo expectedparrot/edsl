@@ -884,9 +884,7 @@ class QuestionBase(
                 # Replace spaces with non-breaking spaces to prevent wrapping inside variables
                 part_no_break = part.replace(" ", "\u00A0")
                 # Highlight Jinja2 variables with primary style (bold blue)
-                question_text_styled.append(
-                    part_no_break, style=RICH_STYLES["primary"]
-                )
+                question_text_styled.append(part_no_break, style=RICH_STYLES["primary"])
             elif part.startswith("<") and part.endswith(">"):
                 # Replace spaces with non-breaking spaces in angle brackets too
                 part_no_break = part.replace(" ", "\u00A0")
@@ -914,7 +912,7 @@ class QuestionBase(
                 for i, option in enumerate(list(self.question_options)[:max_options]):
                     option_str = str(option)
                     if len(option_str) > MAX_OPTION_LENGTH_VALUE:
-                        option_str = option_str[:MAX_OPTION_LENGTH_VALUE-3] + "..."
+                        option_str = option_str[: MAX_OPTION_LENGTH_VALUE - 3] + "..."
                     output.append("        ", style=RICH_STYLES["default"])
                     output.append(f'"{option_str}"', style=RICH_STYLES["secondary"])
                     output.append(",\n", style=RICH_STYLES["default"])

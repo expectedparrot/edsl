@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 # Pydantic schemas for structured LLM output
 class OptionOrderingDetail(BaseModel):
     """Details of how options were reordered."""
+
     original_order: List[str] = Field(
         description="The original order of options as received"
     )
@@ -30,13 +31,9 @@ class OptionOrderingDetail(BaseModel):
         description="Type of ordering applied (e.g., 'size_ascending', 'experience_level', 'chronological', 'no_change')"
     )
     confidence: float = Field(
-        description="Confidence in this ordering decision (0.0 to 1.0)",
-        ge=0.0,
-        le=1.0
+        description="Confidence in this ordering decision (0.0 to 1.0)", ge=0.0, le=1.0
     )
-    explanation: str = Field(
-        description="Explanation of why this ordering was chosen"
-    )
+    explanation: str = Field(description="Explanation of why this ordering was chosen")
     reordering_applied: bool = Field(
         description="True if the order was actually changed"
     )
@@ -44,9 +41,8 @@ class OptionOrderingDetail(BaseModel):
 
 class QuestionOptionsOrdering(BaseModel):
     """Semantic ordering results for a single question's options."""
-    question_text: str = Field(
-        description="The text of the question being analyzed"
-    )
+
+    question_text: str = Field(description="The text of the question being analyzed")
     question_identifier: str = Field(
         description="Identifier for the question (question name or column)"
     )
@@ -60,6 +56,7 @@ class QuestionOptionsOrdering(BaseModel):
 
 class SurveyOptionsOrderingResult(BaseModel):
     """Complete semantic ordering results for all multiple choice questions."""
+
     questions: List[QuestionOptionsOrdering] = Field(
         description="Ordering results for each multiple choice question"
     )
@@ -96,10 +93,7 @@ class OptionSemanticOrderer:
             raise
 
     def order_question_options(
-        self,
-        question_text: str,
-        question_identifier: str,
-        options: List[str]
+        self, question_text: str, question_identifier: str, options: List[str]
     ) -> QuestionOptionsOrdering:
         """Order options for a single multiple choice question semantically.
 
@@ -128,17 +122,21 @@ class OptionSemanticOrderer:
                     ordering_type="no_change",
                     confidence=1.0,
                     explanation="Question has fewer than 2 options, no ordering needed",
-                    reordering_applied=False
+                    reordering_applied=False,
                 ),
-                question_category="other"
+                question_category="other",
             )
 
         system_prompt = self._build_system_prompt()
-        user_prompt = self._build_user_prompt(question_text, question_identifier, options)
+        user_prompt = self._build_user_prompt(
+            question_text, question_identifier, options
+        )
 
         try:
             if self.verbose:
-                logger.info(f"Calling LLM to order options for question: {question_identifier}")
+                logger.info(
+                    f"Calling LLM to order options for question: {question_identifier}"
+                )
                 logger.debug(f"Question: {question_text}")
                 logger.debug(f"Original options: {options}")
 
@@ -175,14 +173,13 @@ class OptionSemanticOrderer:
                     ordering_type="error",
                     confidence=0.0,
                     explanation=f"LLM call failed: {e}",
-                    reordering_applied=False
+                    reordering_applied=False,
                 ),
-                question_category="other"
+                question_category="other",
             )
 
     def order_multiple_questions(
-        self,
-        questions_data: List[Dict[str, Any]]
+        self, questions_data: List[Dict[str, Any]]
     ) -> SurveyOptionsOrderingResult:
         """Order options semantically across multiple questions.
 
@@ -202,9 +199,9 @@ class OptionSemanticOrderer:
 
         for question_data in questions_data:
             question_ordering = self.order_question_options(
-                question_data['question_text'],
-                question_data['question_identifier'],
-                question_data['options']
+                question_data["question_text"],
+                question_data["question_identifier"],
+                question_data["options"],
             )
             all_orderings.append(question_ordering)
 
@@ -215,7 +212,9 @@ class OptionSemanticOrderer:
 
         # Generate summary
         if total_reorderings == 0:
-            summary = "No semantic reordering was needed for any multiple choice questions."
+            summary = (
+                "No semantic reordering was needed for any multiple choice questions."
+            )
         else:
             summary = (
                 f"Reordered options for {total_reorderings} multiple choice questions. "
@@ -227,7 +226,7 @@ class OptionSemanticOrderer:
             questions=all_orderings,
             total_reorderings=total_reorderings,
             high_confidence_reorderings=high_confidence_reorderings,
-            summary=summary
+            summary=summary,
         )
 
     def _build_system_prompt(self) -> str:
@@ -271,10 +270,7 @@ CONFIDENCE SCORING:
 - 0.0: No semantic ordering possible (random/categorical options)"""
 
     def _build_user_prompt(
-        self,
-        question_text: str,
-        question_identifier: str,
-        options: List[str]
+        self, question_text: str, question_identifier: str, options: List[str]
     ) -> Dict[str, Any]:
         """Build the user prompt with specific question data."""
         return {
@@ -288,32 +284,32 @@ CONFIDENCE SCORING:
                 "Check if the current order already follows good semantic ordering",
                 "If not, reorder options in the most logical sequence",
                 "Provide clear reasoning for your ordering decision",
-                "Be conservative: only reorder when there's a clear improvement"
+                "Be conservative: only reorder when there's a clear improvement",
             ],
             "examples": {
                 "company_size": {
                     "question": "What is the size of your company?",
                     "original": ["Large (500+)", "Medium (50-499)", "Small (1-49)"],
                     "reordered": ["Small (1-49)", "Medium (50-499)", "Large (500+)"],
-                    "reason": "Company sizes should be ordered from smallest to largest"
+                    "reason": "Company sizes should be ordered from smallest to largest",
                 },
                 "experience": {
                     "question": "What is your experience level with this software?",
                     "original": ["Expert", "Beginner", "Advanced", "Intermediate"],
                     "reordered": ["Beginner", "Intermediate", "Advanced", "Expert"],
-                    "reason": "Experience levels follow natural progression from novice to expert"
+                    "reason": "Experience levels follow natural progression from novice to expert",
                 },
                 "frequency": {
                     "question": "How often do you use this feature?",
                     "original": ["Sometimes", "Never", "Always", "Rarely"],
                     "reordered": ["Never", "Rarely", "Sometimes", "Always"],
-                    "reason": "Frequency options ordered from least to most frequent"
+                    "reason": "Frequency options ordered from least to most frequent",
                 },
                 "no_change_needed": {
                     "question": "Which department do you work in?",
                     "original": ["Marketing", "Sales", "Engineering", "HR"],
                     "reordered": ["Marketing", "Sales", "Engineering", "HR"],
-                    "reason": "Department names are categorical with no natural ordering"
-                }
-            }
+                    "reason": "Department names are categorical with no natural ordering",
+                },
+            },
         }

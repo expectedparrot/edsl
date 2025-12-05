@@ -20,11 +20,10 @@ __all__ = [
     "ImportSurveyMonkey",
     "Column",
     "DataType",
-    "ColumnType", 
+    "ColumnType",
     "PrependData",
     "GroupData",
     "MonadicQuestion",
     "QuestionMapping",
     "SURVEY_MONKEY_HEADERS",
 ]
-

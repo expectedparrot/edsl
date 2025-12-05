@@ -56,12 +56,14 @@ class Column:
 
 class DataType(Enum):
     """Type of data in a column group."""
+
     PREPEND = "prepend"
     SURVEY_RESPONSE = "survey_response"
 
 
 class ColumnType(Enum):
     """Classification of individual columns."""
+
     PREPEND = auto()
     QUESTION_START = auto()
     QUESTION_CONTINUATION = auto()
@@ -71,6 +73,7 @@ class ColumnType(Enum):
 @dataclass
 class PrependData:
     """Metadata fields prepended to survey responses (e.g., Respondent ID, dates)."""
+
     column_index: int
     column_name: str
     values: List[Any]
@@ -79,6 +82,7 @@ class PrependData:
 @dataclass
 class GroupData:
     """A group of columns representing a single question or prepend field."""
+
     data_type: DataType | None
     start_index: int | None
     end_index: int | None
@@ -94,17 +98,22 @@ class GroupData:
     def first_lines(self):
         if self._first_lines is None:
             raise ValueError("first_lines not set on GroupData")
-        return [self._first_lines[i] for i in range(self.start_index, self.end_index + 1)]
+        return [
+            self._first_lines[i] for i in range(self.start_index, self.end_index + 1)
+        ]
 
     def second_lines(self):
         if self._second_lines is None:
             raise ValueError("second_lines not set on GroupData")
-        return [self._second_lines[i] for i in range(self.start_index, self.end_index + 1)]
+        return [
+            self._second_lines[i] for i in range(self.start_index, self.end_index + 1)
+        ]
 
 
 @dataclass
 class MonadicQuestion:
     """A question where the text varies per row with parameterized values."""
+
     question_template: str
     slots: List[Any]  # List of SlotInfo objects with their values
     responses: List[str]
@@ -114,6 +123,7 @@ class MonadicQuestion:
 @dataclass
 class QuestionMapping:
     """Maps a question name to its column indices and type."""
+
     question_name: str
     column_indices: List[int]
     is_checkbox: bool
@@ -130,4 +140,3 @@ SURVEY_MONKEY_HEADERS = [
     "First Name",
     "Last Name",
 ]
-

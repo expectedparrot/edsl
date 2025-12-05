@@ -28,7 +28,9 @@ class InterviewsConstructor:
         self.jobs = jobs
         self.cache = cache
 
-    def create_interviews(self, include_expression: Optional[str] = None) -> Generator["Interview", None, None]:
+    def create_interviews(
+        self, include_expression: Optional[str] = None
+    ) -> Generator["Interview", None, None]:
         """
         Generates interviews.
 

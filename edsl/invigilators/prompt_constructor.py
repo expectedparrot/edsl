@@ -70,7 +70,7 @@ class BasePlaceholder(dict):
             "placeholder_type": self._type,
             "value": self.value,
             "comment": self.comment,
-            "class_name": self.__class__.__name__
+            "class_name": self.__class__.__name__,
         }
         super().__init__(serializable_data)
 
@@ -119,10 +119,8 @@ class BasePlaceholder(dict):
             "placeholder_type": self._type,
             "value": self.value,
             "comment": self.comment,
-            "class_name": self.__class__.__name__
+            "class_name": self.__class__.__name__,
         }
-
-
 
 
 class PlaceholderAnswer(BasePlaceholder):

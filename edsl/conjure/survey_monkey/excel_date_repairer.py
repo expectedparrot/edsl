@@ -20,12 +20,11 @@ logger = logging.getLogger(__name__)
 # Pydantic schemas for structured LLM output
 class OptionRepairDetail(BaseModel):
     """Details of a single option repair."""
+
     original: str = Field(description="The original Excel-mangled option text")
     repaired: str = Field(description="The corrected option text")
     confidence: float = Field(
-        description="Confidence in this repair (0.0 to 1.0)",
-        ge=0.0,
-        le=1.0
+        description="Confidence in this repair (0.0 to 1.0)", ge=0.0, le=1.0
     )
     repair_type: str = Field(
         description="Type of repair applied (e.g., 'date_to_range', 'no_change', 'uncertain')"
@@ -37,15 +36,14 @@ class OptionRepairDetail(BaseModel):
 
 class QuestionOptionsRepair(BaseModel):
     """Repair results for a single question's options."""
+
     question_identifier: str = Field(
         description="Identifier for the question (question text or column header)"
     )
     original_options: List[str] = Field(
         description="Original list of answer options as received"
     )
-    repaired_options: List[str] = Field(
-        description="List of repaired answer options"
-    )
+    repaired_options: List[str] = Field(description="List of repaired answer options")
     repairs_made: List[OptionRepairDetail] = Field(
         description="Details of each repair that was performed"
     )
@@ -56,6 +54,7 @@ class QuestionOptionsRepair(BaseModel):
 
 class SurveyOptionsRepairResult(BaseModel):
     """Complete repair results for all questions in a survey."""
+
     questions: List[QuestionOptionsRepair] = Field(
         description="Repair results for each question"
     )
@@ -65,9 +64,7 @@ class SurveyOptionsRepairResult(BaseModel):
     high_confidence_repairs: int = Field(
         description="Number of repairs with confidence >= 0.8"
     )
-    summary: str = Field(
-        description="Brief summary of the repairs that were performed"
-    )
+    summary: str = Field(description="Brief summary of the repairs that were performed")
 
 
 @dataclass
@@ -92,9 +89,7 @@ class ExcelDateRepairer:
             raise
 
     def repair_question_options(
-        self,
-        question_identifier: str,
-        options: List[str]
+        self, question_identifier: str, options: List[str]
     ) -> QuestionOptionsRepair:
         """Repair Excel-mangled dates in a single question's answer options.
 
@@ -117,7 +112,7 @@ class ExcelDateRepairer:
                 original_options=options,
                 repaired_options=options,
                 repairs_made=[],
-                any_repairs_applied=False
+                any_repairs_applied=False,
             )
 
         system_prompt = self._build_system_prompt()
@@ -125,7 +120,9 @@ class ExcelDateRepairer:
 
         try:
             if self.verbose:
-                logger.info(f"Calling LLM to repair options for question: {question_identifier}")
+                logger.info(
+                    f"Calling LLM to repair options for question: {question_identifier}"
+                )
                 logger.debug(f"Original options: {options}")
 
             resp = self.client.responses.parse(
@@ -141,9 +138,13 @@ class ExcelDateRepairer:
             result = resp.output_parsed
 
             if self.verbose and result.any_repairs_applied:
-                logger.info(f"Applied {len(result.repairs_made)} repairs to question: {question_identifier}")
+                logger.info(
+                    f"Applied {len(result.repairs_made)} repairs to question: {question_identifier}"
+                )
                 for repair in result.repairs_made:
-                    logger.debug(f"  {repair.original} → {repair.repaired} (confidence: {repair.confidence:.2f})")
+                    logger.debug(
+                        f"  {repair.original} → {repair.repaired} (confidence: {repair.confidence:.2f})"
+                    )
 
             return result
 
@@ -155,12 +156,11 @@ class ExcelDateRepairer:
                 original_options=options,
                 repaired_options=options,
                 repairs_made=[],
-                any_repairs_applied=False
+                any_repairs_applied=False,
             )
 
     def repair_multiple_questions(
-        self,
-        questions_data: Dict[str, List[str]]
+        self, questions_data: Dict[str, List[str]]
     ) -> SurveyOptionsRepairResult:
         """Repair Excel-mangled dates across multiple questions.
 
@@ -184,10 +184,9 @@ class ExcelDateRepairer:
 
             if question_repair.any_repairs_applied:
                 total_repairs += len(question_repair.repairs_made)
-                high_confidence_repairs += len([
-                    r for r in question_repair.repairs_made
-                    if r.confidence >= 0.8
-                ])
+                high_confidence_repairs += len(
+                    [r for r in question_repair.repairs_made if r.confidence >= 0.8]
+                )
 
         # Generate summary
         if total_repairs == 0:
@@ -203,7 +202,7 @@ class ExcelDateRepairer:
             questions=all_repairs,
             total_repairs_count=total_repairs,
             high_confidence_repairs=high_confidence_repairs,
-            summary=summary
+            summary=summary,
         )
 
     def _build_system_prompt(self) -> str:
@@ -241,7 +240,9 @@ CONFIDENCE SCORING:
 - 0.2: Very low confidence (probably leave unchanged)
 - 0.0: No confidence (definitely leave unchanged)"""
 
-    def _build_user_prompt(self, question_identifier: str, options: List[str]) -> Dict[str, Any]:
+    def _build_user_prompt(
+        self, question_identifier: str, options: List[str]
+    ) -> Dict[str, Any]:
         """Build the user prompt with specific question data."""
         return {
             "task": "Detect and repair Excel-mangled date formatting in survey answer options",
@@ -252,16 +253,32 @@ CONFIDENCE SCORING:
                 "Look for patterns like 'DD-MMM' that should be numeric ranges",
                 "Consider the context of all options together",
                 "Only repair options where you're confident they were mangled by Excel",
-                "Provide detailed explanations for your decisions"
+                "Provide detailed explanations for your decisions",
             ],
             "examples": {
                 "mangled_dates": [
-                    {"original": "5-Mar", "should_be": "3-5", "reason": "March=3, day 5 suggests range 3-5"},
-                    {"original": "10-Jun", "should_be": "6-10", "reason": "June=6, day 10 suggests range 6-10"}
+                    {
+                        "original": "5-Mar",
+                        "should_be": "3-5",
+                        "reason": "March=3, day 5 suggests range 3-5",
+                    },
+                    {
+                        "original": "10-Jun",
+                        "should_be": "6-10",
+                        "reason": "June=6, day 10 suggests range 6-10",
+                    },
                 ],
                 "legitimate_dates": [
-                    {"original": "Jan-2025", "keep_as": "Jan-2025", "reason": "Legitimate date format"},
-                    {"original": "Q1", "keep_as": "Q1", "reason": "Not a date, likely quarter reference"}
-                ]
-            }
+                    {
+                        "original": "Jan-2025",
+                        "keep_as": "Jan-2025",
+                        "reason": "Legitimate date format",
+                    },
+                    {
+                        "original": "Q1",
+                        "keep_as": "Q1",
+                        "reason": "Not a date, likely quarter reference",
+                    },
+                ],
+            },
         }
