@@ -30,7 +30,40 @@ class DropdownResponseValidator(ResponseValidatorABC):
     validation is straightforward - just ensure it's in the options list.
     """
 
-    required_params = ["question_options"]
+    required_params = ["question_options", "question"]
+
+    def _preprocess(self, data: dict) -> dict:
+        """
+        Transform search terms to actual options via BM25 search.
+
+        This runs BEFORE Pydantic validation, so the answer field
+        will contain a valid option when validation occurs.
+        """
+        # Get the raw answer (which contains search terms from the LLM)
+        raw_answer = data.get("answer")
+
+        if raw_answer and isinstance(raw_answer, str):
+            # Check if it's already a valid option (shouldn't happen with proper templates)
+            if raw_answer in [str(opt) for opt in self.question_options]:
+                return data
+
+            # Run BM25 search on the search terms
+            try:
+                search_results = self.question.perform_bm25_search(raw_answer)
+
+                # If we got results, use the top one as the answer
+                if search_results and len(search_results) > 0:
+                    data["answer"] = search_results[0]
+                else:
+                    # Fallback: if no search results, keep original
+                    # (this will likely fail validation, but that's expected)
+                    pass
+            except Exception:
+                # If BM25 search fails, keep original answer
+                # (this will likely fail validation)
+                pass
+
+        return data
 
     def fix(self, response, verbose=False):
         """
