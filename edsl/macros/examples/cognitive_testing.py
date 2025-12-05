@@ -13,10 +13,9 @@ jobs_object = Survey(
 ).to_jobs()
 
 output_formatter = (
-    OutputFormatter(description="Typo Checker", output_type="markdown")
+    OutputFormatter(description="Typo Checker", output_type="ScenarioList")
     .select("scenario.question_text", "answer.typos")
-    .table(tablefmt="github")
-    .to_string()
+    .to_scenario_list()
 )
 
 # Initial survey: accept a Survey as input to turn into scenarios
@@ -37,8 +36,8 @@ macro = Macro(
     long_description="This application performs cognitive testing on survey questions by checking for typos and language issues. It analyzes each question in a provided survey and identifies potential typos or grammatical errors that could affect respondent comprehension.",
     initial_survey=initial_survey,
     jobs_object=jobs_object,
-    output_formatters={"table": output_formatter},
-    default_formatter_name="table",
+    output_formatters={"scenario_list": output_formatter},
+    default_formatter_name="scenario_list",
     attachment_formatters=[
         # Convert the provided Survey into scenarios at the head
         SurveyAttachmentFormatter(
