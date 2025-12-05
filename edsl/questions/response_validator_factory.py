@@ -21,7 +21,16 @@ class ResponseValidatorFactory:
         """Return the response validator."""
         params = {}
         params.update({"response_model": self.question.response_model})
-        params.update({k: getattr(self.question, k) for k in self.validator_parameters})
+
+        # Handle validator parameters, with special case for "question"
+        for k in self.validator_parameters:
+            if k == "question":
+                # Pass the question object itself
+                params[k] = self.question
+            else:
+                # Extract the attribute from the question
+                params[k] = getattr(self.question, k)
+
         params.update(
             {"exception_to_throw": getattr(self.question, "exception_to_throw", None)}
         )
