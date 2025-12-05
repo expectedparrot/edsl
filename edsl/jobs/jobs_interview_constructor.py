@@ -1,5 +1,4 @@
 from typing import Generator, TYPE_CHECKING, Optional
-from itertools import product
 
 if TYPE_CHECKING:
     from ..interviews import Interview
