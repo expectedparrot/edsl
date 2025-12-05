@@ -6,13 +6,9 @@ by testing the ExcelDateRepairer class directly with sample data.
 """
 
 import os
-import sys
 from typing import List
 
-# Add the parent directory to the path so we can import our modules
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from excel_date_repairer import ExcelDateRepairer
+from edsl.conjure.survey_monkey.excel_date_repairer import ExcelDateRepairer
 
 
 def test_basic_repair():

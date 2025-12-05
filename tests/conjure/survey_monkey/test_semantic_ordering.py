@@ -6,13 +6,9 @@ the OptionSemanticOrderer class directly with various question types.
 """
 
 import os
-import sys
 from typing import List
 
-# Add the parent directory to the path so we can import our modules
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from option_semantic_orderer import OptionSemanticOrderer
+from edsl.conjure.survey_monkey.option_semantic_orderer import OptionSemanticOrderer
 
 
 def test_semantic_ordering():

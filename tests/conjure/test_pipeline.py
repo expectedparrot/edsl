@@ -13,13 +13,13 @@ def pipeline_components(tmp_path, monkeypatch):
         sys.path.insert(0, str(project_root))
     monkeypatch.setenv("HOME", str(tmp_path))
 
-    from conjure.pipelines import normalize_survey_file
-    from conjure.pipelines.profiles import CsvFormat, detect_csv_profile
-    from conjure.pipelines.writers import (
+    from edsl.conjure.pipelines import normalize_survey_file
+    from edsl.conjure.pipelines.profiles import CsvFormat, detect_csv_profile
+    from edsl.conjure.pipelines.writers import (
         write_agent_responses_csv,
         write_questions_yaml,
     )
-    from conjure.input_data_yaml import InputDataYAML
+    from edsl.conjure.input_data_yaml import InputDataYAML
 
     return {
         "normalize": normalize_survey_file,
@@ -100,8 +100,8 @@ def test_conjure_auto_normalizes_qualtrics(tmp_path, monkeypatch):
         encoding="utf-8",
     )
 
-    from conjure import Conjure
-    from conjure.input_data_normalized import InputDataNormalized
+    from edsl.conjure import Conjure
+    from edsl.conjure.input_data_normalized import InputDataNormalized
 
     instance = Conjure(str(csv_path))
     assert isinstance(instance, InputDataNormalized)
