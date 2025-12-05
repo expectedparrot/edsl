@@ -4,13 +4,14 @@
 import os
 import sys
 
+
 def debug_import_with_repair():
     """Debug the import process with repair enabled."""
     print("🔍 Debugging Excel Date Repair")
     print("=" * 50)
 
     # Try to find the actual CSV file you're using
-    csv_files = [f for f in os.listdir('.') if f.endswith('.csv')]
+    csv_files = [f for f in os.listdir(".") if f.endswith(".csv")]
     if not csv_files:
         print("❌ No CSV files found in current directory")
         print("Please run this script from the directory containing your CSV file")
@@ -24,6 +25,7 @@ def debug_import_with_repair():
 
     try:
         from import_survey_monkey import ImportSurveyMonkey
+
         print("✅ ImportSurveyMonkey imported successfully")
     except ImportError as e:
         print(f"❌ Failed to import ImportSurveyMonkey: {e}")
@@ -35,7 +37,9 @@ def debug_import_with_repair():
 
     try:
         # Test without repair first (explicitly disabled since default is now True)
-        importer_no_repair = ImportSurveyMonkey(csv_file, verbose=True, repair_excel_dates=False)
+        importer_no_repair = ImportSurveyMonkey(
+            csv_file, verbose=True, repair_excel_dates=False
+        )
         print("✅ Import without repair completed")
 
         # Check for potential date-like values
@@ -45,10 +49,25 @@ def debug_import_with_repair():
         # Look for suspicious date-like options
         suspicious_options = []
         for question in survey.questions:
-            if hasattr(question, 'question_options') and question.question_options:
+            if hasattr(question, "question_options") and question.question_options:
                 for option in question.question_options:
-                    if any(month in option for month in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                                                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']):
+                    if any(
+                        month in option
+                        for month in [
+                            "Jan",
+                            "Feb",
+                            "Mar",
+                            "Apr",
+                            "May",
+                            "Jun",
+                            "Jul",
+                            "Aug",
+                            "Sep",
+                            "Oct",
+                            "Nov",
+                            "Dec",
+                        ]
+                    ):
                         suspicious_options.append((question.question_name, option))
 
         if suspicious_options:
@@ -61,6 +80,7 @@ def debug_import_with_repair():
     except Exception as e:
         print(f"❌ Error in import without repair: {e}")
         import traceback
+
         traceback.print_exc()
         return
 
@@ -87,7 +107,9 @@ def debug_import_with_repair():
         if orderings:
             print(f"🎯 Semantic orderings applied: {len(orderings)}")
             for ordering in orderings:
-                print(f"   {ordering['question_identifier']}: {ordering['ordering_type']}")
+                print(
+                    f"   {ordering['question_identifier']}: {ordering['ordering_type']}"
+                )
         else:
             print("ℹ️  No semantic orderings were applied")
 
@@ -104,12 +126,14 @@ def debug_import_with_repair():
         # Check if options actually changed
         options_changed = False
         for i, question in enumerate(survey_repaired.questions):
-            if hasattr(question, 'question_options') and question.question_options:
+            if hasattr(question, "question_options") and question.question_options:
                 original_question = survey.questions[i]
-                if hasattr(original_question, 'question_options'):
+                if hasattr(original_question, "question_options"):
                     if question.question_options != original_question.question_options:
                         options_changed = True
-                        print(f"📝 Question '{question.question_name}' options changed:")
+                        print(
+                            f"📝 Question '{question.question_name}' options changed:"
+                        )
                         print(f"   Before: {original_question.question_options}")
                         print(f"   After:  {question.question_options}")
 
@@ -119,6 +143,7 @@ def debug_import_with_repair():
     except Exception as e:
         print(f"❌ Error in import with repair: {e}")
         import traceback
+
         traceback.print_exc()
 
     print("\n" + "=" * 50)
@@ -139,13 +164,43 @@ def debug_import_with_repair():
             suspicious_responses = []
             for key, value in record.items():
                 if isinstance(value, str):
-                    if any(month in value for month in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                                                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']):
+                    if any(
+                        month in value
+                        for month in [
+                            "Jan",
+                            "Feb",
+                            "Mar",
+                            "Apr",
+                            "May",
+                            "Jun",
+                            "Jul",
+                            "Aug",
+                            "Sep",
+                            "Oct",
+                            "Nov",
+                            "Dec",
+                        ]
+                    ):
                         suspicious_responses.append((key, value))
                 elif isinstance(value, list):
                     for item in value:
-                        if isinstance(item, str) and any(month in item for month in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                                                                                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']):
+                        if isinstance(item, str) and any(
+                            month in item
+                            for month in [
+                                "Jan",
+                                "Feb",
+                                "Mar",
+                                "Apr",
+                                "May",
+                                "Jun",
+                                "Jul",
+                                "Aug",
+                                "Sep",
+                                "Oct",
+                                "Nov",
+                                "Dec",
+                            ]
+                        ):
                             suspicious_responses.append((key, item))
 
             if suspicious_responses:
@@ -154,7 +209,9 @@ def debug_import_with_repair():
     except Exception as e:
         print(f"❌ Error checking response records: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     debug_import_with_repair()

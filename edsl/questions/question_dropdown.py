@@ -17,6 +17,7 @@ class BaseDropdownResponse(BaseModel):
 
     The answer will be one of the original question_options after BM25 search.
     """
+
     answer: str = Field(..., description="Selected option after BM25 search")
     comment: Optional[str] = Field(None, description="Optional comment field")
     generated_tokens: Optional[Any] = Field(None, description="Generated tokens")
@@ -88,7 +89,10 @@ class DropdownResponseValidator(ResponseValidatorABC):
         return response
 
     valid_examples = [
-        ({"answer": "Option A"}, {"question_options": ["Option A", "Option B", "Option C"]})
+        (
+            {"answer": "Option A"},
+            {"question_options": ["Option A", "Option B", "Option C"]},
+        )
     ]
 
     invalid_examples = [
@@ -176,7 +180,7 @@ class QuestionDropdown(QuestionBase):
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
         permissive: bool = False,
-        **kwargs  # Handle additional parameters like 'answer' during deserialization
+        **kwargs,  # Handle additional parameters like 'answer' during deserialization
     ):
         """
         Initialize a new dropdown question with BM25 search capability.
@@ -290,7 +294,10 @@ class QuestionDropdown(QuestionBase):
                 continue
             elif key in only_if_not_na_list and value is None:
                 continue
-            elif key in only_if_not_default_list and value == only_if_not_default_list[key]:
+            elif (
+                key in only_if_not_default_list
+                and value == only_if_not_default_list[key]
+            ):
                 continue
             else:
                 # Clean up private attribute names for public API
@@ -315,7 +322,9 @@ class QuestionDropdown(QuestionBase):
                     if question_self.use_code:
                         return 0  # First option index
                     else:
-                        return str(question_self.question_options[0])  # First option text
+                        return str(
+                            question_self.question_options[0]
+                        )  # First option text
 
                 @classmethod
                 def build_comment(cls):
@@ -384,7 +393,9 @@ class QuestionDropdown(QuestionBase):
         """Get the sample options to show to the LLM based on sample_indices."""
         return [str(self.question_options[i]) for i in self.sample_indices]
 
-    def perform_bm25_search(self, search_terms: str, verbose: bool = False) -> List[str]:
+    def perform_bm25_search(
+        self, search_terms: str, verbose: bool = False
+    ) -> List[str]:
         """
         Perform BM25 search on options using the provided search terms.
 
@@ -397,7 +408,7 @@ class QuestionDropdown(QuestionBase):
         """
         if not search_terms.strip():
             # If no search terms, return sample
-            return self._get_sample_options()[:self.max_options_shown]
+            return self._get_sample_options()[: self.max_options_shown]
 
         if verbose:
             print(f"BM25 search with terms: '{search_terms}'")
@@ -411,8 +422,7 @@ class QuestionDropdown(QuestionBase):
 
         # Create list of (score, index, option) tuples
         scored_results = [
-            (score, i, self.question_options[i])
-            for i, score in enumerate(scores)
+            (score, i, self.question_options[i]) for i, score in enumerate(scores)
         ]
 
         # Sort by score (descending)
@@ -422,11 +432,15 @@ class QuestionDropdown(QuestionBase):
         if self.feeling_lucky:
             top_options = [scored_results[0][2]] if scored_results else []
         else:
-            top_options = [result[2] for result in scored_results[:self.max_options_shown]]
+            top_options = [
+                result[2] for result in scored_results[: self.max_options_shown]
+            ]
 
         if verbose:
             print(f"Top {len(top_options)} options after BM25 search:")
-            for i, (score, idx, option) in enumerate(scored_results[:len(top_options)]):
+            for i, (score, idx, option) in enumerate(
+                scored_results[: len(top_options)]
+            ):
                 print(f"  {i+1}. {option} (score: {score:.3f})")
 
         return [str(opt) for opt in top_options]
@@ -465,12 +479,12 @@ class QuestionDropdown(QuestionBase):
                 return str(self.question_options[int(answer_code)])
             except (IndexError, TypeError, ValueError):
                 from .exceptions import QuestionValueError
+
                 raise QuestionValueError(
                     f"Answer code {answer_code} is out of range for dropdown options."
                 )
         else:
             return answer_code
-
 
     @property
     def question_html_content(self) -> str:
@@ -498,7 +512,7 @@ class QuestionDropdown(QuestionBase):
             sample_options=sample_options,
             total_options=len(self.question_options),
             sample_indices=self.sample_indices,
-            remaining=len(self.question_options) - len(sample_options)
+            remaining=len(self.question_options) - len(sample_options),
         )
         return html_content
 
@@ -507,17 +521,72 @@ class QuestionDropdown(QuestionBase):
     def example(cls, include_comment=True, use_code=False) -> "QuestionDropdown":
         """Return an example instance with many city options."""
         cities = [
-            "New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia",
-            "San Antonio", "San Diego", "Dallas", "San Jose", "Austin", "Jacksonville",
-            "Fort Worth", "Columbus", "Charlotte", "San Francisco", "Indianapolis",
-            "Seattle", "Denver", "Washington", "Boston", "El Paso", "Nashville",
-            "Detroit", "Oklahoma City", "Portland", "Las Vegas", "Memphis", "Louisville",
-            "Baltimore", "Milwaukee", "Albuquerque", "Tucson", "Fresno", "Sacramento",
-            "Kansas City", "Long Beach", "Mesa", "Atlanta", "Colorado Springs", "Virginia Beach",
-            "Raleigh", "Omaha", "Miami", "Oakland", "Minneapolis", "Tulsa", "Wichita",
-            "New Orleans", "Arlington", "Cleveland", "Bakersfield", "Tampa", "Aurora",
-            "Honolulu", "Anaheim", "Santa Ana", "Corpus Christi", "Riverside", "St. Louis",
-            "Lexington", "Pittsburgh", "Anchorage", "Stockton", "Cincinnati", "St. Paul"
+            "New York",
+            "Los Angeles",
+            "Chicago",
+            "Houston",
+            "Phoenix",
+            "Philadelphia",
+            "San Antonio",
+            "San Diego",
+            "Dallas",
+            "San Jose",
+            "Austin",
+            "Jacksonville",
+            "Fort Worth",
+            "Columbus",
+            "Charlotte",
+            "San Francisco",
+            "Indianapolis",
+            "Seattle",
+            "Denver",
+            "Washington",
+            "Boston",
+            "El Paso",
+            "Nashville",
+            "Detroit",
+            "Oklahoma City",
+            "Portland",
+            "Las Vegas",
+            "Memphis",
+            "Louisville",
+            "Baltimore",
+            "Milwaukee",
+            "Albuquerque",
+            "Tucson",
+            "Fresno",
+            "Sacramento",
+            "Kansas City",
+            "Long Beach",
+            "Mesa",
+            "Atlanta",
+            "Colorado Springs",
+            "Virginia Beach",
+            "Raleigh",
+            "Omaha",
+            "Miami",
+            "Oakland",
+            "Minneapolis",
+            "Tulsa",
+            "Wichita",
+            "New Orleans",
+            "Arlington",
+            "Cleveland",
+            "Bakersfield",
+            "Tampa",
+            "Aurora",
+            "Honolulu",
+            "Anaheim",
+            "Santa Ana",
+            "Corpus Christi",
+            "Riverside",
+            "St. Louis",
+            "Lexington",
+            "Pittsburgh",
+            "Anchorage",
+            "Stockton",
+            "Cincinnati",
+            "St. Paul",
         ]
 
         city_details = [
@@ -544,4 +613,5 @@ class QuestionDropdown(QuestionBase):
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
