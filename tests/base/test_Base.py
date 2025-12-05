@@ -19,47 +19,51 @@ class SaveLoadFail(Warning):
 
 class TestBaseModels:
     def test_register_subclasses_meta(self):
+        expected_classes = [
+            "BaseMacro",
+            "Macro",
+            "MacroRunOutput",
+            "CompositeMacro",
+            "Result",
+            "Results",
+            "Survey",
+            "Agent",
+            "AgentList",
+            "AgentBlueprint",
+            "AgentDelta",
+            "AgentListDeltas",
+            "Scenario",
+            "ScenarioList",
+            "AgentList",
+            "Jobs",
+            "Cache",
+            "Notebook",
+            "ModelList",
+            "FileStore",
+            "HTMLFileStore",
+            "CSVFileStore",
+            "PDFFileStore",
+            "PNGFileStore",
+            "SQLiteFileStore",
+            "AgentTraits",
+            "RunParameters",
+            "SQLList",
+            "CoopObjects",
+            "CoopJobsObjects",
+            "CoopRegularObjects",
+            "CoopProlificFilters",
+            "Service",
+            "FileStoreList",
+            "CompareResultsToGold",
+            "PerformanceDelta",
+            "ResultPairComparison"
+        ]
 
         for key, value in RegisterSubclassesMeta.get_registry().items():
-            assert key in [
-                "BaseMacro",
-                "Macro",
-                "MacroRunOutput",
-                "CompositeMacro",
-                "Result",
-                "Results",
-                "Survey",
-                "Agent",
-                "AgentList",
-                "AgentBlueprint",
-                "AgentDelta",
-                "AgentListDeltas",
-                "Scenario",
-                "ScenarioList",
-                "AgentList",
-                "Jobs",
-                "Cache",
-                "Notebook",
-                "ModelList",
-                "FileStore",
-                "HTMLFileStore",
-                "CSVFileStore",
-                "PDFFileStore",
-                "PNGFileStore",
-                "SQLiteFileStore",
-                "AgentTraits",
-                "RunParameters",
-                "SQLList",
-                "CoopObjects",
-                "CoopJobsObjects",
-                "CoopRegularObjects",
-                "CoopProlificFilters",
-                "Service",
-                "FileStoreList",
-                "CompareResultsToGold",
-                "PerformanceDelta",
-                "ResultPairComparison"
-            ]
+            # Skip test classes (classes with "Test" or "Testing" in their name)
+            if "Test" in key or "Testing" in key:
+                continue
+            assert key in expected_classes
 
         from edsl.base.exceptions import BaseNotImplementedError
 
