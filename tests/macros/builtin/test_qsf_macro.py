@@ -9,7 +9,7 @@ import tempfile
 import os
 
 # Import the macro
-from qsf_to_survey import qsf_to_survey_macro
+from edsl.macros.builtin.qsf_to_survey import qsf_to_survey_macro
 
 
 def create_sample_qsf():

@@ -1,7 +1,8 @@
 import edsl
 from edsl.reports.charts import ScatterPlotOutput
 from edsl.reports.tables import SummaryStatisticsTable
-from edsl.reports.research import Research, Report
+from edsl.reports.research import Research
+from edsl.reports.report import Report
 
 
 def main():

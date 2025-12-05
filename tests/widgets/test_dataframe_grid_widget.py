@@ -11,9 +11,7 @@ from datetime import datetime, timedelta
 import sys
 import os
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from dataframe_grid_widget import DataFrameGridWidget
+from edsl.widgets.dataframe_grid_widget import DataFrameGridWidget
 
 
 def create_sample_dataframes():
@@ -247,7 +245,7 @@ def run_all_tests():
         print(
             """
 import pandas as pd
-from dataframe_grid_widget import DataFrameGridWidget
+from edsl.widgets.dataframe_grid_widget import DataFrameGridWidget
 
 # Create sample data
 df = pd.DataFrame({

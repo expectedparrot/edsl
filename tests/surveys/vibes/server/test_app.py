@@ -10,7 +10,11 @@ import pytest
 # Skip all vibes server tests - these require a running server infrastructure
 # that may not be available in all test environments
 pytestmark = pytest.mark.skip(reason="Vibes server tests require running infrastructure - skipping until system is more stable")
-from fastapi.testclient import TestClient
+
+# Conditional imports to avoid collection errors when optional dependencies are not available
+fastapi = pytest.importorskip("fastapi")
+TestClient = pytest.importorskip("fastapi.testclient", reason="FastAPI not available").TestClient
+
 from unittest.mock import patch, Mock
 import json
 
