@@ -183,8 +183,14 @@ class MacroRunOutput(Base):
         class ExampleFormatter(OutputFormatter):
             """Example formatter for demonstration."""
 
-            def __init__(self):
-                super().__init__(description="example", output_type="Results")
+            def __init__(self, description="example", allowed_commands=None, params=None, output_type="Results", _stored_commands=None):
+                super().__init__(
+                    description=description,
+                    allowed_commands=allowed_commands,
+                    params=params,
+                    output_type=output_type,
+                    _stored_commands=_stored_commands
+                )
 
             def render(self, results: Results, params: dict) -> str:
                 return f"Example output with {len(results)} results"

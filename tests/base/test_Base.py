@@ -60,8 +60,12 @@ class TestBaseModels:
         ]
 
         for key, value in RegisterSubclassesMeta.get_registry().items():
-            # Skip test classes (classes with "Test" or "Testing" in their name)
-            if "Test" in key or "Testing" in key:
+            # Skip test classes and test-related classes
+            # This includes classes with "Test" or "Testing" in their name,
+            # as well as temporary classes created within test methods
+            if ("Test" in key or
+                "Testing" in key or
+                key in ["NoDefault", "TestMacro1", "TestMacro2", "BadMacro", "MacroForTesting"]):
                 continue
             assert key in expected_classes
 
@@ -178,8 +182,8 @@ def create_file_operations_test(child_class):
 # Dynamically adding test methods for each question type
 for child_class_name, child_class in RegisterSubclassesMeta._registry.items():
 
-    # Skip testing abstract base classes
-    if child_class_name in ["CoopObjects"]:
+    # Skip testing abstract base classes and test classes
+    if child_class_name in ["CoopObjects", "BaseMacro"] or "Test" in child_class_name or "Testing" in child_class_name:
         continue
 
     base_test_method_name = f"test_Base_{child_class_name}"
