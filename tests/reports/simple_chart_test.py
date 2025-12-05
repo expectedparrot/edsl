@@ -1,5 +1,5 @@
 import edsl
-from reports.charts import BarChartOutput
+from edsl.reports.charts import BarChartOutput
 import webbrowser
 import tempfile
 import os

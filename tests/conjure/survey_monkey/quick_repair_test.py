@@ -15,7 +15,7 @@ def test_repair_directly():
         return False
 
     try:
-        from excel_date_repairer import ExcelDateRepairer
+        from edsl.conjure.survey_monkey.excel_date_repairer import ExcelDateRepairer
         print("✅ ExcelDateRepairer imported successfully")
     except Exception as e:
         print(f"❌ Failed to import: {e}")
