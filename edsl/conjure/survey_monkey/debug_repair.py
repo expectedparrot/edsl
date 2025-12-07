@@ -2,7 +2,6 @@
 """Debug script to test Excel date repair functionality with your actual data."""
 
 import os
-import sys
 
 
 def debug_import_with_repair():

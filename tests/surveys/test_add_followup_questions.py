@@ -2,7 +2,6 @@
 
 import pytest
 from edsl import QuestionMultipleChoice, QuestionFreeText, QuestionCheckBox, Survey
-from edsl.surveys.base import EndOfSurvey
 
 
 class TestAddFollowupQuestions:

@@ -7,8 +7,6 @@ from edsl.conjure.text_differ import (
     tokenize,
     find_varying_positions,
     extract_template,
-    SlotInfo,
-    TemplateResult,
 )
 
 

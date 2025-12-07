@@ -18,7 +18,9 @@ class BaseDropdownResponse(BaseModel):
     The answer will be a list of the top-k original question_options after BM25 search.
     """
 
-    answer: List[str] = Field(..., description="List of selected options after BM25 search")
+    answer: List[str] = Field(
+        ..., description="List of selected options after BM25 search"
+    )
     comment: Optional[str] = Field(None, description="Optional comment field")
     generated_tokens: Optional[Any] = Field(None, description="Generated tokens")
 
@@ -45,7 +47,10 @@ class DropdownResponseValidator(ResponseValidatorABC):
 
         if raw_answer and isinstance(raw_answer, str):
             # Check if it's already a valid option list (shouldn't happen with proper templates)
-            if isinstance(raw_answer, list) and all(str(ans) in [str(opt) for opt in self.question_options] for ans in raw_answer):
+            if isinstance(raw_answer, list) and all(
+                str(ans) in [str(opt) for opt in self.question_options]
+                for ans in raw_answer
+            ):
                 return data
 
             # Clean up common prefixes that language models might add
@@ -84,7 +89,7 @@ class DropdownResponseValidator(ResponseValidatorABC):
             r"keywords?:\s*",
             r"terms?:\s*",
             r"search:\s*",
-            r"query:\s*"
+            r"query:\s*",
         ]
 
         cleaned_text = text.strip()
@@ -387,9 +392,9 @@ class QuestionDropdown(QuestionBase):
                     if question_self.use_code:
                         return [0]  # First option index as list
                     else:
-                        return [str(
-                            question_self.question_options[0]
-                        )]  # First option text as list
+                        return [
+                            str(question_self.question_options[0])
+                        ]  # First option text as list
 
                 @classmethod
                 def build_comment(cls):
@@ -494,9 +499,7 @@ class QuestionDropdown(QuestionBase):
         scored_results.sort(key=lambda x: x[0], reverse=True)
 
         # Get top k results
-        top_options = [
-            result[2] for result in scored_results[: self.top_k]
-        ]
+        top_options = [result[2] for result in scored_results[: self.top_k]]
 
         if verbose:
             print(f"Top {len(top_options)} options after BM25 search:")
@@ -519,7 +522,6 @@ class QuestionDropdown(QuestionBase):
 
         # Create a custom response model for list validation
         from pydantic import BaseModel, Field, field_validator
-        from typing import List, Any, Optional
 
         # Capture values to use in closures
         permissive = self.permissive
@@ -529,11 +531,17 @@ class QuestionDropdown(QuestionBase):
             valid_codes = list(range(len(self.question_options)))
 
             class DropdownResponse(BaseModel):
-                answer: List[int] = Field(..., description="List of selected option indices")
-                comment: Optional[str] = Field(None, description="Optional comment field")
-                generated_tokens: Optional[Any] = Field(None, description="Generated tokens")
+                answer: List[int] = Field(
+                    ..., description="List of selected option indices"
+                )
+                comment: Optional[str] = Field(
+                    None, description="Optional comment field"
+                )
+                generated_tokens: Optional[Any] = Field(
+                    None, description="Generated tokens"
+                )
 
-                @field_validator('answer')
+                @field_validator("answer")
                 @classmethod
                 def validate_answer_codes(cls, v):
                     if not isinstance(v, list):
@@ -541,18 +549,25 @@ class QuestionDropdown(QuestionBase):
                     for code in v:
                         if not isinstance(code, int) or code not in valid_codes:
                             if not permissive:
-                                raise ValueError(f"Answer code {code} is not in valid options: {valid_codes}")
+                                raise ValueError(
+                                    f"Answer code {code} is not in valid options: {valid_codes}"
+                                )
                     return v
+
         else:
             # Use the actual option values
             valid_options = [str(opt) for opt in self.question_options]
 
             class DropdownResponse(BaseModel):
                 answer: List[str] = Field(..., description="List of selected options")
-                comment: Optional[str] = Field(None, description="Optional comment field")
-                generated_tokens: Optional[Any] = Field(None, description="Generated tokens")
+                comment: Optional[str] = Field(
+                    None, description="Optional comment field"
+                )
+                generated_tokens: Optional[Any] = Field(
+                    None, description="Generated tokens"
+                )
 
-                @field_validator('answer')
+                @field_validator("answer")
                 @classmethod
                 def validate_answer_options(cls, v):
                     if not isinstance(v, list):
@@ -560,7 +575,9 @@ class QuestionDropdown(QuestionBase):
                     for option in v:
                         if str(option) not in valid_options:
                             if not permissive:
-                                raise ValueError(f"Answer '{option}' is not in valid options: {valid_options}")
+                                raise ValueError(
+                                    f"Answer '{option}' is not in valid options: {valid_options}"
+                                )
                     return v
 
         return DropdownResponse
@@ -576,7 +593,9 @@ class QuestionDropdown(QuestionBase):
             try:
                 # Handle list of codes
                 if isinstance(answer_codes, list):
-                    return [str(self.question_options[int(code)]) for code in answer_codes]
+                    return [
+                        str(self.question_options[int(code)]) for code in answer_codes
+                    ]
                 # Handle single code
                 else:
                     return str(self.question_options[int(answer_codes)])

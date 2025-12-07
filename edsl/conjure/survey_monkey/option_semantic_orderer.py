@@ -8,7 +8,7 @@ to largest, experience levels from beginner to expert, age ranges in order).
 import json
 import logging
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 
 # Import the OpenAI utils from the vibes system

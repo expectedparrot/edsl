@@ -644,7 +644,7 @@ class ImportSurveyMonkey:
         mq = self._monadic_questions[0]
         slot = mq.slots[0]
 
-        self._log(f"\n=== Building Scenarios ===")
+        self._log("\n=== Building Scenarios ===")
         self._log(f"  Slot: {slot.name}")
         self._log(f"  Unique values: {slot.unique_values}")
 
@@ -932,12 +932,12 @@ class ImportSurveyMonkey:
             print("After: ", change["semantic_order"])
             print("-" * 50)
 
-        print(f"\nSummary:")
+        print("\nSummary:")
         print(f"• {len(self._ordering_changes)} questions had their options reordered")
         print(
-            f"• Common orderings: company sizes, experience levels, frequencies, ratings"
+            "• Common orderings: company sizes, experience levels, frequencies, ratings"
         )
-        print(f"• This improves survey readability and respondent experience")
+        print("• This improves survey readability and respondent experience")
 
     # -------------------------------------------------------------------------
     # Run Method

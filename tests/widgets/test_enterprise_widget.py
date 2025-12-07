@@ -8,8 +8,6 @@ This script demonstrates the full AG-Grid Enterprise + AG-Charts Enterprise func
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import sys
-import os
 
 from edsl.widgets.dataframe_grid_charts_enterprise_widget import DataFrameGridChartsEnterpriseWidget
 

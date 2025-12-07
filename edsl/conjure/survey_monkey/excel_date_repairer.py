@@ -8,7 +8,7 @@ in survey answer options. Excel commonly converts numeric ranges like "1-2",
 import json
 import logging
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 
 # Import the OpenAI utils from the vibes system
