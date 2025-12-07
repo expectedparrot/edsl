@@ -79,6 +79,7 @@ if TYPE_CHECKING:
     from ..questions import QuestionBase, Question
     from ..agents import Agent
     from typing import Sequence
+    from .scenarioml.core.prediction import Prediction
 
 
 from ..base import Base
@@ -3502,6 +3503,155 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         # Generate the requested number of profiles
         return generator.generate_batch(count)
+
+    def predict(self, y: str, **kwargs) -> "Prediction":
+        """
+        Build a predictive model using AutoML with automatic feature engineering.
+
+        Creates a machine learning model to predict a target variable based on
+        scenario features. Uses automatic feature type detection, multiple model
+        comparison, and built-in overfitting prevention.
+
+        Args:
+            y: Name of the target column to predict
+            **kwargs: Additional arguments (reserved for future extensions)
+
+        Returns:
+            Prediction object for making predictions on new data
+
+        Raises:
+            ValueError: If target column is missing or data is insufficient
+            ImportError: If required ML dependencies are not installed
+
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> scenarios = ScenarioList([
+            ...     Scenario({'industry': 'Tech', 'size': '50', 'satisfaction_rating': 8}),
+            ...     Scenario({'industry': 'Finance', 'size': '200', 'satisfaction_rating': 6}),
+            ...     Scenario({'industry': 'Healthcare', 'size': '100', 'satisfaction_rating': 9}),
+            ... ])  # doctest: +SKIP
+            >>> model = scenarios.predict(y='satisfaction_rating')  # doctest: +SKIP
+            >>>
+            >>> # Make predictions on new data
+            >>> new_customer = {'industry': 'Tech', 'size': '100'}  # doctest: +SKIP
+            >>> prediction = model.predict(new_customer)  # doctest: +SKIP
+            >>> probabilities = model.predict_proba(new_customer)  # doctest: +SKIP
+            >>>
+            >>> # Get model diagnostics
+            >>> diagnostics = model.diagnostics()  # doctest: +SKIP
+            >>> print(f"Model accuracy: {diagnostics['test_score']:.3f}")  # doctest: +SKIP
+        """
+        try:
+            # Import here to avoid circular imports and check dependencies
+            from .scenarioml.core.feature_processor import FeatureProcessor
+            from .scenarioml.core.model_selector import ModelSelector
+            from .scenarioml.core.prediction import Prediction
+            import pandas as pd
+        except ImportError as e:
+            raise ImportError(
+                f"Missing required dependencies for ScenarioML: {str(e)}. "
+                "Please install with: pip install pandas scikit-learn"
+            ) from e
+
+        # Validate inputs
+        if not isinstance(y, str):
+            raise ValueError("Target variable 'y' must be a string column name")
+
+        if len(self) == 0:
+            raise ValueError("Cannot train model on empty ScenarioList")
+
+        # Convert ScenarioList to DataFrame
+        try:
+            df = self.to_pandas()
+        except Exception as e:
+            raise ValueError(f"Failed to convert ScenarioList to DataFrame: {str(e)}") from e
+
+        # Validate target column
+        if y not in df.columns:
+            available_cols = list(df.columns)
+            raise ValueError(
+                f"Target column '{y}' not found. Available columns: {available_cols}"
+            )
+
+        # Check for minimum data requirements
+        if len(df) < 10:
+            raise ValueError(
+                f"Insufficient data for training: {len(df)} samples. "
+                "Need at least 10 samples for reliable model training."
+            )
+
+        # Check target variable
+        target_values = df[y].dropna()
+        if len(target_values) == 0:
+            raise ValueError(f"Target column '{y}' contains no valid (non-null) values")
+
+        unique_targets = target_values.nunique()
+        if unique_targets < 2:
+            raise ValueError(
+                f"Target column '{y}' must have at least 2 different values. "
+                f"Found {unique_targets} unique value(s)."
+            )
+
+        try:
+            # Initialize processors
+            feature_processor = FeatureProcessor()
+            model_selector = ModelSelector()
+
+            # Process features
+            print("Processing features...")
+            X = feature_processor.fit_transform(df, y)
+            y_values = df[y].values
+
+            # Validate processed data
+            model_selector.validate_data(X, y_values)
+
+            # Compare models
+            print("Training and comparing models...")
+            model_results = model_selector.compare_models(X, y_values, feature_processor.feature_names)
+
+            if not model_results:
+                raise ValueError("No models could be trained successfully")
+
+            # Select best model
+            best_model = model_selector.select_best_model(model_results)
+
+            # Create prediction object
+            prediction = Prediction(
+                model_result=best_model,
+                feature_processor=feature_processor,
+                target_column=y
+            )
+
+            # Display results summary
+            print(f"\\nBest model: {best_model.name}")
+            print(f"Cross-validation score: {best_model.cv_score:.3f} ± {best_model.cv_std:.3f}")
+            print(f"Test score: {best_model.test_score:.3f}")
+            print(f"Overfitting gap: {best_model.overfitting_gap:.3f}")
+
+            if best_model.overfitting_gap > 0.1:
+                warnings.warn(
+                    f"High overfitting detected (gap: {best_model.overfitting_gap:.3f}). "
+                    "Model may not generalize well to new data."
+                )
+
+            return prediction
+
+        except Exception as e:
+            # Provide helpful error context
+            error_msg = f"Model training failed: {str(e)}"
+
+            if "feature_processor" in str(e).lower():
+                error_msg += "\\n\\nFeature processing issues often occur with:"
+                error_msg += "\\n  - Mixed data types in columns"
+                error_msg += "\\n  - Very sparse or inconsistent data"
+                error_msg += "\\n  - Columns with mostly missing values"
+            elif "model_selector" in str(e).lower():
+                error_msg += "\\n\\nModel training issues often occur with:"
+                error_msg += "\\n  - Insufficient data (need >50 samples recommended)"
+                error_msg += "\\n  - Too many features relative to samples"
+                error_msg += "\\n  - Target variable distribution problems"
+
+            raise ValueError(error_msg) from e
 
     @classmethod
     def from_source(
