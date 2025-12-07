@@ -3546,7 +3546,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             from .scenarioml.feature_processor import FeatureProcessor
             from .scenarioml.model_selector import ModelSelector
             from .scenarioml.prediction import Prediction
-            import pandas as pd
         except ImportError as e:
             raise ImportError(
                 f"Missing required dependencies for ScenarioML: {str(e)}. "
