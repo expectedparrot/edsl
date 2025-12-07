@@ -56,7 +56,7 @@ class EnvManager:
         if current_env:
             print(f"Current environment: {current_env}")
             if self.working_env.exists():
-                print(f"Working file: .env")
+                print("Working file: .env")
                 print(f"Source file: .env.{current_env}")
         else:
             print("No environment tracking (consider running 'python scripts/env_manager.py switch <name>')")

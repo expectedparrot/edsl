@@ -15,8 +15,7 @@ pytestmark = pytest.mark.skip(reason="Vibes server tests require running infrast
 fastapi = pytest.importorskip("fastapi")
 TestClient = pytest.importorskip("fastapi.testclient", reason="FastAPI not available").TestClient
 
-from unittest.mock import patch, Mock
-import json
+from unittest.mock import patch
 
 from edsl.surveys.vibes.server.app import app
 

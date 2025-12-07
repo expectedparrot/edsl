@@ -6,9 +6,8 @@ using mock patterns consistent with EDSL testing approaches.
 """
 
 import pytest
-from unittest.mock import patch, Mock, PropertyMock
+from unittest.mock import patch, Mock
 import requests
-import os
 
 from edsl.surveys.vibes.remote_survey_generator import (
     RemoteSurveyGenerator,

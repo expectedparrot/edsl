@@ -10,8 +10,7 @@ import pytest
 # Skip vibes integration tests - these test complex distributed functionality
 # that depends on external services and may not be available in all environments
 pytestmark = pytest.mark.skip(reason="Vibes integration tests require external services - skipping until system is more stable")
-from unittest.mock import patch, Mock, MagicMock
-import os
+from unittest.mock import patch, MagicMock
 
 from edsl.surveys import Survey
 from edsl.surveys.vibes.remote_survey_generator import RemoteSurveyGenerator

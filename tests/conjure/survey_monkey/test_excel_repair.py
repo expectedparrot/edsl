@@ -6,7 +6,6 @@ by testing the ExcelDateRepairer class directly with sample data.
 """
 
 import os
-from typing import List
 
 from edsl.conjure.survey_monkey.excel_date_repairer import ExcelDateRepairer
 
@@ -79,7 +78,7 @@ def test_basic_repair():
 
     # Print overall summary
     print("\n" + "=" * 60)
-    print(f"📊 REPAIR SUMMARY")
+    print("📊 REPAIR SUMMARY")
     print("=" * 60)
 
     if all_repairs:

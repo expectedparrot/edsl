@@ -1793,23 +1793,23 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         # Check file extension to determine if conversion is needed
         _, ext = os.path.splitext(filepath.lower())
-        
-        if ext in ('.xlsx', '.xls'):
+
+        if ext in (".xlsx", ".xls"):
             # Convert Excel to CSV
             import pandas as pd
-            
+
             if verbose:
                 print(f"Converting Excel file to CSV: {filepath}")
-            
+
             df = pd.read_excel(filepath, header=None)
-            
+
             # Create a temporary CSV file
             with tempfile.NamedTemporaryFile(
-                mode='w', suffix='.csv', delete=False, newline=''
+                mode="w", suffix=".csv", delete=False, newline=""
             ) as tmp_file:
                 csv_path = tmp_file.name
                 df.to_csv(tmp_file, index=False, header=False)
-            
+
             try:
                 importer = ImportSurveyMonkey(
                     csv_file=csv_path,
@@ -1907,7 +1907,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         # Check file extension to determine if conversion is needed
         _, ext = os.path.splitext(filepath.lower())
 
-        if ext in ('.tab', '.tsv'):
+        if ext in (".tab", ".tsv"):
             # Convert tab-delimited to CSV
             import pandas as pd
 
@@ -1915,11 +1915,11 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 print(f"Converting tab-delimited file to CSV: {filepath}")
 
             # Read tab-delimited file
-            df = pd.read_csv(filepath, sep='\t', encoding='utf-8')
+            df = pd.read_csv(filepath, sep="\t", encoding="utf-8")
 
             # Create a temporary CSV file
             with tempfile.NamedTemporaryFile(
-                mode='w', suffix='.csv', delete=False, newline=''
+                mode="w", suffix=".csv", delete=False, newline=""
             ) as tmp_file:
                 csv_path = tmp_file.name
                 df.to_csv(tmp_file, index=False)

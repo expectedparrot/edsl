@@ -1,5 +1,4 @@
 import pytest
-from edsl.questions.exceptions import QuestionAnswerValidationError
 from edsl.questions import QuestionDropdown
 from edsl.questions.question_dropdown import QuestionDropdown
 
@@ -305,7 +304,6 @@ def test_QuestionDropdown_serialization():
 def test_QuestionDropdown_clean_nan():
     """Test NaN cleaning functionality."""
 
-    import math
 
     options_with_nan = ["Option1", float('nan'), "Option3"]
     q = QuestionDropdown(

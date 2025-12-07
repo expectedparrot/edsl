@@ -178,7 +178,7 @@ class GroupData:
 
 
 from enum import auto
-from edsl.conjure.text_differ import extract_template, SlotInfo, TemplateResult
+from edsl.conjure.text_differ import extract_template, SlotInfo
 
 
 class ColumnType(Enum):

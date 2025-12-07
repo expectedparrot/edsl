@@ -6,7 +6,6 @@ the OptionSemanticOrderer class directly with various question types.
 """
 
 import os
-from typing import List
 
 from edsl.conjure.survey_monkey.option_semantic_orderer import OptionSemanticOrderer
 
@@ -94,7 +93,7 @@ def test_semantic_ordering():
                 if ordering_result.ordering_details.original_order != ordering_result.ordering_details.semantic_order:
                     successful_orderings += 1
                 else:
-                    print(f"   ⚠️  Options unchanged despite reordering_applied=True")
+                    print("   ⚠️  Options unchanged despite reordering_applied=True")
             else:
                 print(f"   ℹ️  No reordering needed: {ordering_result.ordering_details.explanation}")
 
@@ -105,7 +104,7 @@ def test_semantic_ordering():
 
     # Print overall summary
     print("\n" + "=" * 65)
-    print(f"📊 ORDERING SUMMARY")
+    print("📊 ORDERING SUMMARY")
     print("=" * 65)
 
     print(f"Questions processed: {len(test_cases)}")
@@ -113,16 +112,16 @@ def test_semantic_ordering():
     print(f"Successful reorderings: {successful_orderings}")
 
     if total_reorderings > 0:
-        print(f"\n✨ Examples of semantic improvements:")
-        print(f"• Company sizes: Small → Medium → Large")
-        print(f"• Experience: Beginner → Intermediate → Advanced → Expert")
-        print(f"• Frequency: Never → Rarely → Sometimes → Often → Always")
-        print(f"• Age ranges: Youngest to oldest in chronological order")
-        print(f"• Satisfaction: Most negative to most positive")
+        print("\n✨ Examples of semantic improvements:")
+        print("• Company sizes: Small → Medium → Large")
+        print("• Experience: Beginner → Intermediate → Advanced → Expert")
+        print("• Frequency: Never → Rarely → Sometimes → Often → Always")
+        print("• Age ranges: Youngest to oldest in chronological order")
+        print("• Satisfaction: Most negative to most positive")
     else:
-        print(f"\n⚠️  No reorderings were applied - check LLM connectivity")
+        print("\n⚠️  No reorderings were applied - check LLM connectivity")
 
-    print(f"\n🎯 Test completed!")
+    print("\n🎯 Test completed!")
     return successful_orderings > 0
 
 
@@ -164,7 +163,7 @@ def test_multiple_questions():
         print(f"🎯 High confidence reorderings: {batch_result.high_confidence_reorderings}")
         print(f"\n📝 Summary: {batch_result.summary}")
 
-        print(f"\n📋 Detailed Results:")
+        print("\n📋 Detailed Results:")
         for q_result in batch_result.questions:
             if q_result.ordering_details.reordering_applied:
                 print(f"\n• {q_result.question_text}")

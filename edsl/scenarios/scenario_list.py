@@ -79,7 +79,7 @@ if TYPE_CHECKING:
     from ..questions import QuestionBase, Question
     from ..agents import Agent
     from typing import Sequence
-    from .scenarioml.core.prediction import Prediction
+    from .scenarioml.prediction import Prediction
 
 
 from ..base import Base
@@ -3543,9 +3543,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         try:
             # Import here to avoid circular imports and check dependencies
-            from .scenarioml.core.feature_processor import FeatureProcessor
-            from .scenarioml.core.model_selector import ModelSelector
-            from .scenarioml.core.prediction import Prediction
+            from .scenarioml.feature_processor import FeatureProcessor
+            from .scenarioml.model_selector import ModelSelector
+            from .scenarioml.prediction import Prediction
             import pandas as pd
         except ImportError as e:
             raise ImportError(
@@ -3564,7 +3564,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         try:
             df = self.to_pandas()
         except Exception as e:
-            raise ValueError(f"Failed to convert ScenarioList to DataFrame: {str(e)}") from e
+            raise ValueError(
+                f"Failed to convert ScenarioList to DataFrame: {str(e)}"
+            ) from e
 
         # Validate target column
         if y not in df.columns:
@@ -3607,7 +3609,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
             # Compare models
             print("Training and comparing models...")
-            model_results = model_selector.compare_models(X, y_values, feature_processor.feature_names)
+            model_results = model_selector.compare_models(
+                X, y_values, feature_processor.feature_names
+            )
 
             if not model_results:
                 raise ValueError("No models could be trained successfully")
@@ -3619,12 +3623,14 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             prediction = Prediction(
                 model_result=best_model,
                 feature_processor=feature_processor,
-                target_column=y
+                target_column=y,
             )
 
             # Display results summary
             print(f"\\nBest model: {best_model.name}")
-            print(f"Cross-validation score: {best_model.cv_score:.3f} ± {best_model.cv_std:.3f}")
+            print(
+                f"Cross-validation score: {best_model.cv_score:.3f} ± {best_model.cv_std:.3f}"
+            )
             print(f"Test score: {best_model.test_score:.3f}")
             print(f"Overfitting gap: {best_model.overfitting_gap:.3f}")
 

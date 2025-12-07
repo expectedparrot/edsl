@@ -7,8 +7,6 @@ This script demonstrates the AG-Grid functionality with various DataFrame types.
 
 import pandas as pd
 import numpy as np
-import sys
-import os
 
 from edsl.widgets.dataframe_grid_widget import DataFrameGridWidget
 

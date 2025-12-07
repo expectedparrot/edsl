@@ -7,8 +7,6 @@ This script demonstrates the correct Enterprise widget usage with Chart Range co
 
 import pandas as pd
 import numpy as np
-import sys
-import os
 
 from edsl.widgets.dataframe_grid_charts_enterprise_widget import DataFrameGridChartsEnterpriseWidget
 

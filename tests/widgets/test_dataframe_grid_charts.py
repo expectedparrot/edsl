@@ -7,8 +7,6 @@ This script demonstrates the combined AG-Grid and AG-Charts functionality.
 
 import pandas as pd
 import numpy as np
-import sys
-import os
 
 from edsl.widgets.dataframe_grid_charts_widget import DataFrameGridChartsWidget
 
