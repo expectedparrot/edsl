@@ -133,6 +133,12 @@ def test_serialization_coverage():
             "ResultPairComparison",
             "BaseMacro",  # Abstract base class for Macro and CompositeMacro
             "CompositeMacro",
+            # Test classes that should not be included in serialization coverage
+            "MacroForTesting",
+            "NoDefault",
+            "TestMacro1",
+            "TestMacro2",
+            "BadMacro",
         ]
     )
 

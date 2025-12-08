@@ -164,6 +164,7 @@ class Jobs(Base):
         self.models: ModelList = models
 
         self._where_clauses = []
+        self._include_expression = None
 
         self._post_run_methods = []
         self._depends_on = None
@@ -565,6 +566,50 @@ class Jobs(Base):
         """Compute the cost of a completed job in USD."""
         return job_results.compute_job_cost()
 
+    def include_when(self, expression: str) -> "Jobs":
+        """Filter interview combinations using a Jinja2 expression.
+
+        This method allows filtering which (agent, scenario, model) combinations
+        will be included when generating interviews. Only combinations where the
+        expression evaluates to True will be yielded.
+
+        Parameters
+        ----------
+        expression : str
+            A Jinja2 expression that will be evaluated for each combination.
+            Available variables: agent, scenario, model (with their attributes).
+            The expression should evaluate to a boolean.
+
+        Returns
+        -------
+        Jobs
+            The Jobs instance with the include expression set (fluent interface).
+
+        Examples
+        --------
+        Only run interviews where scenario index matches agent index:
+
+            >>> from edsl.jobs import Jobs
+            >>> job = Jobs.example()
+            >>> job.include_when("{{ scenario._index == agent._index }}")
+            Jobs(...)
+
+        Only use the first 5 agents:
+
+            >>> job = Jobs.example()
+            >>> job.include_when("{{ agent._index < 5 }}")
+            Jobs(...)
+
+        Only even-indexed scenarios:
+
+            >>> job = Jobs.example()
+            >>> job.include_when("{{ scenario._index % 2 == 0 }}")
+            Jobs(...)
+
+        """
+        self._include_expression = expression
+        return self
+
     def replace_missing_objects(self) -> None:
         """If the agents, models, or scenarios are not set, replace them with defaults."""
         from ..agents import Agent
@@ -592,7 +637,7 @@ class Jobs(Base):
             self.replace_missing_objects()
             yield from InterviewsConstructor(
                 self, cache=self.run_config.environment.cache
-            ).create_interviews()
+            ).create_interviews(include_expression=self._include_expression)
 
     def show_flow(self, filename: Optional[str] = None) -> None:
         """Visualize either the *Job* dependency/post-processing flow **or** the underlying survey flow.

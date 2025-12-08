@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from ..results import Results, Result
     from ..scenarios import ScenarioList
     from ..buckets.bucket_collection import BucketCollection
+    from .vibes.vibe_accessor import SurveyVibeAccessor
     from ..key_management.key_lookup import KeyLookup
     from ..scenarios import FileStore
 
@@ -1239,6 +1240,78 @@ class Survey(Base):
         # Adding a question with a duplicate name would raise SurveyCreationError
         """
         return EditSurvey(self).add_question(question, index)
+
+    def combine_multiple_choice_to_matrix(
+        self,
+        question_names: List[str],
+        matrix_question_name: str,
+        matrix_question_text: Optional[str] = None,
+        use_question_text_as_items: bool = True,
+        remove_original_questions: bool = True,
+        index: Optional[int] = None,
+        **kwargs,
+    ) -> "Survey":
+        """
+        Combine multiple choice questions into a single matrix question.
+
+        This is useful when importing surveys from platforms like Qualtrics or SurveyMonkey
+        where matrix questions are sometimes broken down into separate multiple choice questions.
+
+        Args:
+            question_names: List of question names to combine into a matrix
+            matrix_question_name: Name for the new matrix question
+            matrix_question_text: Text for the new matrix question. If None, will attempt to
+                                  infer from the common prefix of existing question texts.
+            use_question_text_as_items: If True, uses question_text as matrix items.
+                                       If False, uses question_name as matrix items.
+                                       When matrix_question_text is None and this is True,
+                                       the items will be auto-extracted from question texts.
+            remove_original_questions: If True, removes the original questions after combining
+            index: Position to insert the matrix question. If None, adds at the end.
+            **kwargs: Additional arguments to pass to QuestionMatrix constructor
+
+        Returns:
+            Survey: A new Survey object with the matrix question
+
+        Raises:
+            ValueError: If questions don't exist, aren't multiple choice, or have incompatible options
+
+        Examples:
+            >>> from edsl import Survey, QuestionMultipleChoice
+
+            # Example 1: Explicit matrix question text
+            >>> q1 = QuestionMultipleChoice("satisfaction_work", "How satisfied are you with work?", ["Very satisfied", "Somewhat satisfied", "Not satisfied"])
+            >>> q2 = QuestionMultipleChoice("satisfaction_pay", "How satisfied are you with pay?", ["Very satisfied", "Somewhat satisfied", "Not satisfied"])
+            >>> survey = Survey().add_question(q1).add_question(q2)
+            >>> new_survey = survey.combine_multiple_choice_to_matrix(
+            ...     question_names=["satisfaction_work", "satisfaction_pay"],
+            ...     matrix_question_name="satisfaction_matrix",
+            ...     matrix_question_text="How satisfied are you with each aspect?"
+            ... )
+
+            # Example 2: Auto-inferred matrix question text
+            >>> q1 = QuestionMultipleChoice("trust1", "Overall, how much would you trust: - A freelancer without AI", ["High", "Medium", "Low"])
+            >>> q2 = QuestionMultipleChoice("trust2", "Overall, how much would you trust: - A freelancer with AI", ["High", "Medium", "Low"])
+            >>> survey = Survey().add_question(q1).add_question(q2)
+            >>> new_survey = survey.combine_multiple_choice_to_matrix(
+            ...     question_names=["trust1", "trust2"],
+            ...     matrix_question_name="trust_matrix"
+            ...     # matrix_question_text will be inferred as "Overall, how much would you trust"
+            ...     # matrix items will be ["A freelancer without AI", "A freelancer with AI"]
+            ... )
+        """
+        from .matrix_combiner import combine_multiple_choice_to_matrix
+
+        return combine_multiple_choice_to_matrix(
+            survey=self,
+            question_names=question_names,
+            matrix_question_name=matrix_question_name,
+            matrix_question_text=matrix_question_text,
+            use_question_text_as_items=use_question_text_as_items,
+            remove_original_questions=remove_original_questions,
+            index=index,
+            **kwargs,
+        )
 
     def add_summation_question(
         self,
@@ -3431,6 +3504,25 @@ class Survey(Base):
             scenario_keys,
             verbose,
         )
+    @property
+    def vibe(self) -> "SurveyVibeAccessor":
+        """Access vibe-based survey editing methods.
+
+        Returns a SurveyVibeAccessor that provides natural language methods
+        for editing, adding questions, and describing the survey.
+
+        Returns:
+            SurveyVibeAccessor: Accessor for vibe methods
+
+        Examples:
+            >>> survey = Survey.from_vibes("Customer satisfaction")  # doctest: +SKIP
+            >>> survey.vibe.edit("Translate to Spanish")  # doctest: +SKIP
+            >>> survey.vibe.add("Add age question")  # doctest: +SKIP
+            >>> survey.vibe.describe()  # doctest: +SKIP
+        """
+        from .vibes.vibe_accessor import SurveyVibeAccessor
+
+        return SurveyVibeAccessor(self)
 
     @classmethod
     @with_spinner("Generating survey from description...")
@@ -3441,12 +3533,19 @@ class Survey(Base):
         num_questions: Optional[int] = None,
         model: str = "gpt-4o",
         temperature: float = 0.7,
+        remote: bool = False,
     ) -> "Survey":
         """Generate a survey from a natural language description.
 
         This method uses an LLM to generate a complete survey based on a description
-        of what the survey should cover. It automatically selects appropriate question
-        types and formats.
+        of what the survey should cover. It can execute in two modes:
+        - Local: Uses your OPENAI_API_KEY to generate surveys locally
+        - Remote: Delegates to a FastAPI server (used when no key or remote=True)
+
+        The method automatically determines which mode to use:
+        1. If remote=True, always use remote generation
+        2. If OPENAI_API_KEY is not set, automatically use remote generation
+        3. Otherwise, use local generation
 
         Args:
             description: Natural language description of the survey topic.
@@ -3458,14 +3557,20 @@ class Survey(Base):
                 the LLM will decide based on the topic (typically 5-10).
             model: OpenAI model to use for generation (default: "gpt-4o")
             temperature: Temperature for generation (default: 0.7)
+            remote: Force remote generation even if OPENAI_API_KEY is available
+                (default: False)
 
         Returns:
             Survey: A new Survey instance with the generated questions
 
         Examples:
-            Basic usage:
+            Basic usage (automatically chooses local/remote based on API key):
 
             >>> survey = Survey.from_vibes("Survey about a new consumer brand of vitamin water")  # doctest: +SKIP
+
+            Force remote generation:
+
+            >>> survey = Survey.from_vibes("Employee engagement survey", remote=True)  # doctest: +SKIP
 
             With specific number of questions:
 
@@ -3480,180 +3585,26 @@ class Survey(Base):
             ... )  # doctest: +SKIP
 
         Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
+            - Local mode requires OPENAI_API_KEY environment variable to be set
+            - Remote mode requires EXPECTED_PARROT_API_KEY and network access to server
+            - If no OPENAI_API_KEY is available, automatically uses remote generation
             - The generator will select from available question types: free_text,
               multiple_choice, checkbox, numerical, likert_five, linear_scale,
               yes_no, rank, budget, list, matrix
             - Questions are automatically given appropriate names and options
         """
-        from .vibes import generate_survey_from_vibes
+        from .vibes.vibes_dispatcher import default_dispatcher
 
-        return generate_survey_from_vibes(
-            cls,
-            description,
+        return default_dispatcher.dispatch(
+            target="survey",
+            method="from_vibes",
+            survey_cls=cls,
+            description=description,
             num_questions=num_questions,
             model=model,
             temperature=temperature,
+            remote=remote,
         )
-
-    def vibe_edit(
-        self,
-        edit_instructions: str,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.7,
-    ) -> "Survey":
-        """Edit the survey using natural language instructions.
-
-        This method uses an LLM to modify an existing survey based on natural language
-        instructions. It can translate questions, change wording, drop questions, or
-        make other modifications as requested.
-
-        Args:
-            edit_instructions: Natural language description of the edits to apply.
-                Examples:
-                - "Translate all questions to Spanish"
-                - "Make the language more formal"
-                - "Remove the third question"
-                - "Change all likert scales to multiple choice questions"
-                - "Add a more casual tone to all questions"
-            model: OpenAI model to use for editing (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.7)
-
-        Returns:
-            Survey: A new Survey instance with the edited questions
-
-        Examples:
-            Basic usage:
-
-            >>> survey = Survey.from_vibes("Customer satisfaction survey")  # doctest: +SKIP
-            >>> edited_survey = survey.vibe_edit("Translate to Spanish")  # doctest: +SKIP
-
-            Make language more formal:
-
-            >>> survey = Survey.from_vibes("Employee feedback survey")  # doctest: +SKIP
-            >>> edited_survey = survey.vibe_edit("Make the language more formal and professional")  # doctest: +SKIP
-
-            Remove questions:
-
-            >>> survey = Survey.from_vibes("Product feedback survey")  # doctest: +SKIP
-            >>> edited_survey = survey.vibe_edit("Remove any questions about pricing")  # doctest: +SKIP
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - The editor will maintain question structure and types unless explicitly asked to change them
-            - Questions can be dropped by asking to remove or delete them
-            - Translations will apply to both question text and options
-        """
-        from .vibes import edit_survey_with_vibes
-
-        return edit_survey_with_vibes(
-            self, edit_instructions, model=model, temperature=temperature
-        )
-
-    def vibe_add(
-        self,
-        add_instructions: str,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.7,
-    ) -> "Survey":
-        """Add new questions to the survey using natural language instructions.
-
-        This method uses an LLM to add new questions to an existing survey based on
-        natural language instructions. It can add simple questions, questions with
-        skip logic, or multiple related questions. Existing skip logic is preserved.
-
-        Args:
-            add_instructions: Natural language description of what to add.
-                Examples:
-                - "Add a question asking their age"
-                - "Add a follow-up question about satisfaction if they answered yes to q0"
-                - "Add questions about demographics: age, gender, and location"
-                - "Add a question asking about income, but only show it if age > 18"
-            model: OpenAI model to use for generation (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.7)
-
-        Returns:
-            Survey: A new Survey instance with the original questions plus the new ones
-
-        Examples:
-            Add a simple question:
-
-            >>> survey = Survey.from_vibes("Customer satisfaction survey")  # doctest: +SKIP
-            >>> expanded_survey = survey.vibe_add("Add a question asking their age")  # doctest: +SKIP
-
-            Add a question with skip logic:
-
-            >>> survey = Survey([q0, q1])  # doctest: +SKIP
-            >>> survey_with_skip = survey.vibe_add(  # doctest: +SKIP
-            ...     "Add a question about purchase frequency, but only if they answered 'yes' to q0"
-            ... )
-
-            Add multiple related questions:
-
-            >>> survey = Survey.from_vibes("Product feedback")  # doctest: +SKIP
-            >>> expanded = survey.vibe_add("Add demographic questions: age, gender, location")  # doctest: +SKIP
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - New questions are appended to the end of the survey
-            - Skip logic can reference existing questions by their question_name
-            - Skip logic syntax: conditions like "{{ q0.answer }} == 'yes'" or "{{ age.answer }} > 18"
-            - Multiple questions can be added in a single call
-            - Existing skip logic in the survey is preserved
-        """
-        from .vibes import add_questions_with_vibes
-
-        return add_questions_with_vibes(
-            self, add_instructions, model=model, temperature=temperature
-        )
-
-    def vibe_describe(
-        self,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.7,
-    ) -> "Scenario":
-        """Generate a title and description for the survey.
-
-        This method uses an LLM to analyze the survey questions and generate
-        a descriptive title and detailed description of what the survey is about.
-
-        Args:
-            model: OpenAI model to use for generation (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.7)
-
-        Returns:
-            dict: Dictionary with keys:
-                - "proposed_title": A single sentence title for the survey
-                - "description": A paragraph-length description of the survey
-
-        Examples:
-            Basic usage:
-
-            >>> survey = Survey.from_vibes("Customer satisfaction survey")  # doctest: +SKIP
-            >>> description = survey.vibe_describe()  # doctest: +SKIP
-            >>> print(description["proposed_title"])  # doctest: +SKIP
-            >>> print(description["description"])  # doctest: +SKIP
-
-            Using a different model:
-
-            >>> survey = Survey([q0, q1, q2])  # doctest: +SKIP
-            >>> description = survey.vibe_describe(model="gpt-4o-mini")  # doctest: +SKIP
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - The title will be a single sentence that captures the survey's essence
-            - The description will be a paragraph explaining the survey's purpose and topics
-            - Analyzes all questions to understand the overall survey theme
-        """
-        from .vibes import describe_survey_with_vibes
-
-        d = describe_survey_with_vibes(self, model=model, temperature=temperature)
-        from ..scenarios import Scenario
-
-        return Scenario(**d)
 
     @classmethod
     def _infer_question_types(

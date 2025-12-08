@@ -1011,6 +1011,44 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         return self._properties.columns
 
+    def show_columns(self):
+        """Display columns in a tree format using a mermaid diagram.
+
+        This method creates a hierarchical visualization of all columns in the Results object,
+        organized by data type. Unlike the columns() property which returns a flat list,
+        this method shows the relationship between data types and their corresponding keys.
+
+        Returns:
+            ColumnTreeVisualization: An object that displays as a mermaid diagram in Jupyter
+            notebooks and as formatted text in terminals.
+
+        Example:
+
+        >>> r = Results.example()
+        >>> r.show_columns()  # doctest: +SKIP
+        # Shows a tree diagram with data types as parent nodes and keys as children
+        """
+        from .column_tree_visualization import ColumnTreeVisualization
+
+        # Get the hierarchical columns
+        relevant_cols = self.relevant_columns()
+
+        # Group columns by data type
+        data_types = {}
+        for col in relevant_cols:
+            if "." in col:
+                data_type, key = col.split(".", 1)
+                if data_type not in data_types:
+                    data_types[data_type] = []
+                data_types[data_type].append(key)
+            else:
+                # Handle columns without prefix (shouldn't happen in normal cases)
+                if "other" not in data_types:
+                    data_types["other"] = []
+                data_types["other"].append(col)
+
+        return ColumnTreeVisualization(data_types)
+
     @property
     def answer_keys(self) -> dict[str, str]:
         """Return a mapping of answer keys to question text.
@@ -1684,6 +1722,233 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             disable_remote_inference=True,
         )
         return results
+
+    @classmethod
+    def from_survey_monkey(
+        cls,
+        filepath: str,
+        verbose: bool = False,
+        create_semantic_names: bool = False,
+        repair_excel_dates: bool = True,
+        order_options_semantically: bool = True,
+        disable_remote_inference: bool = True,
+        **run_kwargs,
+    ) -> "Results":
+        """Create a Results object from a Survey Monkey CSV or Excel export.
+
+        This method imports a Survey Monkey export (CSV or Excel) and generates a
+        Results object by running agents (one per respondent) through the
+        reconstructed survey.
+
+        The import process:
+        1. Converts Excel to CSV if needed
+        2. Parses the CSV to extract questions, options, and responses
+        3. Creates a Survey with questions matching the original
+        4. Creates an AgentList with one agent per respondent
+        5. Runs the agents through the survey to generate Results
+
+        Args:
+            filepath: Path to the Survey Monkey export file. Supports CSV (.csv)
+                and Excel (.xlsx, .xls) formats.
+            verbose: If True, print progress information during parsing.
+            create_semantic_names: If True, rename questions with semantic names
+                derived from question text instead of index-based names.
+            repair_excel_dates: If True, use LLM to detect and repair Excel-mangled
+                date formatting in answer options (e.g., "5-Mar" → "3-5").
+                Enabled by default since Excel date mangling is common.
+            order_options_semantically: If True, use LLM to analyze and reorder
+                multiple choice options in semantically correct order (e.g., company
+                sizes from small to large). Enabled by default.
+            disable_remote_inference: If True, run locally without remote API calls.
+                Defaults to True.
+            **run_kwargs: Additional arguments passed to Jobs.run().
+
+        Returns:
+            Results: A Results object containing the imported survey responses.
+
+        Examples:
+            >>> # Basic usage with CSV
+            >>> results = Results.from_survey_monkey("survey_results.csv")  # doctest: +SKIP
+
+            >>> # Basic usage with Excel
+            >>> results = Results.from_survey_monkey("survey_results.xlsx")  # doctest: +SKIP
+
+            >>> # With semantic question names and verbose output
+            >>> results = Results.from_survey_monkey(
+            ...     "survey_results.csv",
+            ...     verbose=True,
+            ...     create_semantic_names=True
+            ... )  # doctest: +SKIP
+
+            >>> # Disable LLM-based processing for faster import
+            >>> results = Results.from_survey_monkey(
+            ...     "survey_results.csv",
+            ...     repair_excel_dates=False,
+            ...     order_options_semantically=False
+            ... )  # doctest: +SKIP
+        """
+        import os
+        import tempfile
+        from ..conjure.survey_monkey import ImportSurveyMonkey
+
+        # Check file extension to determine if conversion is needed
+        _, ext = os.path.splitext(filepath.lower())
+
+        if ext in (".xlsx", ".xls"):
+            # Convert Excel to CSV
+            import pandas as pd
+
+            if verbose:
+                print(f"Converting Excel file to CSV: {filepath}")
+
+            df = pd.read_excel(filepath, header=None)
+
+            # Create a temporary CSV file
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".csv", delete=False, newline=""
+            ) as tmp_file:
+                csv_path = tmp_file.name
+                df.to_csv(tmp_file, index=False, header=False)
+
+            try:
+                importer = ImportSurveyMonkey(
+                    csv_file=csv_path,
+                    verbose=verbose,
+                    create_semantic_names=create_semantic_names,
+                    repair_excel_dates=repair_excel_dates,
+                    order_options_semantically=order_options_semantically,
+                )
+                return importer.run(
+                    disable_remote_inference=disable_remote_inference, **run_kwargs
+                )
+            finally:
+                # Clean up temporary file
+                os.unlink(csv_path)
+        else:
+            # Assume CSV format
+            importer = ImportSurveyMonkey(
+                csv_file=filepath,
+                verbose=verbose,
+                create_semantic_names=create_semantic_names,
+                repair_excel_dates=repair_excel_dates,
+                order_options_semantically=order_options_semantically,
+            )
+            return importer.run(
+                disable_remote_inference=disable_remote_inference, **run_kwargs
+            )
+
+    @classmethod
+    def from_qualtrics(
+        cls,
+        filepath: str,
+        verbose: bool = False,
+        create_semantic_names: bool = False,
+        disable_remote_inference: bool = True,
+        **run_kwargs,
+    ) -> "Results":
+        """Create a Results object from a Qualtrics CSV or tab-delimited export.
+
+        This method imports a Qualtrics export (CSV or tab with 3-row headers) and generates a
+        Results object by running agents (one per respondent) through the
+        reconstructed survey.
+
+        The import process:
+        1. Parses the 3-row header Qualtrics format:
+           - Row 1: Short labels (Q1, Q2_1, etc.)
+           - Row 2: Question text
+           - Row 3: ImportId metadata (JSON format)
+        2. Detects question types and creates appropriate EDSL questions
+        3. Creates a Survey with questions matching the original
+        4. Creates an AgentList with one agent per respondent
+        5. Runs the agents through the survey to generate Results
+
+        Note: Tab-delimited files (.tab, .tsv) are automatically converted to CSV format
+        before processing, so both CSV and tab formats are supported.
+
+        Args:
+            filepath: Path to the Qualtrics export file. Can be CSV (.csv) or
+                tab-delimited (.tab, .tsv). Must be in the standard Qualtrics
+                export format with 3 header rows.
+            verbose: If True, print progress information during parsing.
+            create_semantic_names: If True, rename questions with semantic names
+                derived from question text instead of Q1, Q2, etc.
+            disable_remote_inference: If True, run locally without remote API calls.
+                Defaults to True.
+            **run_kwargs: Additional arguments passed to Jobs.run().
+
+        Returns:
+            Results: A Results object containing the imported survey responses.
+
+        Examples:
+            >>> # Basic usage with CSV
+            >>> results = Results.from_qualtrics("qualtrics_export.csv")  # doctest: +SKIP
+
+            >>> # Basic usage with tab file
+            >>> results = Results.from_qualtrics("qualtrics_export.tab")  # doctest: +SKIP
+
+            >>> # With semantic question names and verbose output
+            >>> results = Results.from_qualtrics(
+            ...     "qualtrics_export.csv",
+            ...     verbose=True,
+            ...     create_semantic_names=True
+            ... )  # doctest: +SKIP
+
+            >>> # Run with additional parameters
+            >>> results = Results.from_qualtrics(
+            ...     "qualtrics_export.csv",
+            ...     disable_remote_inference=True,
+            ...     raise_validation_errors=False
+            ... )  # doctest: +SKIP
+        """
+        import os
+        import tempfile
+        from ..conjure.qualtrics import ImportQualtrics
+
+        # Check file extension to determine if conversion is needed
+        _, ext = os.path.splitext(filepath.lower())
+
+        if ext in (".tab", ".tsv"):
+            # Convert tab-delimited to CSV
+            import pandas as pd
+
+            if verbose:
+                print(f"Converting tab-delimited file to CSV: {filepath}")
+
+            # Read tab-delimited file
+            df = pd.read_csv(filepath, sep="\t", encoding="utf-8")
+
+            # Create a temporary CSV file
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".csv", delete=False, newline=""
+            ) as tmp_file:
+                csv_path = tmp_file.name
+                df.to_csv(tmp_file, index=False)
+
+            try:
+                importer = ImportQualtrics(
+                    csv_file=csv_path,
+                    verbose=verbose,
+                    create_semantic_names=create_semantic_names,
+                )
+                return importer.run(
+                    disable_remote_inference=disable_remote_inference, **run_kwargs
+                )
+            finally:
+                # Clean up temporary file
+                try:
+                    os.unlink(csv_path)
+                except OSError:
+                    pass
+        else:
+            # Handle as CSV directly
+            importer = ImportQualtrics(
+                csv_file=filepath,
+                verbose=verbose,
+                create_semantic_names=create_semantic_names,
+            )
+            return importer.run(
+                disable_remote_inference=disable_remote_inference, **run_kwargs
+            )
 
     def rich_print(self):
         """Display an object as a table."""
