@@ -2243,7 +2243,7 @@ files = [
 name = "joblib"
 version = "1.5.2"
 description = "Lightweight pipelining with Python functions"
-optional = true
+optional = false
 python-versions = ">=3.9"
 files = [
     {file = "joblib-1.5.2-py3-none-any.whl", hash = "sha256:4e1f0bdbb987e6d843c70cf43714cb276623def372df3c22fe5266b2670bc241"},
@@ -6143,7 +6143,7 @@ torch = ["packaging", "safetensors[numpy]", "torch (>=1.10)"]
 name = "scikit-learn"
 version = "1.7.2"
 description = "A set of python modules for machine learning and data mining"
-optional = true
+optional = false
 python-versions = ">=3.10"
 files = [
     {file = "scikit_learn-1.7.2-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:6b33579c10a3081d076ab403df4a4190da4f4432d443521674637677dc91e61f"},
@@ -6830,7 +6830,7 @@ syntax = ["tree-sitter (>=0.25.0)", "tree-sitter-bash (>=0.23.0)", "tree-sitter-
 name = "threadpoolctl"
 version = "3.6.0"
 description = "threadpoolctl"
-optional = true
+optional = false
 python-versions = ">=3.9"
 files = [
     {file = "threadpoolctl-3.6.0-py3-none-any.whl", hash = "sha256:43a0b8fd5a2928500110039e43a5eed8480b918967083ea48dc3ab9f13c4a7fb"},
@@ -7659,4 +7659,4 @@ viz = ["altair", "nbclient", "nbformat", "pyyaml", "termplotlib"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.14"
-content-hash = "74e21ef85468b9c09308119de089125184f03243ababa4b87ee9f29730f8ee40"
+content-hash = "478f3115a4492a298ac6b0f5d30d560390992320ceea2f4cf57f734f1dd04470"
