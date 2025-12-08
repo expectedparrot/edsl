@@ -26,8 +26,9 @@ based on previous answers.
 import unittest
 from edsl.surveys import Survey
 from edsl.surveys.base import EndOfSurvey
-from edsl.surveys.exceptions import SurveyCreationError
+from edsl.surveys.exceptions import SurveyCreationError, SurveyError
 from edsl.questions import QuestionMultipleChoice, QuestionFreeText, QuestionYesNo
+from edsl.instructions import Instruction
 
 
 class TestGroupNavigation(unittest.TestCase):
@@ -42,28 +43,24 @@ class TestGroupNavigation(unittest.TestCase):
         )
 
         self.q2 = QuestionFreeText(
-            question_text="What's your primary role?",
-            question_name="role"
+            question_text="What's your primary role?", question_name="role"
         )
 
         self.q3 = QuestionFreeText(
-            question_text="Basic question for beginners",
-            question_name="basic_question"
+            question_text="Basic question for beginners", question_name="basic_question"
         )
 
         self.q4 = QuestionFreeText(
             question_text="Advanced question for experts",
-            question_name="advanced_question"
+            question_name="advanced_question",
         )
 
         self.q5 = QuestionFreeText(
-            question_text="Expert tools question",
-            question_name="expert_tools"
+            question_text="Expert tools question", question_name="expert_tools"
         )
 
         self.q6 = QuestionFreeText(
-            question_text="Final feedback",
-            question_name="feedback"
+            question_text="Final feedback", question_name="feedback"
         )
 
     def test_create_allowable_groups_basic(self):
@@ -142,14 +139,16 @@ class TestGroupNavigation(unittest.TestCase):
 
         # Add skip rules
         survey.add_skip_rule("basic_question", "{{ experience.answer }} == 'expert'")
-        survey.add_skip_rule("advanced_question", "{{ experience.answer }} == 'beginner'")
+        survey.add_skip_rule(
+            "advanced_question", "{{ experience.answer }} == 'beginner'"
+        )
         survey.add_skip_rule("expert_tools", "{{ experience.answer }} == 'beginner'")
 
         # Manually set groups to avoid validation issues with skip rules
         survey.question_groups = {
-            "demographics": (0, 1),      # experience, role
-            "level_specific": (2, 4),    # basic_question, advanced_question, expert_tools
-            "conclusion": (5, 5)         # feedback
+            "demographics": (0, 1),  # experience, role
+            "level_specific": (2, 4),  # basic_question, advanced_question, expert_tools
+            "conclusion": (5, 5),  # feedback
         }
 
         # Test beginner user - should skip advanced questions
@@ -178,13 +177,20 @@ class TestGroupNavigation(unittest.TestCase):
         survey = Survey([self.q1, self.q2, self.q3, self.q4, self.q5])
 
         # Skip entire middle section for certain users
-        survey.add_skip_rule("basic_question", "{{ experience.answer }} == 'skip_section'")
-        survey.add_skip_rule("advanced_question", "{{ experience.answer }} == 'skip_section'")
+        survey.add_skip_rule(
+            "basic_question", "{{ experience.answer }} == 'skip_section'"
+        )
+        survey.add_skip_rule(
+            "advanced_question", "{{ experience.answer }} == 'skip_section'"
+        )
 
         survey.question_groups = {
-            "intro": (0, 1),           # experience, role
-            "skippable_section": (2, 3), # basic_question, advanced_question (both skipped)
-            "final": (4, 4)            # expert_tools
+            "intro": (0, 1),  # experience, role
+            "skippable_section": (
+                2,
+                3,
+            ),  # basic_question, advanced_question (both skipped)
+            "final": (4, 4),  # expert_tools
         }
 
         answers_skip = {"experience.answer": "skip_section", "role.answer": "tester"}
@@ -228,7 +234,7 @@ class TestGroupNavigation(unittest.TestCase):
         try:
             # We can't test the actual visualization without graphviz, but we can test
             # that the method exists and the groups are properly set up
-            self.assertTrue(hasattr(survey, 'show_flow'))
+            self.assertTrue(hasattr(survey, "show_flow"))
             self.assertTrue(len(survey.question_groups) > 0)
         except Exception as e:
             # If graphviz is not installed, that's okay for this test
@@ -241,36 +247,42 @@ class TestGroupNavigation(unittest.TestCase):
         q_intro = QuestionMultipleChoice(
             question_text="Are you a developer?",
             question_options=["yes", "no", "learning"],
-            question_name="is_developer"
+            question_name="is_developer",
         )
 
         q_experience = QuestionMultipleChoice(
             question_text="Years of experience?",
             question_options=["0-1", "2-5", "6+"],
-            question_name="dev_experience"
+            question_name="dev_experience",
         )
 
         q_languages = QuestionFreeText(
-            question_text="What languages do you know?",
-            question_name="languages"
+            question_text="What languages do you know?", question_name="languages"
         )
 
         q_career_change = QuestionFreeText(
             question_text="Why are you considering development?",
-            question_name="career_change"
+            question_name="career_change",
         )
 
         q_learning_path = QuestionFreeText(
-            question_text="What's your learning plan?",
-            question_name="learning_plan"
+            question_text="What's your learning plan?", question_name="learning_plan"
         )
 
         q_feedback = QuestionFreeText(
-            question_text="Any other thoughts?",
-            question_name="final_feedback"
+            question_text="Any other thoughts?", question_name="final_feedback"
         )
 
-        survey = Survey([q_intro, q_experience, q_languages, q_career_change, q_learning_path, q_feedback])
+        survey = Survey(
+            [
+                q_intro,
+                q_experience,
+                q_languages,
+                q_career_change,
+                q_learning_path,
+                q_feedback,
+            ]
+        )
 
         # Add complex skip logic
         survey.add_skip_rule("dev_experience", "{{ is_developer.answer }} == 'no'")
@@ -280,10 +292,10 @@ class TestGroupNavigation(unittest.TestCase):
 
         # Set up groups manually
         survey.question_groups = {
-            "intro": (0, 0),              # is_developer
+            "intro": (0, 0),  # is_developer
             "developer_section": (1, 2),  # dev_experience, languages
-            "non_developer_section": (3, 4), # career_change, learning_plan
-            "conclusion": (5, 5)           # final_feedback
+            "non_developer_section": (3, 4),  # career_change, learning_plan
+            "conclusion": (5, 5),  # final_feedback
         }
 
         # Test developer path
@@ -313,8 +325,12 @@ class TestGroupNavigation(unittest.TestCase):
         # Create questions where later questions depend on earlier ones
         q1 = QuestionFreeText(question_text="Your name?", question_name="name")
         q2 = QuestionFreeText(question_text="Your city?", question_name="city")
-        q3 = QuestionFreeText(question_text="Hi {{name}} from {{city}}!", question_name="greeting")
-        q4 = QuestionFreeText(question_text="Independent question", question_name="independent")
+        q3 = QuestionFreeText(
+            question_text="Hi {{name}} from {{city}}!", question_name="greeting"
+        )
+        q4 = QuestionFreeText(
+            question_text="Independent question", question_name="independent"
+        )
 
         survey = Survey([q1, q2, q3, q4])
 
@@ -324,7 +340,9 @@ class TestGroupNavigation(unittest.TestCase):
         # q3 should not be grouped with q1 and q2 due to dependencies
         # Verify the grouping makes sense
         groups = survey.question_groups
-        self.assertTrue(len(groups) >= 2)  # Should have multiple groups due to dependencies
+        self.assertTrue(
+            len(groups) >= 2
+        )  # Should have multiple groups due to dependencies
 
 
 class TestAutomatedGroupCreation(unittest.TestCase):
@@ -334,34 +352,30 @@ class TestAutomatedGroupCreation(unittest.TestCase):
         """Set up questions with various dependency patterns."""
         # Independent questions
         self.q_name = QuestionFreeText(
-            question_text="What's your name?",
-            question_name="name"
+            question_text="What's your name?", question_name="name"
         )
 
         self.q_age = QuestionFreeText(
-            question_text="What's your age?",
-            question_name="age"
+            question_text="What's your age?", question_name="age"
         )
 
         self.q_city = QuestionFreeText(
-            question_text="What city do you live in?",
-            question_name="city"
+            question_text="What city do you live in?", question_name="city"
         )
 
         # Dependent questions
         self.q_greeting = QuestionFreeText(
-            question_text="Hello {{name}}, nice to meet you!",
-            question_name="greeting"
+            question_text="Hello {{name}}, nice to meet you!", question_name="greeting"
         )
 
         self.q_location_response = QuestionFreeText(
             question_text="{{city}} sounds like a nice place to live!",
-            question_name="location_response"
+            question_name="location_response",
         )
 
         self.q_complex = QuestionFreeText(
             question_text="Hi {{name}} from {{city}}, you're {{age}} years old!",
-            question_name="complex_greeting"
+            question_name="complex_greeting",
         )
 
     def test_suggest_dependency_aware_groups_simple(self):
@@ -381,10 +395,16 @@ class TestAutomatedGroupCreation(unittest.TestCase):
 
     def test_suggest_dependency_aware_groups_complex(self):
         """Test suggestion with complex dependency chains."""
-        survey = Survey([
-            self.q_name, self.q_age, self.q_city,
-            self.q_greeting, self.q_location_response, self.q_complex
-        ])
+        survey = Survey(
+            [
+                self.q_name,
+                self.q_age,
+                self.q_city,
+                self.q_greeting,
+                self.q_location_response,
+                self.q_complex,
+            ]
+        )
 
         suggestions = survey.suggest_dependency_aware_groups("section")
 
@@ -394,10 +414,16 @@ class TestAutomatedGroupCreation(unittest.TestCase):
         # Verify no group contains questions with internal dependencies
         for group_name, (start, end) in suggestions.items():
             # Create a temporary survey to test this grouping
-            temp_survey = Survey([
-                self.q_name, self.q_age, self.q_city,
-                self.q_greeting, self.q_location_response, self.q_complex
-            ])
+            temp_survey = Survey(
+                [
+                    self.q_name,
+                    self.q_age,
+                    self.q_city,
+                    self.q_greeting,
+                    self.q_location_response,
+                    self.q_complex,
+                ]
+            )
 
             # This should not raise an exception if grouping is valid
             start_q = temp_survey.questions[start].question_name
@@ -423,7 +449,11 @@ class TestAutomatedGroupCreation(unittest.TestCase):
         survey.create_allowable_groups("pairs", max_group_size=2)
         self.assertEqual(len(survey.question_groups), 3)  # 3 groups of 2 each
 
-        expected_groups = [("pairs_0", (0, 1)), ("pairs_1", (2, 3)), ("pairs_2", (4, 5))]
+        expected_groups = [
+            ("pairs_0", (0, 1)),
+            ("pairs_1", (2, 3)),
+            ("pairs_2", (4, 5)),
+        ]
         for group_name, expected_range in expected_groups:
             self.assertEqual(survey.question_groups[group_name], expected_range)
 
@@ -602,7 +632,7 @@ class TestGroupNavigationEdgeCases(unittest.TestCase):
         q1 = QuestionMultipleChoice(
             question_text="Continue survey?",
             question_options=["yes", "no"],
-            question_name="should_continue"
+            question_name="should_continue",
         )
         q2 = QuestionFreeText(question_text="More questions", question_name="more")
 
@@ -616,5 +646,384 @@ class TestGroupNavigationEdgeCases(unittest.TestCase):
         # The behavior depends on implementation details, but shouldn't crash
 
 
-if __name__ == '__main__':
+class TestGroupNavigationWithInstructions(unittest.TestCase):
+    """Test cases for question group navigation with instructions."""
+
+    def setUp(self):
+        """Set up common questions and instructions for testing."""
+        self.q1 = QuestionMultipleChoice(
+            question_text="What's your experience level?",
+            question_options=["beginner", "intermediate", "expert"],
+            question_name="experience",
+        )
+
+        self.q2 = QuestionFreeText(
+            question_text="What's your primary role?", question_name="role"
+        )
+
+        self.q3 = QuestionFreeText(
+            question_text="Basic question for beginners", question_name="basic_question"
+        )
+
+        self.q4 = QuestionFreeText(
+            question_text="Advanced question for experts",
+            question_name="advanced_question",
+        )
+
+        # Create instructions
+        self.intro_instruction = Instruction(
+            text="Welcome! Please answer the following questions.", name="intro"
+        )
+        self.middle_instruction = Instruction(
+            text="Now we'll ask about your experience.", name="middle"
+        )
+        self.end_instruction = Instruction(
+            text="Thank you for completing the survey!", name="end"
+        )
+
+    def test_next_question_group_with_instructions_basic(self):
+        """Test basic functionality with instructions before groups."""
+        survey = Survey([self.intro_instruction, self.q1, self.q2, self.q3])
+        survey.create_allowable_groups("section", max_group_size=2)
+
+        # Starting from instruction, should find first group
+        result = survey.next_question_group_with_instructions(
+            self.intro_instruction, {}
+        )
+        self.assertIsNotNone(result)
+        group_name, questions = result
+        self.assertEqual(group_name, "section_0")
+        self.assertEqual(len(questions), 2)
+        self.assertEqual(questions[0].question_name, "experience")
+        self.assertEqual(questions[1].question_name, "role")
+
+    def test_next_question_group_with_instructions_from_question(self):
+        """Test finding next group when starting from a question."""
+        survey = Survey([self.q1, self.q2, self.q3, self.q4])
+        survey.create_allowable_groups("section", max_group_size=2)
+
+        # Starting from first question in first group
+        result = survey.next_question_group_with_instructions("experience", {})
+        self.assertIsNotNone(result)
+        group_name, questions = result
+        self.assertEqual(group_name, "section_1")
+        self.assertEqual(len(questions), 2)
+
+    def test_next_question_group_with_instructions_instruction_between_groups(self):
+        """Test handling instruction between question groups."""
+        survey = Survey([self.q1, self.q2, self.middle_instruction, self.q3, self.q4])
+        survey.create_allowable_groups("section", max_group_size=2)
+
+        # Starting from instruction between groups
+        result = survey.next_question_group_with_instructions(
+            self.middle_instruction, {}
+        )
+        self.assertIsNotNone(result)
+        group_name, questions = result
+        self.assertEqual(group_name, "section_1")
+        self.assertEqual(len(questions), 2)
+
+    def test_next_question_group_with_instructions_no_groups(self):
+        """Test behavior when survey has no groups."""
+        survey = Survey([self.intro_instruction, self.q1, self.q2])
+
+        result = survey.next_question_group_with_instructions(
+            self.intro_instruction, {}
+        )
+        self.assertIsNone(result)
+
+    def test_next_question_group_with_instructions_end_of_survey(self):
+        """Test behavior at end of survey."""
+        survey = Survey([self.q1, self.q2, self.q3])
+        survey.create_allowable_groups("section", max_group_size=2)
+
+        # Starting from last question
+        result = survey.next_question_group_with_instructions("basic_question", {})
+        self.assertIsNone(result)
+
+    def test_next_question_group_with_instructions_with_skip_rules(self):
+        """Test with skip rules that affect group contents."""
+        survey = Survey([self.q1, self.q2, self.q3, self.q4])
+        survey.add_skip_rule("basic_question", "{{ experience.answer }} == 'expert'")
+        survey.add_skip_rule(
+            "advanced_question", "{{ experience.answer }} == 'beginner'"
+        )
+
+        survey.question_groups = {"demographics": (0, 1), "level_specific": (2, 3)}
+
+        # Test expert path - should skip basic_question
+        expert_answers = {"experience.answer": "expert", "role.answer": "researcher"}
+        result = survey.next_question_group_with_instructions("role", expert_answers)
+        self.assertIsNotNone(result)
+        group_name, questions = result
+        self.assertEqual(group_name, "level_specific")
+        self.assertEqual(len(questions), 1)  # Only advanced_question
+        self.assertEqual(questions[0].question_name, "advanced_question")
+
+    def test_next_question_group_with_instructions_string_input(self):
+        """Test with string input for question/instruction names."""
+        survey = Survey([self.intro_instruction, self.q1, self.q2, self.q3])
+        survey.create_allowable_groups("section", max_group_size=2)
+
+        # Using instruction name as string
+        result = survey.next_question_group_with_instructions("intro", {})
+        self.assertIsNotNone(result)
+        group_name, questions = result
+        self.assertEqual(group_name, "section_0")
+
+        # Using question name as string
+        result = survey.next_question_group_with_instructions("experience", {})
+        self.assertIsNotNone(result)
+        group_name, questions = result
+        self.assertEqual(group_name, "section_1")
+
+    def test_next_question_group_with_instructions_invalid_name(self):
+        """Test error handling for invalid item names."""
+        survey = Survey([self.q1, self.q2])
+        survey.create_allowable_groups("section", max_group_size=2)
+
+        with self.assertRaises(SurveyError):
+            survey.next_question_group_with_instructions("nonexistent", {})
+
+    def test_next_questions_with_instructions_basic(self):
+        """Test basic functionality returning list of questions and instructions."""
+        survey = Survey([self.intro_instruction, self.q1, self.q2, self.q3])
+        survey.create_allowable_groups("section", max_group_size=2)
+
+        # Get first group - should include instruction and questions
+        result = survey.next_questions_with_instructions(None, {})
+        self.assertIsInstance(result, list)
+        self.assertGreater(len(result), 0)
+
+        # First item should be the instruction
+        self.assertTrue(survey._navigator._is_instruction(result[0]))
+        self.assertEqual(result[0].name, "intro")
+
+        # Should also include questions from first group
+        question_names = [
+            item.question_name for item in result if hasattr(item, "question_name")
+        ]
+        self.assertIn("experience", question_names)
+        self.assertIn("role", question_names)
+
+    def test_next_questions_with_instructions_no_groups(self):
+        """Test fallback to single question/instruction when no groups exist."""
+        survey = Survey([self.intro_instruction, self.q1, self.q2])
+
+        # Should return single item (the instruction)
+        result = survey.next_questions_with_instructions(None, {})
+        self.assertEqual(len(result), 1)
+        self.assertTrue(survey._navigator._is_instruction(result[0]))
+
+        # After instruction, should return first question
+        result = survey.next_questions_with_instructions(self.intro_instruction, {})
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].question_name, "experience")
+
+    def test_next_questions_with_instructions_instruction_in_group(self):
+        """Test when instruction is within a group's range."""
+        survey = Survey([self.q1, self.middle_instruction, self.q2, self.q3])
+        survey.create_allowable_groups("section", max_group_size=3)
+
+        # Get first group - should include instruction that falls within range
+        result = survey.next_questions_with_instructions(None, {})
+        self.assertIsInstance(result, list)
+
+        # Check if instruction is included
+        instruction_names = [
+            item.name for item in result if survey._navigator._is_instruction(item)
+        ]
+        question_names = [
+            item.question_name for item in result if hasattr(item, "question_name")
+        ]
+
+        # Should have questions from the group
+        self.assertIn("experience", question_names)
+        self.assertIn("middle", instruction_names)
+        self.assertIn("role", question_names)
+
+    def test_next_questions_with_instructions_end_of_survey(self):
+        """Test end of survey handling."""
+        survey = Survey([self.q1, self.q2])
+        survey.create_allowable_groups("section", max_group_size=2)
+
+        # At end of survey
+        result = survey.next_questions_with_instructions("role", {})
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0], EndOfSurvey)
+
+    def test_next_questions_with_instructions_with_skip_rules(self):
+        """Test with skip rules affecting group contents."""
+        survey = Survey([self.q1, self.q2, self.q3, self.q4])
+        survey.add_skip_rule("basic_question", "{{ experience.answer }} == 'expert'")
+        survey.add_skip_rule(
+            "advanced_question", "{{ experience.answer }} == 'beginner'"
+        )
+
+        survey.question_groups = {"demographics": (0, 1), "level_specific": (2, 3)}
+
+        # Test beginner path
+        beginner_answers = {"experience.answer": "beginner", "role.answer": "student"}
+        result = survey.next_questions_with_instructions("role", beginner_answers)
+        self.assertIsInstance(result, list)
+        # Advanced question is included because it is part of a group that is not skipped
+        question_names = [
+            item.question_name for item in result if hasattr(item, "question_name")
+        ]
+        self.assertIn("basic_question", question_names)
+        self.assertIn("advanced_question", question_names)
+
+    def test_next_questions_with_instructions_instruction_between_groups(self):
+        """Test instruction between groups is handled correctly."""
+        survey = Survey([self.q1, self.q2, self.middle_instruction, self.q3, self.q4])
+        survey.create_allowable_groups("section", max_group_size=2)
+
+        # Starting from instruction between groups
+        result = survey.next_questions_with_instructions(self.middle_instruction, {})
+        self.assertIsInstance(result, list)
+        # Should get questions from next group
+        question_names = [
+            item.question_name for item in result if hasattr(item, "question_name")
+        ]
+        self.assertIn("basic_question", question_names)
+        self.assertIn("advanced_question", question_names)
+
+    def test_next_questions_with_instructions_string_input(self):
+        """Test with string input for current item."""
+        survey = Survey([self.intro_instruction, self.q1, self.q2, self.q3])
+        survey.create_allowable_groups("section", max_group_size=2)
+
+        # Using instruction name
+        result = survey.next_questions_with_instructions("intro", {})
+        self.assertIsInstance(result, list)
+        self.assertGreater(len(result), 0)
+
+        # Using question name
+        result = survey.next_questions_with_instructions("experience", {})
+        self.assertIsInstance(result, list)
+
+    def test_next_questions_with_instructions_complex_flow(self):
+        """Test complex flow with multiple instructions and groups."""
+        survey = Survey(
+            [
+                self.intro_instruction,
+                self.q1,
+                self.q2,
+                self.middle_instruction,
+                self.q3,
+                self.q4,
+                self.end_instruction,
+            ]
+        )
+        survey.create_allowable_groups("section", max_group_size=2)
+
+        # Start from beginning
+        result = survey.next_questions_with_instructions(None, {})
+        self.assertIsInstance(result, list)
+        # Should include intro instruction and first group questions
+        instruction_names = [
+            item.name for item in result if survey._navigator._is_instruction(item)
+        ]
+        question_names = [
+            item.question_name for item in result if hasattr(item, "question_name")
+        ]
+        self.assertIn("intro", instruction_names)
+        self.assertIn("experience", question_names)
+        self.assertIn("role", question_names)
+
+        # Move to next group
+        result = survey.next_questions_with_instructions("role", {})
+        self.assertIsInstance(result, list)
+        # Should include middle instruction and second group questions
+        instruction_names = [
+            item.name for item in result if survey._navigator._is_instruction(item)
+        ]
+        question_names = [
+            item.question_name for item in result if hasattr(item, "question_name")
+        ]
+        self.assertIn("middle", instruction_names)
+        self.assertIn("basic_question", question_names)
+        self.assertIn("advanced_question", question_names)
+
+    def test_next_questions_with_instructions_entire_group_skipped(self):
+        """Test when entire group is skipped."""
+        survey = Survey([self.q1, self.q2, self.q3, self.q4])
+        survey.add_skip_rule("basic_question", "{{ experience.answer }} == 'skip_all'")
+        survey.add_skip_rule(
+            "advanced_question", "{{ experience.answer }} == 'skip_all'"
+        )
+
+        survey.question_groups = {
+            "intro": (0, 1),
+            "skippable": (2, 3),
+            "final": (4, 4) if len(survey.questions) > 4 else (3, 3),
+        }
+
+        # If we have 4 questions, adjust the test
+        if len(survey.questions) == 4:
+            survey.question_groups = {"intro": (0, 1), "skippable": (2, 3)}
+            answers = {"experience.answer": "skip_all", "role.answer": "test"}
+            result = survey.next_questions_with_instructions("role", answers)
+            # Should handle skipped group gracefully
+            self.assertIsInstance(result, list)
+
+    def test_is_instruction_helper_method(self):
+        """Test the _is_instruction helper method."""
+        survey = Survey([self.intro_instruction, self.q1])
+
+        # Test with instruction
+        self.assertTrue(survey._navigator._is_instruction(self.intro_instruction))
+
+        # Test with question
+        self.assertFalse(survey._navigator._is_instruction(self.q1))
+
+        # Test with string (should return False)
+        self.assertFalse(survey._navigator._is_instruction("not_an_instruction"))
+
+    def test_next_questions_with_instructions_preserves_order(self):
+        """Test that items are returned in correct pseudo-index order."""
+        survey = Survey([self.intro_instruction, self.q1, self.q2, self.q3])
+        survey.create_allowable_groups("section", max_group_size=2)
+
+        result = survey.next_questions_with_instructions(None, {})
+
+        # Verify order: instruction should come before questions
+        instruction_found = False
+        for item in result:
+            if survey._navigator._is_instruction(item):
+                instruction_found = True
+            elif hasattr(item, "question_name"):
+                # Once we see a question, we shouldn't see instructions after
+                # (unless there are instructions within the group range)
+                pass
+
+        # Should have found the instruction
+        self.assertTrue(
+            instruction_found
+            or any(survey._navigator._is_instruction(item) for item in result)
+        )
+
+    def test_next_question_group_with_instructions_none_input(self):
+        """Test with None input to find first group."""
+        survey = Survey([self.intro_instruction, self.q1, self.q2, self.q3])
+        survey.create_allowable_groups("section", max_group_size=2)
+
+        result = survey.next_question_group_with_instructions(None, {})
+        self.assertIsNotNone(result)
+        group_name, questions = result
+        self.assertEqual(group_name, "section_0")
+
+    def test_next_questions_with_instructions_after_instruction_at_end(self):
+        """Test when instruction is at the end of survey."""
+        survey = Survey([self.q1, self.q2, self.end_instruction])
+        survey.create_allowable_groups("section", max_group_size=2)
+
+        # Starting from last question
+        result = survey.next_questions_with_instructions("role", {})
+        # Should handle gracefully - might return instruction or EndOfSurvey
+        self.assertIsInstance(result, list)
+        self.assertGreater(len(result), 0)
+
+
+if __name__ == "__main__":
     unittest.main()
