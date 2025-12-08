@@ -76,7 +76,7 @@ class ResultsRemoteFetcher:
 
             # Fetch the remote Results object
             coop = Coop()
-            remote_results = coop.get(results_uuid, expected_object_type="results")
+            remote_results = coop.pull(results_uuid, expected_object_type="results")
 
             # Update this instance with remote data
             self.results.data = remote_results.data
