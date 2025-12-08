@@ -2538,6 +2538,78 @@ class Survey(Base):
         """
         return self._navigator.next_question_with_instructions(current_item, answers)
 
+    def next_question_group_with_instructions(
+        self,
+        current_item: Optional[Union[str, "QuestionBase", "Instruction"]] = None,
+        answers: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Tuple[str, List[Union["QuestionBase", EndOfSurveyParent]]]]:
+        """
+        Find the next question group, handling both questions and instructions.
+
+        This method extends next_question_group to handle instructions as current items.
+        If the current item is an instruction, it finds the next question group that comes
+        after that instruction in the survey sequence.
+
+        Args:
+            current_item: The current question or instruction in the survey. If None, finds the first group.
+            answers: The answers for the survey so far, used to evaluate skip rules.
+
+        Returns:
+            A tuple of (group_name, list_of_renderable_questions) or None if no more groups.
+            The list contains all questions in the group that would not be skipped, in order.
+            If the entire group is skipped, returns (group_name, [EndOfSurvey]).
+
+        Examples:
+            >>> from edsl import Survey, Instruction
+            >>> from edsl.questions import QuestionMultipleChoice
+            >>> i = Instruction(name="intro", text="Please answer.")
+            >>> q1 = QuestionMultipleChoice(question_name="q1", question_text="Age?", question_options=["18-30", "31-50"])
+            >>> q2 = QuestionMultipleChoice(question_name="q2", question_text="Gender?", question_options=["Male", "Female"])
+            >>> survey = Survey([i, q1, q2])
+            >>> _ = survey.create_allowable_groups("section", max_group_size=2)
+            >>> result = survey.next_question_group_with_instructions(i, {})
+            >>> result[0]  # Group name
+            'section_0'
+        """
+        return self._navigator.next_question_group_with_instructions(
+            current_item, answers
+        )
+
+    def next_questions_with_instructions(
+        self,
+        current_item: Optional[Union[str, "QuestionBase", "Instruction"]] = None,
+        answers: Optional[Dict[str, Any]] = None,
+    ) -> List[Union["QuestionBase", "Instruction", EndOfSurveyParent]]:
+        """
+        Return a list of questions and instructions from the next question group, or the next question/instruction.
+
+        This method first checks for the next question group. If a group exists, it returns all
+        questions and instructions (in order) that fall within that group's range. If no group
+        exists, it falls back to returning the next single question or instruction.
+
+        Args:
+            current_item: The current question or instruction in the survey. If None, finds the first group or item.
+            answers: The answers for the survey so far, used to evaluate skip rules.
+
+        Returns:
+            A list of QuestionBase and/or Instruction objects from the next question group,
+            or a list containing the next single question/instruction if no group exists.
+            The list will contain [EndOfSurvey] if the survey has ended.
+
+        Examples:
+            >>> from edsl import Survey, Instruction
+            >>> from edsl.questions import QuestionMultipleChoice
+            >>> q1 = QuestionMultipleChoice(question_name="q1", question_text="Age?", question_options=["18-30", "31-50", "50+"])
+            >>> q2 = QuestionMultipleChoice(question_name="q2", question_text="Gender?", question_options=["Male", "Female", "Other"])
+            >>> i = Instruction(name="intro", text="Please answer the following questions.")
+            >>> survey = Survey([i, q1, q2])
+            >>> _ = survey.create_allowable_groups("section", max_group_size=2)
+            >>> result = survey.next_questions_with_instructions(None, {})  # Get first group
+            >>> len(result)  # Should include instruction and questions from the group
+            3
+        """
+        return self._navigator.next_questions_with_instructions(current_item, answers)
+
     def gen_path_through_survey(self) -> Generator[QuestionBase, dict, None]:
         """Generate a coroutine that navigates through the survey based on answers.
 
