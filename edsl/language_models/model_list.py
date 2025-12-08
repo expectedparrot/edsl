@@ -71,7 +71,7 @@ class ModelList(Base, UserList):
         if len(self) > 0:
             # Collect model information
             model_info = []
-            for model in list(self)[:max_items]:
+            for model in list(self):
                 model_name = getattr(
                     model, "model", getattr(model, "_model_", "unknown")
                 )
@@ -83,12 +83,6 @@ class ModelList(Base, UserList):
                 output.append("        ", style=RICH_STYLES["default"])
                 output.append(f"{info}", style=RICH_STYLES["secondary"])
                 output.append(",\n", style=RICH_STYLES["default"])
-
-            if len(self) > max_items:
-                output.append(
-                    f"        ... ({len(self) - max_items} more)\n",
-                    style=RICH_STYLES["dim"],
-                )
 
             output.append("    ]\n", style=RICH_STYLES["default"])
         else:

@@ -40,19 +40,20 @@ def test_QuestionEDSLObject_construction():
     # Should raise an exception if question_text is missing
     invalid_question = valid_question.copy()
     invalid_question.pop("question_text")
-    with pytest.raises(TypeError):  # Missing required argument
+    from edsl.questions.exceptions import QuestionInitializationError
+    with pytest.raises(QuestionInitializationError):  # Missing required argument
         QuestionEDSLObject(**invalid_question)
 
     # Should raise an exception if expected_object_type is missing
     invalid_question = valid_question.copy()
     invalid_question.pop("expected_object_type")
-    with pytest.raises(TypeError):  # Missing required argument
+    with pytest.raises(QuestionInitializationError):  # Missing required argument
         QuestionEDSLObject(**invalid_question)
 
     # Should raise an exception if unexpected attribute is present
     invalid_question = valid_question.copy()
     invalid_question.update({"unexpected_attribute": "unexpected_value"})
-    with pytest.raises(TypeError):  # Unexpected keyword argument
+    with pytest.raises(QuestionInitializationError):  # Unexpected keyword argument
         QuestionEDSLObject(**invalid_question)
 
 
