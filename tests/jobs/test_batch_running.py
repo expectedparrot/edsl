@@ -1,7 +1,7 @@
 """Unit tests for the Jobs.run_batch method."""
 
 from edsl.jobs import Jobs
-from edsl import Model, Question, Agent, Scenario, Survey
+from edsl import Model, Question, Agent, Survey
 
 
 class TestJobsBatchRunning:

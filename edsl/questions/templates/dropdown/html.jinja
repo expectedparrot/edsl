@@ -1,0 +1,34 @@
+{# HTML template for dropdown question #}
+<div class="dropdown-question">
+    <p>{{ question_text }}</p>
+    <p><em>Searchable dropdown with {{ question_options|length }} total options.
+       Sample options (indices {{ sample_indices }}) shown:</em></p>
+
+    <div class="sample-options">
+        {% for i in sample_indices %}
+        <div class="sample-option">{{ question_options[i] }}</div>
+        {% endfor %}
+        {% if question_options|length > sample_indices|length %}
+        <div class="more-options">... and {{ question_options|length - sample_indices|length }} more options</div>
+        {% endif %}
+    </div>
+
+    <div class="search-instruction">
+        <label for="search-keywords">Enter search keywords to find relevant options:</label>
+        <input type="text" id="search-keywords" name="search_keywords" placeholder="Enter 3-5 keywords">
+        <button type="button" onclick="performSearch()">Search</button>
+    </div>
+
+    {% if feeling_lucky %}
+    <p><em>Feeling Lucky mode: Top result will be auto-selected</em></p>
+    {% else %}
+    <p><em>Top {{ max_options_shown }} results will be shown for selection</em></p>
+    {% endif %}
+</div>
+
+<script>
+function performSearch() {
+    // This would integrate with the BM25 search functionality
+    console.log("Performing BM25 search...");
+}
+</script>
