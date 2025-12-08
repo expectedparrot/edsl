@@ -1,6 +1,32 @@
 # Changelog
 
-## [1.0.5] - 2025-10-23
+## [1.0.5] - 2025-12-08
+### Added
+- **Results column visualization**: New `Results.show_columns()` method displays columns in hierarchical tree format using mermaid diagrams in Jupyter notebooks and ASCII trees in terminals, organized by data type (agent, answer, model, scenario, etc.).
+- **Wildcard column selection**: Added `*` wildcard pattern support for flexible column selection in `ResultsSelector` class, enabling patterns like `*_cost`, `answer.*`, `prefix*suffix` for selecting multiple related columns at once.
+- **Question groups**: New feature for organizing related questions together in surveys.
+- **Question dropdown**: New question type for dropdown selection interfaces.
+
+### Improved
+- **Results data retrieval**: Updated `fetch_remote` method to use `coop.pull` instead of `coop.get` when fetching remote results, improving clarity and data retrieval semantics.
+- **Documentation structure**: Major reorganization of documentation in `mint.json` with new groups (Getting Started, Core Concepts, Getting Data, Working with Results, etc.), improved navigation, logo configuration, and custom search with feedback options.
+- **Survey rule validation**: Enhanced with proper error handling for unknown question references and improved validation for wildcard patterns.
+- **Survey navigation logic**: Fixed `Survey.next_question_with_instructions` to properly account for before rules created with `add_skip_rule`.
+- **Makefile workflow**: Linting now runs in parallel across modules for significant speed improvements. All test, lint, format, and doctest targets mark completion status for better CI integration.
+- **Benchmarking**: Commands now use `--no-open` flag for CI-friendly operation with enhanced performance reporting and regression detection.
+
+### Fixed
+- **QuestionMultipleChoiceWithOther**: Removed unnecessary `other_instructions` parameter and fixed answer column text to properly display "{{`other_option_text`}}: [your answer]" instead of just "Other".
+- **Dataset export**: Removed overriding `to_docx` method from Dataset class that was conflicting with the DatasetOperationsMixin method.
+- **Documentation files**: Fixed scenarios.mdx documentation formatting.
+- **Double print issue**: Resolved issue where content was being displayed twice in certain contexts.
+- **Test matrix**: Removed Python 3.9 from CI test matrix to simplify support. Updated starter tutorial integration test to run only for Python 3.10.
+
+### Changed
+- **Doctest environment**: Doctest runs now set `EDSL_RUNNING_DOCTESTS=True` environment variable in both Makefile and GitHub workflow for consistent test environments.
+- **CI cleanup**: GitHub tests locally now stash uncommitted changes before running tests with `act`, ensuring only committed files are tested in clean Docker environment.
+
+## 2025-10-23
 ### Added
 - **QuestionDemand**: New question type for collecting demand curves from language models, enabling economic analysis by asking for quantities demanded at various price points. Supports multiple numeric price points with automatic validation of non-negative quantities.
 - **QuestionPydantic**: New question type for structured generation with Pydantic models. Enables extraction of structured data using Pydantic schemas with models that support structured outputs (e.g., `gpt-4o-mini`).
