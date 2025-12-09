@@ -58,6 +58,19 @@ Note that this method is different from memory rules, which automatically inlude
 
 In the examples below we construct a simple survey of questions, and then demonstrate how to run it with various rules and memory options, how to add AI agents and language models, and how to analyze the results.
 
+### Importing from Qualtrics
+
+You can import surveys from Qualtrics QSF (Qualtrics Survey Format) files using the `from_qsf()` method:
+
+```python
+from edsl import Survey
+
+# Import a Qualtrics survey
+survey = Survey.from_qsf("path/to/survey.qsf")
+```
+
+This method parses the QSF file and converts Qualtrics questions into their corresponding EDSL question types, preserving question text, options, and basic logic where possible.
+
 ### Defining questions
 
 Questions can be defined as various types, including multiple choice, checkbox, free text, linear scale, numerical and other types. The formats are defined in the [Questions](/en/latest/questions) module. Here we define some questions by importing question types and creating instances of them:
