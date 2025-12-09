@@ -44,13 +44,13 @@ initial_survey = Survey(
     [
         QuestionNumerical(
             question_name="num_agents",
-            question_text="How many agents would you like to sample from the list of 10? (Currently set to {{ scenario.num_agents }})",
+            question_text="How many agents would you like to sample from the list of 10?",
             min_value=1,
             max_value=10,
         ),
         QuestionNumerical(
             question_name="min_age",
-            question_text="What is the minimum age of the agents you would like to sample? (Currently set to {{ scenario.min_age }})",
+            question_text="What is the minimum age of the agents you would like to sample? ",
         ),
     ]
 )
@@ -68,8 +68,8 @@ agent_formatter = (
 
 # Create the macro with pseudo_run=True
 macro = Macro(
-    application_name="pseudo_run_agent_list",
-    display_name="Pseudo Run Agent List Demo",
+    application_name="pseudo_run_agent_list2",
+    display_name="Pseudo Run Agent List Demo2",
     short_description="Demo of pseudo_run feature with agent sampling.",
     long_description="This macro demonstrates how to use the pseudo_run feature to create a Results object with a survey and agent_list attached (but without running actual interviews). The user specifies how many agents to sample from the full list of 10 agents.",
     initial_survey=initial_survey,
