@@ -150,7 +150,7 @@ class ScenarioListTransformer:
             modified_expression = expression
 
             # Find all field names with dots that exist in the scenario
-            dot_fields = [key for key in scenario.keys() if '.' in key]
+            dot_fields = [key for key in scenario.keys() if "." in key]
 
             if dot_fields:
                 # Create safe aliases for fields with dots
@@ -163,8 +163,10 @@ class ScenarioListTransformer:
 
                     # Replace field references in the expression with safe aliases
                     # Use word boundaries to avoid partial replacements
-                    pattern = r'\b' + re.escape(field) + r'\b'
-                    modified_expression = re.sub(pattern, safe_alias, modified_expression)
+                    pattern = r"\b" + re.escape(field) + r"\b"
+                    modified_expression = re.sub(
+                        pattern, safe_alias, modified_expression
+                    )
 
             return EvalWithCompoundTypes(names=scenario_names), modified_expression
 
