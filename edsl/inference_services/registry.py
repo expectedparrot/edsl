@@ -1,45 +1,5 @@
-from edsl.inference_services.InferenceServicesCollection import (
-    InferenceServicesCollection,
-)
+# Global registry instance with lazy model source
+from .inference_service_registry import InferenceServiceRegistry
 
-from edsl.inference_services.OpenAIService import OpenAIService
-from edsl.inference_services.AnthropicService import AnthropicService
-from edsl.inference_services.DeepInfraService import DeepInfraService
-from edsl.inference_services.GoogleService import GoogleService
-from edsl.inference_services.GroqService import GroqService
-from edsl.inference_services.AwsBedrock import AwsBedrockService
-from edsl.inference_services.AzureAI import AzureAIService
-from edsl.inference_services.OllamaService import OllamaService
-from edsl.inference_services.TestService import TestService
-from edsl.inference_services.TogetherAIService import TogetherAIService
-from edsl.inference_services.PerplexityService import PerplexityService
-from edsl.inference_services.DeepSeekService import DeepSeekService
-from edsl.inference_services.GrokService import GrokService
-
-try:
-    from edsl.inference_services.MistralAIService import MistralAIService
-
-    mistral_available = True
-except Exception as e:
-    mistral_available = False
-
-services = [
-    OpenAIService,
-    AnthropicService,
-    DeepInfraService,
-    GoogleService,
-    GroqService,
-    AwsBedrockService,
-    AzureAIService,
-    OllamaService,
-    TestService,
-    TogetherAIService,
-    PerplexityService,
-    DeepSeekService,
-    GrokService,
-]
-
-if mistral_available:
-    services.append(MistralAIService)
-
-default = InferenceServicesCollection(services)
+# verbose = CONFIG.get('EDSL_VERBOSE_MODE').lower() == 'true'
+GLOBAL_REGISTRY = InferenceServiceRegistry(verbose=False)

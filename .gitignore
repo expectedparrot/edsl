@@ -1,3 +1,5 @@
+macros/examples/*
+edsl/macros/examples/*
 __pycache__
 _build/*
 *_temp
@@ -13,6 +15,7 @@ _build/*
 *log
 *svg
 *jpeg
+*png
 *dta
 *sav
 *csv
@@ -36,10 +39,20 @@ test_dir
 tests/temp_outputs
 tests/assets
 venv
+probable_junk/
 # exceptions
 !edsl/utilities/data/*.json
 !.vscode/settings.json
 !tests/serialization/data/*.json
+!performance.yml
 .env*
 docs/notebooks/drafts/*
 test.py
+edsl/widgets/src/
+.edsl_model_archive.json
+edsl/conjure/examples/*
+edsl/conjure/raw_data/*
+edsl/assistants/examples/*
+benchmark_logs/*
+performance.yml
+edsl/assistants/edsl_output/

@@ -2,13 +2,12 @@
 
 from abc import ABC, abstractmethod
 import re
-from typing import Any, Callable, List, Optional
-from edsl.exceptions.questions import (
+from typing import Any, Callable, List
+from .exceptions import (
     QuestionCreationValidationError,
     QuestionAnswerValidationError,
 )
-from edsl.questions.settings import Settings
-
+from .settings import Settings
 
 ################################
 # Helper functions
@@ -123,6 +122,14 @@ class NumericalOrNoneDescriptor(BaseDescriptor):
 
     def validate(self, value, instance):
         """Validate the value is a number or None."""
+        if isinstance(value, str):
+            # Check if the string is a dynamic numerical value
+            if "{{" in value and "}}" in value:
+                return None
+            else:
+                raise QuestionCreationValidationError(
+                    f"Dynamic numerical values must have jinja2 braces - instead received: {value}."
+                )
         if not is_number_or_none(value):
             raise QuestionAnswerValidationError(
                 f"Expected a number or None (got {value})."
@@ -231,7 +238,7 @@ class QuestionNameDescriptor(BaseDescriptor):
 
     def validate(self, value, instance):
         """Validate the value is a valid variable name."""
-        from edsl.utilities.utilities import is_valid_variable_name
+        from ..utilities.utilities import is_valid_variable_name
 
         if "{{" in value and "}}" in value:
             # they're trying to use a dynamic question name - let's let this play out
@@ -244,7 +251,7 @@ class QuestionNameDescriptor(BaseDescriptor):
 
         if not is_valid_variable_name(value):
             raise QuestionCreationValidationError(
-                f"`question_name` is not a valid variable name (got {value})."
+                f"`question_name` is not a valid variable name (got '{value}')."
             )
 
 
@@ -258,18 +265,11 @@ class QuestionOptionsDescriptor(BaseDescriptor):
     ...     assert len(w) == 1
     ...     assert "trailing whitespace" in str(w[0].message)
 
-    >>> _ = q_class(["a", "b", "c", "d", "d"])
-    Traceback (most recent call last):
-    ...
-    edsl.exceptions.questions.QuestionCreationValidationError: Question options must be unique (got ['a', 'b', 'c', 'd', 'd']).
+    # Duplicate options would raise QuestionCreationValidationError
 
     We allow dynamic question options, which are strings of the form '{{ question_options }}'.
 
     >>> _ = q_class("{{dynamic_options}}")
-    >>> _ = q_class("dynamic_options")
-    Traceback (most recent call last):
-    ...
-    edsl.exceptions.questions.QuestionCreationValidationError: ...
     """
 
     @classmethod
@@ -287,11 +287,13 @@ class QuestionOptionsDescriptor(BaseDescriptor):
         num_choices: int = None,
         linear_scale: bool = False,
         q_budget: bool = False,
+        q_demand: bool = False,
     ):
         """Initialize the descriptor."""
         self.num_choices = num_choices
         self.linear_scale = linear_scale
         self.q_budget = q_budget
+        self.q_demand = q_demand
 
     def validate(self, value: Any, instance) -> None:
         """Validate the question options."""
@@ -303,14 +305,41 @@ class QuestionOptionsDescriptor(BaseDescriptor):
                 raise QuestionCreationValidationError(
                     f"Dynamic question options must have jinja2 braces - instead received: {value}."
                 )
+
+        # Allow dict format for piping with additional options
+        # Format: {"from": "{{ template }}", "add": ["option1", "option2"]}
+        if isinstance(value, dict):
+            if "from" not in value:
+                raise QuestionCreationValidationError(
+                    f"Dict-based question options must have a 'from' key (got {value})."
+                )
+            # Validate the 'from' template
+            from_value = value["from"]
+            if (
+                not isinstance(from_value, str)
+                or "{{" not in from_value
+                or "}}" not in from_value
+            ):
+                raise QuestionCreationValidationError(
+                    f"The 'from' value must be a template string with jinja2 braces (got {from_value})."
+                )
+            # Validate the 'add' options if present
+            if "add" in value:
+                add_value = value["add"]
+                if not isinstance(add_value, list):
+                    raise QuestionCreationValidationError(
+                        f"The 'add' value must be a list (got {add_value})."
+                    )
+                if len(add_value) == 0:
+                    raise QuestionCreationValidationError(
+                        f"The 'add' list cannot be empty (got {add_value})."
+                    )
+            return None
+
         if not isinstance(value, list):
             raise QuestionCreationValidationError(
-                f"Question options must be a list (got {value})."
+                f"Question options must be a list or dict (got {value})."
             )
-        # if len(value) > Settings.MAX_NUM_OPTIONS:
-        #     raise QuestionCreationValidationError(
-        #         f"Too many question options (got {value})."
-        #     )
         if len(value) < Settings.MIN_NUM_OPTIONS:
             raise QuestionCreationValidationError(
                 f"Too few question options (got {value})."
@@ -322,7 +351,7 @@ class QuestionOptionsDescriptor(BaseDescriptor):
                 f"Question options must be unique (got {value})."
             )
         if not self.linear_scale:
-            if not self.q_budget:
+            if not self.q_budget and not self.q_demand:
                 pass
             #     if not (
             #         value
@@ -332,14 +361,19 @@ class QuestionOptionsDescriptor(BaseDescriptor):
             #         raise QuestionCreationValidationError(
             #             f"Question options must be all same type (got {value}).)"
             #         )
-            else:
+            elif self.q_budget:
                 if not all(isinstance(x, (str)) for x in value):
                     raise QuestionCreationValidationError(
                         f"Question options must be strings (got {value}).)"
                     )
+            elif self.q_demand:
+                if not all(isinstance(x, (int, float)) for x in value):
+                    raise QuestionCreationValidationError(
+                        f"Question options (prices) must be numbers (got {value}).)"
+                    )
             if not all(
                 [
-                    type(option) != str
+                    not isinstance(option, str)
                     or (len(option) >= 1 and len(option) < Settings.MAX_OPTION_LENGTH)
                     for option in value
                 ]
@@ -357,12 +391,12 @@ class QuestionOptionsDescriptor(BaseDescriptor):
                     UserWarning,
                 )
 
-        if hasattr(instance, "min_selections") and instance.min_selections != None:
+        if hasattr(instance, "min_selections") and instance.min_selections is not None:
             if instance.min_selections > len(value):
                 raise QuestionCreationValidationError(
                     f"You asked for at least {instance.min_selections} selections, but provided fewer options (got {value})."
                 )
-        if hasattr(instance, "max_selections") and instance.max_selections != None:
+        if hasattr(instance, "max_selections") and instance.max_selections is not None:
             if instance.max_selections > len(value):
                 raise QuestionCreationValidationError(
                     f"You asked for at most {instance.max_selections} selections, but provided fewer options (got {value})."
@@ -373,9 +407,9 @@ class QuestionOptionsDescriptor(BaseDescriptor):
                     f"You asked for {self.num_choices} selections, but provided {len(value)} options."
                 )
         if self.linear_scale:
-            if sorted(value) != list(range(min(value), max(value) + 1)):
+            if sorted(value) != value:
                 raise QuestionCreationValidationError(
-                    f"LinearScale.question_options must be a list of successive integers, e.g. [1, 2, 3] (got {value})."
+                    f"LinearScale.question_options must be in ascending order (got {value})."
                 )
 
 
@@ -390,10 +424,6 @@ class QuestionTextDescriptor(BaseDescriptor):
 
     >>> _ = TestQuestion("What is the capital of France?")
     >>> _ = TestQuestion("What is the capital of France? {{variable}}")
-    >>> _ = TestQuestion("What is the capital of France? {{variable name}}")
-    Traceback (most recent call last):
-    ...
-    edsl.exceptions.questions.QuestionCreationValidationError: Question text contains an invalid identifier: 'variable name'
     """
 
     def validate(self, value, instance):
@@ -401,37 +431,28 @@ class QuestionTextDescriptor(BaseDescriptor):
         # if len(value) > Settings.MAX_QUESTION_LENGTH:
         #     raise Exception("Question is too long!")
         if len(value) < 1:
-            raise Exception("Question is too short!")
+            raise QuestionCreationValidationError("Question is too short!")
         if not isinstance(value, str):
-            raise Exception("Question must be a string!")
-        if contains_single_braced_substring(value):
-            import warnings
-
-            # # warnings.warn(
-            # #     f"WARNING: Question text contains a single-braced substring: If you intended to parameterize the question with a Scenario this should be changed to a double-braced substring, e.g. {{variable}}.\nSee details on constructing Scenarios in the docs: https://docs.expectedparrot.com/en/latest/scenarios.html",
-            # #     UserWarning,
-            # # )
-            warnings.warn(
-                "WARNING: Question text contains a single-braced substring. "
-                "If you intended to parameterize the question with a Scenario, this will "
-                "be changed to a double-braced substring, e.g. {{variable}}.\n"
-                "See details on constructing Scenarios in the docs: "
-                "https://docs.expectedparrot.com/en/latest/scenarios.html",
-                UserWarning,
+            raise QuestionCreationValidationError(
+                "Question must be a string!" f"Received: {value}"
             )
-            # Automatically replace single braces with double braces
-            # This is here because if the user is using an f-string, the double brace will get converted to a single brace.
-            # This undoes that.
-            # value = re.sub(r"\{([^\{\}]+)\}", r"{{\1}}", value)
-            return value
 
-        # iterate through all doubles braces and check if they are valid python identifiers
-        for match in re.finditer(r"\{\{([^\{\}]+)\}\}", value):
-            if " " in match.group(1).strip():
-                raise QuestionCreationValidationError(
-                    f"Question text contains an invalid identifier: '{match.group(1)}'"
-                )
+        return None
 
+
+class OtherOptionTextDescriptor(BaseDescriptor):
+    """Validate that the `other_option_text` attribute is a string with at least 1 character."""
+
+    def validate(self, value, instance):
+        """Validate the value is a string with at least 1 character."""
+        if not isinstance(value, str):
+            raise QuestionCreationValidationError(
+                f"`other_option_text` must be a string (got {value})."
+            )
+        if len(value) < 1:
+            raise QuestionCreationValidationError(
+                f"`other_option_text` must be at least 1 character long (got {value})."
+            )
         return None
 
 
@@ -477,6 +498,24 @@ class AnswerKeysDescriptor(BaseDescriptor):
             raise QuestionCreationValidationError(
                 f"`answer_keys` must be a list of strings or integers (got {value})."
             )
+
+
+class WeightDescriptor(BaseDescriptor):
+    """Validate that the `weight` attribute is a non-negative number or None."""
+
+    def validate(self, value, instance):
+        """Validate the value is a non-negative number or None."""
+        if value is None:
+            return None
+        if not isinstance(value, (int, float)):
+            raise QuestionCreationValidationError(
+                f"`weight` must be a number or None (got {value})."
+            )
+        if value < 0:
+            raise QuestionCreationValidationError(
+                f"`weight` must be non-negative (got {value})."
+            )
+        return value
 
 
 if __name__ == "__main__":

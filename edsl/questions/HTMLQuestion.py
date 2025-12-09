@@ -1,5 +1,4 @@
 from typing import Optional
-from edsl.prompts.Prompt import Prompt
 
 
 class HTMLQuestion:
@@ -81,23 +80,19 @@ class HTMLQuestion:
                 "include_question_name": include_question_name,
             }
         except Exception as e:
-            raise ValueError(
+            from .exceptions import QuestionValueError
+
+            raise QuestionValueError(
                 f"Error rendering question: params = {params}, error = {e}"
             )
         rendered_html = base_template.render(**params)
 
         if iframe:
-            import html
-            from IPython.display import display, HTML
+            from ..display import display_html
 
             height = height or 200
             width = width or 600
-            escaped_output = html.escape(rendered_html)
-            # escaped_output = rendered_html
-            iframe = f""""
-            <iframe srcdoc="{ escaped_output }" style="width: {width}px; height: {height}px;"></iframe>
-            """
-            display(HTML(iframe))
+            display_html(rendered_html, width=width, height=height, as_iframe=True)
             return None
 
         return rendered_html

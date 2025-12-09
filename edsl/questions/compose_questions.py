@@ -1,8 +1,9 @@
 """Compose two questions where the answer to q1 is used as an input to q2."""
 
-from edsl.questions import QuestionFunctional
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.scenarios.Scenario import Scenario
+from .question_functional import QuestionFunctional
+from .question_base import QuestionBase
+from ..scenarios import Scenario
+from .exceptions import QuestionValueError
 
 
 def compose_questions(
@@ -19,7 +20,7 @@ def compose_questions(
     if question_name is None:
         question_name = f"{q1.question_name}_{q2.question_name}"
     if q1.question_name not in q2.question_text:
-        raise ValueError(
+        raise QuestionValueError(
             f"q2 requires a field not present in q1's answer. "
             f"q1: {q1.question_name}, q2: {q2.question_name}"
         )
@@ -29,7 +30,7 @@ def compose_questions(
     ) -> QuestionFunctional:
         """Return the answer to the second question given the answer to the first question."""
         # get the answer to the first question
-        from edsl.agents.Agent import Agent
+        from ..agents.agent import Agent
 
         first_answer = (
             q1.by(scenario)

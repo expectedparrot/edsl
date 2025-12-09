@@ -1,0 +1,3904 @@
+---
+title: "Working with CES data in EDSL"
+description: "This notebook provides code for reconstructing the [CES 2022 Pre-election Questionnaire](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi%3A10.7910/DVN/PR4L8P) in EDSL."
+---
+
+1. We format the questions as EDSL `Question` objects of various types: `QuestionYesNo`, `QuestionMultipleChoice`, `QuestionCheckBox`, `QuestionNumerical`, `QuestionFreeText`.
+2. We show how to combine the questions in a `Survey` to administer them to agents at once. This can also be done with any subset of the questions.
+3. We create dictionaries of the questions and answer codebook for convenience in working with this data.
+
+## Companion notebooks
+
+This notebook is designed to be used with 2 companion notebooks:
+
+- [Using EDSL for AI polling](/en/latest/notebooks/edsl_polling) demonstrates basic methods for designing AI agents and conducting surveys with them.
+- [Creating agents for survey respondents](/en/latest/notebooks/ces_agents) demonstrates how to import the [dataset of responses to the 2022 CES Pre-Election Questionnaire](https://dataverse.harvard.edu/file.xhtml?fileId=10140882&version=4.0) into EDSL and use them to construct agents representing the respondents.
+
+## Reference & contact
+
+Documentation for the EDSL package is available at [https://docs/expectedparrot.com](https://docs/expectedparrot.com). You can also find example code, tutorials and notebooks for a variety of use cases.
+
+Please let us know if you have any questions or encounter issues working with this data:
+
+- Discord: [https://discord.com/invite/mxAYkjfy9m](https://discord.com/invite/mxAYkjfy9m)
+- Email: [info@expectedparrot.com](mailto:info@expectedparrot.com)
+
+## Technical setup
+
+EDSL is compatible with Python 3.9-3.12.
+
+See instructions on [installing the EDSL library](/en/latest/installation) and [storing API keys](/en/latest/api_keys) for the language models that you want to use. In examples below where no model is specified, EDSL will use GPT 4 by default (an API key for OpenAI is required). We also show how to use different models.
+
+### Formatting questions in EDSL
+
+The code below formats each of the questions in the [CES 2022 Pre-election Questionnaire](https://dataverse.harvard.edu/file.xhtml?fileId=6987030&version=4.0) as an EDSL `Question` object of the relevant type.
+
+**Note:**
+
+- Each original “grid” question is formatted as independent multiple choice questions.
+- Some questions require parameters to be added (e.g., `$CurrentGovName`). This can be done with `Scenario` objects which we demonstrate how to do at the end of this notebook.
+
+
+```python
+from edsl import (
+    QuestionYesNo,
+    QuestionMultipleChoice,
+    QuestionCheckBox,
+    QuestionNumerical,
+    QuestionFreeText,
+    Survey,
+)
+```
+
+
+```python expandable
+q_CCEStake = QuestionYesNo(
+    question_name="CCEStake", question_text="Do you agree to participate in the study?"
+)
+
+q_add_confirm = QuestionYesNo(
+    question_name="add_confirm",
+    question_text="Is the name and address displayed above correct?",
+)
+
+q_inputzip = QuestionNumerical(
+    question_name="inputzip",
+    question_text="So that we can ask you about the news and events in your area, in what zip code do you currently reside?",
+    min_value=501,
+    max_value=99999,
+)
+
+q_birthyr = QuestionNumerical(
+    question_name="birthyr", question_text="In what year were you born?"
+)
+
+q_gender4 = QuestionMultipleChoice(
+    question_name="gender4",
+    question_text="What is your gender?",
+    question_options=["Man", "Woman", "Non-binary", "Other"],
+)
+
+q_educ = QuestionMultipleChoice(
+    question_name="educ",
+    question_text="What is the highest level of education you have completed?",
+    question_options=[
+        "Did not graduate from high school",
+        "High school graduate",
+        "Some college, but no degree (yet)",
+        "2-year college degree",
+        "4-year college degree",
+        "Postgraduate degree (MA, MBA, MD, JD, PhD, etc.)",
+    ],
+)
+
+q_race = QuestionMultipleChoice(
+    question_name="race",
+    question_text="What racial or ethnic group best describes you?",
+    question_options=[
+        "White",
+        "Black or African-American",
+        "Hispanic or Latino",
+        "Asian or Asian-American",
+        "Native American",
+        "Middle Eastern",
+        "Two or more races",
+        "Other",
+    ],
+)
+
+q_hispanic = QuestionYesNo(
+    question_name="hispanic",
+    question_text="Are you of Spanish, Latino, or Hispanic origin or descent?",
+)
+
+q_multrace = QuestionCheckBox(
+    question_name="multrace",
+    question_text="Please indicate the racial or ethnic groups that best describe you? (select all that apply)",
+    question_options=[
+        "White",
+        "Black or African-American",
+        "Hispanic or Latino",
+        "Asian or Asian-American",
+        "Native American",
+        "Middle Eastern",
+        "Other",
+        "Don't know",
+        "None of these",
+    ],
+)
+
+q_comptype = QuestionMultipleChoice(
+    question_name="comptype",
+    question_text="What type of device are you currently taking this survey on?",
+    question_options=[
+        "I am taking this survey on a smart phone (e.g., iPhone or Android phone)",
+        "I am taking this survey on a tablet (e.g., iPad)",
+        "I am taking this survey on a desktop computer or laptop computer",
+    ],
+)
+
+q_votereg = QuestionMultipleChoice(
+    question_name="votereg",
+    question_text="Are you registered to vote?",
+    question_options=["Yes", "No", "Don't know"],
+)
+
+q_votereg_f = QuestionYesNo(
+    question_name="votereg_f",
+    question_text="Is $inputzip the zip code where you are registered to vote?",
+)
+
+q_pid3 = QuestionMultipleChoice(
+    question_name="pid3",
+    question_text="Generally speaking, do you think of yourself as a ...?",
+    question_options=["Democrat", "Republican", "Independent", "Other", "Not sure"],
+)
+
+q_pid7 = QuestionMultipleChoice(
+    question_name="pid7",
+    question_text="$pid7text",
+    question_options=[
+        "Strong Democrat",
+        "Not very strong Democrat",
+        "Strong Republican",
+        "Not very strong Republican",
+        "The Democratic Party",
+        "The Republican Party",
+        "Neither",
+        "Not sure",
+        "Don't know",
+    ],
+)
+
+q_inputstate = QuestionMultipleChoice(
+    question_name="inputstate",
+    question_text="What is your State of Residence?",
+    question_options=[
+        "Alabama",
+        "Alaska",
+        "Arizona",
+        "Arkansas",
+        "California",
+        "Colorado",
+        "Connecticut",
+        "Delaware",
+        "District of Columbia",
+        "Florida",
+        "Georgia",
+        "Hawaii",
+        "Idaho",
+        "Illinois",
+        "Indiana",
+        "Iowa",
+        "Kansas",
+        "Kentucky",
+        "Louisiana",
+        "Maine",
+        "Maryland",
+        "Massachusetts",
+        "Michigan",
+        "Minnesota",
+        "Mississippi",
+        "Missouri",
+        "Montana",
+        "Nebraska",
+        "Nevada",
+        "New Hampshire",
+        "New Jersey",
+        "New Mexico",
+        "New York",
+        "North Carolina",
+        "North Dakota",
+        "Ohio",
+        "Oklahoma",
+        "Oregon",
+        "Pennsylvania",
+        "Rhode Island",
+        "South Carolina",
+        "South Dakota",
+        "Tennessee",
+        "Texas",
+        "Utah",
+        "Vermont",
+        "Virginia",
+        "Washington",
+        "West Virginia",
+        "Wisconsin",
+        "Wyoming",
+    ],
+)
+
+q_region = QuestionMultipleChoice(
+    question_name="region",
+    question_text="In which census region do you live?",
+    question_options=["Northeast", "Midwest", "South", "West"],
+)
+
+q_CC22_300 = QuestionCheckBox(
+    question_name="CC22_300",
+    question_text="In the past 24 hours have you... (check all that apply)",
+    question_options=[
+        "Used social media (such as Facebook or Youtube)",
+        "Watched TV news",
+        "Read a newspaper in print or online",
+        "Listened to a radio news program or talk radio",
+        "None of these",
+    ],
+)
+
+q_CC22_300a = QuestionCheckBox(
+    question_name="CC22_300a",
+    question_text="Did you watch local news, national news, or both?",
+    question_options=["Local Newscast", "National Newscast", "Both"],
+)
+
+q_CC22_300c = QuestionCheckBox(
+    question_name="CC22_300c",
+    question_text="Did you read a print newspaper, an online newspaper, or both?",
+    question_options=["Print", "Online", "Both"],
+)
+
+q_CC22_300b = QuestionCheckBox(
+    question_name="CC22_300b",
+    question_text="Which of these networks did you watch? (select all that apply)",
+    question_options=["ABC", "CBS", "NBC", "CNN", "Fox News", "MSNBC", "PBS", "Other"],
+)
+
+q_CC22_300d = QuestionCheckBox(
+    question_name="CC22_300d",
+    question_text="In the past 24 hours, did you do any of the following on social media (such as Facebook, Youtube or Twitter)? (check all that apply)",
+    question_options=[
+        "Posted a story, photo, video or link about politics",
+        "Posted a comment about politics",
+        "Read a story or watched a video about politics",
+        "Followed a political event",
+        "Forwarded a story, photo, video or link about politics to friends",
+        "None of the above",
+    ],
+)
+
+q_CC19_302 = QuestionMultipleChoice(
+    question_name="CC19_302",
+    question_text="Would you say that OVER THE PAST YEAR the nation's economy has ...",
+    question_options=[
+        "Gotten much better",
+        "Gotten somewhat better",
+        "Stayed about the same",
+        "Gotten somewhat worse",
+        "Gotten much worse",
+        "Not sure",
+    ],
+)
+
+q_CC22_303 = QuestionMultipleChoice(
+    question_name="CC22_303",
+    question_text="OVER THE PAST YEAR, has your household's annual income...?",
+    question_options=[
+        "Increased a lot",
+        "Increased somewhat",
+        "Stayed about the same",
+        "Decreased somewhat",
+        "Decreased a lot",
+    ],
+)
+
+q_CC22_304 = QuestionMultipleChoice(
+    question_name="CC22_304",
+    question_text="OVER THE PAST YEAR, have the prices of everyday goods and services...?",
+    question_options=[
+        "Increased a lot",
+        "Increased somewhat",
+        "Stayed about the same",
+        "Decreased somewhat",
+        "Decreased a lot",
+    ],
+)
+
+q_CC22_305 = QuestionCheckBox(
+    question_name="CC22_305",
+    question_text="Over the past year have you... (check all that apply)",
+    question_options=[
+        "Married",
+        "Lost a job",
+        "Finished school",
+        "Retired",
+        "Divorced",
+        "Had a child",
+        "Taken a new job",
+        "Been a victim of a crime",
+        "Visited an emergency room",
+        "Visited a doctor for a regular examination",
+        "Received a raise at work",
+        "Had a pay cut at work",
+    ],
+)
+
+q_CC22_307 = QuestionMultipleChoice(
+    question_name="CC22_307",
+    question_text="Do the police make you feel...?",
+    question_options=[
+        "Mostly safe",
+        "Somewhat safe",
+        "Somewhat unsafe",
+        "Mostly unsafe",
+    ],
+)
+
+q_CC22_309a = QuestionCheckBox(
+    question_name="CC22_309a",
+    question_text="Have you or someone you know been diagnosed with the novel coronavirus (COVID-19) during the past year? (check all that apply)",
+    question_options=[
+        "Yes, I have",
+        "Yes, a family member",
+        "Yes, a friend",
+        "Yes, a co-worker",
+        "No, I do not know anyone who has been diagnosed",
+    ],
+)
+
+q_CC22_306 = QuestionMultipleChoice(
+    question_name="CC22_306",
+    question_text="Which of the following best describes you when it comes to being vaccinated against COVID-19?",
+    question_options=[
+        "I am fully vaccinated and have received at least one booster shot",
+        "I am fully vaccinated but have not received a booster shot",
+        "I am partially vaccinated (I have received the first of two shots for either Pfizer or Moderna)",
+        "I am not vaccinated at all",
+    ],
+)
+
+q_CC22_309b = QuestionCheckBox(
+    question_name="CC22_309b",
+    question_text="Do you know anyone who died from the novel coronavirus (COVID-19)? (check all that apply)",
+    question_options=[
+        "Yes, a family member",
+        "Yes, a friend",
+        "Yes, a co-worker",
+        "No, I do not know anyone who has died from coronavirus",
+    ],
+)
+
+q_CC22_309c = QuestionCheckBox(
+    question_name="CC22_309c",
+    question_text="How did your work status change as a result of the coronavirus pandemic? (check all that apply)",
+    question_options=[
+        "My hours have been reduced",
+        "My hours were reduced, but they have been restored",
+        "I have been temporarily laid off",
+        "I was temporarily laid off but have now been re-hired",
+        "I had more than one job before the pandemic, and lost one of them.",
+        "I lost my job",
+        "I was not working when the pandemic began",
+        "My hours have increased",
+        "I have taken additional jobs since the pandemic",
+        "No, nothing about my work has changed",
+    ],
+)
+
+q_CC22_309dx = QuestionCheckBox(
+    question_name="CC22_309dx",
+    question_text="Suppose that you have an emergency expense that costs $400. Based on your current financial situation, how would you pay for this expense? If you would use more than one method to cover this expense, please select all that apply.",
+    question_options=[
+        "Put it on my credit card and pay it off in full at the next statement",
+        "Put it on my credit card and pay it off over time",
+        "With the money currently in my checking/savings account or with cash",
+        "Using money from a bank loan or line of credit",
+        "By borrowing from a friend or family member",
+        "Using a payday loan, deposit advance, or overdraft",
+        "By selling something",
+        "I wouldn't be able to pay for the expense right now",
+        "Other",
+    ],
+)
+
+q_CC22_309e = QuestionMultipleChoice(
+    question_name="CC22_309e",
+    question_text="Would you say that in general your health is...",
+    question_options=["Excellent", "Very good", "Good", "Fair", "Poor"],
+)
+
+q_CC22_309f = QuestionMultipleChoice(
+    question_name="CC22_309f",
+    question_text="Would you say that in general your mental health is...",
+    question_options=["Excellent", "Very good", "Good", "Fair", "Poor"],
+)
+
+q_CC22_310a = QuestionMultipleChoice(
+    question_name="CC22_310a",
+    question_text="Which party has a majority of seats in the U.S. House of Representatives?",
+    question_options=["Democrats", "Republicans", "Neither", "Not sure"],
+)
+
+q_CC22_310b = QuestionMultipleChoice(
+    question_name="CC22_310b",
+    question_text="Which party has a majority of seats in the U.S. Senate?",
+    question_options=["Democrats", "Republicans", "Neither", "Not sure"],
+)
+
+q_CC22_310c = QuestionMultipleChoice(
+    question_name="CC22_310c",
+    question_text="Which party has a majority of seats in the $inputstate State Senate?",
+    question_options=["Democrats", "Republicans", "Neither", "Not sure"],
+)
+
+q_CC22_310d = QuestionMultipleChoice(
+    question_name="CC22_310d",
+    question_text="Which party has a majority of seats in the $LowerChamberName?",
+    question_options=["Democrats", "Republicans", "Neither", "Not sure"],
+)
+
+q_CC22_311a = QuestionMultipleChoice(
+    question_name="CC22_311a",
+    question_text="Please indicate whether you've heard of $CurrentGovName and if so which party he or she is affiliated with.",
+    question_options=[
+        "Never heard of person",
+        "Republican",
+        "Democrat",
+        "Other Party / Independent",
+        "Not sure",
+    ],
+)
+
+q_CC22_311b = QuestionMultipleChoice(
+    question_name="CC22_311b",
+    question_text="Please indicate whether you've heard of $CurrentSen1Name and if so which party he or she is affiliated with.",
+    question_options=[
+        "Never heard of person",
+        "Republican",
+        "Democrat",
+        "Other Party / Independent",
+        "Not sure",
+    ],
+)
+
+q_CC22_311c = QuestionMultipleChoice(
+    question_name="CC22_311c",
+    question_text="Please indicate whether you've heard of $CurrentSen2Name and if so which party he or she is affiliated with.",
+    question_options=[
+        "Never heard of person",
+        "Republican",
+        "Democrat",
+        "Other Party / Independent",
+        "Not sure",
+    ],
+)
+
+q_CC22_311d = QuestionMultipleChoice(
+    question_name="CC22_311d",
+    question_text="Please indicate whether you've heard of $CurrentHouseName and if so which party he or she is affiliated with.",
+    question_options=[
+        "Never heard of person",
+        "Republican",
+        "Democrat",
+        "Other Party / Independent",
+        "Not sure",
+    ],
+)
+
+q_CC22_320a = QuestionMultipleChoice(
+    question_name="CC22_320a",
+    question_text="Do you approve of the way President Biden is doing his job?",
+    question_options=[
+        "Strongly approve",
+        "Somewhat approve",
+        "Somewhat disapprove",
+        "Strongly disapprove",
+        "Not sure",
+    ],
+)
+
+q_CC22_320b = QuestionMultipleChoice(
+    question_name="CC22_320b",
+    question_text="Do you approve of the way the U.S. Congress is doing its job?",
+    question_options=[
+        "Strongly approve",
+        "Somewhat approve",
+        "Somewhat disapprove",
+        "Strongly disapprove",
+        "Not sure",
+    ],
+)
+
+q_CC22_320c = QuestionMultipleChoice(
+    question_name="CC22_320c",
+    question_text="Do you approve of the way the U.S. Supreme Court is doing its job?",
+    question_options=[
+        "Strongly approve",
+        "Somewhat approve",
+        "Somewhat disapprove",
+        "Strongly disapprove",
+        "Not sure",
+    ],
+)
+
+q_CC22_320d = QuestionMultipleChoice(
+    question_name="CC22_320d",
+    question_text="Do you approve of the way the Governor of $inputstate is doing their job?",
+    question_options=[
+        "Strongly approve",
+        "Somewhat approve",
+        "Somewhat disapprove",
+        "Strongly disapprove",
+        "Not sure",
+    ],
+)
+
+q_CC22_320e = QuestionMultipleChoice(
+    question_name="CC22_320e",
+    question_text="Do you approve of the way $LegName is doing their job?",
+    question_options=[
+        "Strongly approve",
+        "Somewhat approve",
+        "Somewhat disapprove",
+        "Strongly disapprove",
+        "Not sure",
+    ],
+)
+
+q_CC22_320f = QuestionMultipleChoice(
+    question_name="CC22_320f",
+    question_text="Do you approve of the way $CurrentHouseName is doing their job?",
+    question_options=[
+        "Strongly approve",
+        "Somewhat approve",
+        "Somewhat disapprove",
+        "Strongly disapprove",
+        "Not sure",
+    ],
+)
+
+q_CC22_320g = QuestionMultipleChoice(
+    question_name="CC22_320g",
+    question_text="Do you approve of the way $CurrentSen1Name is doing their job?",
+    question_options=[
+        "Strongly approve",
+        "Somewhat approve",
+        "Somewhat disapprove",
+        "Strongly disapprove",
+        "Not sure",
+    ],
+)
+
+q_CC22_320h = QuestionMultipleChoice(
+    question_name="CC22_320h",
+    question_text="Do you approve of the way $CurrentSen2Name is doing their job?",
+    question_options=[
+        "Strongly approve",
+        "Somewhat approve",
+        "Somewhat disapprove",
+        "Strongly disapprove",
+        "Not sure",
+    ],
+)
+
+q_cit1 = QuestionYesNo(
+    question_name="cit1", question_text="Are you a United States citizen?"
+)
+
+q_immstat = QuestionMultipleChoice(
+    question_name="immstat",
+    question_text="Which of these statements best describes you?",
+    question_options=[
+        "I am an immigrant to the USA and a naturalized citizen",
+        "I am an immigrant to the USA but not a citizen",
+        "I was born in the USA but at least one of my parents is an immigrant",
+        "My parents and I were born in the USA but at least one of my grandparents was an immigrant",
+        "My parents, grandparents and I were all born in the USA",
+    ],
+)
+
+q_CC22_321 = QuestionCheckBox(
+    question_name="CC22_321",
+    question_text="What do you think the United States should do in response to Russia's invasion of Ukraine? (check all that apply)",
+    question_options=[
+        "Not sure",
+        "Do not get involved",
+        "Send food, medicine and other aid to countries affected",
+        "Provide arms to Ukraine",
+        "Enforce a no fly zone",
+        "Use drones and aircraft to bomb Russian troops",
+        "Send military support staff (non-combat)",
+        "Send significant force to fight Russia",
+    ],
+)
+
+q_CC22_327a = QuestionMultipleChoice(
+    question_name="CC22_327a",
+    question_text="Would you support or oppose expanding Medicare to a single comprehensive public health care coverage program that would cover all Americans?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_327b = QuestionMultipleChoice(
+    question_name="CC22_327b",
+    question_text="Would you support or oppose allowing the government to negotiate with drug companies to get a lower price on prescription drugs that would apply to both Medicare and private insurance?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_327c = QuestionMultipleChoice(
+    question_name="CC22_327c",
+    question_text="Would you support or oppose repealing the entire Affordable Care Act?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_327d = QuestionMultipleChoice(
+    question_name="CC22_327d",
+    question_text="Would you support or oppose allowing states to import prescription drugs from other countries?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_330a = QuestionMultipleChoice(
+    question_name="CC22_330a",
+    question_text="Do you support or oppose prohibiting state and local governments from publishing the names and addresses of all gun owners?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_330b = QuestionMultipleChoice(
+    question_name="CC22_330b",
+    question_text="Do you support or oppose banning assault rifles?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_330c = QuestionMultipleChoice(
+    question_name="CC22_330c",
+    question_text="Do you support or oppose making it easier for people to obtain a concealed-carry permit?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_330d = QuestionMultipleChoice(
+    question_name="CC22_330d",
+    question_text="Do you support or oppose providing federal funding to encourage states to take guns away from people who already own them but might pose a threat to themselves or others?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_330e = QuestionMultipleChoice(
+    question_name="CC22_330e",
+    question_text="Do you support or oppose improving background checks to give authorities time to check the juvenile and mental health records of any prospective gun buyer under the age of 21?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_330f = QuestionMultipleChoice(
+    question_name="CC22_330f",
+    question_text="Do you support or oppose allowing teachers and school officials to carry guns in public schools?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_331a = QuestionMultipleChoice(
+    question_name="CC22_331a",
+    question_text="Do you support or oppose granting legal status to all illegal immigrants who have held jobs and paid taxes for at least 3 years, and not been convicted of any felony crimes?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_331b = QuestionMultipleChoice(
+    question_name="CC22_331b",
+    question_text="Do you support or oppose increasing the number of border patrols on the US-Mexican border?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_331c = QuestionMultipleChoice(
+    question_name="CC22_331c",
+    question_text="Do you support or oppose reducing legal immigration by 50 percent over the next 10 years by eliminating the visa lottery and ending family-based migration?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_331d = QuestionMultipleChoice(
+    question_name="CC22_331d",
+    question_text="Do you support or oppose increasing spending on border security by $25 billion, including building a wall between the U.S. and Mexico?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_332a = QuestionMultipleChoice(
+    question_name="CC22_332a",
+    question_text="Do you support or oppose always allowing a woman to obtain an abortion as a matter of choice?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_332b = QuestionMultipleChoice(
+    question_name="CC22_332b",
+    question_text="Do you support or oppose permitting abortion only in case of rape, incest or when the woman's life is in danger?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_332c = QuestionMultipleChoice(
+    question_name="CC22_332c",
+    question_text="Do you support or oppose prohibiting all abortions after the 20th week of pregnancy?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_332d = QuestionMultipleChoice(
+    question_name="CC22_332d",
+    question_text="Do you support or oppose allowing employers to decline coverage of abortions in insurance plans?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_332e = QuestionMultipleChoice(
+    question_name="CC22_332e",
+    question_text="Do you support or oppose prohibiting the expenditure of funds authorized or appropriated by federal law for any abortion?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_332f = QuestionMultipleChoice(
+    question_name="CC22_332f",
+    question_text="Do you support or oppose making abortions illegal in all circumstances?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_333 = QuestionMultipleChoice(
+    question_name="CC22_333",
+    question_text="From what you know about global climate change or global warming, which one of the following statements comes closest to your opinion?",
+    question_options=[
+        "Global climate change has been established as a serious problem, and immediate action is necessary",
+        "There is enough evidence that climate change is taking place and some action should be taken",
+        "We don't know enough about global climate change, and more research is necessary before we take any actions",
+        "Concern about global climate change is exaggerated. No action is necessary",
+        "Global climate change is not occurring; this is not a real issue",
+    ],
+)
+
+q_CC22_333a = QuestionMultipleChoice(
+    question_name="CC22_333a",
+    question_text="Do you support or oppose giving the Environmental Protection Agency power to regulate carbon dioxide emissions?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_333b = QuestionMultipleChoice(
+    question_name="CC22_333b",
+    question_text="Do you support or oppose requiring that each state use a minimum amount of renewable fuels (wind, solar, and hydroelectric) in the generation of electricity even if electricity prices increase a little?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_333c = QuestionMultipleChoice(
+    question_name="CC22_333c",
+    question_text="Do you support or oppose strengthening the Environmental Protection Agency enforcement of the Clean Air Act and Clean Water Act even if it costs U.S. jobs?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_333d = QuestionMultipleChoice(
+    question_name="CC22_333d",
+    question_text="Do you support or oppose raising the average fuel efficiency for all cars and trucks in the US from 40 miles per gallon to 54.5 miles per gallon by 2025?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_333e = QuestionMultipleChoice(
+    question_name="CC22_333e",
+    question_text="Do you support or oppose increasing fossil fuel production in the U.S. and boosting exports of U.S. liquefied natural gas?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_334a = QuestionMultipleChoice(
+    question_name="CC22_334a",
+    question_text="Do you support or oppose eliminating mandatory minimum sentences for non-violent drug offenders?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_334b = QuestionMultipleChoice(
+    question_name="CC22_334b",
+    question_text="Do you support or oppose requiring police officers to wear body cameras that record all of their activities while on duty?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_334c = QuestionMultipleChoice(
+    question_name="CC22_334c",
+    question_text="Do you support or oppose increasing the number of police on the street by 10 percent, even if it means fewer funds for other public services?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_334d = QuestionMultipleChoice(
+    question_name="CC22_334d",
+    question_text="Do you support or oppose decreasing the number of police on the street by 10 percent, and increasing funding for other public services?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_334e = QuestionMultipleChoice(
+    question_name="CC22_334e",
+    question_text="Do you support or oppose banning the use of choke holds by police?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_334f = QuestionMultipleChoice(
+    question_name="CC22_334f",
+    question_text="Do you support or oppose creating a national registry of police who have been investigated for or disciplined for misconduct?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_334g = QuestionMultipleChoice(
+    question_name="CC22_334g",
+    question_text="Do you support or oppose ending the Department of Defense program that sends surplus military weapons and equipment to police departments?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_334h = QuestionMultipleChoice(
+    question_name="CC22_334h",
+    question_text="Do you support or oppose allowing individuals or their families to sue a police officer for damages if the officer is found to have 'recklessly disregarded' the individual's rights?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_340a = QuestionMultipleChoice(
+    question_name="CC22_340a",
+    question_text="How would you rate yourself?",
+    question_options=[
+        "Very liberal",
+        "Somewhat liberal",
+        "Middle of the road",
+        "Somewhat conservative",
+        "Very conservative",
+        "No response",
+        "Not sure",
+    ],
+)
+
+q_CC22_340b = QuestionMultipleChoice(
+    question_name="CC22_340b",
+    question_text="How would you rate $CurrentGovName?",
+    question_options=[
+        "Very liberal",
+        "Somewhat liberal",
+        "Middle of the road",
+        "Somewhat conservative",
+        "Very conservative",
+        "No response",
+        "Not sure",
+    ],
+)
+
+q_CC22_340c = QuestionMultipleChoice(
+    question_name="CC22_340c",
+    question_text="How would you rate Joe Biden?",
+    question_options=[
+        "Very liberal",
+        "Somewhat liberal",
+        "Middle of the road",
+        "Somewhat conservative",
+        "Very conservative",
+        "No response",
+        "Not sure",
+    ],
+)
+
+q_CC22_340d = QuestionMultipleChoice(
+    question_name="CC22_340d",
+    question_text="How would you rate Donald Trump?",
+    question_options=[
+        "Very liberal",
+        "Somewhat liberal",
+        "Middle of the road",
+        "Somewhat conservative",
+        "Very conservative",
+        "No response",
+        "Not sure",
+    ],
+)
+
+q_CC22_340e = QuestionMultipleChoice(
+    question_name="CC22_340e",
+    question_text="How would you rate the Democratic Party?",
+    question_options=[
+        "Very liberal",
+        "Somewhat liberal",
+        "Middle of the road",
+        "Somewhat conservative",
+        "Very conservative",
+        "No response",
+        "Not sure",
+    ],
+)
+
+q_CC22_340f = QuestionMultipleChoice(
+    question_name="CC22_340f",
+    question_text="How would you rate the Republican Party?",
+    question_options=[
+        "Very liberal",
+        "Somewhat liberal",
+        "Middle of the road",
+        "Somewhat conservative",
+        "Very conservative",
+        "No response",
+        "Not sure",
+    ],
+)
+
+q_CC22_340g = QuestionMultipleChoice(
+    question_name="CC22_340g",
+    question_text="How would you rate the U.S. Supreme Court?",
+    question_options=[
+        "Very liberal",
+        "Somewhat liberal",
+        "Middle of the road",
+        "Somewhat conservative",
+        "Very conservative",
+        "No response",
+        "Not sure",
+    ],
+)
+
+q_CC22_340h = QuestionMultipleChoice(
+    question_name="CC22_340h",
+    question_text="How would you rate $CurrentSen1Name?",
+    question_options=[
+        "Very liberal",
+        "Somewhat liberal",
+        "Middle of the road",
+        "Somewhat conservative",
+        "Very conservative",
+        "No response",
+        "Not sure",
+    ],
+)
+
+q_CC22_340i = QuestionMultipleChoice(
+    question_name="CC22_340i",
+    question_text="How would you rate $CurrentSen2Name?",
+    question_options=[
+        "Very liberal",
+        "Somewhat liberal",
+        "Middle of the road",
+        "Somewhat conservative",
+        "Very conservative",
+        "No response",
+        "Not sure",
+    ],
+)
+
+q_CC22_340j = QuestionMultipleChoice(
+    question_name="CC22_340j",
+    question_text="How would you rate $SenCand1Name?",
+    question_options=[
+        "Very liberal",
+        "Somewhat liberal",
+        "Middle of the road",
+        "Somewhat conservative",
+        "Very conservative",
+        "No response",
+        "Not sure",
+    ],
+)
+
+q_CC22_340k = QuestionMultipleChoice(
+    question_name="CC22_340k",
+    question_text="How would you rate $SenCand2Name?",
+    question_options=[
+        "Very liberal",
+        "Somewhat liberal",
+        "Middle of the road",
+        "Somewhat conservative",
+        "Very conservative",
+        "No response",
+        "Not sure",
+    ],
+)
+
+q_CC22_340l = QuestionMultipleChoice(
+    question_name="CC22_340l",
+    question_text="How would you rate $HouseCand1Name?",
+    question_options=[
+        "Very liberal",
+        "Somewhat liberal",
+        "Middle of the road",
+        "Somewhat conservative",
+        "Very conservative",
+        "No response",
+        "Not sure",
+    ],
+)
+
+q_CC22_340m = QuestionMultipleChoice(
+    question_name="CC22_340m",
+    question_text="How would you rate $HouseCand2Name?",
+    question_options=[
+        "Very liberal",
+        "Somewhat liberal",
+        "Middle of the road",
+        "Somewhat conservative",
+        "Very conservative",
+        "No response",
+        "Not sure",
+    ],
+)
+
+q_CC22_340n = QuestionMultipleChoice(
+    question_name="CC22_340n",
+    question_text="How would you rate $CurrentHouseName?",
+    question_options=[
+        "Very liberal",
+        "Somewhat liberal",
+        "Middle of the road",
+        "Somewhat conservative",
+        "Very conservative",
+        "No response",
+        "Not sure",
+    ],
+)
+
+q_CC22_350a = QuestionMultipleChoice(
+    question_name="CC22_350a",
+    question_text="Do you support authorizing spending up to $1.9 trillion for COVID relief from March 2021 through September 2021, including extension of unemployment benefits through September 2021, and emergency funding to state and local governments for the fiscal year?",
+    question_options=["Favor", "Oppose"],
+)
+
+q_CC22_350b = QuestionMultipleChoice(
+    question_name="CC22_350b",
+    question_text="Do you support spending $150 billion a year for 8 years on construction and repair of roads and bridges, rail, public transit, airports, water systems and broadband internet?",
+    question_options=["Favor", "Oppose"],
+)
+
+q_CC22_350c = QuestionMultipleChoice(
+    question_name="CC22_350c",
+    question_text="Do you support spending $2.2 trillion over the next decade to provide universal prekindergarten, subsidies for child care, expanded financial aid for college, housing support, home and community care for older Americans, and to shift the U.S. economy away from fossil fuels to renewable energy and electric cars?",
+    question_options=["Favor", "Oppose"],
+)
+
+q_CC22_350d = QuestionMultipleChoice(
+    question_name="CC22_350d",
+    question_text="Do you support prohibiting government restrictions on the provision of, and access to, abortion services?",
+    question_options=["Favor", "Oppose"],
+)
+
+q_CC22_350e = QuestionMultipleChoice(
+    question_name="CC22_350e",
+    question_text="Do you support providing $52 billion in grants for American semiconductor manufacturing and research and a tax credit subsidizing 25% of investments in semiconductor manufacturing?",
+    question_options=["Favor", "Oppose"],
+)
+
+q_CC22_350f = QuestionMultipleChoice(
+    question_name="CC22_350f",
+    question_text="Do you support prohibiting large online platforms from giving preference to their own products on the platform at the expense of competing products from another business?",
+    question_options=["Favor", "Oppose"],
+)
+
+q_CC22_350g = QuestionMultipleChoice(
+    question_name="CC22_350g",
+    question_text="Do you support appointing Ketanji Brown Jackson to the U.S. Supreme Court?",
+    question_options=["Favor", "Oppose"],
+)
+
+q_CC22_350h = QuestionMultipleChoice(
+    question_name="CC22_350h",
+    question_text="Do you support spending $369 billion for tax credits to encourage the production of solar panels, wind turbines, and batteries; lowers Affordable Care Act health care premiums; reduces the deficit by $300 billion by allowing Medicare to negotiate the cost of some prescription drugs and making changes to the tax code?",
+    question_options=["Favor", "Oppose"],
+)
+
+q_CC22_355a = QuestionMultipleChoice(
+    question_name="CC22_355a",
+    question_text="Do you support the United States re-joining the Paris Climate Agreement?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_355b = QuestionMultipleChoice(
+    question_name="CC22_355b",
+    question_text="Do you support the United States re-joining the World Health Organization?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_355c = QuestionMultipleChoice(
+    question_name="CC22_355c",
+    question_text="Do you support ordering all federal agencies to buy clean energy, purchase electric vehicles, and make federal buildings energy efficient?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_355d = QuestionMultipleChoice(
+    question_name="CC22_355d",
+    question_text="Do you support increasing the minimum wage paid to federal contractors to $15 an hour?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_355e = QuestionMultipleChoice(
+    question_name="CC22_355e",
+    question_text="Do you support requiring that all employees at large companies be vaccinated?",
+    question_options=["Support", "Oppose"],
+)
+
+q_CC22_360 = QuestionMultipleChoice(
+    question_name="CC22_360",
+    question_text="With which party, if any, are you registered?",
+    question_options=[
+        "No Party, Independent, Declined to State",
+        "Democratic Party",
+        "Republican Party",
+        "Other",
+    ],
+)
+
+q_CC22_361 = QuestionMultipleChoice(
+    question_name="CC22_361",
+    question_text="How long have you lived at your present address?",
+    question_options=[
+        "Less than 1 month",
+        "2 to 6 months",
+        "7 to 11 months",
+        "1 to 2 years",
+        "3 to 4 years",
+        "5 or more years",
+    ],
+)
+
+q_urbancity = QuestionMultipleChoice(
+    question_name="urbancity",
+    question_text="How would you describe the place where you live?",
+    question_options=["City", "Suburb", "Town", "Rural area", "Other"],
+)
+
+q_presvote20post = QuestionMultipleChoice(
+    question_name="presvote20post",
+    question_text="Who did you vote for in the election for President in 2020?",
+    question_options=[
+        "Joe Biden",
+        "Donald Trump",
+        "Jo Jorgensen",
+        "Howie Hawkins",
+        "Other",
+        "Did not vote for President",
+    ],
+)
+
+q_CC22_363 = QuestionMultipleChoice(
+    question_name="CC22_363",
+    question_text="Do you intend to vote in the 2022 general election on November 8th?",
+    question_options=[
+        "Yes, definitely",
+        "Probably",
+        "I already voted (early or absentee)",
+        "I plan to vote before November 8th",
+        "No",
+        "Undecided",
+    ],
+)
+
+q_CC22_365_voted = QuestionMultipleChoice(
+    question_name="CC22_365_voted",
+    question_text="For which candidate for U.S. Senator did you vote?",
+    question_options=[
+        "$SenCand1Name ($SenCand1Party)",
+        "$SenCand2Name ($SenCand2Party)",
+        "$SenCand3Name ($SenCand3Party)",
+        "$SenCand4Name ($SenCand4Party)",
+        "Other",
+        "I'm not sure",
+        "I didn't vote in this election",
+    ],
+)
+
+q_CC22_365b_voted = QuestionMultipleChoice(
+    question_name="CC22_365b_voted",
+    question_text="For which candidate for the special election for U.S. Senate did you vote?",
+    question_options=[
+        "$SenCand1Name2 ($SenCand1Party2)",
+        "$SenCand2Name2 ($SenCand2Party2)",
+        "Other",
+        "I'm not sure",
+        "I didn't vote in this election",
+    ],
+)
+
+q_CC22_366_voted = QuestionMultipleChoice(
+    question_name="CC22_366_voted",
+    question_text="For which candidate for Governor did you vote?",
+    question_options=[
+        "$GovCand1Name ($GovCand1Party)",
+        "$GovCand2Name ($GovCand2Party)",
+        "$GovCand3Name ($GovCand3Party)",
+        "Other",
+        "I'm not sure",
+        "I didn't vote in this election",
+    ],
+)
+
+q_CC22_367_voted = QuestionMultipleChoice(
+    question_name="CC22_367_voted",
+    question_text="For which candidate for U.S. House of Representatives in your area did you vote?",
+    question_options=[
+        "$HouseCand1Name ($HouseCand1Party)",
+        "$HouseCand2Name ($HouseCand2Party)",
+        "$HouseCand3Name ($HouseCand3Party)",
+        "$HouseCand4Name ($HouseCand4Party)",
+        "$HouseCand5Name ($HouseCand5Party)",
+        "$HouseCand6Name ($HouseCand6Party)",
+        "$HouseCand7Name ($HouseCand7Party)",
+        "$HouseCand8Name ($HouseCand8Party)",
+        "Other",
+        "I'm not sure",
+        "I didn't vote in this election",
+    ],
+)
+
+q_CC22_365 = QuestionMultipleChoice(
+    question_name="CC22_365",
+    question_text="In the race for U.S. Senator in your state, who do you prefer?",
+    question_options=[
+        "$SenCand1Name ($SenCand1Party)",
+        "$SenCand2Name ($SenCand2Party)",
+        "$SenCand3Name ($SenCand3Party)",
+        "$SenCand4Name ($SenCand4Party)",
+        "Other",
+        "I'm not sure",
+        "No one",
+    ],
+)
+
+q_CC22_365a = QuestionMultipleChoice(
+    question_name="CC22_365a",
+    question_text="Who is your second choice for U.S. Senator?",
+    question_options=[
+        "$SenCand1Name ($SenCand1Party)",
+        "$SenCand2Name ($SenCand2Party)",
+        "$SenCand3Name ($SenCand3Party)",
+        "$SenCand4Name ($SenCand4Party)",
+        "Other",
+        "I'm not sure",
+        "No one",
+    ],
+)
+
+q_CC22_365b = QuestionMultipleChoice(
+    question_name="CC22_365b",
+    question_text="In the special election for U.S. Senator in your state, who do you prefer?",
+    question_options=[
+        "$SenCand1Name2 ($SenCand1Party2)",
+        "$SenCand2Name2 ($SenCand2Party2)",
+        "Other",
+        "I'm not sure",
+        "No one",
+    ],
+)
+
+q_CC22_365c = QuestionMultipleChoice(
+    question_name="CC22_365c",
+    question_text="Who is your second choice for U.S. Senator?",
+    question_options=[
+        "$SenCand1Name2 ($SenCand1Party2)",
+        "$SenCand2Name2 ($SenCand2Party2)",
+        "Other",
+        "I'm not sure",
+        "No one",
+    ],
+)
+
+q_CC22_366 = QuestionMultipleChoice(
+    question_name="CC22_366",
+    question_text="In the race for Governor in your state, who do you prefer?",
+    question_options=[
+        "$GovCand1Name ($GovCand1Party)",
+        "$GovCand2Name ($GovCand2Party)",
+        "$GovCand3Name ($GovCand3Party)",
+        "Other",
+        "I'm not sure",
+        "No one",
+    ],
+)
+
+q_CC22_367 = QuestionMultipleChoice(
+    question_name="CC22_367",
+    question_text="In the general election for U.S. House of Representatives in your area, who do you prefer?",
+    question_options=[
+        "$HouseCand1Name ($HouseCand1Party)",
+        "$HouseCand2Name ($HouseCand2Party)",
+        "$HouseCand3Name ($HouseCand3Party)",
+        "$HouseCand4Name ($HouseCand4Party)",
+        "$HouseCand5Name ($HouseCand5Party)",
+        "$HouseCand6Name ($HouseCand6Party)",
+        "$HouseCand7Name ($HouseCand7Party)",
+        "$HouseCand8Name ($HouseCand8Party)",
+        "Other",
+        "I'm not sure",
+        "No one",
+    ],
+)
+
+q_CC22_367a = QuestionMultipleChoice(
+    question_name="CC22_367a",
+    question_text="Who is your second choice for U.S. House of Representatives?",
+    question_options=[
+        "$HouseCand1Name ($HouseCand1Party)",
+        "$HouseCand2Name ($HouseCand2Party)",
+        "$HouseCand3Name ($HouseCand3Party)",
+        "$HouseCand4Name ($HouseCand4Party)",
+        "$HouseCand5Name ($HouseCand5Party)",
+        "$HouseCand6Name ($HouseCand6Party)",
+        "$HouseCand7Name ($HouseCand7Party)",
+        "$HouseCand8Name ($HouseCand8Party)",
+        "Other",
+        "I'm not sure",
+        "No one",
+    ],
+)
+
+q_ideo5 = QuestionMultipleChoice(
+    question_name="ideo5",
+    question_text="In general, how would you describe your own political viewpoint?",
+    question_options=[
+        "Very liberal",
+        "Liberal",
+        "Moderate",
+        "Conservative",
+        "Very conservative",
+        "Not sure",
+    ],
+)
+
+q_employ = QuestionMultipleChoice(
+    question_name="employ",
+    question_text="Which of the following best describes your current employment status?",
+    question_options=[
+        "Working full time now",
+        "Working part time now",
+        "Temporarily laid off",
+        "Unemployed",
+        "Retired",
+        "Permanently disabled",
+        "Taking care of home or family",
+        "Student",
+        "Other",
+    ],
+)
+
+q_hadjob = QuestionYesNo(
+    question_name="hadjob",
+    question_text="At any time over the past five years, have you had a job?",
+)
+
+q_investor = QuestionYesNo(
+    question_name="investor",
+    question_text="Do you personally (or jointly with a spouse), have any money invested in the stock market right now, either in an individual stock or in a mutual fund?",
+)
+
+q_pew_bornagain = QuestionYesNo(
+    question_name="pew_bornagain",
+    question_text="Would you describe yourself as a 'born-again' or evangelical Christian, or not?",
+)
+
+q_pew_religimp = QuestionMultipleChoice(
+    question_name="pew_religimp",
+    question_text="How important is religion in your life?",
+    question_options=[
+        "Very important",
+        "Somewhat important",
+        "Not too important",
+        "Not at all important",
+    ],
+)
+
+q_pew_churatd = QuestionMultipleChoice(
+    question_name="pew_churatd",
+    question_text="Aside from weddings and funerals, how often do you attend religious services?",
+    question_options=[
+        "More than once a week",
+        "Once a week",
+        "Once or twice a month",
+        "A few times a year",
+        "Seldom",
+        "Never",
+        "Don't know",
+    ],
+)
+
+q_pew_prayer = QuestionMultipleChoice(
+    question_name="pew_prayer",
+    question_text="People practice their religion in different ways. Outside of attending religious services, how often do you pray?",
+    question_options=[
+        "Several times a day",
+        "Once a day",
+        "A few times a week",
+        "Once a week",
+        "A few times a month",
+        "Seldom",
+        "Never",
+        "Don't know",
+    ],
+)
+
+q_religpew = QuestionMultipleChoice(
+    question_name="religpew",
+    question_text="What is your present religion, if any?",
+    question_options=[
+        "Protestant",
+        "Roman Catholic",
+        "Mormon",
+        "Eastern or Greek Orthodox",
+        "Jewish",
+        "Muslim",
+        "Buddhist",
+        "Hindu",
+        "Atheist",
+        "Agnostic",
+        "Nothing in particular",
+        "Something else",
+    ],
+)
+
+q_religpew_protestant = QuestionMultipleChoice(
+    question_name="religpew_protestant",
+    question_text="To which Protestant church or group do you belong?",
+    question_options=[
+        "Baptist",
+        "Methodist",
+        "Nondenominational or Independent Church",
+        "Lutheran",
+        "Presbyterian",
+        "Pentecostal",
+        "Episcopalian",
+        "Church of Christ or Disciples of Christ",
+        "Congregational or United Church of Christ",
+        "Holiness",
+        "Reformed",
+        "Adventist",
+        "Jehovah's Witness",
+        "Something else",
+    ],
+)
+
+q_Xreligpew_protestant = QuestionMultipleChoice(
+    question_name="Xreligpew_protestant",
+    question_text="Do you belong to any one of these churches or groups?",
+    question_options=[
+        "Baptist",
+        "Methodist",
+        "Nondenominational or Independent Church",
+        "Lutheran",
+        "Presbyterian",
+        "Pentecostal",
+        "Episcopalian",
+        "Church of Christ or Disciples of Christ",
+        "Congregational or United Church of Christ",
+        "Holiness",
+        "Reformed",
+        "Adventist",
+        "Jehovah's Witness",
+        "None of these",
+    ],
+)
+
+q_religpew_baptist = QuestionMultipleChoice(
+    question_name="religpew_baptist",
+    question_text="To which Baptist church do you belong, if any?",
+    question_options=[
+        "Southern Baptist Convention",
+        "American Baptist Churches in USA",
+        "National Baptist Convention",
+        "Progressive Baptist Convention",
+        "Independent Baptist",
+        "Baptist General Conference",
+        "Baptist Missionary Association",
+        "Conservative Baptist Assoc. of America",
+        "Free Will Baptist",
+        "General Association of Regular Baptists",
+        "Other Baptist",
+    ],
+)
+
+q_religpew_methodist = QuestionMultipleChoice(
+    question_name="religpew_methodist",
+    question_text="To which Methodist church do you belong, if any?",
+    question_options=[
+        "United Methodist Church",
+        "Free Methodist Church",
+        "African Methodist Episcopal",
+        "African Methodist Episcopal Zion",
+        "Christian Methodist Episcopal Church",
+        "Other Methodist Church",
+    ],
+)
+
+q_religpew_nondenom = QuestionMultipleChoice(
+    question_name="religpew_nondenom",
+    question_text="To which kind of nondenominational or independent church do you belong, if any?",
+    question_options=[
+        "Nondenominational evangelical",
+        "Nondenominational fundamentalist",
+        "Nondenominational charismatic",
+        "Interdenominational",
+        "Community church",
+        "Other",
+    ],
+)
+
+q_religpew_lutheran = QuestionMultipleChoice(
+    question_name="religpew_lutheran",
+    question_text="To which Lutheran church do you belong?",
+    question_options=[
+        "Evangelical Lutheran Church in America (ELCA)",
+        "Lutheran Church, Missouri Synod",
+        "Lutheran Church, Wisconsin Synod",
+        "Other Lutheran Church",
+    ],
+)
+
+q_religpew_presby = QuestionMultipleChoice(
+    question_name="religpew_presby",
+    question_text="To which Presbyterian church do you belong?",
+    question_options=[
+        "Presbyterian Church USA",
+        "Presbyterian Church in America",
+        "Associate Reformed Presbyterian",
+        "Cumberland Presbyterian Church",
+        "Orthodox Presbyterian",
+        "Evangelical Presbyterian Church",
+        "Other Presbyterian Church",
+    ],
+)
+
+q_religpew_pentecost = QuestionMultipleChoice(
+    question_name="religpew_pentecost",
+    question_text="To which Pentecostal church do you belong?",
+    question_options=[
+        "Assemblies of God",
+        "Church of God Cleveland TN",
+        "Four Square Gospel",
+        "Pentecostal Church of God",
+        "Pentecostal Holiness Church",
+        "Church of God in Christ",
+        "Church of God of the Apostolic Faith",
+        "Assembly of Christian Churches",
+        "Apostolic Christian",
+        "Other Pentecostal Church",
+    ],
+)
+
+q_religpew_episcop = QuestionMultipleChoice(
+    question_name="religpew_episcop",
+    question_text="To which Episcopalian church do you belong?",
+    question_options=[
+        "Episcopal Church in the USA",
+        "Anglican Church (Church of England)",
+        "Anglican Orthodox Church",
+        "Reformed Episcopal Church",
+        "Other Episcopalian or Anglican Church",
+    ],
+)
+
+q_religpew_christian = QuestionMultipleChoice(
+    question_name="religpew_christian",
+    question_text="To which Christian church do you belong?",
+    question_options=[
+        "Church of Christ",
+        "Disciples of Christ",
+        "Christian Churches and Churches of Christ",
+        "Other Christian church",
+    ],
+)
+
+q_religpew_congreg = QuestionMultipleChoice(
+    question_name="religpew_congreg",
+    question_text="To which congregational church do you belong?",
+    question_options=[
+        "United Church of Christ",
+        "Conservative Congregational Christian",
+        "National Association of Congregational Christians",
+        "Other Congregational",
+    ],
+)
+
+q_religpew_holiness = QuestionMultipleChoice(
+    question_name="religpew_holiness",
+    question_text="To which Holiness church do you belong?",
+    question_options=[
+        "Church of the Nazarene",
+        "Wesleyan Church",
+        "Free Methodist Church",
+        "Christian and Missionary Alliance",
+        "Church of God (Anderson, Indiana)",
+        "Salvation Army, American Rescue workers",
+        "Other Holiness",
+    ],
+)
+
+q_religpew_reformed = QuestionMultipleChoice(
+    question_name="religpew_reformed",
+    question_text="To which Reformed church do you belong?",
+    question_options=[
+        "Reformed Church in America",
+        "Christian Reformed Church",
+        "Other Reformed",
+    ],
+)
+
+q_religpew_advent = QuestionMultipleChoice(
+    question_name="religpew_advent",
+    question_text="To which Adventist church do you belong?",
+    question_options=[
+        "Seventh Day Adventist",
+        "Church of God, General Conference",
+        "Advent Christian",
+        "Other Adventist",
+    ],
+)
+
+q_religpew_catholic = QuestionMultipleChoice(
+    question_name="religpew_catholic",
+    question_text="To which Catholic church do you belong?",
+    question_options=[
+        "Roman Catholic Church",
+        "National Polish Catholic Church",
+        "Greek-rite Catholic",
+        "Armenian Catholic",
+        "Old Catholic",
+        "Other Catholic",
+    ],
+)
+
+q_religpew_mormon = QuestionMultipleChoice(
+    question_name="religpew_mormon",
+    question_text="To which Mormon church do you belong?",
+    question_options=[
+        "The Church of Jesus Christ of Latter-day Saints",
+        "Community of Christ",
+        "Other Mormon",
+    ],
+)
+
+q_religpew_orthodox = QuestionMultipleChoice(
+    question_name="religpew_orthodox",
+    question_text="To which Orthodox church do you belong?",
+    question_options=[
+        "Greek Orthodox",
+        "Russian Orthodox",
+        "Orthodox Church in America",
+        "Armenian Orthodox",
+        "Eastern Orthodox",
+        "Serbian Orthodox",
+        "Other Orthodox",
+    ],
+)
+
+q_religpew_jewish = QuestionMultipleChoice(
+    question_name="religpew_jewish",
+    question_text="To which Jewish group do you belong?",
+    question_options=[
+        "Reform",
+        "Conservative",
+        "Orthodox",
+        "Reconstructionist",
+        "Other",
+    ],
+)
+
+q_religpew_muslim = QuestionMultipleChoice(
+    question_name="religpew_muslim",
+    question_text="To which Muslim group do you belong?",
+    question_options=[
+        "Sunni",
+        "Shia",
+        "Nation of Islam (Black Muslim)",
+        "Other Muslim",
+    ],
+)
+
+q_religpew_buddhist = QuestionMultipleChoice(
+    question_name="religpew_buddhist",
+    question_text="To which Buddhist group do you belong?",
+    question_options=[
+        "Theravada (Vipassana) Buddhism",
+        "Mahayana (Zen) Buddhism",
+        "Vajrayana (Tibetan) Buddhism",
+        "Other Buddhist",
+    ],
+)
+
+q_religpew_hindu = QuestionMultipleChoice(
+    question_name="religpew_hindu",
+    question_text="With which of the following Hindu groups, if any, do you identify with most closely?",
+    question_options=[
+        "Vaishnava Hinduism",
+        "Shaivite Hinduism",
+        "Shaktism Hinduism",
+        "Other Hindu",
+    ],
+)
+
+q_marstat = QuestionMultipleChoice(
+    question_name="marstat",
+    question_text="What is your marital status?",
+    question_options=[
+        "Married",
+        "Separated",
+        "Divorced",
+        "Widowed",
+        "Never married",
+        "Domestic / civil partnership",
+    ],
+)
+
+q_union = QuestionMultipleChoice(
+    question_name="union",
+    question_text="Are you a member of a labor union?",
+    question_options=[
+        "Yes, I am currently a member of a labor union",
+        "I formerly was a member of a labor union",
+        "I am not now, nor have I been, a member of a labor union",
+    ],
+)
+
+q_union_coverage = QuestionMultipleChoice(
+    question_name="union_coverage",
+    question_text="Are you covered by a union contract, also known as a collective bargaining agreement?",
+    question_options=["Yes", "No", "Not sure"],
+)
+
+q_unionhh = QuestionMultipleChoice(
+    question_name="unionhh",
+    question_text="Other than yourself, is any member of your household a union member?",
+    question_options=[
+        "Yes, a member of my household is currently a union member",
+        "A member of my household was formerly a member of a labor union, but is not now",
+        "No, no one in my household has ever been a member of a labor union",
+        "Not sure",
+    ],
+)
+
+q_ccesmodule = QuestionMultipleChoice(
+    question_name="ccesmodule",
+    question_text="Survey assigned",
+    question_options=[
+        "NCC",
+        "MIA",
+        "TTU",
+        "RUT",
+        "MSU",
+        "FSU",
+        "LSU",
+        "JHU",
+        "IUA",
+        "BOS",
+        "DKU",
+        "NCW",
+        "WUS",
+        "USC",
+        "ZOU",
+        "MIC",
+        "BCJ",
+        "CPC",
+        "ASU",
+        "CAC",
+        "UWM",
+        "UCR",
+        "GTN",
+        "BTU",
+        "UTA",
+        "UTB",
+        "UVA",
+        "NCK",
+        "UTD",
+        "GWU",
+        "CUB",
+        "OSU",
+        "IOW",
+        "UCL",
+        "DKN",
+        "CLA",
+        "LBU",
+        "UND",
+        "TAM",
+        "WAS",
+        "YLS",
+        "UGA",
+        "TUF",
+        "DAR",
+        "NYU",
+        "VAN",
+        "UCM",
+        "UMA",
+        "UDE",
+        "MIZ",
+        "BYU",
+        "EMY",
+        "RCO",
+        "MSL",
+        "MCS",
+        "HUA",
+        "HUB",
+        "AMU",
+        "UMB/CGU",
+        "DMC / HKS",
+    ],
+)
+
+q_dualcit = QuestionYesNo(
+    question_name="dualcit",
+    question_text="Are you also a citizen of another country besides the United States?",
+)
+
+q_dualctry = QuestionFreeText(
+    question_name="dualctry",
+    question_text="What country do you hold citizenship with besides the United States?",
+    # question_options=[
+    #     "Canada", "United Kingdom", "Afghanistan", "Aland Islands", "Albania", "Algeria", "American Samoa", "Andorra", "Angola", "Anguilla",
+    #     "Antarctica", "Antigua and Barbuda", "Argentina", "Armenia", "Aruba", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain",
+    #     "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bermuda", "Bhutan", "Bolivia", "Bosnia and Herzegovina",
+    #     "Botswana", "Bouvet Island", "Brazil", "British Indian Ocean Territory", "Brunei Darussalam", "Bulgaria", "Burkina Faso", "Burundi",
+    #     "Cambodia", "Cameroon", "Cape Verde", "Cayman Islands", "Central African Republic", "Chad", "Chile", "China", "Christmas Island",
+    #     "Cocos (Keeling) Islands", "Colombia", "Comoros", "Congo", "Congo, the Democratic Republic of the", "Cook Islands", "Costa Rica",
+    #     "Cote d'Ivoire", "Croatia", "Cuba", "Cyprus", "Czech Republic", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "Ecuador",
+    #     "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Ethiopia", "Falkland Islands (Malvinas)", "Faroe Islands",
+    #     "Fiji", "Finland", "France", "French Guiana", "French Polynesia", "French Southern Territories", "Gabon", "Gambia", "Georgia",
+    #     "Germany", "Ghana", "Gibraltar", "Greece", "Greenland", "Grenada", "Guadeloupe", "Guam", "Guatemala", "Guernsey", "Guinea",
+    #     "Guinea-Bissau", "Guyana", "Haiti", "Heard Island and McDonald Islands", "Holy See (Vatican City State)", "Honduras", "Hong Kong",
+    #     "Hungary", "Iceland", "India", "Indonesia", "Iran, Islamic Republic of", "Iraq", "Ireland", "Isle of Man", "Israel", "Italy",
+    #     "Jamaica", "Japan", "Jersey", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Korea, Democratic People's Republic of", "Korea, Republic of",
+    #     "Kuwait", "Kyrgyzstan", "Lao People's Democratic Republic", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libyan Arab Jamahiriya",
+    #     "Liechtenstein", "Lithuania", "Luxembourg", "Macao", "Macedonia, the former Yugoslav Republic of", "Madagascar", "Malawi", "Malaysia",
+    #     "Maldives", "Mali", "Malta", "Marshall Islands", "Martinique", "Mauritania", "Mauritius", "Mayotte", "Mexico", "Micronesia, Federated States of",
+    #     "Moldova, Republic of", "Monaco", "Mongolia", "Montserrat", "Morocco", "Mozambique", "Myanmar", "Namibia", "Nauru", "Nepal",
+    #     "Netherlands", "Netherlands Antilles", "New Caledonia", "New Zealand", "Nicaragua", "Niger", "Nigeria", "Niue", "Norfolk Island",
+    #     "Northern Mariana Islands", "Norway", "Oman", "Pakistan", "Palau", "Palestinian Territory, Occupied", "Panama", "Papua New Guinea",
+    #     "Paraguay", "Peru", "Philippines", "Pitcairn", "Poland", "Portugal", "Puerto Rico", "Qatar", "Reunion", "Romania", "Russian Federation",
+    #     "Rwanda", "Saint Helena", "Saint Kitts and Nevis", "Saint Lucia", "Saint Pierre and Miquelon", "Saint Vincent and the Grenadines",
+    #     "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia and Montenegro", "Seychelles", "Sierra Leone",
+    #     "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Georgia and the South Sandwich Islands",
+    #     "Spain", "Sri Lanka", "Sudan", "Suriname", "Svalbard and Jan Mayen", "Swaziland", "Sweden", "Switzerland", "Syrian Arab Republic",
+    #     "Taiwan", "Tajikistan", "Tanzania, United Republic of", "Thailand", "Timor-Leste", "Togo", "Tokelau", "Tonga", "Trinidad and Tobago",
+    #     "Tunisia", "Turkey", "Turkmenistan", "Turks and Caicos Islands", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates",
+    #     "United States Minor Outlying Islands", "Uruguay", "Uzbekistan", "Vanuatu", "Venezuela", "Vietnam", "Virgin Islands, British",
+    #     "Virgin Islands, U.S.", "Wallis and Futuna", "Western Sahara", "Yemen", "Zambia", "Zimbabwe", "Other"
+    # ]
+)
+
+q_ownhome = QuestionMultipleChoice(
+    question_name="ownhome",
+    question_text="Do you own your home or pay rent?",
+    question_options=["Own", "Rent", "Other"],
+)
+
+q_newsint = QuestionMultipleChoice(
+    question_name="newsint",
+    question_text="Some people seem to follow what's going on in government and public affairs most of the time, whether there's an election going on or not. Others aren't that interested. Would you say you follow what's going on in government and public affairs ...",
+    question_options=[
+        "Most of the time",
+        "Some of the time",
+        "Only now and then",
+        "Hardly at all",
+        "Don't know",
+    ],
+)
+
+q_faminc_new = QuestionMultipleChoice(
+    question_name="faminc_new",
+    question_text="Thinking back over the last year, what was your family's annual income?",
+    question_options=[
+        "Less than $10,000",
+        "$10,000 - $19,999",
+        "$20,000 - $29,999",
+        "$30,000 - $39,999",
+        "$40,000 - $49,999",
+        "$50,000 - $59,999",
+        "$60,000 - $69,999",
+        "$70,000 - $79,999",
+        "$80,000 - $99,999",
+        "$100,000 - $119,999",
+        "$120,000 - $149,999",
+        "$150,000 - $199,999",
+        "$200,000 - $249,999",
+        "$250,000 - $349,999",
+        "$350,000 - $499,999",
+        "$500,000 or more",
+        "Prefer not to say",
+    ],
+)
+
+q_milstat = QuestionCheckBox(
+    question_name="milstat",
+    question_text="We'd like to know whether you or someone in your immediate family is currently serving or has ever served in the U.S. military. Immediate family is defined as your parents, siblings, spouse, and children. Please check all boxes that apply.",
+    question_options=[
+        "I am currently serving in the U.S. military",
+        "I have immediate family members currently serving in the U.S. military",
+        "I previously served in the U.S. military but I am no longer active",
+        "Members of my immediate family have served in the U.S. military but are no longer active",
+        "Neither myself nor any members of my immediate family have ever served in the U.S. military",
+    ],
+)
+
+q_child18 = QuestionYesNo(
+    question_name="child18",
+    question_text="Are you the parent or guardian of any children under the age of 18?",
+)
+
+q_healthins = QuestionCheckBox(
+    question_name="healthins",
+    question_text="Do you currently have health insurance? (Please check all that apply)",
+    question_options=[
+        "Yes, through my job or a family member's employer",
+        "Yes, through a government program, such as Medicare or Medicaid",
+        "Yes, through my school",
+        "Yes, I purchased my own",
+        "Not sure",
+        "No",
+    ],
+)
+
+q_healthins2 = QuestionYesNo(
+    question_name="healthins2",
+    question_text="When you purchased health insurance did you use a health insurance exchange?",
+)
+
+q_phone = QuestionMultipleChoice(
+    question_name="phone",
+    question_text="Thinking about your phone service, do you have ...?",
+    question_options=[
+        "A landline and a cell phone",
+        "Cell phone only",
+        "Landline only",
+        "No landline or cell phone service",
+    ],
+)
+
+q_internethome = QuestionMultipleChoice(
+    question_name="internethome",
+    question_text="What best describes the access you have to the internet at home?",
+    question_options=["Cable, DSL, or other broadband", "Dial-up", "None"],
+)
+
+q_internetwork = QuestionMultipleChoice(
+    question_name="internetwork",
+    question_text="What best describes the access you have to the internet at work (or at school)?",
+    question_options=["Cable, DSL, or other broadband", "Dial-up", "None"],
+)
+
+q_CC22_hisp = QuestionCheckBox(
+    question_name="CC22_hisp",
+    question_text="From which country or region do you trace your heritage or ancestry? (check all that apply)",
+    question_options=[
+        "No Country in Particular",
+        "United States",
+        "Mexico",
+        "Puerto Rico",
+        "Cuba",
+        "Dominican Republic",
+        "South America",
+        "Central America",
+        "Caribbean",
+        "Spain",
+        "Other",
+        "I am not of Latino, Hispanic or Spanish Heritage",
+    ],
+)
+
+q_CC22_asian = QuestionCheckBox(
+    question_name="CC22_asian",
+    question_text="From which country or region do you trace your heritage or ancestry? (check all that apply)",
+    question_options=[
+        "No Country in Particular",
+        "United States",
+        "China",
+        "Japan",
+        "India",
+        "Philippines",
+        "Taiwan",
+        "Korea",
+        "Vietnam",
+        "Pakistan",
+        "Hmong",
+        "Cambodia",
+        "Thailand",
+        "Other",
+        "I am not of Asian Heritage",
+    ],
+)
+
+q_presvote16post = QuestionMultipleChoice(
+    question_name="presvote16post",
+    question_text="Who did you vote for in the election for President in 2016?",
+    question_options=[
+        "Hillary Clinton",
+        "Donald Trump",
+        "Gary Johnson",
+        "Jill Stein",
+        "Evan McMullin",
+        "Other",
+        "Did not vote for President",
+    ],
+)
+
+q_industry = QuestionMultipleChoice(
+    question_name="industry",
+    question_text="$employtext",
+    question_options=[
+        "Agriculture, forestry, fishing, and hunting",
+        "Mining",
+        "Utilities",
+        "Construction",
+        "Manufacturing",
+        "Professional and business services",
+        "Educational services",
+        "Health care and social assistance",
+        "Leisure and hospitality",
+        "Other services",
+        "Wholesale trade",
+        "Retail trade",
+        "Transportation and warehousing",
+        "Information",
+        "Financial activities",
+        "Federal government",
+        "State and local government",
+    ],
+)
+
+q_sexuality = QuestionMultipleChoice(
+    question_name="sexuality",
+    question_text="Which of the following best describes your sexuality?",
+    question_options=[
+        "Heterosexual / straight",
+        "Lesbian / gay woman",
+        "Gay man",
+        "Bisexual",
+        "Other",
+        "Prefer not to say",
+    ],
+)
+
+q_transgender = QuestionMultipleChoice(
+    question_name="transgender",
+    question_text="Do you identify as transgender?",
+    question_options=["Yes", "No", "Prefer not to say"],
+)
+```
+
+## Combining questions into a `Survey`
+
+A `Survey` object is created by passing a list of `Question` objects. Learn more about [constructing surveys in EDSL](/en/latest/surveys).
+
+
+```python expandable
+survey_ces22_pre_election_questionnaire = Survey(
+    [
+        q_CCEStake,
+        q_add_confirm,
+        q_inputzip,
+        q_birthyr,
+        q_gender4,
+        q_educ,
+        q_race,
+        q_hispanic,
+        q_multrace,
+        q_comptype,
+        q_votereg,
+        q_votereg_f,
+        q_pid3,
+        q_pid7,
+        q_inputstate,
+        q_region,
+        q_CC22_300,
+        q_CC22_300a,
+        q_CC22_300c,
+        q_CC22_300b,
+        q_CC22_300d,
+        q_CC19_302,
+        q_CC22_303,
+        q_CC22_304,
+        q_CC22_305,
+        q_CC22_307,
+        q_CC22_309a,
+        q_CC22_306,
+        q_CC22_309b,
+        q_CC22_309c,
+        q_CC22_309dx,
+        q_CC22_309e,
+        q_CC22_309f,
+        q_CC22_310a,
+        q_CC22_310b,
+        q_CC22_310c,
+        q_CC22_310d,
+        q_CC22_311a,
+        q_CC22_311b,
+        q_CC22_311c,
+        q_CC22_311d,
+        q_CC22_320a,
+        q_CC22_320b,
+        q_CC22_320c,
+        q_CC22_320d,
+        q_CC22_320e,
+        q_CC22_320f,
+        q_CC22_320g,
+        q_CC22_320h,
+        q_cit1,
+        q_immstat,
+        q_CC22_321,
+        q_CC22_327a,
+        q_CC22_327b,
+        q_CC22_327c,
+        q_CC22_327d,
+        q_CC22_330a,
+        q_CC22_330b,
+        q_CC22_330c,
+        q_CC22_330d,
+        q_CC22_330e,
+        q_CC22_330f,
+        q_CC22_331a,
+        q_CC22_331b,
+        q_CC22_331c,
+        q_CC22_331d,
+        q_CC22_332a,
+        q_CC22_332b,
+        q_CC22_332c,
+        q_CC22_332d,
+        q_CC22_332e,
+        q_CC22_332f,
+        q_CC22_333,
+        q_CC22_333a,
+        q_CC22_333b,
+        q_CC22_333c,
+        q_CC22_333d,
+        q_CC22_333e,
+        q_CC22_334a,
+        q_CC22_334b,
+        q_CC22_334c,
+        q_CC22_334d,
+        q_CC22_334e,
+        q_CC22_334f,
+        q_CC22_334g,
+        q_CC22_334h,
+        q_CC22_340a,
+        q_CC22_340b,
+        q_CC22_340c,
+        q_CC22_340d,
+        q_CC22_340e,
+        q_CC22_340f,
+        q_CC22_340g,
+        q_CC22_340h,
+        q_CC22_340i,
+        q_CC22_340j,
+        q_CC22_340k,
+        q_CC22_340l,
+        q_CC22_340m,
+        q_CC22_340n,
+        q_CC22_350a,
+        q_CC22_350b,
+        q_CC22_350c,
+        q_CC22_350d,
+        q_CC22_350e,
+        q_CC22_350f,
+        q_CC22_350g,
+        q_CC22_350h,
+        q_CC22_355a,
+        q_CC22_355b,
+        q_CC22_355c,
+        q_CC22_355d,
+        q_CC22_355e,
+        q_CC22_360,
+        q_CC22_361,
+        q_urbancity,
+        q_presvote20post,
+        q_CC22_363,
+        q_CC22_365_voted,
+        q_CC22_365b_voted,
+        q_CC22_366_voted,
+        q_CC22_367_voted,
+        q_CC22_365,
+        q_CC22_365a,
+        q_CC22_365b,
+        q_CC22_365c,
+        q_CC22_366,
+        q_CC22_367,
+        q_CC22_367a,
+        q_ideo5,
+        q_employ,
+        q_hadjob,
+        q_investor,
+        q_pew_bornagain,
+        q_pew_religimp,
+        q_pew_churatd,
+        q_pew_prayer,
+        q_religpew,
+        q_religpew_protestant,
+        q_Xreligpew_protestant,
+        q_religpew_baptist,
+        q_religpew_methodist,
+        q_religpew_nondenom,
+        q_religpew_lutheran,
+        q_religpew_presby,
+        q_religpew_pentecost,
+        q_religpew_episcop,
+        q_religpew_christian,
+        q_religpew_congreg,
+        q_religpew_holiness,
+        q_religpew_reformed,
+        q_religpew_advent,
+        q_religpew_catholic,
+        q_religpew_mormon,
+        q_religpew_orthodox,
+        q_religpew_jewish,
+        q_religpew_muslim,
+        q_religpew_buddhist,
+        q_religpew_hindu,
+        q_marstat,
+        q_union,
+        q_union_coverage,
+        q_unionhh,
+        q_ccesmodule,
+        q_dualcit,
+        q_dualctry,
+        q_ownhome,
+        q_newsint,
+        q_faminc_new,
+        q_milstat,
+        q_child18,
+        q_healthins,
+        q_healthins2,
+        q_phone,
+        q_internethome,
+        q_internetwork,
+        q_CC22_hisp,
+        q_CC22_asian,
+        q_presvote16post,
+        q_industry,
+        q_sexuality,
+        q_transgender,
+    ]
+)
+```
+
+### Dictionary of question short names & texts
+
+Here we create a dictionary of the question short names and texts, for convenience in working with the data:
+
+
+```python expandable
+questions = {
+    "caseid": "caseid",
+    "CCEStake": "Do you agree to participate in the study?",
+    "add_confirm": "Is the name and address displayed above correct?",
+    "inputzip": "So that we can ask you about the news and events in your area, in what zip code do you currently reside?",
+    "birthyr": "In what year were you born?",
+    "gender4": "What is your gender?",
+    "educ": "What is the highest level of education you have completed?",
+    "race": "What racial or ethnic group best describes you?",
+    "hispanic": "Are you of Spanish, Latino, or Hispanic origin or descent?",
+    "multrace": "Please indicate the racial or ethnic groups that best describe you?",
+    "comptype": "What type of device are you currently taking this survey on?",
+    "votereg": "Are you registered to vote?",
+    "votereg_f": "Is $izip the zip code where you are registered to vote?",
+    "pid3": "Generally speaking, do you think of yourself as a ...?",
+    "pid7": "$pid7text",
+    "inputstate": "What is your State of Residence?",
+    "region": "In which census region do you live?",
+    "CC22_300": "In the past 24 hours have you...",
+    "CC22_300a": "Did you watch local news, national news, or both?",
+    "CC22_300c": "Did you read a print newspaper, an online newspaper, or both?",
+    "CC22_300b": "Which of these networks did you watch?",
+    "CC22_300d": "In the past 24 hours, did you do any of the following on social media (such as Facebook, Youtube or Twitter)?",
+    "CC19_302": "Would you say that OVER THE PAST YEAR the nation's economy has ...",
+    "CC22_303": "OVER THE PAST YEAR, has your household's annual income...?",
+    "CC22_304": "OVER THE PAST YEAR, have the prices of everyday goods and services...?",
+    "CC22_305": "Over the past year have you...",
+    "CC22_307": "Do the police make you feel...?",
+    "CC22_309a": "Have you or someone you know been diagnosed with the novel coronavirus (COVID-19) during the past year?",
+    "CC22_306": "Which of the following best describes you when it comes to being vaccinated against COVID-19?",
+    "CC22_309b": "Do you know anyone who died from the novel coronavirus (COVID-19)?",
+    "CC22_309c": "How did your work status change as a result of the coronavirus pandemic?",
+    "CC22_309dx": "Suppose that you have an emergency expense that costs $400. Based on your current financial situation, how would you pay for this expense? If you would use more than one method to cover this expense, please select all that apply.",
+    "CC22_309e": "Would you say that in general your health is...",
+    "CC22_309f": "Would you say that in general your mental health is...",
+    "CC22_310a": "Which party has a majority of seats in the U.S. House of Representatives?",
+    "CC22_310b": "Which party has a majority of seats in the U.S. Senate?",
+    "CC22_310c": "Which party has a majority of seats in the $inputstate State Senate?",
+    "CC22_310d": "Which party has a majority of seats in the $LowerChamberName?",
+    "CC22_311a": "Please indicate whether you've heard of this person and if so which party he or she is affiliated with: $CurrentGovName",
+    "CC22_311b": "Please indicate whether you've heard of this person and if so which party he or she is affiliated with: $CurrentSen1Name",
+    "CC22_311c": "Please indicate whether you've heard of this person and if so which party he or she is affiliated with: $CurrentSen2Name",
+    "CC22_311d": "Please indicate whether you've heard of this person and if so which party he or she is affiliated with: $CurrentHouseName",
+    "CC22_320a": "Do you approve of the way President Biden is doing his job?",
+    "CC22_320b": "Do you approve of the way the U.S. Congress is doing its job?",
+    "CC22_320c": "Do you approve of the way the U.S. Supreme Court is doing its job?",
+    "CC22_320d": "Do you approve of the way the Governor of $inputstate is doing their job?",
+    "CC22_320e": "Do you approve of the way $LegName is doing their job?",
+    "CC22_320f": "Do you approve of the way $CurrentHouseName is doing their job?",
+    "CC22_320g": "Do you approve of the way $CurrentSen1Name is doing their job?",
+    "CC22_320h": "Do you approve of the way $CurrentSen2Name is doing their job?",
+    "cit1": "Are you a United States citizen?",
+    "immstat": "Which of these statements best describes you?",
+    "CC22_321": "What do you think the United States should do in response to Russia's invasion of Ukraine?",
+    "CC22_327a": "Would you support or oppose the proposal to expand Medicare to a single comprehensive public health care coverage program that would cover all Americans?",
+    "CC22_327b": "Would you support or oppose the proposal to allow the government to negotiate with drug companies to get a lower price on prescription drugs that would apply to both Medicare and private insurance?",
+    "CC22_327c": "Would you support or oppose the proposal to repeal the entire Affordable Care Act?",
+    "CC22_327d": "Would you support or oppose the proposal to allow states to import prescription drugs from other countries?",
+    "CC22_330a": "On the issue of gun regulation, do you support or oppose the proposal to prohibit state and local governments from publishing the names and addresses of all gun owners?",
+    "CC22_330b": "On the issue of gun regulation, do you support or oppose the proposal to ban assault rifles?",
+    "CC22_330c": "On the issue of gun regulation, do you support or oppose the proposal to make it easier for people to obtain concealed-carry permits?",
+    "CC22_330d": "On the issue of gun regulation, do you support or oppose the proposal to provide federal funding to encourage states to take guns away from people who already own them but might pose a threat to themselves or others?",
+    "CC22_330e": "On the issue of gun regulation, do you support or oppose the proposal to improve background checks to give authorities time to check the juvenile and mental health records of any prospective gun buyer under the age of 21?",
+    "CC22_330f": "On the issue of gun regulation, do you support or oppose the proposal to allow teachers and school officials to carry guns in public schools?",
+    "CC22_331a": "What do you think the U.S. government should do about immigration? Do you support or oppose the proposal to grant legal status to all illegal immigrants who have held jobs and paid taxes for at least 3 years, and not been convicted of any felony crimes?",
+    "CC22_331b": "What do you think the U.S. government should do about immigration? Do you support or oppose the proposal to increase the number of border patrols on the US-Mexican border?",
+    "CC22_331c": "What do you think the U.S. government should do about immigration? Do you support or oppose the proposal to reduce legal immigration by 50 percent over the next 10 years by eliminating the visa lottery and ending family-based migration?",
+    "CC22_331d": "What do you think the U.S. government should do about immigration? Do you support or oppose the proposal to increase spending on border security by $25 billion, including building a wall between the U.S. and Mexico?",
+    "CC22_332a": "On the topic of abortion, do you support or oppose the proposal to always allow a woman to obtain an abortion as a matter of choice?",
+    "CC22_332b": "On the topic of abortion, do you support or oppose the proposal to permit abortion only in case of rape, incest or when the woman's life is in danger?",
+    "CC22_332c": "On the topic of abortion, do you support or oppose the proposal to prohibit all abortions after the 20th week of pregnancy?",
+    "CC22_332d": "On the topic of abortion, do you support or oppose the proposal to allow employers to decline coverage of abortions in insurance plans?",
+    "CC22_332e": "On the topic of abortion, do you support or oppose the proposal to prohibit the expenditure of funds authorized or appropriated by federal law for any abortion?",
+    "CC22_332f": "On the topic of abortion, do you support or oppose the proposal to make abortions illegal in all circumstances?",
+    "CC22_333": "From what you know about global climate change or global warming, which one of the following statements comes closest to your opinion?",
+    "CC22_333a": "Do you support or oppose the proposal to give the Environmental Protection Agency power to regulate carbon dioxide emissions?",
+    "CC22_333b": "Do you support or oppose the proposal to require that each state use a minimum amount of renewable fuels (wind, solar, and hydroelectric) in the generation of electricity even if electricity prices increase a little?",
+    "CC22_333c": "Do you support or oppose the proposal to strengthen the Environmental Protection Agency enforcement of the Clean Air Act and Clean Water Act even if it costs U.S. jobs?",
+    "CC22_333d": "Do you support or oppose the proposal to raise the average fuel efficiency for all cars and trucks in the US from 40 miles per gallon to 54.5 miles per gallon by 2025?",
+    "CC22_333e": "Do you support or oppose the proposal to increase fossil fuel production in the U.S. and boost exports of U.S. liquefied natural gas?",
+    "CC22_334a": "Do you support or oppose the proposal to eliminate mandatory minimum sentences for non-violent drug offenders?",
+    "CC22_334b": "Do you support or oppose the proposal to require police officers to wear body cameras that record all of their activities while on duty?",
+    "CC22_334c": "Do you support or oppose the proposal to increase the number of police on the street by 10 percent, even if it means fewer funds for other public services?",
+    "CC22_334d": "Do you support or oppose the proposal to decrease the number of police on the street by 10 percent, and increase funding for other public services?",
+    "CC22_334e": "Do you support or oppose the proposal to ban the use of choke holds by police?",
+    "CC22_334f": "Do you support or oppose the proposal to create a national registry of police who have been investigated for or disciplined for misconduct?",
+    "CC22_334g": "Do you support or oppose the proposal to end the Department of Defense program that sends surplus military weapons and equipment to police departments?",
+    "CC22_334h": 'Do you support or oppose the proposal to allow individuals or their families to sue a police officer for damages if the officer is found to have "recklessly disregarded" the individual's rights?',
+    "CC22_340a": "How would you rate Yourself?",
+    "CC22_340b": "How would you rate $CurrentGovName?",
+    "CC22_340c": "How would you rate Joe Biden?",
+    "CC22_340d": "How would you rate Donald Trump?",
+    "CC22_340e": "How would you rate The Democratic Party?",
+    "CC22_340f": "How would you rate The Republican Party?",
+    "CC22_340g": "How would you rate The U.S. Supreme Court?",
+    "CC22_340h": "How would you rate $CurrentSen1Name?",
+    "CC22_340i": "How would you rate $CurrentSen2Name?",
+    "CC22_340j": "How would you rate $SenCand1Name?",
+    "CC22_340k": "How would you rate $SenCand2Name?",
+    "CC22_340l": "How would you rate $HouseCand1Name?",
+    "CC22_340m": "How would you rate $HouseCand2Name?",
+    "CC22_340n": "How would you rate $CurrentHouseName?",
+    "CC22_350a": "Over the past two years, Congress voted on many issues. Do you support the proposal to authorize spending up to $1.9 trillion for COVID relief from March 2021 through September 2021, including extension of unemployment benefits through September 2021, and emergency funding to state and local governments for the fiscal year?",
+    "CC22_350b": "Over the past two years, Congress voted on many issues. Do you support the proposal to spend $150 billion a year for 8 years on construction and repair of roads and bridges, rail, public transit, airports, water systems and broadband internet?",
+    "CC22_350c": "Over the past two years, Congress voted on many issues. Do you support the proposal to spend $2.2 trillion over the next decade to provide universal prekindergarten, subsidies for child care, expanded financial aid for college, housing support, home and community care for older Americans, and to shift the U.S. economy away from fossil fuels to renewable energy and electric cars?",
+    "CC22_350d": "Over the past two years, Congress voted on many issues. Do you support the proposal to prohibit government restrictions on the provision of, and access to, abortion services?",
+    "CC22_350e": "Over the past two years, Congress voted on many issues. Do you support the proposal to provide $52 billion in grants for American semiconductor manufacturing and research and a tax credit subsidizing 25% of investments in semiconductor manufacturing?",
+    "CC22_350f": "Over the past two years, Congress voted on many issues. Do you support the proposal to prohibit large online platforms from giving preference to their own products on the platform at the expense of competing products from another business?",
+    "CC22_350g": "Over the past two years, Congress voted on many issues. Do you support the proposal to appoint Ketanji Brown Jackson to the U.S. Supreme Court?",
+    "CC22_350h": "Over the past two years, Congress voted on many issues. Do you support the proposal to spend $369 billion for tax credits to encourage the production of solar panels, wind turbines, and batteries; lowers Affordable Care Act health care premiums; reduces the deficit by $300 billion by allowing Medicare to negotiate the cost of some prescription drugs and making changes to the tax code?",
+    "CC22_355a": "For each of the following tell us whether you support or oppose the decision for the United States to re-join the Paris Climate Agreement?",
+    "CC22_355b": "For each of the following tell us whether you support or oppose the decision for the United States to re-join the World Health Organization?",
+    "CC22_355c": "For each of the following tell us whether you support or oppose the decision to order all federal agencies to buy clean energy, purchase electric vehicles, and make federal buildings energy efficient?",
+    "CC22_355d": "For each of the following tell us whether you support or oppose the decision to increase the minimum wage paid to federal contractors to $15 an hour?",
+    "CC22_355e": "For each of the following tell us whether you support or oppose the decision to require that all employees at large companies be vaccinated?",
+    "CC22_360": "With which party, if any, are you registered?",
+    "CC22_361": "How long have you lived at your present address?",
+    "urbancity": "How would you describe the place where you live?",
+    "presvote20post": "Who did you vote for in the election for President in 2020?",
+    "CC22_363": "Do you intend to vote in the 2022 general election on November 8th?",
+    "CC22_365_voted": "For which candidate for U.S. Senator did you vote?",
+    "CC22_365b_voted": "For which candidate for the special election for U.S. Senate did you vote?",
+    "CC22_366_voted": "For which candidate for Governor did you vote?",
+    "CC22_367_voted": "For which candidate for U.S. House of Representatives in your area did you vote?",
+    "CC22_365": "In the race for U.S. Senator in your state, who do you prefer?",
+    "CC22_365a": "Who is your second choice for U.S. Senator?",
+    "CC22_365b": "In the special election for U.S. Senator in your state, who do you prefer?",
+    "CC22_365c": "Who is your second choice for U.S. Senator?",
+    "CC22_366": "In the race for Governor in your state, who do you prefer?",
+    "CC22_367": "In the general election for U.S. House of Representatives in your area, who do you prefer?",
+    "CC22_367a": "Who is your second choice for U.S. House of Representatives?",
+    "ideo5": "In general, how would you describe your own political viewpoint?",
+    "employ": "Which of the following best describes your current employment status?",
+    "hadjob": "At any time over the past five years, have you had a job?",
+    "investor": "Do you personally (or jointly with a spouse), have any money invested in the stock market right now, either in an individual stock or in a mutual fund?",
+    "pew_bornagain": 'Would you describe yourself as a "born-again" or evangelical Christian, or not?',
+    "pew_religimp": "How important is religion in your life?",
+    "pew_churatd": "Aside from weddings and funerals, how often do you attend religious services?",
+    "pew_prayer": "People practice their religion in different ways. Outside of attending religious services, how often do you pray?",
+    "religpew": "What is your present religion, if any?",
+    "religpew_protestant": "To which Protestant church or group do you belong?",
+    "Xreligpew_protestant": "Do you belong to any one of these churches or groups?",
+    "religpew_baptist": "To which Baptist church do you belong, if any?",
+    "religpew_methodist": "To which Methodist church do you belong, if any?",
+    "religpew_nondenom": "To which kind of nondenominational or independent church do you belong, if any?",
+    "religpew_lutheran": "To which Lutheran church do you belong?",
+    "religpew_presby": "To which Presbyterian church do you belong?",
+    "religpew_pentecost": "To which Pentecostal church do you belong?",
+    "religpew_episcop": "To which Episcopalian church do you belong?",
+    "religpew_christian": "To which Christian church do you belong?",
+    "religpew_congreg": "To which congregational church do you belong?",
+    "religpew_holiness": "To which Holiness church do you belong?",
+    "religpew_reformed": "To which Reformed church do you belong?",
+    "religpew_advent": "To which Adventist church do you belong?",
+    "religpew_catholic": "To which Catholic church do you belong?",
+    "religpew_mormon": "To which Mormon church do you belong?",
+    "religpew_orthodox": "To which Orthodox church do you belong?",
+    "religpew_jewish": "To which Jewish group do you belong?",
+    "religpew_muslim": "To which Muslim group do you belong?",
+    "religpew_buddhist": "To which Buddhist group do you belong?",
+    "religpew_hindu": "With which of the following Hindu groups, if any, do you identify with most closely?",
+    "marstat": "What is your marital status?",
+    "union": "Are you a member of a labor union?",
+    "union_coverage": "Are you covered by a union contract, also known as a collective bargaining agreement?",
+    "unionhh": "Other than yourself, is any member of your household a union member?",
+    "ccesmodule": "Survey assigned",
+    "dualcit": "Are you also a citizen of another country besides the United States?",
+    "dualctry": "What country do you hold citizenship with besides the United States?",
+    "ownhome": "Do you own your home or pay rent?",
+    "newsint": "Some people seem to follow what's going on in government and public affairs most of the time, whether there's an election going on or not. Others aren't that interested. Would you say you follow what's going on in government and public affairs ...",
+    "faminc_new": "Thinking back over the last year, what was your family's annual income?",
+    "milstat": "We'd like to know whether you or someone in your immediate family is currently serving or has ever served in the U.S. military. Immediate family is defined as your parents, siblings, spouse, and children. Please check all boxes that apply.",
+    "child18": "Are you the parent or guardian of any children under the age of 18?",
+    "healthins": "Do you currently have health insurance?",
+    "healthins2": "When you purchased health insurance did you use a health insurance exchange?",
+    "phone": "Thinking about your phone service, do you have ...?",
+    "internethome": "What best describes the access you have to the internet at home?",
+    "internetwork": "What best describes the access you have to the internet at work (or at school)?",
+    "CC22_hisp": "From which country or region do you trace your heritage or ancestry?",
+    "CC22_asian": "From which country or region do you trace your heritage or ancestry?",
+    "presvote16post": "Who did you vote for in the election for President in 2016?",
+    "industry": "$employtext",
+    "sexuality": "Which of the following best describes your sexuality?",
+    "transgender": "Do you identify as transgender?",
+}
+```
+
+### Answer codebook
+
+Here we create a codebook of the question short names and the numbers and texts of the answer options, for convenience in working with the data and responses. Note that most answer option numbers are consecutive (1,2,3,…) but some are not.
+
+
+```python expandable
+codebook = {
+    "caseid": {},
+    "CCEStake": {1: "Yes", 2: "No"},
+    "add_confirm": {1: "Yes", 2: "No"},
+    "inputzip": {},
+    "birthyr": {},
+    "gender4": {1: "Man", 2: "Woman", 3: "Non-binary", 4: "Other"},
+    "educ": {
+        1: "Did not graduate from high school",
+        2: "High school graduate",
+        3: "Some college, but no degree (yet)",
+        4: "2-year college degree",
+        5: "4-year college degree",
+        6: "Postgraduate degree (MA, MBA, MD, JD, PhD, etc.)",
+    },
+    "race": {
+        1: "White",
+        2: "Black or African-American",
+        3: "Hispanic or Latino",
+        4: "Asian or Asian-American",
+        5: "Native American",
+        8: "Middle Eastern",
+        6: "Two or more races",
+        7: "Other",
+    },
+    "hispanic": {1: "Yes", 2: "No"},
+    "multrace": {
+        1: "White",
+        2: "Black or African-American",
+        3: "Hispanic or Latino",
+        4: "Asian or Asian-American",
+        5: "Native American",
+        8: "Middle Eastern",
+        97: "Other",
+        98: "Don't know",
+        99: "None of these",
+    },
+    "comptype": {
+        1: "I am taking this survey on a smart phone (e.g., iPhone or Android phone)",
+        2: "I am taking this survey on a tablet (e.g., iPad)",
+        3: "I am taking this survey on a desktop computer or laptop computer",
+    },
+    "votereg": {1: "Yes", 2: "No", 3: "Don't know"},
+    "votereg_f": {1: "Yes", 2: "No"},
+    "pid3": {
+        1: "Democrat",
+        2: "Republican",
+        3: "Independent",
+        4: "Other",
+        5: "Not sure",
+    },
+    "pid7": {
+        1: "Strong Democrat",
+        2: "Not very strong Democrat",
+        7: "Strong Republican",
+        6: "Not very strong Republican",
+        3: "The Democratic Party",
+        5: "The Republican Party",
+        4: "Neither",
+        8: "Not sure",
+        9: "Don't know",
+    },
+    "inputstate": {
+        1: "Alabama",
+        2: "Alaska",
+        4: "Arizona",
+        5: "Arkansas",
+        6: "California",
+        8: "Colorado",
+        9: "Connecticut",
+        10: "Delaware",
+        11: "District of Columbia",
+        12: "Florida",
+        13: "Georgia",
+        15: "Hawaii",
+        16: "Idaho",
+        17: "Illinois",
+        18: "Indiana",
+        19: "Iowa",
+        20: "Kansas",
+        21: "Kentucky",
+        22: "Louisiana",
+        23: "Maine",
+        24: "Maryland",
+        25: "Massachusetts",
+        26: "Michigan",
+        27: "Minnesota",
+        28: "Mississippi",
+        29: "Missouri",
+        30: "Montana",
+        31: "Nebraska",
+        32: "Nevada",
+        33: "New Hampshire",
+        34: "New Jersey",
+        35: "New Mexico",
+        36: "New York",
+        37: "North Carolina",
+        38: "North Dakota",
+        39: "Ohio",
+        40: "Oklahoma",
+        41: "Oregon",
+        42: "Pennsylvania",
+        44: "Rhode Island",
+        45: "South Carolina",
+        46: "South Dakota",
+        47: "Tennessee",
+        48: "Texas",
+        49: "Utah",
+        50: "Vermont",
+        51: "Virginia",
+        53: "Washington",
+        54: "West Virginia",
+        55: "Wisconsin",
+        56: "Wyoming",
+    },
+    "region": {1: "Northeast", 2: "Midwest", 3: "South", 4: "West"},
+    "CC22_300": {
+        1: "Used social media (such as Facebook or Youtube)",
+        2: "Watched TV news",
+        3: "Read a newspaper in print or online",
+        4: "Listened to a radio news program or talk radio",
+        5: "None of these",
+    },
+    "CC22_300a": {1: "Local Newscast", 2: "National Newscast", 3: "Both"},
+    "CC22_300c": {1: "Print", 2: "Online", 3: "Both"},
+    "CC22_300b": {
+        1: "ABC",
+        2: "CBS",
+        3: "NBC",
+        4: "CNN",
+        5: "Fox News",
+        6: "MSNBC",
+        7: "PBS",
+        8: "Other",
+    },
+    "CC22_300d": {
+        1: "Posted a story, photo, video or link about politics",
+        2: "Posted a comment about politics",
+        3: "Read a story or watched a video about politics",
+        4: "Followed a political event",
+        5: "Forwarded a story, photo, video or link about politics to friends",
+        6: "None of the above",
+    },
+    "CC19_302": {
+        1: "Gotten much better",
+        2: "Gotten somewhat better",
+        3: "Stayed about the same",
+        4: "Gotten somewhat worse",
+        5: "Gotten much worse",
+        6: "Not sure",
+    },
+    "CC22_303": {
+        1: "Increased a lot",
+        2: "Increased somewhat",
+        3: "Stayed about the same",
+        4: "Decreased somewhat",
+        5: "Decreased a lot",
+    },
+    "CC22_304": {
+        1: "Increased a lot",
+        2: "Increased somewhat",
+        3: "Stayed about the same",
+        4: "Decreased somewhat",
+        5: "Decreased a lot",
+    },
+    "CC22_305": {
+        1: "Married",
+        2: "Lost a job",
+        3: "Finished school",
+        4: "Retired",
+        5: "Divorced",
+        6: "Had a child",
+        7: "Taken a new job",
+        9: "Been a victim of a crime",
+        10: "Visited an emergency room",
+        11: "Visited a doctor for a regular examination",
+        12: "Received a raise at work",
+        13: "Had a pay cut at work",
+    },
+    "CC22_307": {
+        1: "Mostly safe",
+        2: "Somewhat safe",
+        3: "Somewhat unsafe",
+        4: "Mostly unsafe",
+    },
+    "CC22_309a": {
+        1: "Yes, I have",
+        2: "Yes, a family member",
+        3: "Yes, a friend",
+        4: "Yes, a co-worker",
+        5: "No, I do not know anyone who has been diagnosed",
+    },
+    "CC22_306": {
+        1: "I am fully vaccinated and have received at least one booster shot",
+        2: "I am fully vaccinated but have not received a booster shot",
+        3: "I am partially vaccinated (I have received the first of two shots for either Pfizer or Moderna)",
+        4: "I am not vaccinated at all",
+    },
+    "CC22_309b": {
+        1: "Yes, a family member",
+        2: "Yes, a friend",
+        3: "Yes, a co-worker",
+        4: "No, I do not know anyone who has died from coronavirus",
+    },
+    "CC22_309c": {
+        1: "My hours have been reduced",
+        2: "My hours were reduced, but they have been restored",
+        3: "I have been temporarily laid off",
+        4: "I was temporarily laid off but have now been re-hired",
+        5: "I had more than one job before the pandemic, and lost one of them",
+        6: "I lost my job",
+        7: "I was not working when the pandemic began",
+        8: "My hours have increased",
+        9: "I have taken additional jobs since the pandemic",
+        10: "No, nothing about my work has changed",
+    },
+    "CC22_309dx": {
+        1: "Put it on my credit card and pay it off in full at the next statement",
+        2: "Put it on my credit card and pay it off over time",
+        3: "With the money currently in my checking/savings account or with cash",
+        4: "Using money from a bank loan or line of credit",
+        5: "By borrowing from a friend or family member",
+        6: "Using a payday loan, deposit advance, or overdraft",
+        7: "By selling something",
+        8: "I wouldn't be able to pay for the expense right now",
+        9: "Other",
+    },
+    "CC22_309e": {1: "Excellent", 2: "Very good", 3: "Good", 4: "Fair", 5: "Poor"},
+    "CC22_309f": {1: "Excellent", 2: "Very good", 3: "Good", 4: "Fair", 5: "Poor"},
+    "CC22_310a": {1: "Democrats", 2: "Republicans", 3: "Neither", 4: "Not sure"},
+    "CC22_310b": {1: "Democrats", 2: "Republicans", 3: "Neither", 4: "Not sure"},
+    "CC22_310c": {1: "Democrats", 2: "Republicans", 3: "Neither", 4: "Not sure"},
+    "CC22_310d": {1: "Democrats", 2: "Republicans", 3: "Neither", 4: "Not sure"},
+    "CC22_311a": {
+        1: "Never heard of person",
+        2: "Republican",
+        3: "Democrat",
+        4: "Other Party / Independent",
+        5: "Not sure",
+    },
+    "CC22_311b": {
+        1: "Never heard of person",
+        2: "Republican",
+        3: "Democrat",
+        4: "Other Party / Independent",
+        5: "Not sure",
+    },
+    "CC22_311c": {
+        1: "Never heard of person",
+        2: "Republican",
+        3: "Democrat",
+        4: "Other Party / Independent",
+        5: "Not sure",
+    },
+    "CC22_311d": {
+        1: "Never heard of person",
+        2: "Republican",
+        3: "Democrat",
+        4: "Other Party / Independent",
+        5: "Not sure",
+    },
+    "CC22_320a": {
+        1: "Strongly approve",
+        2: "Somewhat approve",
+        3: "Somewhat disapprove",
+        4: "Strongly disapprove",
+        5: "Not sure",
+    },
+    "CC22_320b": {
+        1: "Strongly approve",
+        2: "Somewhat approve",
+        3: "Somewhat disapprove",
+        4: "Strongly disapprove",
+        5: "Not sure",
+    },
+    "CC22_320c": {
+        1: "Strongly approve",
+        2: "Somewhat approve",
+        3: "Somewhat disapprove",
+        4: "Strongly disapprove",
+        5: "Not sure",
+    },
+    "CC22_320d": {
+        1: "Strongly approve",
+        2: "Somewhat approve",
+        3: "Somewhat disapprove",
+        4: "Strongly disapprove",
+        5: "Not sure",
+    },
+    "CC22_320e": {
+        1: "Strongly approve",
+        2: "Somewhat approve",
+        3: "Somewhat disapprove",
+        4: "Strongly disapprove",
+        5: "Not sure",
+    },
+    "CC22_320f": {
+        1: "Strongly approve",
+        2: "Somewhat approve",
+        3: "Somewhat disapprove",
+        4: "Strongly disapprove",
+        5: "Not sure",
+    },
+    "CC22_320g": {
+        1: "Strongly approve",
+        2: "Somewhat approve",
+        3: "Somewhat disapprove",
+        4: "Strongly disapprove",
+        5: "Not sure",
+    },
+    "CC22_320h": {
+        1: "Strongly approve",
+        2: "Somewhat approve",
+        3: "Somewhat disapprove",
+        4: "Strongly disapprove",
+        5: "Not sure",
+    },
+    "cit1": {1: "Yes", 2: "No"},
+    "immstat": {
+        1: "I am an immigrant to the USA and a naturalized citizen",
+        2: "I am an immigrant to the USA but not a citizen",
+        3: "I was born in the USA but at least one of my parents is an immigrant",
+        4: "My parents and I were born in the USA but at least one of my grandparents was an immigrant",
+        5: "My parents, grandparents and I were all born in the USA",
+    },
+    "CC22_321": {
+        1: "Not sure",
+        2: "Do not get involved",
+        3: "Send food, medicine and other aid to countries affected",
+        4: "Provide arms to Ukraine",
+        5: "Enforce a no fly zone",
+        6: "Use drones and air craft to bomb Russian troops",
+        7: "Send military support staff (non-combat)",
+        8: "Send significant force to fight Russia",
+    },
+    "CC22_327a": {1: "Support", 2: "Oppose"},
+    "CC22_327b": {1: "Support", 2: "Oppose"},
+    "CC22_327c": {1: "Support", 2: "Oppose"},
+    "CC22_327d": {1: "Support", 2: "Oppose"},
+    "CC22_330a": {1: "Support", 2: "Oppose"},
+    "CC22_330b": {1: "Support", 2: "Oppose"},
+    "CC22_330c": {1: "Support", 2: "Oppose"},
+    "CC22_330d": {1: "Support", 2: "Oppose"},
+    "CC22_330e": {1: "Support", 2: "Oppose"},
+    "CC22_330f": {1: "Support", 2: "Oppose"},
+    "CC22_331a": {1: "Support", 2: "Oppose"},
+    "CC22_331b": {1: "Support", 2: "Oppose"},
+    "CC22_331c": {1: "Support", 2: "Oppose"},
+    "CC22_331d": {1: "Support", 2: "Oppose"},
+    "CC22_332a": {1: "Support", 2: "Oppose"},
+    "CC22_332b": {1: "Support", 2: "Oppose"},
+    "CC22_332c": {1: "Support", 2: "Oppose"},
+    "CC22_332d": {1: "Support", 2: "Oppose"},
+    "CC22_332e": {1: "Support", 2: "Oppose"},
+    "CC22_332f": {1: "Support", 2: "Oppose"},
+    "CC22_333": {
+        1: "Global climate change has been established as a serious problem, and immediate action is necessary",
+        2: "There is enough evidence that climate change is taking place and some action should be taken",
+        3: "We don't know enough about global climate change, and more research is necessary before we take any actions",
+        4: "Concern about global climate change is exaggerated. No action is necessary",
+        5: "Global climate change is not occurring; this is not a real issue",
+    },
+    "CC22_333a": {1: "Support", 2: "Oppose"},
+    "CC22_333b": {1: "Support", 2: "Oppose"},
+    "CC22_333c": {1: "Support", 2: "Oppose"},
+    "CC22_333d": {1: "Support", 2: "Oppose"},
+    "CC22_333e": {1: "Support", 2: "Oppose"},
+    "CC22_334a": {1: "Support", 2: "Oppose"},
+    "CC22_334b": {1: "Support", 2: "Oppose"},
+    "CC22_334c": {1: "Support", 2: "Oppose"},
+    "CC22_334d": {1: "Support", 2: "Oppose"},
+    "CC22_334e": {1: "Support", 2: "Oppose"},
+    "CC22_334f": {1: "Support", 2: "Oppose"},
+    "CC22_334g": {1: "Support", 2: "Oppose"},
+    "CC22_334h": {1: "Support", 2: "Oppose"},
+    "CC22_340a": {
+        1: "Very liberal",
+        2: "Liberal",
+        3: "Somewhat liberal",
+        4: "Middle of the road",
+        5: "Somewhat conservative",
+        6: "Conservative",
+        7: "Very conservative",
+        8: "Not sure",
+    },
+    "CC22_340b": {
+        1: "Very liberal",
+        2: "Liberal",
+        3: "Somewhat liberal",
+        4: "Middle of the road",
+        5: "Somewhat conservative",
+        6: "Conservative",
+        7: "Very conservative",
+        8: "Not sure",
+    },
+    "CC22_340c": {
+        1: "Very liberal",
+        2: "Liberal",
+        3: "Somewhat liberal",
+        4: "Middle of the road",
+        5: "Somewhat conservative",
+        6: "Conservative",
+        7: "Very conservative",
+        8: "Not sure",
+    },
+    "CC22_340d": {
+        1: "Very liberal",
+        2: "Liberal",
+        3: "Somewhat liberal",
+        4: "Middle of the road",
+        5: "Somewhat conservative",
+        6: "Conservative",
+        7: "Very conservative",
+        8: "Not sure",
+    },
+    "CC22_340e": {
+        1: "Very liberal",
+        2: "Liberal",
+        3: "Somewhat liberal",
+        4: "Middle of the road",
+        5: "Somewhat conservative",
+        6: "Conservative",
+        7: "Very conservative",
+        8: "Not sure",
+    },
+    "CC22_340f": {
+        1: "Very liberal",
+        2: "Liberal",
+        3: "Somewhat liberal",
+        4: "Middle of the road",
+        5: "Somewhat conservative",
+        6: "Conservative",
+        7: "Very conservative",
+        8: "Not sure",
+    },
+    "CC22_340g": {
+        1: "Very liberal",
+        2: "Liberal",
+        3: "Somewhat liberal",
+        4: "Middle of the road",
+        5: "Somewhat conservative",
+        6: "Conservative",
+        7: "Very conservative",
+        8: "Not sure",
+    },
+    "CC22_340h": {
+        1: "Very liberal",
+        2: "Liberal",
+        3: "Somewhat liberal",
+        4: "Middle of the road",
+        5: "Somewhat conservative",
+        6: "Conservative",
+        7: "Very conservative",
+        8: "Not sure",
+    },
+    "CC22_340i": {
+        1: "Very liberal",
+        2: "Liberal",
+        3: "Somewhat liberal",
+        4: "Middle of the road",
+        5: "Somewhat conservative",
+        6: "Conservative",
+        7: "Very conservative",
+        8: "Not sure",
+    },
+    "CC22_340j": {
+        1: "Very liberal",
+        2: "Liberal",
+        3: "Somewhat liberal",
+        4: "Middle of the road",
+        5: "Somewhat conservative",
+        6: "Conservative",
+        7: "Very conservative",
+        8: "Not sure",
+    },
+    "CC22_340k": {
+        1: "Very liberal",
+        2: "Liberal",
+        3: "Somewhat liberal",
+        4: "Middle of the road",
+        5: "Somewhat conservative",
+        6: "Conservative",
+        7: "Very conservative",
+        8: "Not sure",
+    },
+    "CC22_340l": {
+        1: "Very liberal",
+        2: "Liberal",
+        3: "Somewhat liberal",
+        4: "Middle of the road",
+        5: "Somewhat conservative",
+        6: "Conservative",
+        7: "Very conservative",
+        8: "Not sure",
+    },
+    "CC22_340m": {
+        1: "Very liberal",
+        2: "Liberal",
+        3: "Somewhat liberal",
+        4: "Middle of the road",
+        5: "Somewhat conservative",
+        6: "Conservative",
+        7: "Very conservative",
+        8: "Not sure",
+    },
+    "CC22_340n": {
+        1: "Very liberal",
+        2: "Liberal",
+        3: "Somewhat liberal",
+        4: "Middle of the road",
+        5: "Somewhat conservative",
+        6: "Conservative",
+        7: "Very conservative",
+        8: "Not sure",
+    },
+    "CC22_350a": {1: "Favor", 2: "Oppose"},
+    "CC22_350b": {1: "Favor", 2: "Oppose"},
+    "CC22_350c": {1: "Favor", 2: "Oppose"},
+    "CC22_350d": {1: "Favor", 2: "Oppose"},
+    "CC22_350e": {1: "Favor", 2: "Oppose"},
+    "CC22_350f": {1: "Favor", 2: "Oppose"},
+    "CC22_350g": {1: "Favor", 2: "Oppose"},
+    "CC22_350h": {1: "Favor", 2: "Oppose"},
+    "CC22_355a": {1: "Support", 2: "Oppose"},
+    "CC22_355b": {1: "Support", 2: "Oppose"},
+    "CC22_355c": {1: "Support", 2: "Oppose"},
+    "CC22_355d": {1: "Support", 2: "Oppose"},
+    "CC22_355e": {1: "Support", 2: "Oppose"},
+    "CC22_360": {
+        1: "No Party, Independent, Declined to State",
+        2: "Democratic Party",
+        3: "Republican Party",
+        4: "Other",
+    },
+    "CC22_361": {
+        1: "Less than 1 month",
+        2: "2 to 6 months",
+        3: "7 to 11 months",
+        4: "1 to 2 years",
+        5: "3 to 4 years",
+        6: "5 or more years",
+    },
+    "urbancity": {1: "City", 2: "Suburb", 3: "Town", 4: "Rural area", 5: "Other"},
+    "presvote20post": {
+        1: "Joe Biden",
+        2: "Donald Trump",
+        3: "Jo Jorgensen",
+        4: "Howie Hawkins",
+        5: "Other",
+        6: "Did not vote for President",
+    },
+    "CC22_363": {
+        1: "Yes, definitely",
+        2: "Probably",
+        3: "I already voted (early or absentee)",
+        4: "I plan to vote before November 8th",
+        5: "No",
+        6: "Undecided",
+    },
+    "CC22_365_voted": {
+        1: "$SenCand1Name ($SenCand1Party)",
+        2: "$SenCand2Name ($SenCand2Party)",
+        3: "$SenCand3Name ($SenCand3Party)",
+        4: "$SenCand4Name ($SenCand4Party)",
+        7: "Other",
+        8: "I'm not sure",
+        9: "I didn't vote in this election",
+    },
+    "CC22_365b_voted": {
+        1: "$SenCand1Name2 ($SenCand1Party2)",
+        2: "$SenCand2Name2 ($SenCand2Party2)",
+        7: "Other",
+        8: "I'm not sure",
+        9: "I didn't vote in this election",
+    },
+    "CC22_366_voted": {
+        1: "$GovCand1Name ($GovCand1Party)",
+        2: "$GovCand2Name ($GovCand2Party)",
+        3: "$GovCand3Name ($GovCand3Party)",
+        7: "Other",
+        8: "I'm not sure",
+        9: "I didn't vote in this election",
+    },
+    "CC22_367_voted": {
+        1: "$HouseCand1Name ($HouseCand1Party)",
+        2: "$HouseCand2Name ($HouseCand2Party)",
+        3: "$HouseCand3Name ($HouseCand3Party)",
+        4: "$HouseCand4Name ($HouseCand4Party)",
+        5: "$HouseCand5Name ($HouseCand5Party)",
+        6: "$HouseCand6Name ($HouseCand6Party)",
+        7: "$HouseCand7Name ($HouseCand7Party)",
+        8: "$HouseCand8Name ($HouseCand8Party)",
+        10: "Other",
+        98: "I'm not sure",
+        99: "I didn't vote in this election",
+    },
+    "CC22_365": {
+        1: "$SenCand1Name ($SenCand1Party)",
+        2: "$SenCand2Name ($SenCand2Party)",
+        3: "$SenCand3Name ($SenCand3Party)",
+        4: "$SenCand4Name ($SenCand4Party)",
+        7: "Other",
+        8: "I'm not sure",
+        9: "No one",
+    },
+    "CC22_365a": {
+        1: "$SenCand1Name ($SenCand1Party)",
+        2: "$SenCand2Name ($SenCand2Party)",
+        3: "$SenCand3Name ($SenCand3Party)",
+        4: "$SenCand4Name ($SenCand4Party)",
+        7: "Other",
+        8: "I'm not sure",
+        9: "No one",
+    },
+    "CC22_365b": {
+        1: "$SenCand1Name2 ($SenCand1Party2)",
+        2: "$SenCand2Name2 ($SenCand2Party2)",
+        7: "Other",
+        8: "I'm not sure",
+        9: "No one",
+    },
+    "CC22_365c": {
+        1: "$SenCand1Name2 ($SenCand1Party2)",
+        2: "$SenCand2Name2 ($SenCand2Party2)",
+        7: "Other",
+        8: "I'm not sure",
+        9: "No one",
+    },
+    "CC22_366": {
+        1: "$GovCand1Name ($GovCand1Party)",
+        2: "$GovCand2Name ($GovCand2Party)",
+        3: "$GovCand3Name ($GovCand3Party)",
+        7: "Other",
+        8: "I'm not sure",
+        9: "No one",
+    },
+    "CC22_367": {
+        1: "$HouseCand1Name ($HouseCand1Party)",
+        2: "$HouseCand2Name ($HouseCand2Party)",
+        3: "$HouseCand3Name ($HouseCand3Party)",
+        4: "$HouseCand4Name ($HouseCand4Party)",
+        5: "$HouseCand5Name ($HouseCand5Party)",
+        6: "$HouseCand6Name ($HouseCand6Party)",
+        7: "$HouseCand7Name ($HouseCand7Party)",
+        8: "$HouseCand8Name ($HouseCand8Party)",
+        10: "Other",
+        98: "I'm not sure",
+        99: "No one",
+    },
+    "CC22_367a": {
+        1: "$HouseCand1Name ($HouseCand1Party)",
+        2: "$HouseCand2Name ($HouseCand2Party)",
+        3: "$HouseCand3Name ($HouseCand3Party)",
+        4: "$HouseCand4Name ($HouseCand4Party)",
+        5: "$HouseCand5Name ($HouseCand5Party)",
+        6: "$HouseCand6Name ($HouseCand6Party)",
+        7: "$HouseCand7Name ($HouseCand7Party)",
+        8: "$HouseCand8Name ($HouseCand8Party)",
+        10: "Other",
+        98: "I'm not sure",
+        99: "No one",
+    },
+    "ideo5": {
+        1: "Very liberal",
+        2: "Liberal",
+        3: "Moderate",
+        4: "Conservative",
+        5: "Very conservative",
+        6: "Not sure",
+    },
+    "employ": {
+        1: "Working full time now",
+        2: "Working part time now",
+        3: "Temporarily laid off",
+        4: "Unemployed",
+        5: "Retired",
+        6: "Permanently disabled",
+        7: "Taking care of home or family",
+        8: "Student",
+        9: "Other",
+    },
+    "hadjob": {1: "Yes", 2: "No"},
+    "investor": {1: "Yes", 2: "No"},
+    "pew_bornagain": {1: "Yes", 2: "No"},
+    "pew_religimp": {
+        1: "Very important",
+        2: "Somewhat important",
+        3: "Not too important",
+        4: "Not at all important",
+    },
+    "pew_churatd": {
+        1: "More than once a week",
+        2: "Once a week",
+        3: "Once or twice a month",
+        4: "A few times a year",
+        5: "Seldom",
+        6: "Never",
+        7: "Don't know",
+    },
+    "pew_prayer": {
+        1: "Several times a day",
+        2: "Once a day",
+        3: "A few times a week",
+        4: "Once a week",
+        5: "A few times a month",
+        6: "Seldom",
+        7: "Never",
+        8: "Don't know",
+    },
+    "religpew": {
+        1: "Protestant",
+        2: "Roman Catholic",
+        3: "Mormon",
+        4: "Eastern or Greek Orthodox",
+        5: "Jewish",
+        6: "Muslim",
+        7: "Buddhist",
+        8: "Hindu",
+        9: "Atheist",
+        10: "Agnostic",
+        11: "Nothing in particular",
+        12: "Something else",
+    },
+    "religpew_protestant": {
+        1: "Baptist",
+        2: "Methodist",
+        3: "Nondenominational or Independent Church",
+        4: "Lutheran",
+        5: "Presbyterian",
+        6: "Pentecostal",
+        7: "Episcopalian",
+        8: "Church of Christ or Disciples of Christ",
+        9: "Congregational or United Church of Christ",
+        10: "Holiness",
+        11: "Reformed",
+        12: "Adventist",
+        13: "Jehovah's Witness",
+        90: "Something else",
+    },
+    "Xreligpew_protestant": {
+        1: "Baptist",
+        2: "Methodist",
+        3: "Nondenominational or Independent Church",
+        4: "Lutheran",
+        5: "Presbyterian",
+        6: "Pentecostal",
+        7: "Episcopalian",
+        8: "Church of Christ or Disciples of Christ",
+        9: "Congregational or United Church of Christ",
+        10: "Holiness",
+        11: "Reformed",
+        12: "Adventist",
+        13: "Jehovah's Witness",
+        90: "None of these",
+    },
+    "religpew_baptist": {
+        1: "Southern Baptist Convention",
+        2: "American Baptist Churches in USA",
+        3: "National Baptist Convention",
+        4: "Progressive Baptist Convention",
+        5: "Independent Baptist",
+        6: "Baptist General Conference",
+        7: "Baptist Missionary Association",
+        8: "Conservative Baptist Assoc. of America",
+        9: "Free Will Baptist",
+        10: "General Association of Regular Baptists",
+        90: "Other Baptist",
+    },
+    "religpew_methodist": {
+        1: "United Methodist Church",
+        2: "Free Methodist Church",
+        3: "African Methodist Episcopal",
+        4: "African Methodist Episcopal Zion",
+        5: "Christian Methodist Episcopal Church",
+        90: "Other Methodist Church",
+    },
+    "religpew_nondenom": {
+        1: "Nondenominational evangelical",
+        2: "Nondenominational fundamentalist",
+        3: "Nondenominational charismatic",
+        4: "Interdenominational",
+        5: "Community church",
+        90: "Other",
+    },
+    "religpew_lutheran": {
+        1: "Evangelical Lutheran Church in America (ELCA)",
+        2: "Lutheran Church, Missouri Synod",
+        3: "Lutheran Church, Wisconsin Synod",
+        4: "Other Lutheran Church",
+    },
+    "religpew_presby": {
+        1: "Presbyterian Church USA",
+        2: "Presbyterian Church in America",
+        3: "Associate Reformed Presbyterian",
+        4: "Cumberland Presbyterian Church",
+        5: "Orthodox Presbyterian",
+        6: "Evangelical Presbyterian Church",
+        90: "Other Presbyterian Church",
+    },
+    "religpew_pentecost": {
+        1: "Assemblies of God",
+        2: "Church of God Cleveland TN",
+        3: "Four Square Gospel",
+        4: "Pentecostal Church of God",
+        5: "Pentecostal Holiness Church",
+        6: "Church of God in Christ",
+        7: "Church of God of the Apostolic Faith",
+        8: "Assembly of Christian Churches",
+        9: "Apostolic Christian",
+        90: "Other Pentecostal Church",
+    },
+    "religpew_episcop": {
+        1: "Episcopal Church in the USA",
+        2: "Anglican Church (Church of England)",
+        3: "Anglican Orthodox Church",
+        4: "Reformed Episcopal Church",
+        90: "Other Episcopalian or Anglican Church",
+    },
+    "religpew_christian": {
+        1: "Church of Christ",
+        2: "Disciples of Christ",
+        3: "Christian Churches and Churches of Christ",
+        90: "Other Christian church",
+    },
+    "religpew_congreg": {
+        1: "United Church of Christ",
+        2: "Conservative Congregational Christian",
+        3: "National Association of Congregational Christians",
+        90: "Other Congregational",
+    },
+    "religpew_holiness": {
+        1: "Church of the Nazarene",
+        2: "Wesleyan Church",
+        3: "Free Methodist Church",
+        4: "Christian and Missionary Alliance",
+        5: "Church of God (Anderson, Indiana)",
+        6: "Salvation Army, American Rescue workers",
+        90: "Other Holiness",
+    },
+    "religpew_reformed": {
+        1: "Reformed Church in America",
+        2: "Christian Reformed Church",
+        90: "Other Reformed",
+    },
+    "religpew_advent": {
+        1: "Seventh Day Adventist",
+        2: "Church of God, General Conference",
+        3: "Advent Christian",
+        90: "Other Adventist",
+    },
+    "religpew_catholic": {
+        1: "Roman Catholic Church",
+        2: "National Polish Catholic Church",
+        3: "Greek-rite Catholic",
+        4: "Armenian Catholic",
+        5: "Old Catholic",
+        90: "Other Catholic",
+    },
+    "religpew_mormon": {
+        1: "The Church of Jesus Christ of Latter-day Saints",
+        2: "Community of Christ",
+        90: "Other Mormon",
+    },
+    "religpew_orthodox": {
+        1: "Greek Orthodox",
+        2: "Russian Orthodox",
+        3: "Orthodox Church in America",
+        4: "Armenian Orthodox",
+        5: "Eastern Orthodox",
+        6: "Serbian Orthodox",
+        90: "Other Orthodox",
+    },
+    "religpew_jewish": {
+        1: "Reform",
+        2: "Conservative",
+        3: "Orthodox",
+        4: "Reconstructionist",
+        90: "Other",
+    },
+    "religpew_muslim": {
+        1: "Sunni",
+        2: "Shia",
+        3: "Nation of Islam (Black Muslim)",
+        90: "Other Muslim",
+    },
+    "religpew_buddhist": {
+        1: "Theravada (Vipassana) Buddhism",
+        2: "Mahayana (Zen) Buddhism",
+        3: "Vajrayana (Tibetan) Buddhism",
+        90: "Other Buddhist",
+    },
+    "religpew_hindu": {
+        1: "Vaishnava Hinduism",
+        2: "Shaivite Hinduism",
+        3: "Shaktism Hinduism",
+        90: "Other Hindu",
+    },
+    "marstat": {
+        1: "Married",
+        2: "Separated",
+        3: "Divorced",
+        4: "Widowed",
+        5: "Never married",
+        6: "Domestic / civil partnership",
+    },
+    "union": {
+        1: "Yes, I am currently a member of a labor union",
+        2: "I formerly was a member of a labor union",
+        3: "I am not now, nor have I been, a member of a labor union",
+    },
+    "union_coverage": {1: "Yes", 2: "No", 3: "Not sure"},
+    "unionhh": {
+        1: "Yes, a member of my household is currently a union member",
+        2: "A member of my household was formerly a member of a labor union, but is not now",
+        3: "No, no one in my household has ever been a member of a labor union",
+        4: "Not sure",
+    },
+    "ccesmodule": {
+        1: "NCC",
+        2: "MIA",
+        3: "TTU",
+        4: "RUT",
+        5: "MSU",
+        6: "FSU",
+        7: "LSU",
+        8: "JHU",
+        9: "IUA",
+        10: "BOS",
+        11: "DKU",
+        12: "NCW",
+        13: "WUS",
+        14: "USC",
+        15: "ZOU",
+        16: "MIC",
+        17: "BCJ",
+        18: "CPC",
+        19: "ASU",
+        20: "CAC",
+        21: "UWM",
+        22: "UCR",
+        23: "GTN",
+        24: "BTU",
+        25: "UTA",
+        26: "UTB",
+        27: "UVA",
+        28: "NCK",
+        29: "UTD",
+        30: "GWU",
+        31: "CUB",
+        32: "OSU",
+        33: "IOW",
+        34: "UCL",
+        35: "DKN",
+        36: "CLA",
+        37: "LBU",
+        38: "UND",
+        39: "TAM",
+        40: "WAS",
+        41: "YLS",
+        42: "UGA",
+        43: "TUF",
+        44: "DAR",
+        45: "NYU",
+        46: "VAN",
+        47: "UCM",
+        48: "UMA",
+        49: "UDE",
+        50: "MIZ",
+        51: "BYU",
+        52: "EMY",
+        53: "RCO",
+        54: "MSL",
+        55: "MCS",
+        56: "HUA",
+        57: "HUB",
+        58: "AMU",
+        59: "UMB/CGU",
+        60: "DMC / HKS",
+    },
+    "dualcit": {1: "Yes", 2: "No"},
+    "dualctry": {
+        124: "Canada",
+        826: "United Kingdom",
+        4: "Afghanistan",
+        248: "Aland Islands",
+        8: "Albania",
+        12: "Algeria",
+        16: "American Samoa",
+        20: "Andorra",
+        24: "Angola",
+        660: "Anguilla",
+        10: "Antarctica",
+        28: "Antigua and Barbuda",
+        32: "Argentina",
+        51: "Armenia",
+        533: "Aruba",
+        36: "Australia",
+        40: "Austria",
+        31: "Azerbaijan",
+        44: "Bahamas",
+        48: "Bahrain",
+        50: "Bangladesh",
+        52: "Barbados",
+        112: "Belarus",
+        56: "Belgium",
+        84: "Belize",
+        204: "Benin",
+        60: "Bermuda",
+        64: "Bhutan",
+        68: "Bolivia",
+        70: "Bosnia and Herzegovina",
+        72: "Botswana",
+        74: "Bouvet Island",
+        76: "Brazil",
+        86: "British Indian Ocean Territory",
+        96: "Brunei Darussalam",
+        100: "Bulgaria",
+        854: "Burkina Faso",
+        108: "Burundi",
+        116: "Cambodia",
+        120: "Cameroon",
+        132: "Cape Verde",
+        136: "Cayman Islands",
+        140: "Central African Republic",
+        148: "Chad",
+        152: "Chile",
+        156: "China",
+        162: "Christmas Island",
+        166: "Cocos (Keeling) Islands",
+        170: "Colombia",
+        174: "Comoros",
+        178: "Congo",
+        180: "Congo, the Democratic Republic of the",
+        184: "Cook Islands",
+        188: "Costa Rica",
+        384: "Cote d'Ivoire",
+        191: "Croatia",
+        192: "Cuba",
+        196: "Cyprus",
+        203: "Czech Republic",
+        208: "Denmark",
+        262: "Djibouti",
+        212: "Dominica",
+        214: "Dominican Republic",
+        218: "Ecuador",
+        818: "Egypt",
+        222: "El Salvador",
+        226: "Equatorial Guinea",
+        232: "Eritrea",
+        233: "Estonia",
+        231: "Ethiopia",
+        238: "Falkland Islands (Malvinas)",
+        234: "Faroe Islands",
+        242: "Fiji",
+        246: "Finland",
+        250: "France",
+        254: "French Guiana",
+        258: "French Polynesia",
+        260: "French Southern Territories",
+        266: "Gabon",
+        270: "Gambia",
+        268: "Georgia",
+        276: "Germany",
+        288: "Ghana",
+        292: "Gibraltar",
+        300: "Greece",
+        304: "Greenland",
+        308: "Grenada",
+        312: "Guadeloupe",
+        316: "Guam",
+        320: "Guatemala",
+        831: "Guernsey",
+        324: "Guinea",
+        624: "Guinea-Bissau",
+        328: "Guyana",
+        332: "Haiti",
+        334: "Heard Island and McDonald Islands",
+        336: "Holy See (Vatican City State)",
+        340: "Honduras",
+        344: "Hong Kong",
+        348: "Hungary",
+        352: "Iceland",
+        356: "India",
+        360: "Indonesia",
+        364: "Iran, Islamic Republic of",
+        368: "Iraq",
+        372: "Ireland",
+        833: "Isle of Man",
+        376: "Israel",
+        380: "Italy",
+        388: "Jamaica",
+        392: "Japan",
+        832: "Jersey",
+        400: "Jordan",
+        398: "Kazakhstan",
+        404: "Kenya",
+        296: "Kiribati",
+        408: "Korea, Democratic People's Republic of",
+        410: "Korea, Republic of",
+        414: "Kuwait",
+        417: "Kyrgyzstan",
+        418: "Lao People's Democratic Republic",
+        428: "Latvia",
+        422: "Lebanon",
+        426: "Lesotho",
+        430: "Liberia",
+        434: "Libyan Arab Jamahiriya",
+        438: "Liechtenstein",
+        440: "Lithuania",
+        442: "Luxembourg",
+        446: "Macao",
+        807: "Macedonia, the former Yugoslav Republic of",
+        450: "Madagascar",
+        454: "Malawi",
+        458: "Malaysia",
+        462: "Maldives",
+        466: "Mali",
+        470: "Malta",
+        584: "Marshall Islands",
+        474: "Martinique",
+        478: "Mauritania",
+        480: "Mauritius",
+        175: "Mayotte",
+        484: "Mexico",
+        583: "Micronesia, Federated States of",
+        498: "Moldova, Republic of",
+        492: "Monaco",
+        496: "Mongolia",
+        500: "Montserrat",
+        504: "Morocco",
+        508: "Mozambique",
+        104: "Myanmar",
+        516: "Namibia",
+        520: "Nauru",
+        524: "Nepal",
+        528: "Netherlands",
+        530: "Netherlands Antilles",
+        540: "New Caledonia",
+        554: "New Zealand",
+        558: "Nicaragua",
+        562: "Niger",
+        566: "Nigeria",
+        570: "Niue",
+        574: "Norfolk Island",
+        580: "Northern Mariana Islands",
+        578: "Norway",
+        512: "Oman",
+        586: "Pakistan",
+        585: "Palau",
+        275: "Palestinian Territory, Occupied",
+        591: "Panama",
+        598: "Papua New Guinea",
+        600: "Paraguay",
+        604: "Peru",
+        608: "Philippines",
+        612: "Pitcairn",
+        616: "Poland",
+        620: "Portugal",
+        630: "Puerto Rico",
+        634: "Qatar",
+        638: "Reunion",
+        642: "Romania",
+        643: "Russian Federation",
+        646: "Rwanda",
+        654: "Saint Helena",
+        659: "Saint Kitts and Nevis",
+        662: "Saint Lucia",
+        666: "Saint Pierre and Miquelon",
+        670: "Saint Vincent and the Grenadines",
+        882: "Samoa",
+        674: "San Marino",
+        678: "Sao Tome and Principe",
+        682: "Saudi Arabia",
+        686: "Senegal",
+        891: "Serbia and Montenegro",
+        690: "Seychelles",
+        694: "Sierra Leone",
+        702: "Singapore",
+        703: "Slovakia",
+        705: "Slovenia",
+        90: "Solomon Islands",
+        706: "Somalia",
+        710: "South Africa",
+        239: "South Georgia and the South Sandwich Islands",
+        724: "Spain",
+        144: "Sri Lanka",
+        736: "Sudan",
+        740: "Suriname",
+        744: "Svalbard and Jan Mayen",
+        748: "Swaziland",
+        752: "Sweden",
+        756: "Switzerland",
+        760: "Syrian Arab Republic",
+        158: "Taiwan",
+        762: "Tajikistan",
+        834: "Tanzania, United Republic of",
+        764: "Thailand",
+        626: "Timor-Leste",
+        768: "Togo",
+        772: "Tokelau",
+        776: "Tonga",
+        780: "Trinidad and Tobago",
+        788: "Tunisia",
+        792: "Turkey",
+        795: "Turkmenistan",
+        796: "Turks and Caicos Islands",
+        798: "Tuvalu",
+        800: "Uganda",
+        804: "Ukraine",
+        784: "United Arab Emirates",
+        581: "United States Minor Outlying Islands",
+        858: "Uruguay",
+        860: "Uzbekistan",
+        548: "Vanuatu",
+        862: "Venezuela",
+        704: "Vietnam",
+        92: "Virgin Islands, British",
+        850: "Virgin Islands, U.S.",
+        876: "Wallis and Futuna",
+        732: "Western Sahara",
+        887: "Yemen",
+        894: "Zambia",
+        716: "Zimbabwe",
+        9999: "Other",
+    },
+    "ownhome": {1: "Own", 2: "Rent", 3: "Other"},
+    "newsint": {
+        1: "Most of the time",
+        2: "Some of the time",
+        3: "Only now and then",
+        4: "Hardly at all",
+        7: "Don't know",
+    },
+    "faminc_new": {
+        1: "Less than $10,000",
+        2: "$10,000 - $19,999",
+        3: "$20,000 - $29,999",
+        4: "$30,000 - $39,999",
+        5: "$40,000 - $49,999",
+        6: "$50,000 - $59,999",
+        7: "$60,000 - $69,999",
+        8: "$70,000 - $79,999",
+        9: "$80,000 - $99,999",
+        10: "$100,000 - $119,999",
+        11: "$120,000 - $149,999",
+        12: "$150,000 - $199,999",
+        13: "$200,000 - $249,999",
+        14: "$250,000 - $349,999",
+        15: "$350,000 - $499,999",
+        16: "$500,000 or more",
+        97: "Prefer not to say",
+    },
+    "milstat": {
+        1: "I am currently serving in the U.S. military",
+        2: "I have immediate family members currently serving in the U.S. military",
+        3: "I previously served in the U.S. military but I am no longer active",
+        4: "Members of my immediate family have served in the U.S. military but are no longer active",
+        5: "Neither myself nor any members of my immediate family have ever served in the U.S. military",
+    },
+    "child18": {1: "Yes", 2: "No"},
+    "healthins": {
+        1: "Yes, through my job or a family member's employer",
+        2: "Yes, through a government program, such as Medicare or Medicaid",
+        3: "Yes, through my school",
+        4: "Yes, I purchased my own",
+        5: "Not sure",
+        6: "No",
+    },
+    "healthins2": {1: "Yes", 2: "No"},
+    "phone": {
+        1: "A landline and a cell phone",
+        2: "Cell phone only",
+        3: "Landline only",
+        4: "No landline or cell phone service",
+    },
+    "internethome": {1: "Cable, DSL, or other broadband", 2: "Dial-up", 3: "None"},
+    "internetwork": {1: "Cable, DSL, or other broadband", 2: "Dial-up", 3: "None"},
+    "CC22_hisp": {
+        1: "No Country in Particular",
+        2: "United States",
+        3: "Mexico",
+        4: "Puerto Rico",
+        5: "Cuba",
+        6: "Dominican Republic",
+        7: "South America",
+        8: "Central America",
+        9: "Caribbean",
+        10: "Spain",
+        11: "Other",
+        12: "I am not of Latino, Hispanic or Spanish Heritage",
+    },
+    "CC22_asian": {
+        1: "No Country in Particular",
+        2: "United States",
+        3: "China",
+        4: "Japan",
+        5: "India",
+        6: "Philippines",
+        7: "Taiwan",
+        8: "Korea",
+        9: "Vietnam",
+        10: "Pakistan",
+        11: "Hmong",
+        12: "Cambodia",
+        13: "Thailand",
+        14: "Other",
+        15: "I am not of Asian Heritage",
+    },
+    "presvote16post": {
+        1: "Hillary Clinton",
+        2: "Donald Trump",
+        3: "Gary Johnson",
+        4: "Jill Stein",
+        5: "Evan McMullin",
+        6: "Other",
+        7: "Did not vote for President",
+    },
+    "industry": {
+        1: "Agriculture, forestry, fishing, and hunting",
+        2: "Mining",
+        3: "Utilities",
+        4: "Construction",
+        5: "Manufacturing",
+        6: "Professional and business services",
+        7: "Educational services",
+        8: "Health care and social assistance",
+        9: "Leisure and hospitality",
+        10: "Other services",
+        11: "Wholesale trade",
+        12: "Retail trade",
+        13: "Transportation and warehousing",
+        14: "Information",
+        15: "Financial activities",
+        16: "Federal government",
+        17: "State and local government",
+    },
+    "sexuality": {
+        1: "Heterosexual / straight",
+        2: "Lesbian / gay woman",
+        3: "Gay man",
+        4: "Bisexual",
+        5: "Other",
+        6: "Prefer not to say",
+    },
+    "transgender": {1: "Yes", 2: "No", 3: "Prefer not to say"},
+}
+```
+
+### Parameterizing questions with data
+
+Here we show how to construct `Scenario` objects for data that we want to input in question texts. This allows us to administer multiple versions of questions efficiently. Learn more about [working with scenarios](/en/latest/scenarios).
+
+Values in the CES questions requiring inputs:
+
+```python
+"inputzip", "inputstate",
+"$pid7text",
+"$LowerChamberName",
+"$CurrentGovName", "$CurrentHouseName", "$CurrentSen1Name", "$CurrentSen2Name",
+"$LegName",
+"$SenCand1Name", "$SenCand2Name", "$SenCand3Name", "$SenCand4Name",
+"$SenCand1Name2", "$SenCand2Name2",
+"$GovCand1Name", "$GovCand2Name", "$GovCand3Name",
+"$HouseCand1Name", "$HouseCand2Name", "$HouseCand3Name", "$HouseCand4Name", "$HouseCand5Name", "$HouseCand6Name", "$HouseCand7Name", "$HouseCand8Name",
+"$SenCand1Party", "$SenCand2Party", "$SenCand3Party", "$SenCand4Party",
+"$SenCand1Party2", "$SenCand2Party2",
+"$GovCand1Party", "$GovCand2Party", "$GovCand3Party",
+"$HouseCand1Party", "$HouseCand2Party", "$HouseCand3Party", "$HouseCand4Party", "$HouseCand5Party", "$HouseCand6Party", "$HouseCand7Party", "$HouseCand8Party",
+"$employtext"
+```
+
+Here we create scenarios for a set of questions, add them to the survey when we run it, and inspect the results:
+
+
+```python
+from edsl import Scenario, ScenarioList
+```
+
+
+```python
+ca = ["California", "Gavin Newsom", "Dianne Feinstein", "Alex Padilla"]
+ny = ["New York", "Kathy Hochul", "Chuck Schumer", "Kirsten Gillibrand"]
+
+scenarios = ScenarioList(
+    Scenario(
+        {
+            "CurrentGovName": state[1],
+            "CurrentSen1Name": state[2],
+            "CurrentSen2Name": state[3],
+        }
+    )
+    for state in [ca, ny]
+)
+```
+
+We modify the relevant question texts to use bracketed parameters:
+
+
+```python expandable
+from edsl import QuestionMultipleChoice, Survey
+
+q_CC22_311a = QuestionMultipleChoice(
+    question_name="CC22_311a",
+    question_text="Please indicate whether you've heard of {{ scenario.CurrentGovName }} and if so which party he or she is affiliated with.",
+    question_options=[
+        "Never heard of person",
+        "Republican",
+        "Democrat",
+        "Other Party / Independent",
+        "Not sure",
+    ],
+)
+
+q_CC22_311b = QuestionMultipleChoice(
+    question_name="CC22_311b",
+    question_text="Please indicate whether you've heard of {{ scenario.CurrentSen1Name }} and if so which party he or she is affiliated with.",
+    question_options=[
+        "Never heard of person",
+        "Republican",
+        "Democrat",
+        "Other Party / Independent",
+        "Not sure",
+    ],
+)
+
+q_CC22_311c = QuestionMultipleChoice(
+    question_name="CC22_311c",
+    question_text="Please indicate whether you've heard of {{ scenario.CurrentSen2Name }} and if so which party he or she is affiliated with.",
+    question_options=[
+        "Never heard of person",
+        "Republican",
+        "Democrat",
+        "Other Party / Independent",
+        "Not sure",
+    ],
+)
+
+survey = Survey([q_CC22_311a, q_CC22_311b, q_CC22_311c])
+```
+
+
+```python
+results = survey.by(scenarios).run()
+```
+
+
+
+```python
+results.select("scenario.*", "answer.*")
+```
+
+
+|  | scenario.scenario_index | scenario.CurrentSen2Name | scenario.CurrentGovName | scenario.CurrentSen1Name | answer.CC22_311c | answer.CC22_311a | answer.CC22_311b |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | 0 | Alex Padilla | Gavin Newsom | Dianne Feinstein | Democrat | Democrat | Democrat |
+| 1 | 1 | Kirsten Gillibrand | Kathy Hochul | Chuck Schumer | Democrat | Democrat | Democrat |
+
+### Creating AI agents for survey respondents
+
+Learn more about working with the CES data in [`Creating AI agents for survey respondents <>`__](/en/latest/notebooks/#id1), where we demonstrate how to use the EDSL module `Conjure` to import survey data and create AI agents based on responsesd
+

@@ -1,0 +1,208 @@
+---
+title: "Piping question answers & comments"
+description: "This notebook demonstrates how to pipe components of a question and answer into follow-on questions. When piping is used, survey questions are automatically administered in the order required to facilitate the piping (i.e., a question with components piped from another question will be administered later instead of asynchronously by default)."
+---
+
+We also compare piping to methods for adding memory to surveys, which allow you to automatically add the context of specified questions to other question in a survey. Please see the [surveys](/en/latest/surveys) section of the docs for more details on each of the methods shown below.
+
+Before running the code below, please see instructions on [installing](/en/latest/installation) the EDSL library and storing [API keys](/en/latest/api_keys) for language models.
+
+We start by importing tools and constructing an initial question:
+
+```python
+from edsl import QuestionMultipleChoice, QuestionFreeText, Survey
+```
+```python
+q1 = QuestionMultipleChoice(
+    question_name = "season",
+    question_text = "What is your favorite season?",
+    question_options = ["Spring", "Summer", "Fall", "Winter"]
+)
+```
+
+In our next question, we create `{{ placeholders }}` for the components of the first question that we want to include. The placeholders must include the `question_name` of the piped question and the name of the component (e.g., `answer` or `comment`):
+
+```python
+q2_piping = QuestionFreeText(
+    question_name = "piping",
+    question_text = """
+    You were previously asked '{{ season.question_text }}' and you answered: '{{ season.answer }}'
+    You also provided this comment about your response: '{{ season.comment }}'
+    What is your favorite activity during this season?
+    """
+)
+```
+
+We combine the questions in a survey as usual:
+
+```python
+survey_piping = Survey([q1, q2_piping])
+```
+
+Before running the survey, we can inspect the prompts for the questions by calling the `show_prompts()` method on the survey. We can see that the multiple choice question automatically includes answering instructions for the question type, and an instruction for the model to add a comment about its response which will be stored as a separate component in results (we will see this when the question is run). (The instruction to add a comment is automatically added to all question types other than free text and can be omitted by passing `include_comment=False`).
+
+In the second question, we can see that the components of the first question text, answer and comment will be inserted. Note that there is no system prompt displayed in the prompts because we have not added any agents:
+
+```python
+survey_piping.show_prompts()
+```
+
+|  | user_prompt | system_prompt | interview_index | question_name | scenario_index | agent_index | model | estimated_cost | cache_keys |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | What is your favorite season? Spring Summer Fall Winter Only 1 option may be selected. Respond only with a string corresponding to one of the options. After the answer, you can put a comment explaining why you chose that option on the next line. | nan | 0 | season | 0 | 0 | gpt-4o | 0.000692 | ['71fe04dc8be8ab7fcb9d69f58781a9df'] |
+| 1 | You were previously asked 'What is your favorite season?' and you answered: You also provided this comment about your response: What is your favorite activity during this season? | nan | 0 | piping | 0 | 0 | gpt-4o | 0.000652 | ['d0653eecfd755ed52a7484e655eec02d'] |
+
+## Inspecting completed prompts in results
+
+Here we run the survey and inspect results, which also include the prompts that were used with the piped components:
+
+```python
+results = survey_piping.run()
+```
+
+To see a list of all the components of results:
+
+```python
+results.columns
+```
+
+|  | 0 |
+| :--- | :--- |
+| 0 | agent.agent_index |
+| 1 | agent.agent_instruction |
+| 2 | agent.agent_name |
+| 3 | answer.piping |
+| 4 | answer.season |
+| 5 | cache_keys.piping_cache_key |
+| 6 | cache_keys.season_cache_key |
+| 7 | cache_used.piping_cache_used |
+| 8 | cache_used.season_cache_used |
+| 9 | comment.piping_comment |
+| 10 | comment.season_comment |
+| 11 | generated_tokens.piping_generated_tokens |
+| 12 | generated_tokens.season_generated_tokens |
+| 13 | iteration.iteration |
+| 14 | model.frequency_penalty |
+| 15 | model.inference_service |
+| 16 | model.logprobs |
+| 17 | model.max_tokens |
+| 18 | model.model |
+| 19 | model.model_index |
+| 20 | model.presence_penalty |
+| 21 | model.temperature |
+| 22 | model.top_logprobs |
+| 23 | model.top_p |
+| 24 | prompt.piping_system_prompt |
+| 25 | prompt.piping_user_prompt |
+| 26 | prompt.season_system_prompt |
+| 27 | prompt.season_user_prompt |
+| 28 | question_options.piping_question_options |
+| 29 | question_options.season_question_options |
+| 30 | question_text.piping_question_text |
+| 31 | question_text.season_question_text |
+| 32 | question_type.piping_question_type |
+| 33 | question_type.season_question_type |
+| 34 | raw_model_response.piping_cost |
+| 35 | raw_model_response.piping_input_price_per_million_tokens |
+| 36 | raw_model_response.piping_input_tokens |
+| 37 | raw_model_response.piping_one_usd_buys |
+| 38 | raw_model_response.piping_output_price_per_million_tokens |
+| 39 | raw_model_response.piping_output_tokens |
+| 40 | raw_model_response.piping_raw_model_response |
+| 41 | raw_model_response.season_cost |
+| 42 | raw_model_response.season_input_price_per_million_tokens |
+| 43 | raw_model_response.season_input_tokens |
+| 44 | raw_model_response.season_one_usd_buys |
+| 45 | raw_model_response.season_output_price_per_million_tokens |
+| 46 | raw_model_response.season_output_tokens |
+| 47 | raw_model_response.season_raw_model_response |
+| 48 | reasoning_summary.piping_reasoning_summary |
+| 49 | reasoning_summary.season_reasoning_summary |
+| 50 | scenario.scenario_index |
+
+To inspect the user prompts, which now include the piped components:
+
+```python
+results.select("season_user_prompt", "piping_user_prompt")
+```
+
+|  | prompt.season_user_prompt | prompt.piping_user_prompt |
+| :--- | :--- | :--- |
+| 0 | What is your favorite season? Spring Summer Fall Winter Only 1 option may be selected. Respond only with a string corresponding to one of the options. After the answer, you can put a comment explaining why you chose that option on the next line. | You were previously asked 'What is your favorite season?' and you answered: 'Fall' You also provided this comment about your response: 'I chose fall because of the beautiful foliage, the crisp air, and the cozy atmosphere it brings with activities like apple picking and pumpkin carving.' What is your favorite activity during this season? |
+
+## Compare to memory rules
+
+EDSL provides a variety of rules for automatically adding the context of one or more specified questions and answers to other questions in a survey. See the docs page for [examples of all of these methods](/en/latest/surveys).
+
+Here we create a different version of the second question (omitting piped components and context) and add a memory of the first question after combining them in a survey. Then we show how this impacts the prompts tha are generated:
+
+```python
+q2_memory = QuestionFreeText(
+    question_name = "memory",
+    question_text = """
+    What is your favorite activity during this season?
+    """
+)
+```
+
+```python
+survey_memory = Survey([q1, q2_memory]).set_full_memory_mode()
+```
+
+```python
+survey_memory.show_prompts()
+```
+
+
+|  | user_prompt | system_prompt | interview_index | question_name | scenario_index | agent_index | model | estimated_cost | cache_keys |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | What is your favorite season? Spring Summer Fall Winter Only 1 option may be selected. Respond only with a string corresponding to one of the options. After the answer, you can put a comment explaining why you chose that option on the next line. | nan | 0 | season | 0 | 0 | gpt-4o | 0.000692 | ['71fe04dc8be8ab7fcb9d69f58781a9df'] |
+| 1 | What is your favorite activity during this season? Before the question you are now answering, you already answered the following question(s): Question: What is your favorite season? Answer: None | nan | 0 | memory | 0 | 0 | gpt-4o | 0.000558 | ['7c206a301a20611f5d863dc0820c8772'] |
+
+We can see that the following context has been added to the second question: *“Before the question you are now answering, you already answered the following question(s): Question: What is your favorite season? Answer: None”*
+
+<Note>
+**Note**:
+
+Note that this context does not include the comment field!
+</Note>
+
+If multiple prior questions are added to memory they are added in the same way:
+
+```python
+q3 = QuestionFreeText(
+    question_name = "poem",
+    question_text = "Write a poem about your favorite season."
+)
+
+Survey([q1, q2_memory, q3]).set_full_memory_mode().show_prompts()
+```
+
+
+|  | user_prompt | system_prompt | interview_index | question_name | scenario_index | agent_index | model | estimated_cost | cache_keys |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | What is your favorite season? Spring Summer Fall Winter Only 1 option may be selected. Respond only with a string corresponding to one of the options. After the answer, you can put a comment explaining why you chose that option on the next line. | nan | 0 | season | 0 | 0 | gpt-4o | 0.000692 | ['71fe04dc8be8ab7fcb9d69f58781a9df'] |
+| 1 | What is your favorite activity during this season? Before the question you are now answering, you already answered the following question(s): Question: What is your favorite season? Answer: None | nan | 0 | memory | 0 | 0 | gpt-4o | 0.000558 | ['7c206a301a20611f5d863dc0820c8772'] |
+| 2 | Write a poem about your favorite season. Before the question you are now answering, you already answered the following question(s): Question: What is your favorite season? Answer: None Prior questions and answers: Question: What is your favorite activity during this season? Answer: None | nan | 0 | poem | 0 | 0 | gpt-4o | 0.000798 | ['ddaa3e961f66a47ef3da813f3c625403'] |
+
+<Note>
+**Note**:
+
+Note that full memory can results in long question contexts when a survey consists of many questions. Before using a memory rule, we commend investigating impacts to the accuracy of responses by testing examples, and whether memory is needed for any particular question.
+</Note>
+
+## Posting to Coop
+
+Here we post this notebook to Coop, and then show how to update the object at Coop. [Learn more about using Coop](/en/latest/coop) to store files, surveys, results and projects.
+
+```python
+from edsl import Notebook
+
+nb = Notebook(path = "piping_comments.ipynb")
+
+nb.push(
+    description = "Piping example",
+    alias = "piping-comments-notebook",
+    visibility = "public"
+)
+```

@@ -1,6 +1,5 @@
 import pytest
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.derived.QuestionLikertFive import QuestionLikertFive, main
+from edsl.questions import QuestionBase, QuestionLikertFive
 
 
 # def test_QuestionLikertFive_main():

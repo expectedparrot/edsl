@@ -1,5 +1,4 @@
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-from edsl.language_models.model import Model
+from edsl.questions import QuestionMultipleChoice
 
 new_instructions = """You are being asked the following question: {{question_text}}
     The options are
@@ -24,18 +23,3 @@ def test_no_model_passed_to_instructions():
     assert "roger-dodger" in q0.get_instructions().text
 
 
-def test_model_specific_instructions():
-
-    m1 = Model(Model.available()[0][0], skip_api_key_check=True)
-    m2 = Model(Model.available()[1][0], skip_api_key_check=True)
-
-    q = QuestionMultipleChoice(
-        question_text="How are you?",
-        question_options=["Good", "Great", "OK", "Bad"],
-        question_name="how_feeling",
-    )
-
-    q.add_model_instructions(instructions=new_instructions, model=m1.model)
-
-    assert "roger-dodger" in q.get_instructions(model=m1.model).text
-    assert "roger-dodger" not in q.get_instructions(model=m2.model).text

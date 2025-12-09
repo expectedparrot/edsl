@@ -1,5 +1,4 @@
-import pytest
-from edsl.surveys.DAG import DAG
+from edsl.surveys.dag import DAG
 
 
 def test_dag_initialization():

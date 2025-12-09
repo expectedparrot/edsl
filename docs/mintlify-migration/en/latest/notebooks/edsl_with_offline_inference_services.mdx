@@ -1,0 +1,36 @@
+---
+title: "EDSL with Offline Inference Services"
+description: "Learn how to use EDSL with offline inference services like Ollama."
+---
+
+## Ollama example
+
+#### Requirements
+1. Deployed models using Ollama (https://docs.ollama.com/quickstart)
+
+#### EDSL example
+
+```python
+from edsl import Model,QuestionFreeText
+
+ollama_models = Model.available(service_name="ollama",force_refresh=True)
+ollama_models
+```
+
+```
+ModelList(...)
+```
+
+```python
+model = Model('llama3.1:latest')
+q = QuestionFreeText(
+    question_name="q1",
+    question_text="What is the capital of France?"
+)
+res = q.by(model).run(cache=False,disable_remote_inference=True)
+res.select("answer.*")
+```
+
+```
+Dataset(...)
+```

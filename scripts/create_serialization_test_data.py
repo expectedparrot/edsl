@@ -3,15 +3,20 @@ import logging
 import json
 import os
 import sys
+
+# Add project root to sys.path to enable tests imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from edsl import __version__ as edsl_version
-from edsl.Base import RegisterSubclassesMeta
-from edsl.coop.utils import ObjectRegistry, Study
+from edsl.base import RegisterSubclassesMeta
+from edsl.coop.utils import ObjectRegistry
 from edsl.questions import *
 from tests.serialization.cases.RegisterSerializationCasesMeta import (
     RegisterSerializationCasesMeta,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s\t%(message)s")
+
 
 def create_serialization_test_data(start_new_version=False):
     if ".dev" in edsl_version:
@@ -47,23 +52,10 @@ def create_serialization_test_data(start_new_version=False):
     # B. Proceed with creating serialization test data
     data = []
 
-    # Study data needs to go up here; otherwise, there is a namespace error
-    with Study(name="example_study", verbose=False) as study:
-        from edsl import QuestionFreeText
-
-        q = QuestionFreeText.example()
-
-    data.append(
-        {
-            "class_name": "Study",
-            "class": Study,
-            "example": study,
-            "dict": study.to_dict(),
-        }
-    )
-
     # Collect all registered classes
-    subclass_registry = RegisterSubclassesMeta.get_registry()
+    subclass_registry = RegisterSubclassesMeta.get_registry(
+        exclude_classes=["CoopObjects"]
+    )
     questions_registry = RegisterQuestionsMeta.get_registered_classes()
     object_registry = ObjectRegistry.get_registry(
         subclass_registry=subclass_registry, exclude_classes=["QuestionBase", "Study"]
@@ -77,6 +69,12 @@ def create_serialization_test_data(start_new_version=False):
 
     for subclass_name, subclass in combined_items:
         example = subclass.example()
+        # Skip classes where example() returns None (e.g., abstract base classes)
+        if example is None:
+            logging.warning(
+                f"Skipping class {subclass_name} because example() returned None"
+            )
+            continue
         data.append(
             {
                 "class_name": subclass_name,
@@ -105,6 +103,7 @@ def create_serialization_test_data(start_new_version=False):
         json.dump(data_to_write, f)
     logging.info(f"Serialization test data written to `{current_path}`.")
     logging.info("!!! DO NOT FORGET TO FORCE PUSH IT TO THE REPO !!!")
+
 
 if __name__ == "__main__":
     start_new_version = "--start_new_version" in sys.argv

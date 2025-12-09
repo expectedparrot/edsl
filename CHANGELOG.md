@@ -1,8 +1,327 @@
 # Changelog
 
-## [0.1.44] - TBD
+## [1.0.5] - 2025-12-08
 ### Added
-- (*In progress*) A universal remote cache is automatically available for retrieving responses that have been previously run by any user at the Expected Parrot server (i.e., if you run a question that you or anyone else has run before, you will retrieve that response at no cost to you). It is available for all jobs run remotely by default, and new responses for any remote jobs are automatically added to it. If you want to draw fresh responses you can use `run(fresh_cache=True)` or `run(cache=Cache()`. If you want to draw responses from a different cache you can use `run(cache=<my_cache>)` (insert your own cache object). If you draw a fresh response for a question that has already been run, the new response is also added to the universal remote cache with an index (`n=2`, etc.). Universal remote cache is not available for jobs run locally. See the [remote cache](https://docs.expectedparrot.com/en/latest/remote_caching.html) section for more details.
+- **Results column visualization**: New `Results.show_columns()` method displays columns in hierarchical tree format using mermaid diagrams in Jupyter notebooks and ASCII trees in terminals, organized by data type (agent, answer, model, scenario, etc.).
+- **Wildcard column selection**: Added `*` wildcard pattern support for flexible column selection in `ResultsSelector` class, enabling patterns like `*_cost`, `answer.*`, `prefix*suffix` for selecting multiple related columns at once.
+- **Question groups**: New feature for organizing related questions together in surveys.
+- **Question dropdown**: New question type for dropdown selection interfaces.
+
+### Improved
+- **Results data retrieval**: Updated `fetch_remote` method to use `coop.pull` instead of `coop.get` when fetching remote results, improving clarity and data retrieval semantics.
+- **Documentation structure**: Major reorganization of documentation in `mint.json` with new groups (Getting Started, Core Concepts, Getting Data, Working with Results, etc.), improved navigation, logo configuration, and custom search with feedback options.
+- **Survey rule validation**: Enhanced with proper error handling for unknown question references and improved validation for wildcard patterns.
+- **Survey navigation logic**: Fixed `Survey.next_question_with_instructions` to properly account for before rules created with `add_skip_rule`.
+- **Makefile workflow**: Linting now runs in parallel across modules for significant speed improvements. All test, lint, format, and doctest targets mark completion status for better CI integration.
+- **Benchmarking**: Commands now use `--no-open` flag for CI-friendly operation with enhanced performance reporting and regression detection.
+
+### Fixed
+- **QuestionMultipleChoiceWithOther**: Removed unnecessary `other_instructions` parameter and fixed answer column text to properly display "{{`other_option_text`}}: [your answer]" instead of just "Other".
+- **Dataset export**: Removed overriding `to_docx` method from Dataset class that was conflicting with the DatasetOperationsMixin method.
+- **Documentation files**: Fixed scenarios.mdx documentation formatting.
+- **Double print issue**: Resolved issue where content was being displayed twice in certain contexts.
+- **Test matrix**: Removed Python 3.9 from CI test matrix to simplify support. Updated starter tutorial integration test to run only for Python 3.10.
+
+### Changed
+- **Doctest environment**: Doctest runs now set `EDSL_RUNNING_DOCTESTS=True` environment variable in both Makefile and GitHub workflow for consistent test environments.
+- **CI cleanup**: GitHub tests locally now stash uncommitted changes before running tests with `act`, ensuring only committed files are tested in clean Docker environment.
+
+## 2025-10-23
+### Added
+- **QuestionDemand**: New question type for collecting demand curves from language models, enabling economic analysis by asking for quantities demanded at various price points. Supports multiple numeric price points with automatic validation of non-negative quantities.
+- **QuestionPydantic**: New question type for structured generation with Pydantic models. Enables extraction of structured data using Pydantic schemas with models that support structured outputs (e.g., `gpt-4o-mini`).
+- **Survey generation methods**: New methods `Survey.generate_survey_from_topic()` to create surveys from topic strings with scenario placeholders, and `Survey.generate_survey_from_questions()` to generate surveys from question text lists with automatic question option suggestions.
+- **ScenarioList to Agent conversion**: New `ScenarioList.to_agent_traits()` method returns a single Agent with traits for all scenarios in the list, with auto-incremented keys for duplicates.
+- **EDSL Apps framework**: Introduced the concept of EDSL "Apps" for building interactive data analysis workflows.
+- **Mintlify documentation**: Migrated documentation to Mintlify format with improved navigation and styling.
+
+### Improved
+- **Performance optimizations**: Significant improvements to prompt rendering with detailed timing and profiling, render caching for agent prompts, increased cache sizes for template compilation, optimized hash computations with result caching in `Agent.__hash__`, and changed `InvigilatorBase.prompt_constructor` to use `@cached_property` to prevent unnecessary instance recreation.
+- **Cost estimation performance**: Fixed prompts and cost estimation computation that was taking 300+ seconds for large jobs with many scenarios and questions.
+- **Remote job polling**: Introduced dynamic and adaptive polling strategy that calculates intervals based on job complexity and progress, reducing unnecessary API calls for long jobs while ensuring quick detection for short jobs.
+- **Proxy service support**: Added repeater proxy logic for Mistral, Azure, OpenRouter, and Together services with cache key computation on client side and prevention of duplicate file uploads.
+- **FileStore GCS offloading**: Implemented automatic offloading of large file contents to Google Cloud Storage during push operations with automatic restoration when accessed, significantly reducing payload sizes.
+- **Text file support**: Enhanced Anthropic model integration with text file decoding support for .txt, .json, and other text formats, with proper handling of images, PDFs, and clear warnings for unsupported file types.
+- **Survey rule evaluation**: Improved safety and reliability of rule evaluation with proper string escaping using `json.dumps`, better error messages, and more robust survey navigation logic that skips unevaluable stop rules.
+
+### Fixed
+- **Jobs.pull() method**: Fixed incorrect logic in `Jobs.pull()` that was causing "Object not found" errors when pulling jobs.
+- **Progress bar display**: Resolved issues with remote job progress bar display.
+- **Agent traits persistence**: Fixed `traits_presentation_template` not persisting in serialization when set via setter after agent construction.
+- **Grok-4 model calls**: Fixed parameter compatibility by filtering unsupported parameters (`presence_penalty`, `frequency_penalty`) for grok-4 model on xai service.
+- **Conversation module**: Various fixes to the Conversation module functionality.
+- **Duplicate hash handling**: Refactored index tracking to use `_position_index` attribute directly on objects instead of hash-based dictionaries, fixing issues with duplicate hashes.
+
+### Changed
+- **Jobs metadata**: Added `nr_questions` property to Jobs class, computing total questions to be executed (interviews × survey questions).
+- **Notebook imports**: Updated notebook import mechanisms for better compatibility.
+
+## [1.0.4] - 2025-08-29
+### Added
+- **Firecrawl Integration**: Complete web scraping capabilities with new FirecrawlScenario class. Enables scraping, crawling, searching, and structured data extraction from websites, returning results as EDSL Scenario and ScenarioList objects for seamless integration with surveys and analysis workflows.
+
+### Improved
+- **AgentList Enhancements**: Enhanced agent creation with CSV codebook support and improved `from_results()` method allowing users to specify which questions and answers become agent traits.
+- **ScenarioList Functionality**: Added data manipulation methods including `fillna()` for handling missing values and `transform_by_key()` for reshaping scenario data structures.
+- **Model Services**: Improved model availability system to show all compatible services per model rather than just preferred ones, and fixed Azure integration for local usage.
+- **User Experience**: Enhanced Jupyter notebook login with rich UI components and improved environment variable handling.
+
+### Fixed
+- **Agent Generation**: Resolved duplicate agent creation bug in `Results.to_agent_list()` when name fields were present.
+
+## [1.0.2] - 2025-08-20
+### Added
+- **AgentList.from_source()**: Unified method for creating agents from various data sources with optional `instructions` parameter.
+- **AgentList.add_instructions()**: Method to apply instructions to all agents in an existing list.
+- **Widget infrastructure**: Added support for interactive widgets including ResultsInspector and ResultInspector.
+- **Local extension testing**: Support for testing extensions locally using `extension.local` syntax.
+- **Remote caching**: Universal cache integration for improved performance with remote cache fetching when local cache misses occur.
+- **OpenAI reasoning models**: Added standardized list of reasoning models including new GPT-5 class models with proper temperature handling.
+
+### Improved  
+- **Multiple choice validation**: Enhanced case-insensitive matching for capitalized responses (e.g., "Grapefruit" now matches "grapefruit").
+- **Agent combination**: Fixed `+` operator to properly preserve `name` and `traits_presentation_template` from both agents with conflict warnings.
+- **Cache consistency**: Improved cache key generation by sorting file hashes to prevent missed cache hits due to file order differences.
+- **Google services**: Full asynchronous support using `client.aio` for better performance and concurrency.
+- **Model availability**: Enhanced `Model.available()` with better type annotations and archive management.
+- **Numpy compatibility**: Support for both numpy 1.x and 2.x versions (`>=1.22,<3`).
+
+### Changed
+- **Results refactoring**: Broke down enormous Results and Result classes into smaller helper classes for better maintainability.
+- **Agent and Scenario refactoring**: Improved code organization and structure.
+- **OpenAI API**: Replaced deprecated `max_tokens` parameter with `max_completion_tokens` for reasoning models.
+- **Job status polling**: Increased default refresh rate from 1 to 3 seconds to reduce polling frequency.
+
+### Fixed
+- **Jinja2 template errors**: Fixed crashes when loading agents with template syntax patterns like `{#`, `{{`, `{%` in their data.
+- **NaN handling**: Replaced NaN values with `None` in scenarios and question options for proper JSON serialization.
+- **Double display issue**: Fixed `show_prompts()` displaying content twice in REPL/notebook environments.
+- **Piping bugs**: Various fixes for data piping and processing issues.
+
+## [1.0.1] - 2025-07-21
+### Added
+- **Job chaining**: Delayed execution of jobs to build longer chains with dependency management. Jobs can now store other jobs they depend on and execute those first.
+- **QuestionCompute**: New question type that renders Jinja2 templates directly without LLM processing, with automatic numeric conversion and access to prior question answers.
+- **Template validation**: Added syntax validation for survey scenarios to ensure correct usage of `{{scenario.field}}` references.
+- **Ordered sampling**: Support for ordered sampling in data collection.
+- **Extensions service framework**: New framework for creating EDSL-based web services with decorators like `@edsl_service`, `@input_param`, and `@output_schema`. Includes `pip install edsl[services]` for optional FastAPI dependencies.
+
+### Improved
+- **PDF handling**: Fixed issues with Anthropic & OpenAI not working properly with PDFs.
+- **Nested scenario options**: Fixed piping issues with nested scenario options and QuestionNumerical parameters.
+- **Agent handling**: Better support for name fields in AgentList.from_scenario_list.
+- **Results association**: Jobs now properly append associated results after post-run commands, maintaining Results objects even after dataset operations like `select()`.
+- **Public object search**: Updated list endpoint to allow users to search public objects.
+- **Agent display**: Fixed display issues for agents with no traits.
+
+### Changed
+- **Extension gateway**: Replaced static `EDSL_EXTENSION_GATEWAY_URL` configuration with dynamic `get_extension_gateway_url()` method.
+- **Service deployment**: Added comprehensive service framework with examples and documentation for creating web services without FastAPI knowledge.
+
+### Fixed
+- **Answer validation**: Fixed template context in InvigilatorFunctional to include prior question answers.
+- **Scenario references**: Resolved issue with jobs involving scenarios accessing the scenario.target variable correctly.
+- **Display formatting**: Various improvements to result comparison and agent display.
+
+## [1.0.0] - 2025-06-28
+### Major Release
+- **Version 1.0.0**: First major stable release of EDSL, marking production readiness and API stability.
+
+### Added
+- **Auto-update mechanism**: Automatic version checking on package import with `check_for_updates()` function. New CLI command `edsl check-updates` to manually check for available updates.
+- **ScenarioList offload method**: New method to offload scenario lists for improved memory management.
+- **Dataset unique method**: Added method to get unique values from datasets.
+
+### Improved
+- **Error messaging**: Enhanced messaging for insufficient funds failures, properly retrieving failure reasons from the correct location.
+- **API key handling**: Better support for remote inference with improved API key checks and conditional logic for remote configurations.
+- **Survey flow testing**: Added comprehensive testing for survey flow functionality.
+- **Report generation**: Enhanced report generation capabilities.
+
+### Fixed
+- **Google Docs integration**: Fixed bugs in scenario list generation from Google Docs sources.
+- **Colab compatibility**: Patched error messages and improved handling in Google Colab environments.
+- **Azure and OpenAI services**: Improved error handling to prevent failures when environment variables are missing.
+
+## [0.1.62] - 2025-06-20
+### Added
+- Service payments functionality for handling payments through the platform.
+- `get_profile()` method in Coop class to retrieve authenticated user's profile information including username and email.
+- Answer validation tracking in Results with new columns `validated.{question_name}_validated` to track which answers passed validation.
+
+### Improved
+- ScenarioList now functions as a standard list with improved method compatibility.
+- Support for pulling Jobs stored in Google Cloud Storage (new format since ORM migration).
+- Enhanced object patch method with proper alias handling and format detection.
+- List methods adapted to work with new ORM setup.
+
+### Fixed
+- Fixed typo in `Jobs.humanize()` that was causing SyntaxWarning.
+- Fixed issue #2027 related to scenario handling.
+- Removed stray print statements from the codebase.
+- Updated `.pull()` method implementation for questions.
+
+## [0.1.61] - 2025-06-11
+### Added
+- Linear scale questions now accept label responses in addition to numeric values. Models can return labels like "I love it" which are intelligently matched to the corresponding numeric value with support for exact, partial, and contextual matching.
+- Prolific integration for managing studies directly from EDSL. Project endpoints return Prolific data when applicable.
+- Proxy keys feature allows creating encrypted keys with usage limits that can be safely shared with third parties.
+- Enhanced pull/push methods with alias-based retrieval support and new Google Cloud Storage format.
+- Agent list tools for more efficient list operations.
+- Support for scenarios in humanize feature.
+
+### Changed
+- Increased maximum concurrent tasks to 1000 for improved performance at scale.
+- Enhanced object retrieval with format detection (new/old) and legacy format fallback.
+- Simplified error object handling with single parameter approach.
+
+### Fixed
+- Fixed pull method to work correctly with aliases.
+- Resolved Google Colab environment compatibility issues.
+- Fixed issues #1989, #1990, and #1921.
+
+## [0.1.60] - 2025-05-21
+### Added
+- Support for the OpenAI response API has been added. Job responses now have access to model reasoning summaries.
+- Example notebook for the new functionality: https://www.expectedparrot.com/content/arulm/getting-reasoning-summaries-from-thinking-models
+
+## [0.1.59] - 2025-05-15
+### Added
+- Added a drop method to the Agent class for removing specific fields, and updated the to_dict method to optionally include all fields. [1] [2]
+- Enhanced the AgentList class with methods to set instructions and traits presentation templates for all agents, and added a drop method to remove fields across the list. [1] [2]
+- Updated the to_dataset method in AgentList to include traits_presentation_template in the agent_parameters when traits_only is set to False. 
+### Fixed
+- Fix error in computing the remote inference cache key for files.
+- Fix timeout issues when running jobs with videos.
+
+## [0.1.58] - 2025-05-02
+### Added
+- Improvements to the job status table to include more details on exceptions and costs.
+
+## [0.1.57] - 2025-04-29
+
+
+## [0.1.56] - 2025-04-26
+### Added
+- Video file handlers: `Scenario` objects can now be videos (MP4 and WebM). Example: https://www.expectedparrot.com/content/RobinHorton/video-scenarios-notebook
+
+- `Results` objects now include separate fields for input tokens, output tokens, input tokens cost, output tokens cost and total cost for each `Result`. These fields all have the `raw_model_response` prefix. 
+
+- `Jobs` method `estimate_job_cost()` now also includes estimated input tokens, output tokens, input tokens cost, output tokens cost and total cost for each model, and credits to be placed on hold while the job is running.
+
+- New documentation page on estimating and tracking costs: https://docs.expectedparrot.com/en/latest/costs.html
+
+
+## [0.1.55] - 2025-04-23
+### Added
+- Method `get_uuid()` retrieves the Coop UUID for the relevant object, if it exists.
+
+- Method `list()` retrieves details of objects of the relevant type that you have posted to Coop. By default, it returns information about the 10 most recently created objects. Optional parameters:
+
+* `page=` specifies the pagination (e.g., `page=2` will return the next 10 objects) 
+* `page_size=` specifies the number of objects to return (10 by default, and up to 100)
+* `search_query` returns objects based on the description (if any)
+
+The `list()` method is available for all EDSL object types (`Agent`, `Scenario`, `Jobs`, `Results`, `Notebook`, etc.), as well as the `Coop` client object. For example, `Results.list()` will return details on the 10 most recent results and `Coop().list(page_size=5)` will return details on the 5 most recent objects of any type.
+
+- Method `fetch()` can be combined with the `list()` method to retrieve objects of the relevant type that you have posted to Coop. By default, it returns the 10 most recently created objects. For example: `Results.list().fetch()` will return the 10 most recently created results. The `fetch()` method is available for all EDSL object types (`Agent`, `Scenario`, `Jobs`, `Results`, `Notebook`, etc.), and the `Coop` client object.
+
+- Method `fetch_results()` is a special method of `Jobs` objects that can be combined with the `list()` method to retrieve results of your jobs. For example: `results = Jobs.list(page_size=2).fetch_results()` will retrieve the results for your 2 most recent jobs.
+
+
+
+## [0.1.54] - 2025-04-11
+### Deprecated
+- Methods for auto-generating `ScenarioList` objects from different file types are now available with a single syntax: `ScenarioSource.from_source()`. For example, `sl = ScenarioSource.from_source('csv', 'my_file.csv')` is equivalent to `sl = ScenarioList.from_csv('my_file.csv')`.
+
+
+## [0.1.53] - 2025-04-04
+### Changed
+- Improvements to the Job Status table and Exceptions Report.
+
+- Improved logic for computing image token usage approximation.
+
+
+## [0.1.52] - 2025-04-02
+### Changed
+- Improvements to Exceptions Report code for reproducing errors.
+
+
+## [0.1.51] - 2025-03-25
+### Changed
+- Improvements to answer validation tests.
+
+
+## [0.1.50] - 2025-03-25
+### Changed
+- Modified `ScenarioList.from_directory()` to wrap files in `Scenario` objects.
+
+
+## [0.1.49] - 2025-03-24
+### Added
+- New optional parameter for `QuestionList`: `min_list_items` allows you to specify the minimum number of items that must be returned in the answer formatted as a list. This complements existing optional parameter `max_list_items`. Example: https://docs.expectedparrot.com/en/latest/questions.html#questionlist-class 
+
+### Changed
+- Updated default prompt instructions for `QuestionRank`.
+
+- Improvements to `ScenarioList.from_csv()` to handle non-UTF-8 encoding.
+
+- Improvements to exceptions messages.
+
+
+## [0.1.48] - 2025-03-12
+### Added
+- Codebook support for `AgentList` objects. This facilitates creation of agents based on existing survey data, using a codebook for questions and responses. 
+
+## [0.1.47] - 2025-03-06
+### Added
+- `Results` method `spot_issues()` runs a survey to spot issues and suggest revised versions of any prompts that did not generate responses in your original survey (i.e., any user/system prompts where your results show a null answer and raw model response). You can optionally pass a list of models to use to run the meta-survey instead of the default model. See details on the meta-questions that are used and how it works: https://www.expectedparrot.com/content/RobinHorton/spot-issues-notebook. 
+
+- When you post an object to Coop with the `push()` method you can optionally pass a `description`, a convenient `alias` for the Coop URL that is created and a `visiblity` setting (*public*, *private* or *unlisted* by default). An alias Coop URL is now displayed in the object details that are returned when the object is created. You can then use the `alias_url` to retrieve or modify the object in lieu of the `uuid`. See examples in the [Coop section](https://docs.expectedparrot.com/en/latest/coop.html).
+
+- `Scenario` objects can be reference with the `scenario.` prefix, e.g., "Do you enjoy {{ scenario.activity }}?" (previously "Do you enjoy {{ activity }}?") to standardize syntax with other objects, e.g., when referencing `agent.` fields in the same way, or when piping `answer.` and `question.` fields. 
+
+
+## [0.1.46] - 2025-03-01
+### Added
+- A universal remote cache (URC) is available for retrieving responses to any questions that have been run at the Expected Parrot server. If you re-run a question that anyone has run before, you can retrieve that response at no cost to you. This cache is available for all jobs run remotely by default, and new responses are automatically added to it. If you want to draw fresh responses you can use `run(fresh=True)`. If you draw a fresh response for a question that has already been run, the new response is also added to the URC with an iteration index. The URC is not available for jobs run locally. See the [remote cache](https://docs.expectedparrot.com/en/latest/remote_caching.html) section for details and FAQ.
+
+- `ScenarioList` methods for concatenating and collapsing scenarios in a scenario list:
+
+* `concatenate()` can be used to concatenate specified fields into a single string field
+
+* `concatenate_to_list()` can be used to concatenate specified fields into a single list field 
+
+* `concatenate_to_set()` can be used to concatenate specified fields into a single set field 
+
+* `collapse()` can be used to collapse a scenario list by grouping on all fields except a specified field
+
+See [examples](https://docs.expectedparrot.com/en/latest/scenarios.html#combining-scenarios).
+
+- `ScenarioList` method `from_sqlite()` can be used to create a scenario list from a SQLite database.
+
+### Fixed
+- Bug causing some tokens generated to be omitted from results when skip logic was applied.
+
+
+## [0.1.45] - 2025-02-27
+### Added
+- `ScenarioList` method `from_dta()` creates a scenario list from a Stata file.
+
+- `Results` method `flatten()` will flatten a field of dictionaries into separate fields. It takes a list of the fields to flatten and a boolean indicator whether to preserve the original fields in the new `Results` object that is returned. [See example](https://docs.expectedparrot.com/en/latest/results.html#flattening-resuls).
+
+- `Results` method `report()` generates a report of selected columns in markdown by iterating through the rows, presented as observations. You can optionally pass headers, a divider and a limit on the number of observations to include. It can be useful if you want to display some sample part of larger results in a working notebook you are sharing. [See example](https://docs.expectedparrot.com/en/latest/results.html#generating-a-report).
+
+- `Survey` method `show_flow()` can now also be called on a `Jobs` object, and will show any scenarios and/or agent traits that that you have added to questions. [See examples](https://docs.expectedparrot.com/en/latest/docs/surveys.html#show-flow).
+
+
+
+## [0.1.44] - 2025-02-14
+### Added
+- Xai models are now available. If you have your own key, you can add it to your Keys page at your Coop account or add `XAI_API_KEY=<your_key_here>` to your `.env` file.
+
+- `Survey` method `humanize()` will create a web-based version of your survey to share with humans. Responses are automatically added to a `Results` object that you can access at your account. *This feature is live but in development.*  
+
 
 ## [0.1.43] - 2025-02-11 
 ### Added
@@ -16,8 +335,6 @@
 
 - You can now see Mermaid diagrams and inline math in Coop notebooks.
 
-### Changed
-
 ### Fixed
 - Improved methods and moved tasks to background to prevent some timeout errors.
 
@@ -28,7 +345,7 @@
 
 ## [0.1.42] - 2025-01-24
 ### Added
-- DeepSeek models, e.g., `Model("deepseek-reasoner")`.
+- DeepSeek models are now available (e.g., try `Model("deepseek-reasoner")`). If you have your own key, you can add it to your Keys page at your Coop account or add `DEEPSEEK_API_KEY=<your_key_here>` to your `.env` file.
 
 - The name of the inference service is now included in the `Model` parameters and `Results` objects. This can be useful when the same model is provided by multiple services.
 
@@ -37,7 +354,6 @@
 ### Changed
 - Default size limits on question texts have been removed.
 
-### Fixed
 
 ## [0.1.41] - 2025-01-19
 ### Changed

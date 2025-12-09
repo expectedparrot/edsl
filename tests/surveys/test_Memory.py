@@ -1,14 +1,12 @@
 import unittest
-from httpcore import ConnectionNotAvailable
 import random
 import asyncio
 from typing import Any
 
-from edsl.surveys.Memory import Memory
-from edsl.language_models.LanguageModel import LanguageModel
+from edsl.surveys.memory import Memory
+from edsl.language_models import LanguageModel
 from edsl.enums import InferenceServiceType
-from edsl.scenarios.Scenario import Scenario
-from edsl.surveys.Survey import Survey
+from edsl.surveys import Survey
 from edsl.questions import QuestionFreeText
 
 
@@ -61,7 +59,7 @@ class TestMemory(unittest.TestCase):
         survey = Survey()
         for i in range(10):
             q = QuestionFreeText(
-                question_text=f"How are you?", question_name=f"question_{i}"
+                question_text="How are you?", question_name=f"question_{i}"
             )
             survey.add_question(q)
             if i > 0:

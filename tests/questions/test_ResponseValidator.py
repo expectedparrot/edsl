@@ -1,10 +1,8 @@
 import pytest
-from pydantic import BaseModel, Field
-from typing import Optional, Any
-from decimal import Decimal
+from pydantic import Field
+from typing import Optional
 
-from edsl.exceptions.questions import QuestionAnswerValidationError
-from abc import ABC, abstractmethod
+from edsl.questions.exceptions import QuestionAnswerValidationError
 
 from edsl.questions.response_validator_abc import ResponseValidatorABC
 from edsl.questions.data_structures import BaseResponse
@@ -32,7 +30,8 @@ def test_validator_initialization():
 
 
 def test_validator_missing_params():
-    with pytest.raises(ValueError, match="Missing required parameters"):
+    from edsl.questions.exceptions import QuestionValueError
+    with pytest.raises(QuestionValueError, match="Missing required parameters"):
         MockValidator(response_model=MockResponseModel, min_value=0)
 
 

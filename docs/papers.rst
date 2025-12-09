@@ -15,15 +15,48 @@ If you use the EDSL package in your research or projects, please use the followi
 
     @techreport{Horton2024EDSL,
     title = {EDSL: Expected Parrot Domain Specific Language for AI Powered Social Science},
-    author = {John Horton and Apostolos Filippas and Robin Horton},
+    author = {John Horton and Robin Horton},
     year = {2024},
     institution = {Expected Parrot},
     type = {Whitepaper}
     }
 
 
-Citations
----------
+| *General Social Agents*
+| Benjamin S. Manning, John J. Horton 
+| September 2025
+| https://arxiv.org/abs/2508.17407
+
+
+| *The Potential of Synthetic Twin Agents for Personalized Behavioural Interventions at Scale*
+| J. Ustiyanovych, D. Krpan,
+| September 2025
+| https://osf.io/preprints/psyarxiv/vs2mk_v3
+
+
+| *The next generation of experimental research with LLMs*
+| Gary Charness, Brian Jabarian, John A. List 
+| March 2025
+| https://www.nature.com/articles/s41562-025-02137-1
+
+
+| *Social Science Production with LLMs*
+| Eric Vansteenberghe
+| February 2025
+| https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5133210
+
+
+| *Linear Representations of Political Perspective Emerge in Large Language Models*
+| Junsol Kim, James Evans, Aaron Schein
+| March 2025
+| https://arxiv.org/pdf/2503.02080v1
+
+
+| *Simulating the Survey of Professional Forecasters*
+| Anne Lundgaard Hansen, John J. Horton, Sophia Kazinnik, Daniela Puzzello, Ali Zarifhonarvar
+| February 2025
+| https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5066286
+
 
 | *Generative AI for Economic Research: LLMs Learn to Collaborate and Reason*
 | Anton Korinek

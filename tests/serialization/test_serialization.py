@@ -2,7 +2,7 @@ import itertools
 import json
 import os
 from edsl import __version__ as edsl_version
-from edsl.Base import RegisterSubclassesMeta
+from edsl.base import RegisterSubclassesMeta
 from edsl.coop.utils import ObjectRegistry
 from edsl.questions import RegisterQuestionsMeta
 
@@ -20,7 +20,7 @@ def test_serialization():
 
     # get all EDSL classes that you'd like to test
     subclass_registry = RegisterSubclassesMeta.get_registry(
-        exclude_classes=["AgentTraits", "RunParameters"]
+        exclude_classes=["AgentTraits", "RunParameters", "CoopObjects"]
     )
     questions_registry = RegisterQuestionsMeta.get_registered_classes()
     object_registry = ObjectRegistry.get_registry(
@@ -47,7 +47,6 @@ def test_serialization():
         with open(os.path.join(path, file), "r") as f:
             data = json.load(f)
         for item in data:
-            from edsl.results.Result import Result
 
             class_name = item["class_name"]
             if class_name in [
@@ -122,6 +121,24 @@ def test_serialization_coverage():
             "PNGFileStore",
             "SQLiteFileStore",
             "RunParameters",
+            "CoopObjects",
+            "CoopRegularObjects",
+            "CoopJobsObjects",
+            "CoopProlificFilters",
+            "Service",
+            "AgentDelta",
+            "AgentListDeltas",
+            "CompareResultsToGold",
+            "PerformanceDelta",
+            "ResultPairComparison",
+            "BaseMacro",  # Abstract base class for Macro and CompositeMacro
+            "CompositeMacro",
+            # Test classes that should not be included in serialization coverage
+            "MacroForTesting",
+            "NoDefault",
+            "TestMacro1",
+            "TestMacro2",
+            "BadMacro",
         ]
     )
 

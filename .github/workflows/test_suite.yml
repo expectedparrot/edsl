@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 120    # Changed to 120 minutes
     strategy:
       matrix:
-        python-version: ["3.12", "3.11", "3.10", "3.9"]
+        python-version: ["3.13", "3.12", "3.11", "3.10"]      
     env:
       POETRY_VERSION: "1.7.1"
     steps:
@@ -46,10 +46,12 @@ jobs:
         run: poetry install --with dev
 
       - name: Run starter tutorial integration test
-        if: matrix.python-version == '3.9'
+        if: matrix.python-version == '3.10'
         shell: bash
         run: poetry run make test-starter-tutorial
-
+        env:
+          EXPECTED_PARROT_API_KEY: ${{ secrets.INTEGRATION_TEST_EXPECTED_PARROT_API_KEY_CHICK }}
+          EXPECTED_PARROT_URL: "https://chick.expectedparrot.com"
       - name: Run edsl tests
         shell: bash
         run: poetry run make test
@@ -57,3 +59,5 @@ jobs:
       - name: Run doctests
         shell: bash
         run: poetry run make test-doctests
+        env:
+          EDSL_RUNNING_DOCTESTS: "True"

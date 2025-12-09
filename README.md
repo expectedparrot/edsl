@@ -1,54 +1,192 @@
-# Expected Parrot Domain-Specific Language 
-<p align="center">
+<p align="right">
   <img src="https://github.com/expectedparrot/edsl/blob/main/static/logo.png?raw=true" alt="edsl.png" width="100"/>
 </p>
 
-The Expected Parrot Domain-Specific Language (EDSL) package lets you conduct computational social science and market research with AI. Use it to design surveys and experiments, simulate responses with large language models, and perform data labeling and other research tasks. Results are formatted as specified datasets and come with built-in methods for analyzing, visualizing, and sharing. 
+# Expected Parrot Domain-Specific Language (EDSL)
 
-## 🔗 Links
-- [PyPI](https://pypi.org/project/edsl/)
-- [Documentation](https://docs.expectedparrot.com)
-- [Getting started](https://docs.expectedparrot.com/en/latest/starter_tutorial.html) 
-- [Discord](https://discord.com/invite/mxAYkjfy9m)
-- [Twitter](https://x.com/ExpectedParrot)
-- [LinkedIn](https://www.linkedin.com/company/expectedparrot/)
-- [Blog](https://blog.expectedparrot.com)
+EDSL makes it easy to conduct computational social science and market research with AI. Use it to design and run surveys and experiments with many AI agents and large language models at once, or to perform complex data labeling and other research tasks. Results are formatted as specified datasets that can be replicated at no cost, and come with built-in methods for analysis, visualization and collaboration. 
 
-## 🌎 Hello, World!
-A quick example:
+## Getting started
+
+1. Run `pip install edsl` to install the package. See <a href="https://www.expectedparrot.com/getting-started" target="_blank" rel="noopener noreferrer">instructions</a>.
+
+2. <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Create an account</a> to run surveys at the Expected Parrot server and access a <a href="https://docs.expectedparrot.com/en/latest/remote_caching.html" target="_blank" rel="noopener noreferrer">universal remote cache</a> of stored responses for reproducing results.
+
+3. Choose whether to use your own keys for language models or get an Expected Parrot key to access all available models at once. Securely <a href="https://www.expectedparrot.com/getting-started/edsl-api-keys" target="_blank" rel="noopener noreferrer">manage keys</a>,  expenses and usage for your team from your account.
+
+4. Run the <a href="https://docs.expectedparrot.com/en/latest/starter_tutorial.html" target="_blank" rel="noopener noreferrer">starter tutorial</a> and explore other demo notebooks for a variety of use cases. 
+
+5. Share workflows and survey results at <a href="https://www.expectedparrot.com/content/explore" target="_blank" rel="noopener noreferrer">Coop</a>: a free platform for creating and sharing AI research.
+
+6. Join our <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank" rel="noopener noreferrer">Discord</a> for updates and discussions! 
+
+## Code & Docs
+- <a href="https://github.com/expectedparrot/edsl" target="_blank" rel="noopener noreferrer">GitHub</a>
+- <a href="https://pypi.org/project/edsl/" target="_blank" rel="noopener noreferrer">PyPI</a>
+- <a href="https://docs.expectedparrot.com" target="_blank" rel="noopener noreferrer">Documentation</a>
+
+## Requirements
+- Python 3.9 - 3.13
+- API keys for language models. You can use your own keys or an Expected Parrot key that provides access to all available models.
+See instructions on <a href="https://docs.expectedparrot.com/en/latest/api_keys.html" target="_blank" rel="noopener noreferrer">managing keys</a> and <a href="https://www.expectedparrot.com/models" target="_blank" rel="noopener noreferrer">model pricing and performance</a> information.
+
+## Coop
+An integrated platform for running experiments, sharing workflows and launching hybrid human/AI surveys.
+- <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Login / Signup</a>
+- <a href="https://www.expectedparrot.com/content/explore" target="_blank" rel="noopener noreferrer">Explore</a>
+
+## Community
+- <a href="https://blog.expectedparrot.com" target="_blank" rel="noopener noreferrer">Blog</a>
+- <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank" rel="noopener noreferrer">Discord</a>
+- <a href="https://x.com/ExpectedParrot" target="_blank" rel="noopener noreferrer">Twitter</a>
+- <a href="https://www.linkedin.com/company/expectedparrot/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+
+## Contact
+- <a href="mailto:info@expectedparrot.com" target="_blank" rel="noopener noreferrer">Email</a>
+
+
+## Features 
+
+**Declarative design**: 
+Specified <a href="https://docs.expectedparrot.con/en/latest/questions.html" target="_blank" rel="noopener noreferrer">question types</a> ensure consistent results without requiring a JSON schema (<a href="https://www.expectedparrot.com/content/2a848a0e-f9de-46bc-98d0-a13b9a1caf11" target="_blank" rel="noopener noreferrer">view at Coop</a>):
 
 ```python
-# Import a question type
 from edsl import QuestionMultipleChoice
 
-# Construct a question using the question type template
 q = QuestionMultipleChoice(
-    question_name="example_question",
-    question_text="How do you feel today?",
-    question_options=["Bad", "OK", "Good"]
+  question_name = "example",
+  question_text = "How do you feel today?",
+  question_options = ["Bad", "OK", "Good"]
 )
 
-# Run it with the default language model
 results = q.run()
 
-# Inspect the results 
-results.select("example_question")
+results.select("example")
 ```
 
-Output:
+
+> | answer.example  |
+> |-----------------|
+> | Good            |
+
+<br>
+
+**Parameterized prompts**: 
+Easily parameterize and control prompts with "<a href="https://docs.expectedparrot.com/en/latest/scenarios.html" target="_blank" rel="noopener noreferrer">scenarios</a>" of data automatically imported from many sources (CSV, PDF, PNG, etc.) (<a href="https://www.expectedparrot.com/content/7bb9ec2e-827b-4867-ac02-33163df1a1d1" target="_blank" rel="noopener noreferrer">view at Coop</a>):
+
 ```python
-┏━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ answer.example_question ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ Good                    │
-└─────────────────────────┘
+from edsl import ScenarioList, QuestionLinearScale
+
+q = QuestionLinearScale(
+  question_name = "example",
+  question_text = "How much do you enjoy {{ scenario.activity }}?",
+  question_options = [1,2,3,4,5,],
+  option_labels = {1:"Not at all", 5:"Very much"}
+)
+
+sl = ScenarioList.from_list("activity", ["coding", "sleeping"])
+
+results = q.by(sl).run()
+
+results.select("activity", "example")
 ```
 
-## 💻 Requirements
-* EDSL is compatible with Python 3.9 - 3.12.
-* API keys for large language models that you want to use, stored in a `.env` file.
-See instructions on [storing API keys](https://docs.expectedparrot.com/en/latest/api_keys.html) and [activating remote inference](https://docs.expectedparrot.com/en/latest/remote_inference.html).
+> | scenario.activity  | answer.example  |
+> |--------------------|-----------------|
+> | Coding             | 5               |
+> | Sleeping           | 5               |
 
-## 💡 Contributions, feature requests & bugs
-Interested in contributing? Want us to add a new feature? Found a bug for us to squash? 
-Please send us an email at [info@expectedparrot.com](mailto:info@expectedparrot.com) or message us at our [Discord channel](https://discord.com/invite/mxAYkjfy9m).
+<br>
+
+**Design AI agent personas to answer questions**: 
+Construct agents with relevant traits to provide diverse responses to your surveys (<a href="https://www.expectedparrot.com/content/b639a2d7-4ae6-48fe-8b9e-58350fab93de" target="_blank" rel="noopener noreferrer">view at Coop</a>)
+
+```python
+from edsl import Agent, AgentList, QuestionList
+
+al = AgentList(Agent(traits = {"persona":p}) for p in ["botanist", "detective"])
+
+q = QuestionList(
+  question_name = "example",
+  question_text = "What are your favorite colors?",
+  max_list_items = 3
+)
+
+results = q.by(al).run()
+
+results.select("persona", "example")
+```
+
+> | agent.persona  | answer.example                              |
+> |----------------|---------------------------------------------|
+> | botanist       | ['Green', 'Earthy Brown', 'Sunset Orange']  |
+> | detective      | ['Gray', 'Black', 'Navy Blue']              |
+
+<br>
+
+**Simplified access to LLMs**: 
+Choose whether to use your own API keys for LLMs, or access all <a href="https://www.expectedparrot.com/models" target="_blank" rel="noopener noreferrer">available models</a> with an Expected Parrot key. Run surveys with many models at once and compare responses at a convenient inferface (<a href="https://www.expectedparrot.com/content/044465f0-b87f-430d-a3b9-4fd3b8560299" target="_blank" rel="noopener noreferrer">view at Coop</a>)
+
+```python
+from edsl import Model, ModelList, QuestionFreeText
+
+ml = ModelList(Model(m) for m in ["gpt-4o", "gemini-1.5-flash"])
+
+q = QuestionFreeText(
+  question_name = "example",
+  question_text = "What is your top tip for using LLMs to answer surveys?"
+)
+
+results = q.by(ml).run()
+
+results.select("model", "example")
+```
+
+> | model.model        | answer.example                                                                                  |
+> |--------------------|-------------------------------------------------------------------------------------------------|
+> | gpt-4o             | When using large language models (LLMs) to answer surveys, my top tip is to ensure that the ... |
+> | gemini-1.5-flash   | My top tip for using LLMs to answer surveys is to **treat the LLM as a sophisticated brainst... |
+
+<br>
+
+**Piping & skip-logic**: 
+Build rich data labeling flows with features for piping answers and adding survey logic such as skip and stop rules (<a href="https://www.expectedparrot.com/content/b8afe09d-49bf-4c05-b753-d7b0ae782eb3" target="_blank" rel="noopener noreferrer">view at Coop</a>):
+
+```python
+from edsl import QuestionMultipleChoice, QuestionFreeText, Survey
+
+q1 = QuestionMultipleChoice(
+  question_name = "color",
+  question_text = "What is your favorite primary color?",
+  question_options = ["red", "yellow", "blue"]
+)
+
+q2 = QuestionFreeText(
+  question_name = "flower",
+  question_text = "Name a flower that is {{ color.answer }}."
+)
+
+survey = Survey(questions = [q1, q2])
+
+results = survey.run()
+
+results.select("color", "flower")
+```
+
+> | answer.color  | answer.flower                                                                     |
+> |---------------|-----------------------------------------------------------------------------------|
+> | blue          | A commonly known blue flower is the bluebell. Another example is the cornflower.  |
+
+<br>
+
+**Caching**: 
+API calls to LLMs are cached automatically, allowing you to retrieve responses to questions that have already been run and reproduce experiments at no cost. Learn more about how the <a href="https://docs.expectedparrot.com/en/latest/remote_caching.html" target="_blank" rel="noopener noreferrer">universal remote cache</a> works.
+
+**Flexibility**: 
+Choose whether to run surveys on your own computer or at the Expected Parrot server.
+
+**Tools for collaboration**: 
+Easily share workflows and projects privately or publicly at Coop: an integrated platform for AI-based research. Your account comes with free credits for running surveys, and lets you securely share keys, track expenses and usage for your team.
+
+**Built-in tools for analyis**: 
+Analyze results as specified datasets from your account or workspace. Easily import data to use with your surveys and export results.

@@ -6,7 +6,7 @@ import warnings
 async def async_repair(
     bad_json, error_message="", user_prompt=None, system_prompt=None, cache=None
 ):
-    from edsl.utilities.utilities import clean_json
+    from ..utilities import clean_json
 
     s = clean_json(bad_json)
 
@@ -22,7 +22,7 @@ async def async_repair(
         return valid_dict, success
 
     try:
-        from edsl.utilities.repair_functions import extract_json_from_string
+        from ..utilities.repair_functions import extract_json_from_string
 
         valid_dict = extract_json_from_string(s)
         success = True
@@ -32,11 +32,7 @@ async def async_repair(
     else:
         return valid_dict, success
 
-    from edsl.language_models.model import Model
-
-    m = Model()
-
-    from edsl.questions.QuestionExtract import QuestionExtract
+    from ..questions.QuestionExtract import QuestionExtract
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
@@ -95,9 +91,7 @@ async def async_repair(
     except json.JSONDecodeError:
         valid_dict = {}
         success = False
-        from rich import print
         from rich.console import Console
-        from rich.syntax import Syntax
 
         console = Console()
         error_message = (

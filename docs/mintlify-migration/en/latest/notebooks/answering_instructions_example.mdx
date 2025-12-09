@@ -1,0 +1,264 @@
+---
+title: "Answering instructions"
+description: "This notebook demonstrates how you can modify default instructions for question types and answer comments."
+---
+
+## Default question instructions
+
+Each EDSL question type includes default instructions to the model about how to answer the question. We can view these instructions by inspecting the user prompt for a question that has been created (the other type of prompt–systen prompt–is for agent instructions).
+
+For example, here we see that the default instruction for multiple choice questions is:
+
+**“Only 1 option may be selected. Respond only with a string corresponding to one of the options. After the answer, you can put a comment explaining why you chose that option on the next line.”**
+
+This text is automatically appended to the question text:
+
+```python
+from edsl import QuestionMultipleChoice, Survey, Model
+
+q = QuestionMultipleChoice(
+    question_name = "primary_color",
+    question_text = "What is the most common primary color?",
+    question_options = ["Red", "Yellow", "Blue"]
+)
+
+survey = Survey([q])
+survey.show_prompts()
+```
+
+|  | user_prompt | system_prompt | interview_index | question_name | scenario_index | agent_index | model | estimated_cost | cache_keys |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | What is the most common primary color? Red Yellow Blue Only 1 option may be selected. Respond only with a string corresponding to one of the options. After the answer, you can put a comment explaining why you chose that option on the next line. | nan | 0 | primary_color | 0 | 0 | gpt-4o | 0.000678 | ['20e75009c72f3e88c490c58bf13d6a72'] |
+
+We can isolate the user prompt:
+
+```python
+survey.by(Model()).prompts().select("user_prompt")
+```
+
+|  | user_prompt |
+| :--- | :--- |
+| 0 | What is the most common primary color? Red Yellow Blue Only 1 option may be selected. Respond only with a string corresponding to one of the options. After the answer, you can put a comment explaining why you chose that option on the next line. |
+
+We can compare this with default instructions for other question types:
+
+```python
+from edsl import QuestionCheckBox, Survey, Model
+
+q = QuestionCheckBox(
+    question_name = "primary_colors",
+    question_text = "Which colors are 'primary'?",
+    question_options = ["Red", "Orange", "Yellow", "Green", "Blue", "Purple"]
+)
+
+survey = Survey([q])
+survey.by(Model()).prompts().select("user_prompt")
+```
+
+
+|  | user_prompt |
+| :--- | :--- |
+| 0 | Which colors are 'primary'? Red Orange Yellow Green Blue Purple Please respond only with a comma-separated list of the options that apply, with square brackets. E.g., ['Good', 'Bad', 'Ugly'] After the answer, you can put a comment explaining your choice on the next line. |
+
+```python
+from edsl import QuestionRank, Survey, Model
+
+q = QuestionRank(
+    question_name = "primary_colors_rank",
+    question_text = "Rank the primary colors in terms of popularity.",
+    question_options = ["Red", "Yellow", "Blue"]
+)
+
+survey = Survey([q])
+survey.by(Model()).prompts().select("user_prompt")
+```
+
+|  | user_prompt |
+| :--- | :--- |
+| 0 | Rank the primary colors in terms of popularity. The options are 0: Red 1: Yellow 2: Blue You have to include 3 options in your answer. Please respond only with a comma-separated list of the code of the raked options, with square brackets. E.g., [0, 1, 3] After the answer, you can put a comment explaining your choice on the next line. |
+
+```python
+from edsl import QuestionLinearScale, Survey, Model
+
+q = QuestionLinearScale(
+    question_name = "primary_color_scale",
+    question_text = "Most people know what the primary colors are.",
+    question_options = [1,2,3,4,5],
+    option_labels = {
+        1:"This statement is completely inaccurate",
+        5:"This statement is completely accurate."
+    }
+)
+
+survey = Survey([q])
+survey.by(Model()).prompts().select("user_prompt")
+```
+
+|  | user_prompt |
+| :--- | :--- |
+| 0 | Most people know what the primary colors are. 1 : This statement is completely inaccurate 2 : 3 : 4 : 5 : This statement is completely accurate. Only 1 option may be selected. Respond only with the code corresponding to one of the options. E.g., "1" or "5" by itself. After the answer, you can put a comment explaining why you chose that option on the next line. |
+
+## Formatting answers & comments
+
+We can see that each default instruction includes directions on (1) formatting the answer and (2) providing a comment about the answer. When a question is administered, the contents of the comment that is returned are automatically stored in a separate field of the results. We can see this when we run a question and inspect the columns of the results that have been created. Here we run the multiple choice question created above:
+
+```python
+from edsl import QuestionMultipleChoice, Survey, Model
+
+q = QuestionMultipleChoice(
+    question_name = "primary_color",
+    question_text = "What is the most common primary color?",
+    question_options = ["Red", "Yellow", "Blue"]
+)
+
+r = q.run() # default model will be used
+```
+
+We can see that the results include a `comment` field:
+
+```python
+r.columns
+```
+
+|  | 0 |
+| :--- | :--- |
+| 0 | agent.agent_index |
+| 1 | agent.agent_instruction |
+| 2 | agent.agent_name |
+| 3 | answer.primary_color |
+| 4 | cache_keys.primary_color_cache_key |
+| 5 | cache_used.primary_color_cache_used |
+| 6 | comment.primary_color_comment |
+| 7 | generated_tokens.primary_color_generated_tokens |
+| 8 | iteration.iteration |
+| 9 | model.frequency_penalty |
+| 10 | model.inference_service |
+| 11 | model.logprobs |
+| 12 | model.max_tokens |
+| 13 | model.model |
+| 14 | model.model_index |
+| 15 | model.presence_penalty |
+| 16 | model.temperature |
+| 17 | model.top_logprobs |
+| 18 | model.top_p |
+| 19 | prompt.primary_color_system_prompt |
+| 20 | prompt.primary_color_user_prompt |
+| 21 | question_options.primary_color_question_options |
+| 22 | question_text.primary_color_question_text |
+| 23 | question_type.primary_color_question_type |
+| 24 | raw_model_response.primary_color_cost |
+| 25 | raw_model_response.primary_color_input_price_per_million_tokens |
+| 26 | raw_model_response.primary_color_input_tokens |
+| 27 | raw_model_response.primary_color_one_usd_buys |
+| 28 | raw_model_response.primary_color_output_price_per_million_tokens |
+| 29 | raw_model_response.primary_color_output_tokens |
+| 30 | raw_model_response.primary_color_raw_model_response |
+| 31 | reasoning_summary.primary_color_reasoning_summary |
+| 32 | scenario.scenario_index |
+
+We can display it with any other fields:
+
+```python
+r.select("model", "primary_color", "primary_color_comment")
+```
+
+|  | model.model | answer.primary_color | comment.primary_color_comment |
+| :--- | :--- | :--- | :--- |
+| 0 | gpt-4o | Red | Red is often considered the most common primary color due to its prominence in nature, its use in art and design, and its psychological impact. |
+
+## Turning off comments
+
+If desired, we can omit the instruction to provide a comment by passing a parameter `include_comment=False` to the question constructor. This may be desired if comments are not necessary or to save tokens. Here we inspect how the question prompt has been modified and verify that the comment field in the results is blank:
+
+```python
+from edsl import QuestionMultipleChoice, Survey, Model
+
+q = QuestionMultipleChoice(
+    question_name = "primary_color",
+    question_text = "What is the most common primary color?",
+    question_options = ["Red", "Yellow", "Blue"],
+    include_comment = False # optional
+)
+
+q.by(Model()).prompts().select("user_prompt")
+```
+
+|  | user_prompt |
+| :--- | :--- |
+| 0 | What is the most common primary color? Red Yellow Blue Only 1 option may be selected. Respond only with a string corresponding to one of the options. |
+
+```python
+r = q.run() # default model will be used
+
+r.select("model", "primary_color", "primary_color_comment")
+```
+
+|  | model.model | answer.primary_color | comment.primary_color_comment |
+| :--- | :--- | :--- | :--- |
+| 0 | gpt-4o | Red | nan |
+
+## Modifying comments
+
+We can also modify the default instruction if we want to use the comment field in a different way. This can be done by passing an optional parameter `answering_instruction` to the question constructor. For example, here we pass an instruction that preserves the directions about the format of the answer to a multiple choice question (”*Respond only with a string corresponding to one of the options.*”) but replace the comments part of the instruction with a new instruction for the model to instead note it’s second choice answer. We include the original question in the survey as well for ease of comparison:
+
+```python expandable
+from edsl import QuestionMultipleChoice, Survey, Model
+
+q1 = QuestionMultipleChoice(
+    question_name = "primary_color_v1",
+    question_text = "What is the most common primary color?",
+    question_options = ["Red", "Yellow", "Blue"]
+)
+
+q2 = QuestionMultipleChoice(
+    question_name = "primary_color_v2",
+    question_text = "What is the most common primary color?",
+    question_options = ["Red", "Yellow", "Blue"],
+    answering_instructions = """
+    Respond only with a string corresponding to one of the options.
+    After the answer, please provide your second choice on the next line.
+    """
+)
+
+survey = Survey([q1, q2])
+
+survey.by(Model()).prompts().select("user_prompt")
+```
+
+
+|  | user_prompt |
+| :--- | :--- |
+| 0 | What is the most common primary color? Red Yellow Blue Only 1 option may be selected. Respond only with a string corresponding to one of the options. After the answer, you can put a comment explaining why you chose that option on the next line. |
+| 1 | What is the most common primary color? Red Yellow Blue Only 1 option may be selected. Respond only with a string corresponding to one of the options. After the answer, please provide your second choice on the next line. |
+
+```python
+r = survey.run() # default model will be used
+```
+
+```python
+r.select("model", "primary_color_v1", "primary_color_v1_comment", "primary_color_v2", "primary_color_v2_comment")
+```
+
+
+|  | model.model | answer.primary_color_v1 | comment.primary_color_v1_comment | answer.primary_color_v2 | comment.primary_color_v2_comment |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 0 | gpt-4o | Red | Red is often considered the most common primary color due to its prominence in nature, its use in art and design, and its psychological impact. | Red | Yellow |
+
+## Further reading
+
+Please see the [questions](/en/latest/questions) page of the documentation for more examples and details on all of the required and optional parameters for question types!
+
+Here we post this notebook to Coop for reference:
+
+```python
+from edsl import Notebook
+```
+```python
+nb = Notebook(path = "answering_instructions_example.ipynb")
+
+nb.push(
+    description = "Example answering instructions",
+    alias = "answering-instructions-notebook",
+    visibility = "public"
+)
+```

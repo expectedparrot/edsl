@@ -1,4 +1,3 @@
-import pytest
 import doctest
 import edsl.prompts
 
@@ -10,13 +9,7 @@ def test_doctests_in_prompt():
 # from edsl.prompts.Prompt import PromptBase
 # from edsl.prompts.prompt_config import ComponentTypes
 
-from edsl.exceptions.prompts import TemplateRenderError
-
-from edsl.exceptions.prompts import (
-    PromptBadQuestionTypeError,
-    PromptBadLanguageModelTypeError,
-)
-from edsl.prompts.Prompt import Prompt
+from edsl.prompts import Prompt
 
 
 # Testing __add__ method

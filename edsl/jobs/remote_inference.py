@@ -1,0 +1,736 @@
+from typing import Optional, Union, Literal, TYPE_CHECKING, NewType, Callable, Any
+from dataclasses import dataclass
+import time
+from datetime import datetime
+
+
+from .jobs_status_enums import JobsStatus
+from .jobs_remote_inference_logger import JobLogger, JobRunExceptionCounter, ModelCost
+from .exceptions import RemoteInferenceError
+
+Seconds = NewType("Seconds", float)
+JobUUID = NewType("JobUUID", str)
+
+if TYPE_CHECKING:
+    from ..results import Results
+    from .jobs import Jobs
+    from ..coop.utils import VisibilityType
+    from ..coop.coop import RemoteInferenceResponse, RemoteInferenceCreationInfo
+
+
+class RemoteJobConstants:
+    """Constants for remote job handling."""
+
+    REMOTE_JOB_POLL_INTERVAL = 1
+    REMOTE_JOB_VERBOSE = False
+    DISCORD_URL = "https://discord.com/invite/mxAYkjfy9m"
+
+
+@dataclass
+class RemoteJobInfo:
+    creation_data: "RemoteInferenceCreationInfo"
+    job_uuid: JobUUID
+    logger: JobLogger
+    new_format: bool = True
+
+
+class JobsRemoteInferenceHandler:
+    def __init__(
+        self,
+        jobs: "Jobs",
+        verbose: bool = RemoteJobConstants.REMOTE_JOB_VERBOSE,
+        poll_interval: Seconds = RemoteJobConstants.REMOTE_JOB_POLL_INTERVAL,
+        api_key: Optional[str] = None,
+    ):
+        """Handles the creation and running of a remote inference job."""
+        self.jobs = jobs
+        self.verbose = verbose
+        self.poll_interval = poll_interval
+        self.api_key = api_key
+
+        # Calculate dynamic polling interval based on job complexity
+        # Total prompts = questions × interviews (agents × scenarios × models)
+        num_questions = len(jobs.survey.questions)
+        num_interviews = len(jobs.interviews())
+        total_prompts = num_questions * num_interviews
+
+        # Progressive decrease polling strategy:
+        # Start with long waits, then decrease as job approaches completion
+        # Minimizes API calls while ensuring fast completion detection
+
+        # Estimate job duration based on prompt count (~0.07s per prompt based on 200 prompts = 14s)
+        estimated_duration = max(2.0, total_prompts * 0.07)
+
+        # Create decreasing polling intervals
+        if total_prompts <= 10:
+            # Small jobs: start with 2s, then 1s, then 0.5s
+            self.polling_schedule = [2.0, 1.0, 0.5]
+        elif total_prompts <= 50:
+            # Medium jobs: start with 5s, then 2s, then 1s
+            self.polling_schedule = [5.0, 2.0, 1.0]
+        elif total_prompts <= 200:
+            # Large jobs: start with 10s, then 4s, then 1s
+            self.polling_schedule = [10.0, 4.0, 1.0]
+        else:
+            # Very large jobs: start with 15s, then 6s, then 2s, then 1s
+            self.polling_schedule = [15.0, 6.0, 2.0, 1.0]
+
+        self.estimated_duration = estimated_duration
+
+        self.poll_count = 0  # Track number of polls
+        self.job_start_time = None  # Will be set when polling starts
+
+        from ..config import CONFIG
+
+        self.expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
+        self.remote_inference_url = f"{self.expected_parrot_url}/home/remote-inference"
+
+    def _create_logger(self) -> JobLogger:
+        from ..utilities import is_notebook
+        from .jobs_remote_inference_logger import (
+            StdOutJobLogger,
+        )
+        from .html_table_job_logger import HTMLTableJobLogger
+
+        if is_notebook():
+            return HTMLTableJobLogger(verbose=self.verbose)
+
+        # Try to use RichTableSimpleJobLogger for terminal environments
+        try:
+            from .rich_table_simple_job_logger import RichTableSimpleJobLogger
+
+            return RichTableSimpleJobLogger(verbose=self.verbose)
+        except ImportError:
+            # Fall back to StdOutJobLogger if rich is not available
+            return StdOutJobLogger(verbose=self.verbose)
+
+    def use_remote_inference(self, disable_remote_inference: bool) -> bool:
+        import requests
+
+        if disable_remote_inference:
+            return False
+
+        try:
+            from ..coop import Coop
+
+            user_edsl_settings = Coop(api_key=self.api_key).edsl_settings
+            return user_edsl_settings.get("remote_inference", False)
+        except requests.ConnectionError:
+            pass
+        except Exception as e:  # CoopServerResponseError will be imported when needed
+            try:
+                from ..coop import CoopServerResponseError
+
+                if isinstance(e, CoopServerResponseError):
+                    pass
+                else:
+                    raise
+            except ImportError:
+                # If coop module is not available, re-raise the original exception
+                raise e
+
+        return False
+
+    def create_remote_inference_job(
+        self,
+        iterations: int = 1,
+        remote_inference_description: Optional[str] = None,
+        remote_inference_results_visibility: Optional["VisibilityType"] = "unlisted",
+        fresh: Optional[bool] = False,
+        new_format: Optional[bool] = True,
+    ) -> RemoteJobInfo:
+        """
+        Create a remote inference job and return job information.
+
+        Args:
+            iterations: Number of times to run each interview
+            remote_inference_description: Optional description for the remote job
+            remote_inference_results_visibility: Visibility setting for results
+            fresh: If True, ignore existing cache entries and generate new results
+            new_format: If True, use pull method for result retrieval; if False, use legacy get method
+
+        Returns:
+            RemoteJobInfo: Information about the created job including UUID and logger
+        """
+        from ..coop import Coop
+
+        logger = self._create_logger()
+
+        coop = Coop(api_key=self.api_key)
+        logger.update(
+            "Remote inference activated. Sending job to server...",
+            status=JobsStatus.QUEUED,
+        )
+        logger.add_info(
+            "remote_inference_url", f"{self.expected_parrot_url}/home/remote-inference"
+        )
+        logger.add_info(
+            "remote_cache_url", f"{self.expected_parrot_url}/home/remote-cache"
+        )
+        if new_format:
+            remote_job_creation_data = coop.remote_inference_create(
+                self.jobs,
+                description=remote_inference_description,
+                status="queued",
+                iterations=iterations,
+                initial_results_visibility=remote_inference_results_visibility,
+                fresh=fresh,
+            )
+        else:
+            remote_job_creation_data = coop.old_remote_inference_create(
+                self.jobs,
+                description=remote_inference_description,
+                status="queued",
+                iterations=iterations,
+                initial_results_visibility=remote_inference_results_visibility,
+                fresh=fresh,
+            )
+        logger.update(
+            "Your survey is running at the Expected Parrot server...",
+            status=JobsStatus.RUNNING,
+        )
+        job_uuid = remote_job_creation_data.get("uuid")
+        logger.update(
+            message=f"Job sent to server. (Job uuid={job_uuid}).",
+            status=JobsStatus.RUNNING,
+        )
+        logger.add_info("job_uuid", job_uuid)
+
+        remote_inference_url = self.remote_inference_url
+        if "localhost" in remote_inference_url:
+            remote_inference_url = remote_inference_url.replace("8000", "1234")
+        logger.update(
+            f"Job details are available at your Coop account. [Go to Remote Inference page]({remote_inference_url})",
+            status=JobsStatus.RUNNING,
+        )
+        progress_bar_url = (
+            f"{self.expected_parrot_url}/home/remote-job-progress/{job_uuid}"
+        )
+        if "localhost" in progress_bar_url:
+            progress_bar_url = progress_bar_url.replace("8000", "1234")
+        logger.add_info("progress_bar_url", progress_bar_url)
+        logger.update(
+            f"View job progress [here]({progress_bar_url})", status=JobsStatus.RUNNING
+        )
+
+        return RemoteJobInfo(
+            creation_data=remote_job_creation_data,
+            job_uuid=job_uuid,
+            logger=logger,
+            new_format=new_format,
+        )
+
+    @staticmethod
+    def check_status(
+        job_uuid: JobUUID,
+        api_key: Optional[str] = None,
+    ) -> "RemoteInferenceResponse":
+        from ..coop import Coop
+
+        coop = Coop(api_key=api_key)
+        return coop.new_remote_inference_get(job_uuid)
+
+    def _construct_remote_job_fetcher(
+        self, testing_simulated_response: Optional[Any] = None
+    ) -> Callable:
+        if testing_simulated_response is not None:
+            return lambda job_uuid: testing_simulated_response
+        else:
+            from ..coop import Coop
+
+            coop = Coop(api_key=self.api_key)
+            return coop.remote_inference_get
+
+    def _construct_object_fetcher(
+        self, new_format: bool = True, testing_simulated_response: Optional[Any] = None
+    ) -> Callable:
+        "Constructs a function to fetch the results object from Coop."
+        if testing_simulated_response is not None:
+            return lambda results_uuid, expected_object_type: Results.example()
+        else:
+            from ..coop import Coop
+
+            coop = Coop(api_key=self.api_key)
+            if new_format:
+                return coop.pull
+            else:
+                return coop.get
+
+    def _handle_cancelled_job(self, job_info: RemoteJobInfo) -> None:
+        "Handles a cancelled job by logging the cancellation and updating the job status."
+
+        job_info.logger.update(
+            message="Job cancelled by the user.", status=JobsStatus.CANCELLED
+        )
+        job_info.logger.update(
+            f"See [Remote Inference page]({self.expected_parrot_url}/home/remote-inference) for more details.",
+            status=JobsStatus.CANCELLED,
+        )
+
+        # Notify logger about job completion
+        if hasattr(job_info.logger, "job_completed"):
+            job_info.logger.job_completed(JobsStatus.CANCELLED)
+
+    def _handle_failed_job(
+        self, job_info: "RemoteJobInfo", remote_job_data: "RemoteInferenceResponse"
+    ) -> None:
+        "Handles a failed job by logging the error and updating the job status."
+        latest_job_run_details = remote_job_data.get("latest_job_run_details", {})
+        error_report_url = latest_job_run_details.get("error_report_url")
+
+        failure_reason = latest_job_run_details.get("failure_reason")
+
+        if failure_reason == "insufficient funds":
+            failure_description = latest_job_run_details.get(
+                "failure_description",
+                "You don't have enough credits to start this job",
+            )
+            job_info.logger.update(
+                f"Insufficient funds: {failure_description}.",
+                status=JobsStatus.FAILED,
+            )
+            job_info.logger.update(
+                f"Add funds to your account at the [Credits page]({self.expected_parrot_url}/home/credits).",
+                status=JobsStatus.FAILED,
+            )
+
+        if error_report_url:
+            job_info.logger.add_info("error_report_url", error_report_url)
+
+        job_info.logger.update("Job failed.", status=JobsStatus.FAILED)
+        job_info.logger.update(
+            f"See [Remote Inference page]({self.expected_parrot_url}/home/remote-inference) for more details.",
+            status=JobsStatus.FAILED,
+        )
+
+        # Notify logger about job completion
+        if hasattr(job_info.logger, "job_completed"):
+            job_info.logger.job_completed(JobsStatus.FAILED)
+        job_info.logger.update(
+            f"Need support? [Visit Discord]({RemoteJobConstants.DISCORD_URL})",
+            status=JobsStatus.FAILED,
+        )
+
+    def _update_interview_details(
+        self, job_info: "RemoteJobInfo", remote_job_data: "RemoteInferenceResponse"
+    ) -> None:
+        "Updates the interview details in the job info."
+        latest_job_run_details = remote_job_data.get("latest_job_run_details", {})
+        interview_details = latest_job_run_details.get("interview_details", {}) or {}
+        completed_interviews = interview_details.get("completed_interviews", 0)
+        interviews_with_exceptions = interview_details.get(
+            "interviews_with_exceptions", 0
+        )
+        interviews_without_exceptions = (
+            completed_interviews - interviews_with_exceptions
+        )
+        job_info.logger.add_info("completed_interviews", interviews_without_exceptions)
+        job_info.logger.add_info("failed_interviews", interviews_with_exceptions)
+
+        exception_summary = interview_details.get("exception_summary", []) or []
+        if exception_summary:
+            job_run_exception_counters = []
+            for exception in exception_summary:
+                exception_counter = JobRunExceptionCounter(
+                    exception_type=exception.get("exception_type"),
+                    inference_service=exception.get("inference_service"),
+                    model=exception.get("model"),
+                    question_name=exception.get("question_name"),
+                    exception_count=exception.get("exception_count"),
+                )
+                job_run_exception_counters.append(exception_counter)
+            job_info.logger.add_info("exception_summary", job_run_exception_counters)
+
+    def _handle_partially_failed_job(
+        self, job_info: "RemoteJobInfo", remote_job_data: "RemoteInferenceResponse"
+    ) -> None:
+        "Handles a partially failed job by logging the error and updating the job status."
+        error_report_url = remote_job_data.get("latest_job_run_details", {}).get(
+            "error_report_url"
+        )
+
+        if error_report_url:
+            job_info.logger.add_info("error_report_url", error_report_url)
+
+        job_info.logger.update(
+            "Job completed with partial results.", status=JobsStatus.PARTIALLY_FAILED
+        )
+        job_info.logger.update(
+            f"See [Remote Inference page]({self.expected_parrot_url}/home/remote-inference) for more details.",
+            status=JobsStatus.PARTIALLY_FAILED,
+        )
+        job_info.logger.update(
+            f"Need support? [Visit Discord]({RemoteJobConstants.DISCORD_URL})",
+            status=JobsStatus.PARTIALLY_FAILED,
+        )
+
+    def _sleep_for_a_bit(self, job_info: "RemoteJobInfo", status: str) -> None:
+        time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+        job_info.logger.update(
+            f"Job status: {status} - last update: {time_checked}",
+            status=JobsStatus.RUNNING,
+        )
+
+        # Use time-based progressive polling: efficient for both short and very long jobs
+        self.poll_count += 1
+        current_time = time.time()
+
+        # Set start time on first poll
+        if self.job_start_time is None:
+            self.job_start_time = current_time
+
+        elapsed_time = current_time - self.job_start_time
+        remaining_estimated = max(0, self.estimated_duration - elapsed_time)
+
+        # Get total prompts for small job detection
+        total_prompts = len(self.jobs.survey.questions) * len(self.jobs.interviews())
+
+        # For small jobs, use fast polling
+        if total_prompts <= 10:
+            current_interval = 1
+        else:
+            # Time-based intervals for larger jobs: longer waits early, shorter as we approach completion
+            if remaining_estimated > 60:  # More than 1 minute left
+                current_interval = min(
+                    30.0, remaining_estimated * 0.3
+                )  # Wait up to 30s
+            elif remaining_estimated > 30:  # 30-60s left
+                current_interval = 10.0
+            elif remaining_estimated > 10:  # 10-30s left
+                current_interval = 5.0
+            elif remaining_estimated > 0:  # 0-10s left (near completion)
+                current_interval = 2.0
+            else:  # Past estimated time
+                # Job is running longer than expected, use moderate polling with backoff
+                overtime = elapsed_time - self.estimated_duration
+                if overtime < 30:
+                    current_interval = 2.0  # First 30s overtime: frequent polling
+                elif overtime < 120:
+                    current_interval = 5.0  # 30-120s overtime: moderate polling
+                else:
+                    current_interval = 10.0  # 120s+ overtime: slower polling
+
+        time.sleep(current_interval)
+
+    def _get_expenses_from_results(self, results: "Results") -> dict:
+        """
+        Calculates expenses from Results object.
+
+        Args:
+            results: Results object containing model responses
+            include_cached_responses_in_cost: Whether to include cached responses in cost calculation
+
+        Returns:
+            Dictionary mapping ExpenseKey to TokenExpense information
+        """
+        expenses = {}
+
+        for result in results:
+            raw_response = result["raw_model_response"]
+
+            # Process each cost field in the response
+            for key in raw_response:
+                if not key.endswith("_cost"):
+                    continue
+
+                result_cost = raw_response[key]
+                if not isinstance(result_cost, (int, float)):
+                    continue
+
+                question_name = key.removesuffix("_cost")
+                cache_used = result["cache_used_dict"][question_name]
+
+                # Get expense keys for input and output tokens
+                input_key = (
+                    result["model"]._inference_service_,
+                    result["model"].model,
+                    "input",
+                    raw_response[f"{question_name}_input_price_per_million_tokens"],
+                )
+                output_key = (
+                    result["model"]._inference_service_,
+                    result["model"].model,
+                    "output",
+                    raw_response[f"{question_name}_output_price_per_million_tokens"],
+                )
+
+                # Update input token expenses
+                if input_key not in expenses:
+                    expenses[input_key] = {
+                        "tokens": 0,
+                        "cost_usd": 0,
+                        "cost_usd_with_cache": 0,
+                    }
+
+                input_price_per_million_tokens = input_key[3]
+                input_tokens = raw_response[f"{question_name}_input_tokens"]
+                input_cost = (input_price_per_million_tokens / 1_000_000) * input_tokens
+
+                expenses[input_key]["tokens"] += input_tokens
+                expenses[input_key]["cost_usd"] += input_cost
+
+                if not cache_used:
+                    expenses[input_key]["cost_usd_with_cache"] += input_cost
+
+                # Update output token expenses
+                if output_key not in expenses:
+                    expenses[output_key] = {
+                        "tokens": 0,
+                        "cost_usd": 0,
+                        "cost_usd_with_cache": 0,
+                    }
+
+                output_price_per_million_tokens = output_key[3]
+                output_tokens = raw_response[f"{question_name}_output_tokens"]
+                output_cost = (
+                    output_price_per_million_tokens / 1_000_000
+                ) * output_tokens
+
+                expenses[output_key]["tokens"] += output_tokens
+                expenses[output_key]["cost_usd"] += output_cost
+
+                if not cache_used:
+                    expenses[output_key]["cost_usd_with_cache"] += output_cost
+
+        expenses_by_model = {}
+        for expense_key, expense_usage in expenses.items():
+            service, model, token_type, _ = expense_key
+            model_key = (service, model)
+
+            if model_key not in expenses_by_model:
+                expenses_by_model[model_key] = {
+                    "service": service,
+                    "model": model,
+                    "input_tokens": 0,
+                    "input_cost_usd": 0,
+                    "input_cost_usd_with_cache": 0,
+                    "output_tokens": 0,
+                    "output_cost_usd": 0,
+                    "output_cost_usd_with_cache": 0,
+                }
+
+            if token_type == "input":
+                expenses_by_model[model_key]["input_tokens"] += expense_usage["tokens"]
+                expenses_by_model[model_key]["input_cost_usd"] += expense_usage[
+                    "cost_usd"
+                ]
+                expenses_by_model[model_key][
+                    "input_cost_usd_with_cache"
+                ] += expense_usage["cost_usd_with_cache"]
+            elif token_type == "output":
+                expenses_by_model[model_key]["output_tokens"] += expense_usage["tokens"]
+                expenses_by_model[model_key]["output_cost_usd"] += expense_usage[
+                    "cost_usd"
+                ]
+                expenses_by_model[model_key][
+                    "output_cost_usd_with_cache"
+                ] += expense_usage["cost_usd_with_cache"]
+
+        from ..coop.utils import CostConverter
+
+        converter = CostConverter()
+        for model_key, model_cost_dict in expenses_by_model.items():
+            # Handle full cost (without cache)
+            input_cost = model_cost_dict["input_cost_usd"]
+            output_cost = model_cost_dict["output_cost_usd"]
+            model_cost_dict["input_cost_credits"] = converter.usd_to_credits(input_cost)
+            model_cost_dict["output_cost_credits"] = converter.usd_to_credits(
+                output_cost
+            )
+            # Convert back to USD (to get the rounded value)
+            model_cost_dict["input_cost_usd"] = converter.credits_to_usd(
+                model_cost_dict["input_cost_credits"]
+            )
+            model_cost_dict["output_cost_usd"] = converter.credits_to_usd(
+                model_cost_dict["output_cost_credits"]
+            )
+
+            # Handle cost with cache
+            input_cost_with_cache = model_cost_dict["input_cost_usd_with_cache"]
+            output_cost_with_cache = model_cost_dict["output_cost_usd_with_cache"]
+            model_cost_dict["input_cost_credits_with_cache"] = converter.usd_to_credits(
+                input_cost_with_cache
+            )
+            model_cost_dict["output_cost_credits_with_cache"] = (
+                converter.usd_to_credits(output_cost_with_cache)
+            )
+        return list(expenses_by_model.values())
+
+    def _fetch_results_and_log(
+        self,
+        job_info: "RemoteJobInfo",
+        job_status: Literal["failed", "partial_failed", "completed"],
+        results_uuid: str,
+        remote_job_data: "RemoteInferenceResponse",
+        object_fetcher: Callable,
+    ) -> "Results":
+        "Fetches the results object and logs the results URL."
+        job_info.logger.add_info("results_uuid", results_uuid)
+        results = object_fetcher(results_uuid, expected_object_type="results")
+
+        model_cost_dicts = self._get_expenses_from_results(results)
+
+        model_costs = [
+            ModelCost(
+                service=model_cost_dict.get("service"),
+                model=model_cost_dict.get("model"),
+                input_tokens=model_cost_dict.get("input_tokens"),
+                input_cost_usd=model_cost_dict.get("input_cost_usd"),
+                output_tokens=model_cost_dict.get("output_tokens"),
+                output_cost_usd=model_cost_dict.get("output_cost_usd"),
+                input_cost_credits_with_cache=model_cost_dict.get(
+                    "input_cost_credits_with_cache"
+                ),
+                output_cost_credits_with_cache=model_cost_dict.get(
+                    "output_cost_credits_with_cache"
+                ),
+            )
+            for model_cost_dict in model_cost_dicts
+        ]
+        job_info.logger.add_info("model_costs", model_costs)
+
+        results_url = remote_job_data.get("results_url")
+        if "localhost" in results_url:
+            results_url = results_url.replace("8000", "1234")
+        job_info.logger.add_info("results_url", results_url)
+
+        if job_status == "completed":
+            job_info.logger.add_info("completed_interviews", len(results))
+            job_info.logger.add_info("failed_interviews", 0)
+            job_info.logger.update(
+                f"Job completed and Results stored on Coop. [View Results]({results_url})",
+                status=JobsStatus.COMPLETED,
+            )
+
+            # Notify logger about job completion
+            if hasattr(job_info.logger, "job_completed"):
+                job_info.logger.job_completed(JobsStatus.COMPLETED)
+
+        elif job_status == "partial_failed":
+            job_info.logger.update(
+                f"View partial results [here]({results_url})",
+                status=JobsStatus.PARTIALLY_FAILED,
+            )
+
+            # Notify logger about job completion
+            if hasattr(job_info.logger, "job_completed"):
+                job_info.logger.job_completed(JobsStatus.PARTIALLY_FAILED)
+
+        results.job_uuid = job_info.job_uuid
+        results.results_uuid = results_uuid
+        return results
+
+    def _attempt_fetch_job(
+        self,
+        job_info: RemoteJobInfo,
+        remote_job_data_fetcher: Callable,
+        object_fetcher: Callable,
+    ) -> tuple[Union[None, "Results", Literal["continue"]], Optional[str]]:
+        """Makes one attempt to fetch and process a remote job's status and results."""
+        remote_job_data = remote_job_data_fetcher(job_info.job_uuid)
+        self._update_interview_details(job_info, remote_job_data)
+        status = remote_job_data.get("status")
+        reason = remote_job_data.get("reason")
+
+        # Extract failure reason from latest_job_run_details for failed jobs
+        if status == "failed":
+            latest_job_run_details = remote_job_data.get("latest_job_run_details", {})
+            failure_reason = latest_job_run_details.get("failure_reason")
+            if failure_reason:
+                reason = failure_reason
+
+        if status == "cancelled":
+            self._handle_cancelled_job(job_info)
+            return None, reason
+
+        elif status == "failed" or status == "completed" or status == "partial_failed":
+            if status == "failed":
+                self._handle_failed_job(job_info, remote_job_data)
+            elif status == "partial_failed":
+                self._handle_partially_failed_job(job_info, remote_job_data)
+
+            results_uuid = remote_job_data.get("results_uuid")
+            if results_uuid:
+                results = self._fetch_results_and_log(
+                    job_info=job_info,
+                    job_status=status,
+                    results_uuid=results_uuid,
+                    remote_job_data=remote_job_data,
+                    object_fetcher=object_fetcher,
+                )
+                return results, reason
+            else:
+                return None, reason
+
+        else:
+            self._sleep_for_a_bit(job_info, status)
+            return "continue", reason
+
+    def poll_remote_inference_job(
+        self,
+        job_info: RemoteJobInfo,
+        testing_simulated_response=None,
+    ) -> tuple[Union[None, "Results"], Optional[str]]:
+        """Polls a remote inference job for completion and returns the results and reason."""
+
+        remote_job_data_fetcher = self._construct_remote_job_fetcher(
+            testing_simulated_response
+        )
+        object_fetcher = self._construct_object_fetcher(
+            new_format=job_info.new_format,
+            testing_simulated_response=testing_simulated_response,
+        )
+
+        job_in_queue = True
+        while job_in_queue:
+            result, reason = self._attempt_fetch_job(
+                job_info, remote_job_data_fetcher, object_fetcher
+            )
+            if result != "continue":
+                return result, reason
+
+    async def create_and_poll_remote_job(
+        self,
+        iterations: int = 1,
+        remote_inference_description: Optional[str] = None,
+        remote_inference_results_visibility: Optional["VisibilityType"] = "unlisted",
+        new_format: Optional[bool] = True,
+    ) -> Union["Results", None]:
+        """
+        Creates and polls a remote inference job asynchronously.
+        Reuses existing synchronous methods but runs them in an async context.
+
+        :param iterations: Number of times to run each interview
+        :param remote_inference_description: Optional description for the remote job
+        :param remote_inference_results_visibility: Visibility setting for results
+        :param new_format: If True, use pull method for result retrieval; if False, use legacy get method
+        :return: Results object if successful, None if job fails or is cancelled
+        """
+        import asyncio
+        from functools import partial
+
+        # Create job using existing method
+        loop = asyncio.get_event_loop()
+        job_info = await loop.run_in_executor(
+            None,
+            partial(
+                self.create_remote_inference_job,
+                iterations=iterations,
+                remote_inference_description=remote_inference_description,
+                remote_inference_results_visibility=remote_inference_results_visibility,
+                new_format=new_format,
+            ),
+        )
+        if job_info is None:
+            raise RemoteInferenceError("Remote job creation failed.")
+
+        return await loop.run_in_executor(
+            None,
+            partial(self.poll_remote_inference_job, job_info),
+        )
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

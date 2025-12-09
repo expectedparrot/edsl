@@ -1,16 +1,12 @@
 import pytest
-from edsl.agents.Agent import Agent
-from edsl.exceptions.agents import (
-    AgentCombinationError,
+from edsl.agents import Agent
+
+from edsl.agents.exceptions import (
     AgentDirectAnswerFunctionError,
     AgentDynamicTraitsFunctionError,
+    AgentNameError,
+    AgentTraitKeyError,
 )
-from edsl.jobs import Jobs
-from edsl.questions import QuestionMultipleChoice
-from edsl.surveys.Survey import Survey
-
-from edsl.exceptions.agents import AgentNameError
-from edsl.exceptions.agents import AgentTraitKeyError
 
 
 def test_agent_creation_valid():
@@ -37,13 +33,14 @@ def test_agent_dunder_methods():
     assert (agent1 + None) is agent1
     assert isinstance(agent1 + agent2, Agent)
     assert (agent1 + agent2).traits == agent3.traits
-    with pytest.raises(AgentCombinationError):
-        agent1 + agent3
+    # Agents now combine without raising exceptions
+    combined = agent1 + agent3
+    assert isinstance(combined, Agent)
     # __eq__
     assert agent1 == agent1
     assert agent1 + agent2 == agent3
-    # __repr__
-    assert repr(agent1) == "Agent(traits = {'age': 10})"
+    # __repr__ - use _eval_repr_() for a consistent, testable format
+    assert agent1._eval_repr_() == "Agent(traits = {'age': 10})"
 
 
 def test_agent_serialization():
@@ -100,22 +97,7 @@ def test_adding_direct_question_answering_method():
         agent.add_direct_question_answering_method(bad_answer_question_directly)
 
 
-def test_invigilator_creation():
-    from edsl.questions import QuestionMultipleChoice as qmc
-
-    q = qmc.example()
-    q.answer_question_directly = lambda x: x
-    a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
-    i = a._create_invigilator(question=q)
-    assert i.__class__.__name__ == "InvigilatorFunctional"
-
-    from edsl.questions import QuestionMultipleChoice as qmc
-
-    q = qmc.example()
-    a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
-    a.answer_question_directly = lambda x: x
-    i = a._create_invigilator(question=q)
-    assert i.__class__.__name__ == "InvigilatorHuman"
+# Invigilator creation tests moved to test_AgentInvigilator.py
 
 
 def test_agent_dyanmic_traits():
@@ -149,9 +131,8 @@ def test_agent_dynamic_traits_answering():
             return {"hair": "brown"}
 
     a = Agent(dynamic_traits_function=dynamic_traits_function)
-    from edsl import QuestionFreeText
 
     q = QuestionFreeText(question_name="age", question_text="How old are you?")
     m = Model("test")
-    results = q.by(a).run(disable_remote_inference=True, disable_remote_cache=True)
+    results = q.by(m).by(a).run(disable_remote_inference=True, disable_remote_cache=True, stop_on_exception=True)
     assert results.select("answer.age").to_list()

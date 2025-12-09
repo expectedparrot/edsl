@@ -1,5 +1,4 @@
-import pytest
-from edsl.data import Cache
+from edsl.caching import Cache
 from edsl import QuestionFreeText
 
 cache = Cache()

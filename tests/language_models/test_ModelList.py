@@ -1,10 +1,6 @@
 import pytest
-from edsl.language_models.model import Model
-from edsl.language_models.LanguageModel import LanguageModel
-from edsl.language_models.ModelList import (
-    ModelList,
-)  # Replace with the actual module name
-
+from edsl.language_models import LanguageModel
+from edsl.language_models import ModelList
 
 def test_init_with_data():
     data = [LanguageModel.example() for _ in range(3)]

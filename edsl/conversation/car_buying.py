@@ -1,6 +1,5 @@
-from edsl import Agent, AgentList, QuestionFreeText
-from edsl import Cache
-from edsl.conversation.Conversation import Conversation, ConversationList
+from .. import Agent, AgentList, QuestionFreeText, Cache, QuestionList
+from .Conversation import Conversation, ConversationList
 
 a1 = Agent(
     name="Alice",
@@ -46,7 +45,6 @@ q = QuestionFreeText(
     question_name="car_brand",
 )
 
-from edsl import QuestionList
 
 q_actors = QuestionList(
     question_text="""This was a conversation about buying a car: {{ transcript }}. 

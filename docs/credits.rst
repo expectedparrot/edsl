@@ -6,20 +6,20 @@ Credits
 Credits are required in order to run surveys with models using your Expected Parrot API key.
 They can be purchased at your Coop account (see details below).
 Credits are deducted to cover API call costs, which depend on token rates set by language model service providers.
-You can view pricing for available models at the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_.
+You can view current pricing for available models at the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_.
 
 Credits must be purchased in advance and are consumed when surveys are run. 
 If your balance is insufficient, you will be prompted to purchase more credits.
 Details on credit consumption are provided below.
 
 *Note:* Credits are *not* required to run surveys with your own keys from service providers or to post and share content at `Coop <https://www.expectedparrot.com/content/explore>`_.
-When using your own keys, cost estimates are based on the prices listed in the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_, but your actual charges may vary depending on your service providers' terms.
+When using your own keys, cost estimates are based on the prices listed in the `model pricing page <https://www.expectedparrot.com/getting-started/coop-pricing>`_, but your actual charges may vary depending on service providers' terms.
 
 
 Free credits
 ------------
 
-Your Coop account comes with free credits that you can use to run surveys with your Expected Parrot API key.
+Your Coop account comes with free credits that you can use to run surveys with your Expected Parrot key.
 
 | **Are you using EDSL for a research project?**
 | Send an email to *info@expectedparrot.com* to request additional free credits!
@@ -43,13 +43,12 @@ To purchase credits, navigate to the `Credits <https://www.expectedparrot.com/ho
 
 *Note:*
 Payments are processed by Stripe. 
-You may be charged payment processing fees when purchasing credits.
 
 
 Using credits
 -------------
 
-When you run a survey with your Expected Parrot API key, the number of credits consumed (and deducted from your balance) is displayed at the `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ page of your account.
+When you run a survey with your Expected Parrot API key, the number of credits consumed (and deducted from your balance) is displayed at the `Jobs <https://www.expectedparrot.com/home/remote-inference>`_ page of your account.
 This number is equal to the sum of the cost in credits of each response in the results.
 
 The cost in credits of a response is calculated as follows:
@@ -112,29 +111,29 @@ Output:
      - raw_model_response.rainbow_raw_model_response
      - raw_model_response.rainbow_one_usd_buys
    * - gemini-1.5-flash
-     - 0.000011	
-     - {'candidates': [{'content': {'parts': [{'text': 'The colors of a rainbow are red, orange, yellow, green, blue, indigo, and violet. Often remembered with the acronym ROY G. BIV.\n'}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.11304287349476534, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 8, 'candidates_token_count': 34, 'total_token_count': 42, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}	
-     - 92592.610340
+     - 0.000018	
+     - {'candidates': [{'content': {'parts': [{'text': "The colors of a rainbow are typically listed as red, orange, yellow, green, blue, indigo, and violet. However, it's important to note that these colors blend seamlessly into each other, and the number of distinct colors perceived can vary from person to person.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.099734950483891, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 8, 'candidates_token_count': 57, 'total_token_count': 65, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}	
+     - 56497.186153
    * - gpt-4o	
-     - 0.000427	
-     - {'id': 'chatcmpl-AxJrk2lTOqjkBEYLy1L61WxCJzedM', 'choices': [{'finish_reason': 'stop', 'index': 0, 'logprobs': None, 'message': {'content': 'The colors of a rainbow, in order, are red, orange, yellow, green, blue, indigo, and violet. These are often remembered by the acronym ROYGBIV.', 'refusal': None, 'role': 'assistant', 'audio': None, 'function_call': None, 'tool_calls': None}}], 'created': 1738701080, 'model': 'gpt-4o-2024-08-06', 'object': 'chat.completion', 'service_tier': 'default', 'system_fingerprint': 'fp_50cad350e4', 'usage': {'completion_tokens': 39, 'prompt_tokens': 15, 'total_tokens': 54, 'completion_tokens_details': {'accepted_prediction_tokens': 0, 'audio_tokens': 0, 'reasoning_tokens': 0, 'rejected_prediction_tokens': 0}, 'prompt_tokens_details': {'audio_tokens': 0, 'cached_tokens': 0}}}	
-     - 2339.181287
+     - 0.000438	
+     - {'id': 'chatcmpl-B2OaTCPGFdNY7dju27SxmrLfSWXSE', 'choices': [{'finish_reason': 'stop', 'index': 0, 'logprobs': None, 'message': {'content': 'The colors of a rainbow, in order, are red, orange, yellow, green, blue, indigo, and violet. These colors can be remembered using the acronym ROYGBIV.', 'refusal': None, 'role': 'assistant', 'audio': None, 'function_call': None, 'tool_calls': None}}], 'created': 1739910869, 'model': 'gpt-4o-2024-08-06', 'object': 'chat.completion', 'service_tier': 'default', 'system_fingerprint': 'fp_523b9b6e5f', 'usage': {'completion_tokens': 40, 'prompt_tokens': 15, 'total_tokens': 55, 'completion_tokens_details': {'accepted_prediction_tokens': 0, 'audio_tokens': 0, 'reasoning_tokens': 0, 'rejected_prediction_tokens': 0}, 'prompt_tokens_details': {'audio_tokens': 0, 'cached_tokens': 0}}}	
+     - 2285.714286
 
 
 In the raw model response information for the response from *gpt-4o*, we can see values for `completion_tokens` (output tokens) and `prompt_tokens` (input tokens):
 
 .. code-block:: text
 
-    'completion_tokens': 39, 
-    'prompt_tokens': 15 
+    'completion_tokens': 40, 
+    'prompt_tokens': 16 
 
 
 The total cost of the response is calculated based on the token rates set by the OpenAI (at the time of writing, USD 2.50 per 1M tokens for input and USD 10.00 per 1M tokens for output):
 
 .. code-block:: text
 
-    (15 * USD 2.50/1,000,000) + (39 * USD 10.00/1,000,000) 
-    = USD 0.0004275 
+    (16 * USD 2.50/1,000,000) + (40 * USD 10.00/1,000,000) 
+    = USD 0.00044 
     = 0.05 credits (rounded up to the nearest 1/100th credit)
 
 
@@ -143,15 +142,15 @@ In the raw model response information for the response from *gemini-1.5-flash*, 
 .. code-block:: text
 
     'prompt_token_count': 8, 
-    'candidates_token_count': 34
+    'candidates_token_count': 57
 
 
 The total cost of the response is calculated based on the token rates set by Google (at the time of writing, USD 0.08 per 1M tokens for input and USD 0.30 per 1M tokens for output):
 
 .. code-block:: text
 
-    (8 * USD 0.08/1,000,000) + (34 * USD 0.30/1,000,000) 
-    = USD 0.00001084
+    (8 * USD 0.08/1,000,000) + (57 * USD 0.30/1,000,000) 
+    = USD 0.00001774
     = 0.01 credits (rounded up to the nearest 1/100th credit)
 
 

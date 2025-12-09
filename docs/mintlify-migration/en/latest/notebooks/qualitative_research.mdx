@@ -1,0 +1,251 @@
+---
+title: "Launch an interview"
+description: "This notebook provides sample [EDSL](/en/latest/index) code for simulating qualitative research interviews. In a series of steps we construct an AI agent representing a qualitative researcher and launch an interview with specified topics and interview subjects."
+---
+
+Please also see examples of the `Conversation` [module](https://github.com/expectedparrot/edsl/tree/main/edsl/conversation) which automates the methods used below to simulate a conversation with multiple agents:
+
+- [Buying a car](https://github.com/expectedparrot/edsl/blob/main/edsl/conversation/car_buying.py)
+- [Negotiating a mug](https://github.com/expectedparrot/edsl/blob/main/edsl/conversation/mug_negotiation.py)
+
+[EDSL is an open-source library](https://github.com/expectedparrot/edsl) for simulating surveys, experiments and other research with AI agents and large language models. Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Coop account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL.
+
+```python
+from edsl import QuestionFreeText, Agent, Scenario, Model
+
+import textwrap
+from rich import print
+```
+
+EDSL works with many popular language models ([learn more](/en/latest/language_models) about using models). Here we select one to use in running in our survey:
+
+```python
+model = Model("gpt-4o")
+```
+
+Here we create methods for constructing agents representing a researcher and subject, and conducting an interview in the form of a survey that we can observe. (Learn more about [designing agents](/en/latest/agents) and [running surveys](/en/latest/surveys)).
+
+```python expandable
+def construct_subject(name, traits={}):
+    return Agent(name=name, traits=traits)
+
+def construct_researcher(product, topics):
+    background = textwrap.dedent(
+        f"""
+    You are an expert qualitative researcher. You are researching this product: {product}.
+    You are interested in conducting interviews to learn people's views on the following topics relating
+    to the product: {topics}."""
+    )
+
+    instruction = textwrap.dedent(
+        """
+    You know to ask questions that are appropriate to the age and experience of an interview subject.
+    You know to not ask questions that an interview subject would not be able to answer,
+    e.g., if they are a young child, they probably will not be able to answer many questions about prices.
+    You ask excellent follow-up questions.
+    """
+    )
+    return Agent(traits={"background": background}, instruction=instruction)
+
+def get_next_question(subject, researcher, dialog_so_far):
+    scenario = Scenario(
+        {"subject": str(subject.traits), "dialog_so_far": dialog_so_far}
+    )
+    meta_q = QuestionFreeText(
+        question_name="next_question",
+        question_text="""
+        These are the biographic details of the interview subject: {{ subject }}
+        This is your current dialog with the interview subject: {{ dialog_so_far }}
+        What question you would ask the interview subject next?
+        """,
+    )
+    question_text = (
+        meta_q.by(model)
+        .by(researcher)
+        .by(scenario)
+        .run()
+        .select("next_question")
+        .first()
+    )
+    return question_text
+
+def get_response_to_question(question_text, subject, dialog_so_far):
+    q_to_subject = QuestionFreeText(
+        question_name="question",
+        question_text=f"""
+        This is your current dialog with the interview subject: {dialog_so_far}.
+        You are now being asked:"""
+        + question_text,
+    )
+    response = q_to_subject.by(model).by(subject).run().select("question").first()
+    return response
+
+def ask_question(subject, researcher, dialog_so_far):
+    question_text = get_next_question(subject, researcher, dialog_so_far)
+    response = get_response_to_question(question_text, subject, dialog_so_far)
+    return {"question": question_text, "response": response}
+
+def dialog_to_string(d):
+    return "n".join(
+        [f"Question: {d['question']}nResponse: {d['response']}" for d in d]
+    )
+```
+
+```python
+subject = construct_subject(name="Alice", traits={"gender": "female", "age": 12})
+researcher = construct_researcher(product="cassette tapes", topics="technology, music")
+result = ask_question(subject, researcher, "")
+print(result)
+```
+
+```json
+{
+    'question': 'What kind of music do you like to listen to, and have you ever listened to it on a cassette
+tape?',
+    'response': "I really like pop music and sometimes I listen to some cool indie stuff too. I think it's fun and
+makes me want to dance! As for cassettes, I've never actually listened to music on a cassette tape before. I
+usually just use my phone or listen on Spotify. My parents told me about cassettes, though, and how they had to
+rewind them with a pencil sometimes. It sounds kind of funny!"
+}
+```
+
+```python
+dialog_so_far = []
+for i in range(5):
+    result = ask_question(subject, researcher, dialog_to_string(dialog_so_far))
+    print(result)
+    dialog_so_far.append(result)
+print(dialog_so_far)
+```
+
+```json
+{
+    'question': 'What kind of music do you like to listen to, and have you ever listened to it on a cassette
+tape?',
+    'response': "I really like pop music and sometimes I listen to some cool indie stuff too. I think it's fun and
+makes me want to dance! As for cassettes, I've never actually listened to music on a cassette tape before. I
+usually just use my phone or listen on Spotify. My parents told me about cassettes, though, and how they had to
+rewind them with a pencil sometimes. It sounds kind of funny!"
+}
+```
+
+```json
+{
+    'question': "That's interesting! Since you've heard about cassette tapes from your parents, do you think you
+would ever want to try listening to music on one? What do you think the experience might be like compared to using
+your phone or Spotify?",
+    'response': "I think it would be pretty cool to try listening to music on a cassette tape at least once! It
+seems like it would be a totally different experience from using my phone or Spotify. With a cassette, you can't
+just skip to the next song with a tap, so you'd have to listen to the whole album or mix, which might be fun
+because you could discover new favorite songs that way. Plus, the idea of using a pencil to rewind the tape sounds
+kind of like a fun little challenge. It might feel more special and hands-on compared to just tapping a screen. I
+bet the sound might be different too, maybe a bit more old-school or warm, which could be interesting to hear!"
+}
+```
+
+```json
+{
+    'question': 'You mentioned that using a pencil to rewind the tape sounds like a fun challenge. Do you think
+having more hands-on interactions with music, like with cassette tapes, could change the way you enjoy music or
+make it feel more special?',
+    'response': "Yeah, I think having more hands-on interactions with music could definitely make it feel more
+special! When you have to do something like rewind a tape with a pencil, it makes you pay more attention to what
+you're listening to. It's not just about pressing play and letting it go in the background. Plus, it might make you
+appreciate the music more because you have to work a little to hear it. It sounds like it would be more of an
+experience, kind of like going to a concert where you really focus on the music and enjoy every part of it. I think
+it could make listening to music feel more personal and memorable!"
+}
+```
+
+```json
+{
+    'question': "Since you're interested in the hands-on aspect of cassette tapes and how it might make music feel
+more personal, I'm curious: Do you think having a physical collection of music, like a bunch of cassette tapes,
+would be exciting for you? How would owning physical copies of your favorite albums or songs change the way you
+think about or connect with your music?",
+    'response': 'I think having a physical collection of music, like a bunch of cassette tapes, would be super
+exciting! It would be like having a little treasure chest of all my favorite songs and albums. I think owning
+physical copies would make me feel more connected to the music because I could actually hold it in my hands and see
+the album art up close. Plus, it would be fun to organize them and maybe even show them off to my friends. Having a
+collection would probably make me appreciate my favorite songs even more because it would be something I chose to
+keep and take care of. It might feel like I have my own little music library, and each tape could have its own
+story or memory attached to it. I think it would make listening to music feel more special and meaningful!'
+}
+```
+
+```json
+{
+    'question': "You've shared some great thoughts on how cassette tapes could make music more personal and
+meaningful. I'm curious, have you ever created your own playlists or mixtapes on your phone or Spotify? If so, how
+do you think that experience compares to what it might be like to make a mixtape on a cassette?",
+    'response': "Yeah, I've definitely made my own playlists on my phone and Spotify! It's really fun to pick out
+all my favorite songs and put them together, especially when I can choose a theme or mood for the playlist. I like
+that I can add or remove songs anytime and share them with my friends really easily.nnI think making a mixtape on
+a cassette would be a lot different, though. It seems like it would take more time and planning because you'd have
+to record each song in order and make sure everything fits just right. You can't just drag and drop like on a
+phone! I think it would feel more like a creative project, almost like making a custom gift for someone. Plus,
+since cassettes are physical, it would be cool to decorate the tape or case with drawings or stickers to make it
+even more personal. It sounds like it would be a really fun and special way to share music with someone!"
+}
+```
+
+```json expandable
+[
+    {
+        'question': 'What kind of music do you like to listen to, and have you ever listened to it on a cassette
+tape?',
+        'response': "I really like pop music and sometimes I listen to some cool indie stuff too. I think it's fun
+and makes me want to dance! As for cassettes, I've never actually listened to music on a cassette tape before. I
+usually just use my phone or listen on Spotify. My parents told me about cassettes, though, and how they had to
+rewind them with a pencil sometimes. It sounds kind of funny!"
+    },
+    {
+        'question': "That's interesting! Since you've heard about cassette tapes from your parents, do you think
+you would ever want to try listening to music on one? What do you think the experience might be like compared to
+using your phone or Spotify?",
+        'response': "I think it would be pretty cool to try listening to music on a cassette tape at least once! It
+seems like it would be a totally different experience from using my phone or Spotify. With a cassette, you can't
+just skip to the next song with a tap, so you'd have to listen to the whole album or mix, which might be fun
+because you could discover new favorite songs that way. Plus, the idea of using a pencil to rewind the tape sounds
+kind of like a fun little challenge. It might feel more special and hands-on compared to just tapping a screen. I
+bet the sound might be different too, maybe a bit more old-school or warm, which could be interesting to hear!"
+    },
+    {
+        'question': 'You mentioned that using a pencil to rewind the tape sounds like a fun challenge. Do you think
+having more hands-on interactions with music, like with cassette tapes, could change the way you enjoy music or
+make it feel more special?',
+        'response': "Yeah, I think having more hands-on interactions with music could definitely make it feel more
+special! When you have to do something like rewind a tape with a pencil, it makes you pay more attention to what
+you're listening to. It's not just about pressing play and letting it go in the background. Plus, it might make you
+appreciate the music more because you have to work a little to hear it. It sounds like it would be more of an
+experience, kind of like going to a concert where you really focus on the music and enjoy every part of it. I think
+it could make listening to music feel more personal and memorable!"
+    },
+    {
+        'question': "Since you're interested in the hands-on aspect of cassette tapes and how it might make music
+feel more personal, I'm curious: Do you think having a physical collection of music, like a bunch of cassette
+tapes, would be exciting for you? How would owning physical copies of your favorite albums or songs change the way
+you think about or connect with your music?",
+        'response': 'I think having a physical collection of music, like a bunch of cassette tapes, would be super
+exciting! It would be like having a little treasure chest of all my favorite songs and albums. I think owning
+physical copies would make me feel more connected to the music because I could actually hold it in my hands and see
+the album art up close. Plus, it would be fun to organize them and maybe even show them off to my friends. Having a
+collection would probably make me appreciate my favorite songs even more because it would be something I chose to
+keep and take care of. It might feel like I have my own little music library, and each tape could have its own
+story or memory attached to it. I think it would make listening to music feel more special and meaningful!'
+    },
+    {
+        'question': "You've shared some great thoughts on how cassette tapes could make music more personal and
+meaningful. I'm curious, have you ever created your own playlists or mixtapes on your phone or Spotify? If so, how
+do you think that experience compares to what it might be like to make a mixtape on a cassette?",
+        'response': "Yeah, I've definitely made my own playlists on my phone and Spotify! It's really fun to pick
+out all my favorite songs and put them together, especially when I can choose a theme or mood for the playlist. I
+like that I can add or remove songs anytime and share them with my friends really easily.nnI think making a
+mixtape on a cassette would be a lot different, though. It seems like it would take more time and planning because
+you'd have to record each song in order and make sure everything fits just right. You can't just drag and drop like
+on a phone! I think it would feel more like a creative project, almost like making a custom gift for someone. Plus,
+since cassettes are physical, it would be cool to decorate the tape or case with drawings or stickers to make it
+even more personal. It sounds like it would be a really fun and special way to share music with someone!"
+    }
+]
+```

@@ -1,7 +1,5 @@
-import os
 import pytest
-import re
-from edsl.exceptions.questions import QuestionSerializationError
+from edsl.questions.exceptions import QuestionValueError
 from edsl.questions.question_registry import get_question_class
 
 
@@ -10,7 +8,7 @@ def test_get_question_class_with_invalid_type():
     # invalid_module = "edsl.questions.QuestionInvalid"
     # invalid_class = "QuestionInvalid"
     # try to import question class that's not registered
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(QuestionValueError) as excinfo:
         get_question_class(invalid_type)
     # assert f"No question class registered for type: {invalid_type}" in str(
     #    excinfo.value
@@ -24,7 +22,7 @@ def test_get_question_class_with_invalid_type():
 
 # def test_forgot_to_register_question():
 #     """Test fails if a question is added to edsl/questions but not registered in edsl/questions/question_registry.py"""
-#     paths = ["edsl/questions", "edsl/questions/derived"]
+#     paths = ["edsl/questions"]
 #     pattern = re.compile(r"^Question([A-Za-z]+)\.py$")
 #     for path in paths:
 #         for file_name in os.listdir(path):

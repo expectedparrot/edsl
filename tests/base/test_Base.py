@@ -2,8 +2,11 @@ import pytest
 import json
 import warnings
 
-from edsl.Base import RegisterSubclassesMeta, Base
+from edsl.base import RegisterSubclassesMeta, Base
 from edsl.questions import QuestionMultipleChoice
+from edsl.scenarios import Scenario, ScenarioList
+from edsl.surveys import Survey
+from edsl.language_models import LanguageModel
 
 
 class EvalReprFail(Warning):
@@ -16,30 +19,57 @@ class SaveLoadFail(Warning):
 
 class TestBaseModels:
     def test_register_subclasses_meta(self):
+        expected_classes = [
+            "BaseMacro",
+            "Macro",
+            "MacroRunOutput",
+            "CompositeMacro",
+            "Result",
+            "Results",
+            "Survey",
+            "Agent",
+            "AgentList",
+            "AgentBlueprint",
+            "AgentDelta",
+            "AgentListDeltas",
+            "Scenario",
+            "ScenarioList",
+            "AgentList",
+            "Jobs",
+            "Cache",
+            "Notebook",
+            "ModelList",
+            "FileStore",
+            "HTMLFileStore",
+            "CSVFileStore",
+            "PDFFileStore",
+            "PNGFileStore",
+            "SQLiteFileStore",
+            "AgentTraits",
+            "RunParameters",
+            "SQLList",
+            "CoopObjects",
+            "CoopJobsObjects",
+            "CoopRegularObjects",
+            "CoopProlificFilters",
+            "Service",
+            "FileStoreList",
+            "CompareResultsToGold",
+            "PerformanceDelta",
+            "ResultPairComparison"
+        ]
 
         for key, value in RegisterSubclassesMeta.get_registry().items():
-            assert key in [
-                "Result",
-                "Results",
-                "Survey",
-                "Agent",
-                "AgentList",
-                "Scenario",
-                "ScenarioList",
-                "AgentList",
-                "Jobs",
-                "Cache",
-                "Notebook",
-                "ModelList",
-                "FileStore",
-                "HTMLFileStore",
-                "CSVFileStore",
-                "PDFFileStore",
-                "PNGFileStore",
-                "SQLiteFileStore",
-                "AgentTraits",
-                "RunParameters",
-            ]
+            # Skip test classes and test-related classes
+            # This includes classes with "Test" or "Testing" in their name,
+            # as well as temporary classes created within test methods
+            if ("Test" in key or
+                "Testing" in key or
+                key in ["NoDefault", "TestMacro1", "TestMacro2", "BadMacro", "MacroForTesting"]):
+                continue
+            assert key in expected_classes
+
+        from edsl.base.exceptions import BaseNotImplementedError
 
         methods = [
             "example",
@@ -48,7 +78,7 @@ class TestBaseModels:
             "code",
         ]
         for method in methods:
-            with pytest.raises(NotImplementedError):
+            with pytest.raises(BaseNotImplementedError):
                 getattr(Base, method)()
 
 
@@ -56,22 +86,18 @@ def create_test_function(child_class):
 
     @staticmethod
     def base_test_func():
-        from edsl.agents.Agent import Agent
-        from edsl.surveys.Survey import Survey
+        from edsl.agents import Agent
         from edsl.questions.question_registry import Question
-        from edsl.data.CacheEntry import CacheEntry
-        from edsl.language_models.model import Model
-        from edsl.surveys.RuleCollection import RuleCollection
-        from edsl.surveys.Rule import Rule
-        from edsl.agents.AgentList import AgentList
-        from edsl.language_models.LanguageModel import LanguageModel
-        from edsl.language_models.ModelList import ModelList
-        from edsl.scenarios.Scenario import Scenario
-        from edsl.scenarios.ScenarioList import ScenarioList
-        from edsl.scenarios.FileStore import FileStore
-        from edsl.prompts.Prompt import Prompt
-        from edsl.results.Results import Results
-        from edsl.results.Result import Result
+        from edsl.caching import CacheEntry
+        from edsl.language_models import Model
+        from edsl.surveys.rules import RuleCollection
+        from edsl.surveys.rules import Rule
+        from edsl.agents import AgentList
+        from edsl.language_models import ModelList
+        from edsl.scenarios import FileStore
+        from edsl.prompts import Prompt
+        from edsl.results import Results
+        from edsl.results import Result
 
         e = child_class.example()
         e.show_methods()
@@ -155,6 +181,11 @@ def create_file_operations_test(child_class):
 
 # Dynamically adding test methods for each question type
 for child_class_name, child_class in RegisterSubclassesMeta._registry.items():
+
+    # Skip testing abstract base classes and test classes
+    if child_class_name in ["CoopObjects", "BaseMacro"] or "Test" in child_class_name or "Testing" in child_class_name:
+        continue
+
     base_test_method_name = f"test_Base_{child_class_name}"
     base_test_method = create_test_function(child_class)
     setattr(TestBaseModels, base_test_method_name, base_test_method)

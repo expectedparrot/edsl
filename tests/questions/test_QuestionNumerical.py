@@ -1,12 +1,10 @@
 import pytest
 
-from edsl.exceptions.questions import (
+from edsl.questions.exceptions import (
     QuestionAnswerValidationError,
-    QuestionResponseValidationError,
 )
-from edsl.questions import Settings
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.QuestionNumerical import QuestionNumerical  # , main
+from edsl.questions import QuestionBase
+from edsl.questions import QuestionNumerical  # , main
 
 
 valid_question = {

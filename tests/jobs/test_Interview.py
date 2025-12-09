@@ -1,9 +1,10 @@
 import pytest
-from edsl.surveys.Survey import Survey
-from edsl.questions.QuestionFreeText import QuestionFreeText
+
+from edsl.surveys import Survey
+from edsl.questions import QuestionFreeText
 from edsl.language_models.utilities import create_language_model
-from edsl.scenarios.ScenarioList import ScenarioList
-from edsl.data.Cache import Cache
+from edsl.scenarios import ScenarioList
+from edsl.caching import Cache
 
 
 @pytest.fixture
@@ -13,7 +14,7 @@ def create_survey():
         for i in range(num_questions):
             if take_scenario:
                 q = QuestionFreeText(
-                    question_text=f"XX{i}XX and {{scenario_value }}",
+                    question_text=f"XX{i}XX and {{{{scenario_value}}}}",
                     question_name=f"question_{i}",
                 )
             else:
@@ -36,22 +37,16 @@ def test_order(create_survey):
     random.shuffle(scenario_values)
     sl = ScenarioList.from_list("scenario_value", scenario_values)
     # model = create_language_model(ValueError, 100)()
-    from edsl.language_models.model import Model
 
     # model = Model("test")
     model = create_language_model(ValueError, 100)()
     jobs = survey.by(model).by(sl)
-    results = jobs.run()
+    results = jobs.run(disable_remote_inference = True)
 
     hashes = []
     # TODO: Need to fix this
     for result, interview in zip(results, jobs.interviews()):
         hashes.append((interview.initial_hash, result.interview_hash))
-
-    # Something is going wrong here - the hashes are not matching
-
-    # breakpoint()
-    # assert result.interview_hash == interview.initial_hash  # hash(interview)
 
 
 def test_token_usage(create_survey):
@@ -60,7 +55,7 @@ def test_token_usage(create_survey):
     jobs = survey.by(model)
 
     cache = Cache()
-    results = jobs.run(cache=cache)
+    results = jobs.run(cache=cache, disable_remote_inference = True)
     token_usage = jobs.interviews()[0].token_usage
 
     # from edsl.jobs.tokens.TokenUsage import TokenUsage
@@ -79,9 +74,9 @@ def test_task_management(create_survey):
     jobs = survey.by(model)
 
     cache = Cache()
-    results = jobs.run(cache=cache)
+    results = jobs.run(cache=cache, disable_remote_inference = True)
 
-    from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
+    from edsl.interviews import InterviewStatusDictionary
 
     interview_status = jobs.interviews()[0].interview_status
     assert isinstance(interview_status, InterviewStatusDictionary)
@@ -95,12 +90,13 @@ def test_bucket_collection(create_survey):
 
     cache = Cache()
 
-    results = jobs.run(cache=cache)
+    results = jobs.run(cache=cache, disable_remote_inference=True)
 
     bc = jobs.run_config.environment.bucket_collection
     bucket_list = list(bc.values())
-
-    bucket_list[0].requests_bucket.bucket_type == "requests"
+    
+    assert len(bucket_list) > 0, "Bucket collection should not be empty"
+    assert bucket_list[0].requests_bucket.bucket_type == "requests"
 
 
 @pytest.mark.parametrize("fail_at_number, chained", [(6, False), (10, True)])
@@ -112,7 +108,7 @@ def test_handle_model_exceptions(set_env_vars, create_survey, fail_at_number, ch
 
     cache = Cache()
 
-    results = jobs.run(cache=cache, print_exceptions=False)
+    results = jobs.run(cache=cache, print_exceptions=False, disable_remote_inference=True)
 
     print(f"Results: {results}")
     print(
@@ -138,7 +134,7 @@ def test_handle_timeout_exception(create_survey, capsys):
     survey = create_survey(num_questions=5, chained=False)
 
     cache = Cache()
-    results = survey.by(model).run(cache=cache, print_exceptions=False)
+    results = survey.by(model).run(cache=cache, print_exceptions=False, disable_remote_inference = True)
     captured = capsys.readouterr()
     # assert (
     #     "WARNING: At least one question in the survey was not answered." in captured.out

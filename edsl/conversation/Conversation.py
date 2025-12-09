@@ -1,14 +1,17 @@
 from collections import UserList
 import asyncio
 import inspect
-from typing import Optional, Callable
-from edsl import Agent, QuestionFreeText, Results, AgentList, ScenarioList, Scenario
-from edsl.questions import QuestionBase
-from edsl.results.Result import Result
+from typing import Optional, Callable, TYPE_CHECKING
+from .. import QuestionFreeText, Results, AgentList, ScenarioList, Scenario
+from ..questions import QuestionBase
+from ..results.result import Result
 from jinja2 import Template
-from edsl.data import Cache
+from ..caching import Cache
 
-from edsl.conversation.next_speaker_utilities import (
+if TYPE_CHECKING:
+    from .. import Model
+
+from .next_speaker_utilities import (
     default_turn_taking_generator,
     speaker_closure,
 )
@@ -71,7 +74,7 @@ class Conversation:
         conversation_index: Optional[int] = None,
         cache=None,
         disable_remote_inference=False,
-        default_model: Optional["LanguageModel"] = None,
+        default_model: Optional["Model"] = None,
     ):
         self.disable_remote_inference = disable_remote_inference
         self.per_round_message_template = per_round_message_template
@@ -83,13 +86,13 @@ class Conversation:
 
         self.agent_list = agent_list
 
-        from edsl import Model
-
         for agent in self.agent_list:
             if not hasattr(agent, "model"):
                 if default_model is not None:
                     agent.model = default_model
                 else:
+                    from .. import Model
+
                     agent.model = Model()
 
         self.verbose = verbose
@@ -120,7 +123,9 @@ What do you say next?"""
                 per_round_message_template
                 and "{{ round_message }}" not in next_statement_question.question_text
             ):
-                raise ValueError(
+                from .exceptions import ConversationValueError
+
+                raise ConversationValueError(
                     "If you pass in a per_round_message_template, you must include {{ round_message }} in the question_text."
                 )
 
@@ -199,8 +204,7 @@ What do you say next?"""
     async def get_next_statement(self, *, index, speaker, conversation) -> "Result":
         """Get the next statement from the speaker."""
         q = self.next_statement_question
-        # assert q.parameters == {"agent_name", "conversation"}, q.parameters
-        from edsl import Scenario
+        from .. import Scenario
 
         if self.per_round_message_template is None:
             round_message = None
@@ -219,9 +223,8 @@ What do you say next?"""
             }
         )
         jobs = q.by(s).by(speaker).by(speaker.model)
-        jobs.show_prompts()
         results = await jobs.run_async(
-            cache=self.cache, disable_remote_inference=self.disable_remote_inference
+            disable_remote_inference=self.disable_remote_inference
         )
         return results[0]
 
@@ -232,18 +235,15 @@ What do you say next?"""
         i = 0
         while await self.continue_conversation():
             speaker = self.next_speaker()
-
-            next_statement = AgentStatement(
-                statement=await self.get_next_statement(
-                    index=i,
-                    speaker=speaker,
-                    conversation=self.agent_statements.transcript,
-                )
+            result_statement = await self.get_next_statement(
+                index=i,
+                speaker=speaker,
+                conversation=self.agent_statements.transcript,
             )
+            next_statement = AgentStatement(statement=result_statement)
             self.agent_statements.append(next_statement)
             if self.verbose:
-                print(f"'{speaker.name}':{next_statement.text}")
-                print("\n")
+                print(f"'{speaker.name}': {next_statement.text}")
             i += 1
 
 

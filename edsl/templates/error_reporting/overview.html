@@ -1,31 +1,22 @@
-<style>
-    td {
-        padding: 0 10px; /* This applies the padding uniformly to all td elements */
-    }
-</style>
+<div class="overview-section">
+    <h2>Exceptions Report</h2>
+    <p>
+        This report summarizes exceptions encountered in the job that was run.
+    </p>
 
-<h1>Exceptions Report</h1>
-<p>
-    This report summarizes exceptions encountered in the job that was run.
-</p>
-<p>
-    For advice on dealing with exceptions, please see the EDSL <a href="https://docs.expectedparrot.com/en/latest/exceptions.html">documentation</a> page. <br>
-    You can also post a question at the Expected Parrot <a href="https://discord.com/invite/mxAYkjfy9m">Discord channel</a>, open an issue on <a href="https://github.com/expectedparrot/edsl">GitHub</a>, or send an email to <a href="mailto:info@expectedparrot.com">info@expectedparrot.com</a>.
-</p>
-
-<h2>Overview</h2>
-<table border="1">
-    <tbody>
-        <tr>
-            <td>Total interviews</td>
-            <td>{{ interviews|length }}</td>
-        </tr>
-        <tr>
-            <td>Interviews with exceptions</td>
-            <td>{{ num_exceptions }}</td>
-        </tr>
-    </tbody>
-</table>
-<p>
-    An "interview" is the result of one survey, taken by one agent, with one model and one scenario (if any).
-</p>
+    <table class="summary-table">
+        <tbody>
+            <tr>
+                <td><strong>Total interviews</strong></td>
+                <td>{{ interviews|length }}</td>
+            </tr>
+            <tr>
+                <td><strong>Interviews with exceptions</strong></td>
+                <td>{{ num_exceptions }}</td>
+            </tr>
+        </tbody>
+    </table>
+    <p>
+        An interview is the result of one survey, taken by one agent, with one model and one scenario (if any).
+    </p>
+</div>

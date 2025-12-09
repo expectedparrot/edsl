@@ -3,28 +3,28 @@
 Remote Inference
 ================
 
-Remote inference allows you to run surveys at the Expected Parrot server instead of your own machine and to use :ref:`remote_caching` to store survey results and logs.
+Remote inference allows you to run surveys at the Expected Parrot server instead of locally on your own machine, and to use :ref:`remote_caching` to store survey results and logs at your Coop account.
 
-*Note: You must have an account in order to use remote inference and caching.
-By using remote inference you agree to terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with our terms of use.*
+*Note: You must have a Coop account in order to use remote inference and caching.
+By using remote inference you agree to any terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with our terms of use.*
 
 
 How it works 
 ------------
 
 When remote inference is activated, calling the `run()` method on a survey will send it to the Expected Parrot server.
-Survey results and job details (history, costs, etc.) are automatically stored at the server and accessible from your workspace or at the `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ page of your account.
+Survey results and job details (history, costs, etc.) are automatically stored at the server and accessible from your workspace or at the `Jobs <https://www.expectedparrot.com/home/remote-inference>`_ page of your account.
 
 By default, a remote cache is used to retrieve responses to any questions that have already been run.
-You can choose whether to use it or another other cache, or to draw fresh responses to questions.
-See the :ref:`remote_caching` section for details.
+You can choose whether to use it or generate fresh responses to questions.
+See the :ref:`remote_caching` section for more details.
 
 
 Activating remote inference
 ---------------------------
 
-`Log into your account <https://www.expectedparrot.com/login>`_ and navigate to your `Settings <a href="https://www.expectedparrot.com/home/settings>`_ page.
-Toggle on the slider for *Remote inference*:
+`Log in <https://www.expectedparrot.com/login>`_ to your Coop account and navigate to your `Settings <a href="https://www.expectedparrot.com/home/settings>`_ page.
+Toggle on the remote inference setting:
 
 .. image:: static/home-settings.png
   :alt: Toggle on remote inference
@@ -40,13 +40,24 @@ Toggle on the slider for *Remote inference*:
 Managing keys 
 -------------
 
-An Expected Parrot API key is required to use remote inference.
-This key can be viewed (and reset) at the `Settings <https://www.expectedparrot.com/home/settings>`_ page of your account (where you activate remote inference).
+An Expected Parrot key is required to use remote inference and to interact with Coop.
+Your key can be viewed (and reset) at the `Keys <https://www.expectedparrot.com/home/keys>`_ page of your account:
 
-It is automatically stored at your `Keys <https://www.expectedparrot.com/home/keys>`_ page where you can select options for adding keys, sharing them with other users and prioritizing them for use with your surveys:
+.. image:: static/home-ep-key.png
+  :alt: EP key
+  :align: center
+  :width: 100%
+  
+
+.. raw:: html
+
+  <br>
+
+
+You canalso select options for adding keys, sharing them with other users and prioritizing them for use with your surveys at this page:
 
 .. image:: static/home-keys.png
-  :alt: Toggle on remote inference
+  :alt: Stored keys
   :align: center
   :width: 100%
   
@@ -63,7 +74,19 @@ Credits
 -------
 
 Running surveys with your Expected Parrot API key requires credits to cover API calls to service providers.
-Your account comes with free credits for getting started; you can check your balance and purchase additional credits at the `Credits <https://www.expectedparrot.com/home/credits>`_ page of your account.
+Your account comes with free credits for getting started; you can check your balance and purchase additional credits at the `Credits <https://www.expectedparrot.com/home/credits>`_ page of your account:
+
+.. image:: static/home-credits.png
+  :alt: Credits page
+  :align: center
+  :width: 100%
+  
+
+.. raw:: html
+
+  <br>
+
+
 Running surveys with your own keys does *not* consume credits.
 Learn more about purchasing credits and calculating costs at the :ref:`credits` section.
 
@@ -72,7 +95,7 @@ Using remote inference
 ----------------------
 
 When remote inference is activated, calling the `run()` method will send a survey to the Expected Parrot server.
-You can access results and all information about the job (history, costs, etc.) from your workspace or your `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ page.
+You can access results and all information about the job (history, costs, etc.) from your workspace or your `Jobs <https://www.expectedparrot.com/home/remote-inference>`_ page.
 
 For example, here we run a simple survey with remote inference activated and inspect the job information that is automatically posted.
 We optionally pass description and visibility parameters (these can be edited at any time):
@@ -93,7 +116,7 @@ We optionally pass description and visibility parameters (these can be edited at
   results = survey.by(m).run(
     remote_inference_description = "Example survey", # optional
     remote_inference_visibility = "public" # optional
-    )
+  )
 
 
 Output (details will be unique to your job):
@@ -104,16 +127,6 @@ Output (details will be unique to your job):
 
 
 When the job has finished, it will appear with a status of *Completed*:
-
-.. image:: static/home-remote-inference-job-running.png
-  :alt: Remote inference page on the Coop web app. There is one job shown, and it has a status of "Running."
-  :align: center
-  :width: 100%
-
-.. raw:: html
-
-  <br>
-
 
 .. image:: static/home-remote-inference-job-completed.png
   :alt: Remote inference page on the Coop web app. There is one job shown, and it has a status of "Completed."
@@ -126,16 +139,6 @@ When the job has finished, it will appear with a status of *Completed*:
 
 
 We can view the results of the job:
-
-.. image:: static/coop-content-results.png
-  :alt: Remote inference results page on the Coop web app. There is one result shown.
-  :align: center
-  :width: 100%
-
-.. raw:: html
-
-  <br>
-
 
 .. image:: static/coop-content-results-view.png
   :alt: Remote inference results page on the Coop web app. There is one result shown.

@@ -1,7 +1,6 @@
 import unittest
-from edsl.exceptions.surveys import SurveyRuleCollectionHasNoRulesAtNodeError
-from edsl.surveys.Rule import Rule
-from edsl.surveys.RuleCollection import RuleCollection
+from edsl.surveys.exceptions import SurveyRuleCollectionHasNoRulesAtNodeError
+from edsl.surveys.rules import Rule, RuleCollection
 
 
 class TestRuleCollection(unittest.TestCase):
@@ -15,7 +14,7 @@ class TestRuleCollection(unittest.TestCase):
 
         rule = Rule(
             current_q=0,
-            expression="q1 == 'yes'",
+            expression="{{ q1.answer }} == 'yes'",
             next_q=1,
             question_name_to_index={"q1": 0},
             priority=1,
@@ -36,7 +35,7 @@ class TestRuleCollection(unittest.TestCase):
 
         rule = Rule(
             current_q=0,
-            expression="q1 == 'yes'",
+            expression="{{ q1.answer }} == 'yes'",
             next_q=1,
             question_name_to_index={"q1": 0},
             priority=1,

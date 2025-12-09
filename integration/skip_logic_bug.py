@@ -26,7 +26,7 @@ q4 = QuestionTopK(
 )
 
 survey = Survey(questions=[q1, q2, q3, q4])
-survey = survey.add_skip_rule(q2, "color == 'Blue'")
+survey = survey.add_skip_rule(q2, "{{ color.answer }} == 'Blue'")
 
 results = survey.run()
 results.select("color", "day", "winter", "birds").print(format="rich")

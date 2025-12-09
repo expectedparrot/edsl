@@ -1,8 +1,7 @@
-import pytest
 import unittest
 from unittest.mock import Mock
-from edsl.agents.Invigilator import InvigilatorHuman
-from edsl.surveys.Survey import Survey
+from edsl.invigilators import InvigilatorHuman
+from edsl.surveys import Survey
 
 
 class TestInvigilatorHuman(unittest.TestCase):

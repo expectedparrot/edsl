@@ -1,6 +1,6 @@
 import logging
 from abc import ABCMeta
-from edsl import Agent, Model, Results, Scenario, Survey
+from edsl import Agent, Model, Scenario, Survey
 from edsl.questions import *
 
 
@@ -93,10 +93,15 @@ class ResultsSerializationCases(SerializationBase):
             for class_name, subclass in RegisterQuestionsMeta.get_registered_classes().items()
             if class_name != "QuestionFunctional"
         ]
-        # Use example questions for each question class
-        questions = [q.example() for q in all_question_types]
+        # Use example questions for each question class with unique names
+        questions = []
+        for i, q_type in enumerate(all_question_types):
+            q = q_type.example()
+            # Make question names unique by appending index
+            q.question_name = f"{q.question_name}_{i}"
+            questions.append(q)
         s = Survey(questions=questions)
-       # s = self.configure_agents_and_models(s)
+        # s = self.configure_agents_and_models(s)
         result = s.run(
             cache=False, print_exceptions=False, disable_remote_inference=True
         )
@@ -144,7 +149,7 @@ class ResultsSerializationCases(SerializationBase):
             q_multiple_choice_sentiment,
         ]
         s = Survey(questions=questions).by(scenarios)
-        #s = self.configure_agents_and_models(s)
+        # s = self.configure_agents_and_models(s)
         result = s.run(
             cache=False, print_exceptions=False, disable_remote_inference=True
         )
@@ -184,13 +189,13 @@ class ResultsSerializationCases(SerializationBase):
         questions = [q_color_mc, q_day_mc, q_winter_ls, q_birds_tk]
         s = Survey(questions=questions)
         # Add skip logic
-        s = s.add_skip_rule(q_birds_tk, "color == 'Blue'")
-        s = s.add_stop_rule(q_color_mc, "color == 'Blue'")
-        s = s.add_rule(q_color_mc, "color == 'Red'", q_winter_ls)
+        s = s.add_skip_rule(q_birds_tk, "{{ color.answer }} == 'Blue'")
+        s = s.add_stop_rule(q_color_mc, "{{ color.answer }} == 'Blue'")
+        s = s.add_rule(q_color_mc, "{{ color.answer }} == 'Red'", q_winter_ls)
         # Use memory
         s = s.set_lagged_memory(2)
         s = s.add_memory_collection(q_birds_tk, [q_color_mc])
-        #s = self.configure_agents_and_models(s)
+        # s = self.configure_agents_and_models(s)
         result = s.run(
             cache=False, print_exceptions=False, disable_remote_inference=True
         )

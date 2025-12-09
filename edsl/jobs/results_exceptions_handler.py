@@ -1,8 +1,14 @@
-from typing import Optional, TYPE_CHECKING, Protocol
+from typing import Protocol, TYPE_CHECKING
 import sys
-from edsl.scenarios.FileStore import HTMLFileStore
-from edsl.config import CONFIG
-from edsl.coop.coop import Coop
+
+# from edsl.scenarios.FileStore import HTMLFileStore
+from ..config import CONFIG
+
+if TYPE_CHECKING:
+    pass
+
+
+from .exceptions import JobsErrors
 
 
 class ResultsProtocol(Protocol):
@@ -41,7 +47,8 @@ class ResultsExceptionsHandler:
         self.parameters = parameters
 
         self.open_in_browser = self._get_browser_setting()
-        self.remote_logging = self._get_remote_logging_setting()
+        # self.remote_logging = self._get_remote_logging_setting()
+        self.remote_logging = False
 
     def _get_browser_setting(self) -> bool:
         """Determine if exceptions should be opened in browser based on config."""
@@ -51,22 +58,24 @@ class ResultsExceptionsHandler:
         elif setting == "False":
             return False
         else:
-            raise Exception(
+            raise JobsErrors(
                 "EDSL_OPEN_EXCEPTION_REPORT_URL must be either True or False"
             )
 
     def _get_remote_logging_setting(self) -> bool:
         """Get remote logging setting from coop."""
         try:
+            from ..coop.coop import Coop
+
             coop = Coop()
             return coop.edsl_settings["remote_logging"]
-        except Exception as e:
+        except Exception:
             # print(e)
             return False
 
     def _generate_error_message(self, indices) -> str:
         """Generate appropriate error message based on number of exceptions."""
-        msg = f"Exceptions were raised.\n" 
+        msg = "Exceptions were raised.\n"
         return msg
 
     def handle_exceptions(self) -> None:
@@ -88,6 +97,8 @@ class ResultsExceptionsHandler:
 
         # Handle remote logging if enabled
         if self.remote_logging:
-            filestore = HTMLFileStore(filepath)
+            from ..scenarios import FileStore
+
+            filestore = FileStore(filepath)
             coop_details = filestore.push(description="Exceptions Report")
             print(coop_details)

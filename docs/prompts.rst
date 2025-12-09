@@ -276,7 +276,6 @@ Output:
 
 .. list-table::
    :header-rows: 1
-   :widths: 30 50 
 
    * - user_prompt
    * - What is your favorite subject?
@@ -338,7 +337,6 @@ Output:
 
 .. list-table::
    :header-rows: 1
-   :widths: 30 50
 
    * - user_prompt
    * - What is your favorite subject?
@@ -591,9 +589,8 @@ See the :ref:`questions` section for `more details <https://docs.expectedparrot.
 Prompts class 
 -------------
 
-.. automodule:: edsl.prompts.Prompt
+.. autoclass:: edsl.prompts.Prompt
    :members: 
    :undoc-members:
    :show-inheritance:
    :special-members: __init__
-   :exclude-members:

@@ -4,8 +4,7 @@ import textwrap
 from uuid import UUID
 from typing import Any, Optional, Union
 
-
-from edsl.questions.QuestionBase import RegisterQuestionsMeta
+from .question_base import RegisterQuestionsMeta
 
 
 class Meta(type):
@@ -43,9 +42,16 @@ class Question(metaclass=Meta):
 
         subclass = get_question_classes.get(question_type, None)
         if subclass is None:
-            raise ValueError(
-                f"No question registered with question_type {question_type}"
-            )
+            # they might be trying to pull a question from coop by name
+            try:
+                q = Question.pull(question_type)
+                return q
+            except Exception:
+                from .exceptions import QuestionValueError
+
+                raise QuestionValueError(
+                    f"No question registered with question_type {question_type}"
+                )
 
         # Create an instance of the selected subclass
         instance = object.__new__(subclass)
@@ -60,35 +66,57 @@ class Question(metaclass=Meta):
         return q.example()
 
     @classmethod
-    def pull(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):
-        """Pull the object from coop."""
-        from edsl.coop import Coop
+    def pull(cls, url_or_uuid: Union[str, UUID]):
+        """Pull the object from coop.
+
+        Args:
+            url_or_uuid: Identifier for the question to retrieve.
+                Can be one of:
+                - UUID string (e.g., "123e4567-e89b-12d3-a456-426614174000")
+                - Full URL (e.g., "https://expectedparrot.com/content/123e4567...")
+                - Alias URL (e.g., "https://expectedparrot.com/content/username/my-question")
+                - Shorthand alias (e.g., "username/my-question")
+
+        Returns:
+            The question object retrieved from coop
+        """
+        from ..coop import Coop
+        from ..config import CONFIG
+
+        # Convert shorthand syntax to full URL if needed
+        if isinstance(url_or_uuid, str) and not url_or_uuid.startswith(
+            ("http://", "https://")
+        ):
+            # Check if it looks like a UUID (basic check for UUID format)
+            is_uuid = len(url_or_uuid) == 36 and url_or_uuid.count("-") == 4
+            if not is_uuid and "/" in url_or_uuid:
+                # Looks like shorthand format "username/alias"
+                url_or_uuid = f"{CONFIG.EXPECTED_PARROT_URL}/content/{url_or_uuid}"
 
         coop = Coop()
-        return coop.get(uuid, url, "question")
+        return coop.pull(url_or_uuid, "question")
 
     @classmethod
-    def delete(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):
+    def delete(cls, url_or_uuid: Union[str, UUID]):
         """Delete the object from coop."""
-        from edsl.coop import Coop
+        from ..coop import Coop
 
         coop = Coop()
-        return coop.delete(uuid, url)
+        return coop.delete(url_or_uuid)
 
     @classmethod
     def patch(
         cls,
-        uuid: Optional[Union[str, UUID]] = None,
-        url: Optional[str] = None,
+        url_or_uuid: Union[str, UUID],
         description: Optional[str] = None,
         value: Optional[Any] = None,
         visibility: Optional[str] = None,
     ):
         """Patch the object on coop."""
-        from edsl.coop import Coop
+        from ..coop import Coop
 
         coop = Coop()
-        return coop.patch(uuid, url, description, value, visibility)
+        return coop.patch(url_or_uuid, description, value, visibility)
 
     @classmethod
     def list_question_types(cls):
@@ -96,7 +124,7 @@ class Question(metaclass=Meta):
 
         >>> from edsl import Question
         >>> Question.list_question_types()
-        ['checkbox', 'dict', 'extract', 'free_text', 'functional', 'likert_five', 'linear_scale', 'list', 'matrix', 'multiple_choice', 'numerical', 'rank', 'top_k', 'yes_no']
+        ['checkbox', 'compute', 'demand', 'dict', 'dropdown', 'edsl_object', 'extract', 'file_upload', 'free_text', 'functional', 'interview', 'likert_five', 'linear_scale', 'list', 'markdown', 'matrix', 'multiple_choice', 'multiple_choice_with_other', 'numerical', 'pydantic', 'random', 'rank', 'top_k', 'yes_no']
         """
         return [
             q
@@ -115,7 +143,7 @@ class Question(metaclass=Meta):
         Example usage:
 
         """
-        from edsl.results.Dataset import Dataset
+        from ..dataset import Dataset
 
         exclude = ["budget"]
         if show_class_names:
@@ -130,7 +158,7 @@ class Question(metaclass=Meta):
             ]
             d = RegisterQuestionsMeta.question_types_to_classes()
             question_classes = [d[q] for q in question_list]
-            example_questions = [repr(q.example()) for q in question_classes]
+            example_questions = [q.example()._eval_repr_() for q in question_classes]
 
             return Dataset(
                 [
@@ -141,12 +169,56 @@ class Question(metaclass=Meta):
                 print_parameters={"containerHeight": "auto"},
             )
 
+    @classmethod
+    def from_vibes(
+        cls,
+        description: str,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.7,
+    ):
+        """Generate a question from a natural language description.
+
+        This method uses an LLM to generate an appropriate EDSL question based on a
+        description of what the question should ask. It automatically selects appropriate
+        question types and formats.
+
+        Args:
+            description: Natural language description of what the question should ask
+            model: OpenAI model to use for generation (default: "gpt-4o")
+            temperature: Temperature for generation (default: 0.7)
+
+        Returns:
+            QuestionBase: A new Question instance with the appropriate type
+
+        Examples:
+            >>> from edsl import Question
+            >>> q = Question.from_vibes("Ask what their favorite color is")  # doctest: +SKIP
+            >>> print(q.question_name, q.question_type)  # doctest: +SKIP
+            favorite_color multiple_choice
+
+            >>> q = Question.from_vibes("Find out how satisfied they are with the product")  # doctest: +SKIP
+            >>> print(q.question_type)  # doctest: +SKIP
+            multiple_choice
+
+            >>> q = Question.from_vibes("Ask if they would recommend this to a friend")  # doctest: +SKIP
+            >>> print(q.question_type)  # doctest: +SKIP
+            yes_no
+        """
+        from .vibes import generate_question_from_vibes
+
+        return generate_question_from_vibes(
+            cls, description, model=model, temperature=temperature
+        )
+
 
 def get_question_class(question_type):
     """Return the class for the given question type."""
     q2c = RegisterQuestionsMeta.question_types_to_classes()
     if question_type not in q2c:
-        raise ValueError(
+        from .exceptions import QuestionValueError
+
+        raise QuestionValueError(
             f"The question type, {question_type}, is not recognized. Recognied types are: {q2c.keys()}"
         )
     return q2c.get(question_type)
@@ -154,6 +226,7 @@ def get_question_class(question_type):
 
 question_purpose = {
     "multiple_choice": "When options are known and limited",
+    "multiple_choice_with_other": "When options are known but you want to allow for custom responses",
     "free_text": "When options are unknown or unlimited",
     "checkbox": "When multiple options can be selected",
     "numerical": "When the answer is a single numerical value e.g., a float",
@@ -169,9 +242,6 @@ question_purpose = {
 
 
 if __name__ == "__main__":
-    print(Question.available())
+    import doctest
 
-    # q = Question("free_text", question_text="How are you doing?", question_name="test")
-    # results = q.run()
-
-    q = Question.pull(id=76)
+    doctest.testmod()

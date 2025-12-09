@@ -6,6 +6,14 @@ Agents
 `Agent` objects are used to simulate survey responses for target audiences. 
 They can be created with specified traits, such as personas and relevant attributes for a survey, that are used together with language models to generate answers to questions. 
 
+Agents can be created individually or as a list of agents, and can be updated after they are created.
+They can be used with any question type, and can be used to generate responses for a single question or a survey of multiple questions.
+
+Agent information is presented to a model in a system prompt; it is delivered together with a user prompt of information about a given question.
+In the examples below we show how to access these prompts to inspect them before running a survey and in the results that are generated for a survey.
+Note, however, that certain models do not take system prompts (e.g., OpenAI's o1). 
+When using a model that does not take a system prompt, agent information should be included in the user prompt.
+
 
 Constructing an Agent
 ---------------------
@@ -62,6 +70,33 @@ If you want to use a name in the prompts for generating responses, you can pass 
         })
 
 
+We can see how the agent information is presented to a model by inspecting the system prompt that is generated when we use an agent with a question:
+
+.. code-block:: python
+
+    from edsl import QuestionFreeText
+
+    q = QuestionFreeText(
+        question_name = "favorite_food",
+        question_text = "What is your favorite food?"
+    )
+
+    job = q.by(agent) # using the agent created above
+    job.prompts().select("user_prompt", "system_prompt")
+
+
+Output:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - user_prompt
+     - system_prompt
+   * - What is your favorite food?
+     - You are answering questions as if you were a human. Do not break character. Your traits: {'first_name': 'Ada', 'persona': 'You are an expert in machine learning.', 'age': 45, 'home_state': 'Massachusetts'}
+
+
 Note that trying to create two agents with the same name or trying to use a key "name" in the `traits` will raise an error.
 
 
@@ -110,7 +145,68 @@ Learn more about working with results in the :ref:`results` section.
 Generating agents from data 
 ---------------------------
 
-An `AgentList` can be automatically generated from data stored in a list, a dictionary or a CSV file.
+An `AgentList` can be automatically generated from data stored in many source types, including a list, a dictionary, a CSV, TSV or Excel file, a Pandas dataframe, etc.
+
+A general method for this is `from_source()` which is called on the `AgentList` class, takes a data `source_type` (`csv`, `excel`, `pandas`, etc.) and a data source, and returns an `AgentList` object.
+Optional parameters allow you to specify special `instructions`, a `codebook` for the traits, and a `name_field` for the agents.
+
+For example, if you have agent data stored in a CSV file, you can create an `AgentList` from it using the `from_source()` method by specifying `source_type="csv"` and the path to the CSV file:
+
+.. code-block:: python
+
+    from edsl import AgentList
+
+    agents = AgentList.from_source(
+        source_type="csv", 
+        file_or_url="agent_data.csv") # replace with your CSV file path
+    
+
+If the data source is a CSV or Excel file, the header row is used as the keys for the `traits`, and can optionally have a column "name" for the agent names.
+If a different column name should be used for the agent names, it can be specified with the `name_field` parameter:
+
+.. code-block:: python
+
+    from edsl import AgentList
+
+    agents = AgentList.from_source(
+        source_type="csv", 
+        file_or_url="agent_data.csv", # replace with your CSV file path
+        name_field="first_name" # replace with your column name for agent names
+        )
+
+
+A `codebook` can also be passed to provide descriptions for the traits.
+It can be useful for providing context to a model about the traits of an agent.
+For example, if you have a trait "age" and you want to provide more context about what that means, you could use the codebook to specify that "age" refers to the age of the agent in years:
+
+.. code-block:: python
+
+    from edsl import AgentList
+
+    codebook = {
+        "age": "The age of the agent in years",
+        "location": "The location of the agent"
+    }
+
+    agents = AgentList.from_source(
+        source_type="csv", 
+        file_or_url="agent_data.csv", # replace with your CSV file path
+        codebook=codebook
+        )
+
+
+Special instructions can also be passed to modify the default instructions that are used with agent traits in the system prompt.
+For example, if you want all agents to answer in German, you could use the `instructions` parameter to specify that:
+
+.. code-block:: python
+
+    from edsl import AgentList
+
+    agents = AgentList.from_source(
+        source_type="csv", 
+        file_or_url="agent_data.csv", # replace with your CSV file path
+        instructions="Answer in German."
+        )
 
 
 From a list
@@ -283,6 +379,7 @@ Giving an agent instructions
 ----------------------------
 
 In addition to traits, agents can be given detailed instructions on how to answer questions.
+The `instruction` parameter can be used to omit or modify the default instructions that are used with agent traits in the system prompt.
 
 For example:
 
@@ -302,7 +399,32 @@ Output:
 
 
 When the agent is assigned to a survey, the special instruction will be added to the prompts for generating responses.
-The instructions are stored in the `instruction` field of the agent and can be accessed directly in results.
+We can create a `Job` object to inspect the prompts (user and system) that will be used to generate responses:
+
+.. code-block:: python
+
+    from edsl import QuestionFreeText
+
+    q = QuestionFreeText(
+        question_name = "favorite_food",
+        question_text = "What is your favorite food?"
+    )
+
+    job = q.by(a)  # using the agent created above
+    job.prompts().select("user_prompt", "system_prompt")
+
+
+Output:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - user_prompt
+     - system_prompt
+   * - What is your favorite food?
+     - Answer in German. Your traits: {'age': 10}. Answer in German.
+
 
 Learn more about how to use instructions in the :ref:`prompts` section.
 
@@ -355,6 +477,39 @@ Output:
 .. code-block:: text
 
     The age of the agent is 22.
+
+
+We can also use the `traits_presentation_template` together with an `instruction` and inspect the prompts:
+
+.. code-block:: python
+
+    from edsl import Agent, QuestionFreeText
+
+    a = Agent(
+        traits = {"age": 10}, 
+        traits_presentation_template = "(You are {{ age }} years old.)",
+        instruction = "Answer in German."
+    )
+
+    q = QuestionFreeText(
+        question_name = "favorite_food",
+        question_text = "What is your favorite food?"
+    )
+
+    job = q.by(a)  
+    job.prompts().select("user_prompt", "system_prompt")
+
+
+Output:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - user_prompt
+     - system_prompt
+   * - What is your favorite food?
+     - Answer in German.(You are 10 years old.)
 
 
 Note that it can be helpful to include traits mentioned in the persona as independent keys and values in order to analyze survey results by those dimensions individually.
@@ -741,9 +896,47 @@ Output:
     - 40
 
 
+Creating AgentList from Results
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The `AgentList.from_results()` method allows you to create an `AgentList` directly from a `Results` object. This is useful when you want to create agents based on survey responses, including their original traits and their answers to questions.
+
+By default, this method includes all answer columns as traits for the new agents:
+
+.. code-block:: python
+
+    from edsl import AgentList
+
+    # Create AgentList with all questions included
+    new_agents = AgentList.from_results(results)
+    
+    # The new agents will have traits from the original agents plus all their answers
+    new_agents[0]
+
+
+You can also specify which question responses to include as traits using the `question_names` parameter:
+
+.. code-block:: python
+
+    # Include only specific questions as traits
+    new_agents = AgentList.from_results(results, question_names=['surfing', 'age'])
+    
+    # The new agents will have traits from the original agents plus only the specified answers
+    new_agents[0]
+
+
+This is particularly useful when you want to:
+- Create agents with only certain response patterns
+- Filter out irrelevant or sensitive question responses
+- Create more focused agent profiles based on specific survey questions
+- Reduce the number of traits when only certain responses are needed
+
+Note that the `question_names` parameter affects both `answer.*` columns (as traits) and `prompt.*` columns (as codebook). Agent traits (from `agent.*` columns) are always included.
+
+
 Agent class
 -----------
-.. automodule:: edsl.agents.Agent
+.. autoclass:: edsl.agents.Agent
    :members:
    :undoc-members:
    :show-inheritance:
@@ -753,8 +946,11 @@ Agent class
    
 AgentList class
 ---------------
-.. automodule:: edsl.agents.AgentList
-   :noindex:
+.. autoclass:: edsl.agents.AgentList
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
 
 .. automethod:: AgentList.__init__
    :noindex:
@@ -769,6 +965,9 @@ AgentList class
    :noindex:
 
 .. automethod:: AgentList.from_list
+   :noindex:
+
+.. automethod:: AgentList.from_results
    :noindex:
    
 .. automethod:: AgentList.to_dict

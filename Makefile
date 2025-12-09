@@ -3,7 +3,7 @@
 ###############
 GIT_ROOT ?= $(shell git rev-parse --show-toplevel)
 PROJECT_NAME ?= $(shell basename $(GIT_ROOT))
-.PHONY: bump docs docstrings find help integration model-report
+.PHONY: bump docs docs-check docstrings find help integration model-report ruff-lint
 
 ###############
 ##@Utils ⭐ 
@@ -11,14 +11,115 @@ PROJECT_NAME ?= $(shell basename $(GIT_ROOT))
 help: ## Show this helpful message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[33m%-25s\033[0m %s\n", $$1, $$2} /^##@/ {printf "\n\033[0;32m%s\033[0m\n", substr($$0, 4)} ' $(MAKEFILE_LIST)
 
+verbose-on: ## Enable verbose mode by setting EDSL_VERBOSE_MODE=True in .env
+	@if [ ! -f .env ]; then touch .env; fi
+	@if [ ! -s .env ] || [ "$$(tail -c 1 .env)" != "" ]; then echo "" >> .env; fi
+	@if grep -q "^EDSL_VERBOSE_MODE=" .env; then \
+		sed -i '' 's/^EDSL_VERBOSE_MODE=.*/EDSL_VERBOSE_MODE=True/' .env; \
+	else \
+		echo "EDSL_VERBOSE_MODE=True" >> .env; \
+	fi
+	@echo "Verbose mode enabled (EDSL_VERBOSE_MODE=True)"
+
+verbose-off: ## Disable verbose mode by setting EDSL_VERBOSE_MODE=False in .env
+	@if [ ! -f .env ]; then touch .env; fi
+	@if [ ! -s .env ] || [ "$$(tail -c 1 .env)" != "" ]; then echo "" >> .env; fi
+	@if grep -q "^EDSL_VERBOSE_MODE=" .env; then \
+		sed -i '' 's/^EDSL_VERBOSE_MODE=.*/EDSL_VERBOSE_MODE=False/' .env; \
+	else \
+		echo "EDSL_VERBOSE_MODE=False" >> .env; \
+	fi
+	@echo "Verbose mode disabled (EDSL_VERBOSE_MODE=False)"
+
+keys-on: ## Enable API keys by removing # comments from key lines in .env
+	@if [ ! -f .env ]; then \
+		echo "No .env file found"; \
+		exit 1; \
+	fi
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^#\([A-Z_]*_API_KEY=\)/\1/' .env
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^#\(AWS_ACCESS_KEY_ID=\)/\1/' .env
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^#\(AWS_SECRET_ACCESS_KEY=\)/\1/' .env
+	@echo "API keys enabled (uncommented in .env)"
+
+keys-off: ## Disable API keys by adding # comments to key lines in .env
+	@if [ ! -f .env ]; then \
+		echo "No .env file found"; \
+		exit 1; \
+	fi
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^\([A-Z_]*_API_KEY=\)/#\1/' .env
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^\(AWS_ACCESS_KEY_ID=\)/#\1/' .env
+	@sed -i '' '/^## Start - API Keys/,/^### End - API Keys/s/^\(AWS_SECRET_ACCESS_KEY=\)/#\1/' .env
+	@echo "API keys disabled (commented out in .env)"
+
 install: ## Install all project deps and create a venv (local)
 	make clean-all
 	@echo "Creating a venv from pyproject.toml and installing deps using poetry..."
 	poetry install --with dev
 	@echo "All deps installed and venv created."
 
+install-hooks: ## Install git hooks (pre-commit and pre-push)
+	@bash scripts/install_git_hooks.sh
+
+check-status: ## Show status of pre-push checks for current commit
+	@bash scripts/check_status.sh
+
 find: ## Search for a pattern. Use `make find term="pattern"`
 	@find . -type d \( -name '.venv' -o -name '__pycache__' \) -prune -o -type f -print | xargs grep -l "$(term)"
+
+###############
+##@Environment Management 🔧
+###############
+#
+# Manage multiple .env configurations for different scenarios (testing, prod, dev, etc.)
+#
+# HOW IT WORKS:
+# - Environment files: .env.testing, .env.prod, .env.dev, etc. (these are your "source" files)
+# - Working file: .env (this is what you always edit during development)
+# - Active tracking: .env.current (tracks which environment is currently loaded)
+# - Bidirectional sync: Changes to .env are saved back to source files when switching
+#
+# TYPICAL WORKFLOW:
+# 1. Create your environments:
+#    make env-create name=testing
+#    make env-create name=prod
+#
+# 2. Switch between environments:
+#    make env testing          # Load .env.testing → .env, save any previous changes
+#    # ... edit .env normally during development ...
+#    make env prod             # Save .env → .env.testing, load .env.prod → .env
+#
+# 3. Your changes persist in each environment automatically!
+#
+# COMMANDS:
+env-list: ## List all available environment configurations
+	@python scripts/env_manager.py list
+
+env-current: ## Show the currently active environment (and working/source file paths)
+	@python scripts/env_manager.py current
+
+env-create: ## Create new environment file. Ex: make env-create name=testing
+	@if [ -z "$(name)" ]; then \
+		echo "Usage: make env-create name=<env-name>"; \
+		echo "Example: make env-create name=testing"; \
+		exit 1; \
+	fi
+	@python scripts/env_manager.py create $(name)
+
+env-save: ## Manually save current .env back to its source (auto-saved when switching)
+	@python scripts/env_manager.py save
+
+env-backup: ## Create timestamped backup of current .env (e.g., .env.backup.20231120_143022)
+	@python scripts/env_manager.py backup
+
+env: ## Switch environments with bidirectional sync. Ex: make env testing, make env prod
+	@if [ -z "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		echo "Usage: make env <env-name>"; \
+		echo "Examples: make env testing, make env prod"; \
+		echo ""; \
+		python scripts/env_manager.py list; \
+		exit 1; \
+	fi
+	@python scripts/env_manager.py switch $(filter-out $@,$(MAKECMDGOALS))
 
 clean: ## Clean temp files
 	@echo "Cleaning tempfiles..."
@@ -95,8 +196,33 @@ endif
 
 
 ###############
-##@Development 🛠️  
+##@Development 🛠️
 ###############
+commit: ## Run all pre-push checks (format, lint, tests, doctests, benchmarks)
+	@echo "========================================="
+	@echo "Running all pre-push verification checks"
+	@echo "========================================="
+	@echo ""
+	@echo "1/5 Running Black formatting..."
+	@make format
+	@echo ""
+	@echo "2/5 Running Ruff linting..."
+	@make ruff-lint
+	@echo ""
+	@echo "3/5 Running unit tests..."
+	@make test
+	@echo ""
+	@echo "4/5 Running doctests..."
+	@make test-doctests
+	@echo ""
+	@echo "5/5 Running performance benchmarks..."
+	@make benchmark-all
+	@echo ""
+	@echo "========================================="
+	@echo "✓ All pre-push checks completed!"
+	@echo "You can now commit and push your changes."
+	@echo "========================================="
+
 backup: ## Backup the code to `edsl/.backups/`
 	TIMESTAMP=$$(date +"%Y%m%d_%H%M%S"); \
 	BACKUP_NAME=$(PROJECT_NAME)_$${TIMESTAMP}.tar.gz; \
@@ -105,8 +231,87 @@ backup: ## Backup the code to `edsl/.backups/`
 	mv $${BACKUP_NAME} "./.backups";\
 	echo "Backup created: $${BACKUP_NAME}"
 
+###############
+##@Validation Reports 🔍
+###############
+validation-report: ## Generate an HTML validation report and open it in a browser
+	python -c "from edsl.questions import generate_and_open_report; generate_and_open_report()"
+
+validation-stats: ## Show validation failure statistics
+	edsl validation stats
+
+###############
+##@Performance Benchmarks 📊
+###############
+benchmark-timing: ## Run timing benchmarks
+	python scripts/timing_benchmark.py
+
+benchmark-timing-profile: ## Run timing benchmarks with profiling
+	PYINSTRUMENT_IGNORE_OVERHEAD_WARNING=1 python scripts/timing_benchmark.py --profile
+
+benchmark-plot: ## Plot historical benchmark data
+	python scripts/timing_benchmark.py --plot
+
+benchmark-visualize: ## Create comprehensive benchmark visualizations
+	python scripts/visualize_benchmarks.py
+
+benchmark-report: ## Generate HTML report of benchmark results
+	python scripts/visualize_benchmarks.py --report --trends
+
+benchmark-small: ## Run timing benchmarks with fewer questions
+	python scripts/timing_benchmark.py --num-questions=100
+
+benchmark-components: ## Run component-level benchmarks
+	python scripts/component_benchmark.py
+
+benchmark-memory: ## Run memory profiling on ScenarioList filter operation
+	python scripts/memory_profiler.py --size 1000 --no-open
+
+benchmark-memory-large: ## Run memory profiling with a large dataset (5000 scenarios)
+	python scripts/memory_profiler.py --size 5000 --no-open
+
+benchmark-memory-line: ## Run line-by-line memory profiling on ScenarioList filter
+	python scripts/memory_line_profiler.py --size 20 --no-open
+
+test-memory-scaling: ## Run comprehensive memory scaling tests for ScenarioList
+	RUN_MEMORY_SCALING_TEST=1 pytest -xvs tests/scenarios/test_ScenarioList_memory.py::test_scenario_list_memory_scaling
+
+test-memory: ## Run all memory tests for ScenarioList
+	pytest -xvs tests/scenarios/test_ScenarioList_memory.py
+
+benchmark-all: ## Run all performance benchmarks and generate reports
+	@echo "Running all performance benchmarks..."
+	@make benchmark-timing || true
+	@make benchmark-components || true
+	-@make benchmark-timing-profile || true  # Use - prefix to continue even if this fails
+	@make benchmark-memory || true
+	@make benchmark-memory-line || true
+	@make test-memory || true
+	@echo "Writing results to performance.yml..."
+	@python scripts/write_performance_yaml.py
+	@echo "Generating performance visualizations..."
+	@python scripts/visualize_performance.py --report
+	@echo "Generating regression visualization..."
+	@python scripts/regression_detector.py --open
+	@echo "All benchmarks complete. See regression_report.html for results."
+	@bash scripts/mark_check_complete.sh BENCHMARKS
+
+benchmark-test: ## Test that benchmark scripts work properly
+	python scripts/test_benchmarks.py
+
+performance-report: ## Generate performance report from existing performance.yml
+	python scripts/visualize_performance.py --report --open
+
+regression-check: ## Check for performance regressions and generate report
+	python scripts/regression_detector.py --open
+
+performance-visualize: ## Create performance visualizations without opening report
+	python scripts/visualize_performance.py --report
+
 bump: ## Bump the version of the package
 	@python scripts/bump_version.py $(filter-out $@,$(MAKECMDGOALS))
+
+# Catch-all rule to handle directory arguments for test-doctests and bump
 %:
 	@:
 
@@ -127,6 +332,22 @@ docs-view: ## View documentation
 docstrings: ## Check docstrings
 	pydocstyle edsl
 
+docs-check: ## Run pydocstyle and ruff documentation checks. Use 'make docs-check DIR' to check specific directory/file
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		target="$(filter-out $@,$(MAKECMDGOALS))"; \
+		echo "Running documentation checks on: $$target"; \
+		echo "Running pydocstyle..."; \
+		pydocstyle $$target; \
+		echo "Running ruff documentation checks..."; \
+		poetry run ruff check --select D $$target; \
+	else \
+		echo "Running documentation checks on entire project"; \
+		echo "Running pydocstyle..."; \
+		pydocstyle edsl; \
+		echo "Running ruff documentation checks..."; \
+		poetry run ruff check --select D edsl; \
+	fi
+
 style-report: ## Check docstrings and generate a report
 	python scripts/style_report.py --source edsl --output style_report
 	open style_report/index.html
@@ -136,11 +357,40 @@ typing-report:
 	open typing_report/index.html
 
 format: ## Run code autoformatters (black).
-	pre-commit install
-	pre-commit run black-jupyter --all-files --all
+	poetry run black edsl/
+	@bash scripts/mark_check_complete.sh BLACK
 
-lint: ## Run code linters (flake8, pylint, mypy).
-	mypy edsl
+lint: ## Run ruff linter with --fix --verbose. Use 'make lint DIR' to lint specific directory/file
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		target="$(filter-out $@,$(MAKECMDGOALS))"; \
+		echo "Running ruff linter with --fix on: $$target"; \
+		poetry run ruff check --fix $$target; \
+	else \
+		echo "Running ruff linter with --fix on entire project"; \
+		poetry run ruff check --fix edsl; \
+	fi
+
+ruff-lint: ## Run ruff linter on all modules in parallel
+	@poetry run ruff check edsl/instructions & \
+	poetry run ruff check edsl/key_management & \
+	poetry run ruff check edsl/prompts & \
+	poetry run ruff check edsl/tasks & \
+	poetry run ruff check edsl/inference_services & \
+	poetry run ruff check edsl/results & \
+	poetry run ruff check edsl/dataset & \
+	poetry run ruff check edsl/buckets & \
+	poetry run ruff check edsl/interviews & \
+	poetry run ruff check edsl/tokens & \
+	poetry run ruff check edsl/jobs & \
+	poetry run ruff check edsl/surveys & \
+	poetry run ruff check edsl/agents & \
+	poetry run ruff check edsl/scenarios & \
+	poetry run ruff check edsl/questions & \
+	poetry run ruff check edsl/utilities & \
+	poetry run ruff check edsl/language_models & \
+	poetry run ruff check edsl/caching & \
+	wait
+	@bash scripts/mark_check_complete.sh RUFF
 
 visualize: ## Visualize the repo structure
 	python scripts/visualize_structure.py
@@ -153,9 +403,40 @@ visualize: ## Visualize the repo structure
 ###############
 ##@Testing 🐛
 ###############
-test: ## Run regular tests (no Coop tests) 
+github-tests-locally: ## Run tests on GitHub Actions (with only committed files)
+	@echo "Cleaning up Docker before starting..."
+	@docker stop $$(docker ps -q -f "name=act-") 2>/dev/null || true
+	@docker rm $$(docker ps -aq -f "name=act-") 2>/dev/null || true
+	@docker system prune -f --volumes
+	@echo "Stashing uncommitted changes..."
+	@git stash push -u -m "Temporary stash for github-tests-locally"
+	@echo "Running tests with act..."
+	@act; \
+	EXIT_CODE=$$?; \
+	echo "Restoring uncommitted changes..."; \
+	git stash pop; \
+	echo "Cleaning up Docker images and containers created by act..."; \
+	docker stop $$(docker ps -q -f "name=act-") 2>/dev/null || true; \
+	docker rm $$(docker ps -aq -f "name=act-") 2>/dev/null || true; \
+	docker image prune -f --filter "label=org.opencontainers.image.source=https://github.com/catthehacker/docker_images"; \
+	docker system prune -f --volumes; \
+	echo "Docker cleanup complete."; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		bash scripts/mark_check_complete.sh GITHUB_ACTIONS; \
+	fi; \
+	exit $$EXIT_CODE
+
+test: ## Run regular tests (no Coop tests). Use 'make test DIR' to run tests from specific directory
 	make clean-test
-	pytest -xv tests --nocoop
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		dir="$(filter-out $@,$(MAKECMDGOALS))"; \
+		echo "Running tests for directory: $$dir"; \
+		pytest -xv $$dir --nocoop; \
+	else \
+		echo "Running all tests"; \
+		pytest -xv tests --nocoop; \
+	fi
+	@bash scripts/mark_check_complete.sh TESTS
 
 test-token-bucket: ## Run token bucket tests
 	make clean-test
@@ -165,9 +446,22 @@ test-coop: ## Run Coop tests (no regular tests, requires Coop local server runni
 	make clean-test
 	pytest -xv tests --coop
 
-test-coverage: ## Run regular tests and get a coverage report
+test-no-env: ## Run tests without .env file (like CI) using poetry environment
+	@if [ -f .env ]; then mv .env .env.backup; fi
+	@echo "Running tests in CI-like environment (no .env file, poetry environment)"
+	poetry run make test
+	@if [ -f .env.backup ]; then mv .env.backup .env; echo ".env file restored"; fi
+
+test-coverage: ## Run regular tests and get a coverage report. Use 'make test-coverage DIR' to generate coverage for specific directory
 	make clean-test
-	poetry run coverage run -m pytest tests --ignore=tests/stress --ignore=tests/coop && poetry run coverage html
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		dir="$(filter-out $@,$(MAKECMDGOALS))"; \
+		echo "Running coverage for directory: $$dir"; \
+		poetry run coverage run -m pytest $$dir --ignore=tests/stress --ignore=tests/coop && poetry run coverage html; \
+	else \
+		echo "Running coverage for all tests"; \
+		poetry run coverage run -m pytest tests --ignore=tests/stress --ignore=tests/coop && poetry run coverage html; \
+	fi
 	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
 		open htmlcov/index.html; \
 	else \
@@ -189,19 +483,43 @@ test-data: ## Create serialization test data for the current EDSL version
 	else \
 		python scripts/create_serialization_test_data.py; \
 	fi
-test-doctests: ## Run doctests
+test-doctests: ## Run doctests for a specific directory (e.g., make test-doctests edsl/agents) or all if no directory specified
 	make clean-test
-	pytest --doctest-modules edsl/inference_services
-	pytest --doctest-modules edsl/results
-	pytest --doctest-modules edsl/jobs
-	pytest --doctest-modules edsl/surveys
-	pytest --doctest-modules edsl/agents
-	pytest --doctest-modules edsl/scenarios
-	pytest --doctest-modules edsl/questions
-	pytest --doctest-modules edsl/utilities
-	pytest --doctest-modules edsl/language_models
-	pytest --doctest-modules edsl/data
-	pytest --doctest-modules edsl/study
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		dir="$(filter-out $@,$(MAKECMDGOALS))"; \
+		echo "Running doctests for directory: $$dir"; \
+		if [ "$$dir" = "edsl/buckets" ]; then \
+			EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py $$dir; \
+		else \
+			EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules $$dir; \
+		fi; \
+	else \
+		echo "Running doctests for all directories"; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/instructions && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/key_management && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/prompts && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/tasks && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/results && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/dataset && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/interviews && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/tokens && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/jobs/ && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/surveys && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/agents && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/scenarios && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/questions && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/utilities && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/language_models && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/caching && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/invigilators && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/inference_services; \
+	fi
+	@bash scripts/mark_check_complete.sh DOCTESTS
+
+test-doctests-parallel: ## Run doctests in parallel
+	make clean-test
+	python scripts/run_parallel_doctests.py
 
 test-services:
 	python integration/test_all_questions_and_models.py
@@ -223,8 +541,8 @@ test-notebooks:
 
 test-starter-tutorial:
 	@echo "Testing starter tutorial..."
-	pytest -v integration/active/test_notebooks.py -k docs/notebooks/hello_world.ipynb --override-ini config_file=integration/pytest.ini
-	pytest -v integration/active/test_notebooks.py -k docs/notebooks/starter_tutorial.ipynb --override-ini config_file=integration/pytest.ini
+	pytest -xsv integration/active/test_notebooks.py -k docs/notebooks/hello_world.ipynb --override-ini config_file=integration/pytest.ini
+	pytest -xsv integration/active/test_notebooks.py -k docs/notebooks/starter_tutorial.ipynb --override-ini config_file=integration/pytest.ini
 
 
 # .PHONY: test-notebooks	
@@ -233,13 +551,14 @@ test-starter-tutorial:
 
 test-integration: ## Run integration tests via pytest **consumes API credits**
 	# cd integration/printing && python check_printing.py
-	pytest -v integration/active
-	# pytest -v integration/test_example_notebooks.py
-	pytest -v integration/test_integration_jobs.py
-	pytest -v integration/test_memory.py
-	pytest -v integration/test_models.py
-	pytest -v integration/test_questions.py
-	pytest -v integration/test_runners.py
+	# pytest -vx integration/active
+	pytest -v integration/active/test_example_notebooks.py
+	#pytest -v integration/test_integration_jobs.py
+	#pytest -v integration/test_memory.py
+	#pytest -v integration/test_models.py
+	#pytest -v integration/test_questions.py
+	#pytest -v integration/test_runners.py
+
 test-serialization: ## Run serialization tests
 	pytest -v tests/serialization/test_serialization.py
 

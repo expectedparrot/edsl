@@ -1,6 +1,4 @@
-import pytest
-import json
-from edsl.language_models.LanguageModel import LanguageModel
+from edsl.language_models import LanguageModel
 
 
 def test_integrer_list_examples():

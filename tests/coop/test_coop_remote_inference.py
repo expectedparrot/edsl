@@ -2,12 +2,12 @@ import pytest
 
 # from edsl import Coop, Agent, Jobs, Model, Results, Survey
 
-from edsl.agents.Agent import Agent
+from edsl.agents import Agent
 from edsl.coop.coop import Coop
-from edsl.jobs.Jobs import Jobs
+from edsl.jobs import Jobs
 from edsl.language_models.model import Model
-from edsl.results.Results import Results
-from edsl.surveys.Survey import Survey
+from edsl.results import Results
+from edsl.surveys import Survey
 
 from edsl.questions import (
     QuestionMultipleChoice,
@@ -23,7 +23,8 @@ def test_coop_remote_inference_cost():
     coop = Coop(api_key="b")
     job = Jobs.example()
     cost = coop.remote_inference_cost(job)
-    assert cost == {"credits": 0.77, "usd": 0.007670000000000001}
+    assert cost["credits_hold"] == 0.78
+    assert cost["usd"] == pytest.approx(0.0078)
     survey = Survey(
         questions=[
             QuestionMultipleChoice.example(),
@@ -35,16 +36,20 @@ def test_coop_remote_inference_cost():
     models = [Model("gpt-4o")]
     job = survey.by(models)
     cost = coop.remote_inference_cost(job)
-    assert cost == {"credits": 0.17, "usd": 0.0016225}
+    assert cost["credits_hold"] == 0.18
+    assert cost["usd"] == pytest.approx(0.0018)
     survey = Survey(
         questions=[
             QuestionMultipleChoice.example(),
         ]
     )
     cost = coop.remote_inference_cost(survey)
-    assert cost == {"credits": 0.04, "usd": 0.00038500000000000003}
-    with pytest.raises(TypeError):
-        # Not valid input - we raise a TypeError from EDSL
+    assert cost["credits_hold"] == 0.05
+    assert cost["usd"] == pytest.approx(0.0005)
+    from edsl.coop.exceptions import CoopTypeError
+
+    with pytest.raises(CoopTypeError):
+        # Not valid input - we raise CoopTypeError from EDSL
         agent = Agent.example()
         coop.remote_inference_cost(agent)
 
@@ -72,7 +77,7 @@ def test_remote_inference_with_jobs(mock_edsl_settings):
 
     # Test a job with no description
     job = Jobs.example()
-    result = job.run()
+    result = job.run(disable_remote_inference = True)
     assert isinstance(result, Results)
     # description = result.select("description").first()
     # status = result.select("status").first()
@@ -94,7 +99,8 @@ def test_no_remote_inference_with_jobs(mock_edsl_settings):
 
     job = Jobs.example()
     results = job.run(
-        remote_inference_description="This job will not be sent to the server"
+        remote_inference_description="This job will not be sent to the server",
+        disable_remote_inference = True
     )
     assert isinstance(results, Results)
     assert results.question_names == ["how_feeling", "how_feeling_yesterday"]

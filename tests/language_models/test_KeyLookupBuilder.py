@@ -1,15 +1,16 @@
 import pytest
-from unittest.mock import patch, MagicMock
-from edsl.language_models.key_management.models import (
+from unittest.mock import patch
+from edsl.key_management.models import (
     APIKeyEntry,
     LimitEntry,
     APIIDEntry,
     LanguageModelInput,
 )
 
-from edsl.language_models.key_management.KeyLookupBuilder import KeyLookupBuilder
+from edsl.key_management import KeyLookupBuilder
+from edsl.key_management.exceptions import KeyManagementValueError, KeyManagementDuplicateError
 
-from edsl.exceptions.general import MissingAPIKeyError
+from edsl.key_management.key_lookup_builder import MissingAPIKeyError
 
 
 @pytest.fixture
@@ -39,8 +40,8 @@ def test_initialization():
 
 
 def test_invalid_fetch_order():
-    """Test that invalid fetch order raises ValueError"""
-    with pytest.raises(ValueError):
+    """Test that invalid fetch order raises KeyManagementValueError"""
+    with pytest.raises(KeyManagementValueError):
         KeyLookupBuilder(fetch_order=["env"])  # Should be tuple
 
 
@@ -71,10 +72,11 @@ def test_os_env_key_value_pairs(mock_env_vars):
         assert pairs["OPENAI_API_KEY"] == "test-openai-key"
 
 
-def test_process_key_value_pairs(builder, mock_env_vars):
+def test_process_key_value_pairs(mock_env_vars):
     """Test processing of key-value pairs"""
     with patch.dict("os.environ", mock_env_vars, clear=True):
-        builder.process_key_value_pairs()
+        # Create a new builder which will process key-value pairs in constructor
+        builder = KeyLookupBuilder(fetch_order=("env",))
 
         # Check API keys were processed
         assert "openai" in builder.key_data
@@ -189,8 +191,10 @@ def test_update_from_dict(mock_env_vars):
 
 def test_duplicate_id_handling():
     """Test handling of duplicate API IDs"""
-    builder = KeyLookupBuilder()
-    builder._add_id("AWS_ACCESS_KEY_ID", "test-id-1", "env")
+    # Use empty environment to avoid auto-processing during initialization
+    with patch.dict("os.environ", {}, clear=True):
+        builder = KeyLookupBuilder(fetch_order=("env",))
+        builder._add_id("AWS_ACCESS_KEY_ID", "test-id-1", "env")
 
-    with pytest.raises(ValueError, match="Duplicate ID for service bedrock"):
-        builder._add_id("AWS_ACCESS_KEY_ID", "test-id-2", "env")
+        with pytest.raises(KeyManagementDuplicateError, match="Duplicate ID for service bedrock"):
+            builder._add_id("AWS_ACCESS_KEY_ID", "test-id-2", "env")

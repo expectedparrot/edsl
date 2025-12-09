@@ -18,10 +18,9 @@ Key steps
 The key steps to creating and conducting a survey are:
 
 | 1. Create `Questions` of various types (multiple choice, checkbox, free text, numerical, linear scale, etc.) and combine them in a `Survey` to administer them together. 
-| 2. *Optional:* Add rules to skip, stop or administer questions based on conditional logic, or provide context of other questions and answers in the survey.
+| 2. *Optional:* Add rules to skip, stop or administer questions based on conditional logic, or pipe context of questions and answers into other questions.
 | 3. *Optional:* Design personas for AI `Agents` to answer the questions.
-| 4. Decide whether to use :ref:`remote_inference` or your own :ref:`api_keys` to run the survey.
-| 5. Send the survey to language `Models` of your choice to generate the responses.
+| 4. Send the survey to language `Models` of your choice to generate the responses.
 
 Sending a survey to a language model generates a dataset of `Results` that includes the responses and other components of the survey. 
 Results can be analyzed and visualized using `built-in methods <https://docs.expectedparrot.com/en/latest/results.html>`_ of the `Results` object.
@@ -35,6 +34,7 @@ A survey is administered by calling the `run()` method on the `Survey` object, a
 * `add_skip_rule()` - Skip a question based on a conditional expression (e.g., based on a response to another question).
 * `add_stop_rule()` - End the survey based on a conditional expression.
 * `add_rule()` - Administer a specified question next based on a conditional expression.
+* `add_followup_questions()` - Automatically create follow-up questions for each option in a multiple choice or checkbox question with appropriate skip logic.
 * `set_full_memory_mode()` - Include a memory of all prior questions/answers at each new question in the survey.
 * `set_lagged_memory()` - Include a memory of a specified number of prior questions/answers at each new question in the survey.
 * `add_targeted_memory()` - Include a memory of a particular question/answer at another question in the survey.
@@ -45,13 +45,12 @@ The `show_prompts()`, `show_rules()` and `show_flow()` methods can be used to an
 
 * `show_prompts()` - Display the user and system prompts for each question in a survey. This is a companion method to the `prompts()` method of a `Job` object, which returns a dataset containing the prompts together with information about each question, scenario, agent, model and estimated cost.
 * `show_rules()` - Display a table of the conditional rules that have been applied to a survey.
-* `show_flow()` - Display a graphic of the flow of a survey, showing the order of questions and any rules that have been applied.
+* `show_flow()` - Display a graphic of the flow of a survey, showing the order of questions and any rules that have been applied, and any scenarios and/or agent information that has been added.
 
 When you run a survey you can choose to run it remotely at the Expected Parrot server or locally on your own machine. 
-See :ref:`remote_inference` for more information. 
-
-*New feature in progress:* When you run a job remotely you automatically have access to a universal remote cache of stored responses.
-Learn more about it in the :ref:`remote_caching` section. 
+When you run a job remotely you automatically have access to a universal remote cache of stored responses.
+This allows you to reuse responses from prior jobs, which can save time and resources (cached responses are retrieved for free).
+Learn more in the :ref:`remote_inference` and :ref:`remote_caching` sections. 
 
 You can also choose to run a remote survey in the background by passing the `background=True` parameter to the `run()` method.
 This allows you to continue working (or stop working) while your job completes.
@@ -134,6 +133,22 @@ Alternatively, questions can be added to a survey one at a time:
    survey = Survey().add_question(q1).add_question(q2).add_question(q3).add_question(q4)
 
 
+Randomizing question options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If your survey includes multiple choice or checkbox questions, you can randomize the order of the options by passing a list of the question names to the `questions_to_randomize` parameter of the question constructor.
+For example, here we randomize the order of the options for q1 and q2:
+
+.. code-block:: python
+
+   from edsl import Survey
+
+   survey = Survey(questions = [q1, q2, q3, q4], 
+                   questions_to_randomize=["consume_local_news", "sources"])
+
+
+This will randomize the order of the options for both questions when they are administered.
+
 
 Running a survey
 ----------------
@@ -156,19 +171,36 @@ Note that the agent and model can be added in either order, so long as each type
    results = survey.by(agent).by(model).run()
 
 
-If remote inference is turned on, the survey will be run on the Expected Parrot server and information about accessing the results at your Coop account will be displayed.
-for example:
+Job status information 
+----------------------
 
-.. code-block:: text
+When you run a survey, you will see a table of information about the job status. 
+When the job completes, you can access the `Results` object that is generated in your workspace and at your account (if the survey is run remotely).
+You can specify the visibility and description of the results when running a survey remotely by passing the `remote_inference_results_visibility` and `remote_inference_description` parameters to the `run()` method, and modify them at your account at any time.
 
-   Job sent to server. (Job uuid=025d9fdc-efd9-4ca7-ac7a-f5ab28755f4d).
-   Job completed and Results stored on Coop: https://www.expectedparrot.com/content/4cfcf0c6-6aff-4447-90cb-cd9e01111a28.  
+For example, results of the above survey can be viewed at the following page which has been made public: https://www.expectedparrot.com/content/4cfcf0c6-6aff-4447-90cb-cd9e01111a28.  
 
 
-If remote inference is turned off, the survey will be run locally and results will be added to your local cache only.
-Learn more about :ref:`data` and :ref:`remote_caching`.
+Progress Report 
+^^^^^^^^^^^^^^^
 
-If you are running a survey remotely, you can also choose to run it in the background by passing the `background=True` parameter to the `run()` method:
+While a job is running you can view updates in a Progress Report with details on questions completed, models used and any exceptions generated.
+If remote inference is activated, a link to a Progress Report will appear automatically in the job status table.
+If you are running a survey locally, you can pass `run(progress_bar=True)` to view a report locally.
+
+
+Exceptions Report 
+^^^^^^^^^^^^^^^^^
+
+If any exceptions are generated you can view details about them in an Exceptions Report, which includes information about the questions, agents, scenarios and models that generated exceptions together with error messages and tracebacks.
+If remote inference is activated, a link to an Exceptions Report will appear automatically in the job status table.
+If you are running a survey locally, the report details will appear in your console.
+
+
+Running jobs in the background 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you are running a survey remotely, you can choose to run it in the background by passing the `background=True` parameter to the `run()` method:
 
 .. code-block:: python
 
@@ -192,12 +224,17 @@ Optional parameters
 
 There are optional parameters that can be passed to the `run()` method, including:
 
+* `fresh=False` - A boolean value to indicate whether to run the survey with fresh responses (default is False). Example: `run(fresh=True)` will generate fresh responses for each question.
 * `n` - The number of responses to generate for each question (default is 1). Example: `run(n=5)` will administer the same exact question (and scenario, if any) to an agent and model 5 times.
-* `cache` - A boolean value to cache the results of the survey. The default is True; the cache for the survey is automatically added to the `Results` object that is generated. Example: `run(cache=False)` will generate fresh responses.
+* `cache` - A `Cache` object to use for caching responses (default is None). Example: `run(cache=my_cache)` will use the specified cache to store responses.
 * `disable_remote_inference` - A boolean value to indicate whether to run the survey locally while remote inference is activated (default is False). Example: `run(disable_remote_inference=True)`.
+* `remote_cache_description` - A string value to describe the entries in the remote cache when the survey is run remotely. This description will be displayed on the Expected Parrot server and can be used to provide context for the survey. Example: `run(remote_cache_description="This is a survey about local news consumption.")`.
+* `remote_inference_description` - A string value to describe the survey when it is run remotely. This description will be displayed on the Expected Parrot server and can be used to provide context for the survey. Example: `run(remote_inference_description="This is a survey about local news consumption.")`.
 * `remote_inference_results_visibility` - A string value to indicate the visibility of the results on the Expected Parrot server, when a survey is being run remotely. Possible values are "public", "unlisted" or "private" (default is "unlisted"). Visibility can also be modified at the Coop web app. Example: `run(remote_inference_results_visibility="public")`.
-
-*Note:* The optional parameter `show_progress_bar=True` has been deprecated, as you now automatically get a link to a progress bar page when you run a survey.
+* `progress_bar=True` - This parameter can be used to view a Progress Report locally. A link to a Progress Report will automatically be provided when you run a survey remotely.
+* `background=True` - This parameter can be used to run a survey in the background, allowing you to continue working (or stop working) while your job completes. 
+* `polling_interval` - This parameter can be used to specify the interval (in seconds) at which to check for results when running a survey in the background. The default is 1.0 seconds. Example: `run(polling_interval=5.0)` will check for results every 5 seconds.
+* `verbose=True` - A boolean value to indicate whether to enable verbose logging (including a table of information about the job that is running) (default is True). Example: `run(verbose=False)` will disable verbose logging.
 
 
 Survey rules & logic
@@ -256,23 +293,6 @@ This will print the answers, showing "None" for a skipped question (your own res
      - 0
 
 
-Show flow
-^^^^^^^^^
-
-We can call the `show_flow()` method to display a graphic of the flow of the survey, and verify how the skip rule was applied:
-
-.. code-block:: python
-
-   survey.show_flow()
-
-
-Output:
-
-.. image:: static/survey_show_flow.png
-   :alt: Survey Flow Diagram
-   :align: left
-
-
 Stop rules
 ^^^^^^^^^^
 
@@ -311,7 +331,6 @@ Output:
      - None
 
 
-
 Other rules
 ^^^^^^^^^^^
 
@@ -347,6 +366,198 @@ We can see that both q2 and q3 were skipped but q4 was administered (and the res
      - None
      - None
      - 0
+
+
+Follow-up questions
+^^^^^^^^^^^^^^^^^^^
+
+The `add_followup_questions()` method provides syntactical sugar for creating conditional follow-up questions based on multiple choice or checkbox question options.
+This eliminates the need to manually create and wire up separate follow-up questions for each option - a common pattern in survey design.
+
+The method automatically:
+
+1. Creates one follow-up question per option in the reference question
+2. Substitutes template variables with actual option text
+3. Adds skip logic so each follow-up only appears for its corresponding answer
+4. Maintains proper survey flow
+
+**Syntax:**
+
+.. code-block:: python
+
+   survey.add_followup_questions(reference_question, followup_template, answer_template_var="answer")
+
+
+**Parameters:**
+
+* `reference_question` - The question with options (MultipleChoice or CheckBox). Can be a question object or question name string.
+* `followup_template` - A template question where `{{ reference_name.answer }}` will be replaced with each option.
+* `answer_template_var` - Optional. The variable name to replace (default: "answer").
+
+**Example:**
+
+Here we create follow-up questions for each restaurant option:
+
+.. code-block:: python
+
+   from edsl import QuestionMultipleChoice, QuestionFreeText, Survey
+
+   q_restaurants = QuestionMultipleChoice(
+       question_name="restaurants",
+       question_text="Which restaurant do you prefer?",
+       question_options=["Italian", "Chinese", "Mexican"]
+   )
+
+   q_followup = QuestionFreeText(
+       question_name="why_restaurant",
+       question_text="Why do you like {{ restaurants.answer }}?"
+   )
+
+   survey = Survey([q_restaurants]).add_followup_questions("restaurants", q_followup)
+
+
+This automatically creates 3 follow-up questions with proper skip logic:
+
+* `why_restaurant_restaurants_0`: "Why do you like Italian?" (shown only if "Italian" selected)
+* `why_restaurant_restaurants_1`: "Why do you like Chinese?" (shown only if "Chinese" selected)
+* `why_restaurant_restaurants_2`: "Why do you like Mexican?" (shown only if "Mexican" selected)
+
+The flow diagram below illustrates how the skip logic works:
+
+.. image:: static/followup_questions_flow.png
+   :alt: Follow-up Questions Flow Diagram
+   :width: 65%
+   :align: center
+
+When a respondent selects "Italian", only the Italian follow-up is shown (the blue path).
+The colored arcs represent skip conditions that automatically route respondents to the appropriate follow-up question.
+
+**With additional questions:**
+
+You can insert follow-ups in the middle of a survey:
+
+.. code-block:: python
+
+   q_final = QuestionFreeText(
+       question_name="overall_feedback",
+       question_text="Any other comments?"
+   )
+
+   survey = Survey([q_restaurants, q_final]).add_followup_questions("restaurants", q_followup)
+
+
+The follow-ups will be inserted after `q_restaurants` and before `q_final`, maintaining proper flow.
+
+**Comparison with manual approach:**
+
+Before `add_followup_questions()`, you would need to manually:
+
+.. code-block:: python
+
+   # Create separate questions for each option
+   q_italian = QuestionFreeText(
+       question_name="why_italian",
+       question_text="Why do you like Italian?"
+   )
+
+   q_chinese = QuestionFreeText(
+       question_name="why_chinese",
+       question_text="Why do you like Chinese?"
+   )
+
+   q_mexican = QuestionFreeText(
+       question_name="why_mexican",
+       question_text="Why do you like Mexican?"
+   )
+
+   # Add all questions
+   survey = Survey([q_restaurants, q_italian, q_chinese, q_mexican])
+
+   # Manually add skip logic for each (tedious!)
+   survey = (survey
+       .add_rule("why_italian", "{{ restaurants.answer }} != 'Italian'", "why_chinese", before_rule=True)
+       .add_rule("why_chinese", "{{ restaurants.answer }} != 'Chinese'", "why_mexican", before_rule=True)
+       .add_rule("why_mexican", "{{ restaurants.answer }} != 'Mexican'", EndOfSurvey, before_rule=True)
+   )
+
+
+With `add_followup_questions()`, this is reduced to a single method call!
+
+
+Show flow
+^^^^^^^^^
+
+We can call the `show_flow()` method to display a graphic of the flow of the survey, and verify how any rules were applied.
+For example, here we show the flow of the survey above with the skip rule applied:
+
+.. code-block:: python
+
+   survey = Survey(questions = [q1, q2, q3, q4])
+
+   survey = survey.add_skip_rule(q2, "consume_local_news == 'Never'")
+
+   survey.show_flow()
+
+
+Output:
+
+.. image:: static/show_flow.png
+   :alt: Survey Flow Diagram with Skip Rule
+   :width: 75%
+
+
+If we add agent or scenario details to the survey questions, the flow diagram will also show this information.
+Here we modify the survey questions from above to include an agent trait:
+
+.. code-block:: python
+
+   from edsl import QuestionMultipleChoice, QuestionCheckBox, QuestionLinearScale, QuestionNumerical, Survey, Agent
+
+   agent = Agent(traits = {
+      "nickname": "Robin",
+      "persona": "You are a teenager who hates reading."
+   })
+
+   # Adding the nickname to the question texts
+   q1 = QuestionMultipleChoice(
+      question_name = "consume_local_news",
+      question_text = "Hey {{ agent.nickname }}, how often do you consume local news?",
+      question_options = ["Daily", "Weekly", "Monthly", "Never"]
+   )
+
+   q2 = QuestionCheckBox(
+      question_name = "sources",
+      question_text = "{{ agent.nickname }}, what are your most common sources of local news? (Select all that apply)",
+      question_options = ["Television", "Newspaper", "Online news websites", "Social Media", "Radio", "Other"]
+   )
+
+   q3 = QuestionLinearScale(
+      question_name = "rate_coverage",
+      question_text = "{{ agent.nickname }}, on a scale of 1 to 10, how would you rate the quality of local news coverage in your area?",
+      question_options = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      option_labels = {1: "Very poor", 10: "Excellent"}
+   )
+
+   q4 = QuestionNumerical(
+      question_name = "minutes_reading",
+      question_text = "{{ agent.nickname }}, on average, how many minutes do you spend consuming local news each day?",
+      min_value = 0, # optional
+      max_value = 1440 # optional
+   )
+
+   survey = Survey(questions = [q1, q2, q3, q4]).add_stop_rule(q1, "consume_local_news == 'Never'")
+
+   job = survey.by(agent)
+
+   job.show_flow()
+
+
+Output:
+
+.. image:: static/show_flow_agent.png
+   :alt: Survey Flow Diagram with Agent Information
+   :width: 75%
+
 
 
 Conditional expressions
@@ -465,6 +676,84 @@ Output:
      - Green
 
 
+Piping with additional options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In addition to piping answer lists directly as `question_options`, you can use a dict format to pipe options while adding additional static options.
+This is useful when you want to include piped options plus additional choices like "None of the above" or "Other".
+
+The dict format uses two keys:
+
+* `"from"` - A template string referencing the piped options (e.g., `"{{ q1.answer }}"`)
+* `"add"` - A list of additional static options to append
+
+For example:
+
+.. code-block:: python
+
+   from edsl import QuestionList, QuestionMultipleChoice, Survey, Agent
+
+   q1 = QuestionList(
+      question_name = "colors",
+      question_text = "What are your 3 favorite colors?",
+      max_list_items = 3
+   )
+
+   # Use dict format to pipe options from q1 AND add additional options
+   q2 = QuestionMultipleChoice(
+      question_name = "top_choice",
+      question_text = "Which is your #1 favorite color?",
+      question_options = {
+         "from": "{{ colors.answer }}",
+         "add": ["None of the above", "Other"]
+      }
+   )
+
+   survey = Survey([q1, q2])
+
+   agent = Agent(traits = {"persona": "You are a botanist."})
+
+   results = survey.by(agent).run()
+
+   results.select("colors", "top_choice")
+
+
+In this example, q2 will have the three colors from q1's answer, plus "None of the above" and "Other" as additional options.
+
+Output:
+
+.. list-table::
+   :header-rows: 1
+
+   * - answer.colors
+     - answer.top_choice
+   * - ['Green', 'Brown', 'Yellow']
+     - Green
+
+
+The dict format also works when piping from scenario data:
+
+.. code-block:: python
+
+   from edsl import Scenario, QuestionMultipleChoice
+
+   scenario = Scenario({"available_colors": ["Red", "Blue", "Green"]})
+
+   q = QuestionMultipleChoice(
+      question_name = "favorite_color",
+      question_text = "What's your favorite color?",
+      question_options = {
+         "from": "{{ scenario.available_colors }}",
+         "add": ["Other", "Prefer not to say"]
+      }
+   )
+
+   results = q.by(scenario).run()
+
+
+Agent traits
+^^^^^^^^^^^^
+
 This can also be done with agent traits. For example:
 
 .. code-block:: python
@@ -474,12 +763,12 @@ This can also be done with agent traits. For example:
    a = Agent(traits = {'first_name': 'John'})
 
    q = QuestionFreeText(
-      question_text = 'What is your last name, {{ agent.first_name }}?', 
+      question_text = 'What is your last name, {{ agent.first_name }}?',
       question_name = "last_name"
    )
 
    job = q.by(a)
-   
+
    job.prompts().select('user_prompt')
 
 
@@ -957,9 +1246,8 @@ To learn more about these methods and calculations, please see the :ref:`credits
 Survey class
 ------------
 
-.. automodule:: edsl.surveys.Survey
+.. autoclass:: edsl.surveys.Survey
    :members: 
    :undoc-members:
    :show-inheritance:
    :special-members: __init__
-   :exclude-members:

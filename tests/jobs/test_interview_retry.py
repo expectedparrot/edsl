@@ -1,11 +1,10 @@
-import pytest
 import asyncio
 
-from edsl.agents.Agent import Agent
-from edsl.surveys.Survey import Survey
-from edsl.scenarios.Scenario import Scenario
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-from edsl.jobs.interviews.Interview import Interview
+from edsl.agents import Agent
+from edsl.surveys import Survey
+from edsl.scenarios import Scenario
+from edsl.questions import QuestionMultipleChoice
+from edsl.interviews import Interview
 
 
 def test_retry():
@@ -26,7 +25,7 @@ def test_retry():
         question_name="q2",
     )
     s = Survey(questions=[q0, q1, q2])
-    s = s.add_rule(q0, "q0 == 'yes'", q2)
+    s = s.add_rule(q0, "{{ q0.answer }} == 'yes'", q2)
 
     # create an interview
     a = Agent(traits=None)

@@ -1,5 +1,5 @@
-from edsl import Agent, AgentList
-from edsl.conversation.Conversation import Conversation, ConversationList
+from .. import Agent, AgentList, QuestionYesNo, QuestionNumerical
+from .Conversation import Conversation, ConversationList
 
 
 def bargaining_pairs(alice_valuation, bob_valuation):
@@ -43,12 +43,6 @@ results.select("conversation_index", "index", "agent_name", "dialogue").print(
     format="rich"
 )
 
-from edsl import (
-    QuestionFreeText,
-    QuestionMultipleChoice,
-    QuestionYesNo,
-    QuestionNumerical,
-)
 
 q_deal = QuestionYesNo(
     question_text="""This was a negotiation: {{ transcript }}. 

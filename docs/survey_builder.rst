@@ -3,15 +3,18 @@
 Survey Builder
 ==============
 
-*Interested in testing new features for Survey Builder?*
-*Send us a message at info@expectedparrot.com and we will enable beta features and add credits to your account!*
-
-
 Overview
 --------
 
-Survey Builder is a user-friendly, no-code application for launching surveys and gathering responses from both human respondents and AI agents. 
-It is fully integrated with EDSL and available at your Coop account, allowing you to seamlessly design questions and agents, and analyze, visualize and share your results.
+Survey Builder is a user-friendly, no-code application for launching surveys and gathering responses from AI agents and human respondents. 
+It is fully integrated with EDSL and available at your account, allowing you to seamlessly design questions and agents, and analyze, visualize and share your results.
+
+A clickable demo of the survey builder is available `here <https://www.expectedparrot.com/getting-started/build>`_.
+
+*If you are looking for information about Polly, a chat application for interacting with AI agents, please see the* :ref:`polly` *page.*
+
+*If you are looking for information about EDSL code methods for launching surveys with human respondents, please see the* :ref:`humanize` *and* :ref:`prolific` *pages.*
+*For information about building and launching surveys interactively, see the sections below.*
 
 
 Features
@@ -19,7 +22,7 @@ Features
 
 - **Survey creation**: Build customized surveys using a wide range of question types, including multiple choice, free text, linear scale, matrix, numerical and more.
 - **AI agent design**: Create and configure AI agent personas to respond to your questions. 
-- **Dynamic data integration**: Import data from Coop and other sources to dynamically parameterize your surveys.
+- **Dynamic data integration**: Import data to dynamically parameterize your surveys.
 - **Seamless deployment**: Easily launch surveys with both human and AI respondents.
 - **Results analysis**: Leverage built-in tools to visualize and analyze responses, combining human and AI data for greater insights.
 - **Team collaboration**: Share surveys, agents, results and projects with your team with tools for streamlined sharing and collaboration.
@@ -28,63 +31,49 @@ Features
 Getting started 
 ---------------
 
-1. Log into your Coop account
-    Sign in or create an account `here <https://www.expectedparrot.com/login>`_.
+1. Log into your account
+    Sign in or `create an account <https://www.expectedparrot.com/login>`_.
 
 2. Create a survey
-    Navigate to the *Create* page and choose whether to create a new survey or create a project using an existing survey at Coop. 
-    Access features for creating and modifying questions, adding survey logic, designing AI agents and sharing your web-based survey.
-    
-    See videos below for a quick overview of the survey creation process.
+    Choose whether to edit or import an existing survey, auto-generate a survey,or build a new survey.
 
-3. Analyze results
-    View and analyze survey responses in real-time, and export data for further analysis.
+3. Design AI agents
+    Choose whether to edit saved agents, import data to create new agents, auto-generate agents for a survey, or build new agents.
+
+4. Run the survey
+    Select models to run your survey and view responses at your dashboard.
+
+5. Gather human responses
+    Generate a web-based version of your survey and share it with human respondents, or launch a study with Prolific participants.
+
+6. Analyze results
+    View and analyze survey responses at your account, and export data for further analysis.
 
 
 
 Create a survey
 ^^^^^^^^^^^^^^^
 
-Log into your Coop account and navigate to the "Create" page to start building your survey.
-Select "Create new survey" to design a survey from scratch or "Create project" to use an existing survey as a template for a new project.
-Add questions, configure survey logic, design AI agents and share your survey with your target audience.
-
-.. raw:: html
-
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/Ed4gRNPqlGE" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
-    <br><br>
+`Log in <https://www.expectedparrot.com/login>`_ to your account and select options to create a `survey <https://www.expectedparrot.com/create/survey>`_ and `agents <https://www.expectedparrot.com/create/agent-list>`_.
+Choose whether to build a survey and agents from scratch, import data, or select and edit saved content.
 
 
-Human responses
+Launch a survey
 ^^^^^^^^^^^^^^^
 
-Select "Survey preview" to test your survey and see how it will look to respondents.
-Share the URL for the web-based survey with your target audience to collect responses.
-Recorded responses will be displayed in the "Human responses" tab, where you can view and analyze them in real-time.
+Selecting the option to *Run survey* creates a new project at your account dashboard, where you can run the survey with AI agents and human respondents.
+You can also create a new project by selecting *Create project* at your dashboard and choosing a saved survey and agents to use with the project.
 
-.. raw:: html
-
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/-rnRPjxqCKk" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
-    <br><br>
+Your new project page has options for generating a shareable web version of the survey, running the survey with AI agents, and launching Prolific studies with human participants.
+AI and human responses will automatically appear at your dashboard where you can compare and export them.
 
 
-Agent responses 
+Analyze results
 ^^^^^^^^^^^^^^^
 
-Create AI agents to respond to your survey questions.
-Navigate to your survey "Jobs" tab and select "Run with agents" to see options for running the survey with AI agents.
-Recorded responses will be displayed in the "Agent responses" tab, where you can view and analyze them in real-time.
-
-.. raw:: html
-
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/U8AoQydWR-0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
-    <br><br><br>
+Once you have collected responses from AI agents and human respondents, you can analyze the results at your account dashboard or in EDSL code at your workspace.
+See the :ref:`humanize` and :ref:`prolific` sections for more details about working with human responses in EDSL code.
+You can also export results in CSV format for further analysis in your preferred tools.
 
 
-Questions
----------
-
-Post a message at the `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_ or send an email to info@expectedparrot.com if you have any questions about using Survey Builder.
+*Please let us know if you have any questions or suggestions for improving the survey builder!*

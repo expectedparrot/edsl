@@ -1,0 +1,1982 @@
+---
+title: Surveys
+description: "A Survey is collection of [Questions](/en/latest/questions) that can be administered to one or more AI [Agents](/en/latest/agents) and [Language Models](/en/latest/language_models) at once. Survey questions can be administered asynchronously (by default), or according to rules such as skip and stop logic, and with or without context of other questions in a survey."
+---
+
+Surveys can be used to collect data, generate content or perform other tasks. The results of a survey are stored in a Results object, which can be used to analyze the responses and other components of the survey. By default, the results object also has a cache of the responses that can be reused, which are also added to your local cache or the remote cache if you are running a survey remotely. Learn more about built-in methods for working with Results objects in the [Results](/en/latest/results) section and caching responses in the sections on data and [Remote Caching](/en/latest/remote_caching).
+
+## Key steps
+
+The key steps to creating and conducting a survey are:
+
+<Steps>
+<Step>
+    Create Questions of various types (multiple choice, checkbox, free text, numerical, linear scale, etc.) and combine them in a Survey to administer them together.
+</Step>
+<Step>
+    *Optional:* Add rules to skip, stop or administer questions based on conditional logic, or pipe context of questions and answers into other questions.
+</Step>
+<Step>
+    *Optional:* Design personas for AI Agents to answer the questions.
+</Step>
+<Step>
+    Send the survey to language Models of your choice to generate the responses.
+</Step>
+</Steps>
+
+Sending a survey to a language model generates a dataset of Results that includes the responses and other components of the survey. Results can be analyzed and visualized using [built-in methods](/en/latest/results) of the Results object.
+
+## Key methods
+
+A survey is administered by calling the run() method on the Survey object, after adding any agents, scenarios and models with the by() method, and any rules or memory with the appropriate methods (see examples of each below):
+
+- add_skip_rule() - Skip a question based on a conditional expression (e.g., based on a response to another question).
+- add_stop_rule() - End the survey based on a conditional expression.
+- add_rule() - Administer a specified question next based on a conditional expression.
+- set_full_memory_mode() - Include a memory of all prior questions/answers at each new question in the survey.
+- set_lagged_memory() - Include a memory of a specified number of prior questions/answers at each new question in the survey.
+- add_targeted_memory() - Include a memory of a particular question/answer at another question in the survey.
+- add_memory_collection() - Include memories of a set of prior questions/answers at another question in the survey.
+
+Before running a survey, you can also estimate the cost of running it with the estimate_job_cost() method of a Job object (a survey combined with one or more models). The show_prompts(), show_rules() and show_flow() methods can be used to analyze the structure of a survey and the rules that have been applied to it:
+
+- show_prompts() - Display the user and system prompts for each question in a survey. This is a companion method to the prompts() method of a Job object, which returns a dataset containing the prompts together with information about each question, scenario, agent, model and estimated cost.
+- show_rules() - Display a table of the conditional rules that have been applied to a survey.
+- show_flow() - Display a graphic of the flow of a survey, showing the order of questions and any rules that have been applied, and any scenarios and/or agent information that has been added.
+
+When you run a survey you can choose to run it remotely at the Expected Parrot server or locally on your own machine. When you run a job remotely you automatically have access to a universal remote cache of stored responses. This allows you to reuse responses from prior jobs, which can save time and resources (cached responses are retrieved for free). Learn more in the [Remote Inference](/en/latest/remote_inference) and [Remote Caching](/en/latest/remote_caching) sections.
+
+You can also choose to run a remote survey in the background by passing the background=True parameter to the run() method. This allows you to continue working (or stop working) while your job completes. You can check progress at the progress bar page or by calling the fetch() method at any time.
+
+### Piping
+
+You can pipe individual components of questions into other questions, such as inserting the answer to a question in the question text of another question. This is done by using the \{\{ question_name.answer \}\} syntax in the text of a question, and is useful for creating dynamic surveys that reference prior answers.
+
+Note that this method is different from memory rules, which automatically inlude the full context of a specified question at a new question in the survey: *“Before the question you are now answering, you already answered the following question(s): Question: \<question_text\> Answer: \<answer\>”*. See examples below.
+
+## Constructing a survey
+
+In the examples below we construct a simple survey of questions, and then demonstrate how to run it with various rules and memory options, how to add AI agents and language models, and how to analyze the results.
+
+### Defining questions
+
+Questions can be defined as various types, including multiple choice, checkbox, free text, linear scale, numerical and other types. The formats are defined in the [Questions](/en/latest/questions) module. Here we define some questions by importing question types and creating instances of them:
+
+```python expandable
+from edsl import QuestionMultipleChoice, QuestionCheckBox, QuestionLinearScale, QuestionNumerical
+
+q1 = QuestionMultipleChoice(
+   question_name = "consume_local_news",
+   question_text = "How often do you consume local news?",
+   question_options = ["Daily", "Weekly", "Monthly", "Never"]
+)
+
+q2 = QuestionCheckBox(
+   question_name = "sources",
+   question_text = "What are your most common sources of local news? (Select all that apply)",
+   question_options = ["Television", "Newspaper", "Online news websites", "Social Media", "Radio", "Other"]
+)
+
+q3 = QuestionLinearScale(
+   question_name = "rate_coverage",
+   question_text = "On a scale of 1 to 10, how would you rate the quality of local news coverage in your area?",
+   question_options = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+   option_labels = {1: "Very poor", 10: "Excellent"}
+)
+
+q4 = QuestionNumerical(
+   question_name = "minutes_reading",
+   question_text = "On average, how many minutes do you spend consuming local news each day?",
+   min_value = 0, # optional
+   max_value = 1440 # optional
+)
+```
+
+### Adding questions to a survey
+
+Questions are passed to a Survey object as a list of question ids:
+
+```python
+from edsl import Survey
+
+survey = Survey(questions = [q1, q2, q3, q4])
+```
+
+Alternatively, questions can be added to a survey one at a time:
+
+```python
+from edsl import Survey
+
+survey = Survey().add_question(q1).add_question(q2).add_question(q3).add_question(q4)
+```
+
+### Randomizing question options
+
+If your survey includes multiple choice or checkbox questions, you can randomize the order of the options by passing a list of the question names to the questions_to_randomize parameter of the question constructor. For example, here we randomize the order of the options for q1 and q2:
+
+```python
+from edsl import Survey
+
+survey = Survey(questions = [q1, q2, q3, q4],
+                questions_to_randomize=["consume_local_news", "sources"])
+```
+
+This will randomize the order of the options for both questions when they are administered.
+
+## Running a survey
+
+Once constructed, a survey can be administered by calling the run() method. If question [Scenarios](/en/latest/scenarios), [Agents](/en/latest/agents) or [Language Models](/en/latest/language_models) have been specified, they are added to the survey with the by method when running it. (If no language model is specified, the survey will be run with the default model, which can be inspected by running Model().)
+
+For example, here we run the survey with a simple agent persona and specify that GPT-4o should be used. Note that the agent and model can be added in either order, so long as each type of component is added at once (e.g., if using multiple agents or models, pass them as a list to the by() method):
+
+```python
+from edsl import Agent, Model
+
+agent = Agent(traits = {"persona": "You are a teenager who hates reading."})
+
+model = Model("gpt-4o")
+
+results = survey.by(agent).by(model).run()
+```
+
+## Job status information
+
+When you run a survey, you will see a table of information about the job status. When the job completes, you can access the Results object that is generated in your workspace and at your account (if the survey is run remotely). You can specify the visibility and description of the results when running a survey remotely by passing the remote_inference_results_visibility and remote_inference_description parameters to the run() method, and modify them at your account at any time.
+
+For example, results of the above survey can be viewed at the following page which has been made public: [https://www.expectedparrot.com/content/4cfcf0c6-6aff-4447-90cb-cd9e01111a28](https://www.expectedparrot.com/content/4cfcf0c6-6aff-4447-90cb-cd9e01111a28).
+
+### Progress Report
+
+While a job is running you can view updates in a Progress Report with details on questions completed, models used and any exceptions generated. If remote inference is activated, a link to a Progress Report will appear automatically in the job status table. If you are running a survey locally, you can pass run(progress_bar=True) to view a report locally.
+
+### Exceptions Report
+
+If any exceptions are generated you can view details about them in an Exceptions Report, which includes information about the questions, agents, scenarios and models that generated exceptions together with error messages and tracebacks. If remote inference is activated, a link to an Exceptions Report will appear automatically in the job status table. If you are running a survey locally, the report details will appear in your console.
+
+### Running jobs in the background
+
+If you are running a survey remotely, you can choose to run it in the background by passing the background=True parameter to the run() method:
+
+```python
+results = survey.by(agent).by(model).run(background=True)
+```
+
+This allows you to continue working (or stop working) while your job completes. You can check progress at any time at the progress bar page or by calling the fetch() method, which checks for the results every 1.0 seconds by default or a specified interval:
+
+```python
+results = survey.by(agent).by(model).run(background=True)
+
+# check progress every 5 seconds
+results.fetch(polling_interval = 5.0)
+```
+
+### Optional parameters
+
+There are optional parameters that can be passed to the run() method, including:
+
+- fresh=False - A boolean value to indicate whether to run the survey with fresh responses (default is False). Example: run(fresh=True) will generate fresh responses for each question.
+- n - The number of responses to generate for each question (default is 1). Example: run(n=5) will administer the same exact question (and scenario, if any) to an agent and model 5 times.
+- cache - A Cache object to use for caching responses (default is None). Example: run(cache=my_cache) will use the specified cache to store responses.
+- disable_remote_inference - A boolean value to indicate whether to run the survey locally while remote inference is activated (default is False). Example: run(disable_remote_inference=True).
+- remote_cache_description - A string value to describe the entries in the remote cache when the survey is run remotely. This description will be displayed on the Expected Parrot server and can be used to provide context for the survey. Example: run(remote_cache_description=”This is a survey about local news consumption.”).
+- remote_inference_description - A string value to describe the survey when it is run remotely. This description will be displayed on the Expected Parrot server and can be used to provide context for the survey. Example: run(remote_inference_description=”This is a survey about local news consumption.”).
+- remote_inference_results_visibility - A string value to indicate the visibility of the results on the Expected Parrot server, when a survey is being run remotely. Possible values are “public”, “unlisted” or “private” (default is “unlisted”). Visibility can also be modified at the Coop web app. Example: run(remote_inference_results_visibility=”public”).
+- progress_bar=True - This parameter can be used to view a Progress Report locally. A link to a Progress Report will automatically be provided when you run a survey remotely.
+- background=True - This parameter can be used to run a survey in the background, allowing you to continue working (or stop working) while your job completes.
+- polling_interval - This parameter can be used to specify the interval (in seconds) at which to check for results when running a survey in the background. The default is 1.0 seconds. Example: run(polling_interval=5.0) will check for results every 5 seconds.
+- verbose=True - A boolean value to indicate whether to enable verbose logging (including a table of information about the job that is running) (default is True). Example: run(verbose=False) will disable verbose logging.
+
+## Survey rules & logic
+
+Rules can be applied to a survey with the add_skip_rule(), add_stop_rule() and add_rule() methods, which take a logical expression and the relevant questions.
+
+### Skip rules
+
+The add_skip_rule() method skips a question if a condition is met. The (2) required parameters are the question to skip and the condition to evaluate.
+
+Here we use add_skip_rule() to skip q2 if the response to “consume_local_news” is “Never”. Note that we can refer to the question to be skipped using either the id (“q2”) or question_name (“consume_local_news”):
+
+```python
+from edsl import Survey
+
+survey = Survey(questions = [q1, q2, q3, q4])
+survey = survey.add_skip_rule(q2, "consume_local_news == 'Never'")
+```
+
+This is equivalent:
+
+```python
+from edsl import Survey
+
+survey = Survey(questions = [q1, q2, q3, q4])
+survey = survey.add_skip_rule("sources", "consume_local_news == 'Never'")
+```
+
+We can run the survey and verify that the rule was applied:
+
+```python
+results = survey.by(agent).by(model).run() # using the agent and model from the previous example
+results.select("consume_local_news", "sources", "rate_coverage", "minutes_reading")
+```
+
+This will print the answers, showing “None” for a skipped question (your own results for answers may vary):
+
+| answer.consume_local_news | answer.sources | answer.rate_coverage | answer.minutes_reading |
+| :--- | :--- | :--- | :--- |
+| Never | None | 4 | 0 |
+
+### Stop rules
+
+The add_stop_rule() method stops the survey if a condition is met. The (2) required parameters are the question to stop at and the condition to evaluate.
+
+Here we use add_stop_rule() to end the survey at q1 if the response is “Never” (note that we recreate the survey to demonstrate the stop rule alone):
+
+```python
+survey = Survey(questions = [q1, q2, q3, q4])
+survey = survey.add_stop_rule(q1, "consume_local_news == 'Never'")
+```
+
+This time we see that the survey ended when the response to “consume_local_news” was “Never”:
+
+```python
+results = survey.by(agent).run()
+results.select("consume_local_news", "sources", "rate_coverage", "minutes_reading")
+```
+
+Output:
+
+| answer.consume_local_news | answer.sources | answer.rate_coverage | answer.minutes_reading |
+| :--- | :--- | :--- | :--- |
+| Never | None | None | None |
+
+### Other rules
+
+The generalizable add_rule() method is used to specify the next question to administer based on a condition. The (3) required parameters are the question to evaluate, the condition to evaluate, and the question to administer next.
+
+Here we use add_rule() to specify that if the response to “color” is “Blue” then q4 should be administered next:
+
+```python
+survey = Survey(questions = [q1, q2, q3, q4])
+survey = survey.add_rule(q1, "consume_local_news == 'Never'", q4)
+```
+
+We can run the survey and verify that the rule was applied:
+
+```python
+results = survey.by(agent).run()
+results.select("consume_local_news", "sources", "rate_coverage", "minutes_reading")
+```
+
+We can see that both q2 and q3 were skipped but q4 was administered (and the response makes sense for the agent):
+
+| answer.consume_local_news | answer.sources | answer.rate_coverage | answer.minutes_reading |
+| :--- | :--- | :--- | :--- |
+| Never | None | None | 0 |
+
+### Show flow
+
+We can call the show_flow() method to display a graphic of the flow of the survey, and verify how any rules were applied. For example, here we show the flow of the survey above with the skip rule applied:
+
+```python
+survey = Survey(questions = [q1, q2, q3, q4])
+
+survey = survey.add_skip_rule(q2, "consume_local_news == 'Never'")
+
+survey.show_flow()
+```
+
+Output:
+
+<Frame>
+![Survey Flow Diagram with Skip Rule](/images/en/latest/surveys_1.png)
+</Frame>
+
+If we add agent or scenario details to the survey questions, the flow diagram will also show this information. Here we modify the survey questions from above to include an agent trait:
+
+```python expandable
+from edsl import QuestionMultipleChoice, QuestionCheckBox, QuestionLinearScale, QuestionNumerical, Survey, Agent
+
+agent = Agent(traits = {
+   "nickname": "Robin",
+   "persona": "You are a teenager who hates reading."
+})
+
+# Adding the nickname to the question texts
+q1 = QuestionMultipleChoice(
+   question_name = "consume_local_news",
+   question_text = "Hey {{ agent.nickname }}, how often do you consume local news?",
+   question_options = ["Daily", "Weekly", "Monthly", "Never"]
+)
+
+q2 = QuestionCheckBox(
+   question_name = "sources",
+   question_text = "{{ agent.nickname }}, what are your most common sources of local news? (Select all that apply)",
+   question_options = ["Television", "Newspaper", "Online news websites", "Social Media", "Radio", "Other"]
+)
+
+q3 = QuestionLinearScale(
+   question_name = "rate_coverage",
+   question_text = "{{ agent.nickname }}, on a scale of 1 to 10, how would you rate the quality of local news coverage in your area?",
+   question_options = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+   option_labels = {1: "Very poor", 10: "Excellent"}
+)
+
+q4 = QuestionNumerical(
+   question_name = "minutes_reading",
+   question_text = "{{ agent.nickname }}, on average, how many minutes do you spend consuming local news each day?",
+   min_value = 0, # optional
+   max_value = 1440 # optional
+)
+
+survey = Survey(questions = [q1, q2, q3, q4]).add_stop_rule(q1, "consume_local_news == 'Never'")
+
+job = survey.by(agent)
+
+job.show_flow()
+```
+
+Output:
+
+<Frame>
+![Survey Flow Diagram with Agent Information](/images/en/latest/surveys_2.png)
+</Frame>
+
+### Conditional expressions
+
+The rule expressions themselves (“consume_local_news == ‘Never’”) are written in Python. An expression is evaluated to True or False, with the answer substituted into the expression. The placeholder for this answer is the name of the question itself. In the examples, the answer to q1 is substituted into the expression “consume_local_news == ‘Never’”, as the name of q1 is “consume_local_news”.
+
+## Piping
+
+Piping is a method of explicitly referencing components of a question in a later question. For example, here we use the answer to q0 in the prompt for q1:
+
+```python expandable
+from edsl import QuestionFreeText, QuestionList, Survey, Agent
+
+q0 = QuestionFreeText(
+   question_name = "color",
+   question_text = "What is your favorite color?",
+)
+
+q1 = QuestionList(
+   question_name = "examples",
+   question_text = "Name some things that are {{ color.answer }}.",
+)
+
+survey = Survey([q0, q1])
+
+agent = Agent(traits = {"persona": "You are a botanist."})
+
+results = survey.by(agent).run()
+
+results.select("color", "examples")
+```
+
+In this example, q0 will be administered before q1 and the response to q0 is piped into q1. Output:
+
+| answer.color | answer.examples |
+| :--- | :--- |
+| As a botanist, I find myself drawn to the vibrant greens of nature. Green is a color that symbolizes growth, life, and the beauty of plants, which are central to my work and passion. | [‘Leaves’, ‘Grass’, ‘Ferns’, ‘Moss’, ‘Green algae’] |
+
+If an answer is a list, we can use the list as the question_options in another question, or index items individually. Here we demonstrate examples of both:
+
+```python expandable
+from edsl import QuestionList, QuestionFreeText, QuestionMultipleChoice, Survey, Agent
+
+q_colors = QuestionList(
+   question_name = "colors",
+   question_text = "What are your 3 favorite colors?",
+   max_list_items = 3
+)
+
+q_examples = QuestionFreeText(
+   question_name = "examples",
+   question_text = "Name some things that are {{ colors.answer }}",
+)
+
+q_favorite = QuestionMultipleChoice(
+   question_name = "favorite",
+   question_text = "Which is your #1 favorite color?",
+   question_options = [
+      "{{ colors.answer[0] }}",
+      "{{ colors.answer[1] }}",
+      "{{ colors.answer[2] }}",
+   ]
+)
+
+survey = Survey([q_colors, q_examples, q_favorite])
+
+agent = Agent(traits = {"persona": "You are a botanist."})
+
+results = survey.by(agent).run()
+
+results.select("colors", "examples", "favorite")
+```
+
+Output:
+
+| answer.colors | answer.examples | answer.favorite |
+| :--- | :--- | :--- |
+| ['Green', 'Brown', 'Yellow'] | Certainly! Here are some things that can be green, brown, or yellow: <br/> **Green:** 1. Leaves - Many plants have green leaves due to chlorophyll, which is essential for photosynthesis. 2. Grass - Typically green, especially when healthy and well-watered. 3. Green Apples - Varieties like Granny Smith are known for their green color. <br/> **Brown:** 1. Tree Bark - The outer layer of trees is often brown, providing protection. 2. Soil - Many types of soil appear brown, indicating organic matter. 3. Acorns - These seeds from oak trees are generally brown when mature. <br/> **Yellow:** 1. Sunflowers - Known for their bright yellow petals. 2. Bananas - Yellow when ripe and ready to eat. 3. Daffodils - These flowers are often a vibrant yellow, heralding spring. | Green |
+
+### Piping with additional options
+
+In addition to piping answer lists directly as `question_options`, you can use a dict format to pipe options while adding additional static options.
+This is useful when you want to include piped options plus additional choices like "None of the above" or "Other".
+
+The dict format uses two keys:
+
+* `"from"` - A template string referencing the piped options (e.g., `"{{ q1.answer }}"`)
+* `"add"` - A list of additional static options to append
+
+For example:
+
+```python expandable
+from edsl import QuestionList, QuestionMultipleChoice, Survey, Agent
+
+q1 = QuestionList(
+   question_name = "colors",
+   question_text = "What are your 3 favorite colors?",
+   max_list_items = 3
+)
+
+# Use dict format to pipe options from q1 AND add additional options
+q2 = QuestionMultipleChoice(
+   question_name = "top_choice",
+   question_text = "Which is your #1 favorite color?",
+   question_options = {
+      "from": "{{ colors.answer }}",
+      "add": ["None of the above", "Other"]
+   }
+)
+
+survey = Survey([q1, q2])
+
+agent = Agent(traits = {"persona": "You are a botanist."})
+
+results = survey.by(agent).run()
+
+results.select("colors", "top_choice")
+```
+
+In this example, q2 will have the three colors from q1's answer, plus "None of the above" and "Other" as additional options.
+
+Output:
+
+| answer.colors | answer.top_choice |
+| :--- | :--- |
+| ['Green', 'Brown', 'Yellow'] | Green |
+
+The dict format also works when piping from scenario data:
+
+```python
+from edsl import Scenario, QuestionMultipleChoice
+
+scenario = Scenario({"available_colors": ["Red", "Blue", "Green"]})
+
+q = QuestionMultipleChoice(
+   question_name = "favorite_color",
+   question_text = "What's your favorite color?",
+   question_options = {
+      "from": "{{ scenario.available_colors }}",
+      "add": ["Other", "Prefer not to say"]
+   }
+)
+
+results = q.by(scenario).run()
+```
+
+### Agent traits
+
+This can also be done with agent traits. For example:
+
+```python
+from edsl import Agent, QuestionFreeText
+
+a = Agent(traits = {'first_name': 'John'})
+
+q = QuestionFreeText(
+   question_text = 'What is your last name, {{ agent.first_name }}?',
+   question_name = "last_name"
+)
+
+job = q.by(a)
+
+job.prompts().select('user_prompt')
+```
+
+This code will output the text of the prompt for the question:
+
+```python
+What is your last name, John?
+```
+
+We can also show both system and user prompts together with information about the question, agent and model by calling the show_prompts() method:
+
+```python
+job.show_prompts()
+```
+
+Output:
+
+| user_prompt | system_prompt | interview_index | question_name | scenario_index | agent_index | model | estimated_cost |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| What is your last name, John? | You are answering questions as if you were a human. Do not break character. You are an agent with the following persona: \{‘first_name’: ‘John’\} | 0 | last_name | 0 | 0 | gpt-4o | 0.0005375 |
+
+## Question memory
+
+When an agent is taking a survey, they can be prompted to “remember” answers to previous questions. This can be done in several ways:
+
+### Full memory
+
+The method set_full_memory_mode() gives the agent all of the prior questions and answers at each new question in the survey, i.e., the first question and answer are included in the memory when answering the second question, both the first and second questions and answers are included in the memory when answering the third question, and so on. The method is called on the survey object:
+
+```python
+survey = Survey(questions = [q1, q2, q3, q4])
+survey = survey.set_full_memory_mode()
+```
+
+In the results, we can inspect the _user_prompt for each question to see that the agent was prompted to remember all of the prior questions:
+
+```python
+results = survey.by(agent).run()
+(
+   results
+   .select("consume_local_news_user_prompt", "sources_user_prompt", "rate_coverage_user_prompt", "minutes_reading_user_prompt")
+)
+```
+
+This will print the prompt that was used for each question, and we can see that each successive prompt references all prior questions and answers that were given:
+
+| prompt.consume_local_news_user_prompt | prompt.sources_user_prompt | prompt.rate_coverage_user_prompt | prompt.minutes_reading_user_prompt |
+| :--- | :--- | :--- | :--- |
+| How often do you consume local news? <br/> Daily Weekly Monthly Never <br/> Only 1 option may be selected. <br/> Respond only with a string corresponding to one of the options. <br/> After the answer, you can put a comment explaining why you chose that option on the next line. | What are your most common sources of local news? <br/> 0: Television <br/> 1: Newspaper <br/> 2: Online news websites <br/> 3: Social Media <br/> 4: Radio <br/> 5: Other <br/> Please respond only with a comma-separated list of the code of the options that apply, with square brackets. E.g., [0, 1, 3] <br/> After the answer, you can put a comment explaining your choice on the next line. | On a scale of 1 to 10, how would you rate the quality of local news coverage in your area? <br/> 1 : Very poor <br/> 10 : Excellent <br/> Only 1 option may be selected. <br/> Respond only with the code corresponding to one of the options. E.g., “1” or “10” by itself. <br/> After the answer, you can put a comment explaining why you chose that option on the next line. | On average, how many minutes do you spend consuming local news each day? <br/> Minimum answer value: 0 <br/> Maximum answer value: 1440 <br/> This question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, …). <br/> Respond with just your number on a single line. <br/> If your response is equivalent to zero, report ‘0’. <br/> After the answer, put a comment explaining your choice on the next line. |
+
+Note that this is slow and token-intensive, as the questions must be answered serially and requires the agent to remember all of the answers to the questions in the survey. In contrast, if the agent does not need to remember all of the answers to the questions in the survey, execution can proceed in parallel.
+
+### Lagged memory
+
+The method set_lagged_memory() gives the agent a specified number of prior questions and answers at each new question in the survey; we pass it the number of prior questions and answers to remember. Here we use it to give the agent just 1 prior question/answer at each question:
+
+```python
+survey = Survey(questions = [q1, q2, q3, q4])
+survey = survey.set_lagged_memory(1)
+```
+
+We can inspect each _user_prompt again and see that the agent is only prompted to remember the last prior question/answer:
+
+```python
+results = survey.by(agent).run()
+
+(
+   results
+   .select("consume_local_news_user_prompt", "sources_user_prompt", "rate_coverage_user_prompt", "minutes_reading_user_prompt")
+)
+```
+
+This will print the prompts for each question:
+
+| prompt.consume_local_news_user_prompt | prompt.sources_user_prompt | prompt.rate_coverage_user_prompt | prompt.minutes_reading_user_prompt |
+| :--- | :--- | :--- | :--- |
+| How often do you consume local news? <br/> Daily Weekly Monthly Never <br/> Only 1 option may be selected. <br/> Respond only with a string corresponding to one of the options. <br/> After the answer, you can put a comment explaining why you chose that option on the next line. | What are your most common sources of local news? <br/> 0: Television <br/> 1: Newspaper <br/> 2: Online news websites <br/> 3: Social Media <br/> 4: Radio <br/> 5: Other <br/> Please respond only with a comma-separated list of the code of the options that apply, with square brackets (e.g., [0, 1, 3]). <br/> After the answer, you can put a comment explaining your choice on the next line. | On a scale of 1 to 10, how would you rate the quality of local news coverage in your area? <br/> 1 : Very poor <br/> 10 : Excellent <br/> Only 1 option may be selected. <br/> Respond only with the code corresponding to one of the options (e.g., “1” or “10”). <br/> After the answer, you can put a comment explaining why you chose that option on the next line. | On average, how many minutes do you spend consuming local news each day? <br/> Minimum answer value: 0 <br/> Maximum answer value: 1440 <br/> This question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, …). <br/> Respond with just your number on a single line. <br/> If your response is equivalent to zero, report ‘0’. <br/> After the answer, put a comment explaining your choice on the next line. |
+
+### Targeted memory
+
+The method add_targeted_memory() gives the agent a targeted prior question and answer when answering another specified question. We pass it the question to answer and the prior question/answer to remember when answering it. Here we use it to give the agent the question/answer to q1 when prompting it to answer q4:
+
+```python
+survey = Survey(questions = [q1, q2, q3, q4])
+survey = survey.add_targeted_memory(q4, q1)
+
+results = survey.by(agent).run()
+
+(
+   results
+   .select("consume_local_news_user_prompt", "sources_user_prompt", "rate_coverage_user_prompt", "minutes_reading_user_prompt")
+)
+```
+
+Output:
+
+| prompt.consume_local_news_user_prompt | prompt.sources_user_prompt | prompt.rate_coverage_user_prompt | prompt.minutes_reading_user_prompt |
+| :--- | :--- | :--- | :--- |
+| How often do you consume local news? <br/> Daily Weekly Monthly Never <br/> Only 1 option may be selected. <br/> Respond only with a string corresponding to one of the options. <br/> After the answer, you can put a comment explaining why you chose that option on the next line. | What are your most common sources of local news? <br/> 0: Television <br/> 1: Newspaper <br/> 2: Online news websites <br/> 3: Social Media <br/> 4: Radio <br/> 5: Other <br/> Please respond only with a comma-separated list of the code of the options that apply, with square brackets (e.g., [0, 1, 3]). <br/> After the answer, you can put a comment explaining your choice on the next line. | On a scale of 1 to 10, how would you rate the quality of local news coverage in your area? <br/> 1 : Very poor <br/> 10 : Excellent <br/> Only 1 option may be selected. <br/> Respond only with the code corresponding to one of the options (e.g., “1” or “10”). <br/> After the answer, you can put a comment explaining why you chose that option on the next line. | On average, how many minutes do you spend consuming local news each day? <br/> Minimum answer value: 0 <br/> Maximum answer value: 1440 <br/> This question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, …). <br/> Respond with just your number on a single line. <br/> If your response is equivalent to zero, report ‘0’. <br/> After the answer, put a comment explaining your choice on the next line. |
+
+### Memory collection
+
+The add_memory_collection() method is used to add sets of prior questions and answers to a given question. We pass it the question to be answered and the list of questions/answers to be remembered when answering it. For example, we can add the questions/answers for both q1 and q2 when prompting the agent to answer q4:
+
+```python
+survey = Survey(questions = [q1, q2, q3, q4])
+survey = survey.add_memory_collection(q4, [q1, q2])
+
+results = survey.by(agent).run()
+
+(
+   results
+   .select("consume_local_news_user_prompt", "sources_user_prompt", "rate_coverage_user_prompt", "minutes_reading_user_prompt")
+)
+```
+
+Output:
+
+| prompt.consume_local_news_user_prompt | prompt.sources_user_prompt | prompt.rate_coverage_user_prompt | prompt.minutes_reading_user_prompt |
+| :--- | :--- | :--- | :--- |
+| How often do you consume local news? <br/> Daily Weekly Monthly Never <br/> Only 1 option may be selected. <br/> Respond only with a string corresponding to one of the options. <br/> After the answer, you can put a comment explaining why you chose that option on the next line. | What are your most common sources of local news? <br/> 0: Television <br/> 1: Newspaper <br/> 2: Online news websites <br/> 3: Social Media <br/> 4: Radio <br/> 5: Other <br/> Please respond only with a comma-separated list of the code of the options that apply, with square brackets (e.g., [0, 1, 3]). <br/> After the answer, you can put a comment explaining your choice on the next line. | On a scale of 1 to 10, how would you rate the quality of local news coverage in your area? <br/> 1 : Very poor <br/> 10 : Excellent <br/> Only 1 option may be selected. <br/> Respond only with the code corresponding to one of the options (e.g., “1” or “10”). <br/> After the answer, you can put a comment explaining why you chose that option on the next line. | On average, how many minutes do you spend consuming local news each day? <br/> Minimum answer value: 0 <br/> Maximum answer value: 1440 <br/> This question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, …). <br/> Respond with just your number on a single line. <br/> If your response is equivalent to zero, report ‘0’. <br/> After the answer, put a comment explaining your choice on the next line. |
+
+## Costs
+
+Before running a survey, you can estimate the cost of running the survey in USD and the number of credits needed to run it remotely at the Expected Parrot server. After running a survey, you can see details on the actual cost of each response in the results. The costs are calculated based on the estimated and actual number of tokens used in the survey and the model(s) used to generate the prompts.
+
+### Estimated costs
+
+Before running a survey, you can estimate the cost in USD of running the survey by calling the estimate_job_cost() method on a Job object (a survey combined with one or more models). This method returns a dictionary with the estimated costs and tokens for each model used with the survey. You can also estimate credits needed to run a survey remotely at the Expected Parrot server by passing the job to the remote_inference_cost() method of a Coop client object.
+
+Example:
+
+```python
+from edsl import QuestionFreeText, Survey, Agent, Model
+
+q0 = QuestionFreeText(
+    question_name = "favorite_flower",
+    question_text = "What is the name of your favorite flower?"
+)
+q1 = QuestionFreeText(
+    question_name = "flower_color",
+    question_text = "What color is {{ favorite_flower.answer }}?"
+)
+
+survey = Survey(questions = [q0, q1])
+
+a = Agent(traits = {"persona":"You are a botanist on Cape Cod."})
+
+m = Model("gpt-4o")
+
+job = survey.by(a).by(m)
+
+estimated_job_cost = job.estimate_job_cost()
+estimated_job_cost
+```
+
+Output:
+
+```json
+{'estimated_total_cost_usd': 0.0008625000000000001,
+'estimated_total_input_tokens': 85,
+'estimated_total_output_tokens': 65,
+'model_costs': [{'inference_service': 'openai',
+   'model': 'gpt-4o',
+   'estimated_cost_usd': 0.0008625000000000001,
+   'estimated_input_tokens': 85,
+   'estimated_output_tokens': 65}]}
+```
+
+To get the estimated cost in credits to run the job remotely:
+
+```python
+from edsl import Coop
+
+coop = Coop()
+
+estimated_remote_inference_cost = coop.remote_inference_cost(job) # using the job object from above
+estimated_remote_inference_cost
+```
+
+Output:
+
+```json
+{'credits': 0.09, 'usd': 0.0008650000000000001}
+```
+
+Details of the calculations for these methods can be found in the credits section.
+
+### Actual costs
+
+The actual costs of running a survey are stored in the survey results. Details about the cost of each response can be accessed in the raw_model_response fields of the results dataset. For each question that was run, the following columns will appear in results:
+
+- **raw_model_response.\<question_name>_cost**: The cost in USD for the API call to a language model service provider.
+- **raw_model_response.\<question_name>_one_usd_buys**: The number of tokens that can be purchased with 1 USD (for reference).
+- **raw_model_response.\<question_name>_raw_model_response**: A dictionary containing the raw response for the question, which includes the input text and tokens, output text and tokens, and other information about the API call. This dictionary is specific to the language model service provider and may contain additional information about the response.
+
+The cost in credits of a response is calculated as follows:
+
+- The number of input tokens is multiplied by the input token rate set by the language model service provider.
+- The number of output tokens is multiplied by the output token rate set by the language model service provider.
+- The total cost in USD is converted to credits (1 USD = 100 credits).
+- The total cost in credits is rounded up to the nearest 1/100th of a credit.
+
+To learn more about these methods and calculations, please see the credits section.
+
+## Survey class
+
+> ### *class* edsl.surveys.Survey(*questions: List['QuestionType'] | None = None*, *memory_plan: 'MemoryPlan' | None = None*, *rule_collection: 'RuleCollection' | None = None*, *question_groups: 'QuestionGroupType' | None = None*, *name: str | None = None*, *questions_to_randomize: List[str] | None = None*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Bases: [`Base`](/en/latest/base#base-class "edsl.base.base_class.Base")
+
+A collection of questions with logic for navigating between them.
+
+Survey is the main class for creating, modifying, and running surveys. It supports:
+
+- Skip logic: conditional navigation between questions based on previous answers
+- Memory: controlling which previous answers are visible to agents
+- Question grouping: organizing questions into logical sections
+- Randomization: randomly ordering certain questions to reduce bias
+- Instructions: adding non-question elements to guide respondents
+
+A Survey instance can be used to: 1. Define a set of questions and their order 2. Add rules for navigating between questions 3. Run the survey with agents or humans 4. Export the survey in various formats
+
+The survey maintains the order of questions, any skip logic rules, and handles serialization for storage or transmission.
+
+> #### __init__(*questions: List['QuestionType'] | None = None*, *memory_plan: 'MemoryPlan' | None = None*, *rule_collection: 'RuleCollection' | None = None*, *question_groups: 'QuestionGroupType' | None = None*, *name: str | None = None*, *questions_to_randomize: List[str] | None = None*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Initialize a new Survey instance.
+
+This constructor sets up a new survey with the provided questions and optional configuration for memory, rules, grouping, and randomization.
+
+> **Args:**
+
+**questions: A list of question objects to include in the survey.**
+
+Can include QuestionBase objects, Instructions, and ChangeInstructions.
+
+**memory_plan: Defines which previous questions and answers are available**
+
+when answering each question. If None, a default plan is created.
+
+**rule_collection: Contains rules for determining which question comes next**
+
+based on previous answers. If None, default sequential rules are created.
+
+question_groups: A dictionary mapping group names to (start_idx, end_idx)
+
+tuples that define groups of questions.
+
+name: DEPRECATED. The name of the survey. questions_to_randomize: A list of question names to randomize when the
+
+survey is drawn. This affects the order of options in these questions.
+
+Examples:
+
+Create a basic survey with three questions:
+
+```python
+>>> from edsl import QuestionFreeText
+>>> q1 = QuestionFreeText(question_text="What is your name?", question_name="name")
+>>> q2 = QuestionFreeText(question_text="What is your favorite color?", question_name="color")
+>>> q3 = QuestionFreeText(question_text="Is a hot dog a sandwich?", question_name="food")
+>>> s = Survey([q1, q2, q3])
+```
+
+Create a survey with question groups:
+
+```python
+>>> s = Survey([q1, q2, q3], question_groups={"demographics": (0, 1), "food_questions": (2, 2)})
+```
+
+> #### add_instruction(*instruction: Instruction | ChangeInstruction*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.survey.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Add an instruction to the survey.
+
+**Parameters:** **instruction** – The instruction to add to the survey.
+
+```python
+>>> from edsl import Instruction
+>>> i = Instruction(text="Pay attention to the following questions.", name="intro")
+>>> s = Survey().add_instruction(i)
+>>> s._instruction_names_to_instructions
+{'intro': Instruction(name="intro", text="Pay attention to the following questions.")}
+>>> s._pseudo_indices
+{'intro': -0.5}
+```
+
+> #### add_memory_collection(*focal_question: [QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.QuestionBase") | str*, *prior_questions: List[[QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.QuestionBase") | str]*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Configure the survey so a specific question has access to multiple prior questions.
+
+This method allows you to define memory relationships between specific questions. When an agent answers the focal_question, it will have access to all the questions and answers specified in prior_questions.
+
+> **Args:**
+
+**focal_question: The question for which to add memory, specified either as a**
+
+QuestionBase object or its question_name string.
+
+**prior_questions: A list of prior questions to remember, each specified either**
+
+as a QuestionBase object or its question_name string.
+
+> **Returns:**
+
+Survey: The modified survey instance (allows for method chaining).
+
+> **Examples:**
+
+When answering q2, remember the answers to both q0 and q1:
+
+```python
+>>> s = Survey.example().add_memory_collection("q2", ["q0", "q1"])
+>>> s.memory_plan
+{'q2': Memory(prior_questions=['q0', 'q1'])}
+```
+
+> #### add_question(*question: [QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.QuestionBase")*, *index: int | None = None*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Add a question to survey.
+
+**Parameters:**
+
+- **question** – The question to add to the survey.
+- **question_name** – The name of the question. If not provided, the question name is used.
+
+The question is appended at the end of the self.questions list A default rule is created that the next index is the next question.
+
+```python
+>>> from edsl import QuestionMultipleChoice
+>>> q = QuestionMultipleChoice(question_text = "Do you like school?", question_options=["yes", "no"], question_name="q0")
+>>> s = Survey().add_question(q)
+
+# Adding a question with a duplicate name would raise SurveyCreationError
+```
+
+> #### add_question_group(*start_question: [QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.QuestionBase") | str*, *end_question: [QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.QuestionBase") | str*, *group_name: str*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Create a logical group of questions within the survey.
+
+Question groups allow you to organize questions into meaningful sections, which can be useful for: - Analysis (analyzing responses by section) - Navigation (jumping between sections) - Presentation (displaying sections with headers)
+
+Groups are defined by a contiguous range of questions from start_question to end_question, inclusive. Groups cannot overlap with other groups.
+
+> **Args:**
+
+**start_question: The first question in the group, specified either as a**
+
+QuestionBase object or its question_name string.
+
+**end_question: The last question in the group, specified either as a**
+
+QuestionBase object or its question_name string.
+
+**group_name: A name for the group. Must be a valid Python identifier**
+
+and must not conflict with existing group or question names.
+
+> **Returns:**
+
+Survey: The modified survey instance (allows for method chaining).
+
+> **Raises:**
+
+SurveyCreationError: If the group name is invalid, already exists,
+
+conflicts with a question name, if start comes after end, or if the group overlaps with an existing group.
+
+> **Examples:**
+
+Create a group of questions for demographics:
+
+```python
+>>> s = Survey.example().add_question_group("q0", "q1", "group1")
+>>> s.question_groups
+{'group1': (0, 1)}
+```
+
+Group names must be valid Python identifiers:
+
+```python
+>>> from edsl.surveys.exceptions import SurveyCreationError
+>>> # Example showing invalid group name error
+>>> try:
+...     Survey.example().add_question_group("q0", "q2", "1group1")
+... except SurveyCreationError:
+...     print("Error: Invalid group name (as expected)")
+Error: Invalid group name (as expected)
+```
+
+Group names can’t conflict with question names:
+
+```python
+>>> # Example showing name conflict error
+>>> try:
+...     Survey.example().add_question_group("q0", "q1", "q0")
+... except SurveyCreationError:
+...     print("Error: Group name conflicts with question name (as expected)")
+Error: Group name conflicts with question name (as expected)
+```
+
+Start question must come before end question:
+
+```python
+>>> # Example showing index order error
+>>> try:
+...     Survey.example().add_question_group("q1", "q0", "group1")
+... except SurveyCreationError:
+...     print("Error: Start index greater than end index (as expected)")
+Error: Start index greater than end index (as expected)
+```
+
+> #### add_rule(*question: 'QuestionBase' | str*, *expression: str*, *next_question: 'QuestionBase' | str | int | EndOfSurveyParent*, *before_rule: bool = False*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Add a conditional rule for navigating between questions in the survey.
+
+Rules determine the flow of questions based on conditional expressions. When a rule’s expression evaluates to True, the survey will navigate to the specified next question, potentially skipping questions or jumping to an earlier question.
+
+By default, rules are evaluated *after* a question is answered. When before_rule=True, the rule is evaluated before the question is presented (which is useful for skip logic).
+
+> **Args:**
+
+**question: The question this rule applies to, either as a QuestionBase object**
+
+or its question_name string.
+
+**expression: A string expression that will be evaluated to determine if the**
+
+rule should trigger. Can reference previous questions’ answers using the template syntax, e.g., “\{\{ q0.answer }} == ‘yes’”.
+
+**next_question: The destination question to jump to if the expression is True.**
+
+Can be specified as a QuestionBase object, a question_name string, an index, or the EndOfSurvey class to end the survey.
+
+**before_rule: If True, the rule is evaluated before the question is presented.**
+
+If False (default), the rule is evaluated after the question is answered.
+
+> **Returns:**
+
+Survey: The modified survey instance (allows for method chaining).
+
+> **Examples:**
+
+Add a rule that navigates to q2 if the answer to q0 is ‘yes’:
+
+```python
+>>> s = Survey.example().add_rule("q0", "{{ q0.answer }} == 'yes'", "q2")
+>>> s.next_question("q0", {"q0.answer": "yes"}).question_name
+'q2'
+```
+
+Add a rule to end the survey conditionally:
+
+```python
+>>> from edsl.surveys.base import EndOfSurvey
+>>> s = Survey.example().add_rule("q0", "{{ q0.answer }} == 'end'", EndOfSurvey)
+```
+
+> #### add_skip_rule(*question: 'QuestionBase' | str*, *expression: str*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Add a rule to skip a question based on a conditional expression.
+
+Skip rules are evaluated *before* the question is presented. If the expression evaluates to True, the question is skipped and the flow proceeds to the next question in sequence. This is different from jump rules which are evaluated *after* a question is answered.
+
+> **Args:**
+
+**question: The question to add the skip rule to, either as a QuestionBase object**
+
+or its question_name string.
+
+**expression: A string expression that will be evaluated to determine if the**
+
+question should be skipped. Can reference previous questions’ answers using the template syntax, e.g., “\{\{ q0.answer }} == ‘yes’”.
+
+> **Returns:**
+
+Survey: The modified survey instance (allows for method chaining).
+
+> **Examples:**
+
+Skip q0 unconditionally (always skip):
+
+```python
+>>> from edsl import QuestionFreeText
+>>> q0 = QuestionFreeText.example()
+>>> q0.question_name = "q0"
+>>> q1 = QuestionFreeText.example()
+>>> q1.question_name = "q1"
+>>> s = Survey([q0, q1]).add_skip_rule("q0", "True")
+>>> s.next_question("q0", {}).question_name
+'q1'
+```
+
+Skip a question conditionally:
+
+```python
+>>> q2 = QuestionFreeText.example()
+>>> q2.question_name = "q2"
+>>> s = Survey([q0, q1, q2])
+>>> s = s.add_skip_rule("q1", "{{ q0.answer }} == 'skip next'")
+```
+
+> #### add_stop_rule(*question: [QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.QuestionBase") | str*, *expression: str*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Add a rule that stops the survey. The rule is evaluated *after* the question is answered. If the rule is true, the survey ends.
+
+**Parameters:**
+
+- **question** – The question to add the stop rule to.
+- **expression** – The expression to evaluate.
+
+If this rule is true, the survey ends.
+
+Here, answering “yes” to q0 ends the survey:
+
+```python
+>>> s = Survey.example().add_stop_rule("q0", "{{ q0.answer }} == 'yes'")
+>>> s.next_question("q0", {"q0.answer": "yes"})
+EndOfSurvey
+```
+
+By comparison, answering “no” to q0 does not end the survey:
+
+```python
+>>> s.next_question("q0", {"q0.answer": "no"}).question_name
+'q1'
+
+# Using invalid operators like ‘<>’ would raise SurveyCreationError
+```
+
+> #### add_targeted_memory(*focal_question: [QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.QuestionBase") | str*, *prior_question: [QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.QuestionBase") | str*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Configure the survey so a specific question has access to a prior question’s answer.
+
+This method allows you to define memory relationships between specific questions. When an agent answers the focal_question, it will have access to the prior_question and its answer, regardless of other memory settings.
+
+> **Args:**
+
+focal_question: The question for which to add memory, specified either as a
+
+QuestionBase object or its question_name string.
+
+prior_question: The prior question to remember, specified either as a
+
+QuestionBase object or its question_name string.
+
+> **Returns:**
+
+Survey: The modified survey instance (allows for method chaining).
+
+> **Examples:**
+
+When answering q2, remember the answer to q0:
+
+```python
+>>> s = Survey.example().add_targeted_memory("q2", "q0")
+>>> s.memory_plan
+{'q2': Memory(prior_questions=['q0'])}
+```
+
+> #### *classmethod* auto_survey(*overall_question: str*, *population: str*, *num_questions: int*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.survey.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Create a survey with a single question that asks the user how they are doing.
+
+> #### by(**args: 'Agent' | 'Scenario' | 'LanguageModel' | 'AgentList' | 'ScenarioList' | 'ModelList'*) → [Jobs](/en/latest/jobs#jobs-class "edsl.jobs.Jobs")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Add components to the survey and return a runnable Jobs object.
+
+This method is the primary way to prepare a survey for execution. It adds the necessary components (agents, scenarios, language models) to create a Jobs object that can be run to generate responses to the survey.
+
+The method can be chained to add multiple components in sequence.
+
+> **Args:**
+
+[*](/en/latest/#id3)**args: One or more components to add to the survey. Can include:**
+
+- Agent: The persona that will answer the survey questions
+- Scenario: The context for the survey, with variables to substitute
+- LanguageModel: The model that will generate the agent’s responses
+
+> **Returns:**
+
+Jobs: A Jobs object that can be run to execute the survey.
+
+> **Examples:**
+
+Create a runnable Jobs object with an agent and scenario:
+
+```python
+>>> s = Survey.example()
+>>> from edsl.agents import Agent
+>>> from edsl import Scenario
+>>> s.by(Agent.example()).by(Scenario.example())
+Jobs(...)
+```
+
+Chain all components in a single call:
+
+```python
+>>> from edsl.language_models import LanguageModel
+>>> s.by(Agent.example(), Scenario.example(), LanguageModel.example())
+Jobs(...)
+```
+
+> #### clear_non_default_rules() → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.survey.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Remove all non-default rules from the survey.
+
+```python
+>>> Survey.example().show_rules()
+Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "{{ q0.answer }}== 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
+>>> Survey.example().clear_non_default_rules().show_rules()
+Dataset([{'current_q': [0, 1, 2]}, {'expression': ['True', 'True', 'True']}, {'next_q': [1, 2, 3]}, {'priority': [-1, -1, -1]}, {'before_rule': [False, False, False]}])
+```
+
+> #### clipboard_data()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return the clipboard data for the survey.
+
+> #### code(*filename: str = ''*, *survey_var_name: str = 'survey'*) → list[str][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Create the Python code representation of a survey.
+
+> #### codebook() → Dict[str, str][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Create a codebook for the survey, mapping question names to question text.
+
+```python
+>>> s = Survey.example()
+>>> s.codebook()
+{'q0': 'Do you like school?', 'q1': 'Why not?', 'q2': 'Why?'}
+```
+
+> #### copy() → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.survey.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Create a deep copy of the survey using serialization.
+
+This method creates a completely independent copy of the survey by serializing and then deserializing it. This ensures all components are properly copied and maintains consistency with the survey’s serialization format.
+
+> **Returns:**
+
+Survey: A new Survey instance that is a deep copy of the original.
+
+> **Examples:**
+
+```python
+>>> s = Survey.example()
+>>> s2 = s.copy()
+>>> s == s2
+True
+>>> s is s2
+False
+>>> s.questions[0] is s2.questions[0]
+False
+```
+
+> #### css()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return the default CSS style for the survey.
+
+> #### dag(*textify: bool = False*) → DAG[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return a Directed Acyclic Graph (DAG) representation of the survey flow.
+
+This method constructs a DAG that represents the possible paths through the survey, taking into account both skip logic and memory relationships. The DAG is useful for visualizing and analyzing the structure of the survey.
+
+> **Args:**
+
+**textify: If True, the DAG will use question names as nodes instead of indices.**
+
+This makes the DAG more human-readable but less compact.
+
+> **Returns:**
+
+DAG: A dictionary where keys are question indices (or names if textify=True)
+
+and values are sets of prerequisite questions. For example, \{2: \{0, 1}} means question 2 depends on questions 0 and 1.
+
+> **Examples:**
+
+```python
+>>> s = Survey.example()
+>>> d = s.dag()
+>>> d
+{1: {0}, 2: {0}}
+```
+
+With textify=True:
+
+```python
+>>> dag = s.dag(textify=True)
+>>> sorted([(k, sorted(list(v))) for k, v in dag.items()])
+[('q1', ['q0']), ('q2', ['q0'])]
+```
+
+> #### delete_question(*identifier: str | int*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.survey.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Delete a question from the survey.
+
+> **Parameters:**
+
+**identifier** – The name or index of the question to delete.
+
+Returns:
+
+The updated Survey object.
+
+```python
+>>> from edsl import QuestionMultipleChoice, Survey
+>>> q1 = QuestionMultipleChoice(question_text="Q1", question_options=["A", "B"], question_name="q1")
+>>> q2 = QuestionMultipleChoice(question_text="Q2", question_options=["C", "D"], question_name="q2")
+>>> s = Survey().add_question(q1).add_question(q2)
+>>> _ = s.delete_question("q1")
+>>> len(s.questions)
+1
+>>> _ = s.delete_question(0)
+>>> len(s.questions)
+0
+```
+
+> #### docx(*filename: str | None = None*) → [FileStore](/en/latest/filestore#edsl.scenarios.FileStore "edsl.scenarios.FileStore")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+DEPRECATED: Use [`to_docx()`](/en/latest/#edsl.surveys.Survey.to_docx "edsl.surveys.Survey.to_docx") instead.
+
+> #### draw() → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.survey.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return a new survey with a randomly selected permutation of the options.
+
+> #### drop(**question_names*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.survey.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Create a new Survey with specified questions removed by name.
+
+This method creates a new Survey instance that contains all questions except those specified in the question_names parameter. It’s the inverse of the select() method.
+
+> **Args:**
+
+[*](/en/latest/#id5)question_names: Variable number of question names to remove from the survey.
+
+> **Returns:**
+
+Survey: A new Survey instance with the specified questions removed.
+
+> **Raises:**
+
+ValueError: If no question names are provided. KeyError: If any specified question name is not found in the survey.
+
+> **Examples:**
+
+```python
+>>> s = Survey.example()
+>>> s.question_names
+['q0', 'q1', 'q2']
+>>> s_dropped = s.drop('q1')
+>>> s_dropped.question_names
+['q0', 'q2']
+>>> s_dropped2 = s.drop('q0', 'q2')
+>>> s_dropped2.question_names
+['q1']
+```
+
+> #### duplicate()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Duplicate the survey.
+
+```python
+>>> s = Survey.example()
+>>> s2 = s.duplicate()
+>>> s == s2
+True
+>>> s is s2
+False
+```
+
+> #### edit()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+> #### *classmethod* example(*params: bool = False*, *randomize: bool = False*, *include_instructions: bool = False*, *custom_instructions: str | None = None*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.survey.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Create an example survey for testing and demonstration purposes.
+
+This method creates a simple branching survey about school preferences. The default survey contains three questions with conditional logic: - If the user answers “yes” to liking school, they are asked why they like it - If the user answers “no”, they are asked why they don’t like it
+
+> **Args:**
+
+params: If True, adds a fourth question that demonstrates parameter substitution
+
+by referencing the question text and answer from the first question.
+
+randomize: If True, adds a random UUID to the first question text to ensure
+
+uniqueness across multiple instances.
+
+include_instructions: If True, adds an instruction to the beginning of the survey. custom_instructions: Custom instruction text to use if include_instructions is True.
+
+> Defaults to “Please pay attention!” if not provided.
+
+> **Returns:**
+
+Survey: A configured example survey instance.
+
+> **Examples:**
+
+Create a basic example survey:
+
+```python
+>>> s = Survey.example()
+>>> [q.question_text for q in s.questions]
+['Do you like school?', 'Why not?', 'Why?']
+```
+
+Create an example with parameter substitution:
+
+```python
+>>> s = Survey.example(params=True)
+>>> s.questions[3].question_text
+"To the question '{{ q0.question_text}}', you said '{{ q0.answer }}'. Do you still feel this way?"
+```
+
+> #### *classmethod* from_dict(*data: dict*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.survey.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Reconstruct a Survey object from its dictionary representation.
+
+This class method is the counterpart to to_dict() and allows you to recreate a Survey object from a serialized dictionary. This is useful for loading saved surveys, receiving surveys from other systems, or cloning surveys.
+
+The method handles deserialization of all survey components, including questions, instructions, memory plan, rules, and question groups.
+
+> **Args:**
+
+data: A dictionary containing the serialized survey data, typically
+
+created by the to_dict() method.
+
+> **Returns:**
+
+Survey: A fully reconstructed Survey object with all the original
+
+questions, rules, and configuration.
+
+> **Examples:**
+
+Create a survey, serialize it, and deserialize it back:
+
+```python
+>>> d = Survey.example().to_dict()
+>>> s = Survey.from_dict(d)
+>>> s == Survey.example()
+True
+```
+
+Works with instructions as well:
+
+```python
+>>> s = Survey.example(include_instructions=True)
+>>> d = s.to_dict()
+>>> news = Survey.from_dict(d)
+>>> news == s
+True
+```
+
+> #### gen_path_through_survey() → Generator[[QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.QuestionBase"), dict, None][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Generate a coroutine that navigates through the survey based on answers.
+
+This method creates a Python generator that implements the survey flow logic. It yields questions and receives answers, handling the branching logic based on the rules defined in the survey. This generator is the core mechanism used by the Interview process to administer surveys.
+
+The generator follows these steps: 1. Yields the first question (or skips it if skip rules apply) 2. Receives an answer dictionary from the caller via .send() 3. Updates the accumulated answers 4. Determines the next question based on the survey rules 5. Yields the next question 6. Repeats steps 2-5 until the end of survey is reached
+
+> **Returns:**
+
+**Generator[QuestionBase, dict, None]: A generator that yields questions and**
+
+receives answer dictionaries. The generator terminates when it reaches the end of the survey.
+
+> **Examples:**
+
+For the example survey with conditional branching:
+
+```python
+>>> s = Survey.example()
+>>> s.show_rules()
+Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "{{ q0.answer }}== 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
+```
+
+Path when answering “yes” to first question:
+
+```python
+>>> i = s.gen_path_through_survey()
+>>> next(i)  # Get first question
+Question('multiple_choice', question_name = """q0""", question_text = """Do you like school?""", question_options = ['yes', 'no'])
+>>> i.send({"q0.answer": "yes"})  # Answer "yes" and get next question
+Question('multiple_choice', question_name = """q2""", question_text = """Why?""", question_options = ['**lack*** of killer bees in cafeteria', 'other'])
+```
+
+Path when answering “no” to first question:
+
+```python
+>>> i2 = s.gen_path_through_survey()
+>>> next(i2)  # Get first question
+Question('multiple_choice', question_name = """q0""", question_text = """Do you like school?""", question_options = ['yes', 'no'])
+>>> i2.send({"q0.answer": "no"})  # Answer "no" and get next question
+Question('multiple_choice', question_name = """q1""", question_text = """Why not?""", question_options = ['killer bees in cafeteria', 'other'])
+```
+
+> #### generate_description() → str[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Generate a description of the survey.
+
+> #### *classmethod* generate_from_questions(*question_texts: List[str]*, *question_types: List[str] | None = None*, *question_names: List[str] | None = None*, *model: 'LanguageModel' | None = None*, *scenario_keys: List[str] | None = None*, *verbose: bool = True*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Generate a survey from a list of question texts.
+
+This method takes a list of question texts and optionally infers question types and generates question names using an LLM.
+
+> **Args:**
+
+question_texts: List of question text strings question_types: Optional list of question types corresponding to each text.
+
+If None, types will be inferred by the model.
+
+question_names: Optional list of question names. If None, names will be generated. model: Language model to use for inference. If None, uses default model. scenario_keys: Optional list of scenario keys to include in question texts.
+
+Each key will be added as \{\{ scenario.\<key> \}\} in the questions.
+
+verbose: Whether to show the underlying survey generation process (default: True)
+
+> **Returns:**
+
+Survey: A new Survey instance with the questions
+
+> **Examples:**
+
+```python
+>>> texts = ["How satisfied are you?", "What is your age?"]
+>>> survey = Survey.generate_survey_from_questions(texts)
+>>>
+>>> types = ["LinearScale", "Numerical"]
+>>> names = ["satisfaction", "age"]
+>>> survey = Survey.generate_survey_from_questions(texts, types, names)
+>>>
+>>> survey = Survey.generate_survey_from_questions(texts, scenario_keys=["product_name"])
+>>> survey = Survey.generate_survey_from_questions(texts, verbose=False)
+```
+
+> #### *classmethod* generate_from_topic(*topic: str*, *n_questions: int = 5*, *model: 'LanguageModel' | None = None*, *scenario_keys: List[str] | None = None*, *verbose: bool = True*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Generate a survey from a topic using an LLM.
+
+This method uses a language model to generate a well-balanced survey for the given topic with the specified number of questions.
+
+> **Args:**
+
+topic: The topic to generate questions about n_questions: Number of questions to generate (default: 5) model: Language model to use for generation. If None, uses default model. scenario_keys: Optional list of scenario keys to include in question texts.
+
+Each key will be added as \{\{ scenario.\<key> }} in the questions.
+
+verbose: Whether to show the underlying survey generation process (default: True)
+
+> **Returns:**
+
+Survey: A new Survey instance with generated questions
+
+> **Examples:**
+
+```python
+>>> survey = Survey.generate_survey_from_topic("workplace satisfaction", n_questions=3)
+>>> survey = Survey.generate_survey_from_topic("AI ethics", n_questions=7, model=my_model)
+>>> survey = Survey.generate_survey_from_topic("product feedback", scenario_keys=["product_name", "version"])
+>>> survey = Survey.generate_survey_from_topic("feedback", verbose=False)
+```
+
+> #### get(*question_name: str*) → [QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.QuestionBase")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return the question object given the question name.
+
+> #### get_job(*model=None*, *agent=None*, ***kwargs*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+> #### gold_standard(*q_and_a_dict: dict[str, str]*) → [Result](/en/latest/results#edsl.results.Result "edsl.results.Result")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Run the survey with a gold standard agent and return the result object.
+
+> **Args:**
+
+q_and_a_dict: A dictionary of question names and answers.
+
+> #### html(*scenario: dict | None = None*, *filename: str | None = None*, *return_link=False*, *css: str | None = None*, *cta: str = 'Open HTML file'*, *include_question_name=False*) → [FileStore](/en/latest/filestore#edsl.scenarios.FileStore "edsl.scenarios.FileStore")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+DEPRECATED: Use [`to_html()`](/en/latest/#edsl.surveys.Survey.to_html "edsl.surveys.Survey.to_html") instead.
+
+> #### humanize(*project_name: str = 'Project'*, *survey_description: str | None = None*, *survey_alias: str | None = None*, *survey_visibility: 'VisibilityType' | None = 'unlisted'*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Send the survey to Coop.
+
+Then, create a project on Coop so you can share the survey with human respondents.
+
+> #### inspect()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Create an interactive inspector widget for this survey.
+
+This method creates a SurveyInspectorWidget that provides an interactive interface for exploring the survey structure, questions, and flow logic.
+
+> **Returns:**
+
+SurveyInspectorWidget instance: Interactive widget for inspecting this survey
+
+> **Raises:**
+
+ImportError: If the widgets module cannot be imported
+
+> #### latex(*filename: str | None = None*, *include_question_name: bool = False*, *standalone: bool = True*) → [FileStore](/en/latest/filestore#edsl.scenarios.FileStore "edsl.scenarios.FileStore")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Generate a LaTeX (.tex) representation of the survey.
+
+> **Parameters:**
+
+**filename:Optional[str]**
+
+The filename to write to. If not provided, a temporary file is created in the current working directory with a `.tex` suffix.
+
+**include_question_name:bool**
+
+If True, includes the internal `question_name` of each question. Default False.
+
+**standalone:bool**
+
+If True, the LaTeX file is standalone. Default True.
+
+> #### move_question(*identifier: str | int*, *new_index: int*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.survey.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+```python
+>>> from edsl import QuestionMultipleChoice, Survey
+>>> s = Survey.example()
+>>> s.question_names
+['q0', 'q1', 'q2']
+>>> s.move_question("q0", 2).question_names
+['q1', 'q2', 'q0']
+```
+
+> #### next_question(*current_question: str | 'QuestionBase' | None = None*, *answers: Dict[str, Any] | None = None*) → 'QuestionBase' | EndOfSurveyParent[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return the next question in a survey.
+
+> **Parameters:**
+
+- **current_question** – The current question in the survey.
+- **answers** – The answers for the survey so far
+
+- If called with no arguments, it returns the first question in the survey.
+- If no answers are provided for a question with a rule, the next question is returned. If answers are provided, the next question is determined by the rules and the answers.
+- If the next question is the last question in the survey, an EndOfSurvey object is returned.
+
+```python
+>>> s = Survey.example()
+>>> s.next_question("q0", {"q0.answer": "yes"}).question_name
+'q2'
+>>> s.next_question("q0", {"q0.answer": "no"}).question_name
+'q1'
+```
+
+> #### next_question_with_instructions(*current_item: str | 'QuestionBase' | 'Instruction' | None = None*, *answers: Dict[str, Any] | None = None*) → 'QuestionBase' | 'Instruction' | EndOfSurveyParent[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return the next question or instruction in a survey, including instructions in sequence.
+
+This method extends the functionality of next_question to also handle Instructions that are interspersed between questions. It follows the proper sequence based on pseudo indices and respects survey rules for question flow.
+
+> **Parameters:**
+
+- **current_item** – The current question or instruction in the survey.
+- **answers** – The answers for the survey so far
+
+- If called with no arguments, it returns the first item (question or instruction) in the survey.
+- For instructions, it returns the next item in sequence since instructions don’t have answers.
+- For questions, it uses the rule logic to determine the next question, then returns any instructions that come before that target question, or the target question itself.
+- If the next item would be past the end of the survey, an EndOfSurvey object is returned.
+
+> **Returns:**
+
+Union[“QuestionBase”, “Instruction”, EndOfSurveyParent]: The next question, instruction, or EndOfSurvey.
+
+> **Examples:**
+
+With a survey that has instructions:
+
+```python
+>>> from edsl import Instruction
+>>> s = Survey.example(include_instructions=True)
+>>> # Get the first item (should be the instruction)
+>>> first_item = s.next_question_with_instructions()
+>>> hasattr(first_item, 'text')  # Instructions have text attribute
+True
+```
+```python
+>>> # After an instruction, get the next item
+>>> next_item = s.next_question_with_instructions(first_item)
+>>> hasattr(next_item, 'question_name')  # Questions have question_name attribute
+True
+```
+
+> #### *property* parameters*: set*[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return a set of parameters in the survey.
+
+```python
+>>> s = Survey.example()
+>>> s.parameters
+set()
+```
+
+> #### *property* parameters_by_question*: dict[str, set]*[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return a dictionary of parameters by question in the survey.
+
+```python
+>>> from edsl import QuestionFreeText
+>>> q = QuestionFreeText(question_name = “example”, question_text = “What is the capital of {{ country}}?”)
+>>> s = Survey([q])
+>>> s.parameters_by_question {‘example’: {‘country’}}
+```
+
+> #### *property* question_name_to_index*: dict[str, int]*[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return a dictionary mapping question names to question indices.
+
+Example:
+
+```python
+>>> s = Survey.example()
+>>> s.question_name_to_index
+{'q0': 0, 'q1': 1, 'q2': 2}
+```
+
+> #### *property* question_names*: list[str]*[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return a list of question names in the survey.
+
+Example:
+
+```python
+>>> s = Survey.example()
+>>> s.question_names
+['q0', 'q1', 'q2']
+```
+
+> #### question_names_to_questions() → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return a dictionary mapping question names to question attributes.
+
+> #### question_names_valid() → bool[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Check if the question names are valid.
+
+> #### question_to_attributes() → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return a dictionary of question attributes.
+
+```python
+>>> s = Survey.example()
+>>> s.question_to_attributes()
+{'q0': {'question_text': 'Do you like school?', 'question_type': 'multiple_choice', 'question_options': ['yes', 'no']}, 'q1': {'question_text': 'Why not?', 'question_type': 'multiple_choice', 'question_options': ['killer bees in cafeteria', 'other']}, 'q2': {'question_text': 'Why?', 'question_type': 'multiple_choice', 'question_options': ['**lack*** of killer bees in cafeteria', 'other']}}
+```
+
+> #### questions[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+A descriptor that manages the list of questions in the survey.
+
+This descriptor handles the setting and getting of questions, ensuring proper validation and maintaining internal data structures. It manages both direct question objects and their names.
+
+The underlying questions are stored in the protected _questions attribute, while this property provides the public interface for accessing them.
+
+**Notes:**
+
+- The presumed order of the survey is the order in which questions are added
+- Questions must have unique names within a survey
+- Each question can have rules associated with it that determine the next question
+
+> #### *classmethod* random_survey()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+> #### recombined_questions_and_instructions() → List['QuestionBase' | 'Instruction'][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return a list of questions and instructions (public wrapper).
+
+This is a thin wrapper around the internal _recombined_questions_and_instructions method, provided for compatibility with modules that expect a public accessor.
+
+> #### run(**args*, ***kwargs*) → [Results](/en/latest/results#result-class "edsl.results.Results")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Convert the survey to a Job and execute it with the provided parameters.
+
+This method creates a Jobs object from the survey and runs it immediately with the provided arguments. It’s a convenient way to run a survey without explicitly creating a Jobs object first.
+
+> **Args:**
+
+[*](/en/latest/#id7)args: Positional arguments passed to the Jobs.run() method. [**](/en/latest/#id9)kwargs: Keyword arguments passed to the Jobs.run() method, which can include:
+
+- cache: The cache to use for storing results
+- verbose: Whether to show detailed progress
+- disable_remote_cache: Whether to disable remote caching
+- disable_remote_inference: Whether to disable remote inference
+
+> **Returns:**
+
+Results: The results of running the survey.
+
+> **Examples:**
+
+Run a survey with a test language model:
+
+```python
+>>> from edsl import QuestionFreeText
+>>> s = Survey([QuestionFreeText.example()])
+>>> from edsl.language_models import LanguageModel
+>>> m = LanguageModel.example(test_model=True, canned_response="Great!")
+>>> results = s.by(m).run(cache=False, disable_remote_cache=True, disable_remote_inference=True)
+>>> results.select('answer.*')
+Dataset([{'answer.how_are_you': ['Great!']}])
+````
+
+> #### *async* run_async(*model: 'LanguageModel' | None = None*, *agent: 'Agent' | None = None*, *cache: 'Cache' | None = None*, ***kwargs*) → [Results](/en/latest/results#result-class "edsl.results.Results")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Execute the survey asynchronously and return results.
+
+This method provides an asynchronous way to run surveys, which is useful for concurrent execution or integration with other async code. It creates a Jobs object and runs it asynchronously.
+
+> **Args:**
+
+model: The language model to use. If None, a default model is used. agent: The agent to use. If None, a default agent is used. cache: The cache to use for storing results. If provided, reuses cached results. [**](/en/latest/#id11)kwargs: Key-value pairs to use as scenario parameters. May include:
+
+- disable_remote_inference: If True, don’t use remote inference even if available.
+- disable_remote_cache: If True, don’t use remote cache even if available.
+
+> **Returns:**
+
+Results: The results of running the survey.
+
+> **Examples:**
+
+Run a survey asynchronously with morning parameter:
+
+```python
+>>> import asyncio
+>>> from edsl.questions import QuestionFunctional
+>>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
+>>> q = QuestionFunctional(question_name="q0", func=f)
+>>> from edsl import Model
+>>> s = Survey([q])
+>>> async def test_run_async():
+...     result = await s.run_async(period="morning", disable_remote_inference = True)
+...     print(result.select("answer.q0").first())
+>>> asyncio.run(test_run_async())
+yes
+
+Run with evening parameter:
+
+>>> async def test_run_async2():
+...     result = await s.run_async(period="evening", disable_remote_inference = True)
+...     print(result.select("answer.q0").first())
+>>> asyncio.run(test_run_async2())
+no
+```
+
+> #### *property* scenario_attributes*: list[str]*[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return a list of attributes that admissible Scenarios should have.
+
+Here we have a survey with a question that uses a jinja2 style \{\{ }} template:
+
+```python
+>>> from edsl import QuestionFreeText
+>>> s = Survey().add_question(QuestionFreeText(question_text="{{ greeting }}. What is your name?", question_name="name"))
+>>> s.scenario_attributes
+['greeting']
+```
+
+```python
+>>> s = Survey().add_question(QuestionFreeText(question_text="{{ greeting }}. What is your {{ attribute }}?", question_name="name"))
+>>> s.scenario_attributes
+['greeting', 'attribute']
+```
+
+> #### select(**question_names: List[str]*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.survey.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Create a new Survey with questions selected by name.
+
+> #### set_full_memory_mode() → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.survey.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Configure the survey so agents remember all previous questions and answers.
+
+In full memory mode, when an agent answers any question, it will have access to all previously asked questions and the agent’s answers to them. This is useful for surveys where later questions build on or reference earlier responses.
+
+> **Returns:**
+
+Survey: The modified survey instance (allows for method chaining).
+
+> **Examples:**
+
+```python
+>>> s = Survey.example().set_full_memory_mode()
+```
+
+> #### set_lagged_memory(*lags: int*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.survey.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+
+Configure the survey so agents remember a limited window of previous questions.
+
+In lagged memory mode, when an agent answers a question, it will only have access to the most recent ‘lags’ number of questions and answers. This is useful for limiting context when only recent questions are relevant.
+
+> **Args:**
+
+lags: The number of previous questions to remember. For example, if lags=2,
+
+only the two most recent questions and answers will be remembered.
+
+> **Returns:**
+
+Survey: The modified survey instance (allows for method chaining).
+
+> **Examples:**
+
+Remember only the two most recent questions:
+
+```python
+>>> s = Survey.example().set_lagged_memory(2)
+```
+
+> #### show()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Display the survey in a rich format.
+
+> #### show_flow(*filename: str | None = None*) → None[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Show the flow of the survey.
+
+> #### show_prompts(*all: bool = False*) → None[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Display the prompts that will be used when running the survey.
+
+This method converts the survey to a Jobs object and shows the prompts that would be sent to a language model. This is useful for debugging and understanding how the survey will be presented.
+
+**Args:**
+
+all: If True, show all prompt fields; if False (default), show only user_prompt and system_prompt.
+
+> #### show_rules() → None[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Print out the rules in the survey.
+
+```python
+>>> s = Survey.example()
+>>> s.show_rules()
+Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "{{ q0.answer }}== 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
+```
+
+> #### simulate() → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Simulate the survey and return the answers.
+
+> #### table(**fields*, *tablefmt='rich'*) → Table[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+> #### to_dict(*add_edsl_version: bool = True*) → dict[str, Any][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Serialize the Survey object to a dictionary for storage or transmission.
+
+This method converts the entire survey structure, including questions, rules, memory plan, and question groups, into a dictionary that can be serialized to JSON. This is essential for saving surveys, sharing them, or transferring them between systems.
+
+The serialized dictionary contains the complete state of the survey, allowing it to be fully reconstructed using the from_dict() method.
+
+> **Args:**
+
+**add_edsl_version: If True (default), includes the EDSL version and class name**
+
+in the dictionary, which can be useful for backward compatibility when deserializing.
+
+> **Returns:**
+
+**dict[str, Any]: A dictionary representation of the survey with the following keys:**
+
+- ‘questions’: List of serialized questions and instructions
+- ‘memory_plan’: Serialized memory plan
+- ‘rule_collection’: Serialized rule collection
+- ‘question_groups’: Dictionary of question groups
+- ‘questions_to_randomize’: List of questions to randomize (if any)
+- ‘edsl_version’: EDSL version (if add_edsl_version=True)
+- ‘edsl_class_name’: Class name (if add_edsl_version=True)
+
+Examples:
+
+```python
+>>> s = Survey.example()
+>>> s.to_dict(add_edsl_version=False).keys()
+dict_keys(['questions', 'memory_plan', 'rule_collection', 'question_groups'])
+```
+
+With version information:
+
+```python
+>>> d = s.to_dict(add_edsl_version=True)
+>>> 'edsl_version' in d and 'edsl_class_name' in d
+True
+```
+
+> #### to_docx(*filename: str | None = None*) → [FileStore](/en/latest/filestore#edsl.scenarios.FileStore "edsl.scenarios.FileStore")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Generate a docx document for the survey.
+
+This is the preferred alias for the deprecated `docx` method.
+
+> #### to_html(*scenario: dict | None = None*, *filename: str | None = None*, *return_link: bool = False*, *css: str | None = None*, *cta: str = 'Open HTML file'*, *include_question_name: bool = False*) → [FileStore](/en/latest/filestore#edsl.scenarios.FileStore "edsl.scenarios.FileStore")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Generate HTML representation of the survey.
+
+This is the preferred alias for the deprecated `html` method.
+
+> #### to_jobs() → [Jobs](/en/latest/jobs#jobs-class "edsl.jobs.Jobs")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Convert the survey to a Jobs object without adding components.
+
+This method creates a Jobs object from the survey without adding any agents, scenarios, or language models. You’ll need to add these components later using the by() method before running the job.
+
+> **Returns:**
+
+Jobs: A Jobs object based on this survey.
+
+> **Examples:**
+
+```python
+>>> s = Survey.example()
+>>> jobs = s.to_jobs()
+>>> jobs
+Jobs(...)
+```
+
+> #### to_long_format(*scenario_list: [ScenarioList](/en/latest/scenarios#scenariolist-class "edsl.scenarios.ScenarioList")*) → Tuple[List[[QuestionBase](/en/latest/questions#questionbase-class "edsl.questions.QuestionBase")], [ScenarioList](/en/latest/scenarios#scenariolist-class "edsl.scenarios.ScenarioList")][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return a new survey with the questions in long format and the associated scenario list.
+
+> #### to_scenario_list(*questions_only: bool = True*, *rename=False*) → [ScenarioList](/en/latest/scenarios#scenariolist-class "edsl.scenarios.ScenarioList")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Convert the survey to a scenario list.
+
+> #### tree(*node_list: List[str] | None = None*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+> #### using(*obj: 'Cache' | 'KeyLookup' | 'BucketCollection'*) → [Jobs](/en/latest/jobs#jobs-class "edsl.jobs.Jobs")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Turn the survey into a Job and appends the arguments to the Job.
+
+> #### with_edited_question(*question_name: str*, *field_name_new_values: dict*, *pop_fields: List[str] | None = None*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.survey.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return a new Survey with the specified question edited.
+
+This method creates a new Survey instance with the specified question edited. The new survey inherits relevant attributes from the parent survey but gets fresh rule collections and memory plans appropriate for the subset of questions.
+
+> #### with_renamed_question(*old_name: str*, *new_name: str*) → [Survey](/en/latest/#edsl.surveys.Survey "edsl.surveys.survey.Survey")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
+
+Return a new survey with a question renamed and all references updated.
+
+This method creates a new survey with the specified question renamed. It also updates all references to the old question name in: - Rules and expressions (both old format ‘q1’ and new format ‘\{\{ q1.answer \}\}’) - Memory plans (focal questions and prior questions) - Question text piping (e.g., \{\{ old_name.answer \}\}) - Question options that use piping - Instructions that reference the question - Question groups (keys only, not ranges since those use indices)
+
+> **Args:**
+
+old_name: The current name of the question to rename new_name: The new name for the question
+
+> **Returns:**
+
+Survey: A new survey with the question renamed and all references updated
+
+> **Raises:**
+
+SurveyError: If old_name doesn’t exist, new_name already exists, or new_name is invalid
+
+> **Examples:**
+
+```python
+>>> s = Survey.example()
+>>> s_renamed = s.with_renamed_question("q0", "school_preference")
+>>> s_renamed.get("school_preference").question_name
+'school_preference'
+```
+```python
+>>> # Rules are also updated
+>>> s_renamed.show_rules()
+```

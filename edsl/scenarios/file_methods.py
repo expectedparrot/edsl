@@ -2,8 +2,12 @@ from typing import Optional, Dict, Type
 from abc import ABC, abstractmethod
 import importlib.metadata
 import importlib.util
+import mimetypes
+from ..utilities import is_notebook
 
-from edsl.utilities.is_notebook import is_notebook
+# Register MIME types for video formats if they aren't already
+mimetypes.add_type("video/mp4", ".mp4")
+mimetypes.add_type("video/webm", ".webm")
 
 
 class FileMethods(ABC):
@@ -30,7 +34,7 @@ class FileMethods(ABC):
     def load_plugins(cls):
         """Load all file handler plugins including built-ins and external plugins."""
 
-        from edsl.scenarios import handlers
+        from . import handlers  # noqa: F401 - import needed for handler registration
 
         # Then load any external plugins
         try:
@@ -41,7 +45,7 @@ class FileMethods(ABC):
 
         for ep in entries:
             try:
-                handler_class = ep.load()
+                ep.load()
                 # Registration happens automatically via __init_subclass__
             except Exception as e:
                 print(f"Failed to load external handler {ep.name}: {e}")
@@ -67,12 +71,10 @@ class FileMethods(ABC):
         return list(cls._handlers.keys())
 
     @abstractmethod
-    def view_system(self):
-        ...
+    def view_system(self): ...
 
     @abstractmethod
-    def view_notebook(self):
-        ...
+    def view_notebook(self): ...
 
     def view(self):
         if is_notebook():
@@ -81,5 +83,4 @@ class FileMethods(ABC):
             self.view_system()
 
     @abstractmethod
-    def example(self):
-        ...
+    def example(self): ...

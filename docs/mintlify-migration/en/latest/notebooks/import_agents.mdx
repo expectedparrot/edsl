@@ -1,0 +1,338 @@
+---
+title: "Importing agents"
+description: "This notebook provides sample EDSL code for simulating surveys with agent personas imported from [Persona Hub](https://github.com/tencent-ailab/persona-hub), an open-source repository provided by [Hugging Face](https://huggingface.co/datasets/proj-persona/PersonaHub)."
+---
+
+[EDSL](https://github.com/expectedparrot/edsl) is an open-source library for simulating surveys, experiments and other research with AI agents and large language models. Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Coop account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL.
+
+## Importing the data
+
+Persona Hub: [https://github.com/tencent-ailab/persona-hub](https://github.com/tencent-ailab/persona-hub)
+
+```bash
+! pip install datasets
+```
+
+```python expandable
+Collecting datasets
+  Downloading datasets-3.5.0-py3-none-any.whl.metadata (19 kB)
+Requirement already satisfied: filelock in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from datasets) (3.18.0)
+Requirement already satisfied: numpy>=1.17 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from datasets) (1.26.4)
+Collecting pyarrow>=15.0.0 (from datasets)
+  Using cached pyarrow-19.0.1-cp311-cp311-macosx_12_0_arm64.whl.metadata (3.3 kB)
+Collecting dill<0.3.9,>=0.3.0 (from datasets)
+  Downloading dill-0.3.8-py3-none-any.whl.metadata (10 kB)
+Requirement already satisfied: pandas in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from datasets) (2.2.3)
+Requirement already satisfied: requests>=2.32.2 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from datasets) (2.32.3)
+Requirement already satisfied: tqdm>=4.66.3 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from datasets) (4.67.1)
+Collecting xxhash (from datasets)
+  Downloading xxhash-3.5.0-cp311-cp311-macosx_11_0_arm64.whl.metadata (12 kB)
+Collecting multiprocess<0.70.17 (from datasets)
+  Downloading multiprocess-0.70.16-py311-none-any.whl.metadata (7.2 kB)
+Collecting fsspec<=2024.12.0,>=2023.1.0 (from fsspec[http]<=2024.12.0,>=2023.1.0->datasets)
+  Downloading fsspec-2024.12.0-py3-none-any.whl.metadata (11 kB)
+Requirement already satisfied: aiohttp in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from datasets) (3.11.16)
+Collecting huggingface-hub>=0.24.0 (from datasets)
+  Downloading huggingface_hub-0.30.2-py3-none-any.whl.metadata (13 kB)
+Requirement already satisfied: packaging in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from datasets) (24.2)
+Requirement already satisfied: pyyaml>=5.1 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from datasets) (6.0.2)
+Requirement already satisfied: aiohappyeyeballs>=2.3.0 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from aiohttp->datasets) (2.6.1)
+Requirement already satisfied: aiosignal>=1.1.2 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from aiohttp->datasets) (1.3.2)
+Requirement already satisfied: attrs>=17.3.0 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from aiohttp->datasets) (25.3.0)
+Requirement already satisfied: frozenlist>=1.1.1 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from aiohttp->datasets) (1.5.0)
+Requirement already satisfied: multidict<7.0,>=4.5 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from aiohttp->datasets) (6.3.1)
+Requirement already satisfied: propcache>=0.2.0 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from aiohttp->datasets) (0.3.1)
+Requirement already satisfied: yarl<2.0,>=1.17.0 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from aiohttp->datasets) (1.18.3)
+Requirement already satisfied: typing-extensions>=3.7.4.3 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from huggingface-hub>=0.24.0->datasets) (4.13.0)
+Requirement already satisfied: charset-normalizer<4,>=2 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from requests>=2.32.2->datasets) (3.4.1)
+Requirement already satisfied: idna<4,>=2.5 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from requests>=2.32.2->datasets) (3.10)
+Requirement already satisfied: urllib3<3,>=1.21.1 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from requests>=2.32.2->datasets) (1.26.20)
+Requirement already satisfied: certifi>=2017.4.17 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from requests>=2.32.2->datasets) (2025.1.31)
+Requirement already satisfied: python-dateutil>=2.8.2 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from pandas->datasets) (2.9.0.post0)
+Requirement already satisfied: pytz>=2020.1 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from pandas->datasets) (2025.2)
+Requirement already satisfied: tzdata>=2022.7 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from pandas->datasets) (2025.2)
+Requirement already satisfied: six>=1.5 in /Users/johnhorton/Library/Caches/pypoetry/virtualenvs/edsl-EZo3_VAr-py3.11/lib/python3.11/site-packages (from python-dateutil>=2.8.2->pandas->datasets) (1.17.0)
+Downloading datasets-3.5.0-py3-none-any.whl (491 kB)
+Downloading dill-0.3.8-py3-none-any.whl (116 kB)
+Downloading fsspec-2024.12.0-py3-none-any.whl (183 kB)
+Downloading huggingface_hub-0.30.2-py3-none-any.whl (481 kB)
+Downloading multiprocess-0.70.16-py311-none-any.whl (143 kB)
+Using cached pyarrow-19.0.1-cp311-cp311-macosx_12_0_arm64.whl (30.7 MB)
+Downloading xxhash-3.5.0-cp311-cp311-macosx_11_0_arm64.whl (30 kB)
+Installing collected packages: xxhash, pyarrow, fsspec, dill, multiprocess, huggingface-hub, datasets
+  Attempting uninstall: dill
+    Found existing installation: dill 0.3.9
+    Uninstalling dill-0.3.9:
+      Successfully uninstalled dill-0.3.9
+Successfully installed datasets-3.5.0 dill-0.3.8 fsspec-2024.12.0 huggingface-hub-0.30.2 multiprocess-0.70.16 pyarrow-19.0.1 xxhash-3.5.0
+
+[notice] A new release of pip is available: 24.3.1 -> 25.0.1
+[notice] To update, run: pip install --upgrade pip
+```
+
+
+```python expandable
+try:
+    from datasets import load_dataset
+    ds = load_dataset("proj-persona/PersonaHub", "instruction")
+    num_agents = 10
+    personas_list = ds['train']['input persona'][:num_agents]
+    personas_list
+except ImportError:
+    personas_list = ['A theater manager or events coordinator interested in understanding the operational aspects, facilities, and programming of performing arts centers, such as the Broward Center.',
+ 'An urban planner looking to understand the distribution and organization of public services in the Halifax Regional Municipality.',
+ "A high school literature teacher looking for supplementary materials to enrich their curriculum and provide students with a deeper understanding of their state's cultural heritage.",
+ 'A science fiction writer, exploring the use of secret trials as a theme in stories that examine surveillance, privacy, and power dynamics in society.',
+ 'A financial analyst specializing in Asian markets and wealthy individuals, interested in tracking the investments and philanthropic activities of billionaires like Gerald Chan.',
+ 'A high school physics teacher who enjoys applying physics concepts to various sports, curious about the effects of water resistance and body positioning in Paralympic swimming.',
+ 'A high school physical education teacher seeking to incorporate Paralympic history and achievements into the curriculum to inspire and educate students about inclusivity in sports.',
+ 'A high school history teacher creating lesson plans on South American civilizations and their regional diversity.',
+ 'A cultural anthropologist studying the representation and adaptation of traditional folklore in contemporary media, particularly in television and film.',
+ 'A high school earth science teacher looking for real-world examples to explain climate zones, soil types, and human-environment interactions.']
+```
+
+## Selecting data
+
+Here we select some personas to use.
+
+## Creating agents
+
+We create an agent in EDSL by passing a dictionary of `traits` (such as a persona) to an `Agent` object. Here we use a method for generating a set of agents from a list of traits at once (a list of the personas). Learn more about [designing agents in EDSL](/en/latest/agents).
+
+```python
+from edsl import AgentList
+
+agents = AgentList.from_list("persona", personas_list)
+```
+
+## Using agents to answer a survey
+
+Here we construct some questions and administer them to the agents. EDSL comes with many [common question types](/en/latest/questions) that we can choose from based on the form of the response that we want to get back from a model. Learn more about [constructing surveys](/en/latest/surveys) with different question types, logic and rules.
+
+```python
+from edsl import QuestionMultipleChoice, QuestionLinearScale, Survey
+
+q1 = QuestionMultipleChoice(
+    question_name = "preferred_mode_commute",
+    question_text = "What is your preferred mode of commuting to work?",
+    question_options = [ "Car", "Public transportation", "Bike", "Walk", "Work from home", "Other" ]
+)
+
+q2 = QuestionLinearScale(
+    question_name = "work_from_home",
+    question_text = "On a scale from 1 to 5, how easy is it for you to work from home?",
+    question_options = [1,2,3,4,5],
+    option_labels = {1:"Not at all easy", 5:"Very easy"}
+)
+
+survey = Survey([q1, q2])
+```
+
+## Selecting language models
+
+EDSL works with many popular language models that we can select to generate the responses for the agents.
+
+To see a list of all services:
+
+```python
+from edsl import Model
+
+Model.services()
+```
+
+|  | Service Name |
+| :--- | :--- |
+| 0 | anthropic |
+| 1 | azure |
+| 2 | bedrock |
+| 3 | deep_infra |
+| 4 | deepseek |
+| 5 | google |
+| 6 | groq |
+| 7 | mistral |
+| 8 | ollama |
+| 9 | openai |
+| 10 | perplexity |
+| 11 | together |
+| 12 | xai |
+
+To see a list of all available models:
+
+```python
+\# Model.available()
+
+To select models to use with a survey:
+
+from edsl import ModelList, Model
+
+models = ModelList(
+    Model(m) for m in ["gemini-1.5-flash", "gpt-4o"]
+)
+```
+
+We run a survey by adding the agents and models, and then calling the `run()` method. This generates a formatted dataset of `Results`:
+
+```python
+results = survey.by(agents).by(models).run()
+```
+
+## Analyzing results
+
+EDSL comes with [built-in methods for analysis](/en/latest/results). Here we inspect the responses in a table:
+
+```python
+results.select("model", "persona", "preferred_mode_commute", "work_from_home")
+```
+
+
+|  | model.model | agent.persona | answer.preferred_mode_commute | answer.work_from_home |
+| :--- | :--- | :--- | :--- | :--- |
+| 0 | gemini-1.5-flash | A theater manager or events coordinator interested in understanding the operational aspects, facilities, and programming of performing arts centers, such as the Broward Center. | Car | 1 |
+| 1 | gpt-4o | A theater manager or events coordinator interested in understanding the operational aspects, facilities, and programming of performing arts centers, such as the Broward Center. | Car | 2 |
+| 2 | gemini-1.5-flash | An urban planner looking to understand the distribution and organization of public services in the Halifax Regional Municipality. | Public transportation | 3 |
+| 3 | gpt-4o | An urban planner looking to understand the distribution and organization of public services in the Halifax Regional Municipality. | Public transportation | 4 |
+| 4 | gemini-1.5-flash | A high school literature teacher looking for supplementary materials to enrich their curriculum and provide students with a deeper understanding of their state's cultural heritage. | Car | 3 |
+| 5 | gpt-4o | A high school literature teacher looking for supplementary materials to enrich their curriculum and provide students with a deeper understanding of their state's cultural heritage. | Car | 3 |
+| 6 | gemini-1.5-flash | A science fiction writer, exploring the use of secret trials as a theme in stories that examine surveillance, privacy, and power dynamics in society. | Work from home | 5 |
+| 7 | gpt-4o | A science fiction writer, exploring the use of secret trials as a theme in stories that examine surveillance, privacy, and power dynamics in society. | Work from home | 5 |
+| 8 | gemini-1.5-flash | A financial analyst specializing in Asian markets and wealthy individuals, interested in tracking the investments and philanthropic activities of billionaires like Gerald Chan. | Work from home | 4 |
+| 9 | gpt-4o | A financial analyst specializing in Asian markets and wealthy individuals, interested in tracking the investments and philanthropic activities of billionaires like Gerald Chan. | Work from home | 5 |
+| 10 | gemini-1.5-flash | A high school physics teacher who enjoys applying physics concepts to various sports, curious about the effects of water resistance and body positioning in Paralympic swimming. | Car | 3 |
+| 11 | gpt-4o | A high school physics teacher who enjoys applying physics concepts to various sports, curious about the effects of water resistance and body positioning in Paralympic swimming. | Bike | 2 |
+| 12 | gemini-1.5-flash | A high school physical education teacher seeking to incorporate Paralympic history and achievements into the curriculum to inspire and educate students about inclusivity in sports. | Car | 1 |
+| 13 | gpt-4o | A high school physical education teacher seeking to incorporate Paralympic history and achievements into the curriculum to inspire and educate students about inclusivity in sports. | Bike | 1 |
+| 14 | gemini-1.5-flash | A high school history teacher creating lesson plans on South American civilizations and their regional diversity. | Car | 3 |
+| 15 | gpt-4o | A high school history teacher creating lesson plans on South American civilizations and their regional diversity. | Car | 4 |
+| 16 | gemini-1.5-flash | A cultural anthropologist studying the representation and adaptation of traditional folklore in contemporary media, particularly in television and film. | Work from home | 4 |
+| 17 | gpt-4o | A cultural anthropologist studying the representation and adaptation of traditional folklore in contemporary media, particularly in television and film. | Work from home | 4 |
+| 18 | gemini-1.5-flash | A high school earth science teacher looking for real-world examples to explain climate zones, soil types, and human-environment interactions. | Car | 2 |
+| 19 | gpt-4o | A high school earth science teacher looking for real-world examples to explain climate zones, soil types, and human-environment interactions. | Car | 3 |
+
+## Constructing traits
+
+In comparing model responses it can be convenient to include shortnames for traits in addition to narrative personas–e.g., just the name of the agent’s occupation, age, etc. Here we run a question to extract the occupation from each persona in order to store it as a separate `trait` of each agent. We use `Scenario` objects to represent the data (personas) that we add to the question when we run it. [Learn more about using scenarios](/en/latest/scenarios) to parameterize questions with data and context.
+
+```python
+from edsl import QuestionExtract
+
+q = QuestionExtract(
+    question_name = "occupation",
+    question_text = "{{ scenario.persona }}",
+    answer_template = {"occupation":"artist"}
+)
+```
+Creating scenarios for the personas in order to add them to the question:
+
+```python
+from edsl import ScenarioList
+
+scenarios = ScenarioList.from_list("persona", personas_list)
+```
+
+```python
+results = q.by(scenarios).run()
+```
+
+```python
+results.select("persona", "occupation")
+```
+
+|  | scenario.persona | answer.occupation |
+| :--- | :--- | :--- |
+| 0 | A theater manager or events coordinator interested in understanding the operational aspects, facilities, and programming of performing arts centers, such as the Broward Center. | `{'occupation': 'theater manager or events coordinator'}` |
+| 1 | An urban planner looking to understand the distribution and organization of public services in the Halifax Regional Municipality. | `{'occupation': 'urban planner'}` |
+| 2 | A high school literature teacher looking for supplementary materials to enrich their curriculum and provide students with a deeper understanding of their state's cultural heritage. | `{'occupation': 'high school literature teacher'}` |
+| 3 | A science fiction writer, exploring the use of secret trials as a theme in stories that examine surveillance, privacy, and power dynamics in society. | `{'occupation': 'science fiction writer'}` |
+| 4 | A financial analyst specializing in Asian markets and wealthy individuals, interested in tracking the investments and philanthropic activities of billionaires like Gerald Chan. | `{'occupation': 'financial analyst'}` |
+| 5 | A high school physics teacher who enjoys applying physics concepts to various sports, curious about the effects of water resistance and body positioning in Paralympic swimming. | `{'occupation': 'high school physics teacher'}` |
+| 6 | A high school physical education teacher seeking to incorporate Paralympic history and achievements into the curriculum to inspire and educate students about inclusivity in sports. | `{'occupation': 'high school physical education teacher'}` |
+| 7 | A high school history teacher creating lesson plans on South American civilizations and their regional diversity. | `{'occupation': 'high school history teacher'}` |
+| 8 | A cultural anthropologist studying the representation and adaptation of traditional folklore in contemporary media, particularly in television and film. | `{'occupation': 'cultural anthropologist'}` |
+| 9 | A high school earth science teacher looking for real-world examples to explain climate zones, soil types, and human-environment interactions. | `{'occupation': 'high school earth science teacher'}` |
+
+## Designing agents
+
+Here we recreate agents with both the personas and occupations as traits:
+
+```python
+occupations_list = [o['occupation'] for o in results.select("occupation").to_list()]
+occupations_list
+
+
+['theater manager or events coordinator',
+ 'urban planner',
+ 'high school literature teacher',
+ 'science fiction writer',
+ 'financial analyst',
+ 'high school physics teacher',
+ 'high school physical education teacher',
+ 'high school history teacher',
+ 'cultural anthropologist',
+ 'high school earth science teacher']
+```
+
+```python
+
+t = list(zip(personas_list, occupations_list))
+```
+
+```python
+
+from edsl import AgentList, Agent
+
+agents = AgentList(
+    Agent(traits = {"persona":p, "occupation":o}) for p,o in t
+)
+```
+
+## Running a survey
+
+Here we rerun the survey and then filter and sort results by agent traits:
+
+```python
+results = survey.by(agents).by(models).run()
+```
+
+```python
+(
+    results
+    .filter("model.model == 'gpt-4o'")
+    .sort_by("work_from_home", reverse=True)
+    .select("model", "occupation", "preferred_mode_commute", "work_from_home")
+)
+```
+
+
+|  | model.model | agent.occupation | answer.preferred_mode_commute | answer.work_from_home |
+| :--- | :--- | :--- | :--- | :--- |
+| 0 | gpt-4o | science fiction writer | Work from home | 5 |
+| 1 | gpt-4o | financial analyst | Work from home | 5 |
+| 2 | gpt-4o | cultural anthropologist | Work from home | 5 |
+| 3 | gpt-4o | urban planner | Public transportation | 4 |
+| 4 | gpt-4o | high school literature teacher | Car | 3 |
+| 5 | gpt-4o | high school physics teacher | Bike | 3 |
+| 6 | gpt-4o | high school history teacher | Car | 3 |
+| 7 | gpt-4o | high school earth science teacher | Car | 3 |
+| 8 | gpt-4o | theater manager or events coordinator | Car | 2 |
+| 9 | gpt-4o | high school physical education teacher | Bike | 1 |
+
+## Posting to the Coop
+
+The [Coop](https://www.expectedparrot.com/content/explore) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Coop account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [using the Coop](/en/latest/coop).
+
+Here we demonstrate how to post this notebook:
+
+```python
+from edsl import Notebook
+
+nb = Notebook(path = "import_agents.ipynb")
+
+if refresh := False:
+    nb.push(
+        description = "Importing agents",
+        alias = "importing-agents-notebook",
+        visibility = "public"
+    )
+else:
+    nb.patch('e0f3c111-328e-417b-b2ad-aec527adad49', value = nb)
+```

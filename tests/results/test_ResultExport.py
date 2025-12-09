@@ -1,7 +1,6 @@
-import pytest
 import unittest
 
-from edsl.results.Results import Results
+from edsl.results import Results
 
 
 class TestResultsExport(unittest.TestCase):

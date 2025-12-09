@@ -1,5 +1,4 @@
 import json
-from edsl.utilities.utilities import valid_json
 
 
 def extract_json_from_string(s):

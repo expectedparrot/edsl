@@ -14,7 +14,6 @@ import string
 import tempfile
 import gzip
 import webbrowser
-import json
 
 from html import escape
 from typing import Callable, Union
@@ -50,7 +49,19 @@ def time_all_functions(module_or_class):
             setattr(module_or_class, name, time_it(obj))
 
 
+def truncate_base64_in_place(obj):
+    """Recursively truncate any 'base64_string' value to 1000 chars (in place)."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k == "base64_string" and isinstance(v, str) and len(v) > 1000:
+                obj[k] = v[:1000]
+            else:
+                truncate_base64_in_place(v)
+
+
 def dict_hash(data: dict):
+    truncate_base64_in_place(data)
+
     return hash(
         int(hashlib.md5(json.dumps(data, sort_keys=True).encode()).hexdigest(), 16)
     )
@@ -90,9 +101,9 @@ def fix_partial_correct_response(text: str) -> dict:
     start_pos = text.find(json_object)
     stop_pos = start_pos + len(json_object)
 
-    # Parse the JSON object to validate it
+    # Validate the JSON
     try:
-        parsed_json = json.loads(json_object)
+        json.loads(json_object)  # Just validate, don't need to keep the parsed result
     except json.JSONDecodeError:
         return {"error": "Failed to parse JSON object"}
 
@@ -215,17 +226,9 @@ def is_notebook() -> bool:
 
 def file_notice(file_name):
     """Print a notice about the file being created."""
-    if is_notebook():
-        from IPython.display import HTML, display
+    from ..display import file_notice as display_file_notice
 
-        link_text = "Download file"
-        display(
-            HTML(
-                f'<p>File created: {file_name}</p>.<a href="{file_name}" download>{link_text}</a>'
-            )
-        )
-    else:
-        print(f"File created: {file_name}")
+    display_file_notice(file_name, link_text="Download file")
 
 
 class HTMLSnippet(str):
@@ -317,19 +320,7 @@ def merge_dicts(dict_list):
     return result
 
 
-def extract_json_from_string(s):
-    """Extract a JSON string from a string."""
-    # Find the first occurrence of '{'
-    start_idx = s.find("{")
-    # Find the last occurrence of '}'
-    end_idx = s.rfind("}")
-    # If both '{' and '}' are found in the string
-    if start_idx != -1 and end_idx != -1 and start_idx < end_idx:
-        # Extract the substring from start_idx to end_idx (inclusive)
-        json_str = s[start_idx : end_idx + 1]
-        return json_str
-    else:
-        raise ValueError("No JSON object found in string")
+# Note: extract_json_from_string is already defined above (line 58)
 
 
 def valid_json(json_string):
@@ -354,7 +345,11 @@ def is_valid_variable_name(name, allow_name=True):
 def create_valid_var_name(s, transform_func: Callable = lambda x: x.lower()) -> str:
     """Create a valid variable name from a string."""
     if transform_func is None:
-        transform_func = lambda x: x
+
+        def identity(x):
+            return x
+
+        transform_func = identity
 
     # Ensure the string is not empty
     if not s:
@@ -434,3 +429,90 @@ def write_api_key_to_env(api_key: str) -> str:
     absolute_path_to_env = env_file.absolute().as_posix()
 
     return absolute_path_to_env
+
+
+def sanitize_jinja_syntax(data: dict, data_type: str) -> dict:
+    """Sanitize values that contain problematic Jinja2 syntax by replacing with safe equivalents.
+
+    This function recursively processes a dictionary and escapes any Jinja2 template syntax
+    found in string values to prevent unintended template rendering. This is particularly
+    useful when user data might contain characters that could be interpreted as Jinja2
+    template directives.
+
+    Args:
+        data: Dictionary to sanitize
+        data_type: Type of data being sanitized (for warning messages)
+
+    Returns:
+        dict: Sanitized copy of the input data with Jinja2 syntax escaped
+
+    Examples:
+        Basic sanitization of problematic syntax:
+
+        >>> data = {"message": "Hello {{name}}", "comment": "Use {# tags #} for comments"}
+        >>> result = sanitize_jinja_syntax(data, "test_data")
+        >>> # Jinja2 syntax will be escaped to HTML entities
+        >>> "&#123;&#123;" in result["message"]  # {{ becomes &#123;&#123;
+        True
+
+        Nested dictionaries and lists are handled recursively:
+
+        >>> nested = {
+        ...     "user": {"template": "Hi {{user}}"},
+        ...     "items": ["Item {%for i in range(3)%}", "Normal item"]
+        ... }
+        >>> result = sanitize_jinja_syntax(nested, "nested_data")
+        >>> # All nested values are processed
+
+        Non-string values are preserved unchanged:
+
+        >>> data = {"number": 42, "boolean": True, "text": "{{unsafe}}"}
+        >>> result = sanitize_jinja_syntax(data, "mixed_data")
+        >>> result["number"] == 42
+        True
+        >>> result["boolean"] is True
+        True
+    """
+    import warnings
+
+    jinja_replacements = {
+        "{#": "&#123;&#35;",  # HTML entities to preserve original meaning
+        "#}": "&#35;&#125;",
+        "{{": "&#123;&#123;",
+        "}}": "&#125;&#125;",
+        "{%": "&#123;&#37;",
+        "%}": "&#37;&#125;",
+    }
+
+    def sanitize_value(value, key_path=""):
+        if isinstance(value, str):
+            original_value = value
+            for pattern, replacement in jinja_replacements.items():
+                if pattern in value:
+                    value = value.replace(pattern, replacement)
+
+            if value != original_value:
+                warnings.warn(
+                    f"Jinja2 template syntax found in {data_type} "
+                    f"{'at key ' + key_path if key_path else ''} and has been escaped. "
+                    f"Original: {repr(original_value[:100])}{'...' if len(original_value) > 100 else ''}"
+                )
+            return value
+        elif isinstance(value, dict):
+            return {
+                k: sanitize_value(v, f"{key_path}.{k}" if key_path else k)
+                for k, v in value.items()
+            }
+        elif isinstance(value, list):
+            return [
+                sanitize_value(item, f"{key_path}[{i}]" if key_path else f"[{i}]")
+                for i, item in enumerate(value)
+            ]
+        elif isinstance(value, tuple):
+            return tuple(
+                sanitize_value(item, f"{key_path}[{i}]" if key_path else f"[{i}]")
+                for i, item in enumerate(value)
+            )
+        return value
+
+    return {key: sanitize_value(value, key) for key, value in data.items()}
