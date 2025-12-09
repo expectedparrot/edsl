@@ -24,6 +24,22 @@ agent = Agent(
     })
 ```
 
+### Simplified constructor with keyword arguments
+
+You can also create agents by passing traits directly as keyword arguments, which provides a more concise syntax:
+
+```python
+from edsl import Agent
+
+agent = Agent(
+    persona="You are an expert in machine learning.",
+    age=45,
+    home_state="Massachusetts"
+)
+```
+
+This is equivalent to the traits dictionary approach but more convenient for simple agent creation.
+
 <Note>
 **Note**:
 
