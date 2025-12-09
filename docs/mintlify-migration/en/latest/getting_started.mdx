@@ -92,6 +92,25 @@ Note that if you use your own keys, you will be charged directly by the service 
 
 Read the [Starter Tutorial](/en/latest/starter_tutorial) and [download a notebook](https://www.expectedparrot.com/content/179b3a78-2505-4568-acd9-c09d18953288) to create a survey and run it. See examples for many other use cases and [tips](/en/latest/checklist) on using EDSL effectively in the documentation.
 
+## Getting help with EDSL objects
+
+EDSL provides an LLM-powered help system for all classes. You can call `vibe_help()` on any EDSL object to get contextual assistance:
+
+```python
+from edsl import Agent, Survey, Results
+
+# Get help on any EDSL class
+Agent.vibe_help()
+Survey.vibe_help()
+Results.vibe_help()
+
+# Or on specific instances
+agent = Agent(age=30)
+agent.vibe_help()
+```
+
+This method uses a language model to provide helpful information about the object, its methods, and how to use it effectively.
+
 ## Support
 
 If you have any questions or need help, please send a message to info@expectedparrot.com. You can also [open at issue at GitHub](https://github.com/expectedparrot/edsl/issues/new?template=Blank+issue) to report bugs or request new features.
