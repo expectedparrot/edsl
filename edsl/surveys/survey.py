@@ -3504,6 +3504,7 @@ class Survey(Base):
             scenario_keys,
             verbose,
         )
+
     @property
     def vibe(self) -> "SurveyVibeAccessor":
         """Access vibe-based survey editing methods.
