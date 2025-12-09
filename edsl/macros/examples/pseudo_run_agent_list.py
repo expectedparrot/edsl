@@ -29,10 +29,11 @@ agent_list = AgentList(
     ]
 )
 
-# Create a simple survey question
+# Create a simple survey question that references scenario fields
+# This is required to pass the scenario compatibility check
 q = QuestionFreeText(
     question_name="sample_question",
-    question_text="This is a sample question for the agents.",
+    question_text="This is a sample question for {{ scenario.num_agents }} agents with minimum age {{ scenario.min_age }}.",
 )
 
 # Create jobs object with the agent list
@@ -43,13 +44,13 @@ initial_survey = Survey(
     [
         QuestionNumerical(
             question_name="num_agents",
-            question_text="How many agents would you like to sample from the list of 10?",
+            question_text="How many agents would you like to sample from the list of 10? (Currently set to {{ scenario.num_agents }})",
             min_value=1,
             max_value=10,
         ),
         QuestionNumerical(
             question_name="min_age",
-            question_text="What is the minimum age of the agents you would like to sample?",
+            question_text="What is the minimum age of the agents you would like to sample? (Currently set to {{ scenario.min_age }})",
         ),
     ]
 )
