@@ -120,6 +120,7 @@ class ScenarioListTransformer:
         from simpleeval import EvalWithCompoundTypes, NameNotDefined
         from .exceptions import ScenarioError
         import warnings as _warnings
+        import re
         from .scenario_list import ScenarioList  # type: ignore
 
         try:
@@ -144,11 +145,35 @@ class ScenarioListTransformer:
         new_sl = ScenarioList(data=[], codebook=getattr(scenario_list, "codebook", {}))
 
         def create_evaluator(scenario):
-            return EvalWithCompoundTypes(names=scenario)
+            # Handle field names containing dots by creating safe aliases
+            scenario_names = dict(scenario)
+            modified_expression = expression
+
+            # Find all field names with dots that exist in the scenario
+            dot_fields = [key for key in scenario.keys() if "." in key]
+
+            if dot_fields:
+                # Create safe aliases for fields with dots
+                field_mapping = {}
+                for field in dot_fields:
+                    # Create a safe alias by replacing dots with underscores and adding prefix
+                    safe_alias = f"__dot_field_{field.replace('.', '_dot_')}"
+                    field_mapping[field] = safe_alias
+                    scenario_names[safe_alias] = scenario[field]
+
+                    # Replace field references in the expression with safe aliases
+                    # Use word boundaries to avoid partial replacements
+                    pattern = r"\b" + re.escape(field) + r"\b"
+                    modified_expression = re.sub(
+                        pattern, safe_alias, modified_expression
+                    )
+
+            return EvalWithCompoundTypes(names=scenario_names), modified_expression
 
         try:
             for scenario in scenario_list:
-                if create_evaluator(scenario).eval(expression):
+                evaluator, eval_expression = create_evaluator(scenario)
+                if evaluator.eval(eval_expression):
                     scenario_copy = scenario.copy()
                     new_sl.append(scenario_copy)
                     del scenario_copy

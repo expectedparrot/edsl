@@ -1,7 +1,6 @@
 import os
 import pytest
-from pathlib import Path
-from edsl.config import Config, CONFIG
+from edsl.config import Config
 from edsl.config.config_class import InvalidEnvironmentVariableError, modify_settings
 
 

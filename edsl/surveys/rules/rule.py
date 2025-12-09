@@ -30,6 +30,7 @@ from ..exceptions import SurveyError
 from ..exceptions import (
     SurveyRuleCannotEvaluateError,
     SurveyRuleRefersToFutureStateError,
+    SurveyRuleReferenceInRuleToUnknownQuestionError,
     SurveyRuleSendsYouBackwardsError,
     SurveyRuleSkipLogicSyntaxError,
 )
@@ -123,10 +124,16 @@ class Rule:
             )
 
         # make sure all the variables in the expression are known questions
-        try:
-            assert all([q in question_name_to_index for q in extracted_question_names])
-        except AssertionError:
-            pass
+        invalid_question_names = [
+            q for q in extracted_question_names if q not in question_name_to_index
+        ]
+        if invalid_question_names:
+            available_questions = list(question_name_to_index.keys())
+            raise SurveyRuleReferenceInRuleToUnknownQuestionError(
+                f"Rule expression references unknown question name(s): {invalid_question_names}. "
+                f"Available question names in this survey: {available_questions}. "
+                f"Rule expression: '{expression}'"
+            )
 
         # get the indices of the questions mentioned in the expression
         self.named_questions_by_index = [
