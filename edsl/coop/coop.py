@@ -258,9 +258,9 @@ class Coop(CoopFunctionsMixin):
             if "json_string" in log_payload and log_payload["json_string"]:
                 json_str = log_payload["json_string"]
                 if len(json_str) > 200:
-                    log_payload[
-                        "json_string"
-                    ] = f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    log_payload["json_string"] = (
+                        f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    )
             self._logger.info(f"Request payload: {log_payload}")
 
         try:
@@ -1341,6 +1341,33 @@ class Coop(CoopFunctionsMixin):
                 )
             return [object_type]
 
+    def _validate_alias(self, alias: Optional[str]) -> None:
+        """
+        Validate that an alias contains only letters, numbers, and hyphens.
+
+        Args:
+            alias: The alias string to validate
+
+        Raises:
+            CoopValueError: If the alias contains invalid characters
+
+        Example:
+            >>> coop = Coop()
+            >>> coop._validate_alias("my-valid-alias123")  # OK
+            >>> coop._validate_alias("invalid alias!")  # Raises CoopValueError
+        """
+        if alias is None:
+            return
+
+        import re
+
+        # Check if alias contains only letters, numbers, and hyphens
+        if not re.match(r"^[a-zA-Z0-9-]+$", alias):
+            raise CoopValueError(
+                f"Invalid alias: '{alias}'. "
+                "Alias must contain only letters, numbers, and hyphens."
+            )
+
     def _validate_visibility_types(
         self, visibility: Union[VisibilityType, List[VisibilityType]]
     ) -> List[VisibilityType]:
@@ -1544,6 +1571,9 @@ class Coop(CoopFunctionsMixin):
         :param value: Optional new object value
         :param visibility: Optional new visibility setting
         """
+        # Validate alias before attempting to patch
+        self._validate_alias(alias)
+
         if (
             description is None
             and visibility is None
@@ -3643,9 +3673,11 @@ class Coop(CoopFunctionsMixin):
                         )
                     elif isinstance(value, list):
                         d[key] = [
-                            process_dict_recursive(item, f"{path}.{key}[{i}]")
-                            if isinstance(item, dict)
-                            else item
+                            (
+                                process_dict_recursive(item, f"{path}.{key}[{i}]")
+                                if isinstance(item, dict)
+                                else item
+                            )
                             for i, item in enumerate(value)
                         ]
 
@@ -3659,7 +3691,7 @@ class Coop(CoopFunctionsMixin):
         description: Optional[str] = None,
         alias: Optional[str] = None,
         visibility: Optional[VisibilityType] = "unlisted",
-        overwrite: bool = False,
+        force: bool = False,
     ) -> "Scenario":
         """
         Generate a signed URL for pushing an object directly to Google Cloud Storage.
@@ -3682,6 +3714,9 @@ class Coop(CoopFunctionsMixin):
             >>> # Use the signed_url to upload the object directly
         """
         from ..scenarios import Scenario
+
+        # Validate alias before attempting to push
+        self._validate_alias(alias)
 
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
         object_dict = object.to_dict()
@@ -3714,9 +3749,9 @@ class Coop(CoopFunctionsMixin):
             url = f"{self.api_url}/api/v0/object/push"
             error_message = response.text
 
-            # Check if this is an alias conflict error and overwrite is enabled
+            # Check if this is an alias conflict error and force is enabled
             if (
-                overwrite
+                force
                 and alias
                 and "already have an object with the alias" in error_message
             ):
@@ -3774,9 +3809,7 @@ class Coop(CoopFunctionsMixin):
                     value_type = (
                         "inf"
                         if math.isinf(value)
-                        else "nan"
-                        if math.isnan(value)
-                        else "invalid"
+                        else "nan" if math.isnan(value) else "invalid"
                     )
                     error_msg += f"  • {path}: {value} ({value_type})\n"
 
@@ -3832,6 +3865,7 @@ class Coop(CoopFunctionsMixin):
                 "description": response_json.get("description"),
                 "object_type": object_type,
                 "url": f"{self.url}/content/{object_uuid}",
+                "alias": object_alias,
                 "alias_url": self._get_alias_url(owner_username, object_alias),
                 "uuid": object_uuid,
                 "version": self._edsl_version,
@@ -3854,7 +3888,49 @@ class Coop(CoopFunctionsMixin):
 
         url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
 
-        if console.is_terminal:
+        # Check if we're in marimo by checking sys.modules
+        in_marimo = "marimo" in sys.modules
+        mo = None
+        if in_marimo:
+            try:
+                import marimo as mo
+            except ImportError:
+                in_marimo = False
+
+        # Debug output
+        print(
+            f"DEBUG: in_marimo={in_marimo}, console.is_terminal={console.is_terminal}"
+        )
+
+        description = (
+            link_description
+            if link_description
+            else "🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key."
+        )
+        html_content = f"""
+        <div style="margin: 15px 0; padding: 10px; border-left: 3px solid #38bdf8; background-color: #f8fafc;">
+            <p style="margin: 0 0 10px 0; color: #334155;">{description}</p>
+            <a href="{url}" target="_blank"
+               style="color: #38bdf8; text-decoration: none; font-weight: 500; font-size: 14px;">
+                🔗 Log in and automatically store key
+            </a>
+        </div>
+        """
+
+        if in_marimo and mo is not None:
+            # marimo: use mo.callout with markdown link
+            callout = mo.callout(
+                mo.md(
+                    f"""
+{description}
+
+[🔗 Log in and automatically store key]({url})
+                """
+                ),
+                kind="info",
+            )
+            return callout
+        elif console.is_terminal:
             # Running in a standard terminal, show the full URL
             if link_description:
                 rich_print(
@@ -3863,15 +3939,11 @@ class Coop(CoopFunctionsMixin):
             else:
                 rich_print(f"[#38bdf8][link={url}]{url}[/link][/#38bdf8]")
         else:
-            # Running in an interactive environment (e.g., Jupyter Notebook), hide the URL
-            if link_description:
-                rich_print(
-                    f"{link_description}\n[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]"
-                )
-            else:
-                rich_print(
-                    f"[#38bdf8][link={url}][underline]Log in and automatically store key[/underline][/link][/#38bdf8]"
-                )
+            # Running in an interactive environment (e.g., Jupyter Notebook)
+            # Use IPython HTML display
+            from IPython.display import HTML, display
+
+            display(HTML(html_content))
 
         print("Logging in will activate the following features:")
         print("  - Remote inference: Runs jobs remotely on the Expected Parrot server.")
@@ -3904,10 +3976,15 @@ class Coop(CoopFunctionsMixin):
 
         edsl_auth_token = secrets.token_urlsafe(16)
 
-        self._display_login_url(
+        html_obj = self._display_login_url(
             edsl_auth_token=edsl_auth_token,
             link_description="\n🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key.",
         )
+
+        # If in marimo, print the HTML object so it displays
+        if html_obj is not None:
+            print(html_obj)
+
         api_key = self._poll_for_api_key(edsl_auth_token)
 
         if api_key is None:

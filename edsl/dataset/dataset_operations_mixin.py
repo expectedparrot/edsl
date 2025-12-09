@@ -120,6 +120,49 @@ class DataOperationsBase:
             ggplot_code, shape, sql, remove_prefix, debug, height, width, factor_orders
         )
 
+    def plot(
+        self,
+        ggplot_code: str,
+        shape: str = "wide",
+        sql: Optional[str] = None,
+        remove_prefix: bool = True,
+        debug: bool = False,
+        height: float = 4,
+        width: float = 6,
+        factor_orders: Optional[dict] = None,
+    ):
+        """
+        Create visualizations using R's ggplot2 library.
+
+        This is an alias for the ggplot2 method, provided for symmetry with vibe_plot.
+
+        Parameters:
+            ggplot_code: R code string containing ggplot2 commands
+            shape: Data shape to use ("wide" or "long")
+            sql: Optional SQL query to transform data before visualization
+            remove_prefix: Whether to remove prefixes (like "answer.") from column names
+            debug: Whether to display debugging information
+            height: Plot height in inches
+            width: Plot width in inches
+            factor_orders: Dictionary mapping factor variables to their desired order
+
+        Returns:
+            A plot object that renders in Jupyter notebooks
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> # The following would create a plot if R is installed (not shown in doctest):
+            >>> # r.plot('''
+            >>> #     ggplot(df, aes(x=how_feeling)) +
+            >>> #     geom_bar() +
+            >>> #     labs(title="Distribution of Feelings")
+            >>> # ''')
+        """
+        return self.ggplot2(
+            ggplot_code, shape, sql, remove_prefix, debug, height, width, factor_orders
+        )
+
     def relevant_columns(
         self, data_type: Optional[str] = None, remove_prefix: bool = False
     ) -> list:
@@ -195,6 +238,154 @@ class DataOperationsBase:
 
         # Return 0 for empty datasets instead of None
         return _num_observations if _num_observations is not None else 0
+
+    def vibe_plot(
+        self,
+        description: str,
+        show_code: bool = True,
+        show_expression: bool = False,
+        height: float = 4,
+        width: float = 6,
+    ):
+        """
+        Generate and display a ggplot2 visualization using natural language description.
+
+        Parameters:
+            description: Natural language description of the desired plot
+            show_code: If True, displays the generated R code alongside the plot
+            show_expression: If True, prints the R code used (alias for show_code)
+            height: Plot height in inches (default: 4)
+            width: Plot width in inches (default: 6)
+
+        Returns:
+            A plot object that renders in Jupyter notebooks
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> # Generate a plot from a description (requires R/ggplot2):
+            >>> # plot = r.vibe_plot("bar chart of how_feeling")
+            >>> # Display with R code shown:
+            >>> # plot = r.vibe_plot("bar chart of how_feeling", show_expression=True)
+            >>> # Custom dimensions:
+            >>> # plot = r.vibe_plot("scatter plot of age vs income", height=8, width=10)
+        """
+        from .vibes.vibe_viz import GGPlotGenerator
+
+        gen = GGPlotGenerator(model="gpt-4o", temperature=0.1)
+
+        # Either show_code or show_expression will trigger displaying the code
+        should_show = show_code or show_expression
+
+        if should_show:
+            # Get the code display object
+            code_display = gen.make_plot_code(
+                self.to_pandas(remove_prefix=True),
+                description,
+                return_display=True,
+                show_code=True,
+            )
+            # Extract the actual code string for ggplot2
+            r_code = code_display.code
+
+            # Display the code (in Jupyter it will show with copy button, in terminal just the code)
+            try:
+                from IPython.display import display
+                from ..utilities.utilities import is_notebook
+
+                if is_notebook():
+                    display(code_display)
+                else:
+                    print(r_code)
+            except ImportError:
+                # Not in a notebook environment
+                print(r_code)
+        else:
+            # Get just the code string
+            r_code = gen.make_plot_code(self.to_pandas(remove_prefix=True), description)
+
+        return self.ggplot2(r_code, height=height, width=width)
+
+    def vibe_sql(
+        self,
+        description: str,
+        show_code: bool = True,
+        show_expression: bool = False,
+        transpose: bool = None,
+        transpose_by: str = None,
+        remove_prefix: bool = True,
+        shape: str = "wide",
+    ):
+        """
+        Generate and execute a SQL query using natural language description.
+
+        Parameters:
+            description: Natural language description of the desired query
+            show_code: If True, displays the generated SQL query with copy button
+            show_expression: If True, displays the generated SQL query (alias for show_code)
+            transpose: Whether to transpose the resulting table (rows become columns)
+            transpose_by: Column to use as the new index when transposing
+            remove_prefix: Whether to remove type prefixes from column names
+            shape: Data shape to use ("wide" or "long")
+
+        Returns:
+            A Dataset object containing the query results
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> # Generate and execute a query from a description:
+            >>> # result = r.vibe_sql("Show all people over 30")
+            >>> # With query shown:
+            >>> # result = r.vibe_sql("Count by occupation", show_expression=True)
+            >>> # Aggregation query:
+            >>> # result = r.vibe_sql("Average age by city")
+        """
+        from .vibes.vibe_sql import VibeSQLGenerator
+
+        gen = VibeSQLGenerator(model="gpt-4o", temperature=0.1)
+
+        # Either show_code or show_expression will trigger displaying the code
+        should_show = show_code or show_expression
+
+        if should_show:
+            # Get the SQL query with display object
+            query_display = gen.make_sql_query(
+                self.to_pandas(remove_prefix=remove_prefix),
+                description,
+                return_display=True,
+                show_code=True,
+            )
+            # Extract the actual SQL query string
+            sql_query = query_display.code
+
+            # Display the code (in Jupyter it will show with copy button, in terminal just the query)
+            try:
+                from IPython.display import display
+                from ..utilities.utilities import is_notebook
+
+                if is_notebook():
+                    display(query_display)
+                else:
+                    print(sql_query)
+            except ImportError:
+                # Not in a notebook environment
+                print("Generated SQL query:")
+                print(sql_query)
+        else:
+            # Get just the SQL query string without display
+            sql_query = gen.make_sql_query(
+                self.to_pandas(remove_prefix=remove_prefix), description
+            )
+
+        # Execute the query and return the result
+        return self.sql(
+            sql_query,
+            transpose=transpose,
+            transpose_by=transpose_by,
+            remove_prefix=remove_prefix,
+            shape=shape,
+        )
 
     def chart(self):
         """
@@ -999,6 +1190,576 @@ class DataOperationsBase:
                 f"Unsupported format: {format}. Use 'markdown' or 'docx'."
             )
 
+    def confusion_matrix(
+        self, actual_field: str, predicted_field: str, normalize: Optional[str] = None
+    ) -> "Dataset":
+        """
+        Create a confusion matrix comparing two categorical fields.
+
+        A confusion matrix is a table that shows the frequency of actual vs predicted values,
+        useful for evaluating classification results. Rows typically represent actual values
+        and columns represent predicted values.
+
+        Parameters:
+            actual_field: The field containing actual/true values
+            predicted_field: The field containing predicted values
+            normalize: Optional normalization mode:
+                - None (default): Show raw counts
+                - "true": Normalize over true (row) conditions
+                - "pred": Normalize over predicted (column) conditions
+                - "all": Normalize over all observations
+
+        Returns:
+            A Dataset object with the confusion matrix where:
+            - First column contains the unique values from actual_field
+            - Additional columns contain counts for each unique value in predicted_field
+            - Column names are the unique values from predicted_field
+            - Optionally normalized based on the normalize parameter
+
+        Notes:
+            - Field names can be specified with or without prefixes (e.g., 'field' or 'answer.field')
+            - Missing values (None) are included as a separate category
+            - The resulting Dataset can be displayed as a table using .table()
+            - Results are sorted by the actual_field values
+
+        Examples:
+            >>> from edsl.dataset import Dataset
+            >>> d = Dataset([
+            ...     {'actual': ['cat', 'cat', 'dog', 'dog', 'dog']},
+            ...     {'predicted': ['cat', 'dog', 'dog', 'dog', 'cat']}
+            ... ])
+            >>> cm = d.confusion_matrix('actual', 'predicted')
+            >>> sorted(cm.keys())
+            ['actual', 'cat', 'dog']
+
+            >>> # With normalization over rows (true conditions)
+            >>> cm_norm = d.confusion_matrix('actual', 'predicted', normalize='true')
+            >>> sorted(cm_norm.keys())
+            ['actual', 'cat', 'dog']
+        """
+        # Validate normalize parameter
+        if normalize not in [None, "true", "pred", "all"]:
+            raise DatasetValueError(
+                f"normalize must be None, 'true', 'pred', or 'all', got '{normalize}'"
+            )
+
+        # Get the values for both fields
+        actual_values = self._key_to_value(actual_field)
+        predicted_values = self._key_to_value(predicted_field)
+
+        if len(actual_values) != len(predicted_values):
+            raise DatasetValueError(
+                f"Fields must have the same length. "
+                f"{actual_field} has {len(actual_values)} values, "
+                f"{predicted_field} has {len(predicted_values)} values."
+            )
+
+        # Get unique values for both fields (sorted for consistency)
+        unique_actual = sorted(set(actual_values), key=lambda x: (x is None, x))
+        unique_predicted = sorted(set(predicted_values), key=lambda x: (x is None, x))
+
+        # Build the confusion matrix as a dictionary of counts
+        matrix = {}
+        for actual_val in unique_actual:
+            matrix[actual_val] = {}
+            for pred_val in unique_predicted:
+                matrix[actual_val][pred_val] = 0
+
+        # Count occurrences
+        for actual_val, pred_val in zip(actual_values, predicted_values):
+            matrix[actual_val][pred_val] += 1
+
+        # Apply normalization if requested
+        if normalize == "true":
+            # Normalize by row (actual values)
+            for actual_val in unique_actual:
+                row_sum = sum(matrix[actual_val].values())
+                if row_sum > 0:
+                    for pred_val in unique_predicted:
+                        matrix[actual_val][pred_val] /= row_sum
+        elif normalize == "pred":
+            # Normalize by column (predicted values)
+            col_sums = {pred_val: 0 for pred_val in unique_predicted}
+            for actual_val in unique_actual:
+                for pred_val in unique_predicted:
+                    col_sums[pred_val] += matrix[actual_val][pred_val]
+            for actual_val in unique_actual:
+                for pred_val in unique_predicted:
+                    if col_sums[pred_val] > 0:
+                        matrix[actual_val][pred_val] /= col_sums[pred_val]
+        elif normalize == "all":
+            # Normalize by total count
+            total = sum(
+                matrix[actual_val][pred_val]
+                for actual_val in unique_actual
+                for pred_val in unique_predicted
+            )
+            if total > 0:
+                for actual_val in unique_actual:
+                    for pred_val in unique_predicted:
+                        matrix[actual_val][pred_val] /= total
+
+        # Convert to Dataset format
+        # First column is the actual values
+        dataset_data = [{actual_field: unique_actual}]
+
+        # Add a column for each predicted value
+        for pred_val in unique_predicted:
+            col_name = str(pred_val) if pred_val is not None else "None"
+            col_values = [matrix[actual_val][pred_val] for actual_val in unique_actual]
+            dataset_data.append({col_name: col_values})
+
+        from ..dataset import Dataset
+
+        result = Dataset(dataset_data)
+        # Mark this as a confusion matrix for validation in perplexity()
+        result._is_confusion_matrix = True
+        result._confusion_matrix_metadata = {
+            "actual_field": actual_field,
+            "predicted_values": unique_predicted,
+            "actual_values": unique_actual,
+            "normalize": normalize,
+        }
+        return result
+
+    def perplexity(self, per_class: bool = False) -> Union[float, "Dataset"]:
+        """
+        Calculate perplexity from a confusion matrix.
+
+        Perplexity measures the uncertainty or "confusion" of a classifier based on the
+        cross-entropy of predictions. It's calculated as exp(average negative log-likelihood)
+        where the log-likelihood is computed from the probability assigned to the correct
+        class. Lower perplexity indicates better model performance.
+
+        This method can only be called on a Dataset that was created by the confusion_matrix()
+        method. For each actual class, we look at the probability assigned to predicting that
+        correct class (the diagonal of the confusion matrix). The overall perplexity is the
+        weighted average across all classes.
+
+        Args:
+            per_class: If True, returns a Dataset with per-class perplexity values.
+                      If False (default), returns the overall weighted perplexity as a float.
+
+        Returns:
+            If per_class=False: A float representing the weighted average perplexity
+            If per_class=True: A Dataset with perplexity for each actual class
+
+        Raises:
+            DatasetNotConfusionMatrixError: If called on a Dataset that is not a confusion matrix
+
+        Notes:
+            - Perplexity of 1.0 means perfect prediction (100% accuracy)
+            - Perplexity of N means random guessing (uniform distribution over N classes)
+            - Uses natural logarithm (ln) for calculation: perplexity = exp(-ln(p_correct))
+            - For raw count matrices, rows are normalized to probabilities
+            - Weighted average accounts for class imbalance in the data
+
+        Examples:
+            >>> from edsl.dataset import Dataset
+            >>> d = Dataset([
+            ...     {'actual': ['cat', 'cat', 'dog', 'dog', 'dog']},
+            ...     {'predicted': ['cat', 'dog', 'dog', 'dog', 'cat']}
+            ... ])
+            >>> cm = d.confusion_matrix('actual', 'predicted')
+            >>> perp = cm.perplexity()
+            >>> isinstance(perp, float)
+            True
+            >>> perp >= 1.0
+            True
+
+            >>> # Get per-class perplexity
+            >>> per_class_perp = cm.perplexity(per_class=True)
+            >>> 'actual' in per_class_perp.keys()
+            True
+            >>> 'perplexity' in per_class_perp.keys()
+            True
+        """
+        import math
+        from .exceptions import DatasetNotConfusionMatrixError
+
+        # Check if this is a confusion matrix
+        if not hasattr(self, "_is_confusion_matrix") or not self._is_confusion_matrix:
+            raise DatasetNotConfusionMatrixError(
+                "perplexity() can only be called on a Dataset created by confusion_matrix(). "
+                "Create a confusion matrix first using: dataset.confusion_matrix(actual_field, predicted_field)"
+            )
+
+        # Get metadata
+        metadata = self._confusion_matrix_metadata
+        actual_field = metadata["actual_field"]
+        actual_values = metadata["actual_values"]
+
+        # Get the data as a pandas DataFrame for easier manipulation
+        df = self.to_pandas()
+
+        # Calculate perplexity for each actual class (row)
+        # We need both the per-class perplexity and the sample counts for weighting
+        perplexities = []
+        sample_counts = []
+
+        for i, actual_val in enumerate(actual_values):
+            # Get the row for this actual value
+            row = df[df[actual_field] == actual_val]
+
+            if len(row) == 0:
+                continue
+
+            # Extract probability values (all columns except the actual_field column)
+            prob_cols = [col for col in df.columns if col != actual_field]
+            probs = row[prob_cols].values[0]
+
+            # Normalize if needed (convert counts to probabilities)
+            row_sum = sum(probs)
+            if row_sum > 0:
+                probs = [p / row_sum for p in probs]
+            else:
+                # Handle edge case of all zeros
+                probs = [1.0 / len(probs) for _ in probs]
+
+            # Get the probability of the correct prediction (diagonal element)
+            # The correct prediction is at the same index as the actual value
+            p_correct = probs[i] if i < len(probs) else 0.0
+
+            # Avoid log(0) by using a small epsilon
+            if p_correct <= 0:
+                p_correct = 1e-10
+
+            # Calculate perplexity for this class: exp(-ln(p_correct))
+            # This is equivalent to: perplexity = 1 / p_correct, but we use exp(-log(p))
+            # for numerical stability and to match the standard definition
+            perplexity_val = math.exp(-math.log(p_correct))
+
+            perplexities.append(perplexity_val)
+            sample_counts.append(row_sum)
+
+        if per_class:
+            # Return a Dataset with per-class perplexity
+            from ..dataset import Dataset
+
+            return Dataset(
+                [{actual_field: list(actual_values)}, {"perplexity": perplexities}]
+            )
+        else:
+            # Return weighted average perplexity
+            # Weight by the number of samples in each class
+            total_samples = sum(sample_counts)
+            if total_samples == 0:
+                return 0.0
+
+            # Calculate weighted average of log probabilities, then exp()
+            weighted_log_sum = sum(
+                count * math.log(1.0 / perp)
+                for count, perp in zip(sample_counts, perplexities)
+            )
+            average_log_prob = weighted_log_sum / total_samples
+
+            return math.exp(-average_log_prob)
+
+    def true_positive_count(self, per_class: bool = False) -> Union[int, "Dataset"]:
+        """
+        Get the count of true positives from a confusion matrix.
+
+        True positives are the correctly predicted instances for each class,
+        represented by the diagonal elements of the confusion matrix.
+
+        This method can only be called on a Dataset that was created by the confusion_matrix()
+        method.
+
+        Args:
+            per_class: If True, returns a Dataset with true positive counts for each class.
+                      If False (default), returns the total count of true positives as an int.
+
+        Returns:
+            If per_class=False: An integer representing the total count of correct predictions
+            If per_class=True: A Dataset with true positive counts for each actual class
+
+        Raises:
+            DatasetNotConfusionMatrixError: If called on a Dataset that is not a confusion matrix
+
+        Notes:
+            - True positives are the diagonal elements of the confusion matrix
+            - Total true positives equals the number of correct predictions
+            - For multi-class problems, this sums all diagonal elements
+
+        Examples:
+            >>> from edsl.dataset import Dataset
+            >>> d = Dataset([
+            ...     {'actual': ['cat', 'cat', 'dog', 'dog', 'dog']},
+            ...     {'predicted': ['cat', 'dog', 'dog', 'dog', 'cat']}
+            ... ])
+            >>> cm = d.confusion_matrix('actual', 'predicted')
+            >>> tp = cm.true_positive_count()
+            >>> isinstance(tp, int)
+            True
+            >>> tp
+            3
+
+            >>> # Get per-class counts
+            >>> per_class_tp = cm.true_positive_count(per_class=True)
+            >>> 'actual' in per_class_tp.keys()
+            True
+            >>> 'true_positive_count' in per_class_tp.keys()
+            True
+        """
+        from .exceptions import DatasetNotConfusionMatrixError
+
+        # Check if this is a confusion matrix
+        if not hasattr(self, "_is_confusion_matrix") or not self._is_confusion_matrix:
+            raise DatasetNotConfusionMatrixError(
+                "true_positive_count() can only be called on a Dataset created by confusion_matrix(). "
+                "Create a confusion matrix first using: dataset.confusion_matrix(actual_field, predicted_field)"
+            )
+
+        # Get metadata
+        metadata = self._confusion_matrix_metadata
+        actual_field = metadata["actual_field"]
+        actual_values = metadata["actual_values"]
+
+        # Get the data as a pandas DataFrame
+        df = self.to_pandas()
+
+        # Extract true positive counts (diagonal elements)
+        tp_counts = []
+        for i, actual_val in enumerate(actual_values):
+            row = df[df[actual_field] == actual_val]
+            if len(row) == 0:
+                tp_counts.append(0)
+                continue
+
+            # Get the column name for this class
+            # Columns are ordered as they appear in predicted_values
+            prob_cols = [col for col in df.columns if col != actual_field]
+            if i < len(prob_cols):
+                col_name = prob_cols[i]
+                tp_count = int(row[col_name].values[0])
+                tp_counts.append(tp_count)
+            else:
+                tp_counts.append(0)
+
+        if per_class:
+            # Return a Dataset with per-class counts
+            from ..dataset import Dataset
+
+            return Dataset(
+                [
+                    {actual_field: list(actual_values)},
+                    {"true_positive_count": tp_counts},
+                ]
+            )
+        else:
+            # Return total count
+            return sum(tp_counts)
+
+    def false_negative_count(self, per_class: bool = False) -> Union[int, "Dataset"]:
+        """
+        Get the count of false negatives from a confusion matrix.
+
+        False negatives are instances of a class that were incorrectly predicted as
+        a different class. For each actual class, this is the sum of all off-diagonal
+        elements in that row.
+
+        This method can only be called on a Dataset that was created by the confusion_matrix()
+        method.
+
+        Args:
+            per_class: If True, returns a Dataset with false negative counts for each class.
+                      If False (default), returns the total count of false negatives as an int.
+
+        Returns:
+            If per_class=False: An integer representing the total count of false negatives
+            If per_class=True: A Dataset with false negative counts for each actual class
+
+        Raises:
+            DatasetNotConfusionMatrixError: If called on a Dataset that is not a confusion matrix
+
+        Notes:
+            - False negatives = instances of a class predicted as something else
+            - For each class: FN = row_sum - true_positives
+            - High false negatives indicate the model often misses that class
+
+        Examples:
+            >>> from edsl.dataset import Dataset
+            >>> d = Dataset([
+            ...     {'actual': ['cat', 'cat', 'dog', 'dog', 'dog']},
+            ...     {'predicted': ['cat', 'dog', 'dog', 'dog', 'cat']}
+            ... ])
+            >>> cm = d.confusion_matrix('actual', 'predicted')
+            >>> fn = cm.false_negative_count()
+            >>> isinstance(fn, int)
+            True
+            >>> fn
+            2
+
+            >>> # Get per-class counts
+            >>> per_class_fn = cm.false_negative_count(per_class=True)
+            >>> 'actual' in per_class_fn.keys()
+            True
+            >>> 'false_negative_count' in per_class_fn.keys()
+            True
+        """
+        from .exceptions import DatasetNotConfusionMatrixError
+
+        # Check if this is a confusion matrix
+        if not hasattr(self, "_is_confusion_matrix") or not self._is_confusion_matrix:
+            raise DatasetNotConfusionMatrixError(
+                "false_negative_count() can only be called on a Dataset created by confusion_matrix(). "
+                "Create a confusion matrix first using: dataset.confusion_matrix(actual_field, predicted_field)"
+            )
+
+        # Get metadata
+        metadata = self._confusion_matrix_metadata
+        actual_field = metadata["actual_field"]
+        actual_values = metadata["actual_values"]
+
+        # Get the data as a pandas DataFrame
+        df = self.to_pandas()
+
+        # Extract false negative counts (row sum - diagonal)
+        fn_counts = []
+        for i, actual_val in enumerate(actual_values):
+            row = df[df[actual_field] == actual_val]
+            if len(row) == 0:
+                fn_counts.append(0)
+                continue
+
+            # Get all prediction columns
+            prob_cols = [col for col in df.columns if col != actual_field]
+            row_values = [int(row[col].values[0]) for col in prob_cols]
+
+            # Row sum
+            row_sum = sum(row_values)
+
+            # True positive (diagonal element)
+            tp = row_values[i] if i < len(row_values) else 0
+
+            # False negatives = row_sum - tp
+            fn_count = row_sum - tp
+            fn_counts.append(fn_count)
+
+        if per_class:
+            # Return a Dataset with per-class counts
+            from ..dataset import Dataset
+
+            return Dataset(
+                [
+                    {actual_field: list(actual_values)},
+                    {"false_negative_count": fn_counts},
+                ]
+            )
+        else:
+            # Return total count
+            return sum(fn_counts)
+
+    def percent_correctly_predicted(
+        self, per_class: bool = False
+    ) -> Union[float, "Dataset"]:
+        """
+        Calculate the percentage of correctly predicted instances from a confusion matrix.
+
+        This is the overall accuracy of the classifier (for per_class=False) or the
+        per-class recall/sensitivity (for per_class=True).
+
+        This method can only be called on a Dataset that was created by the confusion_matrix()
+        method.
+
+        Args:
+            per_class: If True, returns a Dataset with accuracy for each class (recall).
+                      If False (default), returns the overall accuracy as a percentage.
+
+        Returns:
+            If per_class=False: A float representing the overall accuracy percentage (0-100)
+            If per_class=True: A Dataset with per-class accuracy (recall) percentages
+
+        Raises:
+            DatasetNotConfusionMatrixError: If called on a Dataset that is not a confusion matrix
+
+        Notes:
+            - Overall accuracy = (sum of diagonal) / (total predictions) * 100
+            - Per-class accuracy (recall) = true_positives / (true_positives + false_negatives) * 100
+            - This is also known as accuracy (overall) or recall/sensitivity (per-class)
+
+        Examples:
+            >>> from edsl.dataset import Dataset
+            >>> d = Dataset([
+            ...     {'actual': ['cat', 'cat', 'dog', 'dog', 'dog']},
+            ...     {'predicted': ['cat', 'dog', 'dog', 'dog', 'cat']}
+            ... ])
+            >>> cm = d.confusion_matrix('actual', 'predicted')
+            >>> acc = cm.percent_correctly_predicted()
+            >>> isinstance(acc, float)
+            True
+            >>> 0 <= acc <= 100
+            True
+
+            >>> # Get per-class accuracy (recall)
+            >>> per_class_acc = cm.percent_correctly_predicted(per_class=True)
+            >>> 'actual' in per_class_acc.keys()
+            True
+            >>> 'percent_correct' in per_class_acc.keys()
+            True
+        """
+        from .exceptions import DatasetNotConfusionMatrixError
+
+        # Check if this is a confusion matrix
+        if not hasattr(self, "_is_confusion_matrix") or not self._is_confusion_matrix:
+            raise DatasetNotConfusionMatrixError(
+                "percent_correctly_predicted() can only be called on a Dataset created by confusion_matrix(). "
+                "Create a confusion matrix first using: dataset.confusion_matrix(actual_field, predicted_field)"
+            )
+
+        # Get metadata
+        metadata = self._confusion_matrix_metadata
+        actual_field = metadata["actual_field"]
+        actual_values = metadata["actual_values"]
+
+        # Get the data as a pandas DataFrame
+        df = self.to_pandas()
+
+        # Calculate per-class percentages
+        percentages = []
+        total_correct = 0
+        total_samples = 0
+
+        for i, actual_val in enumerate(actual_values):
+            row = df[df[actual_field] == actual_val]
+            if len(row) == 0:
+                percentages.append(0.0)
+                continue
+
+            # Get all prediction columns
+            prob_cols = [col for col in df.columns if col != actual_field]
+            row_values = [int(row[col].values[0]) for col in prob_cols]
+
+            # Row sum (total instances of this class)
+            row_sum = sum(row_values)
+
+            # True positive (diagonal element)
+            tp = row_values[i] if i < len(row_values) else 0
+
+            # Calculate percentage for this class
+            if row_sum > 0:
+                percentage = (tp / row_sum) * 100
+            else:
+                percentage = 0.0
+
+            percentages.append(percentage)
+            total_correct += tp
+            total_samples += row_sum
+
+        if per_class:
+            # Return a Dataset with per-class percentages
+            from ..dataset import Dataset
+
+            return Dataset(
+                [{actual_field: list(actual_values)}, {"percent_correct": percentages}]
+            )
+        else:
+            # Return overall accuracy
+            if total_samples > 0:
+                return (total_correct / total_samples) * 100
+            else:
+                return 0.0
+
     def tally(
         self, *fields: Optional[str], top_n: Optional[int] = None, output="Dataset"
     ) -> Union[dict, "Dataset"]:
@@ -1687,6 +2448,70 @@ class ScenarioListOperationsMixin(DataOperationsBase):
     ScenarioList objects are converted to Dataset objects before method execution
     via the to_dataset decorator applied in __init_subclass__.
     """
+
+    def kl_divergence(
+        self,
+        group_field: str,
+        value_field: str,
+        from_group: Optional[str] = None,
+        to_group: Optional[str] = None,
+        bins: Optional[Union[int, str]] = None,
+        base: float = 2.0,
+        laplace_smooth: float = 1e-10,
+    ) -> Union[float, dict]:
+        """
+        Compute KL divergence between distributions defined by groups.
+
+        Measures how much one probability distribution diverges from another.
+        Useful for comparing distributions across experimental conditions, agent
+        personas, prompt variations, etc.
+
+        Parameters:
+            group_field: Field that defines the groups (e.g., 'condition', 'persona')
+            value_field: Field containing values to compare distributions of
+            from_group: The reference group (P in KL(P||Q)). If None, compute all pairs.
+            to_group: The comparison group (Q in KL(P||Q)). Required if from_group specified.
+            bins: For continuous data - number of bins or 'auto' (default: None = categorical)
+            base: Logarithm base (2=bits, e=nats, 10=dits, default: 2)
+            laplace_smooth: Small value to avoid log(0) (default: 1e-10)
+
+        Returns:
+            float: KL divergence value if from_group and to_group specified
+            dict: All pairwise KL divergences if groups not specified
+
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList([
+            ...     Scenario({'condition': 'control', 'response': 'positive'}),
+            ...     Scenario({'condition': 'control', 'response': 'positive'}),
+            ...     Scenario({'condition': 'control', 'response': 'neutral'}),
+            ...     Scenario({'condition': 'treatment', 'response': 'negative'}),
+            ...     Scenario({'condition': 'treatment', 'response': 'neutral'}),
+            ... ])
+            >>> # Compare two specific groups
+            >>> kl = sl.kl_divergence('condition', 'response', 'control', 'treatment')  # doctest: +SKIP
+            >>> # Get all pairwise comparisons
+            >>> kl_all = sl.kl_divergence('condition', 'response')  # doctest: +SKIP
+
+        Notes:
+            - KL divergence is asymmetric: KL(P||Q) ≠ KL(Q||P)
+            - KL(P||Q) measures how much P diverges from Q
+            - For categorical data, leave bins=None
+            - For continuous data, set bins to number or 'auto'
+            - Use base=2 for bits, base=e for nats
+        """
+        from .kl_divergence import kl_divergence
+
+        return kl_divergence(
+            self,
+            group_field=group_field,
+            value_field=value_field,
+            from_group=from_group,
+            to_group=to_group,
+            bins=bins,
+            base=base,
+            laplace_smooth=laplace_smooth,
+        )
 
     def __init_subclass__(cls, **kwargs):
         """

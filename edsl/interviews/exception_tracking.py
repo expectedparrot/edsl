@@ -101,10 +101,10 @@ class InterviewExceptionEntry:
         lines = []
         lines.append("from edsl import Question, Model, Scenario, Agent")
 
-        lines.append(f"q = {repr(self.invigilator.question)}")
-        lines.append(f"scenario = {repr(self.invigilator.scenario)}")
-        lines.append(f"agent = {repr(self.invigilator.agent)}")
-        lines.append(f"model = {repr(self.invigilator.model)}")
+        lines.append(f"q = {self.invigilator.question._eval_repr_()}")
+        lines.append(f"scenario = {self.invigilator.scenario._eval_repr_()}")
+        lines.append(f"agent = {self.invigilator.agent._eval_repr_()}")
+        lines.append(f"model = {self.invigilator.model._eval_repr_()}")
         lines.append("results = q.by(model).by(agent).by(scenario).run()")
         code_str = "\n".join(lines)
 
@@ -223,7 +223,18 @@ class InterviewExceptionEntry:
             return exception
 
         # Create instance of the original exception type if possible
-        return exception_class(message)
+        try:
+            return exception_class(message)
+        except TypeError:
+            # Some exception classes (like UnicodeDecodeError, QuestionAnswerValidationError)
+            # require more parameters than just a message. Fall back to generic Exception.
+            exception = Exception(message)
+            try:
+                exception.__class__.__name__ = exception_type
+            except (TypeError, AttributeError):
+                # Can't modify immutable type, that's fine - just return the Exception
+                pass
+            return exception
 
     def to_dict(self) -> dict:
         """Return the exception as a dictionary.

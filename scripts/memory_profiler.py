@@ -14,12 +14,10 @@ import psutil
 import argparse
 import tracemalloc
 import functools
-import importlib
 import webbrowser
-import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, Callable, Optional, Tuple, TypeVar
 
 # Type variable for generic function
 F = TypeVar('F', bound=Callable[..., Any])
@@ -161,9 +159,8 @@ def test_scenariolist_memory(size=10000, filter_expression="id % 2 == 0", profil
     import os
     import time
     import psutil
-    import numpy as np
     from datetime import datetime
-    from edsl.scenarios import Scenario, ScenarioList
+    from edsl.scenarios import ScenarioList
     
     # Apply memory profiling to ScenarioList.filter if requested
     if profile_filter:
@@ -212,7 +209,7 @@ def test_scenariolist_memory(size=10000, filter_expression="id % 2 == 0", profil
     print(f"Increase: {after_scenarios_memory - start_memory:.2f} MB")
     
     # Create ScenarioList
-    print(f"\nCreating ScenarioList...")
+    print("\nCreating ScenarioList...")
     scenario_list = ScenarioList(scenarios)
     
     # Record memory after creating ScenarioList
@@ -232,7 +229,7 @@ def test_scenariolist_memory(size=10000, filter_expression="id % 2 == 0", profil
     filtered_size = len(filtered_list)
     
     # Print summary
-    print(f"\n==== TEST SUMMARY ====")
+    print("\n==== TEST SUMMARY ====")
     print(f"Total scenarios: {size}")
     print(f"Filtered scenarios: {filtered_size}")
     print(f"Total test runtime: {time.time() - start_time:.2f} seconds")

@@ -280,9 +280,11 @@ class CompositeMacro(BaseMacro):
             "short_description": self.short_description,
             "long_description": self.long_description,
             "first_macro": self.first_macro.to_dict(add_edsl_version=add_edsl_version),
-            "second_macro": self.second_macro.to_dict(add_edsl_version=add_edsl_version)
-            if self.second_macro is not None
-            else None,
+            "second_macro": (
+                self.second_macro.to_dict(add_edsl_version=add_edsl_version)
+                if self.second_macro is not None
+                else None
+            ),
         }
         if self.bindings:
             data["bindings"] = self.bindings

@@ -5,7 +5,7 @@ specify arbitrary Pydantic models as response schemas for structured output.
 """
 
 import pytest
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 from edsl.questions import QuestionPydantic
 from edsl.questions.exceptions import QuestionAnswerValidationError
 
@@ -55,7 +55,9 @@ class TestQuestionPydanticConstruction:
 
     def test_construction_with_invalid_model(self):
         """Test that construction fails with non-Pydantic model."""
-        with pytest.raises(TypeError, match="must be a Pydantic BaseModel subclass"):
+        from edsl.questions.exceptions import QuestionInitializationError
+
+        with pytest.raises(QuestionInitializationError, match="must be a Pydantic BaseModel subclass"):
             QuestionPydantic(
                 question_name="test",
                 question_text="Test",

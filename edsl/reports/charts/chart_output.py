@@ -56,7 +56,10 @@ class PNGLocation:
 
 
 class ChartOutput:  # TODO: Should inherit from Output when available
-    """Stuff specifically common to graphics/charts"""
+    """Base class for chart-based visualizations.
+
+    Supports both regular questions and comment fields.
+    """
 
     pretty_name = "Chart"
     pretty_short_name = "Chart"
@@ -66,9 +69,62 @@ class ChartOutput:  # TODO: Should inherit from Output when available
     _registry = {}
 
     def __init__(self, results, *question_names):
-        """Initialize the chart output with results and question names."""
+        """Initialize the chart output with results and question names.
+
+        Supports both regular question names and comment field names.
+        """
+        from edsl.reports.comment_field import (
+            is_comment_field,
+            create_comment_field,
+        )
+
         self.results = results
         self.question_names = question_names
+
+        # Handle both regular questions and comment fields
+        self.questions = []
+        for name in self.question_names:
+            if is_comment_field(name):
+                self.questions.append(create_comment_field(name, results))
+            else:
+                self.questions.append(self.results.survey.get(name))
+
+    def get_data_column(self, question_or_field):
+        """Get the correct column name for accessing data.
+
+        Args:
+            question_or_field: Either a Question object or a CommentField object
+
+        Returns:
+            The full column name (e.g., "answer.how_feeling" or "comment.how_feeling_comment")
+        """
+        from edsl.reports.comment_field import get_data_column_name
+
+        return get_data_column_name(question_or_field)
+
+    @staticmethod
+    def sanitize_text_for_chart(text):
+        """Sanitize text for use in chart specifications.
+
+        Removes or escapes template variables and other characters that could
+        break Altair/Vega-Lite JavaScript expressions.
+
+        Args:
+            text: The text to sanitize (e.g., question text)
+
+        Returns:
+            Sanitized text safe for use in chart titles, tooltips, etc.
+        """
+        import re
+
+        # Remove Jinja2 template variables like {{ variable }} or {% if %}
+        text = re.sub(r"\{\{[^}]+\}\}", "[template]", text)
+        text = re.sub(r"\{%[^%]+%\}", "", text)
+        # Remove any remaining curly braces that could break JS
+        text = text.replace("{", "").replace("}", "")
+        # Replace colons which have special meaning in Altair field specs
+        text = text.replace(":", " -")
+        return text.strip()
 
     def __init_subclass__(cls, **kwargs):
         """Automatically register all subclasses"""

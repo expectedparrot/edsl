@@ -8,6 +8,7 @@ from .heatmap_chart_output import HeatmapChartOutput
 from .box_plot_output import BoxPlotOutput
 from .weighted_checkbox_bar_chart import WeightedCheckboxBarChart
 from .theme_finder_output import ThemeFinderOutput
+from .word_cloud_output import WordCloudOutput
 
 __all__ = [
     "ChartOutput",
@@ -21,4 +22,5 @@ __all__ = [
     "BoxPlotOutput",
     "WeightedCheckboxBarChart",
     "ThemeFinderOutput",
+    "WordCloudOutput",
 ]

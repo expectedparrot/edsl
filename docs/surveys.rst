@@ -34,6 +34,7 @@ A survey is administered by calling the `run()` method on the `Survey` object, a
 * `add_skip_rule()` - Skip a question based on a conditional expression (e.g., based on a response to another question).
 * `add_stop_rule()` - End the survey based on a conditional expression.
 * `add_rule()` - Administer a specified question next based on a conditional expression.
+* `add_followup_questions()` - Automatically create follow-up questions for each option in a multiple choice or checkbox question with appropriate skip logic.
 * `set_full_memory_mode()` - Include a memory of all prior questions/answers at each new question in the survey.
 * `set_lagged_memory()` - Include a memory of a specified number of prior questions/answers at each new question in the survey.
 * `add_targeted_memory()` - Include a memory of a particular question/answer at another question in the survey.
@@ -367,6 +368,122 @@ We can see that both q2 and q3 were skipped but q4 was administered (and the res
      - 0
 
 
+Follow-up questions
+^^^^^^^^^^^^^^^^^^^
+
+The `add_followup_questions()` method provides syntactical sugar for creating conditional follow-up questions based on multiple choice or checkbox question options.
+This eliminates the need to manually create and wire up separate follow-up questions for each option - a common pattern in survey design.
+
+The method automatically:
+
+1. Creates one follow-up question per option in the reference question
+2. Substitutes template variables with actual option text
+3. Adds skip logic so each follow-up only appears for its corresponding answer
+4. Maintains proper survey flow
+
+**Syntax:**
+
+.. code-block:: python
+
+   survey.add_followup_questions(reference_question, followup_template, answer_template_var="answer")
+
+
+**Parameters:**
+
+* `reference_question` - The question with options (MultipleChoice or CheckBox). Can be a question object or question name string.
+* `followup_template` - A template question where `{{ reference_name.answer }}` will be replaced with each option.
+* `answer_template_var` - Optional. The variable name to replace (default: "answer").
+
+**Example:**
+
+Here we create follow-up questions for each restaurant option:
+
+.. code-block:: python
+
+   from edsl import QuestionMultipleChoice, QuestionFreeText, Survey
+
+   q_restaurants = QuestionMultipleChoice(
+       question_name="restaurants",
+       question_text="Which restaurant do you prefer?",
+       question_options=["Italian", "Chinese", "Mexican"]
+   )
+
+   q_followup = QuestionFreeText(
+       question_name="why_restaurant",
+       question_text="Why do you like {{ restaurants.answer }}?"
+   )
+
+   survey = Survey([q_restaurants]).add_followup_questions("restaurants", q_followup)
+
+
+This automatically creates 3 follow-up questions with proper skip logic:
+
+* `why_restaurant_restaurants_0`: "Why do you like Italian?" (shown only if "Italian" selected)
+* `why_restaurant_restaurants_1`: "Why do you like Chinese?" (shown only if "Chinese" selected)
+* `why_restaurant_restaurants_2`: "Why do you like Mexican?" (shown only if "Mexican" selected)
+
+The flow diagram below illustrates how the skip logic works:
+
+.. image:: static/followup_questions_flow.png
+   :alt: Follow-up Questions Flow Diagram
+   :width: 65%
+   :align: center
+
+When a respondent selects "Italian", only the Italian follow-up is shown (the blue path).
+The colored arcs represent skip conditions that automatically route respondents to the appropriate follow-up question.
+
+**With additional questions:**
+
+You can insert follow-ups in the middle of a survey:
+
+.. code-block:: python
+
+   q_final = QuestionFreeText(
+       question_name="overall_feedback",
+       question_text="Any other comments?"
+   )
+
+   survey = Survey([q_restaurants, q_final]).add_followup_questions("restaurants", q_followup)
+
+
+The follow-ups will be inserted after `q_restaurants` and before `q_final`, maintaining proper flow.
+
+**Comparison with manual approach:**
+
+Before `add_followup_questions()`, you would need to manually:
+
+.. code-block:: python
+
+   # Create separate questions for each option
+   q_italian = QuestionFreeText(
+       question_name="why_italian",
+       question_text="Why do you like Italian?"
+   )
+
+   q_chinese = QuestionFreeText(
+       question_name="why_chinese",
+       question_text="Why do you like Chinese?"
+   )
+
+   q_mexican = QuestionFreeText(
+       question_name="why_mexican",
+       question_text="Why do you like Mexican?"
+   )
+
+   # Add all questions
+   survey = Survey([q_restaurants, q_italian, q_chinese, q_mexican])
+
+   # Manually add skip logic for each (tedious!)
+   survey = (survey
+       .add_rule("why_italian", "{{ restaurants.answer }} != 'Italian'", "why_chinese", before_rule=True)
+       .add_rule("why_chinese", "{{ restaurants.answer }} != 'Chinese'", "why_mexican", before_rule=True)
+       .add_rule("why_mexican", "{{ restaurants.answer }} != 'Mexican'", EndOfSurvey, before_rule=True)
+   )
+
+
+With `add_followup_questions()`, this is reduced to a single method call!
+
+
 Show flow
 ^^^^^^^^^
 
@@ -559,6 +676,84 @@ Output:
      - Green
 
 
+Piping with additional options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In addition to piping answer lists directly as `question_options`, you can use a dict format to pipe options while adding additional static options.
+This is useful when you want to include piped options plus additional choices like "None of the above" or "Other".
+
+The dict format uses two keys:
+
+* `"from"` - A template string referencing the piped options (e.g., `"{{ q1.answer }}"`)
+* `"add"` - A list of additional static options to append
+
+For example:
+
+.. code-block:: python
+
+   from edsl import QuestionList, QuestionMultipleChoice, Survey, Agent
+
+   q1 = QuestionList(
+      question_name = "colors",
+      question_text = "What are your 3 favorite colors?",
+      max_list_items = 3
+   )
+
+   # Use dict format to pipe options from q1 AND add additional options
+   q2 = QuestionMultipleChoice(
+      question_name = "top_choice",
+      question_text = "Which is your #1 favorite color?",
+      question_options = {
+         "from": "{{ colors.answer }}",
+         "add": ["None of the above", "Other"]
+      }
+   )
+
+   survey = Survey([q1, q2])
+
+   agent = Agent(traits = {"persona": "You are a botanist."})
+
+   results = survey.by(agent).run()
+
+   results.select("colors", "top_choice")
+
+
+In this example, q2 will have the three colors from q1's answer, plus "None of the above" and "Other" as additional options.
+
+Output:
+
+.. list-table::
+   :header-rows: 1
+
+   * - answer.colors
+     - answer.top_choice
+   * - ['Green', 'Brown', 'Yellow']
+     - Green
+
+
+The dict format also works when piping from scenario data:
+
+.. code-block:: python
+
+   from edsl import Scenario, QuestionMultipleChoice
+
+   scenario = Scenario({"available_colors": ["Red", "Blue", "Green"]})
+
+   q = QuestionMultipleChoice(
+      question_name = "favorite_color",
+      question_text = "What's your favorite color?",
+      question_options = {
+         "from": "{{ scenario.available_colors }}",
+         "add": ["Other", "Prefer not to say"]
+      }
+   )
+
+   results = q.by(scenario).run()
+
+
+Agent traits
+^^^^^^^^^^^^
+
 This can also be done with agent traits. For example:
 
 .. code-block:: python
@@ -568,12 +763,12 @@ This can also be done with agent traits. For example:
    a = Agent(traits = {'first_name': 'John'})
 
    q = QuestionFreeText(
-      question_text = 'What is your last name, {{ agent.first_name }}?', 
+      question_text = 'What is your last name, {{ agent.first_name }}?',
       question_name = "last_name"
    )
 
    job = q.by(a)
-   
+
    job.prompts().select('user_prompt')
 
 

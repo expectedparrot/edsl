@@ -3,7 +3,6 @@ from typing import Optional
 
 from edsl import Scenario, ScenarioList, Dataset
 from edsl import QuestionDict
-from edsl import Scenario
 
 
 class ScenarioListMixin:

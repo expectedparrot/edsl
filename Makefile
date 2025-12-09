@@ -66,6 +66,61 @@ check-status: ## Show status of pre-push checks for current commit
 find: ## Search for a pattern. Use `make find term="pattern"`
 	@find . -type d \( -name '.venv' -o -name '__pycache__' \) -prune -o -type f -print | xargs grep -l "$(term)"
 
+###############
+##@Environment Management 🔧
+###############
+#
+# Manage multiple .env configurations for different scenarios (testing, prod, dev, etc.)
+#
+# HOW IT WORKS:
+# - Environment files: .env.testing, .env.prod, .env.dev, etc. (these are your "source" files)
+# - Working file: .env (this is what you always edit during development)
+# - Active tracking: .env.current (tracks which environment is currently loaded)
+# - Bidirectional sync: Changes to .env are saved back to source files when switching
+#
+# TYPICAL WORKFLOW:
+# 1. Create your environments:
+#    make env-create name=testing
+#    make env-create name=prod
+#
+# 2. Switch between environments:
+#    make env testing          # Load .env.testing → .env, save any previous changes
+#    # ... edit .env normally during development ...
+#    make env prod             # Save .env → .env.testing, load .env.prod → .env
+#
+# 3. Your changes persist in each environment automatically!
+#
+# COMMANDS:
+env-list: ## List all available environment configurations
+	@python scripts/env_manager.py list
+
+env-current: ## Show the currently active environment (and working/source file paths)
+	@python scripts/env_manager.py current
+
+env-create: ## Create new environment file. Ex: make env-create name=testing
+	@if [ -z "$(name)" ]; then \
+		echo "Usage: make env-create name=<env-name>"; \
+		echo "Example: make env-create name=testing"; \
+		exit 1; \
+	fi
+	@python scripts/env_manager.py create $(name)
+
+env-save: ## Manually save current .env back to its source (auto-saved when switching)
+	@python scripts/env_manager.py save
+
+env-backup: ## Create timestamped backup of current .env (e.g., .env.backup.20231120_143022)
+	@python scripts/env_manager.py backup
+
+env: ## Switch environments with bidirectional sync. Ex: make env testing, make env prod
+	@if [ -z "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		echo "Usage: make env <env-name>"; \
+		echo "Examples: make env testing, make env prod"; \
+		echo ""; \
+		python scripts/env_manager.py list; \
+		exit 1; \
+	fi
+	@python scripts/env_manager.py switch $(filter-out $@,$(MAKECMDGOALS))
+
 clean: ## Clean temp files
 	@echo "Cleaning tempfiles..."
 	[ ! -f .coverage ] || rm .coverage
@@ -302,7 +357,7 @@ typing-report:
 	open typing_report/index.html
 
 format: ## Run code autoformatters (black).
-	pre-commit run black-jupyter --all-files --all
+	poetry run black edsl/
 	@bash scripts/mark_check_complete.sh BLACK
 
 lint: ## Run ruff linter with --fix --verbose. Use 'make lint DIR' to lint specific directory/file
@@ -440,24 +495,24 @@ test-doctests: ## Run doctests for a specific directory (e.g., make test-doctest
 		fi; \
 	else \
 		echo "Running doctests for all directories"; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/instructions; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/key_management; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/prompts; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/tasks; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/results; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/dataset; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/interviews; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/tokens; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/jobs/; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/surveys; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/agents; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/scenarios; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/questions; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/utilities; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/language_models; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/caching; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/invigilators; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/instructions && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/key_management && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/prompts && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/tasks && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/results && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/dataset && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/interviews && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/tokens && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/jobs/ && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/surveys && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/agents && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/scenarios && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/questions && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/utilities && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/language_models && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/caching && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/invigilators && \
 		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/inference_services; \
 	fi
 	@bash scripts/mark_check_complete.sh DOCTESTS

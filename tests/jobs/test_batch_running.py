@@ -1,8 +1,7 @@
 """Unit tests for the Jobs.run_batch method."""
 
-import pytest
 from edsl.jobs import Jobs
-from edsl import Model, Question, Agent, Scenario, Survey
+from edsl import Model, Question, Agent, Survey
 
 
 class TestJobsBatchRunning:
@@ -43,7 +42,7 @@ class TestJobsBatchRunning:
         # Create a job with minimal interviews
         q = Question("free_text", question_name="test", question_text="What is 1+1?")
         survey = Survey([q])
-        job = Jobs(survey).by(Agent.example()).by(Scenario.example()).by(Model('test'))
+        job = Jobs(survey).by(Agent.example()).by(Model('test'))
 
         results = job.run_batch(
             num_batches=5,  # More batches than interviews

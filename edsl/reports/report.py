@@ -45,6 +45,22 @@ class WriteupResult:
         self._report = report
         self._output_obj = output_obj
 
+    def _get_question_or_comment_field(self, name):
+        """Get a question or comment field object by name.
+
+        Args:
+            name: Question name or comment field name
+
+        Returns:
+            Question object or CommentField object
+        """
+        from edsl.reports.comment_field import is_comment_field, create_comment_field
+
+        if is_comment_field(name):
+            return create_comment_field(name, self._report.results)
+        else:
+            return self._report.results.survey.get(name)
+
     def _repr_mimebundle_(self, include=None, exclude=None):
         """
         Return a MIME bundle with multiple representations.
@@ -94,7 +110,7 @@ class WriteupResult:
         if self._question_names and self._report:
             try:
                 questions = [
-                    self._report.results.survey.get(qname)
+                    self._get_question_or_comment_field(qname)
                     for qname in self._question_names
                 ]
 
@@ -180,6 +196,26 @@ class WriteupResult:
 
         return "".join(formatted_paragraphs)
 
+    def _ipython_display_(self):
+        """
+        IPython display hook for Jupyter notebooks.
+        This method is called automatically by IPython/Jupyter when displaying the object.
+        Forces the use of rich HTML/Vega-Lite representation instead of plain text __repr__.
+        """
+        from edsl.utilities.is_notebook import is_notebook
+
+        if is_notebook():
+            try:
+                from IPython.display import display, HTML
+
+                # Force display using the HTML representation
+                display(HTML(self._repr_html_()))
+            except ImportError:
+                # Fallback if IPython is somehow not available
+                print(repr(self))
+        else:
+            print(repr(self))
+
     def __repr__(self):
         """Return string representation."""
         return f"WriteupResult(chart={type(self.chart).__name__}, analysis_length={len(self.analysis_text)})"
@@ -217,6 +253,22 @@ class OutputWrapper:
         self._report = report
         self._chart = None
 
+    def _get_question_or_comment_field(self, name):
+        """Get a question or comment field object by name.
+
+        Args:
+            name: Question name or comment field name
+
+        Returns:
+            Question object or CommentField object
+        """
+        from edsl.reports.comment_field import is_comment_field, create_comment_field
+
+        if is_comment_field(name):
+            return create_comment_field(name, self._report.results)
+        else:
+            return self._report.results.survey.get(name)
+
     @property
     def chart(self):
         """Get the chart/output, caching it."""
@@ -224,49 +276,32 @@ class OutputWrapper:
             self._chart = self._output_obj.output()
         return self._chart
 
-    def _repr_mimebundle_(self, include=None, exclude=None):
+    def _ipython_display_(self):
         """
-        Return a MIME bundle with multiple representations of the chart.
-
-        This allows Jupyter and other platforms (like Coop) to choose the best
-        representation. For Altair charts, this includes the Vega-Lite spec which
-        can be rendered without JavaScript.
+        IPython display hook for Jupyter notebooks.
+        This method is called automatically by IPython/Jupyter when displaying the object.
+        Forces the use of rich HTML/Vega-Lite representation instead of plain text __repr__.
         """
-        chart = self.chart
-        bundle = {}
+        from edsl.utilities.is_notebook import is_notebook
 
-        # Try to get the Vega-Lite spec if this is an Altair chart
-        if hasattr(chart, "to_dict"):
+        if is_notebook():
             try:
-                vega_spec = chart.to_dict()
-                # Determine the schema version
-                schema = vega_spec.get("$schema", "")
-                if "v5" in schema:
-                    mime_type = "application/vnd.vegalite.v5+json"
-                elif "v4" in schema:
-                    mime_type = "application/vnd.vegalite.v4+json"
-                elif "v3" in schema:
-                    mime_type = "application/vnd.vegalite.v3+json"
-                else:
-                    mime_type = "application/vnd.vegalite.v2+json"
+                from IPython.display import display, HTML
 
-                bundle[mime_type] = vega_spec
-            except:
-                pass
-
-        # Always include HTML as fallback
-        bundle["text/html"] = self._repr_html_()
-
-        # Include plain text representation
-        bundle["text/plain"] = repr(self)
-
-        return bundle
+                # Display the full HTML which includes header and chart
+                # This ensures both the question info and chart render properly
+                display(HTML(self._repr_html_()))
+            except ImportError:
+                # Fallback if IPython is somehow not available
+                print(repr(self))
+        else:
+            print(repr(self))
 
     def _repr_html_(self):
         """Return HTML representation for Jupyter display."""
         # Get question information
         questions = [
-            self._report.results.survey.get(qname) for qname in self._question_names
+            self._get_question_or_comment_field(qname) for qname in self._question_names
         ]
 
         # Build header with question information
@@ -322,6 +357,71 @@ class OutputWrapper:
         html_parts.append("</div>")
 
         return "".join(html_parts)
+
+    def _ipython_display_(self):
+        """
+        IPython display hook for Jupyter notebooks.
+        This method is called automatically by IPython/Jupyter when displaying the object.
+        Forces the use of rich HTML/Vega-Lite representation instead of plain text __repr__.
+        """
+        from edsl.utilities.is_notebook import is_notebook
+
+        if is_notebook():
+            try:
+                from IPython.display import display, HTML
+
+                # Get question information
+                questions = [
+                    self._get_question_or_comment_field(qname)
+                    for qname in self._question_names
+                ]
+
+                # Build header HTML
+                html_parts = []
+                html_parts.append(
+                    "<div style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\">"
+                )
+
+                # Question details section
+                for i, (qname, question) in enumerate(
+                    zip(self._question_names, questions)
+                ):
+                    html_parts.append(
+                        f"""
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #007bff;">
+                        <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 16px;">
+                            {qname} <span style="color: #6c757d; font-weight: normal; font-size: 13px;">({question.question_type})</span>
+                        </h4>
+                        <p style="margin: 0; color: #212529; font-size: 14px;">{question.question_text}</p>
+                    </div>
+                    """
+                    )
+
+                # Add the output name/title
+                pretty_name = getattr(
+                    self._output_obj, "pretty_name", self._output_name
+                )
+                html_parts.append(
+                    f"""
+                    <div style="margin-bottom: 10px;">
+                        <h4 style="color: #007bff; margin: 0; font-size: 15px;">{pretty_name}</h4>
+                    </div>
+                    """
+                )
+                html_parts.append("</div>")
+
+                # Display the header
+                display(HTML("".join(html_parts)))
+
+                # Display the chart separately so it renders properly
+                chart = self.chart
+                display(chart)
+
+            except ImportError:
+                # Fallback if IPython is somehow not available
+                print(repr(self))
+        else:
+            print(repr(self))
 
     def __repr__(self):
         """Return string representation."""
@@ -480,6 +580,255 @@ class OutputWrapper:
 
             display(chart)
 
+    def terminal_chart(self):
+        """
+        Generate and display a terminal-based visualization using termplotlib.
+
+        This method creates ASCII-based visualizations suitable for display in a terminal,
+        which is useful for scripts, SSH sessions, or environments without graphical display.
+
+        Returns:
+            str: The terminal visualization as a string (also prints it)
+
+        Example:
+            >>> from edsl import Results
+            >>> results = Results.example()
+            >>> analysis = results.analyze('how_feeling')
+            >>> analysis.bar_chart_output.terminal_chart()
+
+        Note:
+            Requires termplotlib to be installed: pip install termplotlib
+        """
+        try:
+            import termplotlib as tpl
+            from collections import Counter
+            import numpy as np
+        except ImportError:
+            error_msg = (
+                "termplotlib is required for terminal charts.\n"
+                "Install it with: pip install termplotlib"
+            )
+            print(error_msg)
+            return error_msg
+
+        # Get question information
+        questions = [
+            self._report.results.survey.get(qname) for qname in self._question_names
+        ]
+
+        # Print header
+        output_lines = []
+        output_lines.append("=" * 70)
+        for qname, question in zip(self._question_names, questions):
+            output_lines.append(f"Question: {question.question_text}")
+            output_lines.append(f"Type: {question.question_type}")
+            output_lines.append(f"Name: {qname}")
+
+        pretty_name = getattr(self._output_obj, "pretty_name", self._output_name)
+        output_lines.append(f"\nVisualization: {pretty_name}")
+        output_lines.append("=" * 70)
+        output_lines.append("")
+
+        # Get the answers for this question
+        results = self._report.results
+
+        # Handle single vs multiple questions
+        if len(self._question_names) == 1:
+            question_name = self._question_names[0]
+            question = questions[0]
+            question_type = question.question_type
+
+            # Get answers
+            answers = results.get_answers(question_name)
+            # Filter out None values
+            valid_answers = [a for a in answers if a is not None]
+
+            if not valid_answers:
+                msg = "No valid responses to visualize"
+                output_lines.append(msg)
+                result = "\n".join(output_lines)
+                print(result)
+                return result
+
+            # Generate appropriate visualization based on question type
+            if question_type in [
+                "multiple_choice",
+                "yes_no",
+                "linear_scale",
+                "likert_five",
+            ]:
+                # Bar chart for categorical/scale data
+                counts = Counter(valid_answers)
+
+                # Get options from question if available
+                if hasattr(question, "question_options"):
+                    options = question.question_options
+                    labels = [str(opt) for opt in options]
+                    values = [counts.get(opt, 0) for opt in options]
+                else:
+                    sorted_items = counts.most_common()
+                    labels = [str(item[0]) for item in sorted_items]
+                    values = [item[1] for item in sorted_items]
+
+                # Add summary statistics
+                total = len(valid_answers)
+                output_lines.append(f"Total responses: {total}")
+                output_lines.append("")
+
+                # Create bar chart
+                fig = tpl.figure()
+                fig.barh(values, labels, force_ascii=False)
+
+                # Capture output
+                import io
+                import sys
+
+                old_stdout = sys.stdout
+                sys.stdout = buffer = io.StringIO()
+                fig.show()
+                viz_output = buffer.getvalue()
+                sys.stdout = old_stdout
+
+                output_lines.append(viz_output)
+
+            elif question_type in ["numerical"]:
+                # Histogram for numerical data
+                values = np.array(valid_answers, dtype=float)
+
+                output_lines.append(f"Total responses: {len(values)}")
+                output_lines.append(f"Mean: {np.mean(values):.2f}")
+                output_lines.append(f"Median: {np.median(values):.2f}")
+                output_lines.append(f"Std Dev: {np.std(values):.2f}")
+                output_lines.append(
+                    f"Min: {np.min(values):.2f}, Max: {np.max(values):.2f}"
+                )
+                output_lines.append("")
+
+                counts, bin_edges = np.histogram(values)
+                fig = tpl.figure()
+                fig.hist(counts, bin_edges, orientation="horizontal", force_ascii=False)
+
+                import io
+                import sys
+
+                old_stdout = sys.stdout
+                sys.stdout = buffer = io.StringIO()
+                fig.show()
+                viz_output = buffer.getvalue()
+                sys.stdout = old_stdout
+
+                output_lines.append(viz_output)
+
+            elif question_type in ["checkbox"]:
+                # Bar chart for checkbox (multiple selections)
+                all_selections = []
+                for answer in valid_answers:
+                    if isinstance(answer, list):
+                        all_selections.extend(answer)
+                    else:
+                        all_selections.append(answer)
+
+                counts = Counter(all_selections)
+                sorted_items = counts.most_common()
+
+                output_lines.append(f"Total respondents: {len(valid_answers)}")
+                output_lines.append(f"Total selections: {len(all_selections)}")
+                output_lines.append(
+                    f"Avg selections per respondent: {len(all_selections)/len(valid_answers):.1f}"
+                )
+                output_lines.append("")
+
+                labels = [str(item[0]) for item in sorted_items]
+                values = [item[1] for item in sorted_items]
+
+                fig = tpl.figure()
+                fig.barh(values, labels, force_ascii=False)
+
+                import io
+                import sys
+
+                old_stdout = sys.stdout
+                sys.stdout = buffer = io.StringIO()
+                fig.show()
+                viz_output = buffer.getvalue()
+                sys.stdout = old_stdout
+
+                output_lines.append(viz_output)
+
+            elif question_type in ["free_text"]:
+                # Text length distribution
+                lengths = np.array([len(str(answer)) for answer in valid_answers])
+
+                output_lines.append(f"Total responses: {len(valid_answers)}")
+                output_lines.append(f"Avg characters: {np.mean(lengths):.1f}")
+                output_lines.append(
+                    f"Shortest: {np.min(lengths)}, Longest: {np.max(lengths)}"
+                )
+                output_lines.append("")
+                output_lines.append("Response Length Distribution:")
+                output_lines.append("")
+
+                counts, bin_edges = np.histogram(lengths)
+                fig = tpl.figure()
+                fig.hist(counts, bin_edges, orientation="horizontal", force_ascii=False)
+
+                import io
+                import sys
+
+                old_stdout = sys.stdout
+                sys.stdout = buffer = io.StringIO()
+                fig.show()
+                viz_output = buffer.getvalue()
+                sys.stdout = old_stdout
+
+                output_lines.append(viz_output)
+
+            else:
+                # Default: frequency bar chart
+                counts = Counter(valid_answers)
+                sorted_items = counts.most_common(10)  # Top 10
+
+                output_lines.append(f"Total responses: {len(valid_answers)}")
+                output_lines.append(f"Unique values: {len(counts)}")
+                output_lines.append(f"Showing top {min(10, len(counts))} values")
+                output_lines.append("")
+
+                labels = [str(item[0])[:30] for item in sorted_items]  # Truncate labels
+                values = [item[1] for item in sorted_items]
+
+                fig = tpl.figure()
+                fig.barh(values, labels, force_ascii=False)
+
+                import io
+                import sys
+
+                old_stdout = sys.stdout
+                sys.stdout = buffer = io.StringIO()
+                fig.show()
+                viz_output = buffer.getvalue()
+                sys.stdout = old_stdout
+
+                output_lines.append(viz_output)
+
+        else:
+            # Multiple questions - show a note
+            output_lines.append(
+                "Multi-question terminal visualizations not yet supported."
+            )
+            output_lines.append(f"Questions: {', '.join(self._question_names)}")
+            output_lines.append("\nFor now, analyze each question individually:")
+            for qname in self._question_names:
+                output_lines.append(
+                    f"  results.analyze('{qname}').bar_chart_output.terminal_chart()"
+                )
+
+        output_lines.append("")
+        output_lines.append("=" * 70)
+
+        result = "\n".join(output_lines)
+        print(result)
+        return result
+
 
 class QuestionAnalysis:
     """
@@ -516,6 +865,22 @@ class QuestionAnalysis:
         for output_name in outputs_dict.keys():
             snake_name = self._camel_to_snake(output_name)
             self._name_mapping[snake_name] = output_name
+
+    def _get_question_or_comment_field(self, name):
+        """Get a question or comment field object by name.
+
+        Args:
+            name: Question name or comment field name
+
+        Returns:
+            Question object or CommentField object
+        """
+        from .comment_field import is_comment_field, create_comment_field
+
+        if is_comment_field(name):
+            return create_comment_field(name, self._report.results)
+        else:
+            return self._report.results.survey.get(name)
 
     @staticmethod
     def _camel_to_snake(name):
@@ -597,14 +962,250 @@ class QuestionAnalysis:
             print(f"  .{snake_name:<30} ({pretty_name})")
 
     def __repr__(self):
-        """Return a string representation."""
-        return f"QuestionAnalysis({self._question_names}) with {len(self._outputs)} outputs"
+        """Return a rich-formatted string representation with question details, statistics, and terminal plot."""
+        try:
+            from rich.console import Console
+            from rich.table import Table
+            from rich import box
+            from collections import Counter
+            import numpy as np
+            import io
+
+            console = Console(file=io.StringIO(), force_terminal=True, width=100)
+
+            # Get question information
+            questions = [
+                self._get_question_or_comment_field(qname)
+                for qname in self._question_names
+            ]
+
+            # Question Details Section (compact)
+            for i, (qname, question) in enumerate(zip(self._question_names, questions)):
+                # Question info table
+                q_table = Table(
+                    show_header=False,
+                    box=box.SIMPLE,
+                    border_style="blue",
+                    padding=(0, 1),
+                    collapse_padding=True,
+                )
+                q_table.add_column("Field", style="cyan bold", width=15)
+                q_table.add_column("Value", style="white")
+
+                q_table.add_row("Question", f"[bold yellow]{qname}[/bold yellow]")
+                q_table.add_row("Type", f"[green]{question.question_type}[/green]")
+                q_table.add_row("Text", question.question_text)
+
+                # Add options if available
+                if hasattr(question, "question_options") and question.question_options:
+                    options_str = ", ".join(
+                        [str(opt) for opt in question.question_options[:10]]
+                    )
+                    if len(question.question_options) > 10:
+                        options_str += f" ... ({len(question.question_options)} total)"
+                    q_table.add_row("Options", options_str)
+
+                console.print(q_table)
+
+            # Answer Statistics Section (only for single questions)
+            if len(self._question_names) == 1:
+                question_name = self._question_names[0]
+                question = questions[0]
+                # Get answers using the correct column (answer.* or comment.*)
+                from .comment_field import get_data_column_name
+
+                column_name = get_data_column_name(question)
+                answers = self._report.results.select(column_name).to_list()
+                valid_answers = [a for a in answers if a is not None]
+
+                if valid_answers:
+                    # Statistics table (compact)
+                    stats_table = Table(
+                        title="[bold cyan]Statistics[/bold cyan]",
+                        box=box.SIMPLE,
+                        border_style="cyan",
+                        padding=(0, 1),
+                        collapse_padding=True,
+                    )
+                    stats_table.add_column("Metric", style="cyan", width=22)
+                    stats_table.add_column("Value", style="yellow", width=28)
+
+                    stats_table.add_row("Total Responses", str(len(answers)))
+                    stats_table.add_row("Valid Responses", str(len(valid_answers)))
+
+                    if len(answers) > len(valid_answers):
+                        stats_table.add_row(
+                            "Missing/None", str(len(answers) - len(valid_answers))
+                        )
+
+                    # Type-specific statistics
+                    question_type = question.question_type
+
+                    if question_type in ["numerical"]:
+                        values = np.array(valid_answers, dtype=float)
+                        stats_table.add_row("Mean", f"{np.mean(values):.2f}")
+                        stats_table.add_row("Median", f"{np.median(values):.2f}")
+                        stats_table.add_row("Std Dev", f"{np.std(values):.2f}")
+                        stats_table.add_row(
+                            "Range", f"{np.min(values):.2f} - {np.max(values):.2f}"
+                        )
+
+                    elif question_type in [
+                        "multiple_choice",
+                        "yes_no",
+                        "linear_scale",
+                        "likert_five",
+                    ]:
+                        counts = Counter(valid_answers)
+                        stats_table.add_row("Unique Values", str(len(counts)))
+                        most_common = counts.most_common(1)[0]
+                        stats_table.add_row(
+                            "Most Common", f"{most_common[0]} ({most_common[1]} times)"
+                        )
+
+                    elif question_type in ["checkbox"]:
+                        all_selections = []
+                        for answer in valid_answers:
+                            if isinstance(answer, list):
+                                all_selections.extend(answer)
+                        stats_table.add_row(
+                            "Total Selections", str(len(all_selections))
+                        )
+                        stats_table.add_row(
+                            "Avg per Respondent",
+                            f"{len(all_selections)/len(valid_answers):.1f}",
+                        )
+
+                    elif question_type in ["free_text"]:
+                        lengths = [len(str(a)) for a in valid_answers]
+                        stats_table.add_row(
+                            "Avg Length", f"{np.mean(lengths):.1f} chars"
+                        )
+                        stats_table.add_row(
+                            "Length Range", f"{min(lengths)} - {max(lengths)} chars"
+                        )
+
+                    console.print(stats_table)
+
+                    # Terminal Plot Section
+                    try:
+                        import termplotlib as tpl
+
+                        console.print("[bold cyan]Distribution[/bold cyan]")
+
+                        # Generate appropriate plot based on question type
+                        if question_type in [
+                            "multiple_choice",
+                            "yes_no",
+                            "linear_scale",
+                            "likert_five",
+                        ]:
+                            counts = Counter(valid_answers)
+
+                            # Get options from question if available
+                            if hasattr(question, "question_options"):
+                                options = question.question_options
+                                labels = [str(opt) for opt in options]
+                                values = [counts.get(opt, 0) for opt in options]
+                            else:
+                                sorted_items = counts.most_common()
+                                labels = [str(item[0]) for item in sorted_items]
+                                values = [item[1] for item in sorted_items]
+
+                            fig = tpl.figure()
+                            fig.barh(values, labels, force_ascii=False)
+
+                            # Capture plot output
+                            old_stdout = console.file
+                            plot_buffer = io.StringIO()
+                            import sys
+
+                            sys.stdout = plot_buffer
+                            fig.show()
+                            plot_output = plot_buffer.getvalue()
+                            sys.stdout = old_stdout
+
+                            console.print(plot_output)
+
+                        elif question_type in ["numerical"]:
+                            values = np.array(valid_answers, dtype=float)
+                            counts, bin_edges = np.histogram(values)
+
+                            fig = tpl.figure()
+                            fig.hist(
+                                counts,
+                                bin_edges,
+                                orientation="horizontal",
+                                force_ascii=False,
+                            )
+
+                            old_stdout = console.file
+                            plot_buffer = io.StringIO()
+                            import sys
+
+                            sys.stdout = plot_buffer
+                            fig.show()
+                            plot_output = plot_buffer.getvalue()
+                            sys.stdout = old_stdout
+
+                            console.print(plot_output)
+
+                    except ImportError:
+                        console.print(
+                            "[dim italic]Install termplotlib for visualizations: pip install termplotlib[/dim italic]"
+                        )
+
+            else:
+                # Multi-question analysis
+                console.print("[yellow]Multi-question analysis[/yellow]")
+                console.print(
+                    f"Analyzing {len(self._question_names)} questions together"
+                )
+
+            # Available Outputs Section (compact)
+            outputs_table = Table(
+                title="[bold cyan]Available Methods[/bold cyan]",
+                box=box.SIMPLE,
+                border_style="cyan",
+                padding=(0, 1),
+                collapse_padding=True,
+            )
+            outputs_table.add_column("Method/Attribute", style="green", width=35)
+            outputs_table.add_column("Description", style="white", width=55)
+
+            # Add output methods
+            for snake_name, output_name in sorted(self._name_mapping.items()):
+                output_obj = self._outputs[output_name]
+                pretty_name = getattr(output_obj, "pretty_name", output_name)
+                outputs_table.add_row(f".{snake_name}", pretty_name)
+
+            # Add utility methods
+            outputs_table.add_section()
+            outputs_table.add_row(".list_outputs()", "List all available outputs")
+            outputs_table.add_row(".question_names", "Get question names tuple")
+            outputs_table.add_row(".outputs", "Access raw outputs dictionary")
+
+            # Add terminal_chart method if single question
+            if len(self._question_names) == 1:
+                outputs_table.add_section()
+                outputs_table.add_row(
+                    ".bar_chart_output.terminal_chart()",
+                    "Show full terminal visualization",
+                )
+
+            console.print(outputs_table)
+
+            return console.file.getvalue()
+
+        except Exception as e:
+            # Fallback to simple repr if rich formatting fails
+            return f"QuestionAnalysis({self._question_names}) with {len(self._outputs)} outputs\n(Error in rich formatting: {e})"
 
     def _repr_html_(self):
         """Return an HTML representation of the QuestionAnalysis."""
         # Get question information
         questions = [
-            self._report.results.survey.get(qname) for qname in self._question_names
+            self._get_question_or_comment_field(qname) for qname in self._question_names
         ]
 
         # Build HTML
@@ -640,8 +1241,12 @@ class QuestionAnalysis:
         """
         )
 
-        for qname in self._question_names:
-            responses = self._report.results.select(f"answer.{qname}").to_list()
+        for qname, question in zip(self._question_names, questions):
+            # Get responses using the correct column (answer.* or comment.*)
+            from .comment_field import get_data_column_name
+
+            column_name = get_data_column_name(question)
+            responses = self._report.results.select(column_name).to_list()
 
             # Get first 5 and last 5
             total = len(responses)
@@ -833,32 +1438,55 @@ class Report(UserDict):
         # ---------------------------------------------------------------------
         # Determine which questions to analyse based on include/exclude filters
         # ---------------------------------------------------------------------
+        from .comment_field import (
+            get_available_comment_fields,
+            is_comment_field,
+            normalize_comment_field,
+        )
 
         all_question_names: list[str] = [
             q.question_name for q in results.survey.questions
         ]
+        all_comment_fields: list[str] = get_available_comment_fields(results)
+        all_analyzable_fields: list[str] = all_question_names + all_comment_fields
 
         # Normalise None to empty list for easier handling later on
         include_questions = (
             list(include_questions)
             if include_questions is not None
-            else all_question_names
+            else all_question_names  # By default, only include questions, not comments
         )
         exclude_questions = (
             list(exclude_questions) if exclude_questions is not None else []
         )
 
-        # Validate provided question names
-        invalid_includes = [q for q in include_questions if q not in all_question_names]
+        # Normalize comment field names in the include/exclude lists
+        include_questions = [
+            normalize_comment_field(q) if is_comment_field(q) else q
+            for q in include_questions
+        ]
+        exclude_questions = [
+            normalize_comment_field(q) if is_comment_field(q) else q
+            for q in exclude_questions
+        ]
+
+        # Validate provided question names and comment fields
+        invalid_includes = [
+            q for q in include_questions if q not in all_analyzable_fields
+        ]
         if invalid_includes:
             raise ValueError(
-                f"Unknown question names in include_questions: {invalid_includes}"
+                f"Unknown question names or comment fields in include_questions: {invalid_includes}. "
+                f"Available fields: {all_analyzable_fields}"
             )
 
-        invalid_excludes = [q for q in exclude_questions if q not in all_question_names]
+        invalid_excludes = [
+            q for q in exclude_questions if q not in all_analyzable_fields
+        ]
         if invalid_excludes:
             raise ValueError(
-                f"Unknown question names in exclude_questions: {invalid_excludes}"
+                f"Unknown question names or comment fields in exclude_questions: {invalid_excludes}. "
+                f"Available fields: {all_analyzable_fields}"
             )
 
         # Apply exclusion
@@ -871,6 +1499,10 @@ class Report(UserDict):
             question_type_map = {
                 q.question_name: q.question_type for q in results.survey.questions
             }
+            # Add comment fields to the type map (they're always free_text)
+            for comment_field in all_comment_fields:
+                question_type_map[comment_field] = "free_text"
+
             filtered_questions = [
                 q
                 for q in filtered_questions
@@ -986,9 +1618,9 @@ class Report(UserDict):
             include_interactions=include_interactions,
             exclude_interactions=exclude_interactions,
             analyses=analyses if analyses else None,
-            analysis_output_filters=analysis_output_filters
-            if analysis_output_filters
-            else None,
+            analysis_output_filters=(
+                analysis_output_filters if analysis_output_filters else None
+            ),
             lorem_ipsum=lorem_ipsum,
             include_questions_table=include_questions_table,
             include_respondents_section=include_respondents_section,
@@ -1144,13 +1776,14 @@ class Report(UserDict):
 
     def analyze(self, *question_names):
         """
-        Get a QuestionAnalysis object for convenient access to all outputs for specific question(s).
+        Get a QuestionAnalysis object for convenient access to all outputs for specific question(s) or comment fields.
 
         Args:
-            *question_names: One or more question names. Can be passed as:
-                - Single string: analyze('gender')
+            *question_names: One or more question names or comment field names. Can be passed as:
+                - Single string: analyze('gender') or analyze('gender_comment')
                 - Multiple strings: analyze('gender', 'employment')
                 - Comma-separated string: analyze('gender,employment')
+                - Mixed questions and comments: analyze('gender', 'gender_comment')
 
         Returns:
             QuestionAnalysis object with dot notation access to outputs
@@ -1162,6 +1795,11 @@ class Report(UserDict):
             analysis.frequency_table  # Get the frequency table
             analysis.list_outputs()  # See all available outputs
 
+            # Single comment field (always treated as free text)
+            analysis = report.analyze('gender_comment')
+            analysis.word_cloud  # Get word cloud of comments
+            analysis.frequency_table  # Get frequency table of comments
+
             # Multiple questions (interaction)
             analysis = report.analyze('gender', 'employment')
             analysis.heatmap
@@ -1172,8 +1810,10 @@ class Report(UserDict):
             analysis.heatmap
 
         Note:
-            For pairwise analyses, order matters! analyze('q1', 'q2') and analyze('q2', 'q1')
-            will produce different visualizations (e.g., different axes in charts).
+            - For pairwise analyses, order matters! analyze('q1', 'q2') and analyze('q2', 'q1')
+              will produce different visualizations (e.g., different axes in charts).
+            - Comment fields are always treated as free_text question types.
+            - Comment field names can be specified as 'question_name_comment' or 'comment.question_name_comment'.
         """
         # Parse the question names
         if len(question_names) == 1 and "," in question_names[0]:
@@ -1191,9 +1831,56 @@ class Report(UserDict):
 
         # Check if this analysis exists in the report
         if key not in self:
-            print_error(f"Analysis for {parsed_names} not found in report.")
-            print_info(f"Available analyses: {list(self.keys())}")
-            return None
+            # Try to create the analysis on-demand
+            from .comment_field import (
+                get_available_comment_fields,
+                is_comment_field,
+                normalize_comment_field,
+            )
+
+            all_question_names = [
+                q.question_name for q in self.results.survey.questions
+            ]
+            all_comment_fields = get_available_comment_fields(self.results)
+            all_analyzable_fields = all_question_names + all_comment_fields
+
+            # Normalize comment field names
+            normalized_names = [
+                normalize_comment_field(name) if is_comment_field(name) else name
+                for name in parsed_names
+            ]
+
+            # Validate that all fields exist
+            invalid_fields = [
+                name for name in normalized_names if name not in all_analyzable_fields
+            ]
+            if invalid_fields:
+                print_error(
+                    f"Analysis for {parsed_names} not found in report and fields are invalid."
+                )
+                print_error(f"Invalid fields: {invalid_fields}")
+                print_info(f"Available fields: {all_analyzable_fields}")
+                return None
+
+            # Create the analysis on-demand
+            try:
+                research_item = Research(
+                    self.results,
+                    normalized_names,
+                    free_text_sample_config=self.free_text_sample_config,
+                )
+                # Add to the report's dictionary
+                normalized_key = tuple(normalized_names)
+                self[normalized_key] = research_item.generated_outputs
+                key = normalized_key  # Use the normalized key
+            except Exception as e:
+                print_error(
+                    f"Failed to create analysis for {parsed_names} on-demand: {e}"
+                )
+                import traceback
+
+                traceback.print_exc()
+                return None
 
         # Get the output dictionary for these questions
         output_dict = self[key]

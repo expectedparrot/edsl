@@ -1,10 +1,7 @@
 import pytest
-import json
-import tempfile
 from memory_profiler import memory_usage
 from edsl import FileStore, Scenario, Survey, Model
-from edsl import QuestionFreeText, QuestionList, QuestionNumerical
-from edsl.caching import Cache
+from edsl import QuestionFreeText, QuestionList
 import os 
 @pytest.fixture
 def sample_image():

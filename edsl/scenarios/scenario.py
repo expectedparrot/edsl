@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from ..jobs import Jobs
     from ..questions import QuestionBase as Question
     from ..surveys import Survey
+    from .qr_code import QRCodeList
 
 
 from .firecrawl_scenario import FirecrawlRequest
@@ -271,6 +272,7 @@ class Scenario(Base, UserDict):
 
         Raises:
             TypeError: If old_name_or_replacement_dict is a string but new_name is None.
+            KeyScenarioError: If any key in the replacement dictionary does not exist in the scenario.
 
         Examples:
             Using a dictionary:
@@ -283,6 +285,8 @@ class Scenario(Base, UserDict):
             >>> s.rename("food", "snack")
             Scenario({'snack': 'wood chips'})
         """
+        from .exceptions import KeyScenarioError
+
         if isinstance(old_name_or_replacement_dict, str):
             if new_name is None:
                 raise TypeError(
@@ -291,6 +295,13 @@ class Scenario(Base, UserDict):
             replacement_dict = {old_name_or_replacement_dict: new_name}
         else:
             replacement_dict = old_name_or_replacement_dict
+
+        # Validate that all keys in replacement_dict exist in the scenario
+        missing_keys = set(replacement_dict.keys()) - set(self.keys())
+        if missing_keys:
+            raise KeyScenarioError(
+                f"The following keys in replacement_dict are not present in the scenario: {missing_keys}"
+            )
 
         new_scenario = Scenario()
         for key, value in self.items():
@@ -586,6 +597,51 @@ class Scenario(Base, UserDict):
 
         webbrowser.open(urls[position])
 
+    def qr_codes(self) -> "QRCodeList":
+        """Generate QR codes for all URLs found in the scenario.
+
+        This method extracts all URLs from the scenario values and creates QR codes
+        for each one. The returned QRCodeList will display appropriately based on
+        the context:
+        - In Jupyter notebooks: Shows visual QR codes with clickable URL captions
+        - In terminal: Lists URLs and can generate ASCII QR codes or save to files
+
+        Returns:
+            QRCodeList: A collection of QR codes for all URLs in the scenario
+
+        Raises:
+            ValueError: If no URLs are found in the scenario
+            ImportError: If the qrcode library is not installed
+
+        Examples:
+            Create QR codes from a scenario with URLs:
+            >>> s = Scenario({"website": "https://example.com", "api": "https://api.example.com"})
+            >>> qr_list = s.qr_codes()  # doctest: +SKIP
+            >>> len(qr_list)  # doctest: +SKIP
+            2
+
+            Display in Jupyter notebook:
+            >>> s.qr_codes()  # In Jupyter, this will display visual QR codes  # doctest: +SKIP
+
+            Save QR codes to files:
+            >>> qr_list = s.qr_codes()  # doctest: +SKIP
+            >>> qr_list.save_all("./qr_codes")  # doctest: +SKIP
+
+        Notes:
+            - Requires the qrcode library: pip install "qrcode[pil]"
+            - URLs are extracted using regex pattern matching
+            - Supports http://, https://, and ftp:// protocols
+        """
+        from .qr_code import QRCode, QRCodeList, extract_urls_from_scenario
+
+        urls = extract_urls_from_scenario(self)
+
+        if not urls:
+            raise ValueError("No URLs found in scenario")
+
+        qr_codes = [QRCode(url) for url in urls]
+        return QRCodeList(qr_codes)
+
     def to_dict(
         self, add_edsl_version: bool = True, offload_base64: bool = False
     ) -> Dict[str, Any]:
@@ -647,6 +703,7 @@ class Scenario(Base, UserDict):
             max_items: Maximum number of key-value pairs to show before truncating
             max_value_length: Maximum length of a value before truncating. If None, uses terminal width.
         """
+        from edsl.config import RICH_STYLES
         from rich.console import Console
         from rich.text import Text
         import io
@@ -662,12 +719,12 @@ class Scenario(Base, UserDict):
 
         # Build the Rich text
         output = Text()
-        output.append("Scenario(\n", style="bold cyan")
+        output.append("Scenario(\n", style=RICH_STYLES["primary"])
 
         num_keys = len(self.data)
         if num_keys > 0:
-            output.append(f"    num_keys={num_keys},\n", style="white")
-            output.append("    data={\n", style="white")
+            output.append(f"    num_keys={num_keys},\n", style=RICH_STYLES["default"])
+            output.append("    data={\n", style=RICH_STYLES["default"])
 
             for i, (key, value) in enumerate(list(self.data.items())[:max_items]):
                 # Format the value with truncation if needed
@@ -675,20 +732,21 @@ class Scenario(Base, UserDict):
                 if len(value_repr) > max_value_length:
                     value_repr = value_repr[: max_value_length - 3] + "..."
 
-                output.append("        ", style="white")
-                output.append(f"'{key}'", style="bold yellow")
-                output.append(f": {value_repr},\n", style="white")
+                output.append("        ", style=RICH_STYLES["default"])
+                output.append(f"'{key}'", style=RICH_STYLES["secondary"])
+                output.append(f": {value_repr},\n", style=RICH_STYLES["default"])
 
             if num_keys > max_items:
                 output.append(
-                    f"        ... ({num_keys - max_items} more)\n", style="dim"
+                    f"        ... ({num_keys - max_items} more)\n",
+                    style=RICH_STYLES["dim"],
                 )
 
-            output.append("    }\n", style="white")
+            output.append("    }\n", style=RICH_STYLES["default"])
         else:
-            output.append("    data={}\n", style="dim")
+            output.append("    data={}\n", style=RICH_STYLES["dim"])
 
-        output.append(")", style="bold cyan")
+        output.append(")", style=RICH_STYLES["primary"])
 
         # Render to string using actual terminal width
         console = Console(file=io.StringIO(), force_terminal=True, width=terminal_width)
@@ -841,6 +899,77 @@ class Scenario(Base, UserDict):
         from .scenario_selector import ScenarioSelector
 
         return ScenarioSelector(self).keep(*args)
+
+    def numberify(self) -> "Scenario":
+        """Convert string values to numeric types where possible.
+
+        This method attempts to convert string values to integers or floats
+        for all fields in the scenario. It's particularly useful when loading
+        data from CSV files where numeric fields may be stored as strings.
+
+        Conversion rules:
+        - None values remain None
+        - Already numeric values (int, float) remain unchanged
+        - String values that can be parsed as integers are converted to int
+        - String values that can be parsed as floats are converted to float
+        - String values that cannot be parsed remain as strings
+        - Empty strings remain as empty strings
+
+        Returns:
+            Scenario: A new Scenario with numeric conversions applied
+
+        Examples:
+            >>> s = Scenario({'age': '30', 'height': '5.5', 'name': 'Alice'})
+            >>> s_numeric = s.numberify()
+            >>> s_numeric
+            Scenario({'age': 30, 'height': 5.5, 'name': 'Alice'})
+
+            Works with None values and mixed types:
+
+            >>> s = Scenario({'count': '100', 'value': None, 'label': 'test'})
+            >>> s_numeric = s.numberify()
+            >>> s_numeric
+            Scenario({'count': 100, 'value': None, 'label': 'test'})
+        """
+
+        def convert_to_number(value: Any) -> Any:
+            """Convert a value to a number if possible."""
+            # Keep None as None
+            if value is None:
+                return None
+
+            # Already a number, return as is
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                return value
+
+            # Try to convert strings to numbers
+            if isinstance(value, str):
+                # Keep empty strings as empty strings
+                if value == "":
+                    return value
+
+                # Try integer first
+                try:
+                    return int(value)
+                except ValueError:
+                    pass
+
+                # Try float
+                try:
+                    return float(value)
+                except ValueError:
+                    pass
+
+                # If both fail, return original string
+                return value
+
+            # For any other type, return as is
+            return value
+
+        # Create new data with converted values
+        new_data = {key: convert_to_number(value) for key, value in self.data.items()}
+
+        return Scenario(new_data, name=self.name)
 
     @classmethod
     def from_url(

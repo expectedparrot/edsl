@@ -1,7 +1,6 @@
 import pytest
 from edsl import Model, QuestionMultipleChoice
 from edsl.tasks import TaskHistory
-from edsl.interviews.exception_tracking import InterviewExceptionCollection
 
 def test_task_history_exception_serialization():
     """

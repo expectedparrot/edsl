@@ -66,6 +66,24 @@ class TraitsDescriptor:
         self.name = name
 
 
+class Codebook(dict):
+    """Codebook for the Agent's traits."""
+
+    def __init__(self, codebook_dict: Dict[str, str]):
+        super().__init__(codebook_dict)
+
+    def __setitem__(self, key: str, value: str):
+        super().__setitem__(key, value)
+
+    def _repr_html_(self):
+        from ..scenarios import ScenarioList, Scenario
+
+        sl = ScenarioList()
+        for key, value in self.items():
+            sl.append(Scenario({"key": key, "value": value}))
+        return sl._repr_html_(include_class_info=False)
+
+
 class CodebookDescriptor:
     """Descriptor for the Agent's codebook attribute.
 
@@ -109,7 +127,7 @@ class CodebookDescriptor:
             instance: The instance object
             codebook_dict: Dictionary mapping trait keys to descriptions
         """
-        instance.__dict__[self.name] = codebook_dict
+        instance.__dict__[self.name] = Codebook(codebook_dict)
 
     def __set_name__(self, owner, name: str) -> None:
         """Set the name of the attribute in the instance's dictionary.

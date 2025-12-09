@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class BasePlaceholder:
+class BasePlaceholder(dict):
     """
     Base class for placeholder values used when a question is not yet answered.
 
@@ -64,6 +64,16 @@ class BasePlaceholder:
         self.comment = "Will be populated by prior answer"
         self._type = placeholder_type
 
+        # Initialize as dict with serializable data
+        serializable_data = {
+            "_type": "placeholder",
+            "placeholder_type": self._type,
+            "value": self.value,
+            "comment": self.comment,
+            "class_name": self.__class__.__name__,
+        }
+        super().__init__(serializable_data)
+
     def __getitem__(self, index: Any) -> str:
         """
         Allow indexing into the placeholder, always returning an empty string.
@@ -96,6 +106,21 @@ class BasePlaceholder:
             Same string as __str__.
         """
         return self.__str__()
+
+    def to_dict(self) -> dict:
+        """
+        Convert the placeholder to a dictionary for JSON serialization.
+
+        Returns:
+            A dictionary representation of the placeholder.
+        """
+        return {
+            "_type": "placeholder",
+            "placeholder_type": self._type,
+            "value": self.value,
+            "comment": self.comment,
+            "class_name": self.__class__.__name__,
+        }
 
 
 class PlaceholderAnswer(BasePlaceholder):

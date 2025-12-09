@@ -1,10 +1,11 @@
-from typing import Generator, TYPE_CHECKING
-from itertools import product
+from typing import Generator, TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from ..interviews import Interview
     from .jobs import Jobs
     from ..caching import Cache
+
+from .interview_tuple_filter import InterviewTupleFilter
 
 
 # Module-level timing dictionary for create_interviews performance tracking
@@ -26,7 +27,9 @@ class InterviewsConstructor:
         self.jobs = jobs
         self.cache = cache
 
-    def create_interviews(self) -> Generator["Interview", None, None]:
+    def create_interviews(
+        self, include_expression: Optional[str] = None
+    ) -> Generator["Interview", None, None]:
         """
         Generates interviews.
 
@@ -59,9 +62,13 @@ class InterviewsConstructor:
         _create_interviews_timing["hash_scenarios"] += time.time() - t2
 
         t3 = time.time()
-        for agent, scenario, model in product(
-            self.jobs.agents, self.jobs.scenarios, self.jobs.models
-        ):
+        tuple_filter = InterviewTupleFilter(
+            self.jobs.agents,
+            self.jobs.scenarios,
+            self.jobs.models,
+            include_expression,
+        )
+        for agent, scenario, model in tuple_filter:
             t5 = time.time()
             drawn_survey = (
                 self.jobs.survey.draw()

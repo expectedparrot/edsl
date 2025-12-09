@@ -202,3 +202,87 @@ class SurveyRuleCannotEvaluateError(SurveyError):
     """
 
     relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html#rules"
+
+
+class SurveyQuestionsToRandomizeError(SurveyCreationError):
+    """
+    Exception raised when the questions_to_randomize parameter is invalid.
+
+    This exception occurs when:
+    - The questions_to_randomize parameter is not a list of strings
+    - One or more question names in questions_to_randomize don't exist in the survey
+    - A non-string value is included in questions_to_randomize
+
+    To fix this error:
+    1. Ensure questions_to_randomize is a list of strings
+    2. Verify that each string matches a question_name in the survey
+    3. Check for typos in question names
+
+    Examples:
+        ```python
+        # Invalid: question name doesn't exist
+        Survey([q1, q2], questions_to_randomize=['q1', 'q3'])  # Raises SurveyQuestionsToRandomizeError
+
+        # Invalid: non-string value
+        Survey([q1, q2], questions_to_randomize=['q1', 123])  # Raises SurveyQuestionsToRandomizeError
+        ```
+    """
+
+    doc_anchor = "creating-surveys"
+
+
+class DuplicateQuestionNameError(SurveyCreationError):
+    """
+    Exception raised when duplicate question names are detected in a survey.
+
+    This exception occurs when:
+    - A survey is created or modified with multiple questions having the same name
+    - Question names must be unique within a survey to ensure proper identification
+
+    To fix this error:
+    1. Ensure all questions in the survey have unique names
+    2. Check the duplicate_names property to see which names are duplicated
+    3. Rename questions to have distinct identifiers
+
+    Examples:
+        ```python
+        # Creating a survey with duplicate names
+        q1 = QuestionFreeText(question_name="age", question_text="What is your age?")
+        q2 = QuestionMultipleChoice(question_name="age", question_text="Age group?", ...)
+        Survey([q1, q2])  # Raises DuplicateQuestionNameError: duplicate_names=['age']
+        ```
+    """
+
+    doc_anchor = "creating-surveys"
+
+
+class SurveyPipingReferenceError(SurveyCreationError):
+    """
+    Exception raised when a question pipes/references data from a question that comes later in the survey.
+
+    This exception occurs when:
+    - A question's text uses Jinja2 templating to reference answers from questions that haven't been asked yet
+    - The survey order is invalid because a question depends on future data
+
+    Forward references in piping create an impossible situation where a question needs
+    data that doesn't exist yet. Questions can only reference answers from questions
+    that appear earlier in the survey.
+
+    To fix this error:
+    1. Reorder your survey so dependent questions come after the questions they reference
+    2. Ensure piping only references previous questions, not future ones
+    3. Check your survey.dag() to visualize dependencies
+
+    Examples:
+        ```python
+        # Invalid: q2 references q1 but comes before it
+        q1 = QuestionFreeText(question_name="q1", question_text="What is your name?")
+        q2 = QuestionFreeText(question_name="q2", question_text="Hello {{ q1.answer }}, what is your age?")
+        Survey([q2, q1])  # Raises SurveyPipingReferenceError
+
+        # Valid: q2 comes after q1
+        Survey([q1, q2])  # OK
+        ```
+    """
+
+    doc_anchor = "creating-surveys"

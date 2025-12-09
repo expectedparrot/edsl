@@ -119,15 +119,57 @@ class QuestionOptionProcessor(QuestionAttributeProcessor):
         >>> processor.get_question_options({"question_options": "{{ poop }}"})
         ['<< Option 1 - Placeholder >>', '<< Option 2 - Placeholder >>', '<< Option 3 - Placeholder >>']
 
+        The case where options are piped with additional static options:
+        >>> question_data = {"question_options": {"from": "{{ q0.answer }}", "add": ["Option 3", "Option 4"]}}
+        >>> processor.get_question_options(question_data)
+        ['Option 1', 'Option 2', 'Option 3', 'Option 4']
+
         """
         options_entry = question_data.get("question_options")
 
-        # If not a template string, return as is or default
+        # Handle dict format for piping with additional options
+        if isinstance(options_entry, dict):
+            # Extract the base options from the "from" template
+            from_template = options_entry.get("from")
+            additional_options = options_entry.get("add", [])
+
+            # Get the base options using the template
+            base_options = self._get_options_from_template(from_template)
+
+            # Concatenate with additional options
+            if base_options and base_options != self._get_default_options():
+                return base_options + additional_options
+            else:
+                # If we can't resolve the template, just return additional options
+                # or default if no additional options
+                return (
+                    additional_options
+                    if additional_options
+                    else self._get_default_options()
+                )
+
+        # If not a template string or dict, return as is or default
         if not isinstance(options_entry, str):
             return options_entry if options_entry else self._get_default_options()
 
+        # Handle simple template string (existing logic)
+        return self._get_options_from_template(options_entry)
+
+    def _get_options_from_template(self, template_string: str) -> list:
+        """
+        Helper method to extract options from a template string.
+
+        Args:
+            template_string (str): Template string like "{{ q1.answer }}" or "{{ scenario.options }}"
+
+        Returns:
+            list: List of options or default placeholders if not found
+        """
+        if not template_string:
+            return self._get_default_options()
+
         # Parse template to get variable name
-        raw_option_key = self._parse_template_variable(options_entry)
+        raw_option_key = self._parse_template_variable(template_string)
 
         source_type = None
 

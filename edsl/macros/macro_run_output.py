@@ -183,8 +183,21 @@ class MacroRunOutput(Base):
         class ExampleFormatter(OutputFormatter):
             """Example formatter for demonstration."""
 
-            def __init__(self):
-                super().__init__(description="example", output_type="Results")
+            def __init__(
+                self,
+                description="example",
+                allowed_commands=None,
+                params=None,
+                output_type="Results",
+                _stored_commands=None,
+            ):
+                super().__init__(
+                    description=description,
+                    allowed_commands=allowed_commands,
+                    params=params,
+                    output_type=output_type,
+                    _stored_commands=_stored_commands,
+                )
 
             def render(self, results: Results, params: dict) -> str:
                 return f"Example output with {len(results)} results"
@@ -261,47 +274,50 @@ class MacroRunOutput(Base):
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
         formatter_names = list(self._formatters.mapping.keys())
         default = self._default_formatter_name or self._formatters.default
 
         # Build the Rich text
         output = Text()
-        output.append("MacroRunOutput(\n", style="bold cyan")
+        output.append("MacroRunOutput(\n", style=RICH_STYLES["primary"])
 
         # Number of results
         num_results = len(self._results) if hasattr(self._results, "__len__") else "?"
-        output.append(f"    results: {num_results} result(s),\n", style="green")
+        output.append(
+            f"    results: {num_results} result(s),\n", style=RICH_STYLES["key"]
+        )
 
         # Number of formatters
         output.append(
             f"    formatters: {len(formatter_names)} available format(s),\n",
-            style="magenta",
+            style=RICH_STYLES["key"],
         )
 
         # List formatters
         if formatter_names:
-            output.append("    available formats:\n", style="white")
+            output.append("    available formats:\n", style=RICH_STYLES["default"])
             for name in formatter_names:
                 formatter = self._formatters.mapping[name]
                 desc = getattr(formatter, "description", name)
                 is_default = " (default)" if name == default else ""
 
-                output.append("        • ", style="white")
-                output.append(f"{name}", style="bold yellow")
+                output.append("        • ", style=RICH_STYLES["default"])
+                output.append(f"{name}", style=RICH_STYLES["secondary"])
                 if is_default:
-                    output.append(is_default, style="bold green")
-                output.append(f": {desc}\n", style="white")
+                    output.append(is_default, style=RICH_STYLES["secondary"])
+                output.append(f": {desc}\n", style=RICH_STYLES["default"])
 
-        output.append("\n    ", style="white")
-        output.append("Access formats via: ", style="dim")
-        output.append("output.<format_name>", style="bold blue")
+        output.append("\n    ", style=RICH_STYLES["default"])
+        output.append("Access formats via: ", style=RICH_STYLES["dim"])
+        output.append("output.<format_name>", style=RICH_STYLES["primary"])
 
-        output.append("\n    ", style="white")
-        output.append("Access underlying results: ", style="dim")
-        output.append("output.results", style="bold blue")
+        output.append("\n    ", style=RICH_STYLES["default"])
+        output.append("Access underlying results: ", style=RICH_STYLES["dim"])
+        output.append("output.results", style=RICH_STYLES["primary"])
 
-        output.append("\n)", style="bold cyan")
+        output.append("\n)", style=RICH_STYLES["primary"])
 
         # Render to string
         string_io = io.StringIO()

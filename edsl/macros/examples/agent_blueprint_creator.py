@@ -138,6 +138,12 @@ initial_survey = Survey(
 # Note: to_agent_blueprint() internally uses AgentBlueprint.from_scenario_list()
 # which performs ETL operations to convert scenario data into Dimension objects.
 # This is the appropriate method when dimensions are generated dynamically by LLMs.
+sl_output = (
+    OutputFormatter(description="Scenario List", output_type="ScenarioList")
+    .select("scenario.*", "answer.*")
+    .to_scenario_list()
+)
+
 output_formatter = (
     OutputFormatter(description="Agent Blueprint", output_type="AgentBlueprint")
     .select("scenario.*", "answer.*")
@@ -166,8 +172,9 @@ macro = Macro(
     output_formatters={
         "agent_blueprint": output_formatter,
         "markdown_table": agent_blueprint_table,
+        "scenario_list": sl_output,
     },
-    default_formatter_name="agent_blueprint",
+    default_formatter_name="scenario_list",
 )
 
 if __name__ == "__main__":

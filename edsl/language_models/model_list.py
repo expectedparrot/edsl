@@ -61,38 +61,34 @@ class ModelList(Base, UserList):
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
         # Build the Rich text
         output = Text()
-        output.append("ModelList(\n", style="bold cyan")
-        output.append(f"    num_models={len(self)},\n", style="white")
+        output.append("ModelList(\n", style=RICH_STYLES["primary"])
+        output.append(f"    num_models={len(self)},\n", style=RICH_STYLES["default"])
 
         if len(self) > 0:
             # Collect model information
             model_info = []
-            for model in list(self)[:max_items]:
+            for model in list(self):
                 model_name = getattr(
                     model, "model", getattr(model, "_model_", "unknown")
                 )
                 service_name = getattr(model, "_inference_service_", "unknown")
                 model_info.append(f"{model_name} ({service_name})")
 
-            output.append("    models: [\n", style="white")
+            output.append("    models: [\n", style=RICH_STYLES["default"])
             for info in model_info:
-                output.append("        ", style="white")
-                output.append(f"{info}", style="yellow")
-                output.append(",\n", style="white")
+                output.append("        ", style=RICH_STYLES["default"])
+                output.append(f"{info}", style=RICH_STYLES["secondary"])
+                output.append(",\n", style=RICH_STYLES["default"])
 
-            if len(self) > max_items:
-                output.append(
-                    f"        ... ({len(self) - max_items} more)\n", style="dim"
-                )
-
-            output.append("    ]\n", style="white")
+            output.append("    ]\n", style=RICH_STYLES["default"])
         else:
-            output.append("    models: []\n", style="dim")
+            output.append("    models: []\n", style=RICH_STYLES["dim"])
 
-        output.append(")", style="bold cyan")
+        output.append(")", style=RICH_STYLES["primary"])
 
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=120)

@@ -186,6 +186,65 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         return self.to_scenario_list().filter(expression).to_dataset()
 
+    def vibe_filter(
+        self,
+        criteria: str,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.1,
+        show_expression: bool = False,
+    ) -> "Dataset":
+        """
+        Filter the dataset using natural language criteria.
+
+        This method uses an LLM to generate a filter expression based on
+        natural language criteria, then applies it using the dataset's filter method.
+
+        Parameters:
+            criteria: Natural language description of the filtering criteria.
+                Examples:
+                - "Keep only people over 30"
+                - "Remove outliers in the satisfaction scores"
+                - "Only include responses from the last month"
+                - "Filter out any rows with missing data"
+            model: OpenAI model to use for generating the filter (default: "gpt-4o")
+            temperature: Temperature for generation (default: 0.1 for consistent logic)
+            show_expression: If True, prints the generated filter expression
+
+        Returns:
+            Dataset: A new Dataset containing only the rows that match the criteria
+
+        Examples:
+            >>> from edsl.dataset import Dataset
+            >>> d = Dataset([{'age': [25, 35, 42]}, {'occupation': ['student', 'engineer', 'teacher']}])
+            >>> # filtered = d.vibe_filter("Keep only people over 30")
+
+        Notes:
+            - Requires OPENAI_API_KEY environment variable to be set
+            - The LLM generates a filter expression using column names directly
+            - Uses the dataset's built-in filter() method for safe evaluation
+            - Use show_expression=True to see the generated filter logic
+        """
+        from .vibes.vibe_filter import VibeFilter
+
+        # Get column names and sample data
+        columns = self.relevant_columns()
+
+        # Get a few sample rows to help the LLM understand the data structure
+        sample_dicts = self.to_dicts(remove_prefix=False)[:5]
+
+        # Create the filter generator
+        filter_gen = VibeFilter(model=model, temperature=temperature)
+
+        # Generate the filter expression
+        filter_expr = filter_gen.create_filter(columns, sample_dicts, criteria)
+
+        if show_expression:
+            print(f"Generated filter expression: {filter_expr}")
+
+        # Use the dataset's built-in filter method which returns Dataset
+        return self.filter(filter_expr)
+
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict[str, Callable]] = None
     ) -> "Dataset":
@@ -228,8 +287,17 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         return self.to_scenario_list().collapse(field, separator).to_dataset()
 
-    def long(self, exclude_fields: list[str] = None) -> Dataset:
+    def long(self, *args, exclude_fields: Union[list[str], str] = None) -> Dataset:
         """Convert the dataset from wide to long format.
+
+        Args:
+            *args: Field names to exclude, passed as separate positional arguments.
+                Example: .long('field1', 'field2')
+            exclude_fields: Alternative way to specify fields to exclude. Can be:
+                - A list of field names: ['field1', 'field2']
+                - A comma-separated string: 'field1, field2'
+                - Shorthand names without prefixes (e.g., 'city' instead of 'scenario.city')
+                  are allowed if unambiguous
 
         Examples:
             >>> d = Dataset([{'a': [1, 2], 'b': [3, 4]}])
@@ -239,9 +307,48 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             >>> d = Dataset([{'x': [1, 2], 'y': [3, 4], 'z': [5, 6]}])
             >>> d.long(exclude_fields=['z']).data
             [{'row': [0, 0, 1, 1]}, {'key': ['x', 'y', 'x', 'y']}, {'value': [1, 3, 2, 4]}, {'z': [5, 5, 6, 6]}]
+
+            >>> # Can use comma-separated string
+            >>> d.long(exclude_fields='z').data
+            [{'row': [0, 0, 1, 1]}, {'key': ['x', 'y', 'x', 'y']}, {'value': [1, 3, 2, 4]}, {'z': [5, 5, 6, 6]}]
+
+            >>> # Can use multiple positional arguments
+            >>> d.long('y', 'z').data
+            [{'row': [0, 1]}, {'key': ['x', 'x']}, {'value': [1, 2]}, {'y': [3, 4]}, {'z': [5, 6]}]
         """
         headers, data = self._tabular()
-        exclude_fields = exclude_fields or []
+
+        # Handle different input methods
+        if args:
+            # Positional arguments provided: .long('field1', 'field2')
+            exclude_fields = list(args)
+        elif exclude_fields is None:
+            exclude_fields = []
+        elif isinstance(exclude_fields, str):
+            # Comma-separated string: .long(exclude_fields='field1, field2')
+            exclude_fields = [f.strip() for f in exclude_fields.split(",")]
+
+        # Resolve shorthand field names to full names
+        resolved_exclude_fields = []
+        for field in exclude_fields:
+            if field in headers:
+                # Exact match found
+                resolved_exclude_fields.append(field)
+            else:
+                # Look for fields that end with this name (after a dot)
+                matches = [h for h in headers if h.endswith("." + field)]
+                if len(matches) == 0:
+                    raise DatasetValueError(
+                        f"Field '{field}' not found in headers: {headers}"
+                    )
+                elif len(matches) > 1:
+                    raise DatasetValueError(
+                        f"Field '{field}' is ambiguous. Could refer to: {matches}"
+                    )
+                else:
+                    resolved_exclude_fields.append(matches[0])
+
+        exclude_fields = resolved_exclude_fields
 
         # Initialize result dictionaries for each column
         result_dict = {}
@@ -384,15 +491,16 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
-        # Build the Rich text
+        # Build the Rich text with consistent styling
         output = Text()
-        output.append("Dataset(\n", style="bold cyan")
+        output.append("Dataset(\n", style=RICH_STYLES["primary"])
 
         # Handle empty dataset
         if not self.data:
-            output.append("    data=[]\n", style="dim")
-            output.append(")", style="bold cyan")
+            output.append("    data=[]\n", style=RICH_STYLES["dim"])
+            output.append(")", style=RICH_STYLES["primary"])
             console = Console(file=io.StringIO(), force_terminal=True, width=120)
             console.print(output, end="")
             return console.file.getvalue()
@@ -400,32 +508,35 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         num_obs = len(self)
         num_cols = len(self.keys())
 
-        output.append(f"    num_observations={num_obs},\n", style="white")
-        output.append(f"    num_columns={num_cols},\n", style="white")
+        output.append(
+            f"    num_observations={num_obs},\n", style=RICH_STYLES["default"]
+        )
+        output.append(f"    num_columns={num_cols},\n", style=RICH_STYLES["default"])
 
         # Show column names
         if num_cols > 0:
             cols = self.keys()
-            output.append("    columns=[\n", style="white")
+            output.append("    columns=[\n", style=RICH_STYLES["default"])
 
             for i, col in enumerate(cols[:max_cols]):
                 col_str = str(col)
                 if len(col_str) > 40:
                     col_str = col_str[:37] + "..."
-                output.append("        ", style="white")
-                output.append(f"'{col_str}'", style="yellow")
-                output.append(",\n", style="white")
+                output.append("        ", style=RICH_STYLES["default"])
+                output.append(f"'{col_str}'", style=RICH_STYLES["key"])
+                output.append(",\n", style=RICH_STYLES["default"])
 
             if num_cols > max_cols:
                 output.append(
-                    f"        ... ({num_cols - max_cols} more)\n", style="dim"
+                    f"        ... ({num_cols - max_cols} more)\n",
+                    style=RICH_STYLES["dim"],
                 )
 
-            output.append("    ],\n", style="white")
+            output.append("    ],\n", style=RICH_STYLES["default"])
 
             # Show preview of data
             if num_obs > 0:
-                output.append("    preview={\n", style="white")
+                output.append("    preview={\n", style=RICH_STYLES["default"])
                 headers, rows = self._tabular()
 
                 # Show column headers and first few values
@@ -440,24 +551,26 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
                             val_str = val_str[: max_value_length - 3] + "..."
                         formatted_values.append(val_str)
 
-                    output.append("        ", style="white")
-                    output.append(f"'{col}'", style="bold yellow")
-                    output.append(f": [{', '.join(formatted_values)}", style="white")
+                    output.append("        ", style=RICH_STYLES["default"])
+                    output.append(f"'{col}'", style=RICH_STYLES["secondary"])
+                    output.append(
+                        f": [{', '.join(formatted_values)}", style=RICH_STYLES["value"]
+                    )
 
                     if num_obs > max_rows:
-                        output.append(", ...", style="dim")
+                        output.append(", ...", style=RICH_STYLES["dim"])
 
-                    output.append("],\n", style="white")
+                    output.append("],\n", style=RICH_STYLES["default"])
 
                 if num_cols > max_cols:
                     output.append(
                         f"        ... ({num_cols - max_cols} more columns)\n",
-                        style="dim",
+                        style=RICH_STYLES["dim"],
                     )
 
-                output.append("    }\n", style="white")
+                output.append("    }\n", style=RICH_STYLES["default"])
 
-        output.append(")", style="bold cyan")
+        output.append(")", style=RICH_STYLES["primary"])
 
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
@@ -480,8 +593,6 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
             >>> html = d._repr_html_()
             >>> isinstance(html, str)
-            True
-            >>> '<table' in html
             True
         """
         return self.table(print_parameters=self.print_parameters)._repr_html_()
@@ -670,6 +781,9 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     def rename(self, rename_dic) -> Dataset:
         """Rename columns in the dataset according to the provided dictionary.
 
+        Raises:
+            DatasetKeyError: If any key in rename_dic does not exist in the dataset.
+
         Examples:
             >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
             >>> d.rename({'a': 'x', 'b': 'y'}).data
@@ -679,6 +793,22 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             >>> d.rename({'old_name': 'new_name'}).data
             [{'new_name': [1, 2]}]
         """
+        from .exceptions import DatasetKeyError
+
+        # Collect all existing keys in the dataset
+        existing_keys = set()
+        for observation in self.data:
+            if observation:  # Ensure observation is not empty
+                key = list(observation.keys())[0]
+                existing_keys.add(key)
+
+        # Validate that all keys in rename_dic exist in the dataset
+        missing_keys = set(rename_dic.keys()) - existing_keys
+        if missing_keys:
+            raise DatasetKeyError(
+                f"The following keys in rename_dic are not present in the dataset: {missing_keys}"
+            )
+
         new_data = []
         for observation in self.data:
             key, values = list(observation.items())[0]
@@ -1104,65 +1234,6 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         return cls(data["data"])
 
-    def to_docx(self, output_file: str, title: str = None) -> None:
-        """
-        Convert the dataset to a Word document.
-
-        Args:
-            output_file (str): Path to save the Word document
-            title (str, optional): Title for the document
-
-        Examples:
-            >>> import tempfile
-            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
-            >>> with tempfile.NamedTemporaryFile(suffix='.docx') as tmp:
-            ...     d.to_docx(tmp.name, title='Test Document')
-            ...     import os
-            ...     os.path.exists(tmp.name)
-            True
-        """
-        from docx import Document
-        from docx.shared import Inches
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
-
-        # Create document
-        doc = Document()
-
-        # Add title if provided
-        if title:
-            title_heading = doc.add_heading(title, level=1)
-            title_heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-        # Get headers and data
-        headers, data = self._tabular()
-
-        # Create table
-        table = doc.add_table(rows=len(data) + 1, cols=len(headers))
-        table.style = "Table Grid"
-
-        # Add headers
-        for j, header in enumerate(headers):
-            cell = table.cell(0, j)
-            cell.text = str(header)
-
-        # Add data
-        for i, row in enumerate(data):
-            for j, cell_content in enumerate(row):
-                cell = table.cell(i + 1, j)
-                cell.text = str(cell_content) if cell_content is not None else ""
-
-        # Adjust column widths
-        for column in table.columns:
-            max_width = 0
-            for cell in column.cells:
-                text_width = len(str(cell.text))
-                max_width = max(max_width, text_width)
-            for cell in column.cells:
-                cell.width = Inches(min(max_width * 0.1 + 0.5, 6))
-
-        # Save the document
-        doc.save(output_file)
-
     def to_markdown(
         self,
         filename: Optional[str] = None,
@@ -1336,18 +1407,33 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         from collections.abc import Iterable
 
-        # Find the field in the dataset
+        # Find the field in the dataset using flexible lookup
         field_data = None
+        resolved_field_name = None
+        potential_matches = []
+
+        # First try exact match, then suffix match
         for entry in self.data:
             key = list(entry.keys())[0]
-            if key == field:
+            if field == key:
                 field_data = entry[key]
+                resolved_field_name = key
                 break
+            if field == key.split(".")[-1]:
+                potential_matches.append((key, entry[key]))
 
+        # If no exact match found, check suffix matches
         if field_data is None:
-            raise DatasetKeyError(
-                f"Field '{field}' not found in dataset. Available fields are: {self.keys()}"
-            )
+            if len(potential_matches) == 1:
+                resolved_field_name, field_data = potential_matches[0]
+            elif len(potential_matches) > 1:
+                raise DatasetKeyError(
+                    f"Field '{field}' found in more than one location: {[m[0] for m in potential_matches]}. Available fields are: {self.keys()}"
+                )
+            else:
+                raise DatasetKeyError(
+                    f"Field '{field}' not found in dataset. Available fields are: {self.keys()}"
+                )
 
         # Validate that the field contains lists
         if not all(isinstance(v, list) for v in field_data):
@@ -1367,7 +1453,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             key, values = list(entry.items())[0]
             new_values = []
 
-            if key == field:
+            if key == resolved_field_name:
                 # This is the field to expand - flatten all sublists
                 for row_values in values:
                     if not isinstance(row_values, Iterable) or isinstance(

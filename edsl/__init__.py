@@ -15,6 +15,7 @@ ROOT_DIR = os.path.dirname(BASE_DIR)
 
 from edsl.__version__ import __version__
 from edsl.config import Config, CONFIG
+from edsl.config.config_class import modify_settings, show_settings
 
 # NOTE: `ext` is lazily imported below via __getattr__ to avoid circular-import issues.
 
@@ -24,7 +25,14 @@ from edsl import logger
 # Set up logger with configuration from environment/config
 # (We'll configure the logger after CONFIG is initialized below)
 
-__all__ = ["logger", "Config", "CONFIG", "__version__"]
+__all__ = [
+    "logger",
+    "Config",
+    "CONFIG",
+    "__version__",
+    "modify_settings",
+    "show_settings",
+]
 
 # Define modules for lazy loading
 _LAZY_MODULES = {
@@ -120,11 +128,21 @@ def check_for_updates(silent: bool = False) -> dict:
 
 def _is_notebook_environment() -> bool:
     """
-    Detect if we're running in a Jupyter/IPython notebook environment.
+    Detect if we're running in a Jupyter/IPython/marimo notebook environment.
 
     Returns:
         bool: True if running in a notebook, False otherwise
     """
+    # Check for marimo first
+    try:
+        import marimo as mo
+
+        if mo.running_in_notebook():
+            return True
+    except (ImportError, AttributeError):
+        pass
+
+    # Check for Jupyter/IPython notebook
     try:
         # Check if IPython is available and we're in a notebook
         from IPython import get_ipython
@@ -142,36 +160,39 @@ def _is_notebook_environment() -> bool:
 
 def _display_notebook_login(login_url: str):
     """
-    Display login interface for notebook environments.
+    Display login interface for notebook environments (Jupyter/marimo).
 
     Args:
         login_url: The login URL to display
     """
+    # HTML content for display
+    html_content = f"""
+    <div id="edsl-login-container" style="border: 2px solid #38bdf8; border-radius: 8px; padding: 20px; margin: 10px 0; background-color: #f8fafc;">
+        <h3 style="color: #38bdf8; margin-top: 0;">E[🦜] Expected Parrot Login</h3>
+        <p>Click the button below to log in and automatically store your API key:</p>
+        <a href="{login_url}" target="_blank"
+           style="display: inline-block; background-color: #38bdf8; color: white; padding: 12px 24px;
+                  text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0;">
+           🚀 Log in to Expected Parrot
+        </a>
+        <p style="font-size: 0.9em; color: #64748b;">
+           Logging in will activate remote inference and other Expected Parrot features.
+        </p>
+        <div id="edsl-status" style="margin-top: 10px; font-weight: bold; color: #38bdf8;"></div>
+    </div>
+    """
+
+    # Try IPython display (works in both Jupyter and marimo)
     try:
         from IPython.display import display, HTML
 
-        # Display as a styled HTML button interface
-        html_content = f"""
-        <div id="edsl-login-container" style="border: 2px solid #38bdf8; border-radius: 8px; padding: 20px; margin: 10px 0; background-color: #f8fafc;">
-            <h3 style="color: #38bdf8; margin-top: 0;">E[🦜] Expected Parrot Login</h3>
-            <p style="font-size: 0.9em; color: #64748b;">Click the button below to log in and automatically store your API key:</p>
-            <a href="{login_url}" target="_blank" 
-               style="display: inline-block; background-color: #38bdf8; color: white; padding: 12px 24px; 
-                      text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0;">
-               🚀 Log in to Expected Parrot
-            </a>
-            <p style="font-size: 0.9em; color: #64748b;">
-               Logging in will activate remote inference and other Expected Parrot features.
-            </p>
-            <div id="edsl-status" style="margin-top: 10px; font-weight: bold; color: #38bdf8;"></div>
-        </div>
-        """
-
         display(HTML(html_content))
-
+        return
     except ImportError:
-        # Fallback to regular print if IPython is not available
-        print(f"Please visit this URL to log in: {login_url}")
+        pass
+
+    # Fallback to regular print if neither is available
+    print(f"Please visit this URL to log in: {login_url}")
 
 
 def _update_notebook_status(message: str, is_success: bool = False):
@@ -182,6 +203,17 @@ def _update_notebook_status(message: str, is_success: bool = False):
         message: Status message to display
         is_success: Whether this is a success message (changes color)
     """
+    # Check if we're in marimo - if so, just print the message
+    try:
+        import marimo as mo
+
+        if mo.running_in_notebook():
+            print(message)
+            return
+    except (ImportError, AttributeError):
+        pass
+
+    # Check if we're in Jupyter/IPython
     try:
         from IPython import get_ipython
         from IPython.display import display, Javascript

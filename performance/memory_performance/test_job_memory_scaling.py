@@ -1,7 +1,6 @@
 import gc
 import os
 import time
-import pytest
 import psutil
 from edsl import Model, QuestionFreeText, ScenarioList
 
@@ -80,7 +79,7 @@ def test_memory_per_interview_decreases_with_scale():
     large_memory_per_interview = large_job_result['memory_per_interview']
     
     # Print info for debugging and report
-    print(f"\nMemory usage analysis for job scaling:")
+    print("\nMemory usage analysis for job scaling:")
     print(f"Small job ({small_size} interviews):")
     print(f"  Memory used: {small_job_result['memory_used']:.2f} MB")
     print(f"  Memory per interview: {small_memory_per_interview:.6f} MB")
@@ -93,7 +92,7 @@ def test_memory_per_interview_decreases_with_scale():
     print(f"  Memory used: {large_job_result['memory_used']:.2f} MB")
     print(f"  Memory per interview: {large_memory_per_interview:.6f} MB")
     
-    print(f"\nMemory efficiency improvements:")
+    print("\nMemory efficiency improvements:")
     small_to_medium = (1 - medium_memory_per_interview / small_memory_per_interview) * 100
     medium_to_large = (1 - large_memory_per_interview / medium_memory_per_interview) * 100
     small_to_large = (1 - large_memory_per_interview / small_memory_per_interview) * 100

@@ -7,6 +7,8 @@ from .ast_utilities import extract_variable_names
 from .local_results_cache import object_disk_cache
 from .edsl_load import load as edsl_load
 
+# from .show_diff import show_diff  # Not used in this module
+
 # Functions from utilities.py
 from .utilities import (
     clean_json,
@@ -23,10 +25,14 @@ from .utilities import (
 # Decorator utilities
 from .decorators import sync_wrapper, jupyter_nb_handler, memory_profile
 
+# Spinner utilities
+from .spinner import with_spinner, silent_spinner
+
 # Standalone utilities
 from .is_notebook import is_notebook
 from .is_valid_variable_name import is_valid_variable_name
 from .naming_utilities import sanitize_string
+from .list_split import list_split
 
 # Interface module - note: print_results_long is imported directly in results.py
 
@@ -48,9 +54,12 @@ __all__ = [
     "sync_wrapper",
     "jupyter_nb_handler",
     "memory_profile",
+    "with_spinner",
+    "silent_spinner",
     "is_notebook",
     "is_valid_variable_name",
     "sanitize_string",
     "object_disk_cache",
     "edsl_load",
+    "list_split",
 ]

@@ -656,9 +656,11 @@ class LogManager:
                 # Extract common patterns
                 "is_error": entry.level in ["ERROR", "CRITICAL"],
                 "is_warning_or_above": entry.level_int >= logging.WARNING,
-                "logger_module": entry.logger_name.split(".")[-1]
-                if "." in entry.logger_name
-                else entry.logger_name,
+                "logger_module": (
+                    entry.logger_name.split(".")[-1]
+                    if "." in entry.logger_name
+                    else entry.logger_name
+                ),
                 "has_exception": "exception" in entry.message.lower(),
                 "has_failed": "fail" in entry.message.lower(),
                 "message_length": len(entry.message),
@@ -702,9 +704,11 @@ class LogManager:
             daily_counts[date] = daily_counts.get(date, 0) + 1
 
         analysis["time_patterns"] = {
-            "busiest_hour": max(hourly_counts.items(), key=lambda x: x[1])
-            if hourly_counts
-            else None,
+            "busiest_hour": (
+                max(hourly_counts.items(), key=lambda x: x[1])
+                if hourly_counts
+                else None
+            ),
             "hourly_distribution": hourly_counts,
             "daily_distribution": daily_counts,
             "peak_days": sorted(daily_counts.items(), key=lambda x: x[1], reverse=True)[

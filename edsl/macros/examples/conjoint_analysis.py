@@ -4,7 +4,6 @@ from edsl.macros.output_formatter import OutputFormatter
 from edsl.surveys import Survey
 from edsl.questions import QuestionFreeText, QuestionList
 from edsl.agents import Agent
-from edsl.scenarios import ScenarioList
 
 # 1. Initial Survey
 initial_survey = Survey(

@@ -207,10 +207,10 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Dict: Enriched prompt data
         """
-        prompt_data[
-            "data"
-        ] = QuestionInstructionPromptBuilder._process_question_options(
-            prompt_data["data"], scenario, prior_answers_dict
+        prompt_data["data"] = (
+            QuestionInstructionPromptBuilder._process_question_options(
+                prompt_data["data"], scenario, prior_answers_dict
+            )
         )
         return prompt_data
 

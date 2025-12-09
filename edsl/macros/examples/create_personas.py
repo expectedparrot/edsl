@@ -80,7 +80,6 @@ For example, if the dimension is "company size", the levels could be "1-10", "11
 """,
 )
 
-from edsl.questions import QuestionFreeText
 
 q_description = QuestionFreeText(
     question_name="dimension_description",
@@ -265,9 +264,7 @@ macro = Macro(
         # Convert the passed Survey into a ScenarioList and attach as scenarios
         SurveyAttachmentFormatter(
             description="Survey->ScenarioList", output_type="ScenarioList"
-        ).to_scenario_list(
-            remove_jinja2_syntax=True
-        )
+        ).to_scenario_list(remove_jinja2_syntax=True)
     ],
 )
 

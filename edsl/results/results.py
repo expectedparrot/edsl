@@ -55,6 +55,8 @@ if TYPE_CHECKING:
     from ..language_models import ModelList
     from ..dataset import Dataset
     from ..caching import Cache
+    from .results_transcript import Transcripts
+    from .vibes import ResultsVibeAnalysis
 
 
 from ..utilities import dict_hash
@@ -74,6 +76,7 @@ from .results_transformer import ResultsTransformer
 from .results_properties import ResultsProperties
 from .results_container import ResultsContainer
 from .results_grouper import ResultsGrouper
+from .results_weighting import ResultsWeighting
 
 from .exceptions import (
     ResultsError,
@@ -280,6 +283,48 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         return ResultsViewerWidget(results=self)
 
+    def transcripts(self, show_comments: bool = True) -> "Transcripts":
+        """Return a Transcripts object for viewing interview responses across multiple respondents.
+
+        This method creates a carousel-style viewer that allows navigation across different
+        Result objects (respondents) while keeping the same question in focus. This is useful
+        for comparing how different respondents answered the same question.
+
+        The Transcripts viewer provides:
+        - Navigation between respondents (Result objects)
+        - Navigation between questions
+        - Agent name display for each respondent
+        - Synchronized question viewing across respondents
+        - Copy button for plain text export
+
+        In HTML/Jupyter, displays as an interactive carousel with:
+        - "Prev/Next Respondent" buttons to navigate between agents
+        - "Prev Q/Next Q" buttons to navigate between questions
+
+        In terminal, displays Rich formatted output with agent headers and Q&A pairs.
+
+        Args:
+            show_comments: Whether to include respondent comments in the transcripts.
+                Defaults to True.
+
+        Returns:
+            A Transcripts object that adapts its display to the environment.
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> results = Results.example()
+            >>> transcripts = results.transcripts()
+            >>> # In Jupyter: Interactive carousel navigation
+            >>> # In terminal: Rich formatted display
+            >>> # As string: Plain text format
+
+            >>> # Without comments
+            >>> transcripts_no_comments = results.transcripts(show_comments=False)
+        """
+        from .results_transcript import Transcripts
+
+        return Transcripts(self, show_comments=show_comments)
+
     @classmethod
     def from_job_info(cls, job_info: dict) -> "Results":
         """Instantiate a Results object from a job info dictionary.
@@ -408,6 +453,80 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             self._report = Report(self)
 
         return self._report.analyze(*question_names)
+
+    def vibe_analyze(
+        self,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.7,
+        include_visualizations: bool = False,
+        generate_summary: bool = True,
+    ) -> "ResultsVibeAnalysis":
+        """Analyze all questions with LLM-powered insights.
+
+        This method iterates through each question in the survey, generates
+        standard analysis using the existing analyze() method, and uses an LLM
+        to provide natural language insights about the data patterns. Optionally,
+        it can also send visualizations to OpenAI's vision API for analysis.
+
+        In a Jupyter notebook, the results will display automatically with rich
+        formatting. For the best experience with interactive plots, call .display()
+        on the returned object.
+
+        Args:
+            model: OpenAI model to use for generating insights (default: "gpt-4o")
+            temperature: Temperature for LLM generation (default: 0.7)
+            include_visualizations: Whether to send visualizations to OpenAI for analysis
+                (default: False). WARNING: This can significantly increase API costs.
+            generate_summary: Whether to generate an overall summary report across
+                all questions (default: True)
+
+        Returns:
+            ResultsVibeAnalysis: Container object with analyses for all questions.
+                In Jupyter notebooks, will display automatically with HTML formatting.
+                For interactive plots, call .display() method.
+
+        Raises:
+            ValueError: If no survey is available or visualization dependencies missing
+            ImportError: If required packages are not installed
+
+        Examples:
+            >>> results = Results.example()  # doctest: +SKIP
+
+            >>> # Basic usage - will show HTML summary in notebooks
+            >>> results.vibe_analyze()  # doctest: +SKIP
+
+            >>> # For interactive plots and rich display
+            >>> analysis = results.vibe_analyze()  # doctest: +SKIP
+            >>> analysis.display()  # Shows plots inline with insights  # doctest: +SKIP
+
+            >>> # Access a specific question's analysis
+            >>> q_analysis = analysis["how_feeling"]  # doctest: +SKIP
+            >>> q_analysis.analysis.bar_chart  # doctest: +SKIP
+            >>> print(q_analysis.llm_insights)  # doctest: +SKIP
+            >>> # Charts are stored as PNG bytes for serialization
+            >>> q_analysis.chart_png  # PNG bytes  # doctest: +SKIP
+
+            >>> # With visualization analysis (more expensive - uses vision API)
+            >>> analysis = results.vibe_analyze(  # doctest: +SKIP
+            ...     include_visualizations=True
+            ... )  # doctest: +SKIP
+            >>> analysis.display()  # doctest: +SKIP
+
+            >>> # Export to serializable format for notebooks
+            >>> data = analysis.to_dict()  # doctest: +SKIP
+            >>> import json  # doctest: +SKIP
+            >>> json.dumps(data)  # Fully serializable  # doctest: +SKIP
+        """
+        from .vibes import analyze_with_vibes
+
+        return analyze_with_vibes(
+            self,
+            model=model,
+            temperature=temperature,
+            include_visualizations=include_visualizations,
+            generate_summary=generate_summary,
+        )
 
     def agent_answers_by_question(
         self, agent_key_fields: Optional[List[str]] = None, separator: str = ","
@@ -547,14 +666,27 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """Return a string representation of the Results.
 
         Uses traditional repr format when running doctests, otherwise uses
-        rich-based display for better readability.
+        rich-based display for better readability. In Jupyter notebooks,
+        returns a minimal string since _repr_html_ handles the display.
         """
         import os
 
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
-        else:
-            return self._summary_repr()
+
+        # Check if we're in a Jupyter notebook environment
+        # If so, return minimal representation since _repr_html_ will handle display
+        try:
+            from IPython import get_ipython
+
+            ipy = get_ipython()
+            if ipy is not None and "IPKernelApp" in ipy.config:
+                # We're in a Jupyter notebook/kernel, not IPython terminal
+                return "Results(...)"
+        except (NameError, ImportError):
+            pass
+
+        return self._summary_repr()
 
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the Results.
@@ -564,7 +696,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
-    def _summary_repr(self, max_text_preview: int = 60, max_items: int = 5) -> str:
+    def _summary_repr(self, max_text_preview: int = 60, max_items: int = 25) -> str:
         """Generate a summary representation of the Results with Rich formatting.
 
         Args:
@@ -574,56 +706,70 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
         # Build the Rich text
         output = Text()
-        output.append("Results(\n", style="bold cyan")
-        output.append(f"    num_observations={len(self)},\n", style="white")
-        output.append(f"    num_agents={len(set(self.agents))},\n", style="white")
-        output.append(f"    num_models={len(set(self.models))},\n", style="white")
-        output.append(f"    num_scenarios={len(set(self.scenarios))},\n", style="white")
+        output.append("Results(\n", style=RICH_STYLES["primary"])
+        output.append(
+            f"    num_observations={len(self)},\n", style=RICH_STYLES["default"]
+        )
+        output.append(
+            f"    num_agents={len(set(self.agents))},\n", style=RICH_STYLES["default"]
+        )
+        output.append(
+            f"    num_models={len(set(self.models))},\n", style=RICH_STYLES["default"]
+        )
+        output.append(
+            f"    num_scenarios={len(set(self.scenarios))},\n",
+            style=RICH_STYLES["default"],
+        )
 
         # Show agent traits
         if len(self.agents) > 0:
             agent_keys = self.agent_keys
             if agent_keys:
-                output.append("    agent_traits: [", style="white")
+                output.append("    agent_traits: [", style=RICH_STYLES["default"])
                 # Filter out internal fields
                 trait_keys = [k for k in agent_keys if not k.startswith("agent_")]
                 if trait_keys:
                     output.append(
                         f"{', '.join(repr(k) for k in trait_keys[:max_items])}",
-                        style="yellow",
+                        style=RICH_STYLES["secondary"],
                     )
                     if len(trait_keys) > max_items:
                         output.append(
-                            f", ... ({len(trait_keys) - max_items} more)", style="dim"
+                            f", ... ({len(trait_keys) - max_items} more)",
+                            style=RICH_STYLES["dim"],
                         )
-                output.append("],\n", style="white")
+                output.append("],\n", style=RICH_STYLES["default"])
 
         # Show scenario fields
         if len(self.scenarios) > 0:
             scenario_keys = self.scenario_keys
             if scenario_keys:
-                output.append("    scenario_fields: [", style="white")
+                output.append("    scenario_fields: [", style=RICH_STYLES["default"])
                 # Filter out internal fields
                 field_keys = [k for k in scenario_keys if not k.startswith("scenario_")]
                 if field_keys:
                     output.append(
                         f"{', '.join(repr(k) for k in field_keys[:max_items])}",
-                        style="magenta",
+                        style=RICH_STYLES["secondary"],
                     )
                     if len(field_keys) > max_items:
                         output.append(
-                            f", ... ({len(field_keys) - max_items} more)", style="dim"
+                            f", ... ({len(field_keys) - max_items} more)",
+                            style=RICH_STYLES["dim"],
                         )
-                output.append("],\n", style="white")
+                output.append("],\n", style=RICH_STYLES["default"])
 
         # Show question information with text previews
         if self.survey and hasattr(self.survey, "questions"):
             questions = self.survey.questions
-            output.append(f"    num_questions={len(questions)},\n", style="white")
-            output.append("    questions: [\n", style="white")
+            output.append(
+                f"    num_questions={len(questions)},\n", style=RICH_STYLES["default"]
+            )
+            output.append("    questions: [\n", style=RICH_STYLES["default"])
 
             # Show up to max_items questions with text previews
             for question in questions[:max_items]:
@@ -634,26 +780,28 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 if len(q_text) > max_text_preview:
                     q_text = q_text[:max_text_preview] + "..."
 
-                output.append("        ", style="white")
-                output.append(f"'{q_name}'", style="bold yellow")
-                output.append(": ", style="white")
-                output.append(f'"{q_text}"', style="dim")
-                output.append(",\n", style="white")
+                output.append("        ", style=RICH_STYLES["default"])
+                output.append(f"'{q_name}'", style=RICH_STYLES["secondary"])
+                output.append(": ", style=RICH_STYLES["default"])
+                output.append(f'"{q_text}"', style=RICH_STYLES["dim"])
+                output.append(",\n", style=RICH_STYLES["default"])
 
             if len(questions) > max_items:
                 output.append(
-                    f"        ... ({len(questions) - max_items} more)\n", style="dim"
+                    f"        ... ({len(questions) - max_items} more)\n",
+                    style=RICH_STYLES["dim"],
                 )
 
-            output.append("    ],\n", style="white")
+            output.append("    ],\n", style=RICH_STYLES["default"])
 
         # Show created columns if any
         if self.created_columns:
             output.append(
-                f"    created_columns={self.created_columns}\n", style="green"
+                f"    created_columns={self.created_columns}\n",
+                style=RICH_STYLES["key"],
             )
 
-        output.append(")", style="bold cyan")
+        output.append(")", style=RICH_STYLES["primary"])
 
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=120)
@@ -862,6 +1010,44 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         ['agent.agent_index', ...]
         """
         return self._properties.columns
+
+    def show_columns(self):
+        """Display columns in a tree format using a mermaid diagram.
+
+        This method creates a hierarchical visualization of all columns in the Results object,
+        organized by data type. Unlike the columns() property which returns a flat list,
+        this method shows the relationship between data types and their corresponding keys.
+
+        Returns:
+            ColumnTreeVisualization: An object that displays as a mermaid diagram in Jupyter
+            notebooks and as formatted text in terminals.
+
+        Example:
+
+        >>> r = Results.example()
+        >>> r.show_columns()  # doctest: +SKIP
+        # Shows a tree diagram with data types as parent nodes and keys as children
+        """
+        from .column_tree_visualization import ColumnTreeVisualization
+
+        # Get the hierarchical columns
+        relevant_cols = self.relevant_columns()
+
+        # Group columns by data type
+        data_types = {}
+        for col in relevant_cols:
+            if "." in col:
+                data_type, key = col.split(".", 1)
+                if data_type not in data_types:
+                    data_types[data_type] = []
+                data_types[data_type].append(key)
+            else:
+                # Handle columns without prefix (shouldn't happen in normal cases)
+                if "other" not in data_types:
+                    data_types["other"] = []
+                data_types["other"].append(col)
+
+        return ColumnTreeVisualization(data_types)
 
     @property
     def answer_keys(self) -> dict[str, str]:
@@ -1098,6 +1284,51 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 rows.append(Scenario(question_row))
 
         return ScenarioList(rows)
+
+    def q_and_a(self, include_scenario: bool = False) -> "ScenarioList":
+        """Return a ScenarioList with question-answer pairs from all Results with result indices.
+
+        This method gets the q_and_a() from each component Result object and adds an
+        index field to indicate which Result object each entry came from. Each row
+        contains:
+        - "result_index": Index of the Result object (0-based)
+        - "question_name": The internal question name/identifier
+        - "question_text": The rendered question text (with scenario placeholders filled in)
+        - "answer": The recorded answer value
+        - "comment": The recorded comment for the question (if any)
+
+        If include_scenario is True, all scenario fields are also included.
+
+        Args:
+            include_scenario: Whether to include all scenario fields in each row.
+                Defaults to False.
+
+        Returns:
+            ScenarioList: Combined question-answer data from all Result objects.
+
+        Examples:
+            >>> r = Results.example()
+            >>> qa = r.q_and_a()
+            >>> "result_index" in qa.parameters
+            True
+            >>> {"question_name", "question_text", "answer", "comment"}.issubset(set(qa.parameters))
+            True
+        """
+        from ..scenarios import Scenario, ScenarioList
+
+        all_scenarios = []
+
+        for result_index, result in enumerate(self.data):
+            # Get q_and_a from each Result object
+            result_qa = result.q_and_a(include_scenario=include_scenario)
+
+            # Add result_index to each scenario in the list
+            for scenario in result_qa:
+                scenario_dict = dict(scenario)
+                scenario_dict["result_index"] = result_index
+                all_scenarios.append(Scenario(scenario_dict))
+
+        return ScenarioList(all_scenarios)
 
     @ensure_ready
     def rename(self, old_name: str, new_name: str) -> Results:
@@ -1492,6 +1723,233 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         )
         return results
 
+    @classmethod
+    def from_survey_monkey(
+        cls,
+        filepath: str,
+        verbose: bool = False,
+        create_semantic_names: bool = False,
+        repair_excel_dates: bool = True,
+        order_options_semantically: bool = True,
+        disable_remote_inference: bool = True,
+        **run_kwargs,
+    ) -> "Results":
+        """Create a Results object from a Survey Monkey CSV or Excel export.
+
+        This method imports a Survey Monkey export (CSV or Excel) and generates a
+        Results object by running agents (one per respondent) through the
+        reconstructed survey.
+
+        The import process:
+        1. Converts Excel to CSV if needed
+        2. Parses the CSV to extract questions, options, and responses
+        3. Creates a Survey with questions matching the original
+        4. Creates an AgentList with one agent per respondent
+        5. Runs the agents through the survey to generate Results
+
+        Args:
+            filepath: Path to the Survey Monkey export file. Supports CSV (.csv)
+                and Excel (.xlsx, .xls) formats.
+            verbose: If True, print progress information during parsing.
+            create_semantic_names: If True, rename questions with semantic names
+                derived from question text instead of index-based names.
+            repair_excel_dates: If True, use LLM to detect and repair Excel-mangled
+                date formatting in answer options (e.g., "5-Mar" → "3-5").
+                Enabled by default since Excel date mangling is common.
+            order_options_semantically: If True, use LLM to analyze and reorder
+                multiple choice options in semantically correct order (e.g., company
+                sizes from small to large). Enabled by default.
+            disable_remote_inference: If True, run locally without remote API calls.
+                Defaults to True.
+            **run_kwargs: Additional arguments passed to Jobs.run().
+
+        Returns:
+            Results: A Results object containing the imported survey responses.
+
+        Examples:
+            >>> # Basic usage with CSV
+            >>> results = Results.from_survey_monkey("survey_results.csv")  # doctest: +SKIP
+
+            >>> # Basic usage with Excel
+            >>> results = Results.from_survey_monkey("survey_results.xlsx")  # doctest: +SKIP
+
+            >>> # With semantic question names and verbose output
+            >>> results = Results.from_survey_monkey(
+            ...     "survey_results.csv",
+            ...     verbose=True,
+            ...     create_semantic_names=True
+            ... )  # doctest: +SKIP
+
+            >>> # Disable LLM-based processing for faster import
+            >>> results = Results.from_survey_monkey(
+            ...     "survey_results.csv",
+            ...     repair_excel_dates=False,
+            ...     order_options_semantically=False
+            ... )  # doctest: +SKIP
+        """
+        import os
+        import tempfile
+        from ..conjure.survey_monkey import ImportSurveyMonkey
+
+        # Check file extension to determine if conversion is needed
+        _, ext = os.path.splitext(filepath.lower())
+
+        if ext in (".xlsx", ".xls"):
+            # Convert Excel to CSV
+            import pandas as pd
+
+            if verbose:
+                print(f"Converting Excel file to CSV: {filepath}")
+
+            df = pd.read_excel(filepath, header=None)
+
+            # Create a temporary CSV file
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".csv", delete=False, newline=""
+            ) as tmp_file:
+                csv_path = tmp_file.name
+                df.to_csv(tmp_file, index=False, header=False)
+
+            try:
+                importer = ImportSurveyMonkey(
+                    csv_file=csv_path,
+                    verbose=verbose,
+                    create_semantic_names=create_semantic_names,
+                    repair_excel_dates=repair_excel_dates,
+                    order_options_semantically=order_options_semantically,
+                )
+                return importer.run(
+                    disable_remote_inference=disable_remote_inference, **run_kwargs
+                )
+            finally:
+                # Clean up temporary file
+                os.unlink(csv_path)
+        else:
+            # Assume CSV format
+            importer = ImportSurveyMonkey(
+                csv_file=filepath,
+                verbose=verbose,
+                create_semantic_names=create_semantic_names,
+                repair_excel_dates=repair_excel_dates,
+                order_options_semantically=order_options_semantically,
+            )
+            return importer.run(
+                disable_remote_inference=disable_remote_inference, **run_kwargs
+            )
+
+    @classmethod
+    def from_qualtrics(
+        cls,
+        filepath: str,
+        verbose: bool = False,
+        create_semantic_names: bool = False,
+        disable_remote_inference: bool = True,
+        **run_kwargs,
+    ) -> "Results":
+        """Create a Results object from a Qualtrics CSV or tab-delimited export.
+
+        This method imports a Qualtrics export (CSV or tab with 3-row headers) and generates a
+        Results object by running agents (one per respondent) through the
+        reconstructed survey.
+
+        The import process:
+        1. Parses the 3-row header Qualtrics format:
+           - Row 1: Short labels (Q1, Q2_1, etc.)
+           - Row 2: Question text
+           - Row 3: ImportId metadata (JSON format)
+        2. Detects question types and creates appropriate EDSL questions
+        3. Creates a Survey with questions matching the original
+        4. Creates an AgentList with one agent per respondent
+        5. Runs the agents through the survey to generate Results
+
+        Note: Tab-delimited files (.tab, .tsv) are automatically converted to CSV format
+        before processing, so both CSV and tab formats are supported.
+
+        Args:
+            filepath: Path to the Qualtrics export file. Can be CSV (.csv) or
+                tab-delimited (.tab, .tsv). Must be in the standard Qualtrics
+                export format with 3 header rows.
+            verbose: If True, print progress information during parsing.
+            create_semantic_names: If True, rename questions with semantic names
+                derived from question text instead of Q1, Q2, etc.
+            disable_remote_inference: If True, run locally without remote API calls.
+                Defaults to True.
+            **run_kwargs: Additional arguments passed to Jobs.run().
+
+        Returns:
+            Results: A Results object containing the imported survey responses.
+
+        Examples:
+            >>> # Basic usage with CSV
+            >>> results = Results.from_qualtrics("qualtrics_export.csv")  # doctest: +SKIP
+
+            >>> # Basic usage with tab file
+            >>> results = Results.from_qualtrics("qualtrics_export.tab")  # doctest: +SKIP
+
+            >>> # With semantic question names and verbose output
+            >>> results = Results.from_qualtrics(
+            ...     "qualtrics_export.csv",
+            ...     verbose=True,
+            ...     create_semantic_names=True
+            ... )  # doctest: +SKIP
+
+            >>> # Run with additional parameters
+            >>> results = Results.from_qualtrics(
+            ...     "qualtrics_export.csv",
+            ...     disable_remote_inference=True,
+            ...     raise_validation_errors=False
+            ... )  # doctest: +SKIP
+        """
+        import os
+        import tempfile
+        from ..conjure.qualtrics import ImportQualtrics
+
+        # Check file extension to determine if conversion is needed
+        _, ext = os.path.splitext(filepath.lower())
+
+        if ext in (".tab", ".tsv"):
+            # Convert tab-delimited to CSV
+            import pandas as pd
+
+            if verbose:
+                print(f"Converting tab-delimited file to CSV: {filepath}")
+
+            # Read tab-delimited file
+            df = pd.read_csv(filepath, sep="\t", encoding="utf-8")
+
+            # Create a temporary CSV file
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".csv", delete=False, newline=""
+            ) as tmp_file:
+                csv_path = tmp_file.name
+                df.to_csv(tmp_file, index=False)
+
+            try:
+                importer = ImportQualtrics(
+                    csv_file=csv_path,
+                    verbose=verbose,
+                    create_semantic_names=create_semantic_names,
+                )
+                return importer.run(
+                    disable_remote_inference=disable_remote_inference, **run_kwargs
+                )
+            finally:
+                # Clean up temporary file
+                try:
+                    os.unlink(csv_path)
+                except OSError:
+                    pass
+        else:
+            # Handle as CSV directly
+            importer = ImportQualtrics(
+                csv_file=filepath,
+                verbose=verbose,
+                create_semantic_names=create_semantic_names,
+            )
+            return importer.run(
+                disable_remote_inference=disable_remote_inference, **run_kwargs
+            )
+
     def rich_print(self):
         """Display an object as a table."""
         pass
@@ -1549,6 +2007,156 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         scorer = ResultsScorer(self)
         return scorer.score_with_answer_key(answer_key)
+
+    def find_weights_for_target_distribution(
+        self,
+        question_name: str,
+        target_dist: dict,
+        strategy: str = "categorical_kl",
+        method: Optional[str] = None,
+        max_iter: int = 100,
+        **kwargs,
+    ):
+        """Find optimal weights that match a target distribution.
+
+        This method computes weights for each result (survey response) such that when
+        applied to the responses for a given question, the weighted empirical distribution
+        matches the target distribution as closely as possible.
+
+        This is useful for:
+        - Survey reweighting to match population demographics
+        - Importance sampling for distribution matching
+        - Post-stratification adjustments
+
+        Multiple strategies are supported for different data types and algorithms.
+
+        Args:
+            question_name: Name of the question to compute weights for
+            target_dist: Target distribution (format depends on strategy)
+                        - For categorical (default): Dict[str, float] mapping categories to probabilities
+                        - For continuous_binned: Dict[Tuple[float, float], float] mapping ranges to probabilities
+                        Must sum to 1.0. Example: {'yes': 0.6, 'no': 0.4}
+            strategy: Weighting strategy to use (default: "categorical_kl")
+                     Options: "categorical_kl", "categorical_ipf", "continuous_binned"
+            method: DEPRECATED - use strategy instead. For backward compatibility:
+                   "optimization" -> "categorical_kl", "iterative" -> "categorical_ipf"
+            max_iter: Maximum iterations for iterative methods (default: 100)
+            **kwargs: Additional strategy-specific parameters
+
+        Returns:
+            numpy.ndarray: Array of normalized weights (one per result), summing to 1.0
+
+        Raises:
+            ValueError: If target_dist doesn't sum to 1.0, or if question responses
+                       contain categories not in target_dist
+            KeyError: If question_name doesn't exist in results
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> # Categorical data with KL divergence (default)
+            >>> target = {'Great': 0.5, 'OK': 0.3, 'Terrible': 0.2}
+            >>> weights = r.find_weights_for_target_distribution('how_feeling', target)
+            >>> len(weights) == len(r)
+            True
+            >>> bool(abs(weights.sum() - 1.0) < 1e-6)  # Weights are normalized
+            True
+
+            >>> # Using iterative proportional fitting
+            >>> weights_ipf = r.find_weights_for_target_distribution(
+            ...     'how_feeling', target, strategy='categorical_ipf'
+            ... )
+
+            >>> # Continuous data with binning (if you have numerical responses)
+            >>> # target_bins = {(0, 30): 0.3, (30, 50): 0.5, (50, 100): 0.2}
+            >>> # weights = r.find_weights_for_target_distribution(
+            >>> #     'age', target_bins, strategy='continuous_binned'
+            >>> # )
+        """
+        weighter = ResultsWeighting(self)
+        return weighter.find_optimal_weights(
+            question_name=question_name,
+            target_dist=target_dist,
+            strategy=strategy,
+            method=method,
+            max_iter=max_iter,
+            **kwargs,
+        )
+
+    def find_weights_for_multiple_targets(
+        self,
+        targets: dict,
+        metric_weights: Optional[dict] = None,
+        strategies: Optional[dict] = None,
+        aggregation: str = "weighted_sum",
+        **kwargs,
+    ):
+        """Find optimal weights that simultaneously match multiple target distributions.
+
+        This method finds a single set of weights that balances matching multiple
+        target distributions at once. This is particularly useful for survey reweighting
+        where you need to match multiple marginal distributions simultaneously
+        (e.g., age AND gender AND location).
+
+        The method minimizes a combination of divergences across all questions:
+        - weighted_sum: Σᵢ αᵢ * KL(Pᵢ||Qᵢ) (default)
+        - max: max(α₁*KL₁, α₂*KL₂, ...) (minimax approach)
+        - weighted_product: Πᵢ KLᵢ^αᵢ (geometric mean-like)
+
+        Args:
+            targets: Dictionary mapping question names to their target distributions
+                    Example: {'age': {(0,30): 0.3, (30,50): 0.7}, 'gender': {'M': 0.5, 'F': 0.5}}
+            metric_weights: Relative importance of each question (will be auto-normalized)
+                           Default: equal weights. Example: {'age': 2.0, 'gender': 1.0}
+            strategies: Strategy to use for each question (per-question strategies)
+                       Default: "categorical_kl" for all
+                       Example: {'age': 'continuous_binned', 'gender': 'categorical_kl'}
+            aggregation: How to combine metrics - "weighted_sum" (default), "max", "weighted_product"
+            **kwargs: Additional parameters for optimization
+
+        Returns:
+            numpy.ndarray: Normalized weights (sum to 1.0) balancing all targets
+
+        Raises:
+            ValueError: If targets is empty, strategies are invalid, or aggregation is unknown
+            KeyError: If question names don't exist in results
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+
+            >>> # Match two distributions simultaneously with equal importance
+            >>> targets = {
+            ...     'how_feeling': {'Great': 0.5, 'OK': 0.3, 'Terrible': 0.2},
+            ...     'how_feeling_yesterday': {'Great': 0.4, 'Good': 0.3, 'OK': 0.2, 'Terrible': 0.1}
+            ... }
+            >>> weights = r.find_weights_for_multiple_targets(targets)
+            >>> len(weights) == len(r)
+            True
+
+            >>> # With custom importance (first question 2x more important)
+            >>> metric_weights = {'how_feeling': 2.0, 'how_feeling_yesterday': 1.0}
+            >>> weights = r.find_weights_for_multiple_targets(targets, metric_weights)
+
+            >>> # Using max aggregation (minimax approach)
+            >>> weights = r.find_weights_for_multiple_targets(targets, aggregation='max')
+
+            >>> # Mixed strategies for different question types
+            >>> # targets_mixed = {
+            >>> #     'age': {(0, 30): 0.3, (30, 50): 0.5, (50, 100): 0.2},
+            >>> #     'gender': {'Male': 0.48, 'Female': 0.52}
+            >>> # }
+            >>> # strategies = {'age': 'continuous_binned', 'gender': 'categorical_kl'}
+            >>> # weights = r.find_weights_for_multiple_targets(targets_mixed, strategies=strategies)
+        """
+        weighter = ResultsWeighting(self)
+        return weighter.find_weights_for_multiple_targets(
+            targets=targets,
+            metric_weights=metric_weights,
+            strategies=strategies,
+            aggregation=aggregation,
+            **kwargs,
+        )
 
     def fetch_remote(self, job_info: Any) -> bool:
         """Fetch remote Results object and update this instance with the data.

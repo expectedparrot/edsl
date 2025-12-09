@@ -8,7 +8,6 @@ from rich.table import Table
 from typing import TYPE_CHECKING
 
 from .factory import ComparisonFactory
-from .answer_comparison import AnswerComparison
 from .visualization import render_comparison_table, render_metric_heatmap
 
 # Public API -----------------------------------------------------------
@@ -126,7 +125,6 @@ def single_question_weighting_dict(
 if TYPE_CHECKING:
     from edsl import Results  # pragma: no cover – only for type hints
     from edsl.scenarios import (
-        Scenario,
         ScenarioList,
     )  # pragma: no cover – only for type hints
 

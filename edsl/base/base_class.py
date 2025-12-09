@@ -155,6 +155,98 @@ class PersistenceMixin:
         return ObjectDocsViewerWidget(cls.example())
         # print(cls.__doc__)
 
+    @classmethod
+    def vibe_help(
+        cls,
+        question: str,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.1,
+        include_source: bool = False,
+        return_string: bool = False,
+    ):
+        """
+        Answer questions about how to use this class's methods using introspection.
+
+        This method uses inspect to analyze the class and its methods, then uses an LLM
+        to provide helpful explanations and code examples based on the user's question.
+
+        Parameters:
+            question: Natural language question about class usage.
+                Examples:
+                - "How do I filter data?"
+                - "What methods are available for data manipulation?"
+                - "How do I convert to different formats?"
+                - "Show me examples of working with this class"
+            model: OpenAI model to use for generating the response (default: "gpt-4o")
+            temperature: Temperature for generation (default: 0.1 for consistent responses)
+            include_source: If True, includes actual source code in the analysis
+            return_string: If True, always return a string instead of rendered markdown
+
+        Returns:
+            In Jupyter notebooks: Displays rendered markdown and returns None
+            In other environments: Returns markdown-formatted string
+
+        Examples:
+            >>> from edsl.dataset import Dataset
+            >>> Dataset.vibe_help("How do I select specific columns?", return_string=True)
+            >>>
+            >>> from edsl.questions import QuestionMultipleChoice
+            >>> QuestionMultipleChoice.vibe_help("How do I create a multiple choice question?")
+
+        Notes:
+            - Requires OPENAI_API_KEY environment variable to be set
+            - Uses inspect module to gather method signatures and docstrings
+            - In Jupyter: Renders as rich markdown with syntax highlighting
+            - In terminal: Returns formatted string
+            - Works with any EDSL class that inherits from Base
+        """
+        from ..dataset.vibes.vibe_help import VibeHelp
+
+        # Create an example instance to provide context
+        try:
+            example_instance = cls.example()
+        except:
+            # If example() fails, create a minimal context
+            example_instance = None
+
+        # Create the help generator
+        help_gen = VibeHelp(
+            model=model, temperature=temperature, include_source=include_source
+        )
+
+        # Generate the help response using the class directly
+        response = help_gen.get_help_for_class(question, cls, example_instance)
+
+        # Check display environment and render appropriately
+        if not return_string:
+            from ..utilities.is_notebook import is_notebook
+
+            if is_notebook():
+                # We're in a notebook environment, use IPython display
+                try:
+                    from IPython.display import Markdown, display
+
+                    display(Markdown(response))
+                    return None
+                except (NameError, ImportError):
+                    pass
+            else:
+                # We're in a terminal, use Rich markdown formatting
+                try:
+                    from rich.console import Console
+                    from rich.markdown import Markdown
+
+                    console = Console()
+                    console.print(Markdown(response))
+                    return None
+                except ImportError:
+                    # Rich not available, fall back to plain text
+                    pass
+
+        # Return the string for non-Jupyter environments or when explicitly requested
+        return response
+
     # def push(
     #     self,
     #     description: Optional[str] = None,
@@ -187,7 +279,7 @@ class PersistenceMixin:
         alias: Optional[str] = None,
         visibility: Optional[str] = "unlisted",
         expected_parrot_url: Optional[str] = None,
-        overwrite: bool = False,
+        force: bool = False,
     ) -> dict:
         """
         Get a signed URL for directly uploading an object to Google Cloud Storage.
@@ -196,7 +288,11 @@ class PersistenceMixin:
         especially for large files, by generating a direct signed URL to the storage bucket.
 
         Args:
-            expected_parrot_url (str, optional): Optional custom URL for the coop service
+            description: Optional text description of the object
+            alias: Optional human-readable identifier for the object
+            visibility: Access level setting ("private", "unlisted", or "public")
+            expected_parrot_url: Optional custom URL for the coop service
+            force: If True, patch existing object instead of creating new one when alias conflicts occur.
 
         Returns:
             dict: A response containing the signed_url for direct upload and optionally a job_id
@@ -211,7 +307,7 @@ class PersistenceMixin:
         from edsl.coop import Coop
 
         c = Coop(url=expected_parrot_url)
-        return c.push(self, description, alias, visibility, overwrite)
+        return c.push(self, description, alias, visibility, force)
 
     def to_yaml(self, add_edsl_version=False, filename: str = None) -> Union[str, None]:
         """Convert the object to YAML format.
@@ -878,7 +974,7 @@ class RepresentationMixin:
         console = Console(record=True)
         console.print(table)
 
-    def _repr_html_(self):
+    def _repr_html_(self, include_class_info: bool = True):
         """Generate an HTML representation for Jupyter notebooks.
 
         This method is automatically called by Jupyter to render the object
@@ -896,13 +992,16 @@ class RepresentationMixin:
             docs = getattr(self, "__documentation__", "")
             table = self.table()
             table_html = table._repr_html_() if table is not None else ""
-            return (
-                "<p>"
-                + f"<a href='{docs}'>{class_name}</a>"
-                + summary_line
-                + "</p>"
-                + table_html
-            )
+            if include_class_info:
+                return (
+                    "<p>"
+                    + f"<a href='{docs}'>{class_name}</a>"
+                    + summary_line
+                    + "</p>"
+                    + table_html
+                )
+            else:
+                return table_html
         else:
             class_name = self.__class__.__name__
             documentation = getattr(self, "__documentation__", "")
@@ -950,7 +1049,7 @@ class RepresentationMixin:
         Returns:
             str: String representation of the object
         """
-        return self.__repr__()
+        return self._eval_repr_()
 
 
 class HashingMixin:

@@ -2,7 +2,6 @@ import base64
 from abc import ABC, abstractmethod
 from typing import Dict, Callable, Optional, List, Generator, Union
 from collections import namedtuple
-from typing import List, Union
 
 from edsl.questions import QuestionBase
 from edsl.scenarios import ScenarioList
@@ -988,9 +987,9 @@ class InputDataABC(ABC):
                 self.question_names_to_question_text.copy()
             )
             if old_name in new_question_names_to_question_text:
-                new_question_names_to_question_text[
-                    new_name
-                ] = new_question_names_to_question_text.pop(old_name)
+                new_question_names_to_question_text[new_name] = (
+                    new_question_names_to_question_text.pop(old_name)
+                )
 
         return self.__class__(
             self.datafile_name,

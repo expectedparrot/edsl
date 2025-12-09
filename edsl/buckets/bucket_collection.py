@@ -252,9 +252,9 @@ class BucketCollection(UserDict):
                         refill_rate=new_rps,
                         remote_url=self.remote_url,
                     )
-                    self.services_to_buckets[
-                        service
-                    ].requests_bucket = new_requests_bucket
+                    self.services_to_buckets[service].requests_bucket = (
+                        new_requests_bucket
+                    )
 
                 # Update token rate limits if available
                 if key_lookup[service].tpm is not None:

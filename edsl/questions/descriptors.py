@@ -305,9 +305,40 @@ class QuestionOptionsDescriptor(BaseDescriptor):
                 raise QuestionCreationValidationError(
                     f"Dynamic question options must have jinja2 braces - instead received: {value}."
                 )
+
+        # Allow dict format for piping with additional options
+        # Format: {"from": "{{ template }}", "add": ["option1", "option2"]}
+        if isinstance(value, dict):
+            if "from" not in value:
+                raise QuestionCreationValidationError(
+                    f"Dict-based question options must have a 'from' key (got {value})."
+                )
+            # Validate the 'from' template
+            from_value = value["from"]
+            if (
+                not isinstance(from_value, str)
+                or "{{" not in from_value
+                or "}}" not in from_value
+            ):
+                raise QuestionCreationValidationError(
+                    f"The 'from' value must be a template string with jinja2 braces (got {from_value})."
+                )
+            # Validate the 'add' options if present
+            if "add" in value:
+                add_value = value["add"]
+                if not isinstance(add_value, list):
+                    raise QuestionCreationValidationError(
+                        f"The 'add' value must be a list (got {add_value})."
+                    )
+                if len(add_value) == 0:
+                    raise QuestionCreationValidationError(
+                        f"The 'add' list cannot be empty (got {add_value})."
+                    )
+            return None
+
         if not isinstance(value, list):
             raise QuestionCreationValidationError(
-                f"Question options must be a list (got {value})."
+                f"Question options must be a list or dict (got {value})."
             )
         if len(value) < Settings.MIN_NUM_OPTIONS:
             raise QuestionCreationValidationError(
@@ -406,6 +437,22 @@ class QuestionTextDescriptor(BaseDescriptor):
                 "Question must be a string!" f"Received: {value}"
             )
 
+        return None
+
+
+class OtherOptionTextDescriptor(BaseDescriptor):
+    """Validate that the `other_option_text` attribute is a string with at least 1 character."""
+
+    def validate(self, value, instance):
+        """Validate the value is a string with at least 1 character."""
+        if not isinstance(value, str):
+            raise QuestionCreationValidationError(
+                f"`other_option_text` must be a string (got {value})."
+            )
+        if len(value) < 1:
+            raise QuestionCreationValidationError(
+                f"`other_option_text` must be at least 1 character long (got {value})."
+            )
         return None
 
 

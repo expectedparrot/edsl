@@ -7,7 +7,9 @@ class MacroValidator:
     @staticmethod
     def validate_parameters(macro: Any) -> None:
         # macro.parameters_scenario_list returns a ScenarioList, iterate over it to get question_name
-        input_survey_params = [param["question_name"] for param in macro.parameters_scenario_list]
+        input_survey_params = [
+            param["question_name"] for param in macro.parameters_scenario_list
+        ]
         head_params = macro.jobs_object.head_parameters
 
         # If the initial survey declares an EDSL object that supplies scenarios or a survey,

@@ -1017,9 +1017,11 @@ class ThemeFinder:
 
         # Truncate long responses for display
         grouped["Display Response"] = grouped["answer"].apply(
-            lambda x: (str(x)[:max_response_length] + "...")
-            if len(str(x)) > max_response_length
-            else str(x)
+            lambda x: (
+                (str(x)[:max_response_length] + "...")
+                if len(str(x)) > max_response_length
+                else str(x)
+            )
         )
 
         # Create final DataFrame with selected columns

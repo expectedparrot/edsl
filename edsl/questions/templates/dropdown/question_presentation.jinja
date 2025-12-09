@@ -1,0 +1,16 @@
+{# Question Presentation for Dropdown with BM25 Search #}
+{{question_text}}
+
+Here are some sample options from the {{ question_options|length }} available choices:
+
+{% if use_code %}
+    {%- for i in sample_indices %}
+{{ i }}: {{ question_options[i] }}
+    {% endfor %}
+{% else %}
+    {% for i in sample_indices %}
+{{ question_options[i] }}
+    {% endfor %}
+{% endif %}
+
+These are just examples to give you context. Please provide search terms or keywords that describe your preferred option, and the system will search through all {{ question_options|length }} available choices to find the best match.

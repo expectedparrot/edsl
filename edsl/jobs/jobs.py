@@ -164,6 +164,7 @@ class Jobs(Base):
         self.models: ModelList = models
 
         self._where_clauses = []
+        self._include_expression = None
 
         self._post_run_methods = []
         self._depends_on = None
@@ -416,6 +417,15 @@ class Jobs(Base):
         else:
             self._scenarios = ScenarioList([])
 
+        # Validate that scenario fields are used in the survey
+        if hasattr(self, "survey") and self.survey is not None:
+            from .check_survey_scenario_compatibility import (
+                CheckSurveyScenarioCompatibility,
+            )
+
+            checker = CheckSurveyScenarioCompatibility(self.survey, self._scenarios)
+            checker.check()
+
     def by(
         self,
         *args: Union[
@@ -556,6 +566,50 @@ class Jobs(Base):
         """Compute the cost of a completed job in USD."""
         return job_results.compute_job_cost()
 
+    def include_when(self, expression: str) -> "Jobs":
+        """Filter interview combinations using a Jinja2 expression.
+
+        This method allows filtering which (agent, scenario, model) combinations
+        will be included when generating interviews. Only combinations where the
+        expression evaluates to True will be yielded.
+
+        Parameters
+        ----------
+        expression : str
+            A Jinja2 expression that will be evaluated for each combination.
+            Available variables: agent, scenario, model (with their attributes).
+            The expression should evaluate to a boolean.
+
+        Returns
+        -------
+        Jobs
+            The Jobs instance with the include expression set (fluent interface).
+
+        Examples
+        --------
+        Only run interviews where scenario index matches agent index:
+
+            >>> from edsl.jobs import Jobs
+            >>> job = Jobs.example()
+            >>> job.include_when("{{ scenario._index == agent._index }}")
+            Jobs(...)
+
+        Only use the first 5 agents:
+
+            >>> job = Jobs.example()
+            >>> job.include_when("{{ agent._index < 5 }}")
+            Jobs(...)
+
+        Only even-indexed scenarios:
+
+            >>> job = Jobs.example()
+            >>> job.include_when("{{ scenario._index % 2 == 0 }}")
+            Jobs(...)
+
+        """
+        self._include_expression = expression
+        return self
+
     def replace_missing_objects(self) -> None:
         """If the agents, models, or scenarios are not set, replace them with defaults."""
         from ..agents import Agent
@@ -583,7 +637,7 @@ class Jobs(Base):
             self.replace_missing_objects()
             yield from InterviewsConstructor(
                 self, cache=self.run_config.environment.cache
-            ).create_interviews()
+            ).create_interviews(include_expression=self._include_expression)
 
     def show_flow(self, filename: Optional[str] = None) -> None:
         """Visualize either the *Job* dependency/post-processing flow **or** the underlying survey flow.
@@ -1570,6 +1624,24 @@ class Jobs(Base):
 
         return converted_object
 
+    def pseudo_run(self) -> Optional["Results"]:
+        """Used to create a results object with the survey, agents and scenarios but with no answers.
+
+        This is a method used by Macros.
+        """
+        from ..results import Result, Results
+
+        results = []
+        for agent in self.agents or []:
+            for scenario in self.scenarios or [None]:
+                for model in self.models or [None]:
+                    r = Result.example()
+                    r.agent = agent
+                    r.scenario = scenario
+                    r.model = model
+                    results.append(r)
+        return Results(survey=self.survey, data=results)
+
     @with_config
     def run(self, *, config: RunConfig) -> Optional["Results"]:
         """Run the job by conducting interviews and return their results.
@@ -2091,18 +2163,21 @@ class Jobs(Base):
         from rich.console import Console
         from rich.text import Text
         import io
+        from edsl.config import RICH_STYLES
 
         # Build the Rich text
         output = Text()
-        output.append("Jobs(\n", style="bold cyan")
-        output.append(f"    num_interviews={self.num_interviews},\n", style="white")
+        output.append("Jobs(\n", style=RICH_STYLES["primary"])
+        output.append(
+            f"    num_interviews={self.num_interviews},\n", style=RICH_STYLES["default"]
+        )
 
         # Survey information
         if self.survey:
             num_questions = len(self.survey.questions)
             output.append(
                 f"    survey: {num_questions} question{'s' if num_questions != 1 else ''},\n",
-                style="yellow",
+                style=RICH_STYLES["secondary"],
             )
 
             # Show first few question names
@@ -2112,13 +2187,15 @@ class Jobs(Base):
                 ]
                 if num_questions > max_items:
                     question_names.append(f"... ({num_questions - max_items} more)")
-                output.append(f"        questions: {question_names},\n", style="dim")
+                output.append(
+                    f"        questions: {question_names},\n", style=RICH_STYLES["dim"]
+                )
 
         # Agents information
         num_agents = len(self.agents) if self.agents else 0
         output.append(
             f"    agents: {num_agents} agent{'s' if num_agents != 1 else ''},\n",
-            style="green",
+            style=RICH_STYLES["key"],
         )
 
         if num_agents > 0 and hasattr(self.agents, "trait_keys"):
@@ -2128,13 +2205,15 @@ class Jobs(Base):
                     f"... ({len(self.agents.trait_keys) - max_items} more)"
                 )
             if trait_keys:
-                output.append(f"        traits: {trait_keys},\n", style="dim")
+                output.append(
+                    f"        traits: {trait_keys},\n", style=RICH_STYLES["dim"]
+                )
 
         # Models information
         num_models = len(self.models) if self.models else 0
         output.append(
             f"    models: {num_models} model{'s' if num_models != 1 else ''},\n",
-            style="magenta",
+            style=RICH_STYLES["secondary"],
         )
 
         if num_models > 0:
@@ -2146,13 +2225,13 @@ class Jobs(Base):
                 model_names.append(model_name)
             if num_models > max_items:
                 model_names.append(f"... ({num_models - max_items} more)")
-            output.append(f"        models: {model_names},\n", style="dim")
+            output.append(f"        models: {model_names},\n", style=RICH_STYLES["dim"])
 
         # Scenarios information
         num_scenarios = len(self.scenarios) if self.scenarios else 0
         output.append(
             f"    scenarios: {num_scenarios} scenario{'s' if num_scenarios != 1 else ''},\n",
-            style="blue",
+            style=RICH_STYLES["secondary"],
         )
 
         if num_scenarios > 0 and hasattr(self.scenarios, "parameters"):
@@ -2162,9 +2241,11 @@ class Jobs(Base):
                     f"... ({len(self.scenarios.parameters) - max_items} more)"
                 )
             if params:
-                output.append(f"        parameters: {params},\n", style="dim")
+                output.append(
+                    f"        parameters: {params},\n", style=RICH_STYLES["dim"]
+                )
 
-        output.append(")", style="bold cyan")
+        output.append(")", style=RICH_STYLES["primary"])
 
         # Render to string
         console = Console(file=io.StringIO(), force_terminal=True, width=120)

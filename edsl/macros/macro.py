@@ -16,7 +16,6 @@ from ..surveys import Survey
 from .base_macro import BaseMacro
 
 if TYPE_CHECKING:
-    from ..scenarios import ScenarioList
     from ..surveys import Survey
     from ..jobs import Jobs
     from ..results import Results
@@ -31,7 +30,8 @@ if TYPE_CHECKING:
 
 else:
     # At runtime, we can use a simple string annotation
-    Self = "MyClass"  # Adjust to your class name
+    Self = "Macro"  # Adjust to your class name
+
 from .output_formatter import OutputFormatter, OutputFormatters
 from .api_payload import build_api_payload, reconstitute_from_api_payload
 from .answers_collector import AnswersCollector
@@ -169,6 +169,7 @@ class Macro(BaseMacro):
         default_params: Optional[dict[str, Any]] = None,
         fixed_params: Optional[dict[str, Any]] = None,
         client_mode: bool = False,
+        pseudo_run: bool = False,
     ):
         """Instantiate a Macro object.
 
@@ -199,13 +200,21 @@ class Macro(BaseMacro):
                     "To load from server, use: Macro('owner/alias')"
                 )
             if display_name is None:
-                raise TypeError("Macro.__init__() missing required argument: 'display_name'")
+                raise TypeError(
+                    "Macro.__init__() missing required argument: 'display_name'"
+                )
             if short_description is None:
-                raise TypeError("Macro.__init__() missing required argument: 'short_description'")
+                raise TypeError(
+                    "Macro.__init__() missing required argument: 'short_description'"
+                )
             if long_description is None:
-                raise TypeError("Macro.__init__() missing required argument: 'long_description'")
+                raise TypeError(
+                    "Macro.__init__() missing required argument: 'long_description'"
+                )
             if initial_survey is None:
-                raise TypeError("Macro.__init__() missing required argument: 'initial_survey'")
+                raise TypeError(
+                    "Macro.__init__() missing required argument: 'initial_survey'"
+                )
 
         self.jobs_object = jobs_object
         # Set via descriptors (handles validation)
@@ -246,21 +255,63 @@ class Macro(BaseMacro):
         MacroRegistry.register(self)
 
         self.client_mode = client_mode
+        self.pseudo_run = pseudo_run
 
         # Mark as initialized to prevent re-initialization
         self._initialized = True
 
     @disabled_in_client_mode
-    def push(self, *args, **kwargs) -> dict:
+    def push(self, *args, force: bool = False, **kwargs) -> dict:
         """Push the macro to the server.
 
-        Uses the Base class 'push' method.
+        Args:
+            force: If True, patch the existing object instead of creating a new one.
+                   Prints a message indicating the patching operation.
+            *args: Positional arguments passed to the base push method.
+            **kwargs: Keyword arguments passed to the base push method.
+
+        Uses the Base class 'push' method or 'patch' method when force=True.
         """
         if "alias" not in kwargs:
             kwargs["alias"] = self.alias()
         if "description" not in kwargs:
             kwargs["description"] = self.short_description
-        return super().push(*args, **kwargs)
+
+        if force:
+            # When force=True, patch the existing object instead of pushing a new one
+            print(
+                f"Force mode enabled: patching existing macro '{kwargs['alias']}' instead of creating new version"
+            )
+
+            try:
+                from edsl.coop import Coop
+                from edsl.config import CONFIG
+
+                coop = Coop()
+
+                # Get current username from profile
+                profile = coop.get_profile()
+                username = profile["username"]
+
+                # Construct full URL format for patching (like pull method does)
+                alias_url = (
+                    f"{CONFIG.EXPECTED_PARROT_URL}/content/{username}/{kwargs['alias']}"
+                )
+
+                # Patch the existing object
+                return self.patch(
+                    url_or_uuid=alias_url,
+                    description=kwargs.get("description"),
+                    value=self,
+                    visibility=kwargs.get("visibility"),
+                )
+
+            except Exception as e:
+                print(f"Error during force patch: {e}")
+                print("Falling back to regular push...")
+                return super().push(*args, **kwargs)
+        else:
+            return super().push(*args, **kwargs)
 
     @disabled_in_client_mode
     def to_dict_for_client(self) -> dict:
@@ -303,10 +354,13 @@ class Macro(BaseMacro):
             results = cache[jobs_hash]
             return results
 
-        results = modified_jobs_object.run(
-            stop_on_exception=stop_on_exception,
-            disable_remote_inference=disable_remote_inference,
-        )
+        if self.pseudo_run:
+            results = modified_jobs_object.pseudo_run()
+        else:
+            results = modified_jobs_object.run(
+                stop_on_exception=stop_on_exception,
+                disable_remote_inference=disable_remote_inference,
+            )
         cache[jobs_hash] = results
         return results
 
@@ -509,7 +563,6 @@ class Macro(BaseMacro):
     ) -> Any:
         """Run output remotely and return the locally rendered result using server-returned Results + formatters."""
         import requests
-        from uuid import UUID
 
         # Configuration
         from ..coop import Coop
@@ -538,8 +591,6 @@ class Macro(BaseMacro):
         from ..results import Results
 
         reconstructed_results = Results.pull(results_uuid)
-
-        from .output_formatter import OutputFormatters
 
         ofs = self.output_formatters
         return MacroRunOutput(
@@ -1070,7 +1121,9 @@ class Macro(BaseMacro):
         jobs_object = survey.to_jobs()
 
         output_formatter = (
-            OutputFormatter(description="Ranked Scenario List", output_type="ScenarioList")
+            OutputFormatter(
+                description="Ranked Scenario List", output_type="ScenarioList"
+            )
             .to_scenario_list()
             .to_ranked_scenario_list(
                 option_fields=option_fields,

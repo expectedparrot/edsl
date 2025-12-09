@@ -12,12 +12,32 @@ if TYPE_CHECKING:
 
 from .table_data_class import TableData
 
-from .table_renderers import DataTablesRenderer, PandasStyleRenderer, RichRenderer
+from .table_renderers import (
+    DataTablesRenderer,
+    PandasStyleRenderer,
+    RichRenderer,
+    TabulatorRenderer,
+)
+from ...config import CONFIG
 
 Row = Sequence[Union[str, int, float, bool, None]]
 TableFormat = Literal[
     "grid", "simple", "pipe", "orgtbl", "rst", "mediawiki", "html", "latex", "rich"
 ]
+
+
+def _get_default_renderer():
+    """Get the default renderer class based on config setting."""
+    renderer_name = getattr(CONFIG, "EDSL_DEFAULT_TABLE_RENDERER", "pandas").lower()
+
+    renderer_map = {
+        "pandas": PandasStyleRenderer,
+        "datatables": DataTablesRenderer,
+        "rich": RichRenderer,
+        "tabulator": TabulatorRenderer,
+    }
+
+    return renderer_map.get(renderer_name, PandasStyleRenderer)
 
 
 class TableRenderer(Protocol):
@@ -47,7 +67,7 @@ class TableDisplay:
         self.tablefmt = tablefmt
         self.raw_data_set = raw_data_set
 
-        self.renderer_class = renderer_class or PandasStyleRenderer
+        self.renderer_class = renderer_class or _get_default_renderer()
 
         # Handle printing parameters from raw_data_set
         if hasattr(raw_data_set, "print_parameters"):
