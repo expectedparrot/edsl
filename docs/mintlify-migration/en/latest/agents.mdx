@@ -189,6 +189,23 @@ agents = AgentList.from_source(
     )
 ```
 
+### From natural language descriptions
+
+You can generate agents from natural language descriptions using the `from_vibes()` method. This uses an LLM to interpret your descriptions and create appropriate agent traits:
+
+```python
+from edsl import AgentList
+
+# Generate agents from natural language descriptions
+agents = AgentList.from_vibes([
+    "A 25-year-old software engineer from San Francisco",
+    "A retired teacher in their 60s from rural Maine",
+    "A college student studying biology"
+])
+```
+
+This method is particularly useful when you want to quickly create diverse agents without manually specifying all traits.
+
 ### From a list
 
 We can create a simple AgentList from a list using the from_list() method, which takes a single trait_name and a list of values for it and returns an agent for each value (each agent has a single trait):
