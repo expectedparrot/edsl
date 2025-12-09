@@ -248,6 +248,21 @@ We recently added support for OpenAI reasoning models. See an example notebook f
 
 Each of these columns can be accessed directly by calling the select() method and passing the column names. Alternatively, we can specify the columns to exclude by calling the drop() method. These methods can be chained together to display the specified columns in a table format.
 
+### Wildcard pattern support
+
+The select() method supports wildcard patterns using `*` to match multiple columns at once. This is particularly useful when you want to select all columns of a certain type or with a common prefix:
+
+```python
+# Select all answer columns
+results.select("answer.*")
+
+# Select all cost-related columns
+results.select("*_cost")
+
+# Select all columns from raw_model_response
+results.select("raw_model_response.*")
+```
+
 For example, the following code will print a table showing the answers for read and important together with model, persona and topic columns (because the column names are unique we can drop the model, agent, scenario and answer prefixes when selecting them):
 
 ```python
