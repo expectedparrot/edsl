@@ -24,6 +24,22 @@ agent = Agent(
     })
 ```
 
+### Simplified constructor with keyword arguments
+
+You can also create agents by passing traits directly as keyword arguments, which provides a more concise syntax:
+
+```python
+from edsl import Agent
+
+agent = Agent(
+    persona="You are an expert in machine learning.",
+    age=45,
+    home_state="Massachusetts"
+)
+```
+
+This is equivalent to the traits dictionary approach but more convenient for simple agent creation.
+
 <Note>
 **Note**:
 
@@ -172,6 +188,23 @@ agents = AgentList.from_source(
     instructions="Answer in German."
     )
 ```
+
+### From natural language descriptions
+
+You can generate agents from natural language descriptions using the `from_vibes()` method. This uses an LLM to interpret your descriptions and create appropriate agent traits:
+
+```python
+from edsl import AgentList
+
+# Generate agents from natural language descriptions
+agents = AgentList.from_vibes([
+    "A 25-year-old software engineer from San Francisco",
+    "A retired teacher in their 60s from rural Maine",
+    "A college student studying biology"
+])
+```
+
+This method is particularly useful when you want to quickly create diverse agents without manually specifying all traits.
 
 ### From a list
 
