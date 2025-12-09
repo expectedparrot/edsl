@@ -123,6 +123,35 @@ from edsl import Survey
 survey = Survey().add_question(q1).add_question(q2).add_question(q3).add_question(q4)
 ```
 
+### Organizing questions into groups
+
+You can organize questions into logical groups using the `add_question_group()` method. This is useful for:
+- Analyzing responses by section
+- Organizing survey structure
+- Visualizing survey flow
+
+```python
+from edsl import Survey
+
+survey = Survey(questions = [q1, q2, q3, q4])
+
+# Create a group for the first two questions
+survey = survey.add_question_group(
+    start_question="consume_local_news",
+    end_question="sources", 
+    group_name="news_consumption"
+)
+
+# Create another group for the remaining questions
+survey = survey.add_question_group(
+    start_question="rate_coverage",
+    end_question="minutes_reading",
+    group_name="news_quality"
+)
+```
+
+Groups are defined by contiguous ranges of questions and cannot overlap. Group names must be valid Python identifiers and cannot conflict with existing question names.
+
 ### Randomizing question options
 
 If your survey includes multiple choice or checkbox questions, you can randomize the order of the options by passing a list of the question names to the questions_to_randomize parameter of the question constructor. For example, here we randomize the order of the options for q1 and q2:
