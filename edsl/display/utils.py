@@ -44,7 +44,7 @@ def smart_truncate(text, max_length, ellipsis="..."):
 
     # Check if this looks like a URL - if so, don't truncate it
     # URLs should remain functional
-    if text.startswith(('http://', 'https://', 'ftp://', 'ftps://')) or '://' in text:
+    if text.startswith(("http://", "https://", "ftp://", "ftps://")) or "://" in text:
         return text
 
     # If the text needs to be truncated
