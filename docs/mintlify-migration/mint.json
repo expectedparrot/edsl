@@ -50,16 +50,6 @@
   ],
   "navigation": [
     {
-      "group": "Introduction",
-      "pages": [
-        "en/latest/index",
-        "en/latest/overview",
-        "en/latest/whitepaper",
-        "en/latest/papers",
-        "en/latest/citation"
-      ]
-    },
-    {
       "group": "Getting Started",
       "pages": [
         "en/latest/getting_started",
