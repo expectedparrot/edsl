@@ -2556,7 +2556,7 @@ class Jobs(Base):
 
     def humanize(
         self,
-        project_name: str = "Project",
+        human_survey_name: str = "New survey",
         scenario_list_method: Optional[
             Literal["randomize", "loop", "single_scenario", "ordered"]
         ] = None,
@@ -2606,11 +2606,11 @@ class Jobs(Base):
             scenario_list = self.scenarios
 
         c = Coop()
-        project_details = c.create_project(
+        human_survey_details = c.create_human_survey(
             self.survey,
             scenario_list,
             scenario_list_method,
-            project_name,
+            human_survey_name,
             survey_description,
             survey_alias,
             survey_visibility,
@@ -2618,7 +2618,7 @@ class Jobs(Base):
             scenario_list_alias,
             scenario_list_visibility,
         )
-        return project_details
+        return human_survey_details
 
 
 def main():
