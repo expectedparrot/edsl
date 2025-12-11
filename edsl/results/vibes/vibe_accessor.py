@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ..results import Results
     from .vibe_analyze_handler import ResultsVibeAnalysis
+    from ...scenarios import Scenario
 
 
 class ResultsVibeAccessor:
