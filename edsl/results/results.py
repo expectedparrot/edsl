@@ -57,6 +57,7 @@ if TYPE_CHECKING:
     from ..caching import Cache
     from .results_transcript import Transcripts
     from .vibes import ResultsVibeAnalysis
+    from .vibes.vibe_accessor import ResultsVibeAccessor
 
 
 from ..utilities import dict_hash
@@ -454,6 +455,26 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         return self._report.analyze(*question_names)
 
+    @property
+    def vibe(self) -> "ResultsVibeAccessor":
+        """Access vibe-based results analysis methods.
+
+        Returns a ResultsVibeAccessor that provides natural language methods
+        for analyzing and visualizing results data.
+
+        Returns:
+            ResultsVibeAccessor: Accessor for vibe methods
+
+        Examples:
+            >>> results = Results.example()  # doctest: +SKIP
+            >>> results.vibe.analyze()  # doctest: +SKIP
+            >>> results.vibe.plot()  # doctest: +SKIP
+            >>> results.vibe.sql("Show me satisfaction scores")  # doctest: +SKIP
+        """
+        from .vibes.vibe_accessor import ResultsVibeAccessor
+
+        return ResultsVibeAccessor(self)
+
     def vibe_analyze(
         self,
         *,
@@ -518,10 +539,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> import json  # doctest: +SKIP
             >>> json.dumps(data)  # Fully serializable  # doctest: +SKIP
         """
-        from .vibes import analyze_with_vibes
-
-        return analyze_with_vibes(
-            self,
+        return self.vibe.analyze(
             model=model,
             temperature=temperature,
             include_visualizations=include_visualizations,
