@@ -80,6 +80,7 @@ if TYPE_CHECKING:
     from ..agents import Agent
     from typing import Sequence
     from .scenarioml.prediction import Prediction
+    from .vibes.vibe_accessor import ScenarioListVibeAccessor
 
 
 from ..base import Base
@@ -1060,6 +1061,26 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         return f"ScenarioList([{', '.join([x._eval_repr_() for x in self.data])}])"
 
+    @property
+    def vibe(self) -> "ScenarioListVibeAccessor":
+        """Access vibe-based scenario list methods.
+
+        Returns a ScenarioListVibeAccessor that provides natural language methods
+        for describing, filtering, and extracting scenario lists.
+
+        Returns:
+            ScenarioListVibeAccessor: Accessor for vibe methods
+
+        Examples:
+            >>> sl = ScenarioList.example()  # doctest: +SKIP
+            >>> sl.vibe.describe()  # doctest: +SKIP
+            >>> filtered = sl.vibe.filter("Keep only people over 30")  # doctest: +SKIP
+            >>> new_sl = ScenarioList.vibe.extract("<table>...</table>")  # doctest: +SKIP
+        """
+        from .vibes.vibe_accessor import ScenarioListVibeAccessor
+
+        return ScenarioListVibeAccessor(self)
+
     @classmethod
     def from_vibes(cls, description: str) -> ScenarioList:
         """Create a ScenarioList from a vibe description.
@@ -1067,7 +1088,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         Args:
             description: A description of the vibe.
         """
-        from edsl.dataset.vibes.scenario_generator import ScenarioGenerator
+        from .vibe_example import ScenarioGenerator
 
         gen = ScenarioGenerator(model="gpt-4o", temperature=0.7)
         result = gen.generate_scenarios(description)
@@ -1144,64 +1165,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         scenario_list._extraction_metadata = metadata
 
         return scenario_list
-
-    def vibe_describe(
-        self,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.7,
-        max_sample_values: int = 5,
-    ) -> dict:
-        """Generate a title and description for the scenario list.
-
-        This method uses an LLM to analyze the scenario list and generate
-        a descriptive title and detailed description of what the scenario list represents.
-
-        Args:
-            model: OpenAI model to use for generation (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.7)
-            max_sample_values: Maximum number of sample values to include per key (default: 5)
-
-        Returns:
-            dict: Dictionary with keys:
-                - "proposed_title": A single sentence title for the scenario list
-                - "description": A paragraph-length description of the scenario list
-
-        Examples:
-            Basic usage:
-
-            >>> from edsl.scenarios import Scenario, ScenarioList
-            >>> sl = ScenarioList([  # doctest: +SKIP
-            ...     Scenario({"name": "Alice", "age": 30, "city": "NYC"}),  # doctest: +SKIP
-            ...     Scenario({"name": "Bob", "age": 25, "city": "SF"})  # doctest: +SKIP
-            ... ])  # doctest: +SKIP
-            >>> description = sl.vibe_describe()  # doctest: +SKIP
-            >>> print(description["proposed_title"])  # doctest: +SKIP
-            >>> print(description["description"])  # doctest: +SKIP
-
-            Using a different model:
-
-            >>> sl = ScenarioList.from_vibes("Customer demographics")  # doctest: +SKIP
-            >>> description = sl.vibe_describe(model="gpt-4o-mini")  # doctest: +SKIP
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - The title will be a single sentence that captures the scenario list's essence
-            - The description will be a paragraph explaining what the data represents
-            - Analyzes all unique keys and samples values to understand the data theme
-            - If a codebook is present, it will be included in the analysis
-        """
-        from .vibes import describe_scenario_list_with_vibes
-
-        d = describe_scenario_list_with_vibes(
-            self,
-            model=model,
-            temperature=temperature,
-            max_sample_values=max_sample_values,
-        )
-        from ..scenarios import Scenario
-
-        return Scenario(**d)
 
     def _summary_repr(self, MAX_SCENARIOS: int = 10, MAX_FIELDS: int = 500) -> str:
         """Generate a summary representation of the ScenarioList with Rich formatting.
@@ -1946,75 +1909,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         from .scenario_list_transformer import ScenarioListTransformer
 
         return ScenarioListTransformer.filter(self, expression)
-
-    def vibe_filter(
-        self,
-        criteria: str,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.1,
-        show_expression: bool = False,
-    ) -> ScenarioList:
-        """
-        Filter the scenario list using natural language criteria.
-
-        This method uses an LLM to generate a filter expression based on
-        natural language criteria, then applies it using the scenario list's filter method.
-
-        Args:
-            criteria: Natural language description of the filtering criteria.
-                Examples:
-                - "Keep only people over 30"
-                - "Remove scenarios with missing data"
-                - "Only include scenarios from the US"
-                - "Filter out any scenarios where age is less than 18"
-            model: OpenAI model to use for generating the filter (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.1 for consistent logic)
-            show_expression: If True, prints the generated filter expression
-
-        Returns:
-            ScenarioList: A new ScenarioList containing only the scenarios that match the criteria
-
-        Examples:
-            >>> from edsl.scenarios import Scenario, ScenarioList
-            >>> sl = ScenarioList([
-            ...     Scenario({'age': 25, 'occupation': 'student'}),
-            ...     Scenario({'age': 35, 'occupation': 'engineer'}),
-            ...     Scenario({'age': 42, 'occupation': 'teacher'})
-            ... ])
-            >>> filtered = sl.vibe_filter("Keep only people over 30")  # doctest: +SKIP
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - The LLM generates a filter expression using scenario keys directly
-            - Uses the scenario list's built-in filter() method for safe evaluation
-            - Use show_expression=True to see the generated filter logic
-        """
-        from .vibes.vibe_filter import VibeFilter
-
-        # Collect all unique keys across all scenarios
-        all_keys = set()
-        for scenario in self.data:
-            all_keys.update(scenario.keys())
-
-        # Get sample scenarios to help the LLM understand the data structure
-        sample_scenarios = []
-        for scenario in self.data[:5]:  # Get up to 5 sample scenarios
-            sample_scenarios.append(dict(scenario))
-
-        # Create the filter generator
-        filter_gen = VibeFilter(model=model, temperature=temperature)
-
-        # Generate the filter expression
-        filter_expr = filter_gen.create_filter(
-            sorted(list(all_keys)), sample_scenarios, criteria
-        )
-
-        if show_expression:
-            print(f"Generated filter expression: {filter_expr}")
-
-        # Use the scenario list's built-in filter method which returns ScenarioList
-        return self.filter(filter_expr)
 
     @classmethod
     def from_urls(

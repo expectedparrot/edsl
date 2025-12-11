@@ -2,7 +2,7 @@
 ScenarioList Vibe Accessor: Provides a namespace for vibe-based scenario list methods.
 
 This module provides the ScenarioListVibeAccessor class that enables the
-`scenario_list.vibe.extract()`, `scenario_list.vibe.describe()`, and `scenario_list.vibe.filter()`
+`scenario_list.vibe.describe()`, `scenario_list.vibe.filter()`, and `scenario_list.vibe.edit()`
 interface pattern.
 """
 
@@ -28,7 +28,7 @@ class ScenarioListVibeAccessor:
     >>> sl = ScenarioList.example()  # doctest: +SKIP
     >>> sl.vibe.describe()  # doctest: +SKIP
     >>> sl.vibe.filter("Keep only people over 30")  # doctest: +SKIP
-    >>> new_sl = ScenarioList.vibe.extract("<table>...</table>")  # doctest: +SKIP
+    >>> sl.vibe.edit("Add a 'country' field to all scenarios")  # doctest: +SKIP
     """
 
     def __init__(self, scenario_list: "ScenarioList"):
@@ -39,100 +39,6 @@ class ScenarioListVibeAccessor:
             scenario_list: The ScenarioList instance to operate on
         """
         self._scenario_list = scenario_list
-
-    @classmethod
-    def extract(
-        cls,
-        html_source: str,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.0,
-        instructions: str = "",
-        max_rows: Optional[int] = None,
-    ) -> "ScenarioList":
-        """Create a ScenarioList by extracting table data from HTML using LLM.
-
-        Uses an LLM to analyze HTML content containing tables and extract
-        structured data to create scenarios.
-
-        Args:
-            html_source: Either HTML string content or path to an HTML file
-            model: OpenAI model to use for extraction (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.0 for consistency)
-            instructions: Additional extraction instructions (optional)
-            max_rows: Maximum number of rows to extract (None = all rows)
-
-        Returns:
-            ScenarioList: The extracted scenarios
-
-        Examples:
-            From HTML string:
-
-            >>> html = "<table><tr><th>Name</th><th>Age</th></tr><tr><td>Alice</td><td>30</td></tr></table>"  # doctest: +SKIP
-            >>> sl = ScenarioList.vibe.extract(html)  # doctest: +SKIP
-            >>> len(sl)  # doctest: +SKIP
-            1
-            >>> sl[0]["name"]  # doctest: +SKIP
-            'Alice'
-
-            From file:
-
-            >>> sl = ScenarioList.vibe.extract("data.html")  # doctest: +SKIP
-
-            With custom instructions:
-
-            >>> sl = ScenarioList.vibe.extract(  # doctest: +SKIP
-            ...     html,
-            ...     instructions="Focus on demographic data",
-            ...     max_rows=100
-            ... )
-        """
-        import os
-
-        # Import here to avoid circular imports
-        from ..scenario_list import ScenarioList
-        from . import extract_from_html_with_vibes
-
-        # Check if html_source is a file path
-        if os.path.exists(html_source) and os.path.isfile(html_source):
-            # Read the file
-            with open(html_source, "r", encoding="utf-8") as f:
-                html_content = f.read()
-        else:
-            # Treat as HTML content string
-            html_content = html_source
-
-        scenario_list, metadata = extract_from_html_with_vibes(
-            html_content,
-            model=model,
-            temperature=temperature,
-            instructions=instructions,
-            max_rows=max_rows,
-        )
-
-        # Store metadata as an attribute on the ScenarioList for reference
-        scenario_list._extraction_metadata = metadata
-
-        return scenario_list
-
-    @classmethod
-    def from_vibes(cls, description: str) -> "ScenarioList":
-        """Create a ScenarioList from a vibe description.
-
-        Args:
-            description: A description of the vibe.
-
-        Returns:
-            ScenarioList: New scenario list generated from the description
-
-        Examples:
-            >>> sl = ScenarioList.vibe.from_vibes("Customer demographics")  # doctest: +SKIP
-            >>> sl = ScenarioList.vibe.from_vibes("Software engineers with experience levels")  # doctest: +SKIP
-        """
-        # Import here to avoid circular imports
-        from ..scenario_list import ScenarioList
-
-        return ScenarioList.from_vibes(description)
 
     def describe(
         self,
@@ -170,7 +76,7 @@ class ScenarioListVibeAccessor:
 
             Using a different model:
 
-            >>> sl = ScenarioList.vibe.from_vibes("Customer demographics")  # doctest: +SKIP
+            >>> sl = ScenarioList.from_vibes("Customer demographics")  # doctest: +SKIP
             >>> description = sl.vibe.describe(model="gpt-4o-mini")  # doctest: +SKIP
 
         Notes:
@@ -180,11 +86,55 @@ class ScenarioListVibeAccessor:
             - Analyzes all unique keys and samples values to understand the data theme
             - If a codebook is present, it will be included in the analysis
         """
-        return self._scenario_list.vibe_describe(
-            model=model,
-            temperature=temperature,
-            max_sample_values=max_sample_values,
-        )
+        # Import here to avoid circular imports
+        from .vibe_describer import VibeDescribe
+        from ..scenario import Scenario
+
+        # Return empty scenario if no scenarios
+        if not self._scenario_list:
+            return Scenario(
+                {
+                    "proposed_title": "Empty Scenario List",
+                    "description": "This scenario list contains no scenarios.",
+                }
+            )
+
+        # Collect all keys present across all scenarios
+        all_keys = set()
+        for scenario in self._scenario_list:
+            all_keys.update(scenario.keys())
+        keys = list(all_keys)
+
+        # Sample values for each key (up to max_sample_values)
+        sample_values = {}
+        for key in keys:
+            values = []
+            for scenario in self._scenario_list:
+                if key in scenario and len(values) < max_sample_values:
+                    value = scenario[key]
+                    if value not in values:  # Avoid duplicates
+                        values.append(value)
+            sample_values[key] = values
+
+        # Check if there's a codebook attribute
+        codebook = getattr(self._scenario_list, "_codebook", None)
+
+        # Prepare data for the describer
+        scenario_data = {
+            "keys": keys,
+            "sample_values": sample_values,
+            "num_scenarios": len(self._scenario_list),
+        }
+
+        if codebook:
+            scenario_data["codebook"] = codebook
+
+        # Create describer and generate description
+        describer = VibeDescribe(model=model, temperature=temperature)
+        result = describer.describe_scenario_list(scenario_data)
+
+        # Return as a Scenario object
+        return Scenario(result)
 
     def filter(
         self,
@@ -264,3 +214,77 @@ class ScenarioListVibeAccessor:
 
         # Use the scenario list's filter method with the generated expression
         return self._scenario_list.filter(filter_expression)
+
+    def edit(
+        self,
+        edit_instructions: str,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.7,
+    ) -> "ScenarioList":
+        """Edit the scenario list using natural language instructions.
+
+        This method uses an LLM to modify an existing scenario list based on natural language
+        instructions. It can modify scenario values, add or remove fields, change field values,
+        filter scenarios, or make other modifications as requested.
+
+        Args:
+            edit_instructions: Natural language description of the edits to apply.
+                Examples:
+                - "Make all ages 10 years older"
+                - "Add a 'country' field to all scenarios"
+                - "Remove scenarios with missing data"
+                - "Translate all text fields to Spanish"
+                - "Make the data more diverse"
+            model: OpenAI model to use for editing (default: "gpt-4o")
+            temperature: Temperature for generation (default: 0.7)
+
+        Returns:
+            ScenarioList: A new ScenarioList instance with the edited scenarios
+
+        Examples:
+            Basic usage:
+
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList([  # doctest: +SKIP
+            ...     Scenario({"name": "Alice", "age": 30}),  # doctest: +SKIP
+            ...     Scenario({"name": "Bob", "age": 25})  # doctest: +SKIP
+            ... ])  # doctest: +SKIP
+            >>> edited = sl.vibe.edit("Make all ages 5 years older")  # doctest: +SKIP
+
+            Add a new field:
+
+            >>> edited = sl.vibe.edit("Add a 'city' field to all scenarios")  # doctest: +SKIP
+
+            Complex edits:
+
+            >>> edited = sl.vibe.edit("Make the data more diverse in terms of demographics")  # doctest: +SKIP
+
+        Notes:
+            - Requires OPENAI_API_KEY environment variable to be set
+            - Uses structured LLM output to ensure consistent scenario definitions
+            - Can add, modify, or remove scenario fields
+            - Can filter scenarios based on criteria
+            - Maintains scenario structure when possible
+            - Returns a completely new ScenarioList instance
+        """
+        # Import here to avoid circular imports
+        from .vibe_editor import ScenarioListVibeEdit
+        from ..scenario import Scenario
+
+        # Convert current scenarios to dict format
+        current_scenarios = [scenario.to_dict() for scenario in self._scenario_list]
+
+        # Create the editor
+        editor = ScenarioListVibeEdit(model=model, temperature=temperature)
+
+        # Edit the scenario list
+        edited_data = editor.edit_scenario_list(current_scenarios, edit_instructions)
+
+        # Convert each edited scenario definition to a Scenario object
+        scenarios = []
+        for scenario_def in edited_data["scenarios"]:
+            scenario = Scenario(scenario_def)
+            scenarios.append(scenario)
+
+        return self._scenario_list.__class__(scenarios)

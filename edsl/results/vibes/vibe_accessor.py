@@ -28,6 +28,7 @@ class ResultsVibeAccessor:
     >>> results.vibe.analyze()  # doctest: +SKIP
     >>> results.vibe.plot()  # doctest: +SKIP
     >>> results.vibe.sql()  # doctest: +SKIP
+    >>> results.vibe.describe()  # doctest: +SKIP
     """
 
     def __init__(self, results: "Results"):
@@ -185,3 +186,40 @@ class ResultsVibeAccessor:
             remove_prefix=remove_prefix,
             shape=shape,
         )
+
+    def describe(
+        self,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.7,
+    ) -> "Scenario":
+        """Generate a title and description for the Results object.
+
+        Uses an LLM to analyze the Results object (including Survey, AgentList, and ScenarioList)
+        and generate a descriptive title and detailed description of what the study/research is about.
+
+        Args:
+            model: OpenAI model to use for generation (default: "gpt-4o")
+            temperature: Temperature for generation (default: 0.7)
+
+        Returns:
+            Scenario: A Scenario with keys:
+                - "proposed_title": A single sentence title for the results
+                - "description": A paragraph-length description of the results
+
+        Examples:
+            >>> results = Results.example()  # doctest: +SKIP
+            >>> info = results.vibe.describe()  # doctest: +SKIP
+            >>> print(info["proposed_title"])  # doctest: +SKIP
+            >>> print(info["description"])  # doctest: +SKIP
+        """
+        from .vibe_describe_handler import describe_results_with_vibes
+
+        d = describe_results_with_vibes(
+            self._results,
+            model=model,
+            temperature=temperature,
+        )
+        from ...scenarios import Scenario
+
+        return Scenario(**d)
