@@ -247,32 +247,6 @@ class PersistenceMixin:
         # Return the string for non-Jupyter environments or when explicitly requested
         return response
 
-    # def push(
-    #     self,
-    #     description: Optional[str] = None,
-    #     alias: Optional[str] = None,
-    #     visibility: Optional[str] = "unlisted",
-    #     expected_parrot_url: Optional[str] = None,
-    # ):
-    #     """Upload this object to the EDSL cooperative platform.
-
-    #     This method serializes the object and posts it to the EDSL coop service,
-    #     making it accessible to others or for your own use across sessions.
-
-    #     Args:
-    #         description: Optional text description of the object
-    #         alias: Optional human-readable identifier for the object
-    #         visibility: Access level setting ("private", "unlisted", or "public")
-    #         expected_parrot_url: Optional custom URL for the coop service
-
-    #     Returns:
-    #         The response from the coop service containing the object's unique identifier
-    #     """
-    #     from edsl.coop import Coop
-
-    #     c = Coop(url=expected_parrot_url)
-    #     return c.create(self, description, alias, visibility)
-
     def push(
         self,
         description: Optional[str] = None,
@@ -305,6 +279,21 @@ class PersistenceMixin:
             >>> # Use the signed_url to upload the object directly
         """
         from edsl.coop import Coop
+
+        if alias is None or description is None:
+            if hasattr(self, "vibe"):
+                vibes_controller = self.vibe
+                if hasattr(vibes_controller, "describe"):
+                    generated_description = vibes_controller.describe()
+                    if description is None:
+                        description = generated_description["description"]
+                    if alias is None:
+                        alias = (
+                            generated_description["proposed_title"]
+                            .lstrip()
+                            .lower()
+                            .replace(" ", "-")
+                        )
 
         c = Coop(url=expected_parrot_url)
         return c.push(self, description, alias, visibility, force)

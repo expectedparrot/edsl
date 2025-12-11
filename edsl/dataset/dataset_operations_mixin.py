@@ -239,6 +239,61 @@ class DataOperationsBase:
         # Return 0 for empty datasets instead of None
         return _num_observations if _num_observations is not None else 0
 
+    def vibe_filter(
+        self,
+        criteria: str,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.1,
+        show_expression: bool = False,
+    ):
+        """Filter the dataset using natural language criteria.
+
+        This method uses an LLM to generate a filter expression based on
+        natural language criteria, then applies it using the dataset's filter method.
+
+        Parameters:
+            criteria: Natural language description of the filtering criteria.
+                Examples:
+                - "Keep only people over 30"
+                - "Remove outliers in the satisfaction scores"
+                - "Only include responses from the last month"
+            model: OpenAI model to use for generating the filter (default: "gpt-4o")
+            temperature: Temperature for generation (default: 0.1 for consistent logic)
+            show_expression: If True, prints the generated filter expression
+
+        Returns:
+            Dataset: A new Dataset containing only rows that match the criteria
+
+        Examples:
+            Basic filtering:
+
+            >>> from edsl.dataset import Dataset
+            >>> data = Dataset([  # doctest: +SKIP
+            ...     {"age": [25, 30, 35]}, {"name": ["Alice", "Bob", "Charlie"]}
+            ... ])
+            >>> filtered = data.vibe_filter("Keep only people over 30")  # doctest: +SKIP
+
+            With expression display:
+
+            >>> filtered = data.vibe_filter(  # doctest: +SKIP
+            ...     "Only high performers",
+            ...     show_expression=True
+            ... )
+
+        Notes:
+            - Requires OPENAI_API_KEY environment variable to be set
+            - Uses LLM to generate Python expressions with operators: ==, !=, >, <, >=, <=, in, and, or, not
+            - The generated expression is applied using the dataset's built-in filter() method
+            - Supports complex boolean logic and range operations
+        """
+        return self.vibe.filter(
+            criteria,
+            model=model,
+            temperature=temperature,
+            show_expression=show_expression,
+        )
+
     def vibe_plot(
         self,
         description: str,
