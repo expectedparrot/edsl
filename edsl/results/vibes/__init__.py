@@ -10,10 +10,12 @@ from .vibe_analyze_handler import (
     QuestionVibeAnalysis,
     ResultsVibeAnalysis,
 )
+from .vibe_accessor import ResultsVibeAccessor
 
 __all__ = [
     "VibeAnalyzer",
     "analyze_with_vibes",
     "QuestionVibeAnalysis",
     "ResultsVibeAnalysis",
+    "ResultsVibeAccessor",
 ]
