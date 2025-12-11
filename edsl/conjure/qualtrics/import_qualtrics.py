@@ -4,7 +4,7 @@ import csv
 import json
 import re
 from collections import defaultdict
-from typing import List, Dict, Any, Optional, Callable
+from typing import List, Dict, Any, Optional, Callable, Tuple
 
 from edsl.agents import Agent, AgentList
 from edsl.scenarios import ScenarioList
@@ -23,6 +23,7 @@ from .data_classes import (
     QualtricsQuestionMetadata,
     DataType,
 )
+from .vibe import VibeProcessor, VibeConfig
 
 
 class ImportQualtrics:
@@ -35,6 +36,7 @@ class ImportQualtrics:
         create_semantic_names: bool = False,
         repair_excel_dates: bool = False,  # Not implemented for Qualtrics yet
         order_options_semantically: bool = False,  # Not implemented for Qualtrics yet
+        vibe_config: Optional[VibeConfig] | bool = True,  # AI-powered question cleanup, True=use defaults
     ):
         """
         Initialize Qualtrics CSV importer.
@@ -45,12 +47,25 @@ class ImportQualtrics:
             create_semantic_names: Use semantic names vs index-based names
             repair_excel_dates: Enable Excel date repair (not implemented)
             order_options_semantically: Enable semantic option ordering (not implemented)
+            vibe_config: Configuration for AI-powered question cleanup and enhancement
         """
         self.csv_file = csv_file
         self.verbose = verbose
         self.create_semantic_names = create_semantic_names
         self.repair_excel_dates = repair_excel_dates
         self.order_options_semantically = order_options_semantically
+        self.vibe_config = vibe_config
+
+        # Initialize vibe processor if config provided
+        if vibe_config is True:
+            # Use default config when True is passed
+            self.vibe_processor = VibeProcessor(VibeConfig())
+        elif vibe_config is False or vibe_config is None:
+            # Explicitly disabled
+            self.vibe_processor = None
+        else:
+            # Custom config provided
+            self.vibe_processor = VibeProcessor(vibe_config)
 
         # Internal state
         self._columns: List[Column] = []
@@ -63,10 +78,17 @@ class ImportQualtrics:
         self._response_records: List[Dict[str, Any]] = []
         self._results = None
 
+        # Piping support
+        self._qid_to_question_name: Dict[str, str] = {}  # Maps QID to question_name
+        self._piping_patterns: List[Tuple[str, str, str]] = []  # [(full_pattern, qid, field_type)]
+
         # Process the CSV
         self._read_csv()
         self._build_metadata()
+        self._build_qid_mappings()
+        self._detect_piping_patterns()
         self._build_survey()
+        self._apply_vibe_processing()  # AI-powered question enhancement
         self._build_question_mappings()
         self._build_response_records()
         self._build_agents()
@@ -76,8 +98,19 @@ class ImportQualtrics:
         if self.verbose:
             print(f"Reading CSV file: {self.csv_file}")
 
+        # Detect delimiter based on file extension and content
+        delimiter = ","
+        if self.csv_file.endswith((".tab", ".tsv")):
+            delimiter = "\t"
+        else:
+            # Auto-detect delimiter by checking first line
+            with open(self.csv_file, "r", encoding="utf-8") as f:
+                first_line = f.readline()
+                if first_line.count("\t") > first_line.count(","):
+                    delimiter = "\t"
+
         with open(self.csv_file, "r", encoding="utf-8") as f:
-            reader = csv.reader(f)
+            reader = csv.reader(f, delimiter=delimiter)
             rows = list(reader)
 
         if len(rows) < 4:
@@ -107,10 +140,39 @@ class ImportQualtrics:
         s = cell.strip()
         if not (s.startswith("{") and "ImportId" in s):
             return None
+
+        # Handle CSV escape sequences - fix common issues
+        # Sometimes CSV parsing creates malformed JSON with escaped quotes
+        s = s.replace('\\\"', '"').replace('{"', '{"').replace('"}', '"}')
+
         try:
             obj = json.loads(s)
-            return obj.get("ImportId")
-        except Exception:
+            import_id = obj.get("ImportId")
+            # Handle Qualtrics format variations like "QID148#1_1" -> "QID148"
+            if import_id and "#" in import_id:
+                import_id = import_id.split("#")[0]
+            return import_id
+        except Exception as e:
+            # Try alternative parsing for malformed JSON
+            try:
+                # Extract ImportId with regex as fallback
+                import re
+                match = re.search(r'ImportId["\s]*:["\s]*([^"]+)', s)
+                if match:
+                    import_id = match.group(1)
+                    # Handle Qualtrics format variations
+                    if "#" in import_id:
+                        import_id = import_id.split("#")[0]
+                    return import_id
+            except:
+                pass
+
+            # Debug: Only show first few exceptions
+            if not hasattr(self, '_parse_errors_shown'):
+                self._parse_errors_shown = 0
+            if self._parse_errors_shown < 3:
+                print(f"Debug: Parse error for '{cell[:50]}...': {e}")
+                self._parse_errors_shown += 1
             return None
 
     def _canonicalize_label(self, label: str) -> str:
@@ -120,15 +182,35 @@ class ImportQualtrics:
           'Q1'     -> 'Q1'
           'Q2_1'   -> 'Q2'
           'Q3_TEXT' -> 'Q3'
+          '0#1'    -> 'Q0'
         """
         if not isinstance(label, str):
             return str(label)
 
+        # Clean the label by removing invalid characters and replacing with valid ones
+        cleaned = label.strip()
+
+        # Replace # with underscore temporarily
+        cleaned = cleaned.replace("#", "_")
+
         # Keep everything before the LAST underscore as base (if any)
-        if "_" in label:
-            base, _ = label.rsplit("_", 1)
-            return base.strip()
-        return label.strip()
+        if "_" in cleaned:
+            base, _ = cleaned.rsplit("_", 1)
+            cleaned = base.strip()
+
+        # Ensure it starts with a letter or underscore (valid Python identifier)
+        if cleaned and not (cleaned[0].isalpha() or cleaned[0] == '_'):
+            cleaned = f"Q{cleaned}"
+
+        # Replace any remaining invalid characters with underscores
+        import re
+        cleaned = re.sub(r'[^\w]', '_', cleaned)
+
+        # Ensure it's not empty
+        if not cleaned:
+            cleaned = "Unknown"
+
+        return cleaned
 
     def _subpart_from_label(self, label: str) -> Optional[str]:
         """
@@ -146,9 +228,18 @@ class ImportQualtrics:
         if self.verbose:
             print("Building column metadata...")
 
-        # Re-read the header rows
+        # Re-read the header rows using same delimiter detection
+        delimiter = ","
+        if self.csv_file.endswith((".tab", ".tsv")):
+            delimiter = "\t"
+        else:
+            with open(self.csv_file, "r", encoding="utf-8") as f:
+                first_line = f.readline()
+                if first_line.count("\t") > first_line.count(","):
+                    delimiter = "\t"
+
         with open(self.csv_file, "r", encoding="utf-8") as f:
-            reader = csv.reader(f)
+            reader = csv.reader(f, delimiter=delimiter)
             rows = [next(reader) for _ in range(3)]
 
         short_labels, question_texts, import_ids_row = rows
@@ -173,6 +264,181 @@ class ImportQualtrics:
 
         if self.verbose:
             print(f"Built metadata for {len(self._metadata_columns)} columns")
+
+    def _build_qid_mappings(self) -> None:
+        """Build mapping from QID (import_id) to question_name."""
+        if self.verbose:
+            print("Building QID to question name mappings...")
+
+        for meta in self._metadata_columns:
+            if meta.import_id and not self._is_metadata_column(meta):
+                self._qid_to_question_name[meta.import_id] = meta.question_name
+
+        if self.verbose:
+            print(f"Built {len(self._qid_to_question_name)} QID mappings")
+            if len(self._qid_to_question_name) == 0:
+                # Debug: Show some sample metadata
+                print("Debug: First 5 metadata entries:")
+                for i, meta in enumerate(self._metadata_columns[:5]):
+                    print(f"  {i}: label='{meta.short_label}', import_id='{meta.import_id}', "
+                          f"question_name='{meta.question_name}', is_metadata={self._is_metadata_column(meta)}")
+                # Also check some entries that should have QIDs
+                print("Debug: Sample non-metadata entries:")
+                non_meta_count = 0
+                for i, meta in enumerate(self._metadata_columns):
+                    if not self._is_metadata_column(meta):
+                        print(f"  {i}: label='{meta.short_label}', import_id='{meta.import_id}', "
+                              f"question_name='{meta.question_name}'")
+                        non_meta_count += 1
+                        if non_meta_count >= 3:
+                            break
+
+    def _detect_piping_patterns(self) -> None:
+        """Detect piping patterns in question text."""
+        if self.verbose:
+            print("Detecting piping patterns...")
+
+        # Multiple piping formats used by Qualtrics
+        # Format 1: ${q://QID/FieldType}
+        piping_regex1 = re.compile(r'\$\{q://([^/]+)/([^}]+)\}')
+        # Format 2: [QID-FieldType-SubField] or [QID4-ChoiceGroup-SelectedChoices]
+        piping_regex2 = re.compile(r'\[([A-Z]+\d+)-([^-\]]+)-([^\]]+)\]')
+
+        all_patterns = set()
+
+        # Search through question texts for piping patterns
+        for meta in self._metadata_columns:
+            if not self._is_metadata_column(meta) and meta.question_text:
+                # Format 1: ${q://QID/FieldType}
+                matches1 = piping_regex1.findall(meta.question_text)
+                for qid, field_type in matches1:
+                    pattern = f"${{q://{qid}/{field_type}}}"
+                    all_patterns.add((pattern, qid, field_type, "format1"))
+
+                # Format 2: [QID-FieldType-SubField]
+                matches2 = piping_regex2.findall(meta.question_text)
+                for qid, field_type, sub_field in matches2:
+                    pattern = f"[{qid}-{field_type}-{sub_field}]"
+                    # Map to equivalent field type for consistency
+                    if field_type == "ChoiceGroup" and sub_field == "SelectedChoices":
+                        mapped_field_type = "ChoiceValue"
+                    else:
+                        mapped_field_type = f"{field_type}-{sub_field}"
+                    all_patterns.add((pattern, qid, mapped_field_type, "format2"))
+
+        # Search through response data for piping patterns
+        for col in self._columns:
+            for value in col.values:
+                if value and isinstance(value, str):
+                    # Format 1: ${q://QID/FieldType}
+                    matches1 = piping_regex1.findall(value)
+                    for qid, field_type in matches1:
+                        pattern = f"${{q://{qid}/{field_type}}}"
+                        all_patterns.add((pattern, qid, field_type, "format1"))
+
+                    # Format 2: [QID-FieldType-SubField]
+                    matches2 = piping_regex2.findall(value)
+                    for qid, field_type, sub_field in matches2:
+                        pattern = f"[{qid}-{field_type}-{sub_field}]"
+                        if field_type == "ChoiceGroup" and sub_field == "SelectedChoices":
+                            mapped_field_type = "ChoiceValue"
+                        else:
+                            mapped_field_type = f"{field_type}-{sub_field}"
+                        all_patterns.add((pattern, qid, mapped_field_type, "format2"))
+
+        # Convert to list but keep format info
+        self._piping_patterns = [(pattern, qid, field_type, fmt) for pattern, qid, field_type, fmt in all_patterns]
+
+        if self.verbose:
+            print(f"Found {len(self._piping_patterns)} unique piping patterns")
+            for pattern, qid, field_type, fmt in self._piping_patterns:
+                print(f"  {pattern} -> QID: {qid}, Field: {field_type} ({fmt})")
+
+    def _resolve_piping_in_text(self, text: str, response_data: Dict[str, Any] = None) -> str:
+        """
+        Convert Qualtrics piping to EDSL piping syntax, or resolve if response_data provided.
+
+        Args:
+            text: Text containing potential piping patterns
+            response_data: Dict of question_name -> answer for piping resolution.
+                          If None, converts to EDSL syntax. If provided, resolves to actual values.
+
+        Returns:
+            Text with piping patterns converted to EDSL format or resolved to values
+        """
+        if not text or not isinstance(text, str):
+            return text
+
+        resolved_text = text
+
+        for pattern, qid, field_type, fmt in self._piping_patterns:
+            if pattern in resolved_text:
+                # Find the target question name for this QID
+                target_question = self._qid_to_question_name.get(qid)
+
+                if target_question:
+                    if response_data and target_question in response_data:
+                        # Resolve to actual value (for response data processing)
+                        target_answer = response_data[target_question]
+
+                        if field_type == "ChoiceValue" and target_answer:
+                            # Replace with the actual choice value
+                            resolved_text = resolved_text.replace(pattern, str(target_answer))
+                        elif field_type == "QuestionText":
+                            # Replace with question text (find it from metadata)
+                            target_meta = next(
+                                (meta for meta in self._metadata_columns
+                                 if meta.import_id == qid),
+                                None
+                            )
+                            if target_meta and target_meta.question_text:
+                                resolved_text = resolved_text.replace(pattern, target_meta.question_text)
+                    else:
+                        # Convert to EDSL piping syntax (for question text)
+                        if field_type == "ChoiceValue":
+                            # Convert ${q://QID1/ChoiceValue} or [QID4-ChoiceGroup-SelectedChoices] to {{ Q1.answer }}
+                            edsl_syntax = f"{{{{ {target_question}.answer }}}}"
+                            resolved_text = resolved_text.replace(pattern, edsl_syntax)
+                        elif field_type == "QuestionText":
+                            # For QuestionText piping, we could reference the question text
+                            # but EDSL doesn't have a direct equivalent, so we'll leave as static text
+                            target_meta = next(
+                                (meta for meta in self._metadata_columns
+                                 if meta.import_id == qid),
+                                None
+                            )
+                            if target_meta and target_meta.question_text:
+                                resolved_text = resolved_text.replace(pattern, target_meta.question_text)
+
+        return resolved_text
+
+    def _resolve_piping_in_record(self, record: Dict[str, Any]) -> None:
+        """
+        Resolve piping patterns in a response record.
+
+        Args:
+            record: Dict of question_name -> answer that gets modified in place
+        """
+        # We need to resolve piping across multiple passes since one answer
+        # might depend on another that also has piping
+        max_iterations = 5  # Prevent infinite loops
+        iteration = 0
+
+        while iteration < max_iterations:
+            changes_made = False
+            iteration += 1
+
+            # Check each answer for piping patterns
+            for question_name, answer in record.items():
+                if answer and isinstance(answer, str):
+                    resolved_answer = self._resolve_piping_in_text(answer, record)
+                    if resolved_answer != answer:
+                        record[question_name] = resolved_answer
+                        changes_made = True
+
+            # If no changes were made this iteration, we're done
+            if not changes_made:
+                break
 
     def _is_metadata_column(self, metadata: QualtricsQuestionMetadata) -> bool:
         """Check if this column contains metadata rather than survey responses."""
@@ -288,6 +554,9 @@ class ImportQualtrics:
             question_type = self._detect_question_type(group)
             question_text = group[0].question_text  # Use first column's text
 
+            # Resolve piping in question text (without response data for now)
+            question_text = self._resolve_piping_in_text(question_text)
+
             if self.create_semantic_names:
                 # Create semantic name from question text
                 clean_text = re.sub(r"[^\w\s]", "", question_text)
@@ -379,6 +648,29 @@ class ImportQualtrics:
         if self.verbose:
             print(f"Created survey with {len(questions)} questions")
 
+    def _apply_vibe_processing(self) -> None:
+        """Apply AI-powered question enhancement if vibe processor is configured."""
+        if not self.vibe_processor or not self._survey:
+            return
+
+        if self.verbose:
+            print("Applying vibe processing to enhance questions...")
+
+        try:
+            # Process the survey asynchronously
+            enhanced_survey = self.vibe_processor.process_survey_sync(self._survey)
+            self._survey = enhanced_survey
+
+            if self.verbose:
+                print(f"Vibe processing completed for {len(enhanced_survey.questions)} questions")
+                # Print change summary
+                self.vibe_processor.print_change_summary()
+
+        except Exception as e:
+            if self.verbose:
+                print(f"Warning: Vibe processing failed: {e}")
+            # Continue with original survey if vibe processing fails
+
     def _build_question_mappings(self) -> None:
         """Build mappings from question names to column indices."""
         if self.verbose:
@@ -444,6 +736,9 @@ class ImportQualtrics:
                             value = self._columns[col_idx].values[respondent_idx]
                             record[question_name] = str(value) if value else None
 
+            # Resolve piping in responses after collecting all responses for this record
+            self._resolve_piping_in_record(record)
+
             self._response_records.append(record)
 
         if self.verbose:
@@ -501,6 +796,33 @@ class ImportQualtrics:
             disable_remote_inference=disable_remote_inference, **kwargs
         )
         return self._results
+
+    def get_vibe_change_log(self) -> List[Dict[str, Any]]:
+        """
+        Get detailed log of all changes made during vibe processing.
+
+        Returns:
+            List of change dictionaries with diffs and reasoning
+        """
+        if self.vibe_processor:
+            return self.vibe_processor.get_change_log()
+        return []
+
+    def get_vibe_summary(self) -> Dict[str, Any]:
+        """
+        Get summary of vibe processing changes.
+
+        Returns:
+            Summary dictionary with counts and statistics
+        """
+        if self.vibe_processor:
+            return self.vibe_processor.get_change_summary()
+        return {
+            'total_changes': 0,
+            'changes_by_type': {},
+            'questions_modified': 0,
+            'average_confidence': 0.0
+        }
 
     @property
     def results(self):
