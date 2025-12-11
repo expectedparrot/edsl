@@ -2413,16 +2413,16 @@ class Coop(CoopFunctionsMixin):
         }
 
     ################
-    # PROJECTS
+    # HUMAN SURVEYS
     ################
-    def create_project(
+    def create_human_survey(
         self,
         survey: "Survey",
         scenario_list: Optional["ScenarioList"] = None,
         scenario_list_method: Optional[
             Literal["randomize", "loop", "single_scenario", "ordered"]
         ] = None,
-        project_name: str = "Project",
+        human_survey_name: str = "New survey",
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
         survey_visibility: Optional[VisibilityType] = "unlisted",
@@ -2431,7 +2431,7 @@ class Coop(CoopFunctionsMixin):
         scenario_list_visibility: Optional[VisibilityType] = "unlisted",
     ):
         """
-        Create a survey object on Coop, then create a project from the survey.
+        Create a human survey on Coop, first creating the survey and scenario list (if scenarios are used).
         """
         if scenario_list is None and scenario_list_method is not None:
             raise CoopValueError(
@@ -2459,10 +2459,10 @@ class Coop(CoopFunctionsMixin):
         else:
             scenario_list_uuid = None
         response = self._send_server_request(
-            uri="api/v0/projects/create-from-survey",
+            uri="api/v0/human-surveys",
             method="POST",
             payload={
-                "project_name": project_name,
+                "human_survey_name": human_survey_name,
                 "survey_uuid": str(survey_uuid),
                 "scenario_list_uuid": (
                     str(scenario_list_uuid) if scenario_list_uuid is not None else None
@@ -2473,10 +2473,10 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         response_json = response.json()
         return {
-            "project_name": response_json.get("project_name"),
+            "name": response_json.get("human_survey_name"),
             "uuid": response_json.get("uuid"),
-            "admin_url": f"{self.url}/home/projects/{response_json.get('uuid')}",
-            "respondent_url": f"{self.url}/respond/projects/{response_json.get('uuid')}/runs/{response_json.get('run_uuid')}",
+            "admin_url": f"{self.url}/home/human-surveys/{response_json.get('uuid')}",
+            "respondent_url": f"{self.url}/respond/human-surveys/{response_json.get('uuid')}",
         }
 
     def get_project(
@@ -2513,42 +2513,6 @@ class Coop(CoopFunctionsMixin):
             #     }
             #     for study in response_json.get("prolific_studies", [])
             # ],
-        }
-
-    def create_project_run(
-        self,
-        project_uuid: str,
-        name: Optional[str] = None,
-        scenario_list_uuid: Optional[Union[str, UUID]] = None,
-        scenario_list_method: Optional[
-            Literal["randomize", "loop", "single_scenario", "ordered"]
-        ] = None,
-    ) -> dict:
-        """
-        Create a project run.
-        """
-        if scenario_list_uuid is None and scenario_list_method is not None:
-            raise CoopValueError(
-                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
-            )
-        elif scenario_list_uuid is not None and scenario_list_method is None:
-            raise CoopValueError(
-                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
-            )
-        response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/runs/create",
-            method="POST",
-            payload={
-                "run_name": name,
-                "scenario_list_uuid": scenario_list_uuid,
-                "scenario_list_method": scenario_list_method,
-            },
-        )
-        self._resolve_server_response(response)
-        response_json = response.json()
-        return {
-            "uuid": response_json.get("uuid"),
-            "name": response_json.get("name"),
         }
 
     def update_project_run(

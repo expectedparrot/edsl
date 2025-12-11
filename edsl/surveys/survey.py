@@ -3179,7 +3179,7 @@ class Survey(Base):
     ###################
     def humanize(
         self,
-        project_name: str = "Project",
+        human_survey_name: str = "New survey",
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
         survey_visibility: Optional["VisibilityType"] = "unlisted",
@@ -3193,14 +3193,14 @@ class Survey(Base):
         from ..scenarios import Scenario
 
         c = Coop()
-        project_details = c.create_project(
+        human_survey_details = c.create_human_survey(
             self,
-            project_name=project_name,
+            human_survey_name=human_survey_name,
             survey_description=survey_description,
             survey_alias=survey_alias,
             survey_visibility=survey_visibility,
         )
-        return Scenario(project_details)
+        return Scenario(human_survey_details)
 
     # Add export method delegations
     def css(self):
