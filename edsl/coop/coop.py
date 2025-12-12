@@ -2730,8 +2730,7 @@ class Coop(CoopFunctionsMixin):
 
     def create_prolific_study(
         self,
-        project_uuid: str,
-        project_run_uuid: str,
+        human_survey_uuid: str,
         name: str,
         description: str,
         num_participants: int,
@@ -2762,10 +2761,9 @@ class Coop(CoopFunctionsMixin):
             )
 
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/prolific-studies",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies",
             method="POST",
             payload={
-                "project_run_uuid": project_run_uuid,
                 "name": name,
                 "description": description,
                 "total_available_places": num_participants,
@@ -2804,9 +2802,8 @@ class Coop(CoopFunctionsMixin):
 
     def update_prolific_study(
         self,
-        project_uuid: str,
+        human_survey_uuid: str,
         study_id: str,
-        project_run_uuid: Optional[str] = None,
         name: Optional[str] = None,
         description: Optional[str] = None,
         num_participants: Optional[int] = None,
@@ -2823,7 +2820,7 @@ class Coop(CoopFunctionsMixin):
         """
         Update a Prolific study. Returns a dict with the study details.
         """
-        study = self.get_prolific_study(project_uuid, study_id)
+        study = self.get_prolific_study(human_survey_uuid, study_id)
 
         current_completion_time = study.get("estimated_completion_time_minutes")
         current_payment = study.get("participant_payment_cents")
@@ -2842,8 +2839,6 @@ class Coop(CoopFunctionsMixin):
             )
 
         payload = {}
-        if project_run_uuid is not None:
-            payload["project_run_uuid"] = project_run_uuid
         if name is not None:
             payload["name"] = name
         if description is not None:
@@ -2862,7 +2857,7 @@ class Coop(CoopFunctionsMixin):
             payload["filters"] = filters
 
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}",
             method="PATCH",
             payload=payload,
         )
@@ -2901,12 +2896,12 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
-    def get_prolific_study(self, project_uuid: str, study_id: str) -> dict:
+    def get_prolific_study(self, human_survey_uuid: str, study_id: str) -> dict:
         """
         Get a Prolific study. Returns a dict with the study details.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}",
             method="GET",
         )
         self._resolve_server_response(response)
@@ -2952,7 +2947,7 @@ class Coop(CoopFunctionsMixin):
 
     def delete_prolific_study(
         self,
-        project_uuid: str,
+        human_survey_uuid: str,
         study_id: str,
     ) -> dict:
         """
@@ -2961,7 +2956,7 @@ class Coop(CoopFunctionsMixin):
         Note: Only draft studies can be deleted. Once you publish a study, it cannot be deleted.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}",
             method="DELETE",
         )
         self._resolve_server_response(response)
