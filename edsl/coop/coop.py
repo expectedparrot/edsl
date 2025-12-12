@@ -2473,91 +2473,37 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         response_json = response.json()
         return {
-            "name": response_json.get("human_survey_name"),
+            "name": response_json.get("name"),
             "uuid": response_json.get("uuid"),
             "admin_url": f"{self.url}/home/human-surveys/{response_json.get('uuid')}",
             "respondent_url": f"{self.url}/respond/human-surveys/{response_json.get('uuid')}",
+            "n_responses": response_json.get("n_responses"),
+            "survey_uuid": response_json.get("survey_uuid"),
+            "scenario_list_uuid": response_json.get("scenario_list_uuid"),
         }
 
-    def get_project(
+    def get_human_survey(
         self,
-        project_uuid: str,
+        human_survey_uuid: str,
     ) -> dict:
         """
         Get a project from Coop.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}",
             method="GET",
         )
         self._resolve_server_response(response)
         response_json = response.json()
         return {
-            "project_name": response_json.get("project_name"),
-            "runs": [
-                {
-                    "uuid": run.get("uuid"),
-                    "name": run.get("name"),
-                    "web_survey_url": run.get("web_survey_url"),
-                }
-                for run in response_json.get("runs", [])
-            ],
-            "job_uuids": response_json.get("job_uuids"),
-            # "project_prolific_studies": [
-            #     {
-            #         "study_id": study.get("id"),
-            #         "name": study.get("name"),
-            #         "status": study.get("status"),
-            #         "num_participants": study.get("total_available_places"),
-            #         "places_taken": study.get("places_taken"),
-            #     }
-            #     for study in response_json.get("prolific_studies", [])
-            # ],
-        }
-
-    def update_project_run(
-        self,
-        project_uuid: str,
-        project_run_uuid: str,
-        name: Optional[str] = None,
-    ) -> dict:
-        """
-        Update a project run.
-        """
-        if name is None:
-            from .exceptions import CoopPatchError
-
-            raise CoopPatchError("Nothing to update.")
-        payload = {}
-        if name is not None:
-            payload["run_name"] = name
-        response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/runs/{project_run_uuid}",
-            method="PATCH",
-            payload=payload,
-        )
-        self._resolve_server_response(response)
-        response_json = response.json()
-        return {
-            "uuid": response_json.get("uuid"),
             "name": response_json.get("name"),
+            "uuid": response_json.get("uuid"),
+            "admin_url": f"{self.url}/home/human-surveys/{response_json.get('uuid')}",
+            "respondent_url": f"{self.url}/respond/human-surveys/{response_json.get('uuid')}",
+            "n_responses": response_json.get("n_responses"),
+            "survey_uuid": response_json.get("survey_uuid"),
+            "scenario_list_uuid": response_json.get("scenario_list_uuid"),
         }
-
-    def delete_project_run(
-        self,
-        project_uuid: str,
-        project_run_uuid: str,
-    ) -> dict:
-        """
-        Delete a project run.
-        """
-        response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/runs/{project_run_uuid}",
-            method="DELETE",
-        )
-        self._resolve_server_response(response)
-        response_json = response.json()
-        return response_json
 
     def _turn_human_responses_into_results(
         self,
@@ -2645,40 +2591,32 @@ class Coop(CoopFunctionsMixin):
                 human_response_scenarios.append(scenario)
             return ScenarioList(human_response_scenarios)
 
-    def get_project_human_responses(
+    def get_human_survey_responses(
         self,
-        project_uuid: str,
-        project_run_uuid: Optional[str] = None,
+        human_survey_uuid: str,
     ) -> Union["Results", "ScenarioList"]:
         """
-        Return a Results object with the human responses for a project.
+        Return a Results object with the responses for a human survey.
 
         If generating the Results object fails, a ScenarioList will be returned instead.
         """
-        if project_run_uuid:
-            params = {"project_run_uuid": project_run_uuid}
-        else:
-            params = None
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/human-responses",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/responses",
             method="GET",
-            params=params,
         )
         self._resolve_server_response(response)
         response_json = response.json()
-        human_responses = response_json.get("human_responses", [])
+        responses = response_json.get("responses", [])
         survey_uuid = response_json.get("survey_uuid")
 
-        return self._turn_human_responses_into_results(human_responses, survey_uuid)
+        return self._turn_human_responses_into_results(responses, survey_uuid)
 
-    def test_scenario_sampling(
-        self, project_uuid: str, project_run_uuid: str
-    ) -> List[int]:
+    def test_scenario_sampling(self, human_survey_uuid: str) -> List[int]:
         """
-        Get a sample for a project.
+        Get a sample for a human survey.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/runs/{project_run_uuid}/scenario-sampling/test",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/scenario-sampling/test",
             method="GET",
         )
         self._resolve_server_response(response)
@@ -2686,17 +2624,15 @@ class Coop(CoopFunctionsMixin):
         scenario_indices = response_json.get("scenario_indices")
         return scenario_indices
 
-    def reset_scenario_sampling_state(
-        self, project_uuid: str, project_run_uuid: str
-    ) -> dict:
+    def reset_scenario_sampling_state(self, human_survey_uuid: str) -> dict:
         """
-        Reset the scenario sampling state for a project.
+        Reset the scenario sampling state for a human survey.
 
         This is useful if you have scenario_list_method="ordered" and you want to
         start over with the first scenario in the list.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/runs/{project_run_uuid}/scenario-sampling/reset",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/scenario-sampling/reset",
             method="POST",
         )
         self._resolve_server_response(response)

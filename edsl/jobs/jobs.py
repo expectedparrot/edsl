@@ -2573,6 +2573,7 @@ class Jobs(Base):
         """
         from edsl.coop import Coop
         from edsl.coop.exceptions import CoopValueError
+        from ..scenarios import Scenario
 
         if len(self.agents) > 0 or len(self.models) > 0:
             raise CoopValueError("We don't support humanize with agents or models yet.")
@@ -2618,7 +2619,7 @@ class Jobs(Base):
             scenario_list_alias,
             scenario_list_visibility,
         )
-        return human_survey_details
+        return Scenario(human_survey_details)
 
 
 def main():
