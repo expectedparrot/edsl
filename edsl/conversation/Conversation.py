@@ -204,6 +204,7 @@ What do you say next?"""
     async def get_next_statement(self, *, index, speaker, conversation) -> "Result":
         """Get the next statement from the speaker."""
         q = self.next_statement_question
+        # assert q.parameters == {"agent_name", "conversation"}, q.parameters
         from .. import Scenario
 
         if self.per_round_message_template is None:
@@ -223,8 +224,9 @@ What do you say next?"""
             }
         )
         jobs = q.by(s).by(speaker).by(speaker.model)
+        jobs.show_prompts()
         results = await jobs.run_async(
-            disable_remote_inference=self.disable_remote_inference
+            cache=self.cache, disable_remote_inference=self.disable_remote_inference
         )
         return results[0]
 
@@ -232,19 +234,47 @@ What do you say next?"""
         return asyncio.run(self._converse())
 
     async def _converse(self):
+        # --- FIXED VERSION START ---
         i = 0
         while await self.continue_conversation():
             speaker = self.next_speaker()
-            result_statement = await self.get_next_statement(
-                index=i,
-                speaker=speaker,
-                conversation=self.agent_statements.transcript,
-            )
-            next_statement = AgentStatement(statement=result_statement)
-            self.agent_statements.append(next_statement)
-            if self.verbose:
-                print(f"'{speaker.name}': {next_statement.text}")
-            i += 1
+            
+            # new retry lofic
+            max_retries = 5  # maximal retry times
+            delay = 2        # wait for 2 s before retrying
+            attempt = 0
+            result_statement = None
+            success = False
+
+            while attempt < max_retries:
+                try:
+                    result_statement = await self.get_next_statement(
+                        index=i,
+                        speaker=speaker,
+                        conversation=self.agent_statements.transcript,
+                    )
+                    success = True
+                    break  # success
+                except Exception as e:
+                    attempt += 1
+                    if self.verbose:
+                        print(f"Agent {speaker.name} failed (Attempt {attempt}/{max_retries}): {e}")
+                    
+                    if attempt >= max_retries:
+                        # if fails entirely, throw an exception
+                        raise Exception(f"Conversation crashed: Agent {speaker.name} failed after {max_retries} retries. Error: {e}")
+                    
+                    # sleep 2 s before retrying
+                    await asyncio.sleep(delay)
+
+            # only success, continue
+            if success and result_statement:
+                next_statement = AgentStatement(statement=result_statement)
+                self.agent_statements.append(next_statement)
+                if self.verbose:
+                    print(f"'{speaker.name}': {next_statement.text}")
+                i += 1
+        # --- FIXED VERSION END ---
 
 
 class ConversationList:
