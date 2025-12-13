@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ..agent_list import AgentList
     from ...scenarios import Scenario
+    from ...surveys import Survey
 
 
 class AgentListVibeAccessor:
@@ -311,3 +312,70 @@ class AgentListVibeAccessor:
 
         # Return as a Scenario object
         return Scenario(result)
+
+    def design(
+        self,
+        survey: "Survey",
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.3,
+        show_reasoning: bool = False,
+    ) -> "AgentList":
+        """Optimize agent list for survey-specific responses.
+
+        This method analyzes a survey and optimizes agents to provide accurate,
+        contextually appropriate responses. It:
+        1. Analyzes survey questions to determine relevant traits per agent
+        2. Filters agents to keep only relevant traits (simple filtering, no value modification)
+        3. Generates optimized traits_presentation_template with selected traits
+        4. Creates survey-specific instructions emphasizing accuracy
+
+        Args:
+            survey: The Survey object to optimize agents for
+            model: OpenAI model for analysis (default: "gpt-4o")
+            temperature: Temperature for LLM calls (default: 0.3 for consistent analysis)
+            show_reasoning: If True, print trait selection reasoning
+
+        Returns:
+            AgentList: New agent list with optimized agents for the survey
+
+        Examples:
+            Basic usage:
+
+            >>> from edsl import Agent, AgentList, Survey
+            >>> agents = AgentList([  # doctest: +SKIP
+            ...     Agent(traits={"age": 30, "occupation": "teacher", "city": "Boston"}),
+            ...     Agent(traits={"age": 25, "occupation": "engineer", "city": "SF"})
+            ... ])
+            >>> survey = Survey([...])  # Workplace survey questions
+            >>> optimized = agents.vibe.design(survey)  # doctest: +SKIP
+
+            With reasoning display:
+
+            >>> optimized = agents.vibe.design(survey, show_reasoning=True)  # doctest: +SKIP
+            === Survey Analysis ===
+            Survey Type: Workplace satisfaction and experience survey
+
+            Trait Relevance Reasoning:
+              occupation: Highly relevant - survey asks about work experience
+              age: Somewhat relevant - provides context for career stage
+              city: Not relevant - survey doesn't ask about location
+
+        Notes:
+            - Requires OPENAI_API_KEY environment variable to be set
+            - Uses LLM to analyze trait relevance and generate optimizations
+            - Returns completely new agents (doesn't modify originals)
+            - Focuses on accuracy over naturalness in responses
+            - Handles edge cases gracefully (empty traits, LLM failures, etc.)
+        """
+        from .agent_list_survey_designer import AgentListSurveyDesigner
+
+        # Create the designer
+        designer = AgentListSurveyDesigner(model=model, temperature=temperature)
+
+        # Design and return optimized agent list
+        return designer.design_for_survey(
+            agent_list=self._agent_list,
+            survey=survey,
+            show_reasoning=show_reasoning
+        )
