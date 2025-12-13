@@ -17,18 +17,15 @@ def test_vibe_integration():
     headers = ["Q1", "Q2"]
     question_texts = [
         "whats ur name",  # This should be improved by vibe
-        "Rate our service from 1 to 5"
+        "Rate our service from 1 to 5",
     ]
-    import_ids = [
-        '{"ImportId":"QID1"}',
-        '{"ImportId":"QID2"}'
-    ]
+    import_ids = ['{"ImportId":"QID1"}', '{"ImportId":"QID2"}']
     responses = [
         ["John", "4"],
         ["Jane", "5"],
     ]
 
-    temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False)
+    temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False)
     writer = csv.writer(temp_file)
 
     writer.writerow(headers)
@@ -53,7 +50,9 @@ def test_vibe_integration():
         # Test 2: Import with vibe disabled (should work the same)
         print("\n2. Testing with vibe disabled...")
         vibe_config_disabled = VibeConfig(enabled=False)
-        importer2 = ImportQualtrics(temp_file.name, verbose=False, vibe_config=vibe_config_disabled)
+        importer2 = ImportQualtrics(
+            temp_file.name, verbose=False, vibe_config=vibe_config_disabled
+        )
         survey2 = importer2.survey
         print(f"   Survey created with {len(survey2.questions)} questions")
         print(f"   Q1 text: {survey2.questions[0].question_text}")
@@ -64,11 +63,13 @@ def test_vibe_integration():
             enabled=True,
             system_prompt="Fix grammar and improve clarity. Make the question more professional.",
             max_concurrent=1,
-            temperature=0.1
+            temperature=0.1,
         )
 
         try:
-            importer3 = ImportQualtrics(temp_file.name, verbose=True, vibe_config=vibe_config_enabled)
+            importer3 = ImportQualtrics(
+                temp_file.name, verbose=True, vibe_config=vibe_config_enabled
+            )
             survey3 = importer3.survey
             print(f"   Survey created with {len(survey3.questions)} questions")
             print(f"   Q1 original: {question_texts[0]}")
@@ -82,13 +83,16 @@ def test_vibe_integration():
             return True
 
         except Exception as e:
-            print(f"   ⚠️  Vibe processing failed (this may be expected if no model access): {e}")
+            print(
+                f"   ⚠️  Vibe processing failed (this may be expected if no model access): {e}"
+            )
             print("   ✅ Fallback to original functionality works")
             return True
 
     except Exception as e:
         print(f"❌ Test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -113,7 +117,7 @@ def test_vibe_config_creation():
         enabled=False,
         system_prompt="Custom prompt",
         max_concurrent=10,
-        timeout_seconds=60
+        timeout_seconds=60,
     )
     print(f"Custom enabled: {config2.enabled}")
     print(f"Custom max_concurrent: {config2.max_concurrent}")
@@ -133,7 +137,8 @@ if __name__ == "__main__":
     if success:
         print("\n🎉 Integration tests completed successfully!")
         print("\nUsage example:")
-        print("""
+        print(
+            """
 from qualtrics import ImportQualtrics
 from qualtrics.vibe import VibeConfig
 
@@ -148,6 +153,7 @@ vibe_config = VibeConfig(
 # Import with vibe enhancement
 importer = ImportQualtrics("survey.csv", vibe_config=vibe_config)
 enhanced_survey = importer.survey
-""")
+"""
+        )
     else:
         print("\n❌ Some tests failed!")

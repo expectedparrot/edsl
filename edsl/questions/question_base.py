@@ -925,6 +925,29 @@ class QuestionBase(
 
                 output.append("    ]", style=RICH_STYLES["default"])
 
+        # Question items (for QuestionMatrix/QuestionMatrixEntry)
+        if hasattr(self, "question_items") and self.question_items:
+            num_items = len(self.question_items)
+            if num_items > 0:
+                output.append(",\n", style=RICH_STYLES["default"])
+                output.append("    question_items=[\n", style=RICH_STYLES["default"])
+
+                for i, item in enumerate(list(self.question_items)[:max_options]):
+                    item_str = str(item)
+                    if len(item_str) > MAX_OPTION_LENGTH_VALUE:
+                        item_str = item_str[: MAX_OPTION_LENGTH_VALUE - 3] + "..."
+                    output.append("        ", style=RICH_STYLES["default"])
+                    output.append(f'"{item_str}"', style=RICH_STYLES["secondary"])
+                    output.append(",\n", style=RICH_STYLES["default"])
+
+                if num_items > max_options:
+                    output.append(
+                        f"        ... ({num_items - max_options} more)\n",
+                        style=RICH_STYLES["dim"],
+                    )
+
+                output.append("    ]", style=RICH_STYLES["default"])
+
         # Numerical constraints (for QuestionNumerical)
         if hasattr(self, "min_value") and self.min_value is not None:
             output.append(",\n", style=RICH_STYLES["default"])

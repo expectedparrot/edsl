@@ -4,7 +4,7 @@ AI-powered question analysis using OpenAI API for identifying conversion issues.
 
 import asyncio
 import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from pydantic import BaseModel, Field
 
 from edsl.questions import Question
@@ -12,13 +12,25 @@ from edsl.questions.question_description import EDSLQuestionDescription
 from edsl.base.openai_utils import create_openai_client
 
 
-
 class EDSLQuestionInfo:
     """Information about an EDSL question."""
 
-    exclude_list = ['budget', 'compute', 'demand', 'dict', 'dropdown', 'edsl_object', 'extract', 'file_upload', 'functional', 'markdown', 'pydantic', 'random']
+    exclude_list = [
+        "budget",
+        "compute",
+        "demand",
+        "dict",
+        "dropdown",
+        "edsl_object",
+        "extract",
+        "file_upload",
+        "functional",
+        "markdown",
+        "pydantic",
+        "random",
+    ]
 
-    def __init__(self): 
+    def __init__(self):
         self._question_info = {}
         self._prompt = None
 
@@ -27,7 +39,12 @@ class EDSLQuestionInfo:
         if self._prompt is None:
             self._prompt = ""
             from edsl.questions import question_registry
-            for question_type in [qt for qt in Question.available().select('question_type').to_list() if qt not in self.exclude_list]:
+
+            for question_type in [
+                qt
+                for qt in Question.available().select("question_type").to_list()
+                if qt not in self.exclude_list
+            ]:
                 question_class = question_registry.get_question_class(question_type)
                 info = question_class.__init__.__doc__
                 self._question_info[question_type] = info
@@ -37,39 +54,32 @@ class EDSLQuestionInfo:
             return self._prompt
 
 
-
 class QuestionAnalysisResult(BaseModel):
     """Structured result from question analysis."""
 
     improved_text: Optional[str] = Field(
         None,
-        description="Cleaned up version of the question text, or null if no technical issues found"
+        description="Cleaned up version of the question text, or null if no technical issues found",
     )
     improved_options: Optional[list[str]] = Field(
-        None,
-        description="Fixed question options list, or null if no issues found"
+        None, description="Fixed question options list, or null if no issues found"
     )
     suggested_type: Optional[str] = Field(
         None,
-        description="Better question type if current type is due to conversion error, or null"
+        description="Better question type if current type is due to conversion error, or null",
     )
     issues_found: list[str] = Field(
         default_factory=list,
-        description="List of technical conversion issues identified"
+        description="List of technical conversion issues identified",
     )
     recommendations: list[str] = Field(
-        default_factory=list,
-        description="List of specific technical fixes recommended"
+        default_factory=list, description="List of specific technical fixes recommended"
     )
     confidence: float = Field(
-        0.5,
-        description="Confidence level in the analysis (0.0 to 1.0)",
-        ge=0.0,
-        le=1.0
+        0.5, description="Confidence level in the analysis (0.0 to 1.0)", ge=0.0, le=1.0
     )
     reasoning: str = Field(
-        "",
-        description="Brief explanation of the technical issues and fixes"
+        "", description="Brief explanation of the technical issues and fixes"
     )
 
 
@@ -93,12 +103,13 @@ class QuestionAnalyzer:
             self._client = create_openai_client()
         return self._client
 
-    async def analyze_question(self, question: Question) -> Dict[str, Any]:
+    async def analyze_question(self, question: Question, response_data: Optional[Dict[str, List[str]]] = None) -> Dict[str, Any]:
         """
         Analyze a question for conversion issues using OpenAI API.
 
         Args:
             question: Question to analyze
+            response_data: Optional response data for extracting options
 
         Returns:
             Analysis results with suggested fixes
@@ -106,32 +117,33 @@ class QuestionAnalyzer:
         try:
             # Run the OpenAI API call in a thread to avoid blocking
             analysis = await asyncio.get_event_loop().run_in_executor(
-                None, self._analyze_question_sync, question
+                None, self._analyze_question_sync, question, response_data
             )
             return analysis.model_dump()
         except Exception as e:
             print(f"Analysis failed for {question.question_name}: {e}")
             return {
-                'improved_text': None,
-                'improved_options': None,
-                'suggested_type': None,
-                'issues_found': [],
-                'recommendations': [],
-                'confidence': 0.0,
-                'reasoning': f'Analysis failed: {str(e)}'
+                "improved_text": None,
+                "improved_options": None,
+                "suggested_type": None,
+                "issues_found": [],
+                "recommendations": [],
+                "confidence": 0.0,
+                "reasoning": f"Analysis failed: {str(e)}",
             }
 
-    def _analyze_question_sync(self, question: Question) -> QuestionAnalysisResult:
+    def _analyze_question_sync(self, question: Question, response_data: Optional[Dict[str, List[str]]] = None) -> QuestionAnalysisResult:
         """
         Synchronous analysis using OpenAI API.
 
         Args:
             question: Question to analyze
+            response_data: Optional response data for extracting options
 
         Returns:
             QuestionAnalysisResult with fixes
         """
-        prompt = self._create_analysis_prompt(question)
+        prompt = self._create_analysis_prompt(question, response_data)
 
         response = self.client.responses.parse(
             model=self.config.model or "gpt-4o",
@@ -145,24 +157,50 @@ class QuestionAnalyzer:
 
         return response.output_parsed
 
-    def _create_analysis_prompt(self, question: Question) -> str:
+    def _create_analysis_prompt(self, question: Question, response_data: Optional[Dict[str, List[str]]] = None) -> str:
         """
         Create the analysis prompt for the AI.
 
         Args:
             question: Question to analyze
+            response_data: Optional response data for extracting options
 
         Returns:
             Analysis prompt string
         """
         question_info = {
-            'name': question.question_name,
-            'text': question.question_text,
-            'type': question.__class__.__name__,
-            'options': getattr(question, 'question_options', None)
+            "name": question.question_name,
+            "text": question.question_text,
+            "type": question.__class__.__name__,
+            "options": getattr(question, "question_options", None),
+            "items": getattr(question, "question_items", None),
+            "columns": getattr(question, "question_columns", None),
+            "min_value": getattr(question, "min_value", None),
+            "max_value": getattr(question, "max_value", None),
         }
 
         edsl_question_info = EDSLQuestionInfo().prompt
+
+        # Check if we have response data for this question
+        actual_responses = None
+        if response_data and question.question_name in response_data:
+            actual_responses = response_data[question.question_name]
+
+        response_data_section = ""
+        if actual_responses:
+            # Get unique responses, limited to first 20 to avoid overwhelming the AI
+            unique_responses = list(set(actual_responses))[:20]
+            response_data_section = f"""
+
+ACTUAL RESPONSE DATA:
+The following are actual responses from survey participants for this question:
+{unique_responses}
+
+If converting to QuestionMultipleChoiceWithOther, use these actual responses to extract the most common options.
+Analyze the responses to identify the main categories and use those as question_options in improved_options.
+For example, if you see responses like "Banking", "Healthcare", "Technology", "Education", "Other: Consulting",
+then improved_options should be ["Banking", "Healthcare", "Technology", "Education"] (excluding "Other" responses).
+"""
 
         prompt = f"""
 Analyze the following survey question for TECHNICAL conversion errors from Qualtrics CSV export:
@@ -171,6 +209,9 @@ Question Name: {question_info['name']}
 Question Text: {question_info['text']}
 Current Question Type: {question_info['type']}
 Current Question Options: {question_info['options']}
+Current Question Items: {question_info['items']}
+Current Question Columns: {question_info['columns']}
+Current Scale Range: {question_info['min_value']}-{question_info['max_value']}{response_data_section}
 
 ANALYSIS FOCUS:
 Look ONLY for technical conversion issues such as:
@@ -187,7 +228,9 @@ Common conversion errors to check:
 - Agree/disagree statements should be QuestionLikertFive, not QuestionMultipleChoice
 - Yes/No questions should be QuestionYesNo, not QuestionMultipleChoice
 - Open text should be QuestionFreeText, not QuestionMultipleChoice
+- Text questions with common categorical responses should be QuestionMultipleChoiceWithOther
 - Incomplete option lists (e.g., [3,5] instead of [1,2,3,4,5] for a 1-5 scale)
+- IMPORTANT: Do NOT convert QuestionMatrix to QuestionMatrixEntry if the QuestionMatrix has proper structure (question_items as scenarios, question_options as rating scale numbers, option_labels as scale endpoints). QuestionMatrix is correct for rating multiple scenarios on a scale.
 
 Provide your analysis focusing only on technical conversion artifacts that need fixing.
 

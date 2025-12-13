@@ -19,21 +19,13 @@ def test_vibe_logging():
     question_texts = [
         "What is your name?",  # Clean question, should not be changed
         "<p>Rate our <b>service</b> from 1-5</p>",  # HTML artifacts - SHOULD be fixed
-        "How satisfied are you with our product? &nbsp;&lt;required&gt;"  # HTML entities - SHOULD be fixed
+        "How satisfied are you with our product? &nbsp;&lt;required&gt;",  # HTML entities - SHOULD be fixed
     ]
-    import_ids = [
-        '{"ImportId":"QID1"}',
-        '{"ImportId":"QID2"}',
-        '{"ImportId":"QID3"}'
-    ]
-    responses = [
-        ["John", "4", "25"],
-        ["Jane", "5", "30"],
-        ["Bob", "3", "35"]
-    ]
+    import_ids = ['{"ImportId":"QID1"}', '{"ImportId":"QID2"}', '{"ImportId":"QID3"}']
+    responses = [["John", "4", "25"], ["Jane", "5", "30"], ["Bob", "3", "35"]]
 
     # Create temporary CSV
-    temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False)
+    temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False)
     writer = csv.writer(temp_file)
 
     writer.writerow(headers)
@@ -54,11 +46,13 @@ def test_vibe_logging():
             enable_logging=True,
             verbose_logging=True,  # Show detailed diffs
             max_concurrent=1,  # Process sequentially for clearer logs
-            timeout_seconds=15
+            timeout_seconds=15,
         )
 
         print(f"\n1. Testing with comprehensive logging...")
-        importer = ImportQualtrics(temp_file.name, verbose=True, vibe_config=vibe_config)
+        importer = ImportQualtrics(
+            temp_file.name, verbose=True, vibe_config=vibe_config
+        )
         survey = importer.survey
 
         print(f"\n2. Survey created with {len(survey.questions)} questions")
@@ -111,6 +105,7 @@ def test_vibe_logging():
     except Exception as e:
         print(f"❌ Test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -126,7 +121,7 @@ def test_vibe_disabled_logging():
     import_ids = ['{"ImportId":"QID1"}']
     responses = [["answer"]]
 
-    temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False)
+    temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False)
     writer = csv.writer(temp_file)
 
     writer.writerow(headers)
@@ -150,7 +145,9 @@ def test_vibe_disabled_logging():
         print(f"Total changes: {summary['total_changes']}")
 
         assert len(change_log) == 0, "Should have no changes when vibe disabled"
-        assert summary['total_changes'] == 0, "Should report no changes when vibe disabled"
+        assert (
+            summary["total_changes"] == 0
+        ), "Should report no changes when vibe disabled"
 
         print("✅ Vibe disabled test passed!")
         return True

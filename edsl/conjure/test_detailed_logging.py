@@ -3,6 +3,7 @@
 Test with detailed logging to see conversion failures.
 """
 
+
 def test_detailed_logging():
     """Test with maximum verbosity to see conversion details."""
     print("Testing detailed conversion logging...")
@@ -18,12 +19,15 @@ def test_detailed_logging():
             enable_logging=True,
             verbose_logging=True,  # This will show all the detailed conversion attempts
             max_concurrent=1,  # Process one at a time for cleaner logs
-            timeout_seconds=30
+            timeout_seconds=30,
         )
 
         # Import with detailed logging
         from qualtrics import ImportQualtrics
-        importer = ImportQualtrics('ai_tracking_new.csv', verbose=True, vibe_config=custom_config)
+
+        importer = ImportQualtrics(
+            "ai_tracking_new.csv", verbose=True, vibe_config=custom_config
+        )
 
         # This will trigger the vibe processing with extensive logging
         survey = importer.survey
@@ -36,6 +40,7 @@ def test_detailed_logging():
     except Exception as e:
         print(f"\n❌ ERROR: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

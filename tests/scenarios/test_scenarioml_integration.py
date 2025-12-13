@@ -204,7 +204,7 @@ class TestScenarioMLIntegration:
         assert feature_types['numeric_feature'] == 'numeric'
         assert feature_types['categorical_feature'] == 'categorical'
         assert feature_types['ordinal_feature'] == 'ordinal'
-        assert feature_types['text_list_feature'] == 'text_list'
+        assert feature_types['text_list_feature'] == 'list_dummy'
 
         # Train model
         model_selector = ModelSelector()
@@ -483,3 +483,99 @@ class TestScenarioMLIntegration:
         assert isinstance(summary, str)
         assert 'ScenarioML' in summary
         assert diagnostics['model_name'] in summary
+
+    def test_dummy_encoding_integration(self):
+        """Test integration of dummy encoding for list features."""
+        from edsl.scenarios.scenarioml.feature_processor import FeatureProcessor
+        from edsl.scenarios.scenarioml.model_selector import ModelSelector
+        from edsl.scenarios.scenarioml.prediction import Prediction
+
+        # Create test data with list features
+        list_data = [
+            {'tools_used': "['Salesforce', 'HubSpot']", 'company_size': '50', 'will_renew': 'Yes'},
+            {'tools_used': "['Slack', 'Zoom']", 'company_size': '100', 'will_renew': 'No'},
+            {'tools_used': "['Salesforce', 'Slack']", 'company_size': '200', 'will_renew': 'Yes'},
+            {'tools_used': "['HubSpot', 'Zoom']", 'company_size': '25', 'will_renew': 'No'},
+            {'tools_used': "['Salesforce', 'HubSpot', 'Slack']", 'company_size': '150', 'will_renew': 'Yes'},
+            {'tools_used': "['Zoom']", 'company_size': '75', 'will_renew': 'No'},
+            {'tools_used': "['Salesforce', 'Zoom', 'HubSpot']", 'company_size': '300', 'will_renew': 'Yes'},
+            {'tools_used': "['Slack', 'HubSpot']", 'company_size': '80', 'will_renew': 'No'},
+            {'tools_used': "['Salesforce']", 'company_size': '120', 'will_renew': 'Yes'},
+            {'tools_used': "['Slack', 'Zoom', 'HubSpot']", 'company_size': '90', 'will_renew': 'No'},
+        ]
+
+        df = pd.DataFrame(list_data)
+
+        # Test with dummy encoding (default behavior)
+        feature_processor_dummy = FeatureProcessor()
+        X_dummy = feature_processor_dummy.fit_transform(df, 'will_renew')
+
+        # Should have dummy variables for each unique tool
+        tools_processor = feature_processor_dummy.processors['tools_used']
+        assert tools_processor['type'] == 'list_dummy'
+        expected_tools = ['HubSpot', 'Salesforce', 'Slack', 'Zoom']
+        assert tools_processor['unique_items'] == expected_tools
+
+        # Should have feature names for each tool
+        expected_feature_names = ['tools_used_HubSpot', 'tools_used_Salesforce', 'tools_used_Slack', 'tools_used_Zoom']
+        assert tools_processor['feature_names'] == expected_feature_names
+
+        # Compare with TF-IDF encoding
+        feature_processor_tfidf = FeatureProcessor(list_encoding="tfidf")
+        X_tfidf = feature_processor_tfidf.fit_transform(df, 'will_renew')
+
+        # TF-IDF should create different features
+        tools_processor_tfidf = feature_processor_tfidf.processors['tools_used']
+        assert tools_processor_tfidf['type'] == 'text_list'
+
+        # Train models and compare
+        y_values = df['will_renew'].values
+        model_selector = ModelSelector()
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            # Train with dummy encoding
+            model_results_dummy = model_selector.compare_models(X_dummy, y_values, feature_processor_dummy.feature_names)
+            best_model_dummy = model_selector.select_best_model(model_results_dummy)
+
+            # Train with TF-IDF encoding
+            model_results_tfidf = model_selector.compare_models(X_tfidf, y_values, feature_processor_tfidf.feature_names)
+            best_model_tfidf = model_selector.select_best_model(model_results_tfidf)
+
+        # Both should produce valid models
+        assert len(model_results_dummy) >= 1
+        assert len(model_results_tfidf) >= 1
+        assert 0 <= best_model_dummy.cv_score <= 1
+        assert 0 <= best_model_tfidf.cv_score <= 1
+
+        # Create predictions and test
+        prediction_dummy = Prediction(
+            model_result=best_model_dummy,
+            feature_processor=feature_processor_dummy,
+            target_column='will_renew'
+        )
+
+        prediction_tfidf = Prediction(
+            model_result=best_model_tfidf,
+            feature_processor=feature_processor_tfidf,
+            target_column='will_renew'
+        )
+
+        # Test predictions on new data
+        new_customer = {'tools_used': "['Salesforce', 'Slack']", 'company_size': '100'}
+
+        pred_dummy = prediction_dummy.predict(new_customer)
+        pred_tfidf = prediction_tfidf.predict(new_customer)
+
+        # Both should return valid predictions
+        assert pred_dummy in ['Yes', 'No']
+        assert pred_tfidf in ['Yes', 'No']
+
+        # Test that feature info contains the dummy variables
+        feature_info_dummy = feature_processor_dummy.get_feature_info()
+        tools_info = next((info for info in feature_info_dummy if info['column'] == 'tools_used'), None)
+        assert tools_info is not None
+        assert tools_info['type'] == 'list_dummy'
+        assert 'unique_items' in tools_info
+        assert set(tools_info['unique_items']) == {'HubSpot', 'Salesforce', 'Slack', 'Zoom'}

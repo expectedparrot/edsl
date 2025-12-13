@@ -3399,7 +3399,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         # Generate the requested number of profiles
         return generator.generate_batch(count)
 
-    def predict(self, y: str, **kwargs) -> "Prediction":
+    def predict(self, y: str, list_encoding: str = "dummy", **kwargs) -> "Prediction":
         """
         Build a predictive model using AutoML with automatic feature engineering.
 
@@ -3409,6 +3409,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         Args:
             y: Name of the target column to predict
+            list_encoding: Method for encoding list features. Options:
+                          'dummy' for dummy/binary variables (default)
+                          'tfidf' for TF-IDF encoding
             **kwargs: Additional arguments (reserved for future extensions)
 
         Returns:
@@ -3490,7 +3493,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         try:
             # Initialize processors
-            feature_processor = FeatureProcessor()
+            feature_processor = FeatureProcessor(list_encoding=list_encoding)
             model_selector = ModelSelector()
 
             # Process features

@@ -1787,7 +1787,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def from_qualtrics(
         cls,
         filepath: str,
-        verbose: bool = False,
+        verbose: bool = True,
         create_semantic_names: bool = False,
         disable_remote_inference: bool = True,
         **run_kwargs,
@@ -2467,6 +2467,194 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             ResultsError: If there's an error during deserialization
         """
         return ResultsSerializer.from_disk(filepath)
+
+    def remove_question(self, *question_names: str) -> "Results":
+        """Return a new Results object with the specified question(s) removed from survey and all results.
+
+        This method creates a completely new Results object where:
+        1. The survey has the specified question(s) removed
+        2. All Result objects have the question(s) removed from their answer dictionaries and related fields
+        3. The original Results object is not modified
+
+        Args:
+            *question_names: Variable number of question names to remove
+
+        Returns:
+            Results: A new Results object with the question(s) removed
+
+        Raises:
+            ValueError: If no question names are provided or if any question_name is not found in the survey
+
+        Examples:
+            >>> r = Results.example()
+            >>> len(r.survey.question_names)
+            2
+            >>> r_new = r.remove_question('how_feeling')
+            >>> len(r_new.survey.question_names)
+            1
+            >>> 'how_feeling' in r.survey.question_names
+            True
+            >>> 'how_feeling' in r_new.survey.question_names
+            False
+
+            >>> # Remove multiple questions at once
+            >>> r_empty = r.remove_question('how_feeling', 'how_feeling_yesterday')
+            >>> len(r_empty.survey.question_names)
+            0
+        """
+        # Validate that at least one question name is provided
+        if not question_names:
+            raise ValueError("At least one question name must be provided")
+
+        # Validate that all questions exist
+        for q_name in question_names:
+            if q_name not in self.survey.question_names:
+                available_questions = ', '.join(self.survey.question_names)
+                raise ValueError(f"Question '{q_name}' not found in survey. Available questions: {available_questions}")
+
+        # Create new survey with the questions removed
+        new_survey = self.survey.drop(*question_names)
+
+        # Create new Result objects with the questions removed from all relevant fields
+        new_data = []
+        for result in self.data:
+            # Create a new dictionary for the result, copying all data
+            new_result_data = {}
+            for key, value in result.data.items():
+                if isinstance(value, dict):
+                    # For dictionary fields, remove keys that match any of the question names exactly
+                    # or start with any question name followed by underscore (but not if it's a longer question name)
+                    new_dict = {}
+                    for k, v in value.items():
+                        should_keep = True
+
+                        # Check against all question names to remove
+                        for question_name in question_names:
+                            if k == question_name:
+                                # Exact match - remove it
+                                should_keep = False
+                                break
+                            elif k.startswith(question_name + "_"):
+                                # Starts with question_name_ - remove it unless it's part of a longer question name
+                                # We need to be careful not to remove "how_feeling_yesterday" when removing "how_feeling"
+                                # Check if this key corresponds to a different question that just starts with our question name
+                                remaining_part = k[len(question_name + "_"):]
+                                if remaining_part in ["user_prompt", "system_prompt", "raw_model_response", "input_tokens",
+                                                    "output_tokens", "input_price_per_million_tokens", "output_price_per_million_tokens",
+                                                    "cost", "one_usd_buys", "generated_tokens", "comment", "reasoning_summary",
+                                                    "validated"]:
+                                    # This is definitely a field related to our question, remove it
+                                    should_keep = False
+                                    break
+                                # If remaining_part is not in our known suffixes, it might be part of another question name
+                                # In this case, we keep it (like how_feeling_yesterday when removing how_feeling)
+
+                        if should_keep:
+                            new_dict[k] = v
+                    new_result_data[key] = new_dict
+                else:
+                    # For non-dict fields, copy as-is
+                    new_result_data[key] = value
+
+            # Create new Result object with the cleaned data
+            new_result = Result(
+                agent=result.data["agent"],
+                scenario=result.data["scenario"],
+                model=result.data["model"],
+                iteration=result.data["iteration"],
+                answer=new_result_data.get("answer", {}),
+                prompt=new_result_data.get("prompt", {}),
+                raw_model_response=new_result_data.get("raw_model_response", {}),
+                survey=new_survey,
+                question_to_attributes=new_result_data.get("question_to_attributes", {}),
+                generated_tokens=new_result_data.get("generated_tokens", {}),
+                comments_dict=new_result_data.get("comments_dict", {}),
+                reasoning_summaries_dict=new_result_data.get("reasoning_summaries_dict", {}),
+                cache_used_dict=new_result_data.get("cache_used_dict", {}),
+                indices=result.indices,
+                cache_keys=new_result_data.get("cache_keys", {}),
+                validated_dict=new_result_data.get("validated_dict", {}),
+            )
+            new_data.append(new_result)
+
+        # Create new Results object with the new survey and data
+        new_results = Results(
+            survey=new_survey,
+            data=new_data,
+            name=self.name,
+            created_columns=self.created_columns.copy() if self.created_columns else None,
+            cache=self.cache,
+            job_uuid=self._job_uuid,
+            total_results=self._total_results,
+            task_history=self.task_history,
+        )
+
+        return new_results
+
+    def keep_question(self, *question_names: str) -> "Results":
+        """Return a new Results object keeping only the specified questions and removing all others.
+
+        This method creates a completely new Results object where:
+        1. The survey contains only the specified questions
+        2. All Result objects have only the specified questions in their answer dictionaries and related fields
+        3. The original Results object is not modified
+
+        This is the inverse of remove_question() - it keeps the specified questions and removes everything else.
+
+        Args:
+            *question_names: Variable number of question names to keep
+
+        Returns:
+            Results: A new Results object with only the specified questions
+
+        Raises:
+            ValueError: If no question names are provided or if any question_name is not found in the survey
+
+        Examples:
+            >>> r = Results.example()
+            >>> len(r.survey.question_names)
+            2
+            >>> r_subset = r.keep_question('how_feeling')
+            >>> len(r_subset.survey.question_names)
+            1
+            >>> r_subset.survey.question_names
+            ['how_feeling']
+
+            >>> # Keep multiple questions
+            >>> r_both = r.keep_question('how_feeling', 'how_feeling_yesterday')
+            >>> r_both.survey.question_names
+            ['how_feeling', 'how_feeling_yesterday']
+        """
+        # Validate that at least one question name is provided
+        if not question_names:
+            raise ValueError("At least one question name must be provided")
+
+        # Validate that all questions exist
+        for q_name in question_names:
+            if q_name not in self.survey.question_names:
+                available_questions = ', '.join(self.survey.question_names)
+                raise ValueError(f"Question '{q_name}' not found in survey. Available questions: {available_questions}")
+
+        # Find questions to remove (inverse of what we want to keep)
+        questions_to_remove = [q for q in self.survey.question_names if q not in question_names]
+
+        # If no questions to remove, return a copy of the original
+        if not questions_to_remove:
+            # Use the existing remove_question method with an empty list (which we'll handle gracefully)
+            # Actually, let's just create a copy by removing nothing
+            return Results(
+                survey=self.survey,
+                data=self.data,
+                name=self.name,
+                created_columns=self.created_columns.copy() if self.created_columns else None,
+                cache=self.cache,
+                job_uuid=self._job_uuid,
+                total_results=self._total_results,
+                task_history=self.task_history,
+            )
+
+        # Use the existing remove_question method to remove unwanted questions
+        return self.remove_question(*questions_to_remove)
 
 
 def main():  # pragma: no cover

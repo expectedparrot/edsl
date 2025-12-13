@@ -47,6 +47,7 @@ class ModelResult:
     train_score: Optional[float] = None
     selection_score: Optional[float] = None
     problem_type: Optional[str] = None  # 'classification' or 'regression'
+    training_data: Optional[tuple] = None  # (X_train, y_train) for standard error calculation
 
 
 class ModelSelector:
@@ -361,6 +362,7 @@ class ModelSelector:
             feature_names=feature_names,
             train_score=train_score,
             problem_type="classification",
+            training_data=(X_train, y_train),
         )
 
     def _evaluate_regression_model(
@@ -424,6 +426,7 @@ class ModelSelector:
             feature_names=feature_names,
             train_score=train_score,
             problem_type="regression",
+            training_data=(X_train, y_train),
         )
 
     def select_best_model(self, results: List[ModelResult]) -> ModelResult:
@@ -590,3 +593,130 @@ class ModelSelector:
             # Return equal importance as fallback
             equal_importance = 1.0 / len(feature_names)
             return {name: equal_importance for name in feature_names}
+
+    def get_coefficients_and_errors(self, model_result: ModelResult) -> Dict[str, Dict[str, float]]:
+        """
+        Get model coefficients and standard errors for linear models.
+
+        Args:
+            model_result: Trained model result
+
+        Returns:
+            Dictionary with feature names as keys and dictionaries containing
+            'coefficient' and 'std_error' as values. Returns None if model
+            doesn't support coefficients.
+        """
+        model = model_result.model
+        feature_names = model_result.feature_names
+
+        # Check if model supports coefficients
+        if not hasattr(model, "coef_"):
+            return None
+
+        try:
+            # Get coefficients
+            if model.coef_.ndim > 1:
+                coefficients = model.coef_[0]  # For binary classification
+            else:
+                coefficients = model.coef_
+
+            # Calculate standard errors (simplified approach for now)
+            std_errors = self._calculate_standard_errors(model_result)
+
+            # Create result dictionary
+            result = {}
+            for i, feature_name in enumerate(feature_names):
+                result[feature_name] = {
+                    'coefficient': float(coefficients[i]),
+                    'std_error': float(std_errors[i]) if std_errors is not None else None,
+                    'z_score': float(coefficients[i] / std_errors[i]) if std_errors is not None and std_errors[i] != 0 else None,
+                    'p_value': self._calculate_p_value(coefficients[i], std_errors[i]) if std_errors is not None and std_errors[i] != 0 else None
+                }
+
+            return result
+
+        except Exception as e:
+            warnings.warn(f"Could not extract coefficients and standard errors: {str(e)}")
+            return None
+
+    def _calculate_standard_errors(self, model_result: ModelResult) -> np.ndarray:
+        """
+        Calculate standard errors for model coefficients using bootstrap method.
+
+        For linear models, we use a simplified bootstrap approach to estimate
+        standard errors when analytical methods aren't available.
+        """
+        model = model_result.model
+
+        try:
+            # Store training data in model_result if available
+            if hasattr(model_result, 'training_data'):
+                X_train, y_train = model_result.training_data
+                return self._bootstrap_standard_errors(model, X_train, y_train)
+            else:
+                # If no training data stored, return None
+                # This could be improved by storing training data during model fitting
+                return None
+
+        except Exception as e:
+            warnings.warn(f"Could not calculate standard errors: {str(e)}")
+            return None
+
+    def _bootstrap_standard_errors(self, model, X: np.ndarray, y: np.ndarray, n_bootstrap: int = 100) -> np.ndarray:
+        """
+        Calculate standard errors using bootstrap resampling.
+
+        Args:
+            model: Fitted model
+            X: Feature matrix
+            y: Target vector
+            n_bootstrap: Number of bootstrap samples
+
+        Returns:
+            Array of standard errors for each coefficient
+        """
+        try:
+            from sklearn.utils import resample
+
+            n_samples, n_features = X.shape
+            coefficients_bootstrap = np.zeros((n_bootstrap, n_features))
+
+            # Create bootstrap samples and refit model
+            for i in range(n_bootstrap):
+                # Resample with replacement
+                X_boot, y_boot = resample(X, y, random_state=i)
+
+                # Create new model instance with same parameters
+                boot_model = type(model)(**model.get_params())
+
+                # Fit on bootstrap sample
+                boot_model.fit(X_boot, y_boot)
+
+                # Extract coefficients
+                if boot_model.coef_.ndim > 1:
+                    coefficients_bootstrap[i] = boot_model.coef_[0]
+                else:
+                    coefficients_bootstrap[i] = boot_model.coef_
+
+            # Calculate standard errors as standard deviation across bootstrap samples
+            std_errors = np.std(coefficients_bootstrap, axis=0)
+            return std_errors
+
+        except Exception as e:
+            warnings.warn(f"Bootstrap standard error calculation failed: {str(e)}")
+            return None
+
+    def _calculate_p_value(self, coefficient: float, std_error: float) -> float:
+        """Calculate p-value for coefficient using z-test approximation."""
+        if std_error is None or std_error == 0:
+            return None
+
+        try:
+            from scipy import stats
+            z_score = coefficient / std_error
+            # Two-tailed test
+            p_value = 2 * (1 - stats.norm.cdf(abs(z_score)))
+            return float(p_value)
+        except ImportError:
+            # scipy not available
+            return None

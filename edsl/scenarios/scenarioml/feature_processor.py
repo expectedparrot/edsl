@@ -22,11 +22,19 @@ class FeatureProcessor:
     appropriate preprocessing with robust handling of missing values and unseen data.
     """
 
-    def __init__(self):
-        """Initialize the feature processor."""
+    def __init__(self, list_encoding="dummy"):
+        """
+        Initialize the feature processor.
+
+        Args:
+            list_encoding: Method for encoding list features.
+                          'dummy' for dummy/binary encoding (default)
+                          'tfidf' for TF-IDF encoding
+        """
         self.processors: Dict[str, Dict[str, Any]] = {}
         self.feature_names: List[str] = []
         self._ordinal_patterns = self._init_ordinal_patterns()
+        self.list_encoding = list_encoding
 
     def _init_ordinal_patterns(self) -> Dict[str, Dict[str, int]]:
         """Initialize ordinal pattern mappings."""
@@ -104,7 +112,10 @@ class FeatureProcessor:
 
         # Check for text lists
         if self._is_text_list(str_series):
-            return "text_list"
+            if self.list_encoding == "dummy":
+                return "list_dummy"
+            else:
+                return "text_list"
 
         # Check for ordinal patterns
         if self._is_ordinal(str_series):
@@ -229,6 +240,10 @@ class FeatureProcessor:
                 processor_info = self._fit_text_list(series, col)
                 features = self._transform_text_list(series, processor_info)
 
+            elif feature_type == "list_dummy":
+                processor_info = self._fit_list_dummy(series, col)
+                features = self._transform_list_dummy(series, processor_info)
+
             else:  # categorical
                 processor_info = self._fit_categorical(series, col)
                 features = self._transform_categorical(series, processor_info)
@@ -274,6 +289,8 @@ class FeatureProcessor:
                 features = self._transform_ordinal(series, processor_info)
             elif feature_type == "text_list":
                 features = self._transform_text_list(series, processor_info)
+            elif feature_type == "list_dummy":
+                features = self._transform_list_dummy(series, processor_info)
             else:  # categorical
                 features = self._transform_categorical(series, processor_info)
 
@@ -432,6 +449,80 @@ class FeatureProcessor:
 
         return series.apply(clean_text)
 
+    def _fit_list_dummy(self, series: pd.Series, col_name: str) -> Dict[str, Any]:
+        """Fit list dummy variable processor."""
+        # Extract all unique items from all lists
+        all_items = set()
+
+        for value in series:
+            if pd.isna(value):
+                continue
+
+            # Parse the list items
+            items = self._parse_list_items(str(value))
+            all_items.update(items)
+
+        # Sort items for consistent ordering
+        unique_items = sorted(list(all_items))
+
+        # Create feature names
+        feature_names = [f"{col_name}_{item}" for item in unique_items]
+        self.feature_names.extend(feature_names)
+
+        return {
+            "type": "list_dummy",
+            "unique_items": unique_items,
+            "feature_names": feature_names,
+        }
+
+    def _transform_list_dummy(
+        self, series: pd.Series, processor_info: Dict[str, Any]
+    ) -> np.ndarray:
+        """Transform list features into dummy variables."""
+        unique_items = processor_info["unique_items"]
+        n_samples = len(series)
+        n_features = len(unique_items)
+
+        # Initialize dummy matrix
+        dummy_matrix = np.zeros((n_samples, n_features))
+
+        for i, value in enumerate(series):
+            if pd.isna(value):
+                continue  # Leave as zeros for missing values
+
+            # Parse the list items for this sample
+            items = self._parse_list_items(str(value))
+
+            # Set 1 for each item that appears in this sample
+            for item in items:
+                if item in unique_items:
+                    item_idx = unique_items.index(item)
+                    dummy_matrix[i, item_idx] = 1
+
+        return dummy_matrix
+
+    def _parse_list_items(self, value_str: str) -> List[str]:
+        """Parse list items from string representation."""
+        if not value_str or value_str.strip() == "":
+            return []
+
+        # Clean the string similar to _clean_text_lists but preserve individual items
+        cleaned = (
+            value_str.replace("[", "")
+            .replace("]", "")
+            .replace("'", "")
+            .replace('"', "")
+            .strip()
+        )
+
+        # Split by commas and clean each item
+        items = [item.strip() for item in cleaned.split(",")]
+
+        # Filter out empty items
+        items = [item for item in items if item and item.strip()]
+
+        return items
+
     def get_feature_info(self) -> List[Dict[str, Any]]:
         """
         Get information about processed features.
@@ -454,6 +545,8 @@ class FeatureProcessor:
                 processor_info["type"] == "categorical" and "encoder" in processor_info
             ):
                 info["categories"] = list(processor_info["encoder"].classes_)
+            elif processor_info["type"] == "list_dummy" and "unique_items" in processor_info:
+                info["unique_items"] = processor_info["unique_items"]
 
             feature_info.append(info)
 

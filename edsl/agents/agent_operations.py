@@ -29,6 +29,8 @@ class AgentOperations:
                 - Single field name: drop("age")
                 - Multiple field names: drop("age", "height")
                 - List of field names: drop(["age", "height"])
+                - Wildcard patterns: drop("_*"), drop("custom_*")
+                - Mixed patterns: drop("age", "_*", "custom_data_*")
 
         Returns:
             A new Agent instance with the specified fields dropped
@@ -51,6 +53,13 @@ class AgentOperations:
             >>> a_dropped.traits
             {'hair': 'brown'}
 
+            Drop using wildcards:
+
+            >>> a = Agent(traits={"_custom_data_1": "x", "_custom_data_2": "y", "age": 30})
+            >>> a_dropped = AgentOperations.drop(a, "_custom_data_*")
+            >>> a_dropped.traits
+            {'age': 30}
+
             Drop an agent field like name:
 
             >>> a = Agent(traits={"age": 30}, name="John")
@@ -59,19 +68,46 @@ class AgentOperations:
             True
         """
         from .exceptions import AgentErrors
+        import re
 
         # Handle different input formats
         if len(field_names) == 1 and isinstance(field_names[0], list):
             # Case: drop(["field1", "field2"])
-            fields_to_drop = field_names[0]
+            field_patterns = field_names[0]
         else:
             # Case: drop("field1") or drop("field1", "field2")
-            fields_to_drop = list(field_names)
+            field_patterns = list(field_names)
 
-        if not fields_to_drop:
+        if not field_patterns:
             raise AgentErrors("No field names provided to drop")
 
         d = agent.to_dict()
+
+        # Get all available fields (both traits and top-level fields)
+        available_traits = list(d.get("traits", {}).keys())
+        available_fields = list(d.keys())
+        all_available = available_traits + available_fields
+
+        # Expand wildcards to concrete field names
+        fields_to_drop = []
+        for pattern in field_patterns:
+            if "*" in pattern:
+                # Handle wildcard pattern
+                regex_pattern = re.escape(pattern).replace(r"\*", ".*")
+                regex_pattern = f"^{regex_pattern}$"
+                compiled_pattern = re.compile(regex_pattern)
+
+                matches = [
+                    field for field in all_available
+                    if compiled_pattern.match(field)
+                ]
+                fields_to_drop.extend(matches)
+            else:
+                # Handle exact field name
+                fields_to_drop.append(pattern)
+
+        # Remove duplicates while preserving order
+        fields_to_drop = list(dict.fromkeys(fields_to_drop))
 
         # Check that all fields exist before dropping any
         missing_fields = []
@@ -133,6 +169,8 @@ class AgentOperations:
                 - Single field name: keep("age")
                 - Multiple field names: keep("age", "height")
                 - List of field names: keep(["age", "height"])
+                - Wildcard patterns: keep("_*"), keep("custom_*")
+                - Mixed patterns: keep("age", "_*", "name")
 
         Returns:
             A new Agent instance with only the specified fields kept
@@ -155,6 +193,13 @@ class AgentOperations:
             >>> a_kept.traits
             {'age': 30, 'height': 5.5}
 
+            Keep using wildcards:
+
+            >>> a = Agent(traits={"_custom_data_1": "x", "_custom_data_2": "y", "age": 30})
+            >>> a_kept = AgentOperations.keep(a, "_custom_data_*")
+            >>> a_kept.traits
+            {'_custom_data_1': 'x', '_custom_data_2': 'y'}
+
             Keep agent fields and traits:
 
             >>> a = Agent(traits={"age": 30, "hair": "brown"}, name="John")
@@ -165,19 +210,46 @@ class AgentOperations:
             {'age': 30}
         """
         from .exceptions import AgentErrors
+        import re
 
         # Handle different input formats
         if len(field_names) == 1 and isinstance(field_names[0], list):
             # Case: keep(["field1", "field2"])
-            fields_to_keep = field_names[0]
+            field_patterns = field_names[0]
         else:
             # Case: keep("field1") or keep("field1", "field2")
-            fields_to_keep = list(field_names)
+            field_patterns = list(field_names)
 
-        if not fields_to_keep:
+        if not field_patterns:
             raise AgentErrors("No field names provided to keep")
 
         d = agent.to_dict()
+
+        # Get all available fields (both traits and top-level fields)
+        available_traits = list(d.get("traits", {}).keys())
+        available_fields = list(d.keys())
+        all_available = available_traits + available_fields
+
+        # Expand wildcards to concrete field names
+        fields_to_keep = []
+        for pattern in field_patterns:
+            if "*" in pattern:
+                # Handle wildcard pattern
+                regex_pattern = re.escape(pattern).replace(r"\*", ".*")
+                regex_pattern = f"^{regex_pattern}$"
+                compiled_pattern = re.compile(regex_pattern)
+
+                matches = [
+                    field for field in all_available
+                    if compiled_pattern.match(field)
+                ]
+                fields_to_keep.extend(matches)
+            else:
+                # Handle exact field name
+                fields_to_keep.append(pattern)
+
+        # Remove duplicates while preserving order
+        fields_to_keep = list(dict.fromkeys(fields_to_keep))
 
         # Check that all requested fields exist
         available_fields = set(d.keys()) | set(d.get("traits", {}).keys())

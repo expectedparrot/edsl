@@ -23,6 +23,69 @@ from collections import UserList
 import inspect
 
 from .. import logger
+import re
+
+
+def create_alias(proposed_title: str, max_words: int = 4) -> str:
+    """Create a valid alias from a proposed title.
+    
+    Converts a proposed title into a valid alias by:
+    - Converting to lowercase
+    - Removing invalid characters (keeping only alphanumeric, spaces, and hyphens)
+    - Limiting to max_words words
+    - Replacing spaces with hyphens
+    - Removing consecutive hyphens
+    - Ensuring the alias doesn't end with a conjunction or preposition
+    
+    Args:
+        proposed_title: The proposed title to convert
+        max_words: Maximum number of words to include (default: 4)
+    
+    Returns:
+        A valid alias string
+    
+    Examples:
+        >>> create_alias("Exploring Workforce Demographics, AI Integration, and Employment Dynamics")
+        'exploring-workforce-demographics-ai'
+        >>> create_alias("Simple Title")
+        'simple-title'
+        >>> create_alias("Analysis of the Data and")
+        'analysis-of-the-data'
+    """
+    # Words that shouldn't end an alias (conjunctions and prepositions)
+    stop_words = {
+        'a', 'an', 'the',  # articles
+        'and', 'or', 'but', 'nor', 'so', 'yet',  # conjunctions
+        'of', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'from',  # prepositions
+        'as', 'into', 'through', 'during', 'before', 'after',
+        'above', 'below', 'between', 'under', 'over', 'about',
+    }
+    
+    # Convert to lowercase and strip whitespace
+    alias = proposed_title.strip().lower()
+    
+    # Remove invalid characters - keep only alphanumeric, spaces, and hyphens
+    alias = re.sub(r'[^a-z0-9\s-]', '', alias)
+    
+    # Replace spaces with hyphens
+    alias = alias.replace(' ', '-')
+    
+    # Remove consecutive hyphens
+    alias = re.sub(r'-+', '-', alias)
+    
+    # Strip leading/trailing hyphens
+    alias = alias.strip('-')
+    
+    # Split by hyphens and limit to max_words
+    words = alias.split('-')
+    words = [w for w in words if w]  # Remove empty strings
+    words = words[:max_words]
+    
+    # Remove trailing stop words
+    while words and words[-1] in stop_words:
+        words.pop()
+    
+    return '-'.join(words)
 
 
 if TYPE_CHECKING:
@@ -288,12 +351,7 @@ class PersistenceMixin:
                     if description is None:
                         description = generated_description["description"]
                     if alias is None:
-                        alias = (
-                            generated_description["proposed_title"]
-                            .lstrip()
-                            .lower()
-                            .replace(" ", "-")
-                        )
+                        alias = create_alias(generated_description["proposed_title"])
 
         c = Coop(url=expected_parrot_url)
         return c.push(self, description, alias, visibility, force)
