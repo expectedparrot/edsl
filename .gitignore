@@ -57,3 +57,5 @@ benchmark_logs/*
 performance.yml
 edsl/assistants/edsl_output/
 **/unused/
+**/unusued/
+edsl/conjure/qualtrics/examples/
