@@ -2487,7 +2487,7 @@ class Coop(CoopFunctionsMixin):
         human_survey_uuid: str,
     ) -> dict:
         """
-        Get a project from Coop.
+        Get a human survey from Coop.
         """
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}",
@@ -2745,7 +2745,7 @@ class Coop(CoopFunctionsMixin):
         filters: Optional[List[Dict]] = None,
     ) -> dict:
         """
-        Create a Prolific study for a project. Returns a dict with the study details.
+        Create a Prolific study for a human survey. Returns a dict with the study details.
 
         To add filters to your study, you should first pull the list of supported
         filters using Coop.list_prolific_filters().
@@ -2883,14 +2883,14 @@ class Coop(CoopFunctionsMixin):
 
     def publish_prolific_study(
         self,
-        project_uuid: str,
+        human_survey_uuid: str,
         study_id: str,
     ) -> dict:
         """
         Publish a Prolific study.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/publish",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/publish",
             method="POST",
         )
         self._resolve_server_response(response)
@@ -2926,16 +2926,16 @@ class Coop(CoopFunctionsMixin):
 
     def get_prolific_study_responses(
         self,
-        project_uuid: str,
+        human_survey_uuid: str,
         study_id: str,
     ) -> Union["Results", "ScenarioList"]:
         """
-        Return a Results object with the human responses for a project.
+        Return a Results object with the human responses for a human survey.
 
         If generating the Results object fails, a ScenarioList will be returned instead.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/responses",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/responses",
             method="GET",
         )
         self._resolve_server_response(response)
@@ -2964,7 +2964,7 @@ class Coop(CoopFunctionsMixin):
 
     def approve_prolific_study_submission(
         self,
-        project_uuid: str,
+        human_survey_uuid: str,
         study_id: str,
         submission_id: str,
     ) -> dict:
@@ -2972,7 +2972,7 @@ class Coop(CoopFunctionsMixin):
         Approve a Prolific study submission.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/submissions/{submission_id}/approve",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/submissions/{submission_id}/approve",
             method="POST",
         )
         self._resolve_server_response(response)
@@ -2980,7 +2980,7 @@ class Coop(CoopFunctionsMixin):
 
     def reject_prolific_study_submission(
         self,
-        project_uuid: str,
+        human_survey_uuid: str,
         study_id: str,
         submission_id: str,
         reason: Literal[
@@ -3025,7 +3025,7 @@ class Coop(CoopFunctionsMixin):
                 "Rejection explanation must be at least 100 characters."
             )
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/submissions/{submission_id}/reject",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/submissions/{submission_id}/reject",
             method="POST",
             payload={
                 "reason": reason,
