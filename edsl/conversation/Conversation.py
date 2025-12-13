@@ -228,6 +228,22 @@ What do you say next?"""
         )
         return results[0]
 
+    def run(self, background: bool = False):
+        """Run the conversation and return results.
+
+        Parameters
+        ----------
+        background : bool, optional
+            Whether to run in background mode (default: False).
+            Note: Background mode is only supported when using remote inference.
+
+        Returns
+        -------
+        Results
+            The conversation results
+        """
+        return self.converse()
+
     def converse(self):
         return asyncio.run(self._converse())
 
@@ -266,9 +282,22 @@ class ConversationList:
     async def run_conversations(self):
         await asyncio.gather(*[c._converse() for c in self.conversations])
 
-    def run(self) -> None:
-        """Run all conversations in parallel"""
+    def run(self, background: bool = False):
+        """Run all conversations in parallel
+
+        Parameters
+        ----------
+        background : bool, optional
+            Whether to run in background mode (default: False).
+            Note: Background mode is only supported when using remote inference.
+
+        Returns
+        -------
+        Results
+            Combined results from all conversations
+        """
         asyncio.run(self.run_conversations())
+        return self.to_results()
 
     def to_dict(self) -> dict:
         return {"conversations": c.to_dict() for c in self.conversations}
