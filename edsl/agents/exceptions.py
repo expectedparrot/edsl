@@ -152,6 +152,28 @@ class AgentAttributeError(AgentErrors):
         super().__init__(message)
 
 
+class AgentTemplateValidationError(AgentErrors):
+    """
+    Exception raised when the traits_presentation_template has invalid Jinja2 syntax.
+
+    This exception occurs when:
+    - Setting an invalid Jinja2 template in traits_presentation_template
+    - The template contains syntax errors like unclosed braces or invalid filters
+    - The template cannot be parsed or rendered by the Jinja2 engine
+
+    Examples:
+        ```python
+        # Invalid template - missing closing brace
+        Agent(traits={'age': 30}, traits_presentation_template="I am {{age years old")
+
+        # Invalid template - unknown filter
+        Agent(traits={'age': 30}, traits_presentation_template="Age: {{age|unknown_filter}}")
+        ```
+    """
+
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html#traits-presentation-template"
+
+
 class FailedTaskException(BaseException):
     """
     Exception raised when an agent task execution fails.

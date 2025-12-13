@@ -348,6 +348,11 @@ class Agent(Base):
     @traits_presentation_template.setter
     def traits_presentation_template(self, value):
         """Set the traits presentation template and mark it as explicitly set."""
+        # Validate the template before setting it
+        from .agent_template_validation import AgentTemplateValidation
+        validator = AgentTemplateValidation(self)
+        validator.validate_and_raise(value)
+
         self._traits_presentation_template = value
         self.set_traits_presentation_template = True
 
@@ -1598,6 +1603,38 @@ class Agent(Base):
             edsl.agents.exceptions.AgentErrors: ...
         """
         return delta.apply(self)
+
+    def validate_traits_presentation_template(self) -> bool:
+        """Validate that the traits_presentation_template is valid Jinja2 syntax.
+
+        This method checks whether the current traits_presentation_template can be
+        successfully parsed by the Jinja2 template engine.
+
+        Returns:
+            bool: True if the template is valid Jinja2, False otherwise
+
+        Raises:
+            AgentErrors: If no traits_presentation_template is set
+
+        Examples:
+            Valid template syntax:
+
+            >>> a = Agent(traits={'age': 30, 'occupation': 'doctor'})
+            >>> a.validate_traits_presentation_template()
+            True
+
+            Valid custom template:
+
+            >>> template = "I am {{age}} years old and work as a {{occupation}}."
+            >>> a = Agent(traits={'age': 30, 'occupation': 'doctor'},
+            ...           traits_presentation_template=template)
+            >>> a.validate_traits_presentation_template()
+            True
+        """
+        from .agent_template_validation import AgentTemplateValidation
+
+        validator = AgentTemplateValidation(self)
+        return validator.validate_traits_presentation_template()
 
     @classmethod
     def example(cls, randomize: bool = False) -> "Agent":
