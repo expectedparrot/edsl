@@ -59,3 +59,4 @@ edsl/assistants/edsl_output/
 **/unused/
 **/unusued/
 edsl/conjure/qualtrics/examples/
+.cache/
