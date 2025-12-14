@@ -1,17 +1,8 @@
 ---
-title: "Expected Parrot platform"
-description: "The [Expected Parrot platform](https://www.expectedparrot.com/content/explore) is a free platform for creating, storing and sharing AI-based research, and validating it with human respondents. It is fully integrated with EDSL, allowing you to post, store and retrieve any objects that you've created with EDSL, together with data, notebooks and other project content."
+title: "Platform"
+description: "Expected Parrot provides a free [platform](https://www.expectedparrot.com/content/explore) for creating, storing and sharing AI-based research, and validating it with human respondents. It is fully integrated with the open-source library (EDSL), allowing you to post, store, and retrieve any objects that you've created, together with data, notebooks and other project content. You can also explore public content and collaborate on projects privately with other users."
 sidebarTitle: "Expected Parrot platform"
 ---
-
-
-You can also explore public content and collaborate on projects privately with other users:
-
-<Frame>
-<img src="/images/en/latest/coop_1.png" alt="Expected Parrot platform page view" />
-</Frame>
-
-Your Expected Parrot platform account provides access to special features for running EDSL surveys and storing results remotely at the Expected Parrot server, and launching hybrid human-AI inference jobs interactively. Learn more about these features in the [Remote Inference](/en/latest/remote_inference), [Remote Caching](/en/latest/remote_caching) and [Survey Builder](/en/latest/survey_builder) sections of the documentation.
 
 ## Getting started
 
@@ -21,18 +12,17 @@ Your Expected Parrot platform account provides access to special features for ru
 
 Your account comes with an **Expected Parrot API key** that allows you to:
 
-- Post and share content on the Expected Parrot platform
-- Run surveys at the Expected Parrot server
+- Run surveys and post and share results at the Expected Parrot platform
 - Use any available models with your surveys
-- Use the universal cache of stored prompts and responses
+- Access the universal cache of stored prompts and responses
 
 You can inspect your key and reset it at any time at your [Keys](https://www.expectedparrot.com/home/keys) page.
 
 ### 2. Your Expected Parrot API key
 
-Remote inference is a feature that allows you to run EDSL surveys and inference jobs at the Expected Parrot server, and store results at your account. It is activated by default when you create an account. When remote inference is activated, your survey jobs and results are automatically stored at the Expected Parrot server and accessible at the [Results](https://www.expectedparrot.com/home/remote-inference) page of your account.
+Your Expected Parrot API key allows you to run surveys at Expected Parrot and store results at your account. When remote inference is activated, your survey jobs and results are automatically stored at and accessible at the [Results](https://www.expectedparrot.com/home/remote-inference) page of your account.
 
-You can also post any EDSL objects to the Expected Parrot platform from your workspace, includes Results, Surveys, Agents, Scenarios, Notebooks and data files (using the FileStore module). To do this, you first need to store your Expected Parrot API key. If you have activated remote inference (at your [Settings](https://www.expectedparrot.com/home/settings) page), your key is automatically stored.
+You can also post any EDSL objects to Expected Parrot from your workspace, including Results, Surveys, Agents, Scenarios, Notebooks and data files (using the FileStore module). To do this, you first need to store your Expected Parrot API key. If you have activated remote inference (at your [Settings](https://www.expectedparrot.com/home/settings) page), your key is automatically stored.
 
 If you are only using EDSL locally, create a file named .env in your EDSL working directory and store your key in it using the following format:
 
@@ -42,7 +32,7 @@ EXPECTED_PARROT_API_KEY = 'your_key_here'
 
 Learn more about storing API keys in the [Managing Keys](/en/latest/api_keys) section of the documentation.
 
-### 3. Post objects to the Expected Parrot platform
+### 3. Post objects to Expected Parrot
 
 Use the Coop module and methods to post and share objects (see examples below). You can set the visibility status of an object when you post it or update it later, from your workspace or interactively at your account. There are 3 status options:
 
@@ -50,11 +40,11 @@ Use the Coop module and methods to post and share objects (see examples below). 
 - *private*: Visible to logged in users that you have granted access
 - *unlisted*: Visible to anyone with the link but not listed in search results (default)
 
-See details on methods for uploading, downloading, updating and deleting content on the Expected Parrot platform below.
+See details on methods for uploading, downloading, updating and deleting content at Expected Parrot below.
 
 ### 4. Explore content
 
-Content that you have created with remote inference or posted to the Expected Parrot platform is available at your [Content](https://www.expectedparrot.com/content) page:
+Content that you have created with remote inference or posted to Expected Parrot is available at your [Content](https://www.expectedparrot.com/content) page:
 
 <Frame>
 <img src="/images/en/latest/coop_2.png" alt="Expected Parrot platform page view" />
@@ -66,16 +56,16 @@ You can access public content at the [Explore](https://www.expectedparrot.com/co
 
 When remote inference is activated the results of your surveys are automatically added to your [Content](https://www.expectedparrot.com/content) page. You can modify them from your workspace or interactively at your account.
 
-You can also post, update, download and delete any objects at Coop using the Coop module and methods (see examples below).
+You can also post, update, download and delete any objects using the Coop module and methods (see examples below).
 
 ### Posting
 
-There are 2 methods for uploading/posting an object from your workspace to the Expected Parrot platform:
+There are 2 methods for uploading/posting an object from your workspace:
 
 1. Call the *push()* method on the object directly.
 2. Call the *create()* method on a *Coop* client object and pass it the object.
 
-You can optionally pass a description, a convenient alias for the Expected Parrot platform URL and a *visibility* status (public, private or unlisted (default)) when you create an object. These can be changed at any time.
+You can optionally pass a description, a convenient alias, and a *visibility* status (public, private or unlisted (default)) when you create an object. These can be changed at any time.
 
 **Direct method**
 
@@ -140,7 +130,7 @@ This will return the same information about the object as the direct method show
 
 ### Updating
 
-There are 3 methods for updating/editing an object on the Expected Parrot platform:
+There are 3 methods for updating/editing an object:
 
 1. Edit the object on the Expected Parrot platform web app.
 2. Call the *patch()* method on the object directly.
@@ -152,9 +142,9 @@ For each patch() method, pass the alias_url or the uuid of the object and the pa
 - The *visibility* parameter is used to update the visibility of an object: *public*, *private* or *unlisted*.
 - The *value* parameter is used to update the content of an object, such as the text of a question or the code in a notebook.
 
-**On the Expected Parrot platform web app**
+**On the Expected Parrot web app**
 
-You can manually update the description or visibility of an object on the Expected Parrot platform web app. Navigate to the [Explore](https://www.expectedparrot.com/content/explore) page and open the page view for an object. You can select options to change the **visibility** of the object (*public*, *private* or *unlisted*) or to **edit** the description.
+You can manually update the description or visibility of an object at the Expected Parrot web app. Navigate to the [Explore](https://www.expectedparrot.com/content/explore) page and open the page view for an object. You can select options to change the **visibility** of the object (*public*, *private* or *unlisted*) or to **edit** the description.
 
 **Direct method**
 
@@ -209,9 +199,9 @@ There are a variety of methods for replicating or downloading an object on the E
 2. Calling the *pull()* method on the class of the object
 3. Calling the *get()* method on a *Coop* client object
 
-**Copy code on the Expected Parrot platform web app**
+**Copy code on the Expected Parrot web app**
 
-The Expected Parrot platform web app provides copyable code for downloading or reconstructing an object that has been posted:
+The Expected Parrot web app provides copyable code for downloading or reconstructing an object that has been posted:
 
 <Steps>
   <Step>
@@ -278,15 +268,15 @@ This will return the same object as above.
 
 ### Deleting
 
-There are 3 methods for deleting an object from the Expected Parrot platform:
+There are 3 methods for deleting an object from Expected Parrot:
 
 1. Selecting options to delete on the Expected Parrot platform web app
 2. Calling the *delete()* method on the class of the object
 3. Calling the *delete()* method on a *Coop* client object
 
-**On the Expected Parrot platform web app**
+**On the Expected Parrot web app**
 
-You can manually delete objects on the Expected Parrot platform web app:
+You can manually delete objects on the Expected Parrot web app:
 
 <Steps>
   <Step>
@@ -296,7 +286,7 @@ You can manually delete objects on the Expected Parrot platform web app:
   Select the option to **delete** the object:
 
 <Frame>
-<img src="/images/en/latest/coop_5.png" alt="Expected Parrot platform page view" />
+<img src="/images/en/latest/coop_5.png" alt="Expected Parrot page view" />
 </Frame>
   </Step>
 </Steps>
