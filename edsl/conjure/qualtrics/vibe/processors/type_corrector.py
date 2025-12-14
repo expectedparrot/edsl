@@ -33,18 +33,21 @@ class TypeCorrectionProcessor(BaseProcessor):
 
             try:
                 # For type changes, we need to import and use the new question type
-                from edsl.questions import QuestionLinearScale, QuestionYesNo, QuestionLikertFive, QuestionFreeText
+                from edsl.questions import QuestionLinearScale, QuestionYesNo, QuestionLikertFive, QuestionFreeText, QuestionNumerical
 
                 type_classes = {
                     'linear_scale': QuestionLinearScale,
                     'yes_no': QuestionYesNo,
                     'likert_five': QuestionLikertFive,
-                    'free_text': QuestionFreeText
+                    'free_text': QuestionFreeText,
+                    'numerical': QuestionNumerical
                 }
 
                 if suggested_type in type_classes:
                     question_class = type_classes[suggested_type]
-                    improved_question = question_class.from_dict(question_dict)
+                    # Clean up question dict to remove incompatible parameters for the new type
+                    clean_question_dict = self._clean_question_dict_for_type(question_dict, suggested_type)
+                    improved_question = question_class.from_dict(clean_question_dict)
                 else:
                     # Fallback to original type
                     question_class = type(question)
@@ -103,6 +106,10 @@ class TypeCorrectionProcessor(BaseProcessor):
         if self._is_likert_scale(options, question_text):
             if question.question_type == 'multiple_choice':
                 return 'likert_five'  # Assuming 5-point scale
+
+        # Check for numerical questions (percentages, monetary amounts, etc.)
+        if self._is_numerical_question(question_text, options):
+            return 'numerical'
 
         # Check for free text that was misclassified
         if self._is_free_text_question(question_text, options):
@@ -176,3 +183,86 @@ class TypeCorrectionProcessor(BaseProcessor):
         ]
 
         return any(indicator in question_text for indicator in free_text_indicators)
+
+    def _is_numerical_question(self, question_text: str, options: List) -> bool:
+        """Check if this should be a numerical question."""
+        # Check for numerical question indicators in the text
+        numerical_indicators = [
+            'percentage', 'percent', '%', 'amount', 'dollars', '$',
+            'how much', 'how many', 'number of', 'quantity', 'age',
+            'income', 'salary', 'price', 'cost', 'value', 'weight',
+            'height', 'distance', 'time', 'years', 'months', 'days'
+        ]
+
+        text_has_numerical = any(indicator in question_text.lower() for indicator in numerical_indicators)
+
+        # Check if most/all options are numeric
+        if not options:
+            return text_has_numerical
+
+        numeric_options_count = 0
+        for option in options:
+            try:
+                # Try to convert to float to see if it's numeric
+                float(str(option).strip())
+                numeric_options_count += 1
+            except (ValueError, TypeError):
+                pass
+
+        # If more than 75% of options are numeric and we have numerical text indicators
+        options_are_mostly_numeric = (numeric_options_count / len(options)) > 0.75
+
+        return text_has_numerical and options_are_mostly_numeric
+
+    def _clean_question_dict_for_type(self, question_dict: Dict[str, Any], target_type: str) -> Dict[str, Any]:
+        """
+        Clean question dictionary to remove parameters incompatible with target type.
+
+        Args:
+            question_dict: Original question dictionary
+            target_type: Target question type
+
+        Returns:
+            Cleaned dictionary with only compatible parameters
+        """
+        # Start with a copy of the original dict
+        clean_dict = question_dict.copy()
+
+        # Define parameter compatibility for each question type
+        valid_params = {
+            'free_text': {'question_name', 'question_text', 'answering_instructions', 'question_presentation'},
+            'yes_no': {'question_name', 'question_text', 'answering_instructions', 'question_presentation'},
+            'linear_scale': {'question_name', 'question_text', 'question_options', 'answering_instructions', 'question_presentation'},
+            'likert_five': {'question_name', 'question_text', 'answering_instructions', 'question_presentation'},
+            'numerical': {'question_name', 'question_text', 'min_value', 'max_value', 'answering_instructions', 'question_presentation'},
+        }
+
+        # Get valid parameters for the target type
+        if target_type in valid_params:
+            valid_for_type = valid_params[target_type]
+
+            # Remove any parameters that are not valid for this type
+            keys_to_remove = []
+            for key in clean_dict:
+                if key not in valid_for_type and key != 'question_type':  # Always keep question_type
+                    keys_to_remove.append(key)
+
+            for key in keys_to_remove:
+                del clean_dict[key]
+
+        # Special handling for numerical questions - infer min/max from options if available
+        if target_type == 'numerical' and 'question_options' in question_dict:
+            options = question_dict['question_options']
+            numeric_values = []
+
+            for option in options:
+                try:
+                    numeric_values.append(float(str(option).strip()))
+                except (ValueError, TypeError):
+                    pass
+
+            if numeric_values:
+                clean_dict['min_value'] = min(numeric_values)
+                clean_dict['max_value'] = max(numeric_values)
+
+        return clean_dict

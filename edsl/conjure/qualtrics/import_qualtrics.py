@@ -171,7 +171,7 @@ class ImportQualtrics:
                 print(f"Warning: Vibe processing failed: {e}")
 
     def _extract_response_data_for_vibe(self) -> Dict[str, List[str]]:
-        """Extract response data for questions to help with option analysis."""
+        """Extract response data for questions to help with option analysis and type detection."""
         response_data = {}
 
         for meta in self._metadata_columns:
@@ -181,19 +181,18 @@ class ImportQualtrics:
             column = self._columns[meta.column_index]
             question_name = meta.question_name
 
-            if ("_TEXT" in meta.short_label or
-                meta.short_label.endswith("_DO") or
-                "OTHER" in meta.short_label.upper()):
+            # Extract response data for ALL question columns to enable proper type detection
+            # Previously only extracted _TEXT/_DO/OTHER columns, but LLM needs actual response
+            # data to distinguish between question types (e.g., numerical vs likert vs multiple choice)
+            responses = []
+            for value in column.values:
+                if value and str(value).strip() and str(value).strip().lower() not in ['nan', 'null', '']:
+                    responses.append(str(value).strip())
 
-                responses = []
-                for value in column.values:
-                    if value and str(value).strip() and str(value).strip().lower() not in ['nan', 'null', '']:
-                        responses.append(str(value).strip())
-
-                if responses:
-                    if question_name not in response_data:
-                        response_data[question_name] = []
-                    response_data[question_name].extend(responses)
+            if responses:
+                if question_name not in response_data:
+                    response_data[question_name] = []
+                response_data[question_name].extend(responses)
 
         if self.verbose and response_data:
             print(f"Extracted response data for {len(response_data)} questions:")

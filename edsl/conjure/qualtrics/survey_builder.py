@@ -196,13 +196,31 @@ class QualtricsSurveyBuilder:
                     for value in col_values:
                         if value and str(value).strip():
                             options.add(str(value).strip())
-                
+
                 if options:
-                    return QuestionMultipleChoice(
-                        question_name=question_name,
-                        question_text=question_text,
-                        question_options=sorted(list(options)),
-                    )
+                    options_list = sorted(list(options))
+                    # Handle single-option case (likely consent/agreement questions)
+                    if len(options_list) == 1:
+                        # Convert to Yes/No question for consent-type questions
+                        single_option = options_list[0].lower()
+                        if any(keyword in single_option for keyword in ['agree', 'consent', 'understand', 'participant', 'participate']):
+                            return QuestionMultipleChoice(
+                                question_name=question_name,
+                                question_text=question_text,
+                                question_options=["Yes", "No"],
+                            )
+                        else:
+                            # For other single-option cases, convert to free text
+                            return QuestionFreeText(
+                                question_name=question_name,
+                                question_text=question_text,
+                            )
+                    else:
+                        return QuestionMultipleChoice(
+                            question_name=question_name,
+                            question_text=question_text,
+                            question_options=options_list,
+                        )
             
             elif question_type == DataType.QUESTION_CHECKBOX:
                 if len(group) > 1:
