@@ -2888,10 +2888,79 @@ class Coop(CoopFunctionsMixin):
     ) -> dict:
         """
         Publish a Prolific study.
+
+        Once your study is published, Prolific participants can start accepting and completing it.
         """
         response = self._send_server_request(
-            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/publish",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/status",
             method="POST",
+            payload={
+                "action": "PUBLISH",
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def pause_prolific_study(
+        self,
+        human_survey_uuid: str,
+        study_id: str,
+    ) -> dict:
+        """
+        Pause a Prolific study.
+
+        Pausing a study will temporarily stop new participants from joining.
+        Participants who have already started the study can still complete it.
+        You can resume the study later by calling Coop.resume_prolific_study().
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/status",
+            method="POST",
+            payload={
+                "action": "PAUSE",
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def resume_prolific_study(
+        self,
+        human_survey_uuid: str,
+        study_id: str,
+    ) -> dict:
+        """
+        Resume a paused Prolific study.
+
+        Resuming a study will make it available to participants again.
+        New participants will be able to join and complete your study.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/status",
+            method="POST",
+            payload={
+                "action": "START",
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def stop_prolific_study(
+        self,
+        human_survey_uuid: str,
+        study_id: str,
+    ) -> dict:
+        """
+        Stop a Prolific study.
+
+        Stopping a study will permanently end it.
+        No new participants will be able to join, and the study cannot be resumed.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/status",
+            method="POST",
+            payload={
+                "action": "STOP",
+            },
         )
         self._resolve_server_response(response)
         return response.json()
