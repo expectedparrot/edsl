@@ -20,17 +20,17 @@ from edsl import QuestionYesNo, QuestionNumerical, QuestionMultipleChoice
 
 q1 = QuestionYesNo(
     question_name = "recent_purchase",
-    question_text = "In the last year have you or anyone in your household purchased any {`{ scenario.item }`}?",
+    question_text = "In the last year have you or anyone in your household purchased any `{{ scenario.item }}`?",
 )
 
 q2 = QuestionNumerical(
     question_name = "amount",
-    question_text = "In the last year, how much did your household spend on {`{ scenario.item }`} (in USD)?"
+    question_text = "In the last year, how much did your household spend on `{{ scenario.item }}` (in USD)?"
 )
 
 q3 = QuestionMultipleChoice(
     question_name = "next_purchase",
-    question_text = "When do you next expect to purchase {`{ scenario.item }`}?",
+    question_text = "When do you next expect to purchase `{{ scenario.item }}`?",
     question_options = [
         "Never",
         "Within the next month",
@@ -53,14 +53,14 @@ survey
 
 |  | question_options | question_name | question_type | question_text |
 | :--- | :--- | :--- | :--- | :--- |
-| 0 | ['No', 'Yes'] | recent_purchase | yes_no | In the last year have you or anyone in your household purchased any {`{ scenario.item }`}? |
-| 1 | nan | amount | numerical | In the last year, how much did your household spend on {`{ scenario.item }`} (in USD)? |
-| 2 | ['Never', 'Within the next month', 'Within the next year', 'I do not know'] | next_purchase | multiple_choice | When do you next expect to purchase {`{ scenario.item }`}? |
+| 0 | ['No', 'Yes'] | recent_purchase | yes_no | In the last year have you or anyone in your household purchased any `{{ scenario.item }}`? |
+| 1 | nan | amount | numerical | In the last year, how much did your household spend on `{{ scenario.item }}` (in USD)? |
+| 2 | ['Never', 'Within the next month', 'Within the next year', 'I do not know'] | next_purchase | multiple_choice | When do you next expect to purchase `{{ scenario.item }}`? |
 
 Here we add a rule to skip q2 based on the response to q1:
 
 ```python
-survey = survey.add_skip_rule(q2, "{`{ recent_purchase.answer }`} == 'No'")
+survey = survey.add_skip_rule(q2, "`{{ recent_purchase.answer }}` == 'No'")
 ```
 
 Next we create scenarios for the “item” to be used with each question:
@@ -285,18 +285,18 @@ In the next example, we use the same scenarios to create versions of the questio
 
 ```python
 q1 = QuestionYesNo(
-    question_name = "recent_purchase_{`{ scenario.item }`}",
-    question_text = "In the last year have you or anyone in your household purchased any {`{ scenario.item }`}?",
+    question_name = "recent_purchase_`{{ scenario.item }}`",
+    question_text = "In the last year have you or anyone in your household purchased any `{{ scenario.item }}`?",
 )
 
 q2 = QuestionNumerical(
-    question_name = "amount_{`{ item }`}",
-    question_text = "In the last year, how much did your household spend on {`{ scenario.item }`} (in USD)?"
+    question_name = "amount_`{{ item }}`",
+    question_text = "In the last year, how much did your household spend on `{{ scenario.item }}` (in USD)?"
 )
 
 q3 = QuestionMultipleChoice(
-    question_name = "next_purchase_{`{ scenario.item }`}",
-    question_text = "When do you next expect to purchase {`{ scenario.item }`}?",
+    question_name = "next_purchase_`{{ scenario.item }}`",
+    question_text = "When do you next expect to purchase `{{ scenario.item }}`?",
     question_options = [
         "Never",
         "Within the next month",
@@ -333,9 +333,9 @@ Here we add different rules specifying that questions with one scenario (phones)
 ```python
 survey = (
     survey
-    .add_skip_rule("recent_purchase_phones", "{`{ recent_purchase_electronics.answer }`} == 'No'")
-    .add_skip_rule("amount_phones", "{`{ recent_purchase_electronics.answer }`} == 'No'")
-    .add_skip_rule("next_purchase_phones", "{`{ recent_purchase_electronics.answer }`} == 'No'")
+    .add_skip_rule("recent_purchase_phones", "`{{ recent_purchase_electronics.answer }}` == 'No'")
+    .add_skip_rule("amount_phones", "`{{ recent_purchase_electronics.answer }}` == 'No'")
+    .add_skip_rule("next_purchase_phones", "`{{ recent_purchase_electronics.answer }}` == 'No'")
 )
 ```
 
@@ -404,4 +404,3 @@ nb.push(
  'version': '0.1.62.dev1',
  'visibility': 'public'}
 ```
-

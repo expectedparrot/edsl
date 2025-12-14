@@ -58,6 +58,19 @@ Note that this method is different from memory rules, which automatically inlude
 
 In the examples below we construct a simple survey of questions, and then demonstrate how to run it with various rules and memory options, how to add AI agents and language models, and how to analyze the results.
 
+### Importing from Qualtrics
+
+You can import surveys from Qualtrics QSF (Qualtrics Survey Format) files using the `from_qsf()` method:
+
+```python
+from edsl import Survey
+
+# Import a Qualtrics survey
+survey = Survey.from_qsf("path/to/survey.qsf")
+```
+
+This method parses the QSF file and converts Qualtrics questions into their corresponding EDSL question types, preserving question text, options, and basic logic where possible.
+
 ### Defining questions
 
 Questions can be defined as various types, including multiple choice, checkbox, free text, linear scale, numerical and other types. The formats are defined in the [Questions](/en/latest/questions) module. Here we define some questions by importing question types and creating instances of them:
@@ -109,6 +122,35 @@ from edsl import Survey
 
 survey = Survey().add_question(q1).add_question(q2).add_question(q3).add_question(q4)
 ```
+
+### Organizing questions into groups
+
+You can organize questions into logical groups using the `add_question_group()` method. This is useful for:
+- Analyzing responses by section
+- Organizing survey structure
+- Visualizing survey flow
+
+```python
+from edsl import Survey
+
+survey = Survey(questions = [q1, q2, q3, q4])
+
+# Create a group for the first two questions
+survey = survey.add_question_group(
+    start_question="consume_local_news",
+    end_question="sources", 
+    group_name="news_consumption"
+)
+
+# Create another group for the remaining questions
+survey = survey.add_question_group(
+    start_question="rate_coverage",
+    end_question="minutes_reading",
+    group_name="news_quality"
+)
+```
+
+Groups are defined by contiguous ranges of questions and cannot overlap. Group names must be valid Python identifiers and cannot conflict with existing question names.
 
 ### Randomizing question options
 
@@ -288,7 +330,7 @@ survey.show_flow()
 Output:
 
 <Frame>
-![Survey Flow Diagram with Skip Rule](/images/en/latest/surveys_1.png)
+![Survey Flow Diagram with Skip Rule](/images/en/latest/show_flow.png)
 </Frame>
 
 If we add agent or scenario details to the survey questions, the flow diagram will also show this information. Here we modify the survey questions from above to include an agent trait:
@@ -338,7 +380,7 @@ job.show_flow()
 Output:
 
 <Frame>
-![Survey Flow Diagram with Agent Information](/images/en/latest/surveys_2.png)
+![Survey Flow Diagram with Agent Information](/images/en/latest/show_flow_agent.png)
 </Frame>
 
 ### Conditional expressions
@@ -425,7 +467,7 @@ This is useful when you want to include piped options plus additional choices li
 
 The dict format uses two keys:
 
-* `"from"` - A template string referencing the piped options (e.g., `"{{ q1.answer }}"`)
+* `"from"` - A template string referencing the piped options (e.g., `"{{ q1.answer }}"`).
 * `"add"` - A list of additional static options to append
 
 For example:
