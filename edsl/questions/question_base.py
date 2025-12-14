@@ -857,7 +857,7 @@ class QuestionBase(
         output.append(",\n", style=RICH_STYLES["primary"])
 
         # Question name
-        output.append("    question_name=", style=RICH_STYLES["default"])
+        output.append("    question_name=", style="yellow")
         output.append(f'"{self.question_name}"', style=RICH_STYLES["key"])
         output.append(",\n", style=RICH_STYLES["default"])
 
@@ -866,7 +866,7 @@ class QuestionBase(
 
         question_text = self.question_text
 
-        output.append("    question_text=", style=RICH_STYLES["default"])
+        output.append("    question_text=", style="yellow")
 
         # Build a separate Text object for the question text to preserve styling
         question_text_styled = Text()
@@ -893,8 +893,8 @@ class QuestionBase(
                     part_no_break, style=RICH_STYLES["secondary"]
                 )
             else:
-                # Regular text in green style
-                question_text_styled.append(part, style=RICH_STYLES["secondary"])
+                # Regular text in default style (white)
+                question_text_styled.append(part, style=RICH_STYLES["default"])
 
         question_text_styled.append('"', style=RICH_STYLES["default"])
 
@@ -907,14 +907,16 @@ class QuestionBase(
 
             if num_options > 0:
                 output.append(",\n", style=RICH_STYLES["default"])
-                output.append("    question_options=[\n", style=RICH_STYLES["default"])
+                output.append("    question_options=[\n", style="yellow")
 
                 for i, option in enumerate(list(self.question_options)[:max_options]):
                     option_str = str(option)
                     if len(option_str) > MAX_OPTION_LENGTH_VALUE:
                         option_str = option_str[: MAX_OPTION_LENGTH_VALUE - 3] + "..."
+                    # Replace spaces with non-breaking spaces to prevent wrapping
+                    option_str_no_break = option_str.replace(" ", "\u00A0")
                     output.append("        ", style=RICH_STYLES["default"])
-                    output.append(f'"{option_str}"', style=RICH_STYLES["secondary"])
+                    output.append(f'"{option_str_no_break}"', style=RICH_STYLES["default"])
                     output.append(",\n", style=RICH_STYLES["default"])
 
                 if num_options > max_options:
@@ -930,14 +932,16 @@ class QuestionBase(
             num_items = len(self.question_items)
             if num_items > 0:
                 output.append(",\n", style=RICH_STYLES["default"])
-                output.append("    question_items=[\n", style=RICH_STYLES["default"])
+                output.append("    question_items=[\n", style="yellow")
 
                 for i, item in enumerate(list(self.question_items)[:max_options]):
                     item_str = str(item)
                     if len(item_str) > MAX_OPTION_LENGTH_VALUE:
                         item_str = item_str[: MAX_OPTION_LENGTH_VALUE - 3] + "..."
+                    # Replace spaces with non-breaking spaces to prevent wrapping
+                    item_str_no_break = item_str.replace(" ", "\u00A0")
                     output.append("        ", style=RICH_STYLES["default"])
-                    output.append(f'"{item_str}"', style=RICH_STYLES["secondary"])
+                    output.append(f'"{item_str_no_break}"', style=RICH_STYLES["default"])
                     output.append(",\n", style=RICH_STYLES["default"])
 
                 if num_items > max_options:
@@ -952,13 +956,13 @@ class QuestionBase(
         if hasattr(self, "min_value") and self.min_value is not None:
             output.append(",\n", style=RICH_STYLES["default"])
             output.append(
-                f"    min_value={self.min_value}", style=RICH_STYLES["default"]
+                f"    min_value={self.min_value}", style="yellow"
             )
 
         if hasattr(self, "max_value") and self.max_value is not None:
             output.append(",\n", style=RICH_STYLES["default"])
             output.append(
-                f"    max_value={self.max_value}", style=RICH_STYLES["default"]
+                f"    max_value={self.max_value}", style="yellow"
             )
 
         # Selection constraints (for QuestionCheckBox, QuestionRank)
@@ -966,27 +970,27 @@ class QuestionBase(
             output.append(",\n", style=RICH_STYLES["default"])
             output.append(
                 f"    min_selections={self.min_selections}",
-                style=RICH_STYLES["default"],
+                style="yellow",
             )
 
         if hasattr(self, "max_selections") and self.max_selections is not None:
             output.append(",\n", style=RICH_STYLES["default"])
             output.append(
                 f"    max_selections={self.max_selections}",
-                style=RICH_STYLES["default"],
+                style="yellow",
             )
 
         if hasattr(self, "num_selections") and self.num_selections is not None:
             output.append(",\n", style=RICH_STYLES["default"])
             output.append(
                 f"    num_selections={self.num_selections}",
-                style=RICH_STYLES["default"],
+                style="yellow",
             )
 
         # Option labels (for QuestionLinearScale)
         if hasattr(self, "option_labels") and self.option_labels:
             output.append(",\n", style=RICH_STYLES["default"])
-            output.append("    option_labels={", style=RICH_STYLES["default"])
+            output.append("    option_labels={", style="yellow")
             labels_str = ", ".join(f"{k}: '{v}'" for k, v in self.option_labels.items())
             if len(labels_str) > 50:
                 labels_str = labels_str[:47] + "..."
@@ -996,23 +1000,23 @@ class QuestionBase(
         # Weight (for QuestionLinearScale)
         if hasattr(self, "weight") and self.weight is not None:
             output.append(",\n", style=RICH_STYLES["default"])
-            output.append(f"    weight={self.weight}", style=RICH_STYLES["default"])
+            output.append(f"    weight={self.weight}", style="yellow")
 
         # Boolean flags - check both .data and direct attributes
         data_dict = self.data
 
         if "use_code" in data_dict and data_dict["use_code"]:
             output.append(",\n", style=RICH_STYLES["default"])
-            output.append("    use_code=True", style=RICH_STYLES["default"])
+            output.append("    use_code=True", style="yellow")
 
         # permissive is stored without underscore, so check attribute directly
         if hasattr(self, "permissive") and self.permissive:
             output.append(",\n", style=RICH_STYLES["default"])
-            output.append("    permissive=True", style=RICH_STYLES["default"])
+            output.append("    permissive=True", style="yellow")
 
         if "include_comment" in data_dict and not data_dict["include_comment"]:
             output.append(",\n", style=RICH_STYLES["default"])
-            output.append("    include_comment=False", style=RICH_STYLES["default"])
+            output.append("    include_comment=False", style="yellow")
 
         output.append("\n)", style=RICH_STYLES["primary"])
 
