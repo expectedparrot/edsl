@@ -414,7 +414,7 @@ scenarios = scrape_url([
 # Create survey questions about the content
 q1 = QuestionFreeText(
     question_name="summary",
-    question_text="Summarize the main points of this article: {`{ content }`}"
+    question_text="Summarize the main points of this article: {{ content }}"
 )
 
 q2 = QuestionFreeText(
@@ -451,7 +451,7 @@ extracted_data = extract_data(urls, schema=extraction_schema)
 survey = Survey([
     QuestionFreeText(
         question_name="significance",
-        question_text="Rate the significance of these findings: {`{ extracted_data }`}"
+        question_text="Rate the significance of these findings: {{ extracted_data }}"
     )
 ])
 
@@ -1097,4 +1097,3 @@ Create a serializable map_urls request.
 > #### edsl.scenarios.firecrawl_scenario.execute_request(*request_dict: Dict[str, Any]*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/scenarios/firecrawl_scenario.py)
 
 Execute a serialized Firecrawl request and return results.
-

@@ -16,19 +16,19 @@ from edsl import QuestionList, QuestionMultipleChoice
 
 q_sentiment = QuestionMultipleChoice(
     question_name="sentiment",
-    question_text="What is the overall sentiment of this evaluation: {{ scenario.evaluation }}",
+    question_text="What is the overall sentiment of this evaluation: `{{ scenario.evaluation }}`",
     question_options=["Positive", "Neutral", "Negative"],
 )
 
 q_themes = QuestionList(
     question_name="themes",
-    question_text="Summarize the key points of this evaluation: {{ scenario.evaluation }}",
+    question_text="Summarize the key points of this evaluation: `{{ scenario.evaluation }}`",
     max_list_items=3,  # Optional
 )
 
 q_improvements = QuestionList(
     question_name="improvements",
-    question_text="Identify areas for improvement based on this evaluation: {{ scenario.evaluation }}",
+    question_text="Identify areas for improvement based on this evaluation: `{{ scenario.evaluation }}`",
     max_list_items=3,
 )
 ```
@@ -50,9 +50,9 @@ Survey # questions: 3; question_name list: ['sentiment', 'themes', 'improvements
 
 |  | question_options | question_name | question_text | question_type | max_list_items |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| 0 | ['Positive', 'Neutral', 'Negative'] | sentiment | What is the overall sentiment of this evaluation: {`{ scenario.evaluation }`} | multiple_choice | nan |
-| 1 | nan | themes | Summarize the key points of this evaluation: {`{ scenario.evaluation }`} | list | 3.000000 |
-| 2 | nan | improvements | Identify areas for improvement based on this evaluation: {`{ scenario.evaluation }`} | list | 3.000000 |
+| 0 | ['Positive', 'Neutral', 'Negative'] | sentiment | What is the overall sentiment of this evaluation: `{{ scenario.evaluation }}` | multiple_choice | nan |
+| 1 | nan | themes | Summarize the key points of this evaluation: `{{ scenario.evaluation }}` | list | 3.000000 |
+| 2 | nan | improvements | Identify areas for improvement based on this evaluation: `{{ scenario.evaluation }}` | list | 3.000000 |
 
 ## Add data to the questions
 
@@ -310,7 +310,7 @@ scenario = Scenario({"themes":themes})
 q_condensed_themes = QuestionList(
     question_name="condensed_themes",
     question_text="""Combine the following list of themes extracted from the evaluations
-    into a consolidated, non-redundant list: {{ scenario.themes }}""",
+    into a consolidated, non-redundant list: `{{ scenario.themes }}`""",
     max_list_items=10,
 )
 ```
@@ -342,7 +342,7 @@ from edsl import QuestionCheckBox
 
 q_themes_list = QuestionCheckBox(
     question_name="themes_list",
-    question_text="Select all of the themes that are mentioned in this evaluation: {{ scenario.evaluation }}",
+    question_text="Select all of the themes that are mentioned in this evaluation: `{{ scenario.evaluation }}`",
     question_options=condensed_themes,
 )
 ```
@@ -462,7 +462,7 @@ scenario = Scenario({"improvements":improvements})
 q_condensed_improvements = QuestionList(
     question_name="condensed_improvements",
     question_text="""Combine the following list of areas for improvement from the evaluations
-    into a consolidated, non-redundant list: {{ scenario.improvements }}""",
+    into a consolidated, non-redundant list: `{{ scenario.improvements }}`""",
     max_list_items=10,
 )
 ```
@@ -488,7 +488,7 @@ condensed_improvements
 ```python
 q_improvements_list = QuestionCheckBox(
     question_name="improvements_list",
-    question_text="Select all of the improvements that are mentioned in this evaluation: {{ scenario.evaluation }}",
+    question_text="Select all of the improvements that are mentioned in this evaluation: `{{ scenario.evaluation }}`",
     question_options=condensed_improvements,
 )
 ```
@@ -568,4 +568,3 @@ nb = Notebook(path = "analyze_evaluations.ipynb") # resave
 
 nb.patch("https://www.expectedparrot.com/content/RobinHorton/course-evaluations-notebook", value = nb)
 ```
-

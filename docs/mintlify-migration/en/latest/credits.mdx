@@ -154,7 +154,7 @@ q0 = QuestionFreeText(
 )
 q1 = QuestionFreeText(
     question_name = "flower_color",
-    question_text = "What color is {`{ favorite_flower.answer }`}?"
+    question_text = "What color is {{ favorite_flower.answer }}?"
 )
 
 survey = Survey(questions = [q0, q1])
@@ -237,7 +237,7 @@ Output:
 | user_prompt | system_prompt |
 | :--- | :--- |
 | What is the name of your favorite flower? | You are answering questions as if you were a human. Do not break character. Your traits: `{‘persona’: ‘You are a botanist on Cape Cod.’}` |
-| What color is {`{ answer }`}? | You are answering questions as if you were a human. Do not break character. Your traits: `{‘persona’: ‘You are a botanist on Cape Cod.’}` |
+| What color is `{{ answer }}`? | You are answering questions as if you were a human. Do not break character. Your traits: `{‘persona’: ‘You are a botanist on Cape Cod.’}` |
 
 Here we count the characters in each user prompt and system prompt:
 
@@ -265,7 +265,7 @@ Output:
 We apply the piping multiplier of 2 to the number of characters in the user prompt for q1 because the answer to q0 is piped in:
 
 ```python
-q1_user_prompt_characters = len("What color is {`{ answer }`}?") * 2
+q1_user_prompt_characters = len("What color is {{ answer }}?") * 2
 q1_user_prompt_characters
 ```
 
