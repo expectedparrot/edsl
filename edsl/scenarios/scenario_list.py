@@ -2783,6 +2783,36 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             s = s.add_list(key, list_of_values)
         return s
 
+    @classmethod
+    def from_hugging_face(cls, dataset_name: str, config_name: Optional[str] = None, split: Optional[str] = None) -> "ScenarioList":
+        """Create a ScenarioList from a Hugging Face dataset.
+
+        Args:
+            dataset_name (str): The fully qualified name of the Hugging Face dataset
+            config_name (str, optional): Specific configuration to load if the dataset has multiple configs
+            split (str, optional): Specific split to load (e.g., 'train', 'test', 'validation')
+
+        Returns:
+            ScenarioList: A ScenarioList created from the dataset
+
+        Raises:
+            ValueError: If the dataset has multiple configurations and config_name is not specified,
+                       or if the specified split doesn't exist
+            ImportError: If the datasets library is not available
+
+        Example:
+            >>> # Load a dataset with a single configuration
+            >>> sl = ScenarioList.from_hugging_face("squad")
+
+            >>> # Load a specific configuration from a dataset with multiple configs
+            >>> sl = ScenarioList.from_hugging_face("glue", config_name="cola")
+
+            >>> # Load a specific split
+            >>> sl = ScenarioList.from_hugging_face("Anthropic/AnthropicInterviewer", split="creatives")
+        """
+        from .hugging_face import from_hugging_face
+        return from_hugging_face(dataset_name, config_name, split)
+
     def code(self) -> str:
         """Create the Python code representation of a survey."""
         header_lines = [
