@@ -289,19 +289,21 @@ class Prediction:
         lines.append("")
 
         # Header
-        lines.append(f"{'Feature':<25} {'Coefficient':<12} {'Std Error':<12} {'z-score':<10} {'p-value':<10}")
+        lines.append(
+            f"{'Feature':<25} {'Coefficient':<12} {'Std Error':<12} {'z-score':<10} {'p-value':<10}"
+        )
         lines.append("-" * 79)
 
         # Sort by absolute coefficient magnitude
-        sorted_coeffs = sorted(coeffs.items(),
-                              key=lambda x: abs(x[1]['coefficient']),
-                              reverse=True)
+        sorted_coeffs = sorted(
+            coeffs.items(), key=lambda x: abs(x[1]["coefficient"]), reverse=True
+        )
 
         for feature, stats in sorted_coeffs:
-            coeff = stats['coefficient']
-            std_err = stats['std_error']
-            z_score = stats['z_score']
-            p_value = stats['p_value']
+            coeff = stats["coefficient"]
+            std_err = stats["std_error"]
+            z_score = stats["z_score"]
+            p_value = stats["p_value"]
 
             # Format values
             coeff_str = f"{coeff:8.4f}"
@@ -309,12 +311,18 @@ class Prediction:
             zscore_str = f"{z_score:8.3f}" if z_score is not None else "N/A"
             pvalue_str = f"{p_value:8.4f}" if p_value is not None else "N/A"
 
-            lines.append(f"{feature:<25} {coeff_str:<12} {stderr_str:<12} {zscore_str:<10} {pvalue_str:<10}")
+            lines.append(
+                f"{feature:<25} {coeff_str:<12} {stderr_str:<12} {zscore_str:<10} {pvalue_str:<10}"
+            )
 
         lines.append("")
-        lines.append("Note: Standard errors calculated using bootstrap method (100 samples)")
-        if any(stats['std_error'] is None for stats in coeffs.values()):
-            lines.append("Some standard errors unavailable - check training data storage")
+        lines.append(
+            "Note: Standard errors calculated using bootstrap method (100 samples)"
+        )
+        if any(stats["std_error"] is None for stats in coeffs.values()):
+            lines.append(
+                "Some standard errors unavailable - check training data storage"
+            )
 
         return "\\n".join(lines)
 
@@ -591,24 +599,26 @@ class Prediction:
         # Add coefficient section if available
         coeffs = self.get_coefficients_and_errors()
         if coeffs is not None:
-            report_lines.extend([
-                "",
-                "### Model Coefficients and Statistical Tests",
-                "",
-                "| Feature | Coefficient | Std Error | z-score | p-value | Significance |",
-                "|---------|-------------|-----------|---------|---------|--------------|",
-            ])
+            report_lines.extend(
+                [
+                    "",
+                    "### Model Coefficients and Statistical Tests",
+                    "",
+                    "| Feature | Coefficient | Std Error | z-score | p-value | Significance |",
+                    "|---------|-------------|-----------|---------|---------|--------------|",
+                ]
+            )
 
             # Sort by absolute coefficient magnitude
-            sorted_coeffs = sorted(coeffs.items(),
-                                  key=lambda x: abs(x[1]['coefficient']),
-                                  reverse=True)
+            sorted_coeffs = sorted(
+                coeffs.items(), key=lambda x: abs(x[1]["coefficient"]), reverse=True
+            )
 
             for feature, stats in sorted_coeffs[:15]:  # Show top 15 features
-                coeff = stats['coefficient']
-                std_err = stats['std_error']
-                z_score = stats['z_score']
-                p_value = stats['p_value']
+                coeff = stats["coefficient"]
+                std_err = stats["std_error"]
+                z_score = stats["z_score"]
+                p_value = stats["p_value"]
 
                 # Format significance level
                 if p_value is not None:
@@ -634,16 +644,20 @@ class Prediction:
                 )
 
             if len(sorted_coeffs) > 15:
-                report_lines.append(f"| ... | ... | ... | ... | ... | *{len(sorted_coeffs) - 15} more coefficients* |")
+                report_lines.append(
+                    f"| ... | ... | ... | ... | ... | *{len(sorted_coeffs) - 15} more coefficients* |"
+                )
 
-            report_lines.extend([
-                "",
-                "**Significance Codes:** *** p<0.001, ** p<0.01, * p<0.05",
-                "",
-                "**Note:** Standard errors estimated using bootstrap method (100 samples). ",
-                "For production use, consider more sophisticated inference methods.",
-                "",
-            ])
+            report_lines.extend(
+                [
+                    "",
+                    "**Significance Codes:** *** p<0.001, ** p<0.01, * p<0.05",
+                    "",
+                    "**Note:** Standard errors estimated using bootstrap method (100 samples). ",
+                    "For production use, consider more sophisticated inference methods.",
+                    "",
+                ]
+            )
 
         # Data quality section
         report_lines.extend(
@@ -1180,9 +1194,9 @@ class Prediction:
         # Add coefficient section if available
         coeffs = self.get_coefficients_and_errors()
         if coeffs is not None:
-            sorted_coeffs = sorted(coeffs.items(),
-                                  key=lambda x: abs(x[1]['coefficient']),
-                                  reverse=True)
+            sorted_coeffs = sorted(
+                coeffs.items(), key=lambda x: abs(x[1]["coefficient"]), reverse=True
+            )
 
             html += f"""
                 <!-- Model Coefficients (Collapsible) -->
@@ -1212,10 +1226,10 @@ class Prediction:
             """
 
             for i, (feature, stats) in enumerate(sorted_coeffs[:20]):  # Show top 20
-                coeff = stats['coefficient']
-                std_err = stats['std_error']
-                z_score = stats['z_score']
-                p_value = stats['p_value']
+                coeff = stats["coefficient"]
+                std_err = stats["std_error"]
+                z_score = stats["z_score"]
+                p_value = stats["p_value"]
 
                 # Format significance
                 if p_value is not None:

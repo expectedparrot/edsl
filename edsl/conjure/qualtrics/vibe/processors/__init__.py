@@ -11,9 +11,9 @@ from .option_organizer import OptionOrganizationProcessor
 from .text_cleaner import TextCleanupProcessor
 
 __all__ = [
-    'BaseProcessor',
-    'ProcessingResult',
-    'TypeCorrectionProcessor',
-    'OptionOrganizationProcessor',
-    'TextCleanupProcessor'
+    "BaseProcessor",
+    "ProcessingResult",
+    "TypeCorrectionProcessor",
+    "OptionOrganizationProcessor",
+    "TextCleanupProcessor",
 ]

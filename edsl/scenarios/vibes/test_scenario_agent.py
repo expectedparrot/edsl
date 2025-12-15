@@ -10,7 +10,8 @@ import sys
 import os
 
 # Add the edsl package to the path for testing
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+
 
 def test_scenario_agent():
     """Test the ScenarioAgent with different strategies."""
@@ -29,7 +30,7 @@ def test_scenario_agent():
                 "5 fruits and their colors",
                 strategy="ai_only",
                 generator_count=5,
-                verbose=True
+                verbose=True,
             )
             print(f"✅ AI-only test passed! Created {len(sl)} scenarios")
             print("Sample data:", sl[0] if len(sl) > 0 else "No data")
@@ -41,9 +42,7 @@ def test_scenario_agent():
         print("-" * 30)
         try:
             sl = ScenarioList.from_vibes(
-                "European countries",
-                strategy="fast",
-                verbose=True
+                "European countries", strategy="fast", verbose=True
             )
             print(f"✅ Fast strategy test passed! Created {len(sl)} scenarios")
             print("Sample data:", sl[0] if len(sl) > 0 else "No data")
@@ -58,7 +57,9 @@ def test_scenario_agent():
     except Exception as e:
         print(f"❌ Unexpected error: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     test_scenario_agent()

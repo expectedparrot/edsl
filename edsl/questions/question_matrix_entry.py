@@ -123,7 +123,10 @@ def create_matrix_entry_response(
         column_fields = {}
         for column in question_columns:
             if permissive:
-                column_fields[column] = (Optional[NumericValue], Field(None))  # optional field in permissive mode
+                column_fields[column] = (
+                    Optional[NumericValue],
+                    Field(None),
+                )  # optional field in permissive mode
             else:
                 column_fields[column] = (NumericValue, Field(...))  # required field
 
@@ -131,18 +134,19 @@ def create_matrix_entry_response(
         ItemResponseSubModel = create_model(
             f"{item.replace(' ', '').replace('-', '').replace('.', '')}ResponseSubModel",
             __base__=BaseModel,
-            **column_fields
+            **column_fields,
         )
         if permissive:
-            field_definitions[item] = (Optional[ItemResponseSubModel], Field(None))  # optional in permissive mode
+            field_definitions[item] = (
+                Optional[ItemResponseSubModel],
+                Field(None),
+            )  # optional in permissive mode
         else:
             field_definitions[item] = (ItemResponseSubModel, Field(...))
 
     # Dynamically create the answer submodel
     MatrixAnswerSubModel = create_model(
-        "MatrixEntryAnswerSubModel",
-        __base__=BaseModel,
-        **field_definitions
+        "MatrixEntryAnswerSubModel", __base__=BaseModel, **field_definitions
     )
 
     # Create the full response model with custom validation
@@ -197,12 +201,18 @@ def create_matrix_entry_response(
                         for column, value in item_responses.items():
                             if isinstance(value, (int, float)):
                                 if min_value is not None and value < min_value:
-                                    range_violations[f"{item_name}.{column}"] = f"value {value} < {min_value}"
+                                    range_violations[f"{item_name}.{column}"] = (
+                                        f"value {value} < {min_value}"
+                                    )
                                 if max_value is not None and value > max_value:
-                                    range_violations[f"{item_name}.{column}"] = f"value {value} > {max_value}"
+                                    range_violations[f"{item_name}.{column}"] = (
+                                        f"value {value} > {max_value}"
+                                    )
 
                 if range_violations:
-                    violations_str = ", ".join(f"{k}: {v}" for k, v in range_violations.items())
+                    violations_str = ", ".join(
+                        f"{k}: {v}" for k, v in range_violations.items()
+                    )
                     validation_error = ValidationError.from_exception_data(
                         title="MatrixEntryResponse",
                         line_errors=[
@@ -219,7 +229,15 @@ def create_matrix_entry_response(
                             }
                         ],
                     )
-                    range_msg = f"Values must be between {min_value} and {max_value}" if min_value is not None and max_value is not None else f"Values must be >= {min_value}" if min_value is not None else f"Values must be <= {max_value}"
+                    range_msg = (
+                        f"Values must be between {min_value} and {max_value}"
+                        if min_value is not None and max_value is not None
+                        else (
+                            f"Values must be >= {min_value}"
+                            if min_value is not None
+                            else f"Values must be <= {max_value}"
+                        )
+                    )
                     raise QuestionAnswerValidationError(
                         message=f"Values out of range: {violations_str}. {range_msg}",
                         data=self.model_dump(),
@@ -232,9 +250,13 @@ def create_matrix_entry_response(
         def _json_schema_extra(schema: dict, model_: BaseModel) -> None:
             # Add schema information for better documentation
             if "properties" in schema and "answer" in schema["properties"]:
-                schema["properties"]["answer"]["description"] = "Matrix numeric entries for each item and column"
+                schema["properties"]["answer"][
+                    "description"
+                ] = "Matrix numeric entries for each item and column"
                 if min_value is not None or max_value is not None:
-                    constraint_desc = f" (range: {min_value or 'no min'} to {max_value or 'no max'})"
+                    constraint_desc = (
+                        f" (range: {min_value or 'no min'} to {max_value or 'no max'})"
+                    )
                     schema["properties"]["answer"]["description"] += constraint_desc
 
         model_config = ConfigDict(
@@ -253,14 +275,28 @@ class MatrixEntryResponseValidator(ResponseValidatorABC):
     malformed inputs, including JSON parsing, numeric extraction, and structured data recovery.
     """
 
-    required_params = ["question_items", "question_columns", "min_value", "max_value", "permissive"]
+    required_params = [
+        "question_items",
+        "question_columns",
+        "min_value",
+        "max_value",
+        "permissive",
+    ]
 
     valid_examples = [
         (
             {
                 "answer": {
-                    "Trust level": {"No AI Tools": 7.5, "With AI Help": 8.2, "AI Only": 6.1},
-                    "Satisfaction level": {"No AI Tools": 6.8, "With AI Help": 9.1, "AI Only": 7.3}
+                    "Trust level": {
+                        "No AI Tools": 7.5,
+                        "With AI Help": 8.2,
+                        "AI Only": 6.1,
+                    },
+                    "Satisfaction level": {
+                        "No AI Tools": 6.8,
+                        "With AI Help": 9.1,
+                        "AI Only": 7.3,
+                    },
                 }
             },
             {
@@ -277,7 +313,10 @@ class MatrixEntryResponseValidator(ResponseValidatorABC):
         (
             {
                 "answer": {
-                    "Trust level": {"No AI Tools": 15.0, "With AI Help": 8.2}  # Missing column + out of range
+                    "Trust level": {
+                        "No AI Tools": 15.0,
+                        "With AI Help": 8.2,
+                    }  # Missing column + out of range
                 }
             },
             {
@@ -316,7 +355,7 @@ class MatrixEntryResponseValidator(ResponseValidatorABC):
         # Strategy 1: If answer is a flat dict with item.column keys, restructure it
         if isinstance(answer, dict):
             # Check if we have flat keys like "Trust level.No AI Tools"
-            flat_keys = [k for k in answer.keys() if '.' in str(k) or '_' in str(k)]
+            flat_keys = [k for k in answer.keys() if "." in str(k) or "_" in str(k)]
             if flat_keys:
                 if verbose:
                     print(f"Found flat keys to restructure: {flat_keys}")
@@ -325,12 +364,12 @@ class MatrixEntryResponseValidator(ResponseValidatorABC):
                 for key, value in answer.items():
                     # Try different separators
                     parts = None
-                    if '.' in str(key):
-                        parts = str(key).split('.', 1)
-                    elif '_' in str(key):
-                        parts = str(key).split('_', 1)
-                    elif ' - ' in str(key):
-                        parts = str(key).split(' - ', 1)
+                    if "." in str(key):
+                        parts = str(key).split(".", 1)
+                    elif "_" in str(key):
+                        parts = str(key).split("_", 1)
+                    elif " - " in str(key):
+                        parts = str(key).split(" - ", 1)
 
                     if parts and len(parts) == 2:
                         item_name, column_name = parts
@@ -342,12 +381,18 @@ class MatrixEntryResponseValidator(ResponseValidatorABC):
                         best_column = None
 
                         for q_item in self.question_items:
-                            if q_item.lower() in item_name.lower() or item_name.lower() in q_item.lower():
+                            if (
+                                q_item.lower() in item_name.lower()
+                                or item_name.lower() in q_item.lower()
+                            ):
                                 best_item = q_item
                                 break
 
                         for q_column in self.question_columns:
-                            if q_column.lower() in column_name.lower() or column_name.lower() in q_column.lower():
+                            if (
+                                q_column.lower() in column_name.lower()
+                                or column_name.lower() in q_column.lower()
+                            ):
                                 best_column = q_column
                                 break
 
@@ -360,9 +405,15 @@ class MatrixEntryResponseValidator(ResponseValidatorABC):
                             if isinstance(value, str):
                                 try:
                                     # Try to extract number from string
-                                    match = re.search(r'-?\d+\.?\d*', value.replace(',', ''))
+                                    match = re.search(
+                                        r"-?\d+\.?\d*", value.replace(",", "")
+                                    )
                                     if match:
-                                        numeric_value = float(match.group()) if '.' in match.group() else int(match.group())
+                                        numeric_value = (
+                                            float(match.group())
+                                            if "." in match.group()
+                                            else int(match.group())
+                                        )
                                 except (ValueError, AttributeError):
                                     numeric_value = value
 
@@ -377,7 +428,9 @@ class MatrixEntryResponseValidator(ResponseValidatorABC):
                     try:
                         self.response_model(**proposed_data)
                         if verbose:
-                            print(f"Successfully fixed by restructuring flat keys: {proposed_data}")
+                            print(
+                                f"Successfully fixed by restructuring flat keys: {proposed_data}"
+                            )
                         return proposed_data
                     except Exception as e:
                         if verbose:
@@ -410,18 +463,23 @@ class MatrixEntryResponseValidator(ResponseValidatorABC):
 
             # Try to extract numeric values using patterns
             # Look for patterns like "Item1: 7.5, Item2: 8.2"
-            pairs = re.findall(r'([^:,]+):\s*([0-9.-]+)', answer)
+            pairs = re.findall(r"([^:,]+):\s*([0-9.-]+)", answer)
             if pairs:
                 extracted = {}
                 for item_text, value_text in pairs:
                     item_text = item_text.strip()
                     try:
-                        value = float(value_text) if '.' in value_text else int(value_text)
+                        value = (
+                            float(value_text) if "." in value_text else int(value_text)
+                        )
 
                         # Find best matching item name
                         best_item = None
                         for q_item in self.question_items:
-                            if q_item.lower() in item_text.lower() or item_text.lower() in q_item.lower():
+                            if (
+                                q_item.lower() in item_text.lower()
+                                or item_text.lower() in q_item.lower()
+                            ):
                                 best_item = q_item
                                 break
 
@@ -443,7 +501,9 @@ class MatrixEntryResponseValidator(ResponseValidatorABC):
                     try:
                         self.response_model(**proposed_data)
                         if verbose:
-                            print(f"Successfully fixed by extracting pairs: {proposed_data}")
+                            print(
+                                f"Successfully fixed by extracting pairs: {proposed_data}"
+                            )
                         return proposed_data
                     except Exception as e:
                         if verbose:
@@ -462,9 +522,15 @@ class MatrixEntryResponseValidator(ResponseValidatorABC):
                             conversion_attempted = True
                             try:
                                 # Try to extract number from string
-                                match = re.search(r'-?\d+\.?\d*', value.replace(',', ''))
+                                match = re.search(
+                                    r"-?\d+\.?\d*", value.replace(",", "")
+                                )
                                 if match:
-                                    converted_value = float(match.group()) if '.' in match.group() else int(match.group())
+                                    converted_value = (
+                                        float(match.group())
+                                        if "." in match.group()
+                                        else int(match.group())
+                                    )
                                     converted_item[column_name] = converted_value
                                 else:
                                     converted_item[column_name] = value
@@ -485,7 +551,9 @@ class MatrixEntryResponseValidator(ResponseValidatorABC):
                 try:
                     self.response_model(**proposed_data)
                     if verbose:
-                        print(f"Successfully fixed by converting strings to numbers: {proposed_data}")
+                        print(
+                            f"Successfully fixed by converting strings to numbers: {proposed_data}"
+                        )
                     return proposed_data
                 except Exception as e:
                     if verbose:
@@ -595,7 +663,7 @@ class QuestionMatrixEntry(QuestionBase):
             self.question_columns,
             self.min_value,
             self.max_value,
-            self.permissive
+            self.permissive,
         )
 
     def _simulate_answer(self) -> dict:

@@ -35,13 +35,12 @@ class ScenarioListVibeEdit:
         """Get OpenAI client for LLM editing operations."""
         if self._client is None:
             from edsl.base.openai_utils import create_openai_client
+
             self._client = create_openai_client()
         return self._client
 
     def edit_scenario_list(
-        self,
-        scenarios: List[Dict[str, Any]],
-        edit_instructions: str
+        self, scenarios: List[Dict[str, Any]], edit_instructions: str
     ) -> Dict[str, List[Dict[str, Any]]]:
         """
         Edit a list of scenario dictionaries based on natural language instructions.
@@ -69,16 +68,14 @@ class ScenarioListVibeEdit:
         edited_scenarios = []
 
         for i in range(0, len(scenarios), batch_size):
-            batch = scenarios[i:i + batch_size]
+            batch = scenarios[i : i + batch_size]
             edited_batch = self._edit_scenario_batch(batch, edit_instructions)
             edited_scenarios.extend(edited_batch)
 
         return {"scenarios": edited_scenarios}
 
     def _edit_scenario_batch(
-        self,
-        scenario_batch: List[Dict[str, Any]],
-        edit_instructions: str
+        self, scenario_batch: List[Dict[str, Any]], edit_instructions: str
     ) -> List[Dict[str, Any]]:
         """
         Edit a batch of scenarios using LLM.
@@ -124,10 +121,10 @@ Respond with a JSON object in this format:
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": user_prompt},
                 ],
                 temperature=self.temperature,
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
 
             response_content = response.choices[0].message.content
@@ -136,8 +133,8 @@ Respond with a JSON object in this format:
             result = json.loads(response_content)
 
             # Extract scenarios from the response
-            if isinstance(result, dict) and 'scenarios' in result:
-                return result['scenarios']
+            if isinstance(result, dict) and "scenarios" in result:
+                return result["scenarios"]
             elif isinstance(result, list):
                 # Direct list of scenarios
                 return result
@@ -150,7 +147,9 @@ Respond with a JSON object in this format:
             print(f"⚠️ Vibe edit failed: {e}, returning original scenarios")
             return scenario_batch
 
-    def clean_wikipedia_data(self, scenarios: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def clean_wikipedia_data(
+        self, scenarios: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """
         Specialized method for cleaning Wikipedia-sourced data.
 
@@ -169,7 +168,9 @@ Respond with a JSON object in this format:
 
         return self.edit_scenario_list(scenarios, instructions)
 
-    def standardize_formats(self, scenarios: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def standardize_formats(
+        self, scenarios: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """
         Standardize formats across scenarios.
 
@@ -188,7 +189,9 @@ Respond with a JSON object in this format:
 
         return self.edit_scenario_list(scenarios, instructions)
 
-    def remove_empty_fields(self, scenarios: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def remove_empty_fields(
+        self, scenarios: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """
         Remove fields that are empty, null, or contain only whitespace.
 
@@ -204,7 +207,11 @@ Respond with a JSON object in this format:
             cleaned_scenario = {}
             for key, value in scenario.items():
                 # Keep field if it has meaningful content
-                if value is not None and str(value).strip() and str(value).strip() != 'nan':
+                if (
+                    value is not None
+                    and str(value).strip()
+                    and str(value).strip() != "nan"
+                ):
                     cleaned_scenario[key] = value
             cleaned_scenarios.append(cleaned_scenario)
 

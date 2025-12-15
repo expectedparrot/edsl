@@ -13,9 +13,11 @@ sys.path.insert(0, str(edsl_root))
 
 # Load environment
 from dotenv import load_dotenv
+
 load_dotenv(edsl_root / ".env")
 
 from edsl.scenarios import ScenarioList
+
 
 def verify_exa_data():
     """Verify the data is real by checking profile URLs and details."""
@@ -24,11 +26,7 @@ def verify_exa_data():
     print("=" * 40)
 
     try:
-        scenarios = ScenarioList.from_exa(
-            "startup founders",
-            count=2,
-            max_wait_time=60
-        )
+        scenarios = ScenarioList.from_exa("startup founders", count=2, max_wait_time=60)
 
         print(f"Retrieved {len(scenarios)} results")
         print()
@@ -47,7 +45,7 @@ def verify_exa_data():
             print(f"  Satisfied: {scenario.get('satisfied', 'N/A')}")
             print()
             print(f"  Raw EXA data:")
-            exa_fields = {k: v for k, v in scenario.items() if k.startswith('exa_')}
+            exa_fields = {k: v for k, v in scenario.items() if k.startswith("exa_")}
             for key, value in exa_fields.items():
                 print(f"    {key}: {value}")
             print()
@@ -76,11 +74,12 @@ def verify_exa_data():
             print("3. Verify the position matches what's shown")
             print("4. Compare the description with actual LinkedIn profile")
 
-            return first.get('profile_url'), first.get('name')
+            return first.get("profile_url"), first.get("name")
 
     except Exception as e:
         print(f"❌ Error: {e}")
         return None, None
+
 
 def compare_with_direct_exa():
     """Compare our integration with direct EXA API call to see if data matches."""
@@ -90,7 +89,8 @@ def compare_with_direct_exa():
 
     try:
         from exa_py import Exa
-        exa = Exa(os.getenv('EXA_API_KEY'))
+
+        exa = Exa(os.getenv("EXA_API_KEY"))
 
         # Create webset directly
         print("Creating webset directly with EXA API...")
@@ -107,6 +107,7 @@ def compare_with_direct_exa():
 
         # Wait a bit for it to process
         import time
+
         time.sleep(10)
 
         # Get items directly
@@ -127,9 +128,13 @@ def compare_with_direct_exa():
                     if item_list:
                         first_item = item_list[0]
                         print(f"First item type: {type(first_item)}")
-                        if hasattr(first_item, 'properties'):
-                            print(f"Person name: {getattr(first_item.properties.person, 'name', 'N/A')}")
-                            print(f"Company: {getattr(first_item.properties.person.company, 'name', 'N/A') if hasattr(first_item.properties.person, 'company') else 'N/A'}")
+                        if hasattr(first_item, "properties"):
+                            print(
+                                f"Person name: {getattr(first_item.properties.person, 'name', 'N/A')}"
+                            )
+                            print(
+                                f"Company: {getattr(first_item.properties.person.company, 'name', 'N/A') if hasattr(first_item.properties.person, 'company') else 'N/A'}"
+                            )
                             print(f"URL: {first_item.properties.url}")
 
         return webset.id
@@ -137,6 +142,7 @@ def compare_with_direct_exa():
     except Exception as e:
         print(f"❌ Direct EXA error: {e}")
         return None
+
 
 if __name__ == "__main__":
     print("This script will help verify if EXA data is actually real...")

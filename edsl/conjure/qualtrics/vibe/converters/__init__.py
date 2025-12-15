@@ -31,7 +31,9 @@ def _register_default_converters():
     registry.register("QuestionNumerical", NumericalConverter())
     registry.register("QuestionLinearScale", LinearScaleConverter())
     registry.register("QuestionYesNo", YesNoConverter())
-    registry.register("QuestionMultipleChoiceWithOther", MultipleChoiceWithOtherConverter())
+    registry.register(
+        "QuestionMultipleChoiceWithOther", MultipleChoiceWithOtherConverter()
+    )
     registry.register("QuestionMultipleChoice", MultipleChoiceConverter())
     registry.register("QuestionMatrixEntry", MatrixEntryConverter())
     registry.register("QuestionMatrix", MatrixConverter())

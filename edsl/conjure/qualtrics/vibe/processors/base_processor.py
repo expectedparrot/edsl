@@ -11,6 +11,7 @@ from edsl.questions import Question
 @dataclass
 class ProcessingResult:
     """Result of a processing step."""
+
     question: Question
     changed: bool
     changes: List[Dict[str, Any]]
@@ -25,7 +26,9 @@ class BaseProcessor(ABC):
         self.verbose = verbose
 
     @abstractmethod
-    async def process(self, question: Question, context: Optional[Dict[str, Any]] = None) -> ProcessingResult:
+    async def process(
+        self, question: Question, context: Optional[Dict[str, Any]] = None
+    ) -> ProcessingResult:
         """
         Process a question and return the result.
 

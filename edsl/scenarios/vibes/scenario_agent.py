@@ -60,6 +60,7 @@ class ScenarioAgent:
         """Get OpenAI client for LLM decision making."""
         if self._client is None:
             from edsl.base.openai_utils import create_openai_client
+
             self._client = create_openai_client()
         return self._client
 
@@ -113,13 +114,14 @@ Respond in this exact JSON format:
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": user_prompt},
                 ],
                 temperature=self.temperature,
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
 
             import json
+
             strategy = json.loads(response.choices[0].message.content)
             return strategy
 
@@ -134,7 +136,7 @@ Respond in this exact JSON format:
                 "exa_likely": True,
                 "ai_generation_likely": True,
                 "wikipedia_search_terms": [description, f"list of {description}"],
-                "reasoning": "Using default comprehensive strategy"
+                "reasoning": "Using default comprehensive strategy",
             }
 
     def _intelligent_wikipedia_search(self, description: str, strategy: dict, **kwargs):
@@ -154,13 +156,17 @@ Respond in this exact JSON format:
         from ...utilities.wikipedia import fetch_wikipedia_content
 
         # Use LLM-generated search terms
-        search_terms = strategy.get('wikipedia_search_terms', [description])
-        self._log(f"   Using LLM-recommended search terms: {', '.join(search_terms[:3])}" +
-                 (f" (and {len(search_terms)-3} more)" if len(search_terms) > 3 else ""))
+        search_terms = strategy.get("wikipedia_search_terms", [description])
+        self._log(
+            f"   Using LLM-recommended search terms: {', '.join(search_terms[:3])}"
+            + (f" (and {len(search_terms)-3} more)" if len(search_terms) > 3 else "")
+        )
 
         # Search Wikipedia for articles
         try:
-            wiki_results = fetch_wikipedia_content(search_terms[:5])  # Limit to top 5 searches
+            wiki_results = fetch_wikipedia_content(
+                search_terms[:5]
+            )  # Limit to top 5 searches
         except Exception as e:
             self._log(f"   Wikipedia API search failed: {e}")
             return None
@@ -172,22 +178,30 @@ Respond in this exact JSON format:
             self._log("   No promising articles found")
             return None
 
-        self._log(f"   Found {len(promising_articles)} promising articles, trying top candidates...")
+        self._log(
+            f"   Found {len(promising_articles)} promising articles, trying top candidates..."
+        )
 
         for score, article in promising_articles[:3]:  # Try top 3 articles
             try:
                 self._log(f"   Trying: {article['title']} (LLM score: {score:.2f})")
 
                 # Try to extract tables from this Wikipedia URL using LLM table selection
-                result = self._try_wikipedia_tables_with_llm(article['url'], description, **kwargs)
+                result = self._try_wikipedia_tables_with_llm(
+                    article["url"], description, **kwargs
+                )
                 if result and len(result) > 0:
-                    self._log(f"   ✓ Successfully extracted {len(result)} scenarios from '{article['title']}'")
+                    self._log(
+                        f"   ✓ Successfully extracted {len(result)} scenarios from '{article['title']}'"
+                    )
                     return result
                 else:
                     self._log(f"   ✗ No usable tables in '{article['title']}'")
 
             except Exception as e:
-                self._log(f"   ✗ Failed to extract from '{article['title']}': {str(e)[:100]}...")
+                self._log(
+                    f"   ✗ Failed to extract from '{article['title']}': {str(e)[:100]}..."
+                )
                 continue
 
         return None
@@ -203,7 +217,9 @@ Respond in this exact JSON format:
         Returns:
             list: List of (score, article) tuples sorted by relevance
         """
-        successful_articles = [r for r in wiki_results if r.get("status") == "Success" and r.get("url")]
+        successful_articles = [
+            r for r in wiki_results if r.get("status") == "Success" and r.get("url")
+        ]
 
         if not successful_articles:
             return []
@@ -215,7 +231,7 @@ Respond in this exact JSON format:
                 "title": article.get("title", ""),
                 "content_preview": article.get("content", "")[:800],  # First 800 chars
                 "url": article.get("url", ""),
-                "categories": article.get("categories", [])[:5]  # Top 5 categories
+                "categories": article.get("categories", [])[:5],  # Top 5 categories
             }
             articles_info.append(info)
 
@@ -235,7 +251,7 @@ Score each article from 0-10 (10 = most likely to have useful tables)."""
         article_descriptions = []
         for i, art in enumerate(articles_info):
             desc = f"{i+1}. Title: {art['title']}"
-            if art['categories']:
+            if art["categories"]:
                 desc += f"\n   Categories: {', '.join(art['categories'])}"
             desc += f"\n   Content preview: {art['content_preview'][:200]}..."
             article_descriptions.append(desc)
@@ -258,24 +274,27 @@ For each article, provide a score (0-10) and brief reasoning. Respond in this JS
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": user_prompt},
                 ],
                 temperature=self.temperature,
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
 
             import json
+
             assessment = json.loads(response.choices[0].message.content)
 
             # Match assessments back to articles and create scored list
             scored_articles = []
             for article in successful_articles:
-                for assess in assessment.get('assessments', []):
-                    if assess['title'] == article['title']:
-                        score = float(assess['score'])
+                for assess in assessment.get("assessments", []):
+                    if assess["title"] == article["title"]:
+                        score = float(assess["score"])
                         if score > 0:
                             scored_articles.append((score, article))
-                        self._log(f"   LLM assessed '{article['title']}': {score}/10 - {assess['reasoning']}")
+                        self._log(
+                            f"   LLM assessed '{article['title']}': {score}/10 - {assess['reasoning']}"
+                        )
                         break
 
             # Sort by score
@@ -311,8 +330,12 @@ For each article, provide a score (0-10) and brief reasoning. Respond in this JS
             terms.append(f"comparison of {description}")
 
         # Extract key words and create variations
-        key_words = [word for word in description.split()
-                    if len(word) > 3 and word.lower() not in ['the', 'and', 'for', 'with', 'that']]
+        key_words = [
+            word
+            for word in description.split()
+            if len(word) > 3
+            and word.lower() not in ["the", "and", "for", "with", "that"]
+        ]
 
         if key_words:
             # Try just the main subject
@@ -336,16 +359,16 @@ For each article, provide a score (0-10) and brief reasoning. Respond in this JS
             float: Score from 0-10 indicating likelihood of useful tables
         """
         score = 0.0
-        title = article.get('title', '').lower()
-        content = article.get('content', '').lower()
-        categories = [cat.lower() for cat in article.get('categories', [])]
+        title = article.get("title", "").lower()
+        content = article.get("content", "").lower()
+        categories = [cat.lower() for cat in article.get("categories", [])]
 
         # Higher score for "list of" articles - these often have tables
-        if 'list of' in title:
+        if "list of" in title:
             score += 3.0
 
         # Higher score for "comparison" articles
-        if 'comparison' in title or 'comparison' in content[:500]:
+        if "comparison" in title or "comparison" in content[:500]:
             score += 2.0
 
         # Score based on title relevance to description
@@ -362,14 +385,24 @@ For each article, provide a score (0-10) and brief reasoning. Respond in this JS
             score += 0.5
 
         # Look for table-suggesting keywords in content preview
-        table_keywords = ['countries', 'companies', 'states', 'cities', 'universities',
-                         'software', 'languages', 'currencies', 'awards', 'rankings']
+        table_keywords = [
+            "countries",
+            "companies",
+            "states",
+            "cities",
+            "universities",
+            "software",
+            "languages",
+            "currencies",
+            "awards",
+            "rankings",
+        ]
         for keyword in table_keywords:
             if keyword in content[:1000]:  # Check first 1000 chars
                 score += 0.5
 
         # Bonus for relevant categories
-        list_categories = ['lists', 'rankings', 'comparisons', 'tables']
+        list_categories = ["lists", "rankings", "comparisons", "tables"]
         for cat in categories:
             for list_cat in list_categories:
                 if list_cat in cat:
@@ -405,30 +438,44 @@ For each article, provide a score (0-10) and brief reasoning. Respond in this JS
                 return tables[0]
 
             # Multiple tables - use LLM to decide
-            self._log(f"     Found {len(tables)} tables, using LLM to select best one...")
+            self._log(
+                f"     Found {len(tables)} tables, using LLM to select best one..."
+            )
 
             # Get table summaries for LLM assessment
             table_summaries = tables.get_table_summaries()
 
             # Use LLM to select the best table
-            selected_table_index = self._select_best_table_with_llm(table_summaries, description)
+            selected_table_index = self._select_best_table_with_llm(
+                table_summaries, description
+            )
 
-            if selected_table_index is not None and 0 <= selected_table_index < len(tables):
+            if selected_table_index is not None and 0 <= selected_table_index < len(
+                tables
+            ):
                 selected_table = tables[selected_table_index]
-                self._log(f"     LLM selected table {selected_table_index} with {len(selected_table)} rows")
+                self._log(
+                    f"     LLM selected table {selected_table_index} with {len(selected_table)} rows"
+                )
                 return selected_table
             else:
                 # Fallback to largest table
                 largest_index, largest_table = tables.get_largest_table()
-                self._log(f"     LLM selection failed, using largest table with {len(largest_table)} rows")
+                self._log(
+                    f"     LLM selection failed, using largest table with {len(largest_table)} rows"
+                )
                 return largest_table
 
         except Exception as e:
             # If multi-table approach fails, try the old method
-            self._log(f"     Multi-table approach failed: {str(e)[:50]}..., trying fallback")
+            self._log(
+                f"     Multi-table approach failed: {str(e)[:50]}..., trying fallback"
+            )
             return self._try_wikipedia_tables(url, **kwargs)
 
-    def _select_best_table_with_llm(self, table_summaries: list, description: str) -> int:
+    def _select_best_table_with_llm(
+        self, table_summaries: list, description: str
+    ) -> int:
         """
         Use LLM to select the best table from available summaries.
 
@@ -453,8 +500,8 @@ Consider:
         tables_info = []
         for i, summary in enumerate(table_summaries):
             info = f"Table {i}: {summary.get('rows', 0)} rows, {summary.get('cols', 0)} columns\n"
-            info += f"   Columns: {', '.join(summary.get('columns', [])[:8])}" # Show first 8 columns
-            if len(summary.get('columns', [])) > 8:
+            info += f"   Columns: {', '.join(summary.get('columns', [])[:8])}"  # Show first 8 columns
+            if len(summary.get("columns", [])) > 8:
                 info += f" (and {len(summary.get('columns', [])) - 8} more)"
             tables_info.append(info)
 
@@ -476,16 +523,17 @@ Respond in this JSON format:
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": user_prompt},
                 ],
                 temperature=self.temperature,
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
 
             import json
+
             selection = json.loads(response.choices[0].message.content)
-            table_index = selection.get('selected_table_index')
-            reasoning = selection.get('reasoning', 'No reasoning provided')
+            table_index = selection.get("selected_table_index")
+            reasoning = selection.get("reasoning", "No reasoning provided")
 
             self._log(f"     LLM table selection: Table {table_index} - {reasoning}")
 
@@ -538,7 +586,9 @@ Respond in this JSON format:
                     return table
 
             # If no good tables found, return the largest anyway
-            self._log(f"     No ideal tables found, using largest with {len(largest_table)} rows")
+            self._log(
+                f"     No ideal tables found, using largest with {len(largest_table)} rows"
+            )
             return largest_table
 
         except Exception as e:
@@ -549,12 +599,16 @@ Respond in this JSON format:
 
             # Try to extract the default table (index 0)
             try:
-                return ScenarioList.from_source("wikipedia", url, table_index=0, **kwargs)
+                return ScenarioList.from_source(
+                    "wikipedia", url, table_index=0, **kwargs
+                )
             except:
                 # If that fails, try a few more table indices
                 for table_idx in [1, 2, 3]:
                     try:
-                        result = ScenarioList.from_source("wikipedia", url, table_index=table_idx, **kwargs)
+                        result = ScenarioList.from_source(
+                            "wikipedia", url, table_index=table_idx, **kwargs
+                        )
                         if result and len(result) > 0:
                             return result
                     except:
@@ -567,7 +621,7 @@ Respond in this JSON format:
         *,
         exa_count: int = 50,
         generator_count: int = 10,
-        **kwargs
+        **kwargs,
     ) -> "ScenarioList":
         """
         Create a ScenarioList using LLM-powered intelligent multi-source approach.
@@ -594,15 +648,17 @@ Respond in this JSON format:
         self._log(f"Starting LLM-powered intelligent search for: '{description}'")
 
         # Step 1: Use LLM to decide the best strategy (unless overridden)
-        override_strategy = kwargs.pop('_override_strategy', None)
+        override_strategy = kwargs.pop("_override_strategy", None)
 
         if override_strategy:
             self._log("🎯 Using predefined strategy override...")
             strategy = override_strategy
             # Add missing fields for compatibility
-            strategy.setdefault('analysis', 'Using predefined strategy')
-            strategy.setdefault('reasoning', 'Strategy override applied')
-            strategy.setdefault('wikipedia_search_terms', [description, f"list of {description}"])
+            strategy.setdefault("analysis", "Using predefined strategy")
+            strategy.setdefault("reasoning", "Strategy override applied")
+            strategy.setdefault(
+                "wikipedia_search_terms", [description, f"list of {description}"]
+            )
         else:
             self._log("🧠 Analyzing query and deciding optimal strategy...")
             strategy = self._decide_search_strategy(description)
@@ -612,15 +668,19 @@ Respond in this JSON format:
         self._log(f"📋 Approach order: {' → '.join(strategy['approach_order'])}")
 
         # Step 2: Execute approaches in LLM-recommended order
-        for approach in strategy['approach_order']:
+        for approach in strategy["approach_order"]:
 
-            if approach == "wikipedia" and strategy['wikipedia_likely']:
+            if approach == "wikipedia" and strategy["wikipedia_likely"]:
                 self._log("🔍 Trying Wikipedia table search...")
                 approaches_tried.append("Wikipedia")
                 try:
-                    wikipedia_result = self._intelligent_wikipedia_search(description, strategy, **kwargs)
+                    wikipedia_result = self._intelligent_wikipedia_search(
+                        description, strategy, **kwargs
+                    )
                     if wikipedia_result and len(wikipedia_result) > 0:
-                        self._log(f"✅ Success! Found {len(wikipedia_result)} scenarios from Wikipedia tables")
+                        self._log(
+                            f"✅ Success! Found {len(wikipedia_result)} scenarios from Wikipedia tables"
+                        )
                         self._log("📊 Data source: Wikipedia")
                         return wikipedia_result
                     else:
@@ -629,22 +689,30 @@ Respond in this JSON format:
                     last_error = e
                     self._log(f"❌ Wikipedia search failed: {str(e)}")
 
-            elif approach == "exa" and strategy['exa_likely']:
+            elif approach == "exa" and strategy["exa_likely"]:
                 self._log("🌐 Trying Exa web search...")
                 approaches_tried.append("Exa")
                 try:
                     search_query = f"{description}"
                     exa_kwargs = {
-                        k: v for k, v in kwargs.items()
-                        if k in ['criteria', 'enrichments', 'api_key', 'wait_for_completion', 'max_wait_time']
+                        k: v
+                        for k, v in kwargs.items()
+                        if k
+                        in [
+                            "criteria",
+                            "enrichments",
+                            "api_key",
+                            "wait_for_completion",
+                            "max_wait_time",
+                        ]
                     }
                     result = ScenarioList.from_exa(
-                        query=search_query,
-                        count=exa_count,
-                        **exa_kwargs
+                        query=search_query, count=exa_count, **exa_kwargs
                     )
                     if len(result) > 0:
-                        self._log(f"✅ Success! Found {len(result)} scenarios from Exa web search")
+                        self._log(
+                            f"✅ Success! Found {len(result)} scenarios from Exa web search"
+                        )
                         self._log("📊 Data source: Exa (web search)")
                         return result
                     else:
@@ -653,22 +721,26 @@ Respond in this JSON format:
                     last_error = e
                     self._log(f"❌ Exa search failed: {str(e)}")
 
-            elif approach == "ai_generation" and strategy['ai_generation_likely']:
+            elif approach == "ai_generation" and strategy["ai_generation_likely"]:
                 self._log("🧠 Trying AI generation...")
                 approaches_tried.append("AI Generator")
                 try:
                     gen = ScenarioGenerator(
                         model=kwargs.get("model", "gpt-4o"),
-                        temperature=kwargs.get("temperature", 0.7)
+                        temperature=kwargs.get("temperature", 0.7),
                     )
-                    generator_kwargs = {k: v for k, v in kwargs.items() if k in ['fields']}
+                    generator_kwargs = {
+                        k: v for k, v in kwargs.items() if k in ["fields"]
+                    }
                     result = gen.generate_scenarios(
-                        description,
-                        count=generator_count,
-                        **generator_kwargs
+                        description, count=generator_count, **generator_kwargs
                     )
-                    scenarios = ScenarioList([Scenario(scenario) for scenario in result["scenarios"]])
-                    self._log(f"✅ Success! Generated {len(scenarios)} scenarios using AI")
+                    scenarios = ScenarioList(
+                        [Scenario(scenario) for scenario in result["scenarios"]]
+                    )
+                    self._log(
+                        f"✅ Success! Generated {len(scenarios)} scenarios using AI"
+                    )
                     self._log("📊 Data source: AI Generation")
                     return scenarios
                 except Exception as e:
@@ -685,10 +757,7 @@ Respond in this JSON format:
         raise RuntimeError(error_msg)
 
     def search_with_strategy(
-        self,
-        description: str,
-        strategy: str = "comprehensive",
-        **kwargs
+        self, description: str, strategy: str = "comprehensive", **kwargs
     ) -> "ScenarioList":
         """
         Search using a predefined strategy (now all LLM-powered).
@@ -706,42 +775,40 @@ Respond in this JSON format:
             return self.create_scenario_list(description, **kwargs)
         elif strategy == "fast":
             # Use LLM but skip Exa for speed - modify the LLM strategy accordingly
-            kwargs['_override_strategy'] = {
-                'approach_order': ['wikipedia', 'ai_generation'],
-                'wikipedia_likely': True,
-                'exa_likely': False,
-                'ai_generation_likely': True
+            kwargs["_override_strategy"] = {
+                "approach_order": ["wikipedia", "ai_generation"],
+                "wikipedia_likely": True,
+                "exa_likely": False,
+                "ai_generation_likely": True,
             }
             return self.create_scenario_list(description, **kwargs)
         elif strategy == "web_only":
             # Only try web sources (Wikipedia and Exa), skip AI generation
-            kwargs['_override_strategy'] = {
-                'approach_order': ['wikipedia', 'exa'],
-                'wikipedia_likely': True,
-                'exa_likely': True,
-                'ai_generation_likely': False
+            kwargs["_override_strategy"] = {
+                "approach_order": ["wikipedia", "exa"],
+                "wikipedia_likely": True,
+                "exa_likely": True,
+                "ai_generation_likely": False,
             }
             return self.create_scenario_list(description, **kwargs)
         elif strategy == "ai_only":
             # Only use AI generation
-            kwargs['_override_strategy'] = {
-                'approach_order': ['ai_generation'],
-                'wikipedia_likely': False,
-                'exa_likely': False,
-                'ai_generation_likely': True
+            kwargs["_override_strategy"] = {
+                "approach_order": ["ai_generation"],
+                "wikipedia_likely": False,
+                "exa_likely": False,
+                "ai_generation_likely": True,
             }
             return self.create_scenario_list(description, **kwargs)
         else:
-            raise ValueError(f"Unknown strategy '{strategy}'. Valid strategies: 'comprehensive', 'fast', 'web_only', 'ai_only'")
+            raise ValueError(
+                f"Unknown strategy '{strategy}'. Valid strategies: 'comprehensive', 'fast', 'web_only', 'ai_only'"
+            )
 
 
 # Convenience functions for direct usage
 def from_vibes_intelligent(
-    description: str,
-    *,
-    verbose: bool = True,
-    strategy: str = "comprehensive",
-    **kwargs
+    description: str, *, verbose: bool = True, strategy: str = "comprehensive", **kwargs
 ) -> "ScenarioList":
     """
     Convenience function to create a ScenarioList using the intelligent agent approach.

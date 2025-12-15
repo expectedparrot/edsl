@@ -209,6 +209,7 @@ class AgentPrompt:
         if traits_presentation_template is not None:
             # Validate the template before setting it
             from .agent_template_validation import AgentTemplateValidation
+
             validator = AgentTemplateValidation(self.agent)
             validator.validate_and_raise(traits_presentation_template)
 

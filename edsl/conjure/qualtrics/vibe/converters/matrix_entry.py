@@ -29,19 +29,21 @@ class MatrixEntryConverter(AbstractQuestionConverter):
         }
 
         # Extract matrix structure from the original question
-        if hasattr(question, 'question_items'):
+        if hasattr(question, "question_items"):
             params["question_items"] = question.question_items
         else:
             # Fallback for non-matrix questions
             params["question_items"] = ["Item 1", "Item 2"]
 
-        if hasattr(question, 'question_columns'):
+        if hasattr(question, "question_columns"):
             params["question_columns"] = question.question_columns
-        elif hasattr(question, 'question_options'):
+        elif hasattr(question, "question_options"):
             params["question_columns"] = question.question_options
         else:
             # Only use generic fallback as absolute last resort and warn about it
-            print(f"❌ WARNING: Using generic columns for {question.question_name} - no columns or options available")
+            print(
+                f"❌ WARNING: Using generic columns for {question.question_name} - no columns or options available"
+            )
             params["question_columns"] = ["Column 1", "Column 2", "Column 3"]
 
         # Set default rating scale

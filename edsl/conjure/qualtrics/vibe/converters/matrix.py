@@ -29,24 +29,28 @@ class MatrixConverter(AbstractQuestionConverter):
         }
 
         # Extract matrix structure from the original question
-        if hasattr(question, 'question_items'):
+        if hasattr(question, "question_items"):
             params["question_items"] = question.question_items
         else:
             # For MatrixEntry -> Matrix conversion, use existing items
-            if hasattr(question, 'question_columns'):
+            if hasattr(question, "question_columns"):
                 # For MatrixEntry, columns become the new items
-                params["question_items"] = question.question_columns[:2]  # Limit to reasonable size
+                params["question_items"] = question.question_columns[
+                    :2
+                ]  # Limit to reasonable size
             else:
                 params["question_items"] = ["Item 1", "Item 2"]
 
-        if hasattr(question, 'question_options'):
+        if hasattr(question, "question_options"):
             params["question_options"] = question.question_options
-        elif hasattr(question, 'question_columns'):
+        elif hasattr(question, "question_columns"):
             # For MatrixEntry -> Matrix, preserve the meaningful column labels as options
             params["question_options"] = question.question_columns
         else:
             # Only use generic fallback as absolute last resort and warn about it
-            print(f"❌ WARNING: Using generic options for {question.question_name} - no options or columns available")
+            print(
+                f"❌ WARNING: Using generic options for {question.question_name} - no options or columns available"
+            )
             params["question_options"] = ["Yes", "No", "Maybe"]
 
         return params

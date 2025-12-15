@@ -350,6 +350,7 @@ class Agent(Base):
         """Set the traits presentation template and mark it as explicitly set."""
         # Validate the template before setting it
         from .agent_template_validation import AgentTemplateValidation
+
         validator = AgentTemplateValidation(self)
         validator.validate_and_raise(value)
 

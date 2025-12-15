@@ -10,6 +10,7 @@ from datetime import datetime
 
 from edsl import Survey
 from edsl.questions import Question
+
 # QuestionAnalyzer removed - using multi-step processing instead
 
 
@@ -61,6 +62,7 @@ class VibeConfig:
         if self.system_prompt is None:
             try:
                 from .config.prompts.prompt_builder import PromptBuilder
+
                 prompt_builder = PromptBuilder()
                 self.system_prompt = prompt_builder.system_prompt
             except Exception:
@@ -82,7 +84,9 @@ class VibeProcessor:
         # analyzer removed - using multi-step processing
         self.changes: List[VibeChange] = []  # Track all changes made
 
-    async def process_survey(self, survey: Survey, response_data: Optional[Dict[str, List[str]]] = None) -> Survey:
+    async def process_survey(
+        self, survey: Survey, response_data: Optional[Dict[str, List[str]]] = None
+    ) -> Survey:
         """
         Process all questions in a survey using vibe analysis.
 
@@ -126,7 +130,8 @@ class VibeProcessor:
 
             # Process batch concurrently
             batch_results = await asyncio.gather(
-                *[self._process_question(q, response_data) for q in batch], return_exceptions=True
+                *[self._process_question(q, response_data) for q in batch],
+                return_exceptions=True,
             )
 
             # Handle results and exceptions
@@ -164,7 +169,9 @@ class VibeProcessor:
 
         return Survey(questions=improved_questions)
 
-    async def _process_question(self, question: Question, response_data: Optional[Dict[str, List[str]]] = None) -> Question:
+    async def _process_question(
+        self, question: Question, response_data: Optional[Dict[str, List[str]]] = None
+    ) -> Question:
         """
         Process a single question using multi-step specialized processors.
 
@@ -197,9 +204,9 @@ class VibeProcessor:
 
             # Check if any improvements were suggested
             has_improvements = (
-                analysis_result.get('improved_text') or
-                analysis_result.get('improved_options') or
-                analysis_result.get('suggested_type')
+                analysis_result.get("improved_text")
+                or analysis_result.get("improved_options")
+                or analysis_result.get("suggested_type")
             )
 
             if has_improvements:
@@ -207,67 +214,97 @@ class VibeProcessor:
                 question_dict = question.to_dict()
 
                 # Apply text improvements
-                if analysis_result.get('improved_text'):
-                    question_dict['question_text'] = analysis_result['improved_text']
-                    changes_made.append({
-                        'type': 'text_improved',
-                        'original': question.question_text,
-                        'new': analysis_result['improved_text']
-                    })
+                if analysis_result.get("improved_text"):
+                    question_dict["question_text"] = analysis_result["improved_text"]
+                    changes_made.append(
+                        {
+                            "type": "text_improved",
+                            "original": question.question_text,
+                            "new": analysis_result["improved_text"],
+                        }
+                    )
 
                 # Apply type improvements first (if any)
-                type_change_planned = analysis_result.get('suggested_type')
+                type_change_planned = analysis_result.get("suggested_type")
 
                 # Apply option improvements (but skip if we're changing types that don't use options)
-                if analysis_result.get('improved_options') and not (
-                    type_change_planned in ['QuestionNumerical', 'QuestionFreeText', 'QuestionYesNo', 'QuestionLikertFive']
+                if analysis_result.get("improved_options") and not (
+                    type_change_planned
+                    in [
+                        "QuestionNumerical",
+                        "QuestionFreeText",
+                        "QuestionYesNo",
+                        "QuestionLikertFive",
+                    ]
                 ):
-                    question_dict['question_options'] = analysis_result['improved_options']
-                    changes_made.append({
-                        'type': 'options_reordered',
-                        'original': getattr(question, 'question_options', []),
-                        'new': analysis_result['improved_options']
-                    })
+                    question_dict["question_options"] = analysis_result[
+                        "improved_options"
+                    ]
+                    changes_made.append(
+                        {
+                            "type": "options_reordered",
+                            "original": getattr(question, "question_options", []),
+                            "new": analysis_result["improved_options"],
+                        }
+                    )
 
                 # Apply type improvements
-                if analysis_result.get('suggested_type'):
-                    suggested_type = analysis_result['suggested_type']
+                if analysis_result.get("suggested_type"):
+                    suggested_type = analysis_result["suggested_type"]
                     try:
                         # Import question types
-                        from edsl.questions import QuestionNumerical, QuestionLinearScale, QuestionYesNo, QuestionLikertFive, QuestionFreeText
+                        from edsl.questions import (
+                            QuestionNumerical,
+                            QuestionLinearScale,
+                            QuestionYesNo,
+                            QuestionLikertFive,
+                            QuestionFreeText,
+                        )
 
                         type_map = {
-                            'QuestionNumerical': ('numerical', QuestionNumerical),
-                            'QuestionLinearScale': ('linear_scale', QuestionLinearScale),
-                            'QuestionYesNo': ('yes_no', QuestionYesNo),
-                            'QuestionLikertFive': ('likert_five', QuestionLikertFive),
-                            'QuestionFreeText': ('free_text', QuestionFreeText),
+                            "QuestionNumerical": ("numerical", QuestionNumerical),
+                            "QuestionLinearScale": (
+                                "linear_scale",
+                                QuestionLinearScale,
+                            ),
+                            "QuestionYesNo": ("yes_no", QuestionYesNo),
+                            "QuestionLikertFive": ("likert_five", QuestionLikertFive),
+                            "QuestionFreeText": ("free_text", QuestionFreeText),
                         }
 
                         if suggested_type in type_map:
                             type_name, question_class = type_map[suggested_type]
 
                             if self.config.enable_logging:
-                                print(f"    🔄 Converting {question.question_name} from {question.__class__.__name__} to {suggested_type}")
+                                print(
+                                    f"    🔄 Converting {question.question_name} from {question.__class__.__name__} to {suggested_type}"
+                                )
 
                             # Update the question_type in the dict to use the correct EDSL type name
-                            question_dict['question_type'] = type_name
+                            question_dict["question_type"] = type_name
 
                             # Clean the question dict for the new type BEFORE adding type-specific parameters
                             if self.config.enable_logging:
-                                print(f"    🧹 Cleaning parameters for {suggested_type}")
-                            question_dict = self._clean_question_dict_for_type(question_dict, suggested_type)
+                                print(
+                                    f"    🧹 Cleaning parameters for {suggested_type}"
+                                )
+                            question_dict = self._clean_question_dict_for_type(
+                                question_dict, suggested_type
+                            )
 
                             # For numerical questions, add min/max after cleaning
-                            if suggested_type == 'QuestionNumerical':
+                            if suggested_type == "QuestionNumerical":
                                 if self.config.enable_logging:
                                     print(f"    📊 Adding numerical parameters")
-                                if 'percentage' in question.question_text.lower():
-                                    question_dict['min_value'] = 0
-                                    question_dict['max_value'] = 100
+                                if "percentage" in question.question_text.lower():
+                                    question_dict["min_value"] = 0
+                                    question_dict["max_value"] = 100
                                     if self.config.enable_logging:
                                         print(f"    📊 Set percentage range: 0-100")
-                                elif hasattr(question, 'question_options') and question.question_options:
+                                elif (
+                                    hasattr(question, "question_options")
+                                    and question.question_options
+                                ):
                                     # Try to infer from existing options
                                     numeric_values = []
                                     for opt in question.question_options:
@@ -276,20 +313,26 @@ class VibeProcessor:
                                         except:
                                             pass
                                     if numeric_values:
-                                        question_dict['min_value'] = min(numeric_values)
-                                        question_dict['max_value'] = max(numeric_values)
+                                        question_dict["min_value"] = min(numeric_values)
+                                        question_dict["max_value"] = max(numeric_values)
                                         if self.config.enable_logging:
-                                            print(f"    📊 Inferred range: {question_dict['min_value']}-{question_dict['max_value']}")
+                                            print(
+                                                f"    📊 Inferred range: {question_dict['min_value']}-{question_dict['max_value']}"
+                                            )
 
-                            changes_made.append({
-                                'type': 'question_type_corrected',
-                                'original': question.__class__.__name__,
-                                'new': suggested_type
-                            })
+                            changes_made.append(
+                                {
+                                    "type": "question_type_corrected",
+                                    "original": question.__class__.__name__,
+                                    "new": suggested_type,
+                                }
+                            )
 
                     except Exception as e:
                         if self.config.enable_logging:
-                            print(f"    ⚠️ Could not convert {question.question_name} to {suggested_type}: {e}")
+                            print(
+                                f"    ⚠️ Could not convert {question.question_name} to {suggested_type}: {e}"
+                            )
                         # Keep original type if conversion fails
                         question_class = type(question)
                 else:
@@ -298,22 +341,26 @@ class VibeProcessor:
 
                 # Create the improved question
                 if self.config.enable_logging:
-                    print(f"    🏗️ Creating question with class: {question_class.__name__}")
+                    print(
+                        f"    🏗️ Creating question with class: {question_class.__name__}"
+                    )
                     print(f"    🏗️ Question dict keys: {list(question_dict.keys())}")
                 improved_question = question_class.from_dict(question_dict)
 
                 if self.config.enable_logging and changes_made:
-                    print(f"    ✨ {question.question_name}: Made {len(changes_made)} improvements")
+                    print(
+                        f"    ✨ {question.question_name}: Made {len(changes_made)} improvements"
+                    )
 
                 # Store changes for reporting
                 for change in changes_made:
                     vibe_change = VibeChange(
                         question_name=question.question_name,
-                        change_type=change['type'],
-                        original_value=change['original'],
-                        new_value=change['new'],
-                        reasoning=analysis_result.get('reasoning', ''),
-                        confidence=analysis_result.get('confidence', 0.5)
+                        change_type=change["type"],
+                        original_value=change["original"],
+                        new_value=change["new"],
+                        reasoning=analysis_result.get("reasoning", ""),
+                        confidence=analysis_result.get("confidence", 0.5),
                     )
                     self.changes.append(vibe_change)
             else:
@@ -324,19 +371,25 @@ class VibeProcessor:
             if self.config.enable_logging:
                 print(f"🔍 Validating {improved_question.question_name}...")
 
-            validation_result = await analyzer.validate_question(improved_question, response_data)
+            validation_result = await analyzer.validate_question(
+                improved_question, response_data
+            )
 
             # Log validation results if any issues found
-            if not validation_result.get('is_sensible', True):
+            if not validation_result.get("is_sensible", True):
                 if self.config.enable_logging:
-                    print(f"    ⚠️  Validation concerns for {improved_question.question_name}:")
-                    for issue in validation_result.get('issues_found', []):
+                    print(
+                        f"    ⚠️  Validation concerns for {improved_question.question_name}:"
+                    )
+                    for issue in validation_result.get("issues_found", []):
                         print(f"        - {issue}")
-                    for suggestion in validation_result.get('suggestions', []):
+                    for suggestion in validation_result.get("suggestions", []):
                         print(f"        💡 {suggestion}")
             else:
                 if self.config.enable_logging:
-                    print(f"    ✅ Validation passed for {improved_question.question_name}")
+                    print(
+                        f"    ✅ Validation passed for {improved_question.question_name}"
+                    )
 
             return improved_question
 
@@ -345,7 +398,9 @@ class VibeProcessor:
                 print(f"    ❌ Error processing question {question.question_name}: {e}")
             return question  # Return original on error
 
-    def _clean_question_dict_for_type(self, question_dict: Dict[str, Any], target_type: str) -> Dict[str, Any]:
+    def _clean_question_dict_for_type(
+        self, question_dict: Dict[str, Any], target_type: str
+    ) -> Dict[str, Any]:
         """
         Clean question dictionary to remove parameters incompatible with target type.
 
@@ -361,11 +416,39 @@ class VibeProcessor:
 
         # Define parameter compatibility for each question type
         valid_params = {
-            'QuestionFreeText': {'question_name', 'question_text', 'answering_instructions', 'question_presentation'},
-            'QuestionYesNo': {'question_name', 'question_text', 'answering_instructions', 'question_presentation'},
-            'QuestionLinearScale': {'question_name', 'question_text', 'question_options', 'answering_instructions', 'question_presentation'},
-            'QuestionLikertFive': {'question_name', 'question_text', 'answering_instructions', 'question_presentation'},
-            'QuestionNumerical': {'question_name', 'question_text', 'min_value', 'max_value', 'answering_instructions', 'question_presentation'},
+            "QuestionFreeText": {
+                "question_name",
+                "question_text",
+                "answering_instructions",
+                "question_presentation",
+            },
+            "QuestionYesNo": {
+                "question_name",
+                "question_text",
+                "answering_instructions",
+                "question_presentation",
+            },
+            "QuestionLinearScale": {
+                "question_name",
+                "question_text",
+                "question_options",
+                "answering_instructions",
+                "question_presentation",
+            },
+            "QuestionLikertFive": {
+                "question_name",
+                "question_text",
+                "answering_instructions",
+                "question_presentation",
+            },
+            "QuestionNumerical": {
+                "question_name",
+                "question_text",
+                "min_value",
+                "max_value",
+                "answering_instructions",
+                "question_presentation",
+            },
         }
 
         # Get valid parameters for the target type
@@ -375,7 +458,9 @@ class VibeProcessor:
             # Remove any parameters that are not valid for this type
             keys_to_remove = []
             for key in clean_dict:
-                if key not in valid_for_type and key != 'question_type':  # Always keep question_type
+                if (
+                    key not in valid_for_type and key != "question_type"
+                ):  # Always keep question_type
                     keys_to_remove.append(key)
 
             for key in keys_to_remove:
@@ -1090,7 +1175,9 @@ class VibeProcessor:
                 print(f"      ❌ CheckBox conversion failed: {e}")
             return None
 
-    def process_survey_sync(self, survey: Survey, response_data: Optional[Dict[str, List[str]]] = None) -> Survey:
+    def process_survey_sync(
+        self, survey: Survey, response_data: Optional[Dict[str, List[str]]] = None
+    ) -> Survey:
         """
         Synchronous wrapper for survey processing.
 

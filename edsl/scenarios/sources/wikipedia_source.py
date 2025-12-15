@@ -53,26 +53,32 @@ class WikipediaTableCollection:
                 else:
                     columns = []
 
-                self._table_summaries.append({
-                    'index': i,
-                    'rows': len(scenario_list),
-                    'columns': columns,
-                    'column_count': len(columns)
-                })
+                self._table_summaries.append(
+                    {
+                        "index": i,
+                        "rows": len(scenario_list),
+                        "columns": columns,
+                        "column_count": len(columns),
+                    }
+                )
 
         return self._table_summaries
 
     def print_summary(self):
         """Print a summary of all tables in the collection."""
         print(f"📊 WikipediaTableCollection: Found {len(self)} tables from {self.url}")
-        print(f"💡 Tip: Use tables[index] to get a specific table, or tables.get_largest_table() for the biggest one\n")
+        print(
+            f"💡 Tip: Use tables[index] to get a specific table, or tables.get_largest_table() for the biggest one\n"
+        )
 
         for summary in self.get_table_summaries():
-            print(f"Table {summary['index']}: {summary['rows']} rows, {summary['column_count']} columns")
-            if summary['columns']:
-                columns_display = summary['columns'][:5]  # Show first 5 columns
-                if len(summary['columns']) > 5:
-                    columns_display.append('...')
+            print(
+                f"Table {summary['index']}: {summary['rows']} rows, {summary['column_count']} columns"
+            )
+            if summary["columns"]:
+                columns_display = summary["columns"][:5]  # Show first 5 columns
+                if len(summary["columns"]) > 5:
+                    columns_display.append("...")
                 print(f"  - Columns: {columns_display}")
             print()
 
@@ -86,8 +92,8 @@ class WikipediaTableCollection:
         summaries = self.get_table_summaries()
 
         # Just return the table with the most rows
-        largest_table = max(summaries, key=lambda x: x['rows'])
-        return largest_table['index'], self.scenario_lists[largest_table['index']]
+        largest_table = max(summaries, key=lambda x: x["rows"])
+        return largest_table["index"], self.scenario_lists[largest_table["index"]]
 
 
 class WikipediaSource(Source):
@@ -211,24 +217,22 @@ class WikipediaSource(Source):
                 if len(df) > 0:
                     columns = list(df.columns)[:3]  # Show first 3 columns
                     if len(df.columns) > 3:
-                        columns.append('...')
+                        columns.append("...")
                 else:
                     columns = []
-                table_info.append({
-                    'index': i,
-                    'rows': len(df),
-                    'columns': columns
-                })
+                table_info.append({"index": i, "rows": len(df), "columns": columns})
 
             # Build helpful error message
             error_msg = f"Multiple tables found ({len(tables)} tables). Please specify which table you want:\n\n"
             for info in table_info:
                 error_msg += f"Table {info['index']}: {info['rows']} rows"
-                if info['columns']:
+                if info["columns"]:
                     error_msg += f" - Columns: {info['columns']}"
                 error_msg += "\n"
 
-            error_msg += f"\nUsage: ScenarioList.from_source('wikipedia', 'URL', table_index=N)"
+            error_msg += (
+                f"\nUsage: ScenarioList.from_source('wikipedia', 'URL', table_index=N)"
+            )
             error_msg += f"\nExample: ScenarioList.from_source('wikipedia', 'URL', table_index=5)"
 
             raise ScenarioError(error_msg)
@@ -243,7 +247,9 @@ class WikipediaSource(Source):
             scenarios.append(Scenario(scenario_dict))
 
         scenario_list = ScenarioList(scenarios)
-        print(f"📋 Retrieved table {self.table_index} with {len(scenario_list)} rows from Wikipedia")
+        print(
+            f"📋 Retrieved table {self.table_index} with {len(scenario_list)} rows from Wikipedia"
+        )
 
         return scenario_list
 
@@ -284,7 +290,9 @@ class WikipediaSource(Source):
         source = cls(url=url, table_index=None, header=header)
         tables = source.to_table_collection()
         print(f"🔍 Retrieved {len(tables)} tables from Wikipedia page")
-        print(f"💡 Use .print_summary() to see all tables, or access specific tables with [index]")
+        print(
+            f"💡 Use .print_summary() to see all tables, or access specific tables with [index]"
+        )
         return tables
 
     def _fetch_all_tables(self):
@@ -304,7 +312,7 @@ class WikipediaSource(Source):
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.5",
                 "Accept-Encoding": "gzip, deflate",
-                "Connection": "keep-alive"
+                "Connection": "keep-alive",
             }
 
             # Check if the URL is reachable

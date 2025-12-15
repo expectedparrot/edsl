@@ -375,7 +375,5 @@ class AgentListVibeAccessor:
 
         # Design and return optimized agent list
         return designer.design_for_survey(
-            agent_list=self._agent_list,
-            survey=survey,
-            show_reasoning=show_reasoning
+            agent_list=self._agent_list, survey=survey, show_reasoning=show_reasoning
         )

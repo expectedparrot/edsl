@@ -47,7 +47,9 @@ class QuestionImprover:
         """
         try:
             # Get AI analysis of the question with response data
-            analysis = await self.analyzer.analyze_question(question, self.response_data)
+            analysis = await self.analyzer.analyze_question(
+                question, self.response_data
+            )
 
             # Apply improvements based on analysis
             improved_question = self._apply_improvements(question, analysis)

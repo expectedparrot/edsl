@@ -47,7 +47,9 @@ class ModelResult:
     train_score: Optional[float] = None
     selection_score: Optional[float] = None
     problem_type: Optional[str] = None  # 'classification' or 'regression'
-    training_data: Optional[tuple] = None  # (X_train, y_train) for standard error calculation
+    training_data: Optional[tuple] = (
+        None  # (X_train, y_train) for standard error calculation
+    )
 
 
 class ModelSelector:
@@ -594,7 +596,9 @@ class ModelSelector:
             equal_importance = 1.0 / len(feature_names)
             return {name: equal_importance for name in feature_names}
 
-    def get_coefficients_and_errors(self, model_result: ModelResult) -> Dict[str, Dict[str, float]]:
+    def get_coefficients_and_errors(
+        self, model_result: ModelResult
+    ) -> Dict[str, Dict[str, float]]:
         """
         Get model coefficients and standard errors for linear models.
 
@@ -627,16 +631,28 @@ class ModelSelector:
             result = {}
             for i, feature_name in enumerate(feature_names):
                 result[feature_name] = {
-                    'coefficient': float(coefficients[i]),
-                    'std_error': float(std_errors[i]) if std_errors is not None else None,
-                    'z_score': float(coefficients[i] / std_errors[i]) if std_errors is not None and std_errors[i] != 0 else None,
-                    'p_value': self._calculate_p_value(coefficients[i], std_errors[i]) if std_errors is not None and std_errors[i] != 0 else None
+                    "coefficient": float(coefficients[i]),
+                    "std_error": (
+                        float(std_errors[i]) if std_errors is not None else None
+                    ),
+                    "z_score": (
+                        float(coefficients[i] / std_errors[i])
+                        if std_errors is not None and std_errors[i] != 0
+                        else None
+                    ),
+                    "p_value": (
+                        self._calculate_p_value(coefficients[i], std_errors[i])
+                        if std_errors is not None and std_errors[i] != 0
+                        else None
+                    ),
                 }
 
             return result
 
         except Exception as e:
-            warnings.warn(f"Could not extract coefficients and standard errors: {str(e)}")
+            warnings.warn(
+                f"Could not extract coefficients and standard errors: {str(e)}"
+            )
             return None
 
     def _calculate_standard_errors(self, model_result: ModelResult) -> np.ndarray:
@@ -650,7 +666,7 @@ class ModelSelector:
 
         try:
             # Store training data in model_result if available
-            if hasattr(model_result, 'training_data'):
+            if hasattr(model_result, "training_data"):
                 X_train, y_train = model_result.training_data
                 return self._bootstrap_standard_errors(model, X_train, y_train)
             else:
@@ -662,7 +678,9 @@ class ModelSelector:
             warnings.warn(f"Could not calculate standard errors: {str(e)}")
             return None
 
-    def _bootstrap_standard_errors(self, model, X: np.ndarray, y: np.ndarray, n_bootstrap: int = 100) -> np.ndarray:
+    def _bootstrap_standard_errors(
+        self, model, X: np.ndarray, y: np.ndarray, n_bootstrap: int = 100
+    ) -> np.ndarray:
         """
         Calculate standard errors using bootstrap resampling.
 
@@ -713,6 +731,7 @@ class ModelSelector:
 
         try:
             from scipy import stats
+
             z_score = coefficient / std_error
             # Two-tailed test
             p_value = 2 * (1 - stats.norm.cdf(abs(z_score)))

@@ -545,7 +545,10 @@ class FeatureProcessor:
                 processor_info["type"] == "categorical" and "encoder" in processor_info
             ):
                 info["categories"] = list(processor_info["encoder"].classes_)
-            elif processor_info["type"] == "list_dummy" and "unique_items" in processor_info:
+            elif (
+                processor_info["type"] == "list_dummy"
+                and "unique_items" in processor_info
+            ):
                 info["unique_items"] = processor_info["unique_items"]
 
             feature_info.append(info)

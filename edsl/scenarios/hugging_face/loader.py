@@ -4,7 +4,9 @@ import warnings
 from typing import Optional
 
 
-def from_hugging_face(dataset_name: str, config_name: Optional[str] = None, split: Optional[str] = None) -> "ScenarioList":
+def from_hugging_face(
+    dataset_name: str, config_name: Optional[str] = None, split: Optional[str] = None
+) -> "ScenarioList":
     """Create a ScenarioList from a Hugging Face dataset.
 
     Args:
@@ -45,6 +47,7 @@ def from_hugging_face(dataset_name: str, config_name: Optional[str] = None, spli
     # Load the dataset info to check for multiple configurations
     try:
         from datasets import get_dataset_config_names
+
         available_configs = get_dataset_config_names(dataset_name)
 
         # If multiple configs exist and none specified, raise error
@@ -87,8 +90,8 @@ def from_hugging_face(dataset_name: str, config_name: Optional[str] = None, spli
         data_frame = dataset[split]
     elif len(dataset) > 1:
         # Multiple splits available, user didn't specify - use default logic
-        if 'train' in dataset:
-            data_frame = dataset['train']
+        if "train" in dataset:
+            data_frame = dataset["train"]
         else:
             split_name = available_splits[0]
             data_frame = dataset[split_name]
@@ -105,7 +108,7 @@ def from_hugging_face(dataset_name: str, config_name: Optional[str] = None, spli
     df = data_frame.to_pandas()
 
     # Convert DataFrame to list of dictionaries
-    data_list = df.to_dict('records')
+    data_list = df.to_dict("records")
 
     # Create ScenarioList using existing from_list_of_dicts method
     return ScenarioList.from_list_of_dicts(data_list)

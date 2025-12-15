@@ -12,6 +12,7 @@ from .data_classes import QualtricsQuestionMetadata, Column
 @dataclass
 class MatrixGroup:
     """Represents a detected matrix question group."""
+
     base_question_id: str  # e.g., "Q20"
     columns: List[Column]  # All columns belonging to this matrix
     row_labels: List[str]  # Row labels extracted from question text
@@ -25,7 +26,9 @@ class MatrixDetector:
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
 
-    def detect_matrix_groups(self, columns: List[Column]) -> Tuple[List[MatrixGroup], List[Column]]:
+    def detect_matrix_groups(
+        self, columns: List[Column]
+    ) -> Tuple[List[MatrixGroup], List[Column]]:
         """
         Detect matrix question groups from column metadata.
 
@@ -39,8 +42,10 @@ class MatrixDetector:
         non_matrix_columns = []
 
         if self.verbose:
-            print(f"\n🔍 MATRIX DETECTION: Analyzing {len(columns)} columns for matrix patterns")
-            print("="*60)
+            print(
+                f"\n🔍 MATRIX DETECTION: Analyzing {len(columns)} columns for matrix patterns"
+            )
+            print("=" * 60)
 
         # Group columns by potential matrix base ID
         for column in columns:
@@ -66,7 +71,9 @@ class MatrixDetector:
             print(f"  Individual questions: {len(non_matrix_columns)} columns")
 
             for base_id, group_columns in matrix_candidates.items():
-                column_names = [col.question_metadata.short_label for col in group_columns]
+                column_names = [
+                    col.question_metadata.short_label for col in group_columns
+                ]
                 print(f"    {base_id}: {column_names} ({len(group_columns)} columns)")
             print()
 
@@ -75,12 +82,14 @@ class MatrixDetector:
 
         if self.verbose:
             print(f"🔨 MATRIX RECONSTRUCTION: Building matrices from candidates")
-            print("-"*60)
+            print("-" * 60)
 
         for base_id, group_columns in matrix_candidates.items():
             if len(group_columns) > 1:
                 if self.verbose:
-                    print(f"  🔧 Reconstructing '{base_id}' from {len(group_columns)} columns...")
+                    print(
+                        f"  🔧 Reconstructing '{base_id}' from {len(group_columns)} columns..."
+                    )
 
                 # This is a real matrix - reconstruct it
                 matrix_group = self._reconstruct_matrix_group(base_id, group_columns)
@@ -95,38 +104,49 @@ class MatrixDetector:
                     # Failed to reconstruct - treat as individual questions
                     non_matrix_columns.extend(group_columns)
                     if self.verbose:
-                        print(f"    ❌ Failed to reconstruct '{base_id}' - treating as individual questions")
+                        print(
+                            f"    ❌ Failed to reconstruct '{base_id}' - treating as individual questions"
+                        )
             else:
                 # Single column - not a matrix
                 non_matrix_columns.extend(group_columns)
                 if self.verbose:
-                    print(f"  📄 '{base_id}' has only 1 column - treating as individual question")
+                    print(
+                        f"  📄 '{base_id}' has only 1 column - treating as individual question"
+                    )
 
         # Now detect cross-matrix combinations (e.g., Q20+Q21)
         if self.verbose:
             print(f"\n🔗 MATRIX COMBINATION: Looking for combinable matrices")
-            print("-"*60)
+            print("-" * 60)
             print(f"  Individual matrices found: {len(individual_matrices)}")
             for matrix in individual_matrices:
-                print(f"    {matrix.base_question_id}: {len(matrix.columns)} columns, {len(matrix.row_labels)} rows")
+                print(
+                    f"    {matrix.base_question_id}: {len(matrix.columns)} columns, {len(matrix.row_labels)} rows"
+                )
 
         combined_matrices = self._detect_combinable_matrices(individual_matrices)
 
         # Add any matrices that weren't combined to the final list
         final_matrices = combined_matrices.copy()
         for matrix in individual_matrices:
-            if not any(matrix.base_question_id in combined.base_question_id for combined in combined_matrices):
+            if not any(
+                matrix.base_question_id in combined.base_question_id
+                for combined in combined_matrices
+            ):
                 final_matrices.append(matrix)
 
         if self.verbose:
             print(f"\n📊 FINAL MATRIX SUMMARY:")
-            print("="*60)
+            print("=" * 60)
             print(f"  Final matrices: {len(final_matrices)}")
             print(f"  Individual questions: {len(non_matrix_columns)}")
 
             for i, matrix in enumerate(final_matrices, 1):
                 print(f"  {i}. {matrix.base_question_id}:")
-                print(f"     Type: {'Combined' if '_' in matrix.base_question_id else 'Individual'}")
+                print(
+                    f"     Type: {'Combined' if '_' in matrix.base_question_id else 'Individual'}"
+                )
                 print(f"     Rows: {matrix.row_labels}")
                 print(f"     Columns: {matrix.column_labels}")
                 print(f"     Question: {matrix.question_text[:60]}...")
@@ -134,7 +154,9 @@ class MatrixDetector:
 
         return final_matrices, non_matrix_columns
 
-    def _detect_combinable_matrices(self, matrices: List[MatrixGroup]) -> List[MatrixGroup]:
+    def _detect_combinable_matrices(
+        self, matrices: List[MatrixGroup]
+    ) -> List[MatrixGroup]:
         """
         Detect matrices that should be combined into a single multi-row matrix.
 
@@ -186,7 +208,9 @@ class MatrixDetector:
                         used_matrices.add(matrix.base_question_id)
 
                     if self.verbose:
-                        print(f"    ✅ Combined into: {combined_matrix.base_question_id}")
+                        print(
+                            f"    ✅ Combined into: {combined_matrix.base_question_id}"
+                        )
                         print(f"       New rows: {combined_matrix.row_labels}")
             elif self.verbose:
                 print(f"  📄 '{matrix1.base_question_id}' will remain individual")
@@ -200,7 +224,9 @@ class MatrixDetector:
 
         if len(matrix1.column_labels) != len(matrix2.column_labels):
             if self.verbose:
-                print(f"        Different column counts: {len(matrix1.column_labels)} vs {len(matrix2.column_labels)}")
+                print(
+                    f"        Different column counts: {len(matrix1.column_labels)} vs {len(matrix2.column_labels)}"
+                )
             return False
 
         # Normalize column labels for comparison (handle case differences and whitespace)
@@ -213,12 +239,18 @@ class MatrixDetector:
         if self.verbose:
             if compatible:
                 print(f"        Column structures match:")
-                for i, (c1, c2) in enumerate(zip(matrix1.column_labels, matrix2.column_labels)):
+                for i, (c1, c2) in enumerate(
+                    zip(matrix1.column_labels, matrix2.column_labels)
+                ):
                     print(f"          {i+1}. '{c1}' ≈ '{c2}'")
             else:
                 print(f"        Column structures differ:")
-                for i, (c1, c2) in enumerate(zip(matrix1.column_labels, matrix2.column_labels)):
-                    match_status = "✓" if c1.lower().strip() == c2.lower().strip() else "✗"
+                for i, (c1, c2) in enumerate(
+                    zip(matrix1.column_labels, matrix2.column_labels)
+                ):
+                    match_status = (
+                        "✓" if c1.lower().strip() == c2.lower().strip() else "✗"
+                    )
                     print(f"          {i+1}. {match_status} '{c1}' vs '{c2}'")
 
         return compatible
@@ -230,10 +262,12 @@ class MatrixDetector:
 
         # Sort matrices by question number for consistent ordering
         def extract_number(question_id: str) -> int:
-            match = re.search(r'Q(\d+)', question_id)
+            match = re.search(r"Q(\d+)", question_id)
             return int(match.group(1)) if match else 0
 
-        sorted_matrices = sorted(matrices, key=lambda m: extract_number(m.base_question_id))
+        sorted_matrices = sorted(
+            matrices, key=lambda m: extract_number(m.base_question_id)
+        )
 
         # Create combined matrix
         first_matrix = sorted_matrices[0]
@@ -264,7 +298,7 @@ class MatrixDetector:
             columns=all_columns,
             row_labels=combined_row_labels,
             column_labels=column_labels,
-            question_text=combined_text
+            question_text=combined_text,
         )
 
     def _create_combined_question_text(self, matrices: List[MatrixGroup]) -> str:
@@ -277,30 +311,45 @@ class MatrixDetector:
         base_text = matrices[0].question_text
 
         # Clean up common patterns that make the text specific to one time period
-        base_text = re.sub(r'And looking ahead to the next \d+ months?,', '', base_text, flags=re.IGNORECASE)
-        base_text = re.sub(r'And lastly, looking ahead to the next \d+ years?,', '', base_text, flags=re.IGNORECASE)
-        base_text = re.sub(r'Overall,', '', base_text, flags=re.IGNORECASE)
-        base_text = re.sub(r'And how', 'How', base_text, flags=re.IGNORECASE)
+        base_text = re.sub(
+            r"And looking ahead to the next \d+ months?,",
+            "",
+            base_text,
+            flags=re.IGNORECASE,
+        )
+        base_text = re.sub(
+            r"And lastly, looking ahead to the next \d+ years?,",
+            "",
+            base_text,
+            flags=re.IGNORECASE,
+        )
+        base_text = re.sub(r"Overall,", "", base_text, flags=re.IGNORECASE)
+        base_text = re.sub(r"And how", "How", base_text, flags=re.IGNORECASE)
 
         # Clean up extra whitespace
-        base_text = re.sub(r'\s+', ' ', base_text).strip()
+        base_text = re.sub(r"\s+", " ", base_text).strip()
 
         return base_text
 
     def _extract_matrix_base_id(self, question_id: str) -> Optional[str]:
         """Extract base question ID from matrix column ID."""
         # Patterns to match: Q20_1, Q20_2, Q21_1, Q17_1, etc.
-        pattern = r'^(Q\d+)_\d+$'
+        pattern = r"^(Q\d+)_\d+$"
         match = re.match(pattern, question_id)
         return match.group(1) if match else None
 
-    def _reconstruct_matrix_group(self, base_id: str, columns: List[Column]) -> Optional[MatrixGroup]:
+    def _reconstruct_matrix_group(
+        self, base_id: str, columns: List[Column]
+    ) -> Optional[MatrixGroup]:
         """Reconstruct a matrix group from its component columns."""
         if not columns:
             return None
 
         # Sort columns by their suffix number
-        sorted_columns = sorted(columns, key=lambda c: self._get_column_suffix(c.question_metadata.short_label))
+        sorted_columns = sorted(
+            columns,
+            key=lambda c: self._get_column_suffix(c.question_metadata.short_label),
+        )
 
         # Extract common question text and row/column labels
         question_text = self._extract_common_question_text(sorted_columns)
@@ -315,12 +364,12 @@ class MatrixDetector:
             columns=sorted_columns,
             row_labels=row_labels,
             column_labels=column_labels,
-            question_text=question_text
+            question_text=question_text,
         )
 
     def _get_column_suffix(self, question_id: str) -> int:
         """Extract the numeric suffix from a matrix column ID."""
-        match = re.search(r'_(\d+)$', question_id)
+        match = re.search(r"_(\d+)$", question_id)
         return int(match.group(1)) if match else 0
 
     def _extract_common_question_text(self, columns: List[Column]) -> str:
@@ -329,7 +378,11 @@ class MatrixDetector:
             return ""
 
         # Get all question texts
-        texts = [col.question_metadata.question_text for col in columns if col.question_metadata]
+        texts = [
+            col.question_metadata.question_text
+            for col in columns
+            if col.question_metadata
+        ]
         if not texts:
             return ""
 
@@ -342,14 +395,14 @@ class MatrixDetector:
         # " - Humans with the help of generative AI "
         # " - Only by generative AI"
         suffixes_to_remove = [
-            r'\s*-\s*Only humans without generative AI\s*$',
-            r'\s*-\s*Humans with the help of generative AI\s*$',
-            r'\s*-\s*Only by generative AI\s*$',
-            r'\s*-\s*[^-]+\s*$'  # Generic "- something" at the end
+            r"\s*-\s*Only humans without generative AI\s*$",
+            r"\s*-\s*Humans with the help of generative AI\s*$",
+            r"\s*-\s*Only by generative AI\s*$",
+            r"\s*-\s*[^-]+\s*$",  # Generic "- something" at the end
         ]
 
         for pattern in suffixes_to_remove:
-            base_text = re.sub(pattern, '', base_text, flags=re.IGNORECASE)
+            base_text = re.sub(pattern, "", base_text, flags=re.IGNORECASE)
 
         return base_text.strip()
 
@@ -364,31 +417,33 @@ class MatrixDetector:
         # Get the first column's text to extract the row label
         first_column = columns[0]
         if not first_column.question_metadata:
-            return ['Row 1']
+            return ["Row 1"]
 
         text = first_column.question_metadata.question_text.lower()
 
         # Detect time period patterns for our specific case
-        if 'next 3 months' in text:
-            return ['Next 3 months']
-        elif 'next 5 years' in text or 'lastly' in text:
-            return ['Next 5 years']
-        elif 'overall' in text and 'trust' in text:
-            return ['Trust level']
-        elif 'satisfied' in text:
-            return ['Satisfaction level']
+        if "next 3 months" in text:
+            return ["Next 3 months"]
+        elif "next 5 years" in text or "lastly" in text:
+            return ["Next 5 years"]
+        elif "overall" in text and "trust" in text:
+            return ["Trust level"]
+        elif "satisfied" in text:
+            return ["Satisfaction level"]
         else:
             # Extract a meaningful row label from the question text
             # Remove common prefixes and suffixes
             clean_text = first_column.question_metadata.question_text.strip()
-            clean_text = re.sub(r'\s*-\s*[^-]+\s*$', '', clean_text)  # Remove "- column suffix"
+            clean_text = re.sub(
+                r"\s*-\s*[^-]+\s*$", "", clean_text
+            )  # Remove "- column suffix"
 
             # Take first few words as row label
             words = clean_text.split()[:4]  # First 4 words
             if words:
-                return [' '.join(words).rstrip(':,.')]
+                return [" ".join(words).rstrip(":,.")]
             else:
-                return ['Row 1']
+                return ["Row 1"]
 
     def _extract_column_labels(self, columns: List[Column]) -> List[str]:
         """Extract column labels from matrix question texts."""
@@ -403,11 +458,11 @@ class MatrixDetector:
                 print(f"  Extracting label from: {repr(text[:100])}")
 
             # Extract the part after the last " - "
-            match = re.search(r'\s*-\s*([^-]+)\s*$', text)
+            match = re.search(r"\s*-\s*([^-]+)\s*$", text)
             if match:
                 label = match.group(1).strip()
                 # Clean up common artifacts like trailing spaces and encoding issues
-                label = re.sub(r'\s+$', '', label)  # Remove trailing whitespace
+                label = re.sub(r"\s+$", "", label)  # Remove trailing whitespace
                 # Keep "Only" prefix as it's part of the meaning
 
                 if self.verbose:
@@ -416,11 +471,13 @@ class MatrixDetector:
             else:
                 # This should never happen! Log the failure and try alternative parsing
                 if self.verbose:
-                    print(f"    ❌ Failed to extract label with regex from: {repr(text)}")
+                    print(
+                        f"    ❌ Failed to extract label with regex from: {repr(text)}"
+                    )
 
                 # Try alternative patterns for edge cases
                 # Look for text after colon and dash pattern
-                alt_match = re.search(r':\s*-\s*(.+)$', text)
+                alt_match = re.search(r":\s*-\s*(.+)$", text)
                 if alt_match:
                     label = alt_match.group(1).strip()
                     if self.verbose:
@@ -428,9 +485,13 @@ class MatrixDetector:
                     column_labels.append(label)
                 else:
                     # Only use generic fallback as absolute last resort and warn about it
-                    suffix = self._get_column_suffix(column.question_metadata.short_label)
-                    fallback_label = f'Option {suffix}'
-                    print(f"❌ WARNING: Using generic label '{fallback_label}' for column {column.question_metadata.short_label}")
+                    suffix = self._get_column_suffix(
+                        column.question_metadata.short_label
+                    )
+                    fallback_label = f"Option {suffix}"
+                    print(
+                        f"❌ WARNING: Using generic label '{fallback_label}' for column {column.question_metadata.short_label}"
+                    )
                     print(f"    Question text was: {repr(text[:200])}")
                     column_labels.append(fallback_label)
 
@@ -445,9 +506,13 @@ class MatrixDetector:
         # The scenarios themselves become the question_items
         if len(matrix_group.row_labels) == 1 and len(matrix_group.column_labels) >= 2:
             if self.verbose:
-                print(f"    Detected single-concept matrix - using scenarios as items directly")
+                print(
+                    f"    Detected single-concept matrix - using scenarios as items directly"
+                )
         elif len(matrix_group.row_labels) < 2:
-            raise ValueError(f"Matrix {matrix_group.base_question_id} has only {len(matrix_group.row_labels)} row(s). Matrix questions require at least 2 rows. Consider treating as individual questions instead.")
+            raise ValueError(
+                f"Matrix {matrix_group.base_question_id} has only {len(matrix_group.row_labels)} row(s). Matrix questions require at least 2 rows. Consider treating as individual questions instead."
+            )
 
         # Decide between QuestionMatrix (choice-based) vs QuestionMatrixEntry (rating-based)
         if self._should_use_matrix_entry(matrix_group):
@@ -467,7 +532,7 @@ class MatrixDetector:
         total_responses = 0
 
         for column in matrix_group.columns[:3]:  # Check first 3 columns
-            if not hasattr(column, 'values'):
+            if not hasattr(column, "values"):
                 continue
 
             for value in column.values:
@@ -480,10 +545,10 @@ class MatrixDetector:
                     except:
                         # Check if it's a labeled endpoint like "Not at all - 1" or "Very Much - 7"
                         val_str = str(value).strip()
-                        if ' - ' in val_str:
+                        if " - " in val_str:
                             try:
                                 # Extract number from "label - number" format
-                                number_part = val_str.split(' - ')[-1]
+                                number_part = val_str.split(" - ")[-1]
                                 num_val = float(number_part)
                                 numeric_responses.append(num_val)
                             except:
@@ -497,7 +562,9 @@ class MatrixDetector:
         numeric_ratio = len(numeric_responses) / total_responses
 
         if self.verbose:
-            print(f"    Response analysis: {len(numeric_responses)}/{total_responses} ({numeric_ratio:.1%}) are numeric")
+            print(
+                f"    Response analysis: {len(numeric_responses)}/{total_responses} ({numeric_ratio:.1%}) are numeric"
+            )
             if numeric_responses:
                 min_val, max_val = min(numeric_responses), max(numeric_responses)
                 print(f"    Detected scale range: {min_val} to {max_val}")
@@ -507,7 +574,14 @@ class MatrixDetector:
     def _keyword_based_matrix_entry_detection(self, matrix_group: MatrixGroup) -> bool:
         """Fallback keyword-based detection when no response data is available."""
         # Check for rating/evaluation keywords in row labels
-        rating_keywords = ['trust', 'satisfaction', 'level', 'rate', 'score', 'evaluation']
+        rating_keywords = [
+            "trust",
+            "satisfaction",
+            "level",
+            "rate",
+            "score",
+            "evaluation",
+        ]
         text_lower = matrix_group.question_text.lower()
 
         # Look for rating-related terms in question text or row labels
@@ -520,7 +594,9 @@ class MatrixDetector:
 
         # Check if column labels look like scenarios to rate rather than choices
         # Long descriptive column labels suggest rating scenarios
-        avg_column_length = sum(len(col) for col in matrix_group.column_labels) / len(matrix_group.column_labels)
+        avg_column_length = sum(len(col) for col in matrix_group.column_labels) / len(
+            matrix_group.column_labels
+        )
         if avg_column_length > 30:  # Long descriptive columns suggest rating scenarios
             return True
 
@@ -528,7 +604,10 @@ class MatrixDetector:
         for col in matrix_group.column_labels:
             col_lower = col.lower()
             # Look for scenario descriptions
-            if any(phrase in col_lower for phrase in ['freelancer who', 'person who', 'scenario where']):
+            if any(
+                phrase in col_lower
+                for phrase in ["freelancer who", "person who", "scenario where"]
+            ):
                 return True
 
         # Default to standard matrix for choice-based questions
@@ -545,7 +624,7 @@ class MatrixDetector:
 
         # Analyze all columns to find the full range
         for column in matrix_group.columns:
-            if not hasattr(column, 'values'):
+            if not hasattr(column, "values"):
                 continue
 
             for value in column.values:
@@ -560,10 +639,10 @@ class MatrixDetector:
                     except:
                         # Check if it's a labeled endpoint like "Not at all - 1" or "Very Much - 7"
                         val_str = str(value).strip()
-                        if ' - ' in val_str:
+                        if " - " in val_str:
                             try:
                                 # Extract number from "label - number" format
-                                number_part = val_str.split(' - ')[-1]
+                                number_part = val_str.split(" - ")[-1]
                                 num_val = float(number_part)
                                 if num_val.is_integer():
                                     numeric_values.append(int(num_val))
@@ -596,7 +675,9 @@ class MatrixDetector:
             # Use actual min/max for unusual scales
             return (int(min_val), int(max_val))
 
-    def _extract_scale_and_labels(self, matrix_group: MatrixGroup) -> tuple[list[int], dict[int, str]]:
+    def _extract_scale_and_labels(
+        self, matrix_group: MatrixGroup
+    ) -> tuple[list[int], dict[int, str]]:
         """
         Extract the rating scale numbers and endpoint labels from response data.
 
@@ -609,7 +690,7 @@ class MatrixDetector:
 
         # Analyze response data to find scale values and labels
         for column in matrix_group.columns:
-            if not hasattr(column, 'values'):
+            if not hasattr(column, "values"):
                 continue
 
             for value in column.values:
@@ -618,14 +699,14 @@ class MatrixDetector:
 
                     # Check for labeled endpoints like "Not at all- 1" or "Very Much - 7"
                     # Handle both "label- number" and "label - number" formats
-                    if ' - ' in val_str or '- ' in val_str:
+                    if " - " in val_str or "- " in val_str:
                         try:
                             # Try "label - number" first (with spaces)
-                            if ' - ' in val_str:
-                                label_part, number_part = val_str.rsplit(' - ', 1)
+                            if " - " in val_str:
+                                label_part, number_part = val_str.rsplit(" - ", 1)
                             else:
                                 # Try "label- number" (no space before hyphen)
-                                label_part, number_part = val_str.rsplit('- ', 1)
+                                label_part, number_part = val_str.rsplit("- ", 1)
 
                             num_val = int(float(number_part))
                             label_map[num_val] = label_part.strip()
@@ -662,7 +743,9 @@ class MatrixDetector:
 
         return (scale_options, label_map)
 
-    def _create_matrix_entry(self, matrix_group: MatrixGroup, cleaned_text: str) -> QuestionMatrix:
+    def _create_matrix_entry(
+        self, matrix_group: MatrixGroup, cleaned_text: str
+    ) -> QuestionMatrix:
         """Create a QuestionMatrix for rating-based matrices with proper EDSL structure."""
         # For EDSL QuestionMatrix, the structure should be:
         # - question_items = the scenarios being rated (what we called column_labels)
@@ -672,7 +755,9 @@ class MatrixDetector:
         scale_options, option_labels = self._extract_scale_and_labels(matrix_group)
 
         if self.verbose:
-            print(f"    Creating QuestionMatrix with {len(matrix_group.column_labels)} items and scale {scale_options}")
+            print(
+                f"    Creating QuestionMatrix with {len(matrix_group.column_labels)} items and scale {scale_options}"
+            )
 
         # For single-concept matrices (like Q17), use scenarios as items directly
         # For multi-concept matrices (like Q17+Q18), we need to handle differently
@@ -693,13 +778,15 @@ class MatrixDetector:
             option_labels=option_labels,  # Scale endpoint labels
         )
 
-    def _create_standard_matrix(self, matrix_group: MatrixGroup, cleaned_text: str) -> QuestionMatrix:
+    def _create_standard_matrix(
+        self, matrix_group: MatrixGroup, cleaned_text: str
+    ) -> QuestionMatrix:
         """Create a standard QuestionMatrix for choice-based matrices."""
         return QuestionMatrix(
             question_name=matrix_group.base_question_id,
             question_text=cleaned_text,
             question_items=matrix_group.row_labels,
-            question_options=matrix_group.column_labels
+            question_options=matrix_group.column_labels,
         )
 
     def _clean_question_text(self, text: str) -> str:
@@ -708,13 +795,15 @@ class MatrixDetector:
             return text
 
         # Fix common encoding issues
-        cleaned = text.replace('â€¦', '...')  # Fix ellipsis encoding
-        cleaned = cleaned.replace('â€™', "'")  # Fix apostrophe encoding
-        cleaned = cleaned.replace('â€œ', '"')  # Fix opening quote
-        cleaned = cleaned.replace('â€', '"')   # Fix closing quote
+        cleaned = text.replace("â€¦", "...")  # Fix ellipsis encoding
+        cleaned = cleaned.replace("â€™", "'")  # Fix apostrophe encoding
+        cleaned = cleaned.replace("â€œ", '"')  # Fix opening quote
+        cleaned = cleaned.replace("â€", '"')  # Fix closing quote
 
         # Remove extra whitespace and newlines
-        cleaned = re.sub(r'\n\s*\n\s*\n+', '\n\n', cleaned)  # Collapse multiple newlines
-        cleaned = re.sub(r'\s+', ' ', cleaned)  # Collapse multiple spaces
+        cleaned = re.sub(
+            r"\n\s*\n\s*\n+", "\n\n", cleaned
+        )  # Collapse multiple newlines
+        cleaned = re.sub(r"\s+", " ", cleaned)  # Collapse multiple spaces
 
         return cleaned.strip()

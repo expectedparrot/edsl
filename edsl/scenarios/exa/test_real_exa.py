@@ -14,6 +14,7 @@ from pathlib import Path
 edsl_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(edsl_root))
 
+
 def test_exa_integration():
     """Test the EXA integration with real API calls."""
 
@@ -29,7 +30,7 @@ def test_exa_integration():
             edsl_root / ".env",
             edsl_root / ".env.local",
             edsl_root / ".env.current",
-            Path.cwd() / ".env"
+            Path.cwd() / ".env",
         ]
 
         env_file = None
@@ -44,7 +45,7 @@ def test_exa_integration():
         print(f"Loading environment from: {env_file}")
         load_dotenv(env_file)
 
-        api_key = os.environ.get('EXA_API_KEY')
+        api_key = os.environ.get("EXA_API_KEY")
         if api_key:
             print(f"✓ EXA_API_KEY found: {api_key[:8]}...")
         else:
@@ -58,16 +59,21 @@ def test_exa_integration():
     # Step 2: Test library import
     try:
         import exa_py
-        print(f"✓ exa-py library available (version: {getattr(exa_py, '__version__', 'unknown')})")
+
+        print(
+            f"✓ exa-py library available (version: {getattr(exa_py, '__version__', 'unknown')})"
+        )
     except ImportError:
         print("❌ exa-py library not available - installing...")
         import subprocess
-        subprocess.run([sys.executable, '-m', 'pip', 'install', 'exa-py'], check=True)
+
+        subprocess.run([sys.executable, "-m", "pip", "install", "exa-py"], check=True)
         print("✓ exa-py installed")
 
     # Step 3: Test EDSL import
     try:
         from edsl.scenarios import ScenarioList
+
         print("✓ EDSL ScenarioList imported successfully")
     except Exception as e:
         print(f"❌ EDSL import failed: {e}")
@@ -81,7 +87,7 @@ def test_exa_integration():
         scenarios = ScenarioList.from_exa(
             query="startup founders",
             count=2,  # Small count for quick test
-            max_wait_time=60  # 1 minute timeout
+            max_wait_time=60,  # 1 minute timeout
         )
 
         print(f"\n✅ SUCCESS! Retrieved {len(scenarios)} scenarios")
@@ -93,15 +99,21 @@ def test_exa_integration():
             print(f"- Keys: {sorted(first.keys())}")
 
             # Show key fields
-            key_fields = ['name', 'position', 'company_name', 'description', 'exa_query']
+            key_fields = [
+                "name",
+                "position",
+                "company_name",
+                "description",
+                "exa_query",
+            ]
             for field in key_fields:
-                value = first.get(field, 'Not found')
+                value = first.get(field, "Not found")
                 if isinstance(value, str) and len(value) > 100:
                     value = value[:100] + "..."
                 print(f"- {field}: {value}")
 
             # Check if we got real data or just metadata
-            if first.get('exa_message'):
+            if first.get("exa_message"):
                 print(f"\n⚠️  Got metadata only: {first['exa_message']}")
                 print(f"   Webset ID: {first.get('exa_webset_id')}")
                 return False
@@ -116,6 +128,7 @@ def test_exa_integration():
         print(f"❌ EXA search failed: {e}")
         traceback.print_exc()
         return False
+
 
 def test_webset_retrieval():
     """Test retrieving data from an existing webset."""
@@ -138,7 +151,7 @@ def test_webset_retrieval():
 
         if len(scenarios) > 0:
             first = scenarios[0]
-            if first.get('exa_message'):
+            if first.get("exa_message"):
                 print(f"⚠️  Webset message: {first['exa_message']}")
             else:
                 print(f"✅ Webset data: {first.get('name', 'No name')}")
@@ -148,6 +161,7 @@ def test_webset_retrieval():
     except Exception as e:
         print(f"❌ Webset retrieval failed: {e}")
         return False
+
 
 def main():
     """Run all tests."""
@@ -175,6 +189,7 @@ def main():
         print("Check the error messages above for troubleshooting.")
 
     return test1_passed and test2_passed
+
 
 if __name__ == "__main__":
     success = main()

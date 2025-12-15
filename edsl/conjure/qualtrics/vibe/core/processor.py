@@ -50,7 +50,9 @@ class VibeProcessor:
             logger=self.logger,
         )
 
-    async def process_survey(self, survey: Survey, response_data: Optional[Dict[str, List[str]]] = None) -> Survey:
+    async def process_survey(
+        self, survey: Survey, response_data: Optional[Dict[str, List[str]]] = None
+    ) -> Survey:
         """
         Process all questions in a survey using vibe analysis.
 
@@ -80,7 +82,9 @@ class VibeProcessor:
         # Create new survey with improved questions
         return Survey(questions=improved_questions)
 
-    def process_survey_sync(self, survey: Survey, response_data: Optional[Dict[str, List[str]]] = None) -> Survey:
+    def process_survey_sync(
+        self, survey: Survey, response_data: Optional[Dict[str, List[str]]] = None
+    ) -> Survey:
         """
         Synchronous wrapper for survey processing.
 

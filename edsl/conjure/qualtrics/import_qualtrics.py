@@ -18,7 +18,7 @@ from .vibe import VibeProcessor, VibeConfig
 
 class ImportQualtrics:
     """Convert Qualtrics CSV export to EDSL objects.
-    
+
     This class orchestrates the conversion process by delegating to
     specialized helper classes:
     - QualtricsCSVReader: Reads and parses the CSV file
@@ -158,7 +158,9 @@ class ImportQualtrics:
             self._survey = enhanced_survey
 
             if self.verbose:
-                print(f"Vibe processing completed for {len(enhanced_survey.questions)} questions")
+                print(
+                    f"Vibe processing completed for {len(enhanced_survey.questions)} questions"
+                )
                 try:
                     self.vibe_processor.print_change_summary()
                 except AttributeError as e:
@@ -186,7 +188,11 @@ class ImportQualtrics:
             # data to distinguish between question types (e.g., numerical vs likert vs multiple choice)
             responses = []
             for value in column.values:
-                if value and str(value).strip() and str(value).strip().lower() not in ['nan', 'null', '']:
+                if (
+                    value
+                    and str(value).strip()
+                    and str(value).strip().lower() not in ["nan", "null", ""]
+                ):
                     responses.append(str(value).strip())
 
             if responses:

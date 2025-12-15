@@ -96,10 +96,13 @@ class QuestionValidationResult(BaseModel):
     )
     suggestions: list[str] = Field(
         default_factory=list,
-        description="List of specific suggestions to improve the question"
+        description="List of specific suggestions to improve the question",
     )
     confidence: float = Field(
-        0.5, description="Confidence level in the validation assessment (0.0 to 1.0)", ge=0.0, le=1.0
+        0.5,
+        description="Confidence level in the validation assessment (0.0 to 1.0)",
+        ge=0.0,
+        le=1.0,
     )
     reasoning: str = Field(
         "", description="Explanation of why the question is or isn't sensible"
@@ -126,7 +129,9 @@ class QuestionAnalyzer:
             self._client = create_openai_client()
         return self._client
 
-    async def analyze_question(self, question: Question, response_data: Optional[Dict[str, List[str]]] = None) -> Dict[str, Any]:
+    async def analyze_question(
+        self, question: Question, response_data: Optional[Dict[str, List[str]]] = None
+    ) -> Dict[str, Any]:
         """
         Analyze a question for conversion issues using OpenAI API.
 
@@ -155,7 +160,9 @@ class QuestionAnalyzer:
                 "reasoning": f"Analysis failed: {str(e)}",
             }
 
-    def _analyze_question_sync(self, question: Question, response_data: Optional[Dict[str, List[str]]] = None) -> QuestionAnalysisResult:
+    def _analyze_question_sync(
+        self, question: Question, response_data: Optional[Dict[str, List[str]]] = None
+    ) -> QuestionAnalysisResult:
         """
         Synchronous analysis using OpenAI API.
 
@@ -180,7 +187,9 @@ class QuestionAnalyzer:
 
         return response.output_parsed
 
-    def _create_analysis_prompt(self, question: Question, response_data: Optional[Dict[str, List[str]]] = None) -> str:
+    def _create_analysis_prompt(
+        self, question: Question, response_data: Optional[Dict[str, List[str]]] = None
+    ) -> str:
         """
         Create the analysis prompt for the AI.
 
@@ -286,7 +295,7 @@ CRITICAL: Your suggested_type field must ONLY contain question types that appear
         empty_responses = 0
 
         for response in responses:
-            if not response or str(response).strip() == '':
+            if not response or str(response).strip() == "":
                 empty_responses += 1
                 continue
 
@@ -299,9 +308,15 @@ CRITICAL: Your suggested_type field must ONLY contain question types that appear
                 text_responses.append(response_str)
 
         # Calculate percentages
-        numeric_pct = len(numeric_responses) / total_responses * 100 if total_responses > 0 else 0
-        text_pct = len(text_responses) / total_responses * 100 if total_responses > 0 else 0
-        empty_pct = empty_responses / total_responses * 100 if total_responses > 0 else 0
+        numeric_pct = (
+            len(numeric_responses) / total_responses * 100 if total_responses > 0 else 0
+        )
+        text_pct = (
+            len(text_responses) / total_responses * 100 if total_responses > 0 else 0
+        )
+        empty_pct = (
+            empty_responses / total_responses * 100 if total_responses > 0 else 0
+        )
 
         # Sort responses by frequency for better insights
         response_counts = {}
@@ -309,7 +324,9 @@ CRITICAL: Your suggested_type field must ONLY contain question types that appear
             response_counts[response] = response_counts.get(response, 0) + 1
 
         # Get most common responses
-        sorted_responses = sorted(response_counts.items(), key=lambda x: x[1], reverse=True)
+        sorted_responses = sorted(
+            response_counts.items(), key=lambda x: x[1], reverse=True
+        )
         most_common = sorted_responses[:10]
 
         analysis = f"""
@@ -336,6 +353,7 @@ ALL UNIQUE VALUES (up to 20):
 
                 # Statistical analysis
                 import statistics
+
                 mean_val = statistics.mean(numeric_values) if numeric_values else 0
                 median_val = statistics.median(numeric_values) if numeric_values else 0
 
@@ -347,7 +365,14 @@ ALL UNIQUE VALUES (up to 20):
 
                 # Check for common scale patterns
                 unique_numeric = sorted(list(set(numeric_values)))
-                consecutive = all(unique_numeric[i] == unique_numeric[i-1] + 1 for i in range(1, len(unique_numeric))) if len(unique_numeric) > 1 else False
+                consecutive = (
+                    all(
+                        unique_numeric[i] == unique_numeric[i - 1] + 1
+                        for i in range(1, len(unique_numeric))
+                    )
+                    if len(unique_numeric) > 1
+                    else False
+                )
 
                 analysis += f"""
 
@@ -359,7 +384,6 @@ NUMERIC ANALYSIS:
 • Appears to be percentage (0-100 range): {percentage_like}
 • Consecutive values: {consecutive}
 • Unique numeric values: {unique_numeric}"""
-
 
             except Exception as e:
                 analysis += f"\n• Numeric analysis failed: {e}"
@@ -382,17 +406,41 @@ TEXT ANALYSIS:
 • All unique text values: {unique_text[:10]}"""
 
             # Pattern analysis (without making recommendations)
-            likert_keywords = ['agree', 'disagree', 'strongly', 'neutral', 'somewhat', 'likely', 'unlikely']
-            yesno_keywords = ['yes', 'no']
-            scale_keywords = ['never', 'rarely', 'sometimes', 'often', 'always', 'poor', 'fair', 'good', 'excellent']
+            likert_keywords = [
+                "agree",
+                "disagree",
+                "strongly",
+                "neutral",
+                "somewhat",
+                "likely",
+                "unlikely",
+            ]
+            yesno_keywords = ["yes", "no"]
+            scale_keywords = [
+                "never",
+                "rarely",
+                "sometimes",
+                "often",
+                "always",
+                "poor",
+                "fair",
+                "good",
+                "excellent",
+            ]
 
-            text_lower_joined = ' '.join([t.lower() for t in unique_text])
-            has_likert = any(keyword in text_lower_joined for keyword in likert_keywords)
+            text_lower_joined = " ".join([t.lower() for t in unique_text])
+            has_likert = any(
+                keyword in text_lower_joined for keyword in likert_keywords
+            )
             has_yesno = any(keyword in text_lower_joined for keyword in yesno_keywords)
             has_scale = any(keyword in text_lower_joined for keyword in scale_keywords)
 
             # Length analysis
-            avg_length = sum(len(text) for text in unique_text) / len(unique_text) if unique_text else 0
+            avg_length = (
+                sum(len(text) for text in unique_text) / len(unique_text)
+                if unique_text
+                else 0
+            )
             short_responses = sum(1 for text in unique_text if len(text) < 20)
             long_responses = sum(1 for text in unique_text if len(text) > 100)
 
@@ -406,7 +454,9 @@ TEXT ANALYSIS:
 
         return analysis.strip()
 
-    async def validate_question(self, question: Question, response_data: Optional[Dict[str, List[str]]] = None) -> Dict[str, Any]:
+    async def validate_question(
+        self, question: Question, response_data: Optional[Dict[str, List[str]]] = None
+    ) -> Dict[str, Any]:
         """
         Validate a question's final configuration for sensibility using LLM.
 
@@ -433,7 +483,9 @@ TEXT ANALYSIS:
                 "reasoning": f"Validation failed: {str(e)}",
             }
 
-    def _validate_question_sync(self, question: Question, response_data: Optional[Dict[str, List[str]]] = None) -> QuestionValidationResult:
+    def _validate_question_sync(
+        self, question: Question, response_data: Optional[Dict[str, List[str]]] = None
+    ) -> QuestionValidationResult:
         """
         Synchronous validation using OpenAI API.
 
@@ -481,7 +533,9 @@ Common issues to check:
 - INCOMPLETE OPTION SETS: Missing obvious options (e.g., missing age ranges, education levels)
 """
 
-    def _create_validation_prompt(self, question: Question, response_data: Optional[Dict[str, List[str]]] = None) -> str:
+    def _create_validation_prompt(
+        self, question: Question, response_data: Optional[Dict[str, List[str]]] = None
+    ) -> str:
         """
         Create the validation prompt for the AI.
 

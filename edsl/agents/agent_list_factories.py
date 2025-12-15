@@ -152,7 +152,7 @@ class AgentListFactories:
                 agent = Agent(name=name, traits=traits, codebook=codebook)
             else:
                 agent = Agent(traits=traits, codebook=codebook)
-            
+
             agent.traits_presentation_template = """
             {% for trait_name, trait_value in traits.items() %}
             {% if trait_name in codebook %}

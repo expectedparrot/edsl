@@ -10,7 +10,9 @@ from .base_processor import BaseProcessor, ProcessingResult
 class TypeCorrectionProcessor(BaseProcessor):
     """Processor that corrects question types based on content analysis."""
 
-    async def process(self, question: Question, context: Optional[Dict[str, Any]] = None) -> ProcessingResult:
+    async def process(
+        self, question: Question, context: Optional[Dict[str, Any]] = None
+    ) -> ProcessingResult:
         """
         Process question for type correction.
 
@@ -29,24 +31,32 @@ class TypeCorrectionProcessor(BaseProcessor):
 
             # Create new question with correct type
             question_dict = question.to_dict()
-            question_dict['question_type'] = suggested_type
+            question_dict["question_type"] = suggested_type
 
             try:
                 # For type changes, we need to import and use the new question type
-                from edsl.questions import QuestionLinearScale, QuestionYesNo, QuestionLikertFive, QuestionFreeText, QuestionNumerical
+                from edsl.questions import (
+                    QuestionLinearScale,
+                    QuestionYesNo,
+                    QuestionLikertFive,
+                    QuestionFreeText,
+                    QuestionNumerical,
+                )
 
                 type_classes = {
-                    'linear_scale': QuestionLinearScale,
-                    'yes_no': QuestionYesNo,
-                    'likert_five': QuestionLikertFive,
-                    'free_text': QuestionFreeText,
-                    'numerical': QuestionNumerical
+                    "linear_scale": QuestionLinearScale,
+                    "yes_no": QuestionYesNo,
+                    "likert_five": QuestionLikertFive,
+                    "free_text": QuestionFreeText,
+                    "numerical": QuestionNumerical,
                 }
 
                 if suggested_type in type_classes:
                     question_class = type_classes[suggested_type]
                     # Clean up question dict to remove incompatible parameters for the new type
-                    clean_question_dict = self._clean_question_dict_for_type(question_dict, suggested_type)
+                    clean_question_dict = self._clean_question_dict_for_type(
+                        question_dict, suggested_type
+                    )
                     improved_question = question_class.from_dict(clean_question_dict)
                 else:
                     # Fallback to original type
@@ -55,13 +65,15 @@ class TypeCorrectionProcessor(BaseProcessor):
                 return ProcessingResult(
                     question=improved_question,
                     changed=True,
-                    changes=[{
-                        'type': 'question_type_corrected',
-                        'original': original_type,
-                        'new': suggested_type
-                    }],
+                    changes=[
+                        {
+                            "type": "question_type_corrected",
+                            "original": original_type,
+                            "new": suggested_type,
+                        }
+                    ],
                     confidence=0.8,
-                    reasoning=f"Corrected question type from {original_type} to {suggested_type} based on content analysis"
+                    reasoning=f"Corrected question type from {original_type} to {suggested_type} based on content analysis",
                 )
             except Exception as e:
                 self.log(f"Failed to create question with type {suggested_type}: {e}")
@@ -71,10 +83,12 @@ class TypeCorrectionProcessor(BaseProcessor):
             changed=False,
             changes=[],
             confidence=1.0,
-            reasoning="Question type is appropriate"
+            reasoning="Question type is appropriate",
         )
 
-    def _analyze_question_type(self, question: Question, context: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    def _analyze_question_type(
+        self, question: Question, context: Optional[Dict[str, Any]] = None
+    ) -> Optional[str]:
         """
         Analyze question to suggest correct type.
 
@@ -85,35 +99,35 @@ class TypeCorrectionProcessor(BaseProcessor):
         Returns:
             Suggested question type or None if current type is appropriate
         """
-        if not hasattr(question, 'question_options') or not question.question_options:
+        if not hasattr(question, "question_options") or not question.question_options:
             return None
 
         options = question.question_options
-        question_text = getattr(question, 'question_text', '').lower()
+        question_text = getattr(question, "question_text", "").lower()
 
         # Check for numeric rating scales that should be QuestionLinearScale
         if self._is_numeric_scale(options):
             # Check if it's currently multiple_choice but should be linear_scale
-            if question.question_type == 'multiple_choice':
-                return 'linear_scale'
+            if question.question_type == "multiple_choice":
+                return "linear_scale"
 
         # Check for yes/no questions
         if self._is_yes_no_question(options):
-            if question.question_type in ['multiple_choice', 'linear_scale']:
-                return 'yes_no'
+            if question.question_type in ["multiple_choice", "linear_scale"]:
+                return "yes_no"
 
         # Check for Likert scales
         if self._is_likert_scale(options, question_text):
-            if question.question_type == 'multiple_choice':
-                return 'likert_five'  # Assuming 5-point scale
+            if question.question_type == "multiple_choice":
+                return "likert_five"  # Assuming 5-point scale
 
         # Check for numerical questions (percentages, monetary amounts, etc.)
         if self._is_numerical_question(question_text, options):
-            return 'numerical'
+            return "numerical"
 
         # Check for free text that was misclassified
         if self._is_free_text_question(question_text, options):
-            return 'free_text'
+            return "free_text"
 
         return None
 
@@ -130,7 +144,7 @@ class TypeCorrectionProcessor(BaseProcessor):
             # Check if consecutive integers
             if len(numeric_options) >= 3:
                 for i in range(1, len(numeric_options)):
-                    if numeric_options[i] != numeric_options[i-1] + 1:
+                    if numeric_options[i] != numeric_options[i - 1] + 1:
                         return False
                 return True
         except:
@@ -144,11 +158,7 @@ class TypeCorrectionProcessor(BaseProcessor):
             return False
 
         option_strings = [str(opt).lower().strip() for opt in options]
-        yes_no_patterns = [
-            ['yes', 'no'],
-            ['true', 'false'],
-            ['correct', 'incorrect']
-        ]
+        yes_no_patterns = [["yes", "no"], ["true", "false"], ["correct", "incorrect"]]
 
         for pattern in yes_no_patterns:
             if sorted(option_strings) == sorted(pattern):
@@ -162,24 +172,38 @@ class TypeCorrectionProcessor(BaseProcessor):
             return False
 
         likert_indicators = [
-            'agree', 'disagree', 'strongly', 'somewhat',
-            'satisfied', 'dissatisfied', 'likely', 'unlikely'
+            "agree",
+            "disagree",
+            "strongly",
+            "somewhat",
+            "satisfied",
+            "dissatisfied",
+            "likely",
+            "unlikely",
         ]
 
         # Check question text for Likert indicators
-        text_has_likert = any(indicator in question_text for indicator in likert_indicators)
+        text_has_likert = any(
+            indicator in question_text for indicator in likert_indicators
+        )
 
         # Check options for Likert patterns
-        options_str = ' '.join([str(opt).lower() for opt in options])
-        options_have_likert = any(indicator in options_str for indicator in likert_indicators)
+        options_str = " ".join([str(opt).lower() for opt in options])
+        options_have_likert = any(
+            indicator in options_str for indicator in likert_indicators
+        )
 
         return text_has_likert or options_have_likert
 
     def _is_free_text_question(self, question_text: str, options: List) -> bool:
         """Check if this should be a free text question."""
         free_text_indicators = [
-            'explain', 'describe', 'comment', 'please specify',
-            'other (please specify)', 'in your own words'
+            "explain",
+            "describe",
+            "comment",
+            "please specify",
+            "other (please specify)",
+            "in your own words",
         ]
 
         return any(indicator in question_text for indicator in free_text_indicators)
@@ -188,13 +212,34 @@ class TypeCorrectionProcessor(BaseProcessor):
         """Check if this should be a numerical question."""
         # Check for numerical question indicators in the text
         numerical_indicators = [
-            'percentage', 'percent', '%', 'amount', 'dollars', '$',
-            'how much', 'how many', 'number of', 'quantity', 'age',
-            'income', 'salary', 'price', 'cost', 'value', 'weight',
-            'height', 'distance', 'time', 'years', 'months', 'days'
+            "percentage",
+            "percent",
+            "%",
+            "amount",
+            "dollars",
+            "$",
+            "how much",
+            "how many",
+            "number of",
+            "quantity",
+            "age",
+            "income",
+            "salary",
+            "price",
+            "cost",
+            "value",
+            "weight",
+            "height",
+            "distance",
+            "time",
+            "years",
+            "months",
+            "days",
         ]
 
-        text_has_numerical = any(indicator in question_text.lower() for indicator in numerical_indicators)
+        text_has_numerical = any(
+            indicator in question_text.lower() for indicator in numerical_indicators
+        )
 
         # Check if most/all options are numeric
         if not options:
@@ -214,7 +259,9 @@ class TypeCorrectionProcessor(BaseProcessor):
 
         return text_has_numerical and options_are_mostly_numeric
 
-    def _clean_question_dict_for_type(self, question_dict: Dict[str, Any], target_type: str) -> Dict[str, Any]:
+    def _clean_question_dict_for_type(
+        self, question_dict: Dict[str, Any], target_type: str
+    ) -> Dict[str, Any]:
         """
         Clean question dictionary to remove parameters incompatible with target type.
 
@@ -230,11 +277,39 @@ class TypeCorrectionProcessor(BaseProcessor):
 
         # Define parameter compatibility for each question type
         valid_params = {
-            'free_text': {'question_name', 'question_text', 'answering_instructions', 'question_presentation'},
-            'yes_no': {'question_name', 'question_text', 'answering_instructions', 'question_presentation'},
-            'linear_scale': {'question_name', 'question_text', 'question_options', 'answering_instructions', 'question_presentation'},
-            'likert_five': {'question_name', 'question_text', 'answering_instructions', 'question_presentation'},
-            'numerical': {'question_name', 'question_text', 'min_value', 'max_value', 'answering_instructions', 'question_presentation'},
+            "free_text": {
+                "question_name",
+                "question_text",
+                "answering_instructions",
+                "question_presentation",
+            },
+            "yes_no": {
+                "question_name",
+                "question_text",
+                "answering_instructions",
+                "question_presentation",
+            },
+            "linear_scale": {
+                "question_name",
+                "question_text",
+                "question_options",
+                "answering_instructions",
+                "question_presentation",
+            },
+            "likert_five": {
+                "question_name",
+                "question_text",
+                "answering_instructions",
+                "question_presentation",
+            },
+            "numerical": {
+                "question_name",
+                "question_text",
+                "min_value",
+                "max_value",
+                "answering_instructions",
+                "question_presentation",
+            },
         }
 
         # Get valid parameters for the target type
@@ -244,15 +319,17 @@ class TypeCorrectionProcessor(BaseProcessor):
             # Remove any parameters that are not valid for this type
             keys_to_remove = []
             for key in clean_dict:
-                if key not in valid_for_type and key != 'question_type':  # Always keep question_type
+                if (
+                    key not in valid_for_type and key != "question_type"
+                ):  # Always keep question_type
                     keys_to_remove.append(key)
 
             for key in keys_to_remove:
                 del clean_dict[key]
 
         # Special handling for numerical questions - infer min/max from options if available
-        if target_type == 'numerical' and 'question_options' in question_dict:
-            options = question_dict['question_options']
+        if target_type == "numerical" and "question_options" in question_dict:
+            options = question_dict["question_options"]
             numeric_values = []
 
             for option in options:
@@ -262,7 +339,7 @@ class TypeCorrectionProcessor(BaseProcessor):
                     pass
 
             if numeric_values:
-                clean_dict['min_value'] = min(numeric_values)
-                clean_dict['max_value'] = max(numeric_values)
+                clean_dict["min_value"] = min(numeric_values)
+                clean_dict["max_value"] = max(numeric_values)
 
         return clean_dict

@@ -916,7 +916,9 @@ class QuestionBase(
                     # Replace spaces with non-breaking spaces to prevent wrapping
                     option_str_no_break = option_str.replace(" ", "\u00A0")
                     output.append("        ", style=RICH_STYLES["default"])
-                    output.append(f'"{option_str_no_break}"', style=RICH_STYLES["default"])
+                    output.append(
+                        f'"{option_str_no_break}"', style=RICH_STYLES["default"]
+                    )
                     output.append(",\n", style=RICH_STYLES["default"])
 
                 if num_options > max_options:
@@ -941,7 +943,9 @@ class QuestionBase(
                     # Replace spaces with non-breaking spaces to prevent wrapping
                     item_str_no_break = item_str.replace(" ", "\u00A0")
                     output.append("        ", style=RICH_STYLES["default"])
-                    output.append(f'"{item_str_no_break}"', style=RICH_STYLES["default"])
+                    output.append(
+                        f'"{item_str_no_break}"', style=RICH_STYLES["default"]
+                    )
                     output.append(",\n", style=RICH_STYLES["default"])
 
                 if num_items > max_options:
@@ -955,15 +959,11 @@ class QuestionBase(
         # Numerical constraints (for QuestionNumerical)
         if hasattr(self, "min_value") and self.min_value is not None:
             output.append(",\n", style=RICH_STYLES["default"])
-            output.append(
-                f"    min_value={self.min_value}", style="yellow"
-            )
+            output.append(f"    min_value={self.min_value}", style="yellow")
 
         if hasattr(self, "max_value") and self.max_value is not None:
             output.append(",\n", style=RICH_STYLES["default"])
-            output.append(
-                f"    max_value={self.max_value}", style="yellow"
-            )
+            output.append(f"    max_value={self.max_value}", style="yellow")
 
         # Selection constraints (for QuestionCheckBox, QuestionRank)
         if hasattr(self, "min_selections") and self.min_selections is not None:

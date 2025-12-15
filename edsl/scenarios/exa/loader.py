@@ -17,7 +17,7 @@ def from_exa(
     api_key: Optional[str] = None,
     wait_for_completion: bool = True,
     max_wait_time: int = 120,
-    **kwargs
+    **kwargs,
 ) -> "ScenarioList":
     """
     Create a ScenarioList from EXA API web search and enrichment.
@@ -56,7 +56,10 @@ def from_exa(
 
     try:
         from exa_py import Exa
-        from exa_py.websets.types import CreateWebsetParameters, CreateEnrichmentParameters
+        from exa_py.websets.types import (
+            CreateWebsetParameters,
+            CreateEnrichmentParameters,
+        )
     except ImportError:
         raise ImportError(
             "The 'exa-py' library is required to use EXA integration. "
@@ -69,7 +72,7 @@ def from_exa(
 
     # Get API key from parameter or environment
     if api_key is None:
-        api_key = os.getenv('EXA_API_KEY')
+        api_key = os.getenv("EXA_API_KEY")
 
     if not api_key:
         raise ValueError(
@@ -81,10 +84,7 @@ def from_exa(
     exa = Exa(api_key)
 
     # Prepare search parameters
-    search_params = {
-        "query": query,
-        "count": count
-    }
+    search_params = {"query": query, "count": count}
 
     # Add criteria if provided
     if criteria:
@@ -112,15 +112,13 @@ def from_exa(
 
     # Create webset parameters
     webset_params = CreateWebsetParameters(
-        search=search_params,
-        enrichments=enrichment_list,
-        **kwargs
+        search=search_params, enrichments=enrichment_list, **kwargs
     )
 
     try:
         # Create webset using EXA API
         webset = exa.websets.create(params=webset_params)
-        webset_id = webset.id if hasattr(webset, 'id') else str(webset)
+        webset_id = webset.id if hasattr(webset, "id") else str(webset)
 
         if wait_for_completion:
             webset = _wait_for_webset_completion(exa, webset_id, max_wait_time)
@@ -133,13 +131,15 @@ def from_exa(
 
     if not data_list:
         # Create empty result with metadata if no data returned
-        data_list = [{
-            'exa_query': query,
-            'exa_count': count,
-            'exa_criteria': criteria or [],
-            'exa_enrichments': enrichment_list,
-            'exa_results_count': 0
-        }]
+        data_list = [
+            {
+                "exa_query": query,
+                "exa_count": count,
+                "exa_criteria": criteria or [],
+                "exa_enrichments": enrichment_list,
+                "exa_results_count": 0,
+            }
+        ]
 
     # Create and return ScenarioList
     return ScenarioList.from_list_of_dicts(data_list)
@@ -159,22 +159,22 @@ def _wait_for_webset_completion(exa, webset_id: str, max_wait_time: int):
         try:
             current_webset = exa.websets.get(webset_id)
 
-            if hasattr(current_webset, 'status'):
+            if hasattr(current_webset, "status"):
                 status = current_webset.status
 
                 # Print status only when it changes or every 30 seconds
                 if status != last_status or (waited_time > 0 and waited_time % 30 == 0):
-                    if status in ['running', 'queued', 'processing']:
+                    if status in ["running", "queued", "processing"]:
                         print(f"   {status}... ({waited_time}s)")
                     last_status = status
 
-                if status == 'completed':
+                if status == "completed":
                     print(f"✓ Completed in {waited_time}s")
                     return current_webset
-                elif status == 'failed':
-                    error_msg = getattr(current_webset, 'error', 'Unknown error')
+                elif status == "failed":
+                    error_msg = getattr(current_webset, "error", "Unknown error")
                     raise RuntimeError(f"EXA webset failed: {error_msg}")
-                elif status in ['running', 'queued', 'processing']:
+                elif status in ["running", "queued", "processing"]:
                     # Continue polling
                     pass
                 else:
@@ -192,7 +192,9 @@ def _wait_for_webset_completion(exa, webset_id: str, max_wait_time: int):
             try:
                 return exa.websets.get(webset_id)
             except Exception as final_e:
-                raise RuntimeError(f"Failed to retrieve webset {webset_id}: {final_e}") from e
+                raise RuntimeError(
+                    f"Failed to retrieve webset {webset_id}: {final_e}"
+                ) from e
 
     # Timeout - but still try to get results
     print(f"⏰ Timeout after {max_wait_time}s - checking for partial results...")
@@ -202,7 +204,9 @@ def _wait_for_webset_completion(exa, webset_id: str, max_wait_time: int):
         raise RuntimeError(f"Webset timed out after {max_wait_time}s")
 
 
-def _extract_webset_results(webset, query: str, count: int, criteria: Optional[List[str]], webset_id: str) -> List[Dict]:
+def _extract_webset_results(
+    webset, query: str, count: int, criteria: Optional[List[str]], webset_id: str
+) -> List[Dict]:
     """Extract results from a webset into a list of dictionaries."""
     data_list = []
 
@@ -210,7 +214,8 @@ def _extract_webset_results(webset, query: str, count: int, criteria: Optional[L
     try:
         import os
         from exa_py import Exa
-        exa = Exa(os.getenv('EXA_API_KEY'))
+
+        exa = Exa(os.getenv("EXA_API_KEY"))
 
         # Get webset items using the EXA client
         items_response = exa.websets.items.list(webset_id)
@@ -221,7 +226,7 @@ def _extract_webset_results(webset, query: str, count: int, criteria: Optional[L
         for item_tuple in items:
             if isinstance(item_tuple, tuple) and len(item_tuple) == 2:
                 category, item_list = item_tuple
-                if category == 'data' and isinstance(item_list, list):
+                if category == "data" and isinstance(item_list, list):
                     actual_items.extend(item_list)
 
         if actual_items:
@@ -231,40 +236,70 @@ def _extract_webset_results(webset, query: str, count: int, criteria: Optional[L
                 result_dict = {}
 
                 # Extract data from the WebsetItem structure
-                if hasattr(item, 'properties') and hasattr(item.properties, 'person'):
+                if hasattr(item, "properties") and hasattr(item.properties, "person"):
                     person = item.properties.person
-                    result_dict.update({
-                        'name': getattr(person, 'name', None),
-                        'position': getattr(person, 'position', None),
-                        'location': getattr(person, 'location', None),
-                        'company_name': getattr(person.company, 'name', None) if hasattr(person, 'company') else None,
-                        'company_location': getattr(person.company, 'location', None) if hasattr(person, 'company') else None,
-                        'picture_url': str(getattr(person, 'picture_url', None)) if getattr(person, 'picture_url', None) else None,
-                    })
+                    result_dict.update(
+                        {
+                            "name": getattr(person, "name", None),
+                            "position": getattr(person, "position", None),
+                            "location": getattr(person, "location", None),
+                            "company_name": (
+                                getattr(person.company, "name", None)
+                                if hasattr(person, "company")
+                                else None
+                            ),
+                            "company_location": (
+                                getattr(person.company, "location", None)
+                                if hasattr(person, "company")
+                                else None
+                            ),
+                            "picture_url": (
+                                str(getattr(person, "picture_url", None))
+                                if getattr(person, "picture_url", None)
+                                else None
+                            ),
+                        }
+                    )
 
                 # Add general properties
-                if hasattr(item, 'properties'):
-                    result_dict.update({
-                        'profile_url': str(item.properties.url) if hasattr(item.properties, 'url') else None,
-                        'description': getattr(item.properties, 'description', None),
-                        'type': getattr(item.properties, 'type', None),
-                    })
+                if hasattr(item, "properties"):
+                    result_dict.update(
+                        {
+                            "profile_url": (
+                                str(item.properties.url)
+                                if hasattr(item.properties, "url")
+                                else None
+                            ),
+                            "description": getattr(
+                                item.properties, "description", None
+                            ),
+                            "type": getattr(item.properties, "type", None),
+                        }
+                    )
 
                 # Add evaluation data
-                if hasattr(item, 'evaluations') and item.evaluations:
+                if hasattr(item, "evaluations") and item.evaluations:
                     eval_data = item.evaluations[0]  # Use first evaluation
-                    result_dict.update({
-                        'criterion': getattr(eval_data, 'criterion', None),
-                        'reasoning': getattr(eval_data, 'reasoning', None),
-                        'satisfied': getattr(eval_data, 'satisfied', None),
-                    })
+                    result_dict.update(
+                        {
+                            "criterion": getattr(eval_data, "criterion", None),
+                            "reasoning": getattr(eval_data, "reasoning", None),
+                            "satisfied": getattr(eval_data, "satisfied", None),
+                        }
+                    )
 
                 # Add item metadata
-                result_dict.update({
-                    'exa_item_id': getattr(item, 'id', None),
-                    'exa_source': getattr(item, 'source', None),
-                    'exa_created_at': str(getattr(item, 'created_at', None)) if getattr(item, 'created_at', None) else None,
-                })
+                result_dict.update(
+                    {
+                        "exa_item_id": getattr(item, "id", None),
+                        "exa_source": getattr(item, "source", None),
+                        "exa_created_at": (
+                            str(getattr(item, "created_at", None))
+                            if getattr(item, "created_at", None)
+                            else None
+                        ),
+                    }
+                )
 
                 # Add standard EXA metadata
                 _add_metadata(result_dict, query, count, criteria, webset_id)
@@ -275,44 +310,50 @@ def _extract_webset_results(webset, query: str, count: int, criteria: Optional[L
     except Exception as e:
         print(f"Error getting webset items: {e}")
         # Fall back to checking if webset is still processing
-        webset_status = getattr(webset, 'status', 'unknown')
-        if webset_status in ['running', 'queued', 'processing']:
-            data_list = [{
-                'exa_query': query,
-                'exa_count': count,
-                'exa_criteria': criteria or [],
-                'exa_webset_id': webset_id,
-                'exa_status': webset_status,
-                'exa_message': f'Still {webset_status} - use from_exa_webset("{webset_id}") to check later',
-            }]
+        webset_status = getattr(webset, "status", "unknown")
+        if webset_status in ["running", "queued", "processing"]:
+            data_list = [
+                {
+                    "exa_query": query,
+                    "exa_count": count,
+                    "exa_criteria": criteria or [],
+                    "exa_webset_id": webset_id,
+                    "exa_status": webset_status,
+                    "exa_message": f'Still {webset_status} - use from_exa_webset("{webset_id}") to check later',
+                }
+            ]
         else:
-            data_list = [{
-                'exa_query': query,
-                'exa_count': count,
-                'exa_criteria': criteria or [],
-                'exa_webset_id': webset_id,
-                'exa_status': webset_status,
-                'exa_message': f'Error retrieving results: {str(e)}',
-            }]
+            data_list = [
+                {
+                    "exa_query": query,
+                    "exa_count": count,
+                    "exa_criteria": criteria or [],
+                    "exa_webset_id": webset_id,
+                    "exa_status": webset_status,
+                    "exa_message": f"Error retrieving results: {str(e)}",
+                }
+            ]
 
     # If still no results, create a fallback entry
     if not data_list:
-        webset_status = getattr(webset, 'status', 'unknown')
-        data_list = [{
-            'exa_query': query,
-            'exa_count': count,
-            'exa_criteria': criteria or [],
-            'exa_webset_id': webset_id,
-            'exa_status': webset_status,
-            'exa_message': 'No results found',
-        }]
+        webset_status = getattr(webset, "status", "unknown")
+        data_list = [
+            {
+                "exa_query": query,
+                "exa_count": count,
+                "exa_criteria": criteria or [],
+                "exa_webset_id": webset_id,
+                "exa_status": webset_status,
+                "exa_message": "No results found",
+            }
+        ]
 
     return data_list
 
 
 def _convert_result_to_dict(result) -> Dict:
     """Convert a result object to a dictionary."""
-    if hasattr(result, '__dict__'):
+    if hasattr(result, "__dict__"):
         return dict(result.__dict__)
     elif isinstance(result, dict):
         return dict(result)
@@ -323,13 +364,19 @@ def _convert_result_to_dict(result) -> Dict:
             return {"result": str(result)}
 
 
-def _add_metadata(result_dict: Dict, query: str, count: int, criteria: Optional[List[str]], webset_id: str):
+def _add_metadata(
+    result_dict: Dict,
+    query: str,
+    count: int,
+    criteria: Optional[List[str]],
+    webset_id: str,
+):
     """Add EXA metadata to a result dictionary."""
-    result_dict['exa_query'] = query
-    result_dict['exa_count'] = count
-    result_dict['exa_webset_id'] = webset_id
+    result_dict["exa_query"] = query
+    result_dict["exa_count"] = count
+    result_dict["exa_webset_id"] = webset_id
     if criteria:
-        result_dict['exa_criteria'] = criteria
+        result_dict["exa_criteria"] = criteria
 
 
 def from_exa_webset(webset_id: str, api_key: Optional[str] = None) -> "ScenarioList":
@@ -360,7 +407,7 @@ def from_exa_webset(webset_id: str, api_key: Optional[str] = None) -> "ScenarioL
 
     # Get API key from parameter or environment
     if api_key is None:
-        api_key = os.getenv('EXA_API_KEY')
+        api_key = os.getenv("EXA_API_KEY")
 
     if not api_key:
         raise ValueError(
@@ -376,12 +423,12 @@ def from_exa_webset(webset_id: str, api_key: Optional[str] = None) -> "ScenarioL
         webset = exa.websets.get(webset_id)
 
         # Extract webset data (similar logic to from_exa)
-        if hasattr(webset, 'results') and webset.results:
+        if hasattr(webset, "results") and webset.results:
             data_list = []
             for result in webset.results:
                 result_dict = {}
 
-                if hasattr(result, '__dict__'):
+                if hasattr(result, "__dict__"):
                     result_dict.update(result.__dict__)
                 elif isinstance(result, dict):
                     result_dict.update(result)
@@ -392,25 +439,24 @@ def from_exa_webset(webset_id: str, api_key: Optional[str] = None) -> "ScenarioL
                         result_dict = {"result": str(result)}
 
                 # Add webset metadata
-                result_dict['exa_webset_id'] = webset_id
+                result_dict["exa_webset_id"] = webset_id
 
                 data_list.append(result_dict)
 
-        elif hasattr(webset, '__dict__'):
+        elif hasattr(webset, "__dict__"):
             data_list = [webset.__dict__]
-            data_list[0]['exa_webset_id'] = webset_id
+            data_list[0]["exa_webset_id"] = webset_id
 
         else:
-            data_list = [{
-                'exa_webset_id': webset_id,
-                'exa_webset': str(webset)
-            }]
+            data_list = [{"exa_webset_id": webset_id, "exa_webset": str(webset)}]
 
     except Exception as e:
-        raise RuntimeError(f"Failed to retrieve EXA webset '{webset_id}': {str(e)}") from e
+        raise RuntimeError(
+            f"Failed to retrieve EXA webset '{webset_id}': {str(e)}"
+        ) from e
 
     if not data_list:
-        data_list = [{'exa_webset_id': webset_id, 'exa_results_count': 0}]
+        data_list = [{"exa_webset_id": webset_id, "exa_results_count": 0}]
 
     # Create and return ScenarioList
     return ScenarioList.from_list_of_dicts(data_list)

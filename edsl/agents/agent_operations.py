@@ -98,8 +98,7 @@ class AgentOperations:
                 compiled_pattern = re.compile(regex_pattern)
 
                 matches = [
-                    field for field in all_available
-                    if compiled_pattern.match(field)
+                    field for field in all_available if compiled_pattern.match(field)
                 ]
                 fields_to_drop.extend(matches)
             else:
@@ -240,8 +239,7 @@ class AgentOperations:
                 compiled_pattern = re.compile(regex_pattern)
 
                 matches = [
-                    field for field in all_available
-                    if compiled_pattern.match(field)
+                    field for field in all_available if compiled_pattern.match(field)
                 ]
                 fields_to_keep.extend(matches)
             else:

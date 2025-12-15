@@ -33,7 +33,9 @@ class CheckBoxConverter(AbstractQuestionConverter):
         if options:
             params["question_options"] = options
         else:
-            raise ValueError(f"Cannot convert {question.question_name} to CheckBox: no options available")
+            raise ValueError(
+                f"Cannot convert {question.question_name} to CheckBox: no options available"
+            )
 
         return params
 
@@ -51,7 +53,7 @@ class CheckBoxConverter(AbstractQuestionConverter):
             return improved_options
 
         # If the original question has options, use those
-        if hasattr(question, 'question_options') and question.question_options:
+        if hasattr(question, "question_options") and question.question_options:
             return question.question_options
 
         # For MultipleChoice -> CheckBox conversion, use existing options

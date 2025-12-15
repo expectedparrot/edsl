@@ -11,7 +11,9 @@ from .base_processor import BaseProcessor, ProcessingResult
 class TextCleanupProcessor(BaseProcessor):
     """Processor that cleans up question text for structural issues only."""
 
-    async def process(self, question: Question, context: Optional[Dict[str, Any]] = None) -> ProcessingResult:
+    async def process(
+        self, question: Question, context: Optional[Dict[str, Any]] = None
+    ) -> ProcessingResult:
         """
         Process question text and options for structural cleanup.
 
@@ -30,9 +32,11 @@ class TextCleanupProcessor(BaseProcessor):
         cleaned_options = None
         options_changed = False
 
-        if hasattr(question, 'question_options') and question.question_options:
+        if hasattr(question, "question_options") and question.question_options:
             original_options = list(question.question_options)
-            cleaned_options = [self._clean_text(str(option)) for option in original_options]
+            cleaned_options = [
+                self._clean_text(str(option)) for option in original_options
+            ]
             options_changed = cleaned_options != [str(opt) for opt in original_options]
 
         text_changed = cleaned_text != original_text
@@ -41,26 +45,30 @@ class TextCleanupProcessor(BaseProcessor):
             changes = []
             if text_changed:
                 self.log(f"Cleaned question text")
-                changes.append({
-                    'type': 'text_cleaned',
-                    'original': original_text,
-                    'new': cleaned_text
-                })
+                changes.append(
+                    {
+                        "type": "text_cleaned",
+                        "original": original_text,
+                        "new": cleaned_text,
+                    }
+                )
 
             if options_changed:
                 self.log(f"Cleaned question options")
-                changes.append({
-                    'type': 'options_cleaned',
-                    'original': original_options,
-                    'new': cleaned_options
-                })
+                changes.append(
+                    {
+                        "type": "options_cleaned",
+                        "original": original_options,
+                        "new": cleaned_options,
+                    }
+                )
 
             # Create new question with cleaned text and/or options
             question_dict = question.to_dict()
             if text_changed:
-                question_dict['question_text'] = cleaned_text
+                question_dict["question_text"] = cleaned_text
             if options_changed:
-                question_dict['question_options'] = cleaned_options
+                question_dict["question_options"] = cleaned_options
 
             try:
                 question_class = type(question)
@@ -70,7 +78,7 @@ class TextCleanupProcessor(BaseProcessor):
                     changed=True,
                     changes=changes,
                     confidence=0.9,
-                    reasoning="Fixed structural text and/or option encoding issues"
+                    reasoning="Fixed structural text and/or option encoding issues",
                 )
             except Exception as e:
                 self.log(f"Failed to create question with cleaned text/options: {e}")
@@ -80,7 +88,7 @@ class TextCleanupProcessor(BaseProcessor):
             changed=False,
             changes=[],
             confidence=1.0,
-            reasoning="Text and options don't need structural cleanup"
+            reasoning="Text and options don't need structural cleanup",
         )
 
     def _clean_text(self, text: str) -> str:
@@ -118,49 +126,50 @@ class TextCleanupProcessor(BaseProcessor):
     def _remove_csv_artifacts(self, text: str) -> str:
         """Remove common CSV export artifacts."""
         # Remove HTML entities that got exported literally
-        text = re.sub(r'&nbsp;', ' ', text)
-        text = re.sub(r'&amp;', '&', text)
-        text = re.sub(r'&lt;', '<', text)
-        text = re.sub(r'&gt;', '>', text)
-        text = re.sub(r'&quot;', '"', text)
+        text = re.sub(r"&nbsp;", " ", text)
+        text = re.sub(r"&amp;", "&", text)
+        text = re.sub(r"&lt;", "<", text)
+        text = re.sub(r"&gt;", ">", text)
+        text = re.sub(r"&quot;", '"', text)
 
         # Remove CSV escaping artifacts
         text = re.sub(r'""', '"', text)  # Double quotes from CSV escaping
 
         # Remove encoding issues
-        text = re.sub(r'â€™', "'", text)  # Smart quote encoding issue
-        text = re.sub(r'â€œ', '"', text)  # Left double quote
-        text = re.sub(r'â€\x9d', '"', text)  # Right double quote
+        text = re.sub(r"â€™", "'", text)  # Smart quote encoding issue
+        text = re.sub(r"â€œ", '"', text)  # Left double quote
+        text = re.sub(r"â€\x9d", '"', text)  # Right double quote
 
         return text
 
     def _fix_truncation(self, text: str) -> str:
         """Fix obvious truncation issues."""
         # If text ends abruptly mid-sentence or with truncation indicators
-        if text.endswith('...') or text.endswith('â€¦'):
+        if text.endswith("...") or text.endswith("â€¦"):
             # This is truncated, but we can't recover the missing text
             # Just clean up the ending
-            text = re.sub(r'(â€¦|\.\.\.)$', '', text).strip()
+            text = re.sub(r"(â€¦|\.\.\.)$", "", text).strip()
 
         # Fix common truncation patterns in Qualtrics exports
         # e.g., "Please select one." often gets exported as "Please select one"
-        if re.search(r'\w$', text) and not text.endswith(('.', '?', '!')):
+        if re.search(r"\w$", text) and not text.endswith((".", "?", "!")):
             # Ends with a word character but no punctuation
             # Check if it looks like it should have punctuation
-            if any(phrase in text.lower() for phrase in [
-                'please select', 'choose one', 'pick one', 'indicate'
-            ]):
-                text += '.'
+            if any(
+                phrase in text.lower()
+                for phrase in ["please select", "choose one", "pick one", "indicate"]
+            ):
+                text += "."
 
         return text
 
     def _normalize_whitespace(self, text: str) -> str:
         """Normalize whitespace without changing meaning."""
         # Replace multiple spaces with single space
-        text = re.sub(r' +', ' ', text)
+        text = re.sub(r" +", " ", text)
 
         # Replace various whitespace characters with regular spaces
-        text = re.sub(r'[\t\n\r\f\v]+', ' ', text)
+        text = re.sub(r"[\t\n\r\f\v]+", " ", text)
 
         # Remove leading/trailing whitespace
         text = text.strip()
@@ -171,9 +180,9 @@ class TextCleanupProcessor(BaseProcessor):
         """Remove duplicate instruction patterns."""
         # Common duplications from Qualtrics exports
         duplications = [
-            (r'(Please select one\.?)\s*Please select one\.?', r'\1'),
-            (r'(Choose one\.?)\s*Choose one\.?', r'\1'),
-            (r'(Select all that apply\.?)\s*Select all that apply\.?', r'\1'),
+            (r"(Please select one\.?)\s*Please select one\.?", r"\1"),
+            (r"(Choose one\.?)\s*Choose one\.?", r"\1"),
+            (r"(Select all that apply\.?)\s*Select all that apply\.?", r"\1"),
         ]
 
         for pattern, replacement in duplications:

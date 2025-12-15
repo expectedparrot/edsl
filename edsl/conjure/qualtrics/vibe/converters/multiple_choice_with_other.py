@@ -30,10 +30,12 @@ class MultipleChoiceWithOtherConverter(AbstractQuestionConverter):
         }
 
         # Extract options from the original question if it has them
-        if hasattr(question, 'question_options') and question.question_options:
+        if hasattr(question, "question_options") and question.question_options:
             # Use existing options, but remove any existing "Other" options
             # since QuestionMultipleChoiceWithOther adds its own
-            options = [opt for opt in question.question_options if 'other' not in opt.lower()]
+            options = [
+                opt for opt in question.question_options if "other" not in opt.lower()
+            ]
             params["question_options"] = options
         else:
             # For questions without options (like FreeText), we need to infer options from response data
@@ -44,7 +46,9 @@ class MultipleChoiceWithOtherConverter(AbstractQuestionConverter):
             else:
                 # Try to extract options from the question context or fail the conversion
                 # The AI should have provided improved_options based on response data analysis
-                raise ValueError(f"Cannot convert {question.question_name} to MultipleChoiceWithOther: no options available from analysis. The AI should analyze response data to suggest options.")
+                raise ValueError(
+                    f"Cannot convert {question.question_name} to MultipleChoiceWithOther: no options available from analysis. The AI should analyze response data to suggest options."
+                )
 
         return params
 

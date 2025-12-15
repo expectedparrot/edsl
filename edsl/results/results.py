@@ -2509,8 +2509,10 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         # Validate that all questions exist
         for q_name in question_names:
             if q_name not in self.survey.question_names:
-                available_questions = ', '.join(self.survey.question_names)
-                raise ValueError(f"Question '{q_name}' not found in survey. Available questions: {available_questions}")
+                available_questions = ", ".join(self.survey.question_names)
+                raise ValueError(
+                    f"Question '{q_name}' not found in survey. Available questions: {available_questions}"
+                )
 
         # Create new survey with the questions removed
         new_survey = self.survey.drop(*question_names)
@@ -2538,11 +2540,22 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                                 # Starts with question_name_ - remove it unless it's part of a longer question name
                                 # We need to be careful not to remove "how_feeling_yesterday" when removing "how_feeling"
                                 # Check if this key corresponds to a different question that just starts with our question name
-                                remaining_part = k[len(question_name + "_"):]
-                                if remaining_part in ["user_prompt", "system_prompt", "raw_model_response", "input_tokens",
-                                                    "output_tokens", "input_price_per_million_tokens", "output_price_per_million_tokens",
-                                                    "cost", "one_usd_buys", "generated_tokens", "comment", "reasoning_summary",
-                                                    "validated"]:
+                                remaining_part = k[len(question_name + "_") :]
+                                if remaining_part in [
+                                    "user_prompt",
+                                    "system_prompt",
+                                    "raw_model_response",
+                                    "input_tokens",
+                                    "output_tokens",
+                                    "input_price_per_million_tokens",
+                                    "output_price_per_million_tokens",
+                                    "cost",
+                                    "one_usd_buys",
+                                    "generated_tokens",
+                                    "comment",
+                                    "reasoning_summary",
+                                    "validated",
+                                ]:
                                     # This is definitely a field related to our question, remove it
                                     should_keep = False
                                     break
@@ -2566,10 +2579,14 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 prompt=new_result_data.get("prompt", {}),
                 raw_model_response=new_result_data.get("raw_model_response", {}),
                 survey=new_survey,
-                question_to_attributes=new_result_data.get("question_to_attributes", {}),
+                question_to_attributes=new_result_data.get(
+                    "question_to_attributes", {}
+                ),
                 generated_tokens=new_result_data.get("generated_tokens", {}),
                 comments_dict=new_result_data.get("comments_dict", {}),
-                reasoning_summaries_dict=new_result_data.get("reasoning_summaries_dict", {}),
+                reasoning_summaries_dict=new_result_data.get(
+                    "reasoning_summaries_dict", {}
+                ),
                 cache_used_dict=new_result_data.get("cache_used_dict", {}),
                 indices=result.indices,
                 cache_keys=new_result_data.get("cache_keys", {}),
@@ -2582,7 +2599,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             survey=new_survey,
             data=new_data,
             name=self.name,
-            created_columns=self.created_columns.copy() if self.created_columns else None,
+            created_columns=(
+                self.created_columns.copy() if self.created_columns else None
+            ),
             cache=self.cache,
             job_uuid=self._job_uuid,
             total_results=self._total_results,
@@ -2632,11 +2651,15 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         # Validate that all questions exist
         for q_name in question_names:
             if q_name not in self.survey.question_names:
-                available_questions = ', '.join(self.survey.question_names)
-                raise ValueError(f"Question '{q_name}' not found in survey. Available questions: {available_questions}")
+                available_questions = ", ".join(self.survey.question_names)
+                raise ValueError(
+                    f"Question '{q_name}' not found in survey. Available questions: {available_questions}"
+                )
 
         # Find questions to remove (inverse of what we want to keep)
-        questions_to_remove = [q for q in self.survey.question_names if q not in question_names]
+        questions_to_remove = [
+            q for q in self.survey.question_names if q not in question_names
+        ]
 
         # If no questions to remove, return a copy of the original
         if not questions_to_remove:
@@ -2646,7 +2669,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
                 survey=self.survey,
                 data=self.data,
                 name=self.name,
-                created_columns=self.created_columns.copy() if self.created_columns else None,
+                created_columns=(
+                    self.created_columns.copy() if self.created_columns else None
+                ),
                 cache=self.cache,
                 job_uuid=self._job_uuid,
                 total_results=self._total_results,

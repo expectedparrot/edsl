@@ -35,7 +35,9 @@ class MultipleChoiceConverter(AbstractQuestionConverter):
             params["question_options"] = options
         else:
             # This conversion should probably fail if we can't determine options
-            raise ValueError(f"Cannot convert {question.question_name} to MultipleChoice: no options available")
+            raise ValueError(
+                f"Cannot convert {question.question_name} to MultipleChoice: no options available"
+            )
 
         return params
 
@@ -53,11 +55,13 @@ class MultipleChoiceConverter(AbstractQuestionConverter):
             return improved_options
 
         # If the original question has options, use those
-        if hasattr(question, 'question_options') and question.question_options:
+        if hasattr(question, "question_options") and question.question_options:
             return question.question_options
 
         # For QuestionMatrix conversion, extract from matrix structure
-        if hasattr(question, 'question_items') and hasattr(question, 'question_options'):
+        if hasattr(question, "question_items") and hasattr(
+            question, "question_options"
+        ):
             # For matrix questions, we might want to flatten the structure
             # But this is complex - for now, use the column options
             if question.question_options:

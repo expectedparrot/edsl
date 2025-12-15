@@ -6,6 +6,7 @@ This file shows the simplest way to get started with the EXA module.
 
 import os
 
+
 def demo():
     """Demonstrate EXA integration usage."""
 
@@ -13,7 +14,7 @@ def demo():
     print("=" * 40)
 
     # Check for API key
-    api_key = os.getenv('EXA_API_KEY')
+    api_key = os.getenv("EXA_API_KEY")
     if not api_key:
         print("\n⚠️  No EXA_API_KEY found in environment.")
         print("   To run this demo with real API calls:")
@@ -31,11 +32,12 @@ def demo():
 
         # Example 1: Simple search
         print("\n1️⃣  Simple Search Example:")
-        print("   ScenarioList.from_exa('Sales leaders at fintech companies', count=10)")
+        print(
+            "   ScenarioList.from_exa('Sales leaders at fintech companies', count=10)"
+        )
 
         scenarios = ScenarioList.from_exa(
-            query="Sales leaders at fintech companies",
-            count=10
+            query="Sales leaders at fintech companies", count=10
         )
 
         print(f"   ✅ Created {len(scenarios)} scenarios")
@@ -48,12 +50,15 @@ def demo():
 
         scenarios_advanced = ScenarioList.from_exa(
             query="AI startup founders",
-            criteria=["founded an AI or ML company", "currently serves as CEO or founder"],
+            criteria=[
+                "founded an AI or ML company",
+                "currently serves as CEO or founder",
+            ],
             enrichments=[
                 {"description": "Years of experience", "format": "number"},
-                {"description": "Previous companies", "format": "list"}
+                {"description": "Previous companies", "format": "list"},
             ],
-            count=5
+            count=5,
         )
 
         print(f"   ✅ Created {len(scenarios_advanced)} scenarios")

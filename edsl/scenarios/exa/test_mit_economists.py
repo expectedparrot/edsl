@@ -13,6 +13,7 @@ sys.path.insert(0, str(edsl_root))
 
 # Load environment
 from dotenv import load_dotenv
+
 load_dotenv(edsl_root / ".env")
 
 # Test the specific query
@@ -28,7 +29,7 @@ try:
     scenarios = ScenarioList.from_exa(
         "Professors at MIT Sloan School of Management",
         count=15,
-        max_wait_time=180  # 3 minutes - longer for complex queries
+        max_wait_time=180,  # 3 minutes - longer for complex queries
     )
 
     print(f"\n✅ SUCCESS! Found {len(scenarios)} economists")
@@ -40,7 +41,7 @@ try:
         print(f"   Institution: {scenario.get('company_name', 'Unknown')}")
         print(f"   Location: {scenario.get('location', 'Unknown')}")
 
-        desc = scenario.get('description', 'No description')
+        desc = scenario.get("description", "No description")
         print(f"   Research: {desc[:150]}...")
 
 except KeyboardInterrupt:
@@ -48,4 +49,5 @@ except KeyboardInterrupt:
 except Exception as e:
     print(f"\n❌ Error: {e}")
     import traceback
+
     traceback.print_exc()

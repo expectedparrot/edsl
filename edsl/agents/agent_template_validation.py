@@ -67,10 +67,14 @@ class AgentTemplateValidation:
             # Test a basic rendering attempt with dummy data to catch logical errors
             # Use the agent's actual traits plus some common template variables
             test_data = dict(self.agent.traits)
-            test_data.update({
-                'traits': self.agent.traits,
-                'codebook': self.agent.codebook if hasattr(self.agent, 'codebook') else {}
-            })
+            test_data.update(
+                {
+                    "traits": self.agent.traits,
+                    "codebook": (
+                        self.agent.codebook if hasattr(self.agent, "codebook") else {}
+                    ),
+                }
+            )
 
             # Attempt to render with test data
             try:
@@ -82,7 +86,9 @@ class AgentTemplateValidation:
 
         except TemplateSyntaxError as e:
             # Template has invalid Jinja2 syntax
-            raise AgentTemplateValidationError(f"Invalid Jinja2 template syntax: {str(e)}")
+            raise AgentTemplateValidationError(
+                f"Invalid Jinja2 template syntax: {str(e)}"
+            )
         except Exception as e:
             # Any other error during parsing or rendering indicates an invalid template
             raise AgentTemplateValidationError(f"Template validation failed: {str(e)}")
@@ -121,7 +127,7 @@ class AgentTemplateValidation:
         """
         from .exceptions import AgentErrors
 
-        if not hasattr(self.agent, '_traits_presentation_template'):
+        if not hasattr(self.agent, "_traits_presentation_template"):
             raise AgentErrors("No traits_presentation_template is set for this agent")
 
         try:
@@ -138,10 +144,14 @@ class AgentTemplateValidation:
             # Test a basic rendering attempt with dummy data to catch logical errors
             # Use the agent's actual traits plus some common template variables
             test_data = dict(self.agent.traits)
-            test_data.update({
-                'traits': self.agent.traits,
-                'codebook': self.agent.codebook if hasattr(self.agent, 'codebook') else {}
-            })
+            test_data.update(
+                {
+                    "traits": self.agent.traits,
+                    "codebook": (
+                        self.agent.codebook if hasattr(self.agent, "codebook") else {}
+                    ),
+                }
+            )
 
             # Attempt to render with test data to catch undefined variables or logical errors
             try:
@@ -185,7 +195,7 @@ class AgentTemplateValidation:
         """
         from .exceptions import AgentErrors
 
-        if not hasattr(self.agent, '_traits_presentation_template'):
+        if not hasattr(self.agent, "_traits_presentation_template"):
             raise AgentErrors("No traits_presentation_template is set for this agent")
 
         try:
@@ -202,10 +212,14 @@ class AgentTemplateValidation:
             # Test a basic rendering attempt with dummy data to catch logical errors
             # Use the agent's actual traits plus some common template variables
             test_data = dict(self.agent.traits)
-            test_data.update({
-                'traits': self.agent.traits,
-                'codebook': self.agent.codebook if hasattr(self.agent, 'codebook') else {}
-            })
+            test_data.update(
+                {
+                    "traits": self.agent.traits,
+                    "codebook": (
+                        self.agent.codebook if hasattr(self.agent, "codebook") else {}
+                    ),
+                }
+            )
 
             # Attempt to render with test data
             try:
@@ -260,7 +274,7 @@ class AgentTemplateValidation:
         """
         from .exceptions import AgentErrors
 
-        if not hasattr(self.agent, '_traits_presentation_template'):
+        if not hasattr(self.agent, "_traits_presentation_template"):
             raise AgentErrors("No traits_presentation_template is set for this agent")
 
         # First validate the template syntax
@@ -272,14 +286,18 @@ class AgentTemplateValidation:
             from ..prompts.prompt import _find_template_variables
 
             # Get all variables referenced in the template
-            template_variables = _find_template_variables(self.agent.traits_presentation_template)
+            template_variables = _find_template_variables(
+                self.agent.traits_presentation_template
+            )
 
             # Build available variables (traits + standard template context)
             available_variables = set(self.agent.traits.keys())
-            available_variables.update(['traits', 'codebook'])
+            available_variables.update(["traits", "codebook"])
 
             # Find variables that are referenced but not available
-            undefined_variables = [var for var in template_variables if var not in available_variables]
+            undefined_variables = [
+                var for var in template_variables if var not in available_variables
+            ]
 
             return undefined_variables
 
@@ -307,7 +325,7 @@ class AgentTemplateValidation:
         """
         from .exceptions import AgentErrors
 
-        if not hasattr(self.agent, '_traits_presentation_template'):
+        if not hasattr(self.agent, "_traits_presentation_template"):
             raise AgentErrors("No traits_presentation_template is set for this agent")
 
         # First validate the template syntax
@@ -317,6 +335,7 @@ class AgentTemplateValidation:
 
         try:
             from ..prompts.prompt import _find_template_variables
+
             return _find_template_variables(self.agent.traits_presentation_template)
         except Exception as e:
             raise AgentErrors(f"Error analyzing template variables: {str(e)}")

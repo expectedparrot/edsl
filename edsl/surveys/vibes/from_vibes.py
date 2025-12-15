@@ -94,7 +94,5 @@ def generate_survey_from_vibes(
 
         # Process input - analyzer will detect if it's description or pasted text
         return analyzer.process_survey_input(
-            text=description,
-            survey_cls=survey_cls,
-            num_questions=num_questions
+            text=description, survey_cls=survey_cls, num_questions=num_questions
         )

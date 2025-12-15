@@ -41,18 +41,29 @@ class ParsedSurveyQuestion(BaseModel):
     question_text: str = Field(description="The question text, cleaned of numbering")
     question_type: str = Field(description="Inferred question type")
     question_options: Optional[List[str]] = Field(
-        default=None, description="List of options for multiple choice/checkbox questions"
+        default=None,
+        description="List of options for multiple choice/checkbox questions",
     )
-    min_value: Optional[int] = Field(default=None, description="Minimum value for scale questions")
-    max_value: Optional[int] = Field(default=None, description="Maximum value for scale questions")
-    question_name: Optional[str] = Field(default=None, description="Generated question name")
+    min_value: Optional[int] = Field(
+        default=None, description="Minimum value for scale questions"
+    )
+    max_value: Optional[int] = Field(
+        default=None, description="Maximum value for scale questions"
+    )
+    question_name: Optional[str] = Field(
+        default=None, description="Generated question name"
+    )
 
 
 class ParsedSurvey(BaseModel):
     """Pydantic model for a complete parsed survey."""
 
-    questions: List[ParsedSurveyQuestion] = Field(description="List of parsed questions")
-    survey_title: Optional[str] = Field(default=None, description="Inferred survey title")
+    questions: List[ParsedSurveyQuestion] = Field(
+        description="List of parsed questions"
+    )
+    survey_title: Optional[str] = Field(
+        default=None, description="Inferred survey title"
+    )
     raw_text: str = Field(description="Original input text")
 
 
@@ -93,19 +104,16 @@ class SurveyTextAnalyzer:
         messages = [
             {
                 "role": "system",
-                "content": "You are a survey analysis expert. Analyze the input text and classify it as either a survey description or pasted survey content."
+                "content": "You are a survey analysis expert. Analyze the input text and classify it as either a survey description or pasted survey content.",
             },
-            {
-                "role": "user",
-                "content": classification_prompt
-            }
+            {"role": "user", "content": classification_prompt},
         ]
 
         response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=self.temperature,
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
         )
 
         result_dict = json.loads(response.choices[0].message.content)
@@ -126,19 +134,16 @@ class SurveyTextAnalyzer:
         messages = [
             {
                 "role": "system",
-                "content": "You are a survey parsing expert. Extract questions and infer question types from the provided survey text."
+                "content": "You are a survey parsing expert. Extract questions and infer question types from the provided survey text.",
             },
-            {
-                "role": "user",
-                "content": parsing_prompt
-            }
+            {"role": "user", "content": parsing_prompt},
         ]
 
         response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=self.temperature,
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
         )
 
         result_dict = json.loads(response.choices[0].message.content)
@@ -149,7 +154,7 @@ class SurveyTextAnalyzer:
         text: str,
         survey_cls: type,
         num_questions: Optional[int] = None,
-        force_type: Optional[str] = None
+        force_type: Optional[str] = None,
     ) -> "Survey":
         """
         Process survey input text, automatically detecting type and handling appropriately.
@@ -270,7 +275,9 @@ Guidelines:
 - If you see scale indicators like (1-5) or "rate from 1 to 10", use linear_scale with appropriate min/max
 """
 
-    def _create_survey_from_parsed_data(self, parsed_survey: ParsedSurvey, survey_cls: type) -> "Survey":
+    def _create_survey_from_parsed_data(
+        self, parsed_survey: ParsedSurvey, survey_cls: type
+    ) -> "Survey":
         """Create Survey instance from parsed survey data."""
         questions = []
 
@@ -294,8 +301,7 @@ Guidelines:
 
             # Create question object
             question_obj = survey_cls._create_question_from_dict(
-                question_dict,
-                question_dict["question_name"]
+                question_dict, question_dict["question_name"]
             )
             questions.append(question_obj)
 

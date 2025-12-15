@@ -62,17 +62,17 @@ class AgentOptimization(BaseModel):
 @dataclass
 class SurveyAnalyzer:
     """Analyze survey questions to determine relevant agent traits."""
+
     model: str = "gpt-4o"
     temperature: float = 0.3
 
     def __post_init__(self):
         from ...base.openai_utils import create_openai_client
+
         self.client = create_openai_client()
 
     def analyze_relevance(
-        self,
-        survey_data: Dict[str, Any],
-        agent_list: "AgentList"
+        self, survey_data: Dict[str, Any], agent_list: "AgentList"
     ) -> Dict[str, Any]:
         """
         Analyze which traits are relevant for each agent given the survey.
@@ -93,15 +93,17 @@ class SurveyAnalyzer:
         # Prepare agent summaries
         agents_summary = []
         for i, agent in enumerate(agent_list):
-            agents_summary.append({
-                "agent_id": str(i),
-                "traits": list(agent.traits.keys()),
-                "name": agent.name if agent.name else None
-            })
+            agents_summary.append(
+                {
+                    "agent_id": str(i),
+                    "traits": list(agent.traits.keys()),
+                    "name": agent.name if agent.name else None,
+                }
+            )
 
         # Build codebook if available
         codebook = {}
-        if hasattr(agent_list, 'codebook') and agent_list.codebook:
+        if hasattr(agent_list, "codebook") and agent_list.codebook:
             codebook = agent_list.codebook
 
         # Call LLM for analysis
@@ -128,9 +130,9 @@ class SurveyAnalyzer:
             except json.JSONDecodeError as e:
                 raise RuntimeError(f"Failed to parse LLM response as JSON: {e}")
 
-
         except Exception as e:
             from ...key_management.exceptions import KeyManagementMissingKeyError
+
             if isinstance(e, KeyManagementMissingKeyError):
                 raise  # Re-raise key errors as-is
             else:
@@ -177,11 +179,7 @@ Example JSON format:
 }"""
 
     def _build_user_prompt(
-        self,
-        survey_data: dict,
-        all_traits: list,
-        agents_summary: list,
-        codebook: dict
+        self, survey_data: dict, all_traits: list, agents_summary: list, codebook: dict
     ) -> dict:
         """Build user prompt for trait relevance analysis."""
         return {
@@ -195,25 +193,24 @@ Example JSON format:
                 "for answering this survey accurately. Consider the survey domain, question types, "
                 "and how each trait might provide useful context for responses. "
                 "Return a mapping of agent_id to selected trait names."
-            )
+            ),
         }
 
 
 @dataclass
 class AgentSurveyOptimizer:
     """Optimize individual agents for survey responses."""
+
     model: str = "gpt-4o"
     temperature: float = 0.5  # Slightly higher for creative template generation
 
     def __post_init__(self):
         from ...base.openai_utils import create_openai_client
+
         self.client = create_openai_client()
 
     def optimize_agent(
-        self,
-        agent: "Agent",
-        relevant_traits: List[str],
-        survey_context: Dict[str, Any]
+        self, agent: "Agent", relevant_traits: List[str], survey_context: Dict[str, Any]
     ) -> "Agent":
         """
         Optimize a single agent for survey responses.
@@ -243,22 +240,15 @@ class AgentSurveyOptimizer:
             valid_traits = list(agent.traits.keys())
 
         # Call LLM to generate optimization
-        optimization = self._generate_optimization(
-            agent, valid_traits, survey_context
-        )
+        optimization = self._generate_optimization(agent, valid_traits, survey_context)
 
         # Apply optimization to agent
-        optimized_agent = self._apply_optimization(
-            agent, valid_traits, optimization
-        )
+        optimized_agent = self._apply_optimization(agent, valid_traits, optimization)
 
         return optimized_agent
 
     def _generate_optimization(
-        self,
-        agent: "Agent",
-        traits: List[str],
-        survey_context: dict
+        self, agent: "Agent", traits: List[str], survey_context: dict
     ) -> dict:
         """Call LLM to generate optimization configuration."""
         system_prompt = self._build_system_prompt()
@@ -319,10 +309,7 @@ EXAMPLE OUTPUT JSON:
 }"""
 
     def _build_user_prompt(
-        self,
-        agent: "Agent",
-        traits: list,
-        survey_context: dict
+        self, agent: "Agent", traits: list, survey_context: dict
     ) -> dict:
         """Build user prompt for agent optimization."""
         # Extract trait values for selected traits
@@ -330,11 +317,9 @@ EXAMPLE OUTPUT JSON:
 
         # Extract codebook entries for selected traits
         codebook_subset = {}
-        if hasattr(agent, 'codebook') and agent.codebook:
+        if hasattr(agent, "codebook") and agent.codebook:
             codebook_subset = {
-                t: agent.codebook[t]
-                for t in traits
-                if t in agent.codebook
+                t: agent.codebook[t] for t in traits if t in agent.codebook
             }
 
         return {
@@ -348,14 +333,11 @@ EXAMPLE OUTPUT JSON:
                 "this agent provide accurate survey responses. The template should present the "
                 "selected traits clearly. The instruction should guide the agent to answer "
                 "thoughtfully and accurately based on their characteristics."
-            )
+            ),
         }
 
     def _apply_optimization(
-        self,
-        agent: "Agent",
-        traits: list,
-        optimization: dict
+        self, agent: "Agent", traits: list, optimization: dict
     ) -> "Agent":
         """Apply optimization results to create new agent."""
         # Step 1: Filter traits using agent.select()
@@ -365,11 +347,14 @@ EXAMPLE OUTPUT JSON:
         template = optimization["template"]
         try:
             from ..agent_template_validation import AgentTemplateValidation
+
             validator = AgentTemplateValidation(filtered_agent)
             validator.validate_and_raise(template)
             filtered_agent.traits_presentation_template = template
         except Exception as e:
-            logging.warning(f"Generated template failed validation: {e}. Using default.")
+            logging.warning(
+                f"Generated template failed validation: {e}. Using default."
+            )
             # Keep the default template that agent.select() created
 
         # Step 3: Set instruction
@@ -387,6 +372,7 @@ class AgentListSurveyDesigner:
     This class orchestrates the process of analyzing a survey and optimizing
     agents to provide accurate, contextually appropriate responses.
     """
+
     model: str = "gpt-4o"
     temperature: float = 0.3  # Lower temperature for consistent analysis
 
@@ -395,10 +381,7 @@ class AgentListSurveyDesigner:
         self.agent_optimizer = AgentSurveyOptimizer(self.model, 0.5)
 
     def design_for_survey(
-        self,
-        agent_list: "AgentList",
-        survey: "Survey",
-        show_reasoning: bool = False
+        self, agent_list: "AgentList", survey: "Survey", show_reasoning: bool = False
     ) -> "AgentList":
         """
         Main entry point for survey-specific agent optimization.
@@ -427,8 +410,7 @@ class AgentListSurveyDesigner:
 
             # Step 2: Analyze trait relevance across all agents
             trait_analysis = self.survey_analyzer.analyze_relevance(
-                survey_data=survey_data,
-                agent_list=agent_list
+                survey_data=survey_data, agent_list=agent_list
             )
 
             if show_reasoning:
@@ -449,16 +431,19 @@ class AgentListSurveyDesigner:
                         survey_context={
                             "domain": trait_analysis["survey_type"],
                             "questions": survey_data["questions"],
-                        }
+                        },
                     )
                     optimized_agents.append(optimized)
                 except Exception as e:
                     # On error, keep original agent and log
-                    logging.warning(f"Failed to optimize agent {i}: {e}. Keeping original.")
+                    logging.warning(
+                        f"Failed to optimize agent {i}: {e}. Keeping original."
+                    )
                     optimized_agents.append(agent)
 
             # Step 4: Return new AgentList
             from ..agent_list import AgentList
+
             return AgentList(optimized_agents, codebook=agent_list.codebook)
 
         except Exception as e:

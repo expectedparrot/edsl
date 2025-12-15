@@ -1088,7 +1088,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         *,
         verbose: bool = True,
         strategy: str = "comprehensive",
-        **kwargs
+        **kwargs,
     ) -> ScenarioList:
         """Create a ScenarioList from a vibe description using intelligent multi-source approach.
 
@@ -1141,10 +1141,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         from .vibes.scenario_agent import from_vibes_intelligent
 
         return from_vibes_intelligent(
-            description,
-            verbose=verbose,
-            strategy=strategy,
-            **kwargs
+            description, verbose=verbose, strategy=strategy, **kwargs
         )
 
     @classmethod
@@ -2253,7 +2250,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         # Parse the comma-separated string into a list if provided
         randomize_list = None
         if questions_to_randomize:
-            randomize_list = [name.strip() for name in questions_to_randomize.split(",")]
+            randomize_list = [
+                name.strip() for name in questions_to_randomize.split(",")
+            ]
 
         s = Survey()
         for index, scenario in enumerate(self):
@@ -2847,7 +2846,12 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return s
 
     @classmethod
-    def from_hugging_face(cls, dataset_name: str, config_name: Optional[str] = None, split: Optional[str] = None) -> "ScenarioList":
+    def from_hugging_face(
+        cls,
+        dataset_name: str,
+        config_name: Optional[str] = None,
+        split: Optional[str] = None,
+    ) -> "ScenarioList":
         """Create a ScenarioList from a Hugging Face dataset.
 
         Args:
@@ -2874,6 +2878,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             >>> sl = ScenarioList.from_hugging_face("Anthropic/AnthropicInterviewer", split="creatives")
         """
         from .hugging_face import from_hugging_face
+
         return from_hugging_face(dataset_name, config_name, split)
 
     @classmethod
@@ -2886,7 +2891,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         api_key: Optional[str] = None,
         wait_for_completion: bool = True,
         max_wait_time: int = 120,
-        **kwargs
+        **kwargs,
     ) -> "ScenarioList":
         """Create a ScenarioList from EXA API web search and enrichment.
 
@@ -2924,10 +2929,22 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             ... )
         """
         from .exa import from_exa
-        return from_exa(query, criteria, count, enrichments, api_key, wait_for_completion, max_wait_time, **kwargs)
+
+        return from_exa(
+            query,
+            criteria,
+            count,
+            enrichments,
+            api_key,
+            wait_for_completion,
+            max_wait_time,
+            **kwargs,
+        )
 
     @classmethod
-    def from_exa_webset(cls, webset_id: str, api_key: Optional[str] = None) -> "ScenarioList":
+    def from_exa_webset(
+        cls, webset_id: str, api_key: Optional[str] = None
+    ) -> "ScenarioList":
         """Create a ScenarioList from an existing EXA webset ID.
 
         Args:
@@ -2946,6 +2963,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             >>> sl = ScenarioList.from_exa_webset("01k6m4wn1aykv03jq3p4hxs2m9")
         """
         from .exa import from_exa_webset
+
         return from_exa_webset(webset_id, api_key)
 
     def code(self) -> str:

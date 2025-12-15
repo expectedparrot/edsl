@@ -208,20 +208,20 @@ if __name__ == "__main__":
             {
                 "name": "Conservative Voter",
                 "traits": {"political_leaning": "conservative", "age": "65"},
-                "instructions": "Act as a conservative voter concerned about traditional values"
+                "instructions": "Act as a conservative voter concerned about traditional values",
             },
             {
                 "name": "Liberal Student",
                 "traits": {"political_leaning": "liberal", "age": "22"},
-                "instructions": "Act as a progressive college student interested in social justice"
-            }
+                "instructions": "Act as a progressive college student interested in social justice",
+            },
         ],
         "num_agents": 2,
         "agent_names": ["Conservative Voter", "Liberal Student"],
         "traits": {
             "political_leaning": ["conservative", "liberal"],
-            "age": ["65", "22"]
-        }
+            "age": ["65", "22"],
+        },
     }
 
     # Generate description

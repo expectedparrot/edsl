@@ -17,6 +17,7 @@ from .processors.text_cleaner import TextCleanupProcessor
 @dataclass
 class MultiStepResult:
     """Result of multi-step processing."""
+
     question: Question
     total_changes: int
     step_results: List[ProcessingResult]
@@ -41,7 +42,9 @@ class MultiStepProcessor:
             TextCleanupProcessor(verbose=verbose),
         ]
 
-    async def process_question(self, question: Question, context: Optional[Dict[str, Any]] = None) -> MultiStepResult:
+    async def process_question(
+        self, question: Question, context: Optional[Dict[str, Any]] = None
+    ) -> MultiStepResult:
         """
         Process a question through all steps.
 
@@ -53,6 +56,7 @@ class MultiStepProcessor:
             MultiStepResult with final question and processing details
         """
         import time
+
         start_time = time.time()
 
         current_question = question
@@ -60,12 +64,16 @@ class MultiStepProcessor:
         total_changes = 0
 
         if self.verbose:
-            print(f"🔧 Processing {question.question_name} through {len(self.processors)} steps...")
+            print(
+                f"🔧 Processing {question.question_name} through {len(self.processors)} steps..."
+            )
 
         # Run each processor in sequence
         for i, processor in enumerate(self.processors, 1):
             if self.verbose:
-                print(f"  Step {i}/{len(self.processors)}: {processor.__class__.__name__}")
+                print(
+                    f"  Step {i}/{len(self.processors)}: {processor.__class__.__name__}"
+                )
 
             try:
                 result = await processor.process(current_question, context)
@@ -93,23 +101,27 @@ class MultiStepProcessor:
                     changed=False,
                     changes=[],
                     confidence=0.0,
-                    reasoning=f"Error: {str(e)}"
+                    reasoning=f"Error: {str(e)}",
                 )
                 step_results.append(error_result)
 
         processing_time = time.time() - start_time
 
         if self.verbose and total_changes > 0:
-            print(f"  🎯 Total improvements: {total_changes} changes in {processing_time:.2f}s")
+            print(
+                f"  🎯 Total improvements: {total_changes} changes in {processing_time:.2f}s"
+            )
 
         return MultiStepResult(
             question=current_question,
             total_changes=total_changes,
             step_results=step_results,
-            processing_time=processing_time
+            processing_time=processing_time,
         )
 
-    async def process_survey(self, survey: Survey, response_data: Optional[Dict[str, List[str]]] = None) -> Survey:
+    async def process_survey(
+        self, survey: Survey, response_data: Optional[Dict[str, List[str]]] = None
+    ) -> Survey:
         """
         Process all questions in a survey.
 
@@ -124,7 +136,9 @@ class MultiStepProcessor:
             return survey
 
         if self.verbose:
-            print(f"🔍 Processing {len(survey.questions)} questions with multi-step approach...")
+            print(
+                f"🔍 Processing {len(survey.questions)} questions with multi-step approach..."
+            )
 
         improved_questions = []
         total_changes = 0
@@ -141,7 +155,7 @@ class MultiStepProcessor:
         improved_survey = Survey(questions=improved_questions)
 
         # Copy any other survey attributes
-        for attr in ['name', 'description', 'metadata']:
+        for attr in ["name", "description", "metadata"]:
             if hasattr(survey, attr):
                 setattr(improved_survey, attr, getattr(survey, attr))
 
@@ -151,8 +165,9 @@ class MultiStepProcessor:
         """Get information about available processors."""
         return [
             {
-                'name': processor.__class__.__name__,
-                'description': processor.__class__.__doc__ or 'No description available'
+                "name": processor.__class__.__name__,
+                "description": processor.__class__.__doc__
+                or "No description available",
             }
             for processor in self.processors
         ]
