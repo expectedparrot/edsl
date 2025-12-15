@@ -1082,17 +1082,70 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return ScenarioListVibeAccessor(self)
 
     @classmethod
-    def from_vibes(cls, description: str) -> ScenarioList:
-        """Create a ScenarioList from a vibe description.
+    def from_vibes(
+        cls,
+        description: str,
+        *,
+        verbose: bool = True,
+        strategy: str = "comprehensive",
+        **kwargs
+    ) -> ScenarioList:
+        """Create a ScenarioList from a vibe description using intelligent multi-source approach.
+
+        This method uses an intelligent agent that tries multiple approaches in sequence:
+        1. Search for relevant Wikipedia tables (for structured reference data)
+        2. Try Exa web search for real-world data (if available)
+        3. Use AI generation as reliable fallback
+
+        The agent provides progress updates and tries different sources until it finds data.
 
         Args:
-            description: A description of the vibe.
-        """
-        from .vibe_example import ScenarioGenerator
+            description: Natural language description of the data you want
+                        (e.g., "European countries and their capitals", "Fortune 500 companies")
+            verbose: If True, prints progress updates as different approaches are tried
+            strategy: Search strategy to use:
+                     - 'comprehensive': Try all approaches (Wikipedia → Exa → AI)
+                     - 'fast': Try Wikipedia then AI (skip Exa for speed)
+                     - 'web_only': Only try web sources (Wikipedia and Exa)
+                     - 'ai_only': Only use AI generation
+            **kwargs: Additional arguments:
+                     - exa_count: Number of results from Exa (default: 50)
+                     - generator_count: Number of AI-generated scenarios (default: 10)
+                     - model: AI model for generation (default: "gpt-4o")
+                     - temperature: AI temperature (default: 0.7)
+                     - Plus any args for underlying methods
 
-        gen = ScenarioGenerator(model="gpt-4o", temperature=0.7)
-        result = gen.generate_scenarios(description)
-        return cls([Scenario(scenario) for scenario in result["scenarios"]])
+        Returns:
+            ScenarioList: Created from the best available source
+
+        Raises:
+            RuntimeError: If all enabled approaches fail to produce results
+
+        Examples:
+            >>> # Comprehensive search (tries all sources)
+            >>> sl = ScenarioList.from_vibes("European countries and their capitals")
+
+            >>> # Fast search (skip web scraping)
+            >>> sl = ScenarioList.from_vibes("Fortune 500 companies", strategy="fast")
+
+            >>> # Only web sources
+            >>> sl = ScenarioList.from_vibes("US universities", strategy="web_only")
+
+            >>> # Customize result counts
+            >>> sl = ScenarioList.from_vibes(
+            ...     "AI researchers",
+            ...     exa_count=100,
+            ...     generator_count=20
+            ... )
+        """
+        from .vibes.scenario_agent import from_vibes_intelligent
+
+        return from_vibes_intelligent(
+            description,
+            verbose=verbose,
+            strategy=strategy,
+            **kwargs
+        )
 
     @classmethod
     def vibe_extract(
@@ -2812,6 +2865,78 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         from .hugging_face import from_hugging_face
         return from_hugging_face(dataset_name, config_name, split)
+
+    @classmethod
+    def from_exa(
+        cls,
+        query: str,
+        criteria: Optional[List[str]] = None,
+        count: int = 100,
+        enrichments: Optional[List[dict]] = None,
+        api_key: Optional[str] = None,
+        wait_for_completion: bool = True,
+        max_wait_time: int = 120,
+        **kwargs
+    ) -> "ScenarioList":
+        """Create a ScenarioList from EXA API web search and enrichment.
+
+        Args:
+            query (str): The search query string (e.g., "Sales leaders at US fintech companies")
+            criteria (list[str], optional): List of search criteria to refine the search
+            count (int): Number of results to return (default: 100)
+            enrichments (list[dict], optional): List of enrichment parameters, each with 'description' and 'format' keys
+            api_key (str, optional): EXA API key (defaults to EXA_API_KEY environment variable)
+            wait_for_completion (bool): Whether to wait for webset completion (default: True)
+            max_wait_time (int): Maximum time to wait for completion in seconds (default: 120)
+            **kwargs: Additional parameters to pass to EXA webset creation
+
+        Returns:
+            ScenarioList: A ScenarioList created from the EXA search results
+
+        Raises:
+            ValueError: If the EXA API key is not provided or enrichments are malformed
+            ImportError: If the exa-py library is not available
+            RuntimeError: If the EXA API call fails
+
+        Example:
+            >>> # Simple search
+            >>> sl = ScenarioList.from_exa("Sales leaders at US fintech companies", count=50)
+
+            >>> # Search with criteria and enrichments
+            >>> sl = ScenarioList.from_exa(
+            ...     query="AI startup CTOs",
+            ...     criteria=["holds CTO position", "works at AI startup"],
+            ...     enrichments=[
+            ...         {"description": "Years of experience", "format": "number"},
+            ...         {"description": "University", "format": "text"}
+            ...     ],
+            ...     count=100
+            ... )
+        """
+        from .exa import from_exa
+        return from_exa(query, criteria, count, enrichments, api_key, wait_for_completion, max_wait_time, **kwargs)
+
+    @classmethod
+    def from_exa_webset(cls, webset_id: str, api_key: Optional[str] = None) -> "ScenarioList":
+        """Create a ScenarioList from an existing EXA webset ID.
+
+        Args:
+            webset_id (str): The ID of an existing EXA webset
+            api_key (str, optional): EXA API key (defaults to EXA_API_KEY environment variable)
+
+        Returns:
+            ScenarioList: A ScenarioList created from the webset results
+
+        Raises:
+            ValueError: If the EXA API key is not provided
+            ImportError: If the exa-py library is not available
+            RuntimeError: If the webset cannot be retrieved
+
+        Example:
+            >>> sl = ScenarioList.from_exa_webset("01k6m4wn1aykv03jq3p4hxs2m9")
+        """
+        from .exa import from_exa_webset
+        return from_exa_webset(webset_id, api_key)
 
     def code(self) -> str:
         """Create the Python code representation of a survey."""
