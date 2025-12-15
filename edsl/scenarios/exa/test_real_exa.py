@@ -94,7 +94,7 @@ def test_exa_integration():
 
         if len(scenarios) > 0:
             first = scenarios[0]
-            print(f"\nFirst scenario data:")
+            print("\nFirst scenario data:")
             print(f"- Type: {type(first)}")
             print(f"- Keys: {sorted(first.keys())}")
 
@@ -118,7 +118,7 @@ def test_exa_integration():
                 print(f"   Webset ID: {first.get('exa_webset_id')}")
                 return False
             else:
-                print(f"\n🎉 Got real data! EXA integration is working correctly!")
+                print("\n🎉 Got real data! EXA integration is working correctly!")
                 return True
         else:
             print("❌ No scenarios returned")

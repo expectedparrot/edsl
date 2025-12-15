@@ -7,7 +7,7 @@ from edsl.scenarios import ScenarioList
 from edsl.surveys import Survey
 
 from .data_classes import Column, QualtricsQuestionMetadata, QuestionMapping
-from .csv_reader import QualtricsCSVReader, QualtricsCSVData
+from .csv_reader import QualtricsCSVReader
 from .metadata_builder import QualtricsMetadataBuilder
 from .piping_resolver import QualtricsPipingResolver
 from .survey_builder import QualtricsSurveyBuilder

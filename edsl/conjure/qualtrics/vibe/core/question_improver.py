@@ -120,7 +120,7 @@ class QuestionImprover:
             changes_made.append(change)
 
             if self.logger and self.config.enable_logging:
-                print(f"    🔧 Text: Removed conversion artifacts")
+                print("    🔧 Text: Removed conversion artifacts")
 
             # Create new question with improved text
             question_dict = question.to_dict()
@@ -169,7 +169,7 @@ class QuestionImprover:
             changes_made.append(change)
 
             if self.logger and self.config.enable_logging:
-                print(f"    ⚙️ Options: Fixed corrupted choice list")
+                print("    ⚙️ Options: Fixed corrupted choice list")
 
             # Create new question with improved options
             question_dict = question.to_dict()

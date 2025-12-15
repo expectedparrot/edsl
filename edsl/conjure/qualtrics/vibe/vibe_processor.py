@@ -3,7 +3,6 @@ Main vibe processor for AI-powered question cleanup and enhancement.
 """
 
 import asyncio
-import json
 from typing import List, Dict, Any, Optional, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -228,15 +227,12 @@ class VibeProcessor:
                 type_change_planned = analysis_result.get("suggested_type")
 
                 # Apply option improvements (but skip if we're changing types that don't use options)
-                if analysis_result.get("improved_options") and not (
-                    type_change_planned
-                    in [
+                if analysis_result.get("improved_options") and type_change_planned not in [
                         "QuestionNumerical",
                         "QuestionFreeText",
                         "QuestionYesNo",
                         "QuestionLikertFive",
-                    ]
-                ):
+                    ]:
                     question_dict["question_options"] = analysis_result[
                         "improved_options"
                     ]
@@ -295,12 +291,12 @@ class VibeProcessor:
                             # For numerical questions, add min/max after cleaning
                             if suggested_type == "QuestionNumerical":
                                 if self.config.enable_logging:
-                                    print(f"    📊 Adding numerical parameters")
+                                    print("    📊 Adding numerical parameters")
                                 if "percentage" in question.question_text.lower():
                                     question_dict["min_value"] = 0
                                     question_dict["max_value"] = 100
                                     if self.config.enable_logging:
-                                        print(f"    📊 Set percentage range: 0-100")
+                                        print("    📊 Set percentage range: 0-100")
                                 elif (
                                     hasattr(question, "question_options")
                                     and question.question_options
@@ -506,7 +502,7 @@ class VibeProcessor:
             changes_made.append(change)
 
             if self.config.enable_logging:
-                print(f"    🔧 Text: Removed conversion artifacts")
+                print("    🔧 Text: Removed conversion artifacts")
                 if self.config.verbose_logging:
                     print(
                         f"      Before: {original_text[:80]}{'...' if len(original_text) > 80 else ''}"
@@ -541,7 +537,7 @@ class VibeProcessor:
             changes_made.append(change)
 
             if self.config.enable_logging:
-                print(f"    ⚙️ Options: Fixed corrupted choice list")
+                print("    ⚙️ Options: Fixed corrupted choice list")
                 if self.config.verbose_logging:
                     print(
                         f"      Before: {str(original_options)[:60]}{'...' if len(str(original_options)) > 60 else ''}"
@@ -678,10 +674,10 @@ class VibeProcessor:
 
         if result:
             if self.config.enable_logging:
-                print(f"      ✅ Conversion successful!")
+                print("      ✅ Conversion successful!")
         else:
             if self.config.enable_logging:
-                print(f"      ❌ Conversion failed")
+                print("      ❌ Conversion failed")
 
         return result
 
@@ -738,7 +734,7 @@ class VibeProcessor:
     ) -> Optional[Question]:
         """Convert to QuestionLinearScale with proper format."""
         if self.config.enable_logging:
-            print(f"      🔍 Attempting LinearScale conversion...")
+            print("      🔍 Attempting LinearScale conversion...")
             print(
                 f"      Input options: {getattr(question, 'question_options', 'None')}"
             )
@@ -751,7 +747,7 @@ class VibeProcessor:
                 or not question.question_options
             ):
                 if self.config.enable_logging:
-                    print(f"      ❌ No question_options found")
+                    print("      ❌ No question_options found")
                 return None
 
             options = question.question_options
@@ -836,9 +832,9 @@ class VibeProcessor:
                     if self.config.enable_logging:
                         print(f"      ⚠️  Incomplete labels found: {option_labels}")
                         print(
-                            f"      ⚠️  QuestionLinearScale requires labels for both endpoints or none"
+                            "      ⚠️  QuestionLinearScale requires labels for both endpoints or none"
                         )
-                        print(f"      ⚠️  Skipping labels to avoid validation error")
+                        print("      ⚠️  Skipping labels to avoid validation error")
 
                 if self.config.enable_logging:
                     print(
@@ -866,7 +862,7 @@ class VibeProcessor:
     ) -> Optional[Question]:
         """Convert to QuestionFreeText."""
         if self.config.enable_logging:
-            print(f"      🔍 Converting to FreeText...")
+            print("      🔍 Converting to FreeText...")
         try:
             from edsl.questions import QuestionFreeText
 
@@ -875,7 +871,7 @@ class VibeProcessor:
                 question_text=question.question_text,
             )
             if self.config.enable_logging:
-                print(f"      ✅ FreeText conversion successful")
+                print("      ✅ FreeText conversion successful")
             return result
         except Exception as e:
             if self.config.enable_logging:
@@ -887,7 +883,7 @@ class VibeProcessor:
     ) -> Optional[Question]:
         """Convert to QuestionYesNo."""
         if self.config.enable_logging:
-            print(f"      🔍 Converting to YesNo...")
+            print("      🔍 Converting to YesNo...")
         try:
             from edsl.questions import QuestionYesNo
 
@@ -896,7 +892,7 @@ class VibeProcessor:
                 question_text=question.question_text,
             )
             if self.config.enable_logging:
-                print(f"      ✅ YesNo conversion successful")
+                print("      ✅ YesNo conversion successful")
             return result
         except Exception as e:
             if self.config.enable_logging:
@@ -908,7 +904,7 @@ class VibeProcessor:
     ) -> Optional[Question]:
         """Convert to QuestionLikertFive."""
         if self.config.enable_logging:
-            print(f"      🔍 Converting to LikertFive...")
+            print("      🔍 Converting to LikertFive...")
         try:
             from edsl.questions import QuestionLikertFive
 
@@ -917,7 +913,7 @@ class VibeProcessor:
                 question_text=question.question_text,
             )
             if self.config.enable_logging:
-                print(f"      ✅ LikertFive conversion successful")
+                print("      ✅ LikertFive conversion successful")
             return result
         except Exception as e:
             if self.config.enable_logging:
@@ -929,7 +925,7 @@ class VibeProcessor:
     ) -> Optional[Question]:
         """Convert to QuestionNumerical."""
         if self.config.enable_logging:
-            print(f"      🔍 Converting to Numerical...")
+            print("      🔍 Converting to Numerical...")
         try:
             from edsl.questions import QuestionNumerical
 
@@ -959,7 +955,7 @@ class VibeProcessor:
 
             result = QuestionNumerical(**kwargs)
             if self.config.enable_logging:
-                print(f"      ✅ Numerical conversion successful")
+                print("      ✅ Numerical conversion successful")
             return result
         except Exception as e:
             if self.config.enable_logging:
@@ -1007,7 +1003,7 @@ class VibeProcessor:
     ) -> Optional[Question]:
         """Convert to QuestionMultipleChoiceWithOther."""
         if self.config.enable_logging:
-            print(f"      🔍 Converting to MultipleChoiceWithOther...")
+            print("      🔍 Converting to MultipleChoiceWithOther...")
         try:
             from edsl.questions import QuestionMultipleChoiceWithOther
 
@@ -1017,7 +1013,7 @@ class VibeProcessor:
             )
             if not options:
                 if self.config.enable_logging:
-                    print(f"      ❌ No options found for MultipleChoiceWithOther")
+                    print("      ❌ No options found for MultipleChoiceWithOther")
                 return None
 
             # Find and separate "Other" options
@@ -1056,7 +1052,7 @@ class VibeProcessor:
                 question_options=regular_options,
             )
             if self.config.enable_logging:
-                print(f"      ✅ MultipleChoiceWithOther conversion successful")
+                print("      ✅ MultipleChoiceWithOther conversion successful")
             return result
         except Exception as e:
             if self.config.enable_logging:
@@ -1068,7 +1064,7 @@ class VibeProcessor:
     ) -> Optional[Question]:
         """Convert to QuestionBudget."""
         if self.config.enable_logging:
-            print(f"      🔍 Converting to Budget...")
+            print("      🔍 Converting to Budget...")
         try:
             from edsl.questions import QuestionBudget
 
@@ -1078,7 +1074,7 @@ class VibeProcessor:
             )
             if not options:
                 if self.config.enable_logging:
-                    print(f"      ❌ No options found for Budget conversion")
+                    print("      ❌ No options found for Budget conversion")
                 return None
 
             # Convert string options to numeric values for validation
@@ -1116,7 +1112,7 @@ class VibeProcessor:
                 question_options = ["Category A", "Category B", "Other"]
                 if self.config.enable_logging:
                     print(
-                        f"      ⚠️  Using generic categories - budget question not fully parsed"
+                        "      ⚠️  Using generic categories - budget question not fully parsed"
                     )
 
             if self.config.enable_logging:
@@ -1130,7 +1126,7 @@ class VibeProcessor:
                 budget_sum=budget_sum_to,
             )
             if self.config.enable_logging:
-                print(f"      ✅ Budget conversion successful")
+                print("      ✅ Budget conversion successful")
             return result
         except Exception as e:
             if self.config.enable_logging:
@@ -1142,7 +1138,7 @@ class VibeProcessor:
     ) -> Optional[Question]:
         """Convert to QuestionCheckBox."""
         if self.config.enable_logging:
-            print(f"      🔍 Converting to CheckBox...")
+            print("      🔍 Converting to CheckBox...")
         try:
             from edsl.questions import QuestionCheckBox
 
@@ -1152,7 +1148,7 @@ class VibeProcessor:
             )
             if not options:
                 if self.config.enable_logging:
-                    print(f"      ❌ No options found for CheckBox conversion")
+                    print("      ❌ No options found for CheckBox conversion")
                 return None
 
             if self.config.enable_logging:
@@ -1168,7 +1164,7 @@ class VibeProcessor:
                 question_options=options,
             )
             if self.config.enable_logging:
-                print(f"      ✅ CheckBox conversion successful")
+                print("      ✅ CheckBox conversion successful")
             return result
         except Exception as e:
             if self.config.enable_logging:
@@ -1244,19 +1240,19 @@ class VibeProcessor:
         summary = self.get_change_summary()
 
         print(f"\n{'='*60}")
-        print(f"🔍 VIBE PROCESSING SUMMARY")
+        print("🔍 VIBE PROCESSING SUMMARY")
         print(f"{'='*60}")
 
         if summary["total_changes"] == 0:
-            print(f"✅ No conversion issues found - all questions clean!")
+            print("✅ No conversion issues found - all questions clean!")
         else:
-            print(f"📊 Results:")
+            print("📊 Results:")
             print(f"   • Total fixes applied: {summary['total_changes']}")
             print(f"   • Questions modified: {summary['questions_modified']}")
             print(f"   • Average confidence: {summary['average_confidence']:.1%}")
 
             if summary["changes_by_type"]:
-                print(f"\n🔧 Fixes by type:")
+                print("\n🔧 Fixes by type:")
                 change_icons = {"text": "🔧", "options": "⚙️", "type": "🔄"}
                 for change_type, count in summary["changes_by_type"].items():
                     icon = change_icons.get(change_type, "•")
@@ -1268,7 +1264,7 @@ class VibeProcessor:
                     print(f"   {icon} {change_desc}: {count}")
 
         if self.config.verbose_logging and self.changes:
-            print(f"\n📋 Change Details:")
+            print("\n📋 Change Details:")
             for i, change in enumerate(self.changes, 1):
                 print(f"   {i}. {change.question_name} ({change.change_type})")
                 print(

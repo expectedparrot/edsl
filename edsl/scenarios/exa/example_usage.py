@@ -95,17 +95,12 @@ def main():
 
     try:
         # Run examples
-        scenarios1 = example_sales_leaders()
-        scenarios2 = example_tech_executives()
-        scenarios3 = example_from_webset()
-        scenarios4 = example_simple_search()
+        example_sales_leaders()
+        example_tech_executives()
+        example_from_webset()
+        example_simple_search()
 
         print("\nAll examples completed successfully!")
-
-        # Show some results if available
-        if scenarios1:
-            print(f"\nSample from sales leaders search:")
-            print(scenarios1[0] if len(scenarios1) > 0 else "No results")
 
     except Exception as e:
         print(f"Error running examples: {e}")

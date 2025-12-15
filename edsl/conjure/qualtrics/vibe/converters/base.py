@@ -3,7 +3,7 @@ Base classes for question converters using Template Method pattern.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional
 from edsl.questions import Question
 
 

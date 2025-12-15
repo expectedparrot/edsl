@@ -3,21 +3,19 @@
 Test the specific MIT economists query that was having issues.
 """
 
-import os
 import sys
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+from edsl.scenarios import ScenarioList
 
 # Add edsl to path
 edsl_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(edsl_root))
 
 # Load environment
-from dotenv import load_dotenv
-
 load_dotenv(edsl_root / ".env")
-
-# Test the specific query
-from edsl.scenarios import ScenarioList
 
 print("🔍 TESTING: MIT Economists studying AI")
 print("=" * 45)

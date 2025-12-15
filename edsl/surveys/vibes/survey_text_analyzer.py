@@ -10,8 +10,7 @@ This module provides functionality to:
 from __future__ import annotations
 
 import json
-import re
-from typing import TYPE_CHECKING, Dict, List, Any, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
@@ -171,11 +170,9 @@ class SurveyTextAnalyzer:
         # Classify input type unless forced
         if force_type:
             input_type = force_type
-            confidence = 1.0
         else:
             classification = self.classify_input_text(text)
             input_type = classification.input_type
-            confidence = classification.confidence
 
         if input_type == "pasted_survey":
             # Parse the pasted survey content

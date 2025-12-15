@@ -3,7 +3,7 @@ Text cleanup processor for structural fixes only.
 """
 
 import re
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from edsl.questions import Question
 from .base_processor import BaseProcessor, ProcessingResult
 
@@ -44,7 +44,7 @@ class TextCleanupProcessor(BaseProcessor):
         if text_changed or options_changed:
             changes = []
             if text_changed:
-                self.log(f"Cleaned question text")
+                self.log("Cleaned question text")
                 changes.append(
                     {
                         "type": "text_cleaned",
@@ -54,7 +54,7 @@ class TextCleanupProcessor(BaseProcessor):
                 )
 
             if options_changed:
-                self.log(f"Cleaned question options")
+                self.log("Cleaned question options")
                 changes.append(
                     {
                         "type": "options_cleaned",

@@ -68,7 +68,7 @@ class WikipediaTableCollection:
         """Print a summary of all tables in the collection."""
         print(f"📊 WikipediaTableCollection: Found {len(self)} tables from {self.url}")
         print(
-            f"💡 Tip: Use tables[index] to get a specific table, or tables.get_largest_table() for the biggest one\n"
+            "💡 Tip: Use tables[index] to get a specific table, or tables.get_largest_table() for the biggest one\n"
         )
 
         for summary in self.get_table_summaries():
@@ -231,9 +231,9 @@ class WikipediaSource(Source):
                 error_msg += "\n"
 
             error_msg += (
-                f"\nUsage: ScenarioList.from_source('wikipedia', 'URL', table_index=N)"
+                "\nUsage: ScenarioList.from_source('wikipedia', 'URL', table_index=N)"
             )
-            error_msg += f"\nExample: ScenarioList.from_source('wikipedia', 'URL', table_index=5)"
+            error_msg += "\nExample: ScenarioList.from_source('wikipedia', 'URL', table_index=5)"
 
             raise ScenarioError(error_msg)
 
@@ -291,7 +291,7 @@ class WikipediaSource(Source):
         tables = source.to_table_collection()
         print(f"🔍 Retrieved {len(tables)} tables from Wikipedia page")
         print(
-            f"💡 Use .print_summary() to see all tables, or access specific tables with [index]"
+            "💡 Use .print_summary() to see all tables, or access specific tables with [index]"
         )
         return tables
 

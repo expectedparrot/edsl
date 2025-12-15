@@ -2,7 +2,7 @@
 Centralized logging system for the vibe processor.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 from abc import ABC, abstractmethod
 from .formatters import VibeLogFormatter
 

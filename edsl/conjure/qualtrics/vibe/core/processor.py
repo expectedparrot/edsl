@@ -6,7 +6,7 @@ from typing import Optional, Dict, List
 from edsl import Survey
 from ..config import VibeConfig
 from ..analysis import QuestionAnalyzer
-from ..logging import create_logger, VibeLogger
+from ..logging import create_logger
 from .change_tracker import ChangeTracker
 from .batch_processor import BatchProcessor
 from .question_improver import QuestionImprover

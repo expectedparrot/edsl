@@ -10,8 +10,6 @@ import tempfile
 import csv
 from pathlib import Path
 import unittest
-import sys
-import os
 
 # Import ImportQualtrics from the proper location
 from edsl.conjure.qualtrics import ImportQualtrics

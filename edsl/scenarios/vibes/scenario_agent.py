@@ -14,12 +14,10 @@ to enable/disable specific approaches.
 """
 
 from __future__ import annotations
-import traceback
-from typing import TYPE_CHECKING, List, Optional, Dict, Any
+from typing import TYPE_CHECKING, List
 
 if TYPE_CHECKING:
     from ..scenario_list import ScenarioList
-    from ..scenario import Scenario
 
 
 class ScenarioAgent:
@@ -423,7 +421,6 @@ For each article, provide a score (0-10) and brief reasoning. Respond in this JS
         Returns:
             ScenarioList or None: Best table found, or None if no suitable tables
         """
-        from ..scenario_list import ScenarioList
         from ..sources.wikipedia_source import WikipediaSource
 
         try:
@@ -602,7 +599,7 @@ Respond in this JSON format:
                 return ScenarioList.from_source(
                     "wikipedia", url, table_index=0, **kwargs
                 )
-            except:
+            except Exception:
                 # If that fails, try a few more table indices
                 for table_idx in [1, 2, 3]:
                     try:
@@ -611,7 +608,7 @@ Respond in this JSON format:
                         )
                         if result and len(result) > 0:
                             return result
-                    except:
+                    except Exception:
                         continue
                 return None
 

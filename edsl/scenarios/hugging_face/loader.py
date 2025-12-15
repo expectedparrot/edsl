@@ -3,6 +3,8 @@
 import warnings
 from typing import Optional
 
+from ..scenario_list import ScenarioList
+
 
 def from_hugging_face(
     dataset_name: str, config_name: Optional[str] = None, split: Optional[str] = None
@@ -64,7 +66,7 @@ def from_hugging_face(
                 f"Available configurations: {available_configs}"
             )
 
-    except Exception as e:
+    except Exception:
         # If we can't get config info, proceed with the load and let it fail if needed
         pass
 

@@ -2,7 +2,6 @@
 Multi-step vibe processor that runs specialized processors in sequence.
 """
 
-import asyncio
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from edsl.questions import Question
@@ -89,7 +88,7 @@ class MultiStepProcessor:
                             print(f"      - {change.get('type', 'unknown')}")
                 else:
                     if self.verbose:
-                        print(f"    ✅ No changes needed")
+                        print("    ✅ No changes needed")
 
             except Exception as e:
                 if self.verbose:

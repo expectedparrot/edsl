@@ -3,7 +3,7 @@ Option organization processor for sorting and cleaning question options.
 """
 
 import re
-from typing import Dict, Any, Optional, List, Union, Tuple
+from typing import Dict, Any, Optional, List, Union
 from edsl.questions import Question
 from .base_processor import BaseProcessor, ProcessingResult
 

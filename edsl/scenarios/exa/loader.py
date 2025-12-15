@@ -6,7 +6,9 @@ which allows for sophisticated web search with enrichment capabilities.
 """
 
 import os
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List, Dict
+
+from ..scenario_list import ScenarioList
 
 
 def from_exa(
@@ -51,15 +53,9 @@ def from_exa(
         ...     count=50
         ... )
     """
-    # Import ScenarioList inside function to avoid circular imports
-    from ..scenario_list import ScenarioList
-
     try:
         from exa_py import Exa
-        from exa_py.websets.types import (
-            CreateWebsetParameters,
-            CreateEnrichmentParameters,
-        )
+        from exa_py.websets.types import CreateWebsetParameters
     except ImportError:
         raise ImportError(
             "The 'exa-py' library is required to use EXA integration. "
@@ -200,8 +196,8 @@ def _wait_for_webset_completion(exa, webset_id: str, max_wait_time: int):
     print(f"⏰ Timeout after {max_wait_time}s - checking for partial results...")
     try:
         return exa.websets.get(webset_id)
-    except:
-        raise RuntimeError(f"Webset timed out after {max_wait_time}s")
+    except Exception as e:
+        raise RuntimeError(f"Webset timed out after {max_wait_time}s: {e}")
 
 
 def _extract_webset_results(
@@ -394,9 +390,6 @@ def from_exa_webset(webset_id: str, api_key: Optional[str] = None) -> "ScenarioL
         >>> from edsl.scenarios.exa import from_exa_webset
         >>> scenarios = from_exa_webset("01k6m4wn1aykv03jq3p4hxs2m9")
     """
-    # Import ScenarioList inside function to avoid circular imports
-    from ..scenario_list import ScenarioList
-
     try:
         from exa_py import Exa
     except ImportError:

@@ -58,7 +58,7 @@ class TestExaLoader:
 
         with patch("edsl.scenarios.exa.loader.Exa", mock_exa_class):
             with patch("edsl.scenarios.exa.loader.CreateWebsetParameters"):
-                scenarios = from_exa("test query", api_key="param-key")
+                from_exa("test query", api_key="param-key")
 
                 # Verify EXA was initialized with parameter key
                 mock_exa_class.assert_called_once_with("param-key")

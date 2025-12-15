@@ -7,16 +7,16 @@ import os
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+from edsl.scenarios import ScenarioList
+
 # Add edsl to path
 edsl_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(edsl_root))
 
 # Load environment
-from dotenv import load_dotenv
-
 load_dotenv(edsl_root / ".env")
-
-from edsl.scenarios import ScenarioList
 
 
 def verify_exa_data():
@@ -44,7 +44,7 @@ def verify_exa_data():
             print(f"  EXA Reasoning: {scenario.get('reasoning', 'N/A')[:200]}...")
             print(f"  Satisfied: {scenario.get('satisfied', 'N/A')}")
             print()
-            print(f"  Raw EXA data:")
+            print("  Raw EXA data:")
             exa_fields = {k: v for k, v in scenario.items() if k.startswith("exa_")}
             for key, value in exa_fields.items():
                 print(f"    {key}: {value}")

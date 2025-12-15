@@ -5,7 +5,7 @@ specifically for validating Jinja2 template syntax in traits_presentation_templa
 """
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional, Dict, Any
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from .agent import Agent
@@ -55,7 +55,7 @@ class AgentTemplateValidation:
 
         try:
             # Import Jinja2 environment from the prompts module to maintain consistency
-            from jinja2 import Environment, TemplateSyntaxError, UndefinedError
+            from jinja2 import TemplateSyntaxError, UndefinedError
             from ..prompts.prompt import make_env
 
             # Use the same environment setup as the Prompt class for consistency
@@ -78,7 +78,7 @@ class AgentTemplateValidation:
 
             # Attempt to render with test data
             try:
-                rendered = parsed_template.render(test_data)
+                parsed_template.render(test_data)
             except UndefinedError:
                 # UndefinedError is expected for templates with variables not in test_data
                 # This is still a valid template, just with undefined variables
@@ -132,7 +132,7 @@ class AgentTemplateValidation:
 
         try:
             # Import Jinja2 environment from the prompts module to maintain consistency
-            from jinja2 import Environment, TemplateSyntaxError, UndefinedError
+            from jinja2 import TemplateSyntaxError, UndefinedError
             from ..prompts.prompt import make_env
 
             # Use the same environment setup as the Prompt class for consistency
@@ -155,7 +155,7 @@ class AgentTemplateValidation:
 
             # Attempt to render with test data to catch undefined variables or logical errors
             try:
-                rendered = template.render(test_data)
+                template.render(test_data)
                 return True
             except UndefinedError:
                 # UndefinedError is expected for templates with variables not in test_data
@@ -200,7 +200,7 @@ class AgentTemplateValidation:
 
         try:
             # Import Jinja2 environment from the prompts module to maintain consistency
-            from jinja2 import Environment, TemplateSyntaxError, UndefinedError
+            from jinja2 import TemplateSyntaxError, UndefinedError
             from ..prompts.prompt import make_env
 
             # Use the same environment setup as the Prompt class for consistency
@@ -223,7 +223,7 @@ class AgentTemplateValidation:
 
             # Attempt to render with test data
             try:
-                rendered = template.render(test_data)
+                template.render(test_data)
                 return None  # Valid template
             except UndefinedError:
                 # UndefinedError is expected for templates with variables not in test_data

@@ -1,12 +1,12 @@
 """Matrix question detection and reconstruction for Qualtrics CSV imports."""
 
 import re
-from typing import Dict, List, Tuple, Optional, Any
+from typing import List, Tuple, Optional
 from collections import defaultdict
 from dataclasses import dataclass
 
-from edsl.questions import QuestionMatrix, QuestionMatrixEntry
-from .data_classes import QualtricsQuestionMetadata, Column
+from edsl.questions import QuestionMatrix
+from .data_classes import Column
 
 
 @dataclass
@@ -66,7 +66,7 @@ class MatrixDetector:
                     print(f"  📄 {metadata.short_label} → Individual question")
 
         if self.verbose:
-            print(f"\n📋 GROUPING RESULTS:")
+            print("\n📋 GROUPING RESULTS:")
             print(f"  Matrix candidates: {len(matrix_candidates)} groups")
             print(f"  Individual questions: {len(non_matrix_columns)} columns")
 
@@ -81,7 +81,7 @@ class MatrixDetector:
         individual_matrices = []
 
         if self.verbose:
-            print(f"🔨 MATRIX RECONSTRUCTION: Building matrices from candidates")
+            print("🔨 MATRIX RECONSTRUCTION: Building matrices from candidates")
             print("-" * 60)
 
         for base_id, group_columns in matrix_candidates.items():
@@ -117,7 +117,7 @@ class MatrixDetector:
 
         # Now detect cross-matrix combinations (e.g., Q20+Q21)
         if self.verbose:
-            print(f"\n🔗 MATRIX COMBINATION: Looking for combinable matrices")
+            print("\n🔗 MATRIX COMBINATION: Looking for combinable matrices")
             print("-" * 60)
             print(f"  Individual matrices found: {len(individual_matrices)}")
             for matrix in individual_matrices:
@@ -137,7 +137,7 @@ class MatrixDetector:
                 final_matrices.append(matrix)
 
         if self.verbose:
-            print(f"\n📊 FINAL MATRIX SUMMARY:")
+            print("\n📊 FINAL MATRIX SUMMARY:")
             print("=" * 60)
             print(f"  Final matrices: {len(final_matrices)}")
             print(f"  Individual questions: {len(non_matrix_columns)}")
@@ -190,10 +190,10 @@ class MatrixDetector:
                 if self._can_combine_matrices(matrix1, matrix2):
                     combinable_group.append(matrix2)
                     if self.verbose:
-                        print(f"      ✅ Compatible - can combine")
+                        print("      ✅ Compatible - can combine")
                 else:
                     if self.verbose:
-                        print(f"      ❌ Not compatible")
+                        print("      ❌ Not compatible")
 
             # If we found matrices to combine, create a combined matrix
             if len(combinable_group) > 1:
@@ -238,13 +238,13 @@ class MatrixDetector:
 
         if self.verbose:
             if compatible:
-                print(f"        Column structures match:")
+                print("        Column structures match:")
                 for i, (c1, c2) in enumerate(
                     zip(matrix1.column_labels, matrix2.column_labels)
                 ):
                     print(f"          {i+1}. '{c1}' ≈ '{c2}'")
             else:
-                print(f"        Column structures differ:")
+                print("        Column structures differ:")
                 for i, (c1, c2) in enumerate(
                     zip(matrix1.column_labels, matrix2.column_labels)
                 ):
@@ -507,7 +507,7 @@ class MatrixDetector:
         if len(matrix_group.row_labels) == 1 and len(matrix_group.column_labels) >= 2:
             if self.verbose:
                 print(
-                    f"    Detected single-concept matrix - using scenarios as items directly"
+                    "    Detected single-concept matrix - using scenarios as items directly"
                 )
         elif len(matrix_group.row_labels) < 2:
             raise ValueError(

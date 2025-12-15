@@ -6,7 +6,7 @@ edit and modify scenarios based on natural language instructions.
 """
 
 from __future__ import annotations
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 import json
 
 
@@ -140,7 +140,7 @@ Respond with a JSON object in this format:
                 return result
             else:
                 # Fallback: return original scenarios if parsing fails
-                print(f"⚠️ Unexpected response format, returning original scenarios")
+                print("⚠️ Unexpected response format, returning original scenarios")
                 return scenario_batch
 
         except Exception as e:

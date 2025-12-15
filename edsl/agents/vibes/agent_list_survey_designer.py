@@ -8,7 +8,7 @@ response accuracy.
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional, Dict, Any, List, TYPE_CHECKING
+from typing import Dict, Any, List, TYPE_CHECKING
 from pydantic import BaseModel, Field
 import json
 import logging
@@ -228,7 +228,7 @@ class AgentSurveyOptimizer:
         """
         # Handle edge case: no traits
         if not relevant_traits:
-            logging.warning(f"No relevant traits for agent, keeping all traits")
+            logging.warning("No relevant traits for agent, keeping all traits")
             relevant_traits = list(agent.traits.keys())
 
         # Validate traits exist in agent
@@ -236,7 +236,7 @@ class AgentSurveyOptimizer:
         valid_traits = [t for t in relevant_traits if t in available_traits]
 
         if not valid_traits:
-            logging.warning(f"Selected traits not found in agent, using all traits")
+            logging.warning("Selected traits not found in agent, using all traits")
             valid_traits = list(agent.traits.keys())
 
         # Call LLM to generate optimization

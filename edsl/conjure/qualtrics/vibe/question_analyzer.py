@@ -3,12 +3,10 @@ AI-powered question analysis using OpenAI API for identifying conversion issues.
 """
 
 import asyncio
-import json
 from typing import Dict, Any, Optional, List
 from pydantic import BaseModel, Field
 
 from edsl.questions import Question
-from edsl.questions.question_description import EDSLQuestionDescription
 from edsl.base.openai_utils import create_openai_client
 
 

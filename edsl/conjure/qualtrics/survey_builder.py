@@ -2,7 +2,7 @@
 
 import re
 from collections import defaultdict
-from typing import List, Callable, Optional
+from typing import List, Callable
 
 from edsl.surveys import Survey
 from edsl.questions import (

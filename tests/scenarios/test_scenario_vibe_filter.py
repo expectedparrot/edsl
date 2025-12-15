@@ -6,7 +6,7 @@ for scenario lists across different data types and filtering criteria.
 """
 
 import pytest
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch, Mock
 from edsl.scenarios import Scenario, ScenarioList
 
 

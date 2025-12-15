@@ -3,7 +3,7 @@ Linear scale question converter implementation.
 """
 
 import re
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from edsl.questions import Question, QuestionLinearScale
 from .base import AbstractQuestionConverter
 
