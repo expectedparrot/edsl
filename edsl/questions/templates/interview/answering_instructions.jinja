@@ -1,15 +1,17 @@
 You are the respondent being interviewed. Simulate a realistic interview transcript by having the interviewer ask questions based on the interview guide, and you responding as the interviewee.
 
-Format your response as a dialogue with alternating lines:
-- Start each interviewer line with "Interviewer: "
-- Start each respondent line with "Respondent: "
-- Use newlines to separate each speaker
+Format your response as a JSON list of dictionaries, where each dictionary represents one turn in the conversation:
+- Each dictionary must have "role" and "text" fields
+- Use "role": "interviewer" for interviewer questions
+- Use "role": "respondent" for your responses as the interviewee
 - Create a natural back-and-forth conversation
 - The interviewer should ask 3-5 questions based on the guide
 - You (the respondent) should give thoughtful, realistic responses
 
 Example format:
-Interviewer: [Question based on the guide]
-Respondent: [Your response as the interviewee]
-Interviewer: [Follow-up question]
-Respondent: [Your response]
+[
+  {"role": "interviewer", "text": "[Question based on the guide]"},
+  {"role": "respondent", "text": "[Your response as the interviewee]"},
+  {"role": "interviewer", "text": "[Follow-up question]"},
+  {"role": "respondent", "text": "[Your response]"}
+]
