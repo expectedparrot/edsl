@@ -2246,9 +2246,14 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return ScenarioListTransformer.reorder_keys(self, new_order)
 
-    def to_survey(self) -> "Survey":
+    def to_survey(self, questions_to_randomize: str = None) -> "Survey":
         from ..questions import QuestionBase
         from ..surveys import Survey
+
+        # Parse the comma-separated string into a list if provided
+        randomize_list = None
+        if questions_to_randomize:
+            randomize_list = [name.strip() for name in questions_to_randomize.split(",")]
 
         s = Survey()
         for index, scenario in enumerate(self):
@@ -2269,6 +2274,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_d = d
             question = QuestionBase.from_dict(new_d)
             s.add_question(question)
+
+        # Set questions_to_randomize after all questions are added
+        # This will trigger validation and raise exception if question names don't exist
+        if randomize_list:
+            s.questions_to_randomize = randomize_list
 
         return s
 
