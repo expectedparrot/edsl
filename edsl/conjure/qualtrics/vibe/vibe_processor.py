@@ -227,12 +227,14 @@ class VibeProcessor:
                 type_change_planned = analysis_result.get("suggested_type")
 
                 # Apply option improvements (but skip if we're changing types that don't use options)
-                if analysis_result.get("improved_options") and type_change_planned not in [
-                        "QuestionNumerical",
-                        "QuestionFreeText",
-                        "QuestionYesNo",
-                        "QuestionLikertFive",
-                    ]:
+                if analysis_result.get(
+                    "improved_options"
+                ) and type_change_planned not in [
+                    "QuestionNumerical",
+                    "QuestionFreeText",
+                    "QuestionYesNo",
+                    "QuestionLikertFive",
+                ]:
                     question_dict["question_options"] = analysis_result[
                         "improved_options"
                     ]

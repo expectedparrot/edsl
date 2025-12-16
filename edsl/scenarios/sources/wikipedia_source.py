@@ -233,7 +233,9 @@ class WikipediaSource(Source):
             error_msg += (
                 "\nUsage: ScenarioList.from_source('wikipedia', 'URL', table_index=N)"
             )
-            error_msg += "\nExample: ScenarioList.from_source('wikipedia', 'URL', table_index=5)"
+            error_msg += (
+                "\nExample: ScenarioList.from_source('wikipedia', 'URL', table_index=5)"
+            )
 
             raise ScenarioError(error_msg)
 

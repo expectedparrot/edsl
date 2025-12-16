@@ -14,6 +14,7 @@ from ..scenario_list import ScenarioList
 try:
     from exa_py import Exa
     from exa_py.websets.types import CreateWebsetParameters
+
     _exa_available = True
 except ImportError:
     Exa = None
