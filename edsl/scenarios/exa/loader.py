@@ -10,6 +10,16 @@ from typing import Optional, List, Dict
 
 from ..scenario_list import ScenarioList
 
+# Try to import EXA dependencies at module level for easier testing
+try:
+    from exa_py import Exa
+    from exa_py.websets.types import CreateWebsetParameters
+    _exa_available = True
+except ImportError:
+    Exa = None
+    CreateWebsetParameters = None
+    _exa_available = False
+
 
 def from_exa(
     query: str,
@@ -38,8 +48,8 @@ def from_exa(
         ScenarioList containing the search results and enrichments
 
     Example:
-        >>> from edsl.scenarios.exa import from_exa
-        >>> scenarios = from_exa(
+        >>> from edsl.scenarios.exa import from_exa # doctest: +SKIP
+        >>> scenarios = from_exa( # doctest: +SKIP
         ...     query="Sales leaders at US fintech companies",
         ...     criteria=[
         ...         "currently holds a sales leadership position",
@@ -53,10 +63,7 @@ def from_exa(
         ...     count=50
         ... )
     """
-    try:
-        from exa_py import Exa
-        from exa_py.websets.types import CreateWebsetParameters
-    except ImportError:
+    if not _exa_available:
         raise ImportError(
             "The 'exa-py' library is required to use EXA integration. "
             "Install it with: pip install exa-py"
@@ -80,11 +87,14 @@ def from_exa(
     exa = Exa(api_key)
 
     # Prepare search parameters
-    search_params = {"query": query, "count": count}
-
-    # Add criteria if provided
+    # If criteria are provided, incorporate them into the main query
+    final_query = query
     if criteria:
-        search_params["criteria"] = criteria
+        # Combine the main query with criteria for better search results
+        criteria_text = "; ".join(criteria)
+        final_query = f"{query}. Criteria: {criteria_text}"
+
+    search_params = {"query": final_query, "count": count}
 
     # Prepare enrichment parameters
     enrichment_list = []
@@ -387,12 +397,10 @@ def from_exa_webset(webset_id: str, api_key: Optional[str] = None) -> "ScenarioL
         ScenarioList containing the webset results
 
     Example:
-        >>> from edsl.scenarios.exa import from_exa_webset
-        >>> scenarios = from_exa_webset("01k6m4wn1aykv03jq3p4hxs2m9")
+        >>> from edsl.scenarios.exa import from_exa_webset # doctest: +SKIP
+        >>> scenarios = from_exa_webset("01k6m4wn1aykv03jq3p4hxs2m9") # doctest: +SKIP
     """
-    try:
-        from exa_py import Exa
-    except ImportError:
+    if not _exa_available:
         raise ImportError(
             "The 'exa-py' library is required to use EXA integration. "
             "Install it with: pip install exa-py"

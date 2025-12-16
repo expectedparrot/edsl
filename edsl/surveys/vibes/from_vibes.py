@@ -44,7 +44,7 @@ def generate_survey_from_vibes(
 
     Examples:
         # Survey description (original behavior)
-        >>> survey = Survey.from_vibes("Customer satisfaction survey for a restaurant")
+        >>> survey = Survey.from_vibes("Customer satisfaction survey for a restaurant")  # doctest: +SKIP
 
         # Pasted survey text (new behavior)
         >>> pasted_text = '''
@@ -58,7 +58,7 @@ def generate_survey_from_vibes(
         ...
         ... 3. Would you recommend us to others? (Yes/No)
         ... '''
-        >>> survey = Survey.from_vibes(pasted_text)
+        >>> survey = Survey.from_vibes(pasted_text)  # doctest: +SKIP
 
     Raises:
         RemoteSurveyGenerationError: If remote generation fails

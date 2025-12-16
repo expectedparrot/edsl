@@ -1123,20 +1123,20 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         Examples:
             >>> # Comprehensive search (tries all sources)
-            >>> sl = ScenarioList.from_vibes("European countries and their capitals")
+            >>> sl = ScenarioList.from_vibes("European countries and their capitals")  # doctest: +SKIP
 
             >>> # Fast search (skip web scraping)
-            >>> sl = ScenarioList.from_vibes("Fortune 500 companies", strategy="fast")
+            >>> sl = ScenarioList.from_vibes("Fortune 500 companies", strategy="fast")  # doctest: +SKIP
 
             >>> # Only web sources
-            >>> sl = ScenarioList.from_vibes("US universities", strategy="web_only")
+            >>> sl = ScenarioList.from_vibes("US universities", strategy="web_only")  # doctest: +SKIP
 
             >>> # Customize result counts
             >>> sl = ScenarioList.from_vibes(
             ...     "AI researchers",
             ...     exa_count=100,
             ...     generator_count=20
-            ... )
+            ... )  # doctest: +SKIP
         """
         from .vibes.scenario_agent import from_vibes_intelligent
 
@@ -2915,7 +2915,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         Example:
             >>> # Simple search
-            >>> sl = ScenarioList.from_exa("Sales leaders at US fintech companies", count=50)
+            >>> sl = ScenarioList.from_exa("Sales leaders at US fintech companies", count=50)  # doctest: +SKIP
 
             >>> # Search with criteria and enrichments
             >>> sl = ScenarioList.from_exa(
@@ -2926,7 +2926,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             ...         {"description": "University", "format": "text"}
             ...     ],
             ...     count=100
-            ... )
+            ... )  # doctest: +SKIP
         """
         from .exa import from_exa
 
@@ -2960,7 +2960,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             RuntimeError: If the webset cannot be retrieved
 
         Example:
-            >>> sl = ScenarioList.from_exa_webset("01k6m4wn1aykv03jq3p4hxs2m9")
+            >>> sl = ScenarioList.from_exa_webset("01k6m4wn1aykv03jq3p4hxs2m9")  # doctest: +SKIP
         """
         from .exa import from_exa_webset
 

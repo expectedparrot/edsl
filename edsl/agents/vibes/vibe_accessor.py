@@ -347,7 +347,7 @@ class AgentListVibeAccessor:
             ...     Agent(traits={"age": 30, "occupation": "teacher", "city": "Boston"}),
             ...     Agent(traits={"age": 25, "occupation": "engineer", "city": "SF"})
             ... ])
-            >>> survey = Survey([...])  # Workplace survey questions
+            >>> survey = Survey([...])  # Workplace survey questions  # doctest: +SKIP
             >>> optimized = agents.vibe.design(survey)  # doctest: +SKIP
 
             With reasoning display:

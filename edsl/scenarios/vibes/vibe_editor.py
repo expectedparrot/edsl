@@ -54,11 +54,12 @@ class ScenarioListVibeEdit:
 
         Examples:
             >>> editor = ScenarioListVibeEdit()
+            >>> sample_scenarios = [{"text": "Some <b>HTML</b> content with 'quotes'"}]
             >>> result = editor.edit_scenario_list(
-            ...     scenarios,
+            ...     sample_scenarios,
             ...     "Remove all citation marks and HTML tags, clean up text"
-            ... )
-            >>> edited_scenarios = result["scenarios"]
+            ... )  # doctest: +SKIP
+            >>> edited_scenarios = result["scenarios"]  # doctest: +SKIP
         """
         if not scenarios:
             return {"scenarios": []}
