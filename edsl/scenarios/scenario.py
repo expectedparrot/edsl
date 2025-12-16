@@ -24,6 +24,7 @@ from typing import Union, List, Optional, TYPE_CHECKING, Dict, Any, Iterable, Ma
 
 from ..base import Base
 from .exceptions import ScenarioError
+from ..display.utils import smart_truncate
 
 if TYPE_CHECKING:
     from .scenario_list import ScenarioList
@@ -727,10 +728,10 @@ class Scenario(Base, UserDict):
             output.append("    data={\n", style=RICH_STYLES["default"])
 
             for i, (key, value) in enumerate(list(self.data.items())[:max_items]):
-                # Format the value with truncation if needed
+                # Format the value with smart truncation if needed
                 value_repr = repr(value)
                 if len(value_repr) > max_value_length:
-                    value_repr = value_repr[: max_value_length - 3] + "..."
+                    value_repr = smart_truncate(value_repr, max_value_length)
 
                 output.append("        ", style=RICH_STYLES["default"])
                 output.append(f"'{key}'", style=RICH_STYLES["secondary"])
