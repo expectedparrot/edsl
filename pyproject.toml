@@ -63,6 +63,7 @@ scipy = "^1.11.0"
 mammoth = "^1.11.0"
 joblib = "^1.5.2"
 scikit-learn = "^1.7.2"
+datasets = "^4.4.1"
 
 [tool.poetry.dependencies.altair]
 version = "^5.0.0"
