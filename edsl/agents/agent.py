@@ -1315,6 +1315,14 @@ class Agent(Base):
             output.append(",\n    instruction=", style=RICH_STYLES["default"])
             output.append(f'"{instruction_text}"', style=RICH_STYLES["key"])
 
+        # Traits presentation template (if present)
+        if hasattr(self, '_traits_presentation_template') and self._traits_presentation_template:
+            template_text = self._traits_presentation_template
+            if len(template_text) > 60:
+                template_text = template_text[:57] + "..."
+            output.append(",\n    traits_presentation_template=", style=RICH_STYLES["default"])
+            output.append(f'"{template_text}"', style=RICH_STYLES["highlight"])
+
         # Dynamic traits function (if present)
         if self.has_dynamic_traits_function:
             func_name = self.dynamic_traits_function_name or "anonymous"
@@ -1323,8 +1331,12 @@ class Agent(Base):
                 f"dynamic_traits_function='{func_name}'", style=RICH_STYLES["key"]
             )
 
-        # Direct answering method (if present)
-        if hasattr(self, "answer_question_directly"):
+        # Direct answering method indicator
+        has_direct_method = hasattr(self, "answer_question_directly")
+        output.append(",\n    ", style=RICH_STYLES["default"])
+        output.append(f"has_direct_answering_method={has_direct_method}", style=RICH_STYLES["secondary"])
+
+        if has_direct_method:
             func_name = getattr(
                 self, "answer_question_directly_function_name", "anonymous"
             )

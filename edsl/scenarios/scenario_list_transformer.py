@@ -8,12 +8,239 @@ implementation details here.
 
 from __future__ import annotations
 
-from typing import List, TYPE_CHECKING
+from typing import List, Optional, Callable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .scenario_list import ScenarioList
     from .scenario import Scenario
     from ..agents.agent import Agent
+
+
+class ScenarioListTransformService:
+    """Service class that provides transform operations on a ScenarioList instance.
+
+    This class is used as a delegation target for transform methods on ScenarioList.
+    It wraps a ScenarioList instance and delegates to ScenarioListTransformer static methods.
+    """
+
+    def __init__(self, sl: "ScenarioList"):
+        self._sl = sl
+
+    def pivot(self, id_vars=None, var_name="variable", value_name="value") -> "ScenarioList":
+        """Pivot from long format back to wide columns.
+
+        Groups rows by ``id_vars`` and spreads the values under ``var_name``
+        into separate columns whose values come from ``value_name``.
+        """
+        return ScenarioListTransformer.pivot(self._sl, id_vars, var_name, value_name)
+
+    def group_by(
+        self, id_vars: List[str], variables: List[str], func: Callable
+    ) -> "ScenarioList":
+        """Group scenarios and aggregate variables with a custom function.
+
+        Groups by the values of ``id_vars`` and passes lists of values for each
+        field in ``variables`` to ``func``. The function must return a dict whose
+        keys are added as fields on the aggregated Scenario.
+
+        Args:
+            id_vars: Field names to group by.
+            variables: Field names to aggregate and pass to ``func`` as lists.
+            func: Callable that accepts len(variables) lists and returns a dict.
+
+        Returns:
+            ScenarioList with one Scenario per group containing id_vars and aggregated fields.
+
+        Raises:
+            ScenarioError: If the function arity does not match variables or returns non-dict.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.group_by`.
+        """
+        return ScenarioListTransformer.group_by(self._sl, id_vars, variables, func)
+
+    def to_agent_traits(self, agent_name: Optional[str] = None) -> "Agent":
+        """Convert all Scenario objects into traits of a single Agent.
+
+        Aggregates each Scenario's key/value pairs into a single Agent's
+        traits. If duplicate keys appear across scenarios, later occurrences
+        are suffixed with an incrementing index (e.g., "key_1", "key_2").
+        If a field named "name" is present, it is treated as "scenario_name"
+        to avoid clobbering an Agent's own name.
+
+        Args:
+            agent_name: Optional custom agent name. Defaults to
+                "Agent_from_{N}_scenarios" when not provided.
+
+        Returns:
+            Agent: An Agent instance whose traits include all fields from all scenarios.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.to_agent_traits`.
+        """
+        return ScenarioListTransformer.to_agent_traits(self._sl, agent_name)
+
+    def unpivot(
+        self,
+        id_vars: Optional[List[str]] = None,
+        value_vars: Optional[List[str]] = None,
+    ) -> "ScenarioList":
+        """Convert wide-format fields into long format rows.
+
+        For each Scenario, produces rows of (id_vars..., variable, value) where
+        each original field listed in ``value_vars`` becomes a row with its
+        field name under ``variable`` and its value under ``value``.
+
+        Args:
+            id_vars: Field names to preserve as identifiers on each output row.
+            value_vars: Field names to unpivot. Defaults to all non-id_vars.
+
+        Returns:
+            ScenarioList: Long-format rows with columns: id_vars..., "variable", "value".
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.unpivot`.
+        """
+        return ScenarioListTransformer.unpivot(self._sl, id_vars, value_vars)
+
+    def apply(
+        self, func: Callable, field: str, new_name: Optional[str], replace: bool = False
+    ) -> "ScenarioList":
+        """Apply a function to a field across all scenarios.
+
+        Evaluates ``func(scenario[field])`` for each Scenario and stores the result
+        in ``new_name`` (or the original field name if ``new_name`` is None). If
+        ``replace`` is True, the original field is removed.
+
+        Args:
+            func: Function to apply to each value in ``field``.
+            field: Existing field name to read from.
+            new_name: Optional output field name. Defaults to ``field``.
+            replace: If True, delete the original ``field`` after writing.
+
+        Returns:
+            ScenarioList with updated scenarios.
+
+        Notes:
+            Implementation is delegated to `ScenarioListTransformer.apply`.
+        """
+        return ScenarioListTransformer.apply(self._sl, func, field, new_name, replace)
+
+    def _concatenate(
+        self,
+        fields: List[str],
+        output_type: str = "string",
+        separator: str = ";",
+        prefix: str = "",
+        postfix: str = "",
+        new_field_name: Optional[str] = None,
+    ) -> "ScenarioList":
+        """Concatenate fields into a new field as string/list/set."""
+        return ScenarioListTransformer._concatenate(
+            self._sl, fields, output_type, separator, prefix, postfix, new_field_name
+        )
+
+    def concatenate(
+        self,
+        fields: List[str],
+        separator: str = ";",
+        prefix: str = "",
+        postfix: str = "",
+        new_field_name: Optional[str] = None,
+    ) -> "ScenarioList":
+        """Concatenate fields into a single string field."""
+        return ScenarioListTransformer.concatenate(
+            self._sl, fields, separator, prefix, postfix, new_field_name
+        )
+
+    def concatenate_to_list(
+        self,
+        fields: List[str],
+        prefix: str = "",
+        postfix: str = "",
+        new_field_name: Optional[str] = None,
+    ) -> "ScenarioList":
+        """Concatenate fields into a single list field."""
+        return ScenarioListTransformer.concatenate_to_list(
+            self._sl, fields, prefix, postfix, new_field_name
+        )
+
+    def concatenate_to_set(
+        self,
+        fields: List[str],
+        prefix: str = "",
+        postfix: str = "",
+        new_field_name: Optional[str] = None,
+    ) -> "ScenarioList":
+        """Concatenate fields into a single set field."""
+        return ScenarioListTransformer.concatenate_to_set(
+            self._sl, fields, prefix, postfix, new_field_name
+        )
+
+    def unpack_dict(
+        self, field: str, prefix: Optional[str] = None, drop_field: bool = False
+    ) -> "ScenarioList":
+        """Unpack a dictionary field into separate fields."""
+        return ScenarioListTransformer.unpack_dict(self._sl, field, prefix, drop_field)
+
+    def transform(
+        self, field: str, func: Callable, new_name: Optional[str] = None
+    ) -> "ScenarioList":
+        """Transform a field's value using a function."""
+        return ScenarioListTransformer.transform(self._sl, field, func, new_name)
+
+    def mutate(
+        self, new_var_string: str, functions_dict: Optional[dict] = None
+    ) -> "ScenarioList":
+        """Add a new field computed from an expression."""
+        return ScenarioListTransformer.mutate(self._sl, new_var_string, functions_dict)
+
+    def order_by(self, fields: List[str], reverse: bool = False) -> "ScenarioList":
+        """Order scenarios by one or more fields."""
+        return ScenarioListTransformer.order_by(self._sl, fields, reverse)
+
+    def filter(self, expression: str) -> "ScenarioList":
+        """Filter scenarios by evaluating an expression per row."""
+        return ScenarioListTransformer.filter(self._sl, expression)
+
+    def reorder_keys(self, new_order: List[str]) -> "ScenarioList":
+        """Reorder keys in each Scenario according to the provided list."""
+        return ScenarioListTransformer.reorder_keys(self._sl, new_order)
+
+    def to_scenario_of_lists(self) -> "Scenario":
+        """Collapse to a single Scenario with list-valued fields."""
+        return ScenarioListTransformer.to_scenario_of_lists(self._sl)
+
+    def unpack(
+        self, field: str, new_names: Optional[List[str]] = None, keep_original: bool = True
+    ) -> "ScenarioList":
+        """Unpack a list-like field into multiple fields."""
+        return ScenarioListTransformer.unpack(self._sl, field, new_names, keep_original)
+
+    def collapse(
+        self,
+        field: str,
+        separator: Optional[str] = None,
+        prefix: str = "",
+        postfix: str = "",
+        add_count: bool = False,
+    ) -> "ScenarioList":
+        """Collapse rows by collecting values of one field."""
+        return ScenarioListTransformer.collapse(
+            self._sl, field, separator, prefix, postfix, add_count
+        )
+
+    def create_comparisons(
+        self,
+        bidirectional: bool = False,
+        num_options: int = 2,
+        option_prefix: str = "option_",
+        use_alphabet: bool = False,
+    ) -> "ScenarioList":
+        """Generate pairwise or N-way comparison scenarios."""
+        return ScenarioListTransformer.create_comparisons(
+            self._sl, bidirectional, num_options, option_prefix, use_alphabet
+        )
 
 
 class ScenarioListTransformer:
