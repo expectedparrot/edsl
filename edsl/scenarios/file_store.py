@@ -105,6 +105,11 @@ class FileStore(Scenario):
             If path is a URL (starts with http:// or https://), the file will be
             downloaded automatically.
         """
+        # Initialize parent class first to ensure self.data exists.
+        # This prevents "'FileStore' object has no attribute 'data'" errors
+        # if any initialization code below fails.
+        super().__init__({})
+
         if path is None and "filename" in kwargs:
             path = kwargs["filename"]
 
@@ -117,10 +122,12 @@ class FileStore(Scenario):
         self._path = path  # Store the original path privately
         self._temp_path = None  # Track any generated temporary file
 
-        self.suffix = suffix or path.split(".")[-1]
+        self.suffix = suffix or (path.split(".")[-1] if path else "")
         self.binary = binary or False
         self.mime_type = (
-            mime_type or mimetypes.guess_type(path)[0] or "application/octet-stream"
+            mime_type
+            or (mimetypes.guess_type(path)[0] if path else None)
+            or "application/octet-stream"
         )
         self.base64_string = base64_string or self.encode_file_to_base64_string(path)
         self.external_locations = external_locations or {}
@@ -129,7 +136,8 @@ class FileStore(Scenario):
             self.extract_text() if extracted_text is None else extracted_text
         )
 
-        super().__init__(
+        # Update self.data with the initialized values
+        self.data.update(
             {
                 "path": path,
                 "base64_string": self.base64_string,
