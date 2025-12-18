@@ -33,6 +33,45 @@ def strip_html(text: Optional[str]) -> str:
     return _HTML_TAG_RE.sub("", text).strip()
 
 
+def convert_qualtrics_piping_to_edsl(text: Optional[str]) -> str:
+    """
+    Convert Qualtrics piping syntax to EDSL piping syntax.
+
+    Qualtrics uses patterns like:
+    - ${q://QID1/ChoiceGroup/SelectedChoices}
+    - ${q://QID2/ChoiceTextEntryValue}
+    - ${q://QID3/DisplayValue}
+
+    EDSL uses patterns like:
+    - {{ variable_name.answer }}
+
+    Parameters
+    ----------
+    text : Optional[str]
+        Text that may contain Qualtrics piping syntax
+
+    Returns
+    -------
+    str
+        Text with Qualtrics piping converted to EDSL format
+    """
+    if not text:
+        return ""
+
+    # Pattern to match Qualtrics piping: ${q://QID/...}
+    qualtrics_piping_pattern = re.compile(r'\$\{q://([^/]+)(?:/[^}]*)?\}')
+
+    def replace_piping(match):
+        qid = match.group(1)
+        # Convert QID to a valid variable name using Survey's sanitization
+        from .survey import Survey
+        variable_name = Survey._sanitize_name(qid)
+        # Convert to EDSL piping format
+        return f"{{{{ {variable_name}.answer }}}}"
+
+    return qualtrics_piping_pattern.sub(replace_piping, text)
+
+
 # ---------------------------------------------------------------------------
 # Normalized schema dataclasses
 # ---------------------------------------------------------------------------
@@ -235,6 +274,20 @@ class QSFParser:
             "qsf_misc_elements": self._misc_elements,
         }
 
+        # Order questions based on flow/block structure
+        ordered_questions = self._order_questions_by_flow(questions, blocks, flow_root)
+
+        # Create QID to sanitized export tag mapping for improved piping conversion
+        # We need to use the same sanitization logic that Survey uses for question names
+        from .survey import Survey
+        qid_to_export_tag = {
+            qid: Survey._sanitize_name(question.export_tag or qid)
+            for qid, question in questions.items()
+        }
+
+        # Apply improved piping conversion to all questions using the mapping
+        improved_questions = self._apply_improved_piping_conversion(ordered_questions, qid_to_export_tag)
+
         return StandardSurvey(
             id=survey_id,
             name=survey_name,
@@ -242,7 +295,7 @@ class QSFParser:
             language=survey_language,
             metadata=metadata,
             blocks=blocks,
-            questions=list(questions.values()),
+            questions=improved_questions,
             flow=flow_root,
             embedded_data=embedded_fields,
             options=options,
@@ -251,6 +304,114 @@ class QSFParser:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _order_questions_by_flow(self, questions: Dict[str, Question], blocks: List[Block], flow_root: FlowNode) -> List[Question]:
+        """
+        Order questions based on the flow/block structure to preserve the original QSF ordering.
+
+        Args:
+            questions: Dictionary of questions indexed by question ID
+            blocks: List of blocks parsed from QSF
+            flow_root: Flow structure from QSF
+
+        Returns:
+            List of questions in the proper order
+        """
+        ordered_questions = []
+        processed_question_ids = set()
+
+        def extract_questions_from_flow_node(node: FlowNode):
+            """Recursively extract question IDs from flow node structure."""
+            question_ids = []
+
+            if node.type == "block" and node.block_id:
+                # Find the block and extract its questions in order
+                for block in blocks:
+                    if block.id == node.block_id:
+                        for element in block.elements:
+                            if element.kind == "question" and element.question_id:
+                                question_ids.append(element.question_id)
+                        break
+
+            # Process child nodes
+            for child in node.children:
+                question_ids.extend(extract_questions_from_flow_node(child))
+
+            return question_ids
+
+        # Extract question IDs in flow order
+        flow_question_ids = extract_questions_from_flow_node(flow_root)
+
+        # Add questions in flow order
+        for qid in flow_question_ids:
+            if qid in questions and qid not in processed_question_ids:
+                ordered_questions.append(questions[qid])
+                processed_question_ids.add(qid)
+
+        # Add any remaining questions that weren't in the flow (edge case)
+        for qid, question in questions.items():
+            if qid not in processed_question_ids:
+                ordered_questions.append(question)
+                processed_question_ids.add(qid)
+
+        return ordered_questions
+
+    def _apply_improved_piping_conversion(self, questions: List[Question], qid_to_export_tag: Dict[str, str]) -> List[Question]:
+        """
+        Apply improved piping conversion using export tag mapping.
+
+        Args:
+            questions: List of questions to process
+            qid_to_export_tag: Mapping from QID to export tag/variable name
+
+        Returns:
+            List of questions with improved piping conversion
+        """
+        def improved_piping_converter(text: str) -> str:
+            """Convert Qualtrics piping using export tag mapping."""
+            if not text:
+                return text
+
+            # Pattern to match Qualtrics piping: ${q://QID/...}
+            qualtrics_piping_pattern = re.compile(r'\$\{q://([^/]+)(?:/[^}]*)?\}')
+
+            def replace_piping(match):
+                qid = match.group(1)
+                # Use export tag if available, otherwise fall back to sanitized QID
+                # Import here to avoid circular imports
+                from .survey import Survey
+                variable_name = qid_to_export_tag.get(qid, Survey._sanitize_name(qid))
+                # Convert to EDSL piping format
+                return f"{{{{ {variable_name}.answer }}}}"
+
+            return qualtrics_piping_pattern.sub(replace_piping, text)
+
+        # Apply improved piping conversion to all questions
+        improved_questions = []
+        for question in questions:
+            # Convert question text
+            if question.text:
+                question.text = improved_piping_converter(question.text)
+
+            # Convert choice text
+            improved_choices = []
+            for choice in question.choices:
+                if choice.text:
+                    choice.text = improved_piping_converter(choice.text)
+                improved_choices.append(choice)
+            question.choices = improved_choices
+
+            # Convert scale text (for matrix questions, etc.)
+            improved_scale = []
+            for scale_item in question.scale:
+                if scale_item.text:
+                    scale_item.text = improved_piping_converter(scale_item.text)
+                improved_scale.append(scale_item)
+            question.scale = improved_scale
+
+            improved_questions.append(question)
+
+        return improved_questions
 
     def _validate_top_level(self) -> None:
         if "SurveyEntry" not in self.data:
@@ -311,6 +472,7 @@ class QSFParser:
 
         raw_text = payload.get("QuestionText", "") or ""
         text = strip_html(raw_text)
+        # Note: Piping conversion will be applied later with improved mapping
 
         export_tag = payload.get("DataExportTag")
 
@@ -419,6 +581,7 @@ class QSFParser:
         for pos, cid in enumerate(ordered_ids):
             c_obj = choices.get(str(cid), {})
             text = c_obj.get("Display", "")
+            # Note: Piping conversion will be applied later with improved mapping
             recode = recode_values.get(str(cid))
             export_tag = export_tags.get(str(cid))
 
