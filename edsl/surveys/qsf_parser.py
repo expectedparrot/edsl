@@ -59,12 +59,13 @@ def convert_qualtrics_piping_to_edsl(text: Optional[str]) -> str:
         return ""
 
     # Pattern to match Qualtrics piping: ${q://QID/...}
-    qualtrics_piping_pattern = re.compile(r'\$\{q://([^/]+)(?:/[^}]*)?\}')
+    qualtrics_piping_pattern = re.compile(r"\$\{q://([^/]+)(?:/[^}]*)?\}")
 
     def replace_piping(match):
         qid = match.group(1)
         # Convert QID to a valid variable name using Survey's sanitization
         from .survey import Survey
+
         variable_name = Survey._sanitize_name(qid)
         # Convert to EDSL piping format
         return f"{{{{ {variable_name}.answer }}}}"
@@ -280,13 +281,16 @@ class QSFParser:
         # Create QID to sanitized export tag mapping for improved piping conversion
         # We need to use the same sanitization logic that Survey uses for question names
         from .survey import Survey
+
         qid_to_export_tag = {
             qid: Survey._sanitize_name(question.export_tag or qid)
             for qid, question in questions.items()
         }
 
         # Apply improved piping conversion to all questions using the mapping
-        improved_questions = self._apply_improved_piping_conversion(ordered_questions, qid_to_export_tag)
+        improved_questions = self._apply_improved_piping_conversion(
+            ordered_questions, qid_to_export_tag
+        )
 
         return StandardSurvey(
             id=survey_id,
@@ -305,7 +309,9 @@ class QSFParser:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _order_questions_by_flow(self, questions: Dict[str, Question], blocks: List[Block], flow_root: FlowNode) -> List[Question]:
+    def _order_questions_by_flow(
+        self, questions: Dict[str, Question], blocks: List[Block], flow_root: FlowNode
+    ) -> List[Question]:
         """
         Order questions based on the flow/block structure to preserve the original QSF ordering.
 
@@ -356,7 +362,9 @@ class QSFParser:
 
         return ordered_questions
 
-    def _apply_improved_piping_conversion(self, questions: List[Question], qid_to_export_tag: Dict[str, str]) -> List[Question]:
+    def _apply_improved_piping_conversion(
+        self, questions: List[Question], qid_to_export_tag: Dict[str, str]
+    ) -> List[Question]:
         """
         Apply improved piping conversion using export tag mapping.
 
@@ -367,19 +375,21 @@ class QSFParser:
         Returns:
             List of questions with improved piping conversion
         """
+
         def improved_piping_converter(text: str) -> str:
             """Convert Qualtrics piping using export tag mapping."""
             if not text:
                 return text
 
             # Pattern to match Qualtrics piping: ${q://QID/...}
-            qualtrics_piping_pattern = re.compile(r'\$\{q://([^/]+)(?:/[^}]*)?\}')
+            qualtrics_piping_pattern = re.compile(r"\$\{q://([^/]+)(?:/[^}]*)?\}")
 
             def replace_piping(match):
                 qid = match.group(1)
                 # Use export tag if available, otherwise fall back to sanitized QID
                 # Import here to avoid circular imports
                 from .survey import Survey
+
                 variable_name = qid_to_export_tag.get(qid, Survey._sanitize_name(qid))
                 # Convert to EDSL piping format
                 return f"{{{{ {variable_name}.answer }}}}"
