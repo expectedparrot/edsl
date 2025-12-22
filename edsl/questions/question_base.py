@@ -882,12 +882,12 @@ class QuestionBase(
                 continue
             elif part.startswith("{{") and part.endswith("}}"):
                 # Replace spaces with non-breaking spaces to prevent wrapping inside variables
-                part_no_break = part.replace(" ", "\u00A0")
+                part_no_break = part.replace(" ", "\u00a0")
                 # Highlight Jinja2 variables with primary style (bold blue)
                 question_text_styled.append(part_no_break, style=RICH_STYLES["primary"])
             elif part.startswith("<") and part.endswith(">"):
                 # Replace spaces with non-breaking spaces in angle brackets too
-                part_no_break = part.replace(" ", "\u00A0")
+                part_no_break = part.replace(" ", "\u00a0")
                 # Highlight angle bracket tags in secondary style
                 question_text_styled.append(
                     part_no_break, style=RICH_STYLES["secondary"]
@@ -1063,7 +1063,7 @@ class QuestionBase(
 
     def humanize(
         self,
-        project_name: str = "Project",
+        human_survey_name: str = "New survey",
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
         survey_visibility: Optional["VisibilityType"] = "unlisted",
@@ -1074,10 +1074,10 @@ class QuestionBase(
         Then, create a project on Coop so you can share the survey with human respondents.
         """
         s = self.to_survey()
-        project_details = s.humanize(
-            project_name, survey_description, survey_alias, survey_visibility
+        human_survey_details = s.humanize(
+            human_survey_name, survey_description, survey_alias, survey_visibility
         )
-        return project_details
+        return human_survey_details
 
     def by(self, *args) -> "Jobs":
         """Turn a single question into a survey and then a Job."""
