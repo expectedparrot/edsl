@@ -2413,16 +2413,16 @@ class Coop(CoopFunctionsMixin):
         }
 
     ################
-    # PROJECTS
+    # HUMAN SURVEYS
     ################
-    def create_project(
+    def create_human_survey(
         self,
         survey: "Survey",
         scenario_list: Optional["ScenarioList"] = None,
         scenario_list_method: Optional[
             Literal["randomize", "loop", "single_scenario", "ordered"]
         ] = None,
-        project_name: str = "Project",
+        human_survey_name: str = "New survey",
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
         survey_visibility: Optional[VisibilityType] = "unlisted",
@@ -2431,7 +2431,7 @@ class Coop(CoopFunctionsMixin):
         scenario_list_visibility: Optional[VisibilityType] = "unlisted",
     ):
         """
-        Create a survey object on Coop, then create a project from the survey.
+        Create a human survey on Coop, first creating the survey and scenario list (if scenarios are used).
         """
         if scenario_list is None and scenario_list_method is not None:
             raise CoopValueError(
@@ -2459,10 +2459,10 @@ class Coop(CoopFunctionsMixin):
         else:
             scenario_list_uuid = None
         response = self._send_server_request(
-            uri="api/v0/projects/create-from-survey",
+            uri="api/v0/human-surveys",
             method="POST",
             payload={
-                "project_name": project_name,
+                "human_survey_name": human_survey_name,
                 "survey_uuid": str(survey_uuid),
                 "scenario_list_uuid": (
                     str(scenario_list_uuid) if scenario_list_uuid is not None else None
@@ -2473,127 +2473,37 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         response_json = response.json()
         return {
-            "project_name": response_json.get("project_name"),
+            "name": response_json.get("name"),
             "uuid": response_json.get("uuid"),
-            "admin_url": f"{self.url}/home/projects/{response_json.get('uuid')}",
-            "respondent_url": f"{self.url}/respond/projects/{response_json.get('uuid')}/runs/{response_json.get('run_uuid')}",
+            "admin_url": f"{self.url}/home/human-surveys/{response_json.get('uuid')}",
+            "respondent_url": f"{self.url}/respond/human-surveys/{response_json.get('uuid')}",
+            "n_responses": response_json.get("n_responses"),
+            "survey_uuid": response_json.get("survey_uuid"),
+            "scenario_list_uuid": response_json.get("scenario_list_uuid"),
         }
 
-    def get_project(
+    def get_human_survey(
         self,
-        project_uuid: str,
+        human_survey_uuid: str,
     ) -> dict:
         """
-        Get a project from Coop.
+        Get a human survey from Coop.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}",
             method="GET",
         )
         self._resolve_server_response(response)
         response_json = response.json()
         return {
-            "project_name": response_json.get("project_name"),
-            "runs": [
-                {
-                    "uuid": run.get("uuid"),
-                    "name": run.get("name"),
-                    "web_survey_url": run.get("web_survey_url"),
-                }
-                for run in response_json.get("runs", [])
-            ],
-            "job_uuids": response_json.get("job_uuids"),
-            # "project_prolific_studies": [
-            #     {
-            #         "study_id": study.get("id"),
-            #         "name": study.get("name"),
-            #         "status": study.get("status"),
-            #         "num_participants": study.get("total_available_places"),
-            #         "places_taken": study.get("places_taken"),
-            #     }
-            #     for study in response_json.get("prolific_studies", [])
-            # ],
-        }
-
-    def create_project_run(
-        self,
-        project_uuid: str,
-        name: Optional[str] = None,
-        scenario_list_uuid: Optional[Union[str, UUID]] = None,
-        scenario_list_method: Optional[
-            Literal["randomize", "loop", "single_scenario", "ordered"]
-        ] = None,
-    ) -> dict:
-        """
-        Create a project run.
-        """
-        if scenario_list_uuid is None and scenario_list_method is not None:
-            raise CoopValueError(
-                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
-            )
-        elif scenario_list_uuid is not None and scenario_list_method is None:
-            raise CoopValueError(
-                "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
-            )
-        response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/runs/create",
-            method="POST",
-            payload={
-                "run_name": name,
-                "scenario_list_uuid": scenario_list_uuid,
-                "scenario_list_method": scenario_list_method,
-            },
-        )
-        self._resolve_server_response(response)
-        response_json = response.json()
-        return {
-            "uuid": response_json.get("uuid"),
             "name": response_json.get("name"),
-        }
-
-    def update_project_run(
-        self,
-        project_uuid: str,
-        project_run_uuid: str,
-        name: Optional[str] = None,
-    ) -> dict:
-        """
-        Update a project run.
-        """
-        if name is None:
-            from .exceptions import CoopPatchError
-
-            raise CoopPatchError("Nothing to update.")
-        payload = {}
-        if name is not None:
-            payload["run_name"] = name
-        response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/runs/{project_run_uuid}",
-            method="PATCH",
-            payload=payload,
-        )
-        self._resolve_server_response(response)
-        response_json = response.json()
-        return {
             "uuid": response_json.get("uuid"),
-            "name": response_json.get("name"),
+            "admin_url": f"{self.url}/home/human-surveys/{response_json.get('uuid')}",
+            "respondent_url": f"{self.url}/respond/human-surveys/{response_json.get('uuid')}",
+            "n_responses": response_json.get("n_responses"),
+            "survey_uuid": response_json.get("survey_uuid"),
+            "scenario_list_uuid": response_json.get("scenario_list_uuid"),
         }
-
-    def delete_project_run(
-        self,
-        project_uuid: str,
-        project_run_uuid: str,
-    ) -> dict:
-        """
-        Delete a project run.
-        """
-        response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/runs/{project_run_uuid}",
-            method="DELETE",
-        )
-        self._resolve_server_response(response)
-        response_json = response.json()
-        return response_json
 
     def _turn_human_responses_into_results(
         self,
@@ -2681,40 +2591,32 @@ class Coop(CoopFunctionsMixin):
                 human_response_scenarios.append(scenario)
             return ScenarioList(human_response_scenarios)
 
-    def get_project_human_responses(
+    def get_human_survey_responses(
         self,
-        project_uuid: str,
-        project_run_uuid: Optional[str] = None,
+        human_survey_uuid: str,
     ) -> Union["Results", "ScenarioList"]:
         """
-        Return a Results object with the human responses for a project.
+        Return a Results object with the responses for a human survey.
 
         If generating the Results object fails, a ScenarioList will be returned instead.
         """
-        if project_run_uuid:
-            params = {"project_run_uuid": project_run_uuid}
-        else:
-            params = None
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/human-responses",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/responses",
             method="GET",
-            params=params,
         )
         self._resolve_server_response(response)
         response_json = response.json()
-        human_responses = response_json.get("human_responses", [])
+        responses = response_json.get("responses", [])
         survey_uuid = response_json.get("survey_uuid")
 
-        return self._turn_human_responses_into_results(human_responses, survey_uuid)
+        return self._turn_human_responses_into_results(responses, survey_uuid)
 
-    def test_scenario_sampling(
-        self, project_uuid: str, project_run_uuid: str
-    ) -> List[int]:
+    def test_scenario_sampling(self, human_survey_uuid: str) -> List[int]:
         """
-        Get a sample for a project.
+        Get a sample for a human survey.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/runs/{project_run_uuid}/scenario-sampling/test",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/scenario-sampling/test",
             method="GET",
         )
         self._resolve_server_response(response)
@@ -2722,17 +2624,15 @@ class Coop(CoopFunctionsMixin):
         scenario_indices = response_json.get("scenario_indices")
         return scenario_indices
 
-    def reset_scenario_sampling_state(
-        self, project_uuid: str, project_run_uuid: str
-    ) -> dict:
+    def reset_scenario_sampling_state(self, human_survey_uuid: str) -> dict:
         """
-        Reset the scenario sampling state for a project.
+        Reset the scenario sampling state for a human survey.
 
         This is useful if you have scenario_list_method="ordered" and you want to
         start over with the first scenario in the list.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/runs/{project_run_uuid}/scenario-sampling/reset",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/scenario-sampling/reset",
             method="POST",
         )
         self._resolve_server_response(response)
@@ -2830,8 +2730,7 @@ class Coop(CoopFunctionsMixin):
 
     def create_prolific_study(
         self,
-        project_uuid: str,
-        project_run_uuid: str,
+        human_survey_uuid: str,
         name: str,
         description: str,
         num_participants: int,
@@ -2846,7 +2745,7 @@ class Coop(CoopFunctionsMixin):
         filters: Optional[List[Dict]] = None,
     ) -> dict:
         """
-        Create a Prolific study for a project. Returns a dict with the study details.
+        Create a Prolific study for a human survey. Returns a dict with the study details.
 
         To add filters to your study, you should first pull the list of supported
         filters using Coop.list_prolific_filters().
@@ -2862,10 +2761,9 @@ class Coop(CoopFunctionsMixin):
             )
 
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/prolific-studies",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies",
             method="POST",
             payload={
-                "project_run_uuid": project_run_uuid,
                 "name": name,
                 "description": description,
                 "total_available_places": num_participants,
@@ -2904,9 +2802,8 @@ class Coop(CoopFunctionsMixin):
 
     def update_prolific_study(
         self,
-        project_uuid: str,
+        human_survey_uuid: str,
         study_id: str,
-        project_run_uuid: Optional[str] = None,
         name: Optional[str] = None,
         description: Optional[str] = None,
         num_participants: Optional[int] = None,
@@ -2923,7 +2820,7 @@ class Coop(CoopFunctionsMixin):
         """
         Update a Prolific study. Returns a dict with the study details.
         """
-        study = self.get_prolific_study(project_uuid, study_id)
+        study = self.get_prolific_study(human_survey_uuid, study_id)
 
         current_completion_time = study.get("estimated_completion_time_minutes")
         current_payment = study.get("participant_payment_cents")
@@ -2942,8 +2839,6 @@ class Coop(CoopFunctionsMixin):
             )
 
         payload = {}
-        if project_run_uuid is not None:
-            payload["project_run_uuid"] = project_run_uuid
         if name is not None:
             payload["name"] = name
         if description is not None:
@@ -2962,7 +2857,7 @@ class Coop(CoopFunctionsMixin):
             payload["filters"] = filters
 
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}",
             method="PATCH",
             payload=payload,
         )
@@ -2988,25 +2883,94 @@ class Coop(CoopFunctionsMixin):
 
     def publish_prolific_study(
         self,
-        project_uuid: str,
+        human_survey_uuid: str,
         study_id: str,
     ) -> dict:
         """
         Publish a Prolific study.
+
+        Once your study is published, Prolific participants can start accepting and completing it.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/publish",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/status",
             method="POST",
+            payload={
+                "action": "PUBLISH",
+            },
         )
         self._resolve_server_response(response)
         return response.json()
 
-    def get_prolific_study(self, project_uuid: str, study_id: str) -> dict:
+    def pause_prolific_study(
+        self,
+        human_survey_uuid: str,
+        study_id: str,
+    ) -> dict:
+        """
+        Pause a Prolific study.
+
+        Pausing a study will temporarily stop new participants from joining.
+        Participants who have already started the study can still complete it.
+        You can resume the study later by calling Coop.resume_prolific_study().
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/status",
+            method="POST",
+            payload={
+                "action": "PAUSE",
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def resume_prolific_study(
+        self,
+        human_survey_uuid: str,
+        study_id: str,
+    ) -> dict:
+        """
+        Resume a paused Prolific study.
+
+        Resuming a study will make it available to participants again.
+        New participants will be able to join and complete your study.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/status",
+            method="POST",
+            payload={
+                "action": "START",
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def stop_prolific_study(
+        self,
+        human_survey_uuid: str,
+        study_id: str,
+    ) -> dict:
+        """
+        Stop a Prolific study.
+
+        Stopping a study will permanently end it.
+        No new participants will be able to join, and the study cannot be resumed.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/status",
+            method="POST",
+            payload={
+                "action": "STOP",
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_prolific_study(self, human_survey_uuid: str, study_id: str) -> dict:
         """
         Get a Prolific study. Returns a dict with the study details.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}",
             method="GET",
         )
         self._resolve_server_response(response)
@@ -3031,16 +2995,16 @@ class Coop(CoopFunctionsMixin):
 
     def get_prolific_study_responses(
         self,
-        project_uuid: str,
+        human_survey_uuid: str,
         study_id: str,
     ) -> Union["Results", "ScenarioList"]:
         """
-        Return a Results object with the human responses for a project.
+        Return a Results object with the human responses for a human survey.
 
         If generating the Results object fails, a ScenarioList will be returned instead.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/responses",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/responses",
             method="GET",
         )
         self._resolve_server_response(response)
@@ -3052,7 +3016,7 @@ class Coop(CoopFunctionsMixin):
 
     def delete_prolific_study(
         self,
-        project_uuid: str,
+        human_survey_uuid: str,
         study_id: str,
     ) -> dict:
         """
@@ -3061,7 +3025,7 @@ class Coop(CoopFunctionsMixin):
         Note: Only draft studies can be deleted. Once you publish a study, it cannot be deleted.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}",
             method="DELETE",
         )
         self._resolve_server_response(response)
@@ -3069,7 +3033,7 @@ class Coop(CoopFunctionsMixin):
 
     def approve_prolific_study_submission(
         self,
-        project_uuid: str,
+        human_survey_uuid: str,
         study_id: str,
         submission_id: str,
     ) -> dict:
@@ -3077,7 +3041,7 @@ class Coop(CoopFunctionsMixin):
         Approve a Prolific study submission.
         """
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/submissions/{submission_id}/approve",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/submissions/{submission_id}/approve",
             method="POST",
         )
         self._resolve_server_response(response)
@@ -3085,7 +3049,7 @@ class Coop(CoopFunctionsMixin):
 
     def reject_prolific_study_submission(
         self,
-        project_uuid: str,
+        human_survey_uuid: str,
         study_id: str,
         submission_id: str,
         reason: Literal[
@@ -3130,7 +3094,7 @@ class Coop(CoopFunctionsMixin):
                 "Rejection explanation must be at least 100 characters."
             )
         response = self._send_server_request(
-            uri=f"api/v0/projects/{project_uuid}/prolific-studies/{study_id}/submissions/{submission_id}/reject",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/submissions/{submission_id}/reject",
             method="POST",
             payload={
                 "reason": reason,
