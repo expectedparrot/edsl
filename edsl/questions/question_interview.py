@@ -76,7 +76,7 @@ class InterviewResponse(BaseModel):
 
     Examples:
         >>> # Valid interview response
-        >>> response = InterviewResponse(answer=[{"role": "interviewer", "text": "How are you?"}, {"role": "respondent", "text": "I'm doing well, thank you."}])
+        >>> response = InterviewResponse(answer=[{"role": "interviewer", "content": [{"type": "text", "text": "How are you?"}]}, {"role": "respondent", "content": [{"type": "text", "text": "I'm doing well, thank you."}]}])
         >>> len(response.answer)
         2
         >>> response.answer[0].role
