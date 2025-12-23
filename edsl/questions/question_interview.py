@@ -11,28 +11,31 @@ from .response_validator_abc import ResponseValidatorABC
 from .decorators import inject_exception
 
 
+class TextContent(BaseModel):
+    type: Literal["text"] = "text"
+    text: str
+
+
 class InterviewerMessage(BaseModel):
     """
     Pydantic model for interviewer messages in an interview transcript.
 
     Attributes:
         role: The role of the speaker, always "interviewer".
-        type: The type of message, always "message".
-        text: The text content of the message.
+        content: The text content of the message.
 
     Examples:
-        >>> msg = InterviewerMessage(text="How are you?")
+        >>> msg = InterviewerMessage(content=[{"type": "text", "text": "How are you?"}])
         >>> msg.role
         'interviewer'
-        >>> msg.type
-        'message'
-        >>> msg.text
+        >>> msg.content[0].type
+        'text'
+        >>> msg.content[0].text
         'How are you?'
     """
 
     role: Literal["interviewer"] = "interviewer"
-    type: Literal["message"] = "message"
-    text: str
+    content: List[TextContent]
 
 
 class RespondentMessage(BaseModel):
@@ -41,22 +44,20 @@ class RespondentMessage(BaseModel):
 
     Attributes:
         role: The role of the speaker, always "respondent".
-        type: The type of message, always "message".
-        text: The text content of the message.
+        content: The text content of the message.
 
     Examples:
-        >>> msg = RespondentMessage(text="I'm doing well, thank you.")
+        >>> msg = RespondentMessage(content=[{"type": "text", "text": "I'm doing well, thank you."}])
         >>> msg.role
         'respondent'
-        >>> msg.type
-        'message'
-        >>> msg.text
+        >>> msg.content[0].type
+        'text'
+        >>> msg.content[0].text
         "I'm doing well, thank you."
     """
 
     role: Literal["respondent"] = "respondent"
-    type: Literal["message"] = "message"
-    text: str
+    content: List[TextContent]
 
 
 class InterviewResponse(BaseModel):
@@ -73,7 +74,7 @@ class InterviewResponse(BaseModel):
 
     Examples:
         >>> # Valid interview response
-        >>> response = InterviewResponse(answer=[{"role": "interviewer", "text": "How are you?"}, {"role": "respondent", "text": "I'm doing well, thank you."}])
+        >>> response = InterviewResponse(answer=[{"role": "interviewer", "content": [{"type": "text", "text": "How are you?"}]}, {"role": "respondent", "content": [{"type": "text", "text": "I'm doing well, thank you."}]}])
         >>> len(response.answer)
         2
         >>> response.answer[0].role
@@ -154,27 +155,32 @@ class InterviewResponseValidator(ResponseValidatorABC):
 
     def _preprocess(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Preprocess the answer to add 'type': 'message' field to each message before validation.
+        Preprocess the answer to convert messages to the required format.
 
-        This method adds a "type" field with value "message" to each dict in the answer list
-        before Pydantic validation occurs. This ensures the type field is present when
-        the InterviewerMessage and RespondentMessage models validate the data.
+        This method converts each message in the answer list to the format:
+        - "role": (stays the same)
+        - "content": [{"type": "text", "text": ...}]
 
         Args:
             data: The raw answer dictionary before validation.
 
         Returns:
-            The preprocessed answer dictionary with "type": "message" added to each item.
+            The preprocessed answer dictionary with messages in the new format.
         """
         answer = data.get("answer")
         if answer is not None and isinstance(answer, list):
             processed_answer = []
             for item in answer:
                 if isinstance(item, dict):
-                    # Create a copy and ensure type field is set
-                    processed_item = item.copy()
-                    if "type" not in processed_item:
-                        processed_item["type"] = "message"
+                    # Create a new dict with role and content format
+                    processed_item = {}
+                    # Keep the role as is
+                    role = item.get("role", "unknown")
+                    processed_item["role"] = role
+
+                    # Convert text to content format
+                    text_content = item.get("text", "")
+                    processed_item["content"] = [{"type": "text", "text": text_content}]
                     processed_answer.append(processed_item)
                 else:
                     processed_answer.append(item)
@@ -393,7 +399,9 @@ Respondent: [Your response...]"></textarea>
                     else:
                         role = "respondent"
                         text = cls.__faker__.sentence()
-                    answer_value.append({"role": role, "text": text})
+                    answer_value.append(
+                        {"role": role, "content": [{"type": "text", "text": text}]}
+                    )
 
                 # Create the model with consistent values to avoid validation error
                 return cls.__model__(
