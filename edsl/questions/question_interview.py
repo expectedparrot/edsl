@@ -11,6 +11,11 @@ from .response_validator_abc import ResponseValidatorABC
 from .decorators import inject_exception
 
 
+class TextContent(BaseModel):
+    type: Literal["text"] = "text"
+    text: str
+
+
 class InterviewerMessage(BaseModel):
     """
     Pydantic model for interviewer messages in an interview transcript.
@@ -31,8 +36,7 @@ class InterviewerMessage(BaseModel):
     """
 
     role: Literal["interviewer"] = "interviewer"
-    type: Literal["message"] = "message"
-    text: str
+    content: List[TextContent]
 
 
 class RespondentMessage(BaseModel):
@@ -55,8 +59,7 @@ class RespondentMessage(BaseModel):
     """
 
     role: Literal["respondent"] = "respondent"
-    type: Literal["message"] = "message"
-    text: str
+    content: List[TextContent]
 
 
 class InterviewResponse(BaseModel):
@@ -154,27 +157,32 @@ class InterviewResponseValidator(ResponseValidatorABC):
 
     def _preprocess(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Preprocess the answer to add 'type': 'message' field to each message before validation.
+        Preprocess the answer to convert messages to the required format.
 
-        This method adds a "type" field with value "message" to each dict in the answer list
-        before Pydantic validation occurs. This ensures the type field is present when
-        the InterviewerMessage and RespondentMessage models validate the data.
+        This method converts each message in the answer list to the format:
+        - "role": (stays the same)
+        - "content": [{"type": "text", "text": ...}]
 
         Args:
             data: The raw answer dictionary before validation.
 
         Returns:
-            The preprocessed answer dictionary with "type": "message" added to each item.
+            The preprocessed answer dictionary with messages in the new format.
         """
         answer = data.get("answer")
         if answer is not None and isinstance(answer, list):
             processed_answer = []
             for item in answer:
                 if isinstance(item, dict):
-                    # Create a copy and ensure type field is set
-                    processed_item = item.copy()
-                    if "type" not in processed_item:
-                        processed_item["type"] = "message"
+                    # Create a new dict with role and content format
+                    processed_item = {}
+                    # Keep the role as is
+                    role = item.get("role", "unknown")
+                    processed_item["role"] = role
+
+                    # Convert text to content format
+                    text_content = item.get("text", "")
+                    processed_item["content"] = [{"type": "text", "text": text_content}]
                     processed_answer.append(processed_item)
                 else:
                     processed_answer.append(item)
