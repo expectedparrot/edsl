@@ -401,7 +401,9 @@ Respondent: [Your response...]"></textarea>
                     else:
                         role = "respondent"
                         text = cls.__faker__.sentence()
-                    answer_value.append({"role": role, "text": text})
+                    answer_value.append(
+                        {"role": role, "content": [{"type": "text", "text": text}]}
+                    )
 
                 # Create the model with consistent values to avoid validation error
                 return cls.__model__(
