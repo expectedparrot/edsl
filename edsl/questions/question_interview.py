@@ -22,11 +22,10 @@ class InterviewerMessage(BaseModel):
 
     Attributes:
         role: The role of the speaker, always "interviewer".
-        type: The type of message, always "message".
-        text: The text content of the message.
+        content: The text content of the message.
 
     Examples:
-        >>> msg = InterviewerMessage(text="How are you?")
+        >>> msg = InterviewerMessage(content=[{"type": "text", "text": "How are you?"}])
         >>> msg.role
         'interviewer'
         >>> msg.type
@@ -45,11 +44,10 @@ class RespondentMessage(BaseModel):
 
     Attributes:
         role: The role of the speaker, always "respondent".
-        type: The type of message, always "message".
-        text: The text content of the message.
+        content: The text content of the message.
 
     Examples:
-        >>> msg = RespondentMessage(text="I'm doing well, thank you.")
+        >>> msg = RespondentMessage(content=[{"type": "text", "text": "I'm doing well, thank you."}])
         >>> msg.role
         'respondent'
         >>> msg.type
