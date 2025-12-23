@@ -28,9 +28,9 @@ class InterviewerMessage(BaseModel):
         >>> msg = InterviewerMessage(content=[{"type": "text", "text": "How are you?"}])
         >>> msg.role
         'interviewer'
-        >>> msg.type
-        'message'
-        >>> msg.text
+        >>> msg.content[0].type
+        'text'
+        >>> msg.content[0].text
         'How are you?'
     """
 
@@ -50,9 +50,9 @@ class RespondentMessage(BaseModel):
         >>> msg = RespondentMessage(content=[{"type": "text", "text": "I'm doing well, thank you."}])
         >>> msg.role
         'respondent'
-        >>> msg.type
-        'message'
-        >>> msg.text
+        >>> msg.content[0].type
+        'text'
+        >>> msg.content[0].text
         "I'm doing well, thank you."
     """
 
