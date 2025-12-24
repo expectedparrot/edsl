@@ -24,8 +24,8 @@ _logger = logging.getLogger("remote_proxy_handler")
 # Global request counter
 _request_counter = 0
 
-# Global balance error flag to prevent multiple requests after balance failure
-_balance_error_detected = False
+# NOTE: Balance error detection is now per-instance (see RemoteProxyHandler.__init__)
+# to avoid state leaking across repeated runs within the same Python process.
 
 try:
     import httpx
@@ -79,6 +79,9 @@ class RemoteProxyHandler:
 
         self.ep_key_handler = ExpectedParrotKeyHandler()
         self.ep_api_key = self.ep_key_handler.get_ep_api_key()
+
+        # Instance-level balance error flag (was previously global, causing cross-job corruption)
+        self._balance_error_detected = False
 
     @classmethod
     async def get_shared_client(cls) -> httpx.AsyncClient:
@@ -480,11 +483,11 @@ class RemoteProxyHandler:
         Returns:
             The model response from the proxy
         """
-        global _request_counter, _balance_error_detected
+        global _request_counter
         _request_counter += 1
 
-        # Check if balance error was already detected - prevent additional requests
-        if _balance_error_detected:
+        # Check if balance error was already detected for THIS handler - prevent additional requests
+        if self._balance_error_detected:
             from ...language_models.exceptions import (
                 LanguageModelInsufficientCreditsError,
             )
@@ -514,8 +517,8 @@ class RemoteProxyHandler:
                         error_detail = await response.text()
                         current_balance = self._extract_balance_from_error(error_detail)
 
-                        # Set global flag to prevent additional requests
-                        _balance_error_detected = True
+                        # Set instance flag to prevent additional requests from this handler
+                        self._balance_error_detected = True
 
                         raise LanguageModelInsufficientCreditsError(
                             f"Insufficient credits: {error_detail}",
@@ -530,8 +533,8 @@ class RemoteProxyHandler:
                                 error_detail
                             )
 
-                            # Set global flag to prevent additional requests
-                            _balance_error_detected = True
+                            # Set instance flag to prevent additional requests from this handler
+                            self._balance_error_detected = True
 
                             raise LanguageModelInsufficientCreditsError(
                                 f"Insufficient credits (HTTP 500): {error_detail}",
@@ -633,9 +636,13 @@ class RemoteProxyHandler:
 
 
 def reset_balance_error_flag():
-    """Reset the global balance error flag for new job runs."""
-    global _balance_error_detected
-    _balance_error_detected = False
+    """Reset balance error flag.
+    
+    DEPRECATED: This function is no longer needed since balance error detection
+    is now per-instance. Kept for backward compatibility but does nothing.
+    Each RemoteProxyHandler instance tracks its own balance error state.
+    """
+    pass  # No-op: balance error is now per-instance, not global
 
 
 async def check_user_balance(proxy_url: str, auth_headers: dict) -> dict:
