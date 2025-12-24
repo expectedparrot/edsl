@@ -44,7 +44,7 @@ class CacheEntry(RepresentationMixin):
     """
 
     key_fields = ["model", "parameters", "system_prompt", "user_prompt", "iteration"]
-    all_fields = key_fields + ["timestamp", "output", "service", "validated"]
+    all_fields = key_fields + ["timestamp", "output", "service", "validated", "salt"]
 
     def __init__(
         self,
@@ -58,6 +58,7 @@ class CacheEntry(RepresentationMixin):
         timestamp: Optional[int] = None,
         service: Optional[str] = None,
         validated: bool = False,
+        salt: Optional[str] = None,
     ):
         self.model = model
         self.parameters = parameters
@@ -70,6 +71,7 @@ class CacheEntry(RepresentationMixin):
         )
         self.service = service
         self.validated = validated
+        self.salt = salt
         self._check_types()
 
     def _check_types(self) -> None:
@@ -102,6 +104,8 @@ class CacheEntry(RepresentationMixin):
             raise CacheError("`service` should be either a string or None")
         if not isinstance(self.validated, bool):
             raise CacheError("`validated` should be a boolean")
+        if self.salt is not None and not isinstance(self.salt, str):
+            raise CacheError("`salt` should be a string or None")
 
     @classmethod
     def gen_key(
@@ -112,6 +116,7 @@ class CacheEntry(RepresentationMixin):
         system_prompt: str,
         user_prompt: str,
         iteration: int,
+        salt: Optional[str] = None,
     ) -> str:
         """
         Generates a unique key hash for the cache entry based on input parameters.
@@ -127,6 +132,7 @@ class CacheEntry(RepresentationMixin):
             system_prompt: The system prompt provided to the model
             user_prompt: The user prompt provided to the model
             iteration: Iteration number for this combination of inputs
+            salt: An optional salt to incorporate into the hash key (e.g., for user-specific caching)
 
         Returns:
             A hex-encoded MD5 hash string that uniquely identifies this combination
@@ -136,7 +142,7 @@ class CacheEntry(RepresentationMixin):
             - The hash treats single and double quotes as equivalent
             - Parameters are sorted to ensure consistent hashing regardless of order
         """
-        long_key = f"{model}{json.dumps(parameters, sort_keys=True)}{system_prompt}{user_prompt}{iteration}"
+        long_key = f"{model}{json.dumps(parameters, sort_keys=True)}{system_prompt}{user_prompt}{iteration}{salt or ''}"
         return hashlib.md5(long_key.encode()).hexdigest()
 
     @property
@@ -152,7 +158,7 @@ class CacheEntry(RepresentationMixin):
             A hex-encoded MD5 hash string that uniquely identifies this cache entry
         """
         d = {k: value for k, value in self.__dict__.items() if k in self.key_fields}
-        return self.gen_key(**d)
+        return self.gen_key(salt=self.salt, **d)
 
     def to_dict(self, add_edsl_version: bool = True) -> Dict[str, Any]:
         """
@@ -181,6 +187,7 @@ class CacheEntry(RepresentationMixin):
             "timestamp": self.timestamp,
             "service": self.service,
             "validated": self.validated,
+            "salt": self.salt,
         }
         # Feature for adding version information (currently disabled)
         # if add_edsl_version:
@@ -296,7 +303,8 @@ class CacheEntry(RepresentationMixin):
             f"iteration={self.iteration}, "
             f"timestamp={self.timestamp}, "
             f"service={repr(self.service)}, "
-            f"validated={self.validated})"
+            f"validated={self.validated}, "
+            f"salt={repr(self.salt)})"
         )
 
     def _eval_repr_(self) -> str:

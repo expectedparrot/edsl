@@ -181,6 +181,12 @@ class JobsPrompts:
             user_prompt_with_hashes = user_prompt + f" {files_hash}"
         cache_keys = []
 
+        # Calculate salt for cache keys
+        from ..coop.coop import Coop
+        import hashlib
+        c = Coop()
+        salt = hashlib.sha256(c.api_key.encode()).hexdigest() if c.api_key else None
+
         for iteration in range(iterations):
             cache_key = CacheEntry.gen_key(
                 model=model,
@@ -188,6 +194,7 @@ class JobsPrompts:
                 system_prompt=system_prompt,
                 user_prompt=user_prompt_with_hashes if files_list else user_prompt,
                 iteration=iteration,
+                salt=salt,
             )
             cache_keys.append(cache_key)
 
