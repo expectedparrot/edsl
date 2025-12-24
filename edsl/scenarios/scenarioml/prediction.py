@@ -230,6 +230,102 @@ class Prediction:
             equal_importance = 1.0 / len(feature_names)
             return {name: equal_importance for name in feature_names}
 
+    def get_coefficients_and_errors(self) -> Dict[str, Dict[str, float]]:
+        """
+        Get model coefficients and standard errors for linear models.
+
+        Returns:
+            Dictionary with feature names as keys and dictionaries containing
+            'coefficient', 'std_error', 'z_score', and 'p_value' as values.
+            Returns None if model doesn't support coefficients.
+
+        Examples:
+            >>> # This method would be called on a Prediction instance
+            >>> # coeffs = prediction.get_coefficients_and_errors()
+            >>> # if coeffs:
+            >>> #     for feature, stats in coeffs.items():
+            >>> #         print(f"{feature}: coeff={stats['coefficient']:.3f}, "
+            >>> #               f"stderr={stats['std_error']:.3f}")
+            >>> pass  # Placeholder for doctest
+        """
+        try:
+            # Import here to avoid circular import
+            from .model_selector import ModelSelector
+
+            selector = ModelSelector()
+            return selector.get_coefficients_and_errors(self.model_result)
+        except Exception as e:
+            warnings.warn(f"Could not get coefficients and standard errors: {str(e)}")
+            return None
+
+    def supports_coefficients(self) -> bool:
+        """
+        Check if the model supports coefficient extraction.
+
+        Returns:
+            True if the model has interpretable coefficients (linear models),
+            False otherwise (tree-based models, etc.)
+        """
+        return hasattr(self.model_result.model, "coef_")
+
+    def get_coefficient_summary(self) -> str:
+        """
+        Get a formatted summary of model coefficients and statistics.
+
+        Returns:
+            String containing formatted coefficient table, or message if
+            coefficients are not available.
+        """
+        coeffs = self.get_coefficients_and_errors()
+
+        if coeffs is None:
+            return f"Coefficients not available for {self.model_result.name} model."
+
+        # Create formatted table
+        lines = []
+        lines.append("Model Coefficients and Statistics")
+        lines.append("=" * 50)
+        lines.append(f"Model: {self.model_result.name}")
+        lines.append("")
+
+        # Header
+        lines.append(
+            f"{'Feature':<25} {'Coefficient':<12} {'Std Error':<12} {'z-score':<10} {'p-value':<10}"
+        )
+        lines.append("-" * 79)
+
+        # Sort by absolute coefficient magnitude
+        sorted_coeffs = sorted(
+            coeffs.items(), key=lambda x: abs(x[1]["coefficient"]), reverse=True
+        )
+
+        for feature, stats in sorted_coeffs:
+            coeff = stats["coefficient"]
+            std_err = stats["std_error"]
+            z_score = stats["z_score"]
+            p_value = stats["p_value"]
+
+            # Format values
+            coeff_str = f"{coeff:8.4f}"
+            stderr_str = f"{std_err:8.4f}" if std_err is not None else "N/A"
+            zscore_str = f"{z_score:8.3f}" if z_score is not None else "N/A"
+            pvalue_str = f"{p_value:8.4f}" if p_value is not None else "N/A"
+
+            lines.append(
+                f"{feature:<25} {coeff_str:<12} {stderr_str:<12} {zscore_str:<10} {pvalue_str:<10}"
+            )
+
+        lines.append("")
+        lines.append(
+            "Note: Standard errors calculated using bootstrap method (100 samples)"
+        )
+        if any(stats["std_error"] is None for stats in coeffs.values()):
+            lines.append(
+                "Some standard errors unavailable - check training data storage"
+            )
+
+        return "\\n".join(lines)
+
     def save(self, filepath: str) -> None:
         """
         Save prediction object to disk.
@@ -498,6 +594,69 @@ class Prediction:
         if len(sorted_features) > 10:
             report_lines.append(
                 f"| ... | ... | ... | ... | *{len(sorted_features) - 10} more features* |"
+            )
+
+        # Add coefficient section if available
+        coeffs = self.get_coefficients_and_errors()
+        if coeffs is not None:
+            report_lines.extend(
+                [
+                    "",
+                    "### Model Coefficients and Statistical Tests",
+                    "",
+                    "| Feature | Coefficient | Std Error | z-score | p-value | Significance |",
+                    "|---------|-------------|-----------|---------|---------|--------------|",
+                ]
+            )
+
+            # Sort by absolute coefficient magnitude
+            sorted_coeffs = sorted(
+                coeffs.items(), key=lambda x: abs(x[1]["coefficient"]), reverse=True
+            )
+
+            for feature, stats in sorted_coeffs[:15]:  # Show top 15 features
+                coeff = stats["coefficient"]
+                std_err = stats["std_error"]
+                z_score = stats["z_score"]
+                p_value = stats["p_value"]
+
+                # Format significance level
+                if p_value is not None:
+                    if p_value < 0.001:
+                        significance = "***"
+                    elif p_value < 0.01:
+                        significance = "**"
+                    elif p_value < 0.05:
+                        significance = "*"
+                    else:
+                        significance = ""
+                else:
+                    significance = "N/A"
+
+                # Format values
+                coeff_str = f"{coeff:8.4f}"
+                stderr_str = f"{std_err:8.4f}" if std_err is not None else "N/A"
+                zscore_str = f"{z_score:8.3f}" if z_score is not None else "N/A"
+                pvalue_str = f"{p_value:8.4f}" if p_value is not None else "N/A"
+
+                report_lines.append(
+                    f"| {feature:<20} | {coeff_str} | {stderr_str} | {zscore_str} | {pvalue_str} | {significance} |"
+                )
+
+            if len(sorted_coeffs) > 15:
+                report_lines.append(
+                    f"| ... | ... | ... | ... | ... | *{len(sorted_coeffs) - 15} more coefficients* |"
+                )
+
+            report_lines.extend(
+                [
+                    "",
+                    "**Significance Codes:** *** p<0.001, ** p<0.01, * p<0.05",
+                    "",
+                    "**Note:** Standard errors estimated using bootstrap method (100 samples). ",
+                    "For production use, consider more sophisticated inference methods.",
+                    "",
+                ]
             )
 
         # Data quality section
@@ -1030,7 +1189,113 @@ class Prediction:
                         </div>
                     </div>
                 </details>
+        """
 
+        # Add coefficient section if available
+        coeffs = self.get_coefficients_and_errors()
+        if coeffs is not None:
+            sorted_coeffs = sorted(
+                coeffs.items(), key=lambda x: abs(x[1]["coefficient"]), reverse=True
+            )
+
+            html += f"""
+                <!-- Model Coefficients (Collapsible) -->
+                <details style="border-bottom: 1px solid #eee;">
+                    <summary style="padding: 15px; cursor: pointer; background: #f8f9fa; font-weight: bold;
+                                   border-bottom: 1px solid #eee; user-select: none;">
+                        📊 Model Coefficients & Statistical Tests ({len(sorted_coeffs)} features)
+                    </summary>
+                    <div style="padding: 15px;">
+                        <div style="margin-bottom: 15px; padding: 10px; background: #f0f7ff; border-radius: 5px; font-size: 12px;">
+                            <strong>Statistical Significance:</strong> *** p&lt;0.001, ** p&lt;0.01, * p&lt;0.05<br>
+                            <strong>Note:</strong> Standard errors estimated using bootstrap method (100 samples)
+                        </div>
+                        <div style="max-height: 400px; overflow-y: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                                <thead style="background: #f5f5f5; position: sticky; top: 0;">
+                                    <tr>
+                                        <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Feature</th>
+                                        <th style="padding: 8px; text-align: right; border-bottom: 2px solid #ddd;">Coefficient</th>
+                                        <th style="padding: 8px; text-align: right; border-bottom: 2px solid #ddd;">Std Error</th>
+                                        <th style="padding: 8px; text-align: right; border-bottom: 2px solid #ddd;">z-score</th>
+                                        <th style="padding: 8px; text-align: right; border-bottom: 2px solid #ddd;">p-value</th>
+                                        <th style="padding: 8px; text-align: center; border-bottom: 2px solid #ddd;">Sig.</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+            """
+
+            for i, (feature, stats) in enumerate(sorted_coeffs[:20]):  # Show top 20
+                coeff = stats["coefficient"]
+                std_err = stats["std_error"]
+                z_score = stats["z_score"]
+                p_value = stats["p_value"]
+
+                # Format significance
+                if p_value is not None:
+                    if p_value < 0.001:
+                        significance = "***"
+                        sig_color = "#d32f2f"
+                    elif p_value < 0.01:
+                        significance = "**"
+                        sig_color = "#f57c00"
+                    elif p_value < 0.05:
+                        significance = "*"
+                        sig_color = "#388e3c"
+                    else:
+                        significance = ""
+                        sig_color = "#666"
+                else:
+                    significance = "N/A"
+                    sig_color = "#666"
+
+                # Row background alternating
+                row_bg = "#f9f9f9" if i % 2 == 0 else "white"
+
+                # Color coefficient based on sign and magnitude
+                coeff_color = "#d32f2f" if coeff < 0 else "#388e3c"
+
+                html += f"""
+                                    <tr style="background: {row_bg};">
+                                        <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">
+                                            <code style="font-size: 11px;">{feature}</code>
+                                        </td>
+                                        <td style="padding: 6px 8px; text-align: right; border-bottom: 1px solid #eee; font-family: monospace; color: {coeff_color};">
+                                            {coeff:8.4f}
+                                        </td>
+                                        <td style="padding: 6px 8px; text-align: right; border-bottom: 1px solid #eee; font-family: monospace;">
+                                            {std_err:8.4f if std_err is not None else 'N/A'}
+                                        </td>
+                                        <td style="padding: 6px 8px; text-align: right; border-bottom: 1px solid #eee; font-family: monospace;">
+                                            {z_score:8.3f if z_score is not None else 'N/A'}
+                                        </td>
+                                        <td style="padding: 6px 8px; text-align: right; border-bottom: 1px solid #eee; font-family: monospace;">
+                                            {p_value:8.4f if p_value is not None else 'N/A'}
+                                        </td>
+                                        <td style="padding: 6px 8px; text-align: center; border-bottom: 1px solid #eee; font-weight: bold; color: {sig_color};">
+                                            {significance}
+                                        </td>
+                                    </tr>
+                """
+
+            if len(sorted_coeffs) > 20:
+                html += f"""
+                                    <tr>
+                                        <td colspan="6" style="padding: 10px; text-align: center; color: #666; font-style: italic; border-bottom: 1px solid #eee;">
+                                            ... and {len(sorted_coeffs) - 20} more coefficients
+                                        </td>
+                                    </tr>
+                """
+
+            html += """
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </details>
+        """
+
+        html += """
                 <!-- Model Insights (Collapsible) -->
                 <details style="border-bottom: 1px solid #eee;">
                     <summary style="padding: 15px; cursor: pointer; background: #f8f9fa; font-weight: bold;
