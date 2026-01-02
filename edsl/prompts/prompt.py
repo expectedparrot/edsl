@@ -6,6 +6,7 @@ import time
 from functools import lru_cache
 
 from jinja2 import Environment, meta, Undefined
+from jinja2.sandbox import SandboxedEnvironment
 
 from .exceptions import TemplateRenderError, PromptValueError, PromptImplementationError
 from ..base import PersistenceMixin, RepresentationMixin
@@ -42,11 +43,14 @@ class TemplateVars:
         return self.data
 
 
-def make_env() -> Environment:
-    """Create a fresh Jinja environment each time,
-    so we don't mix captured variables across multiple renders.
+def make_env() -> SandboxedEnvironment:
+    """Create a fresh sandboxed Jinja environment each time.
+
+    Uses SandboxedEnvironment to prevent Server-Side Template Injection (SSTI)
+    attacks by blocking access to dangerous attributes like __class__, __mro__,
+    __globals__, etc.
     """
-    return Environment(undefined=PreserveUndefined)
+    return SandboxedEnvironment(undefined=PreserveUndefined)
 
 
 @lru_cache(maxsize=100000)
