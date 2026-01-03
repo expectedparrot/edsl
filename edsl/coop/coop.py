@@ -1792,6 +1792,7 @@ class Coop(CoopFunctionsMixin):
         status: RemoteJobStatus = "queued",
         visibility: Optional[VisibilityType] = "private",
         initial_results_visibility: Optional[VisibilityType] = "private",
+        initial_results_description: Optional[str] = None,
         iterations: Optional[int] = 1,
         fresh: Optional[bool] = False,
     ) -> RemoteInferenceCreationInfo:
@@ -1884,6 +1885,7 @@ class Coop(CoopFunctionsMixin):
                 "job_uuid": job_uuid,
                 "message": "Job uploaded successfully",
                 "nr_questions": job.nr_questions,
+                "initial_results_description": initial_results_description,
             },
         )
         response_json = response.json()
