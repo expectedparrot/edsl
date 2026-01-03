@@ -3182,7 +3182,7 @@ class Survey(Base):
         human_survey_name: str = "New survey",
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
-        survey_visibility: Optional["VisibilityType"] = "unlisted",
+        survey_visibility: Optional["VisibilityType"] = "private",
     ) -> dict:
         """
         Send the survey to Coop.

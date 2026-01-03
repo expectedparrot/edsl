@@ -2562,10 +2562,10 @@ class Jobs(Base):
         ] = None,
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
-        survey_visibility: Optional["VisibilityType"] = "unlisted",
+        survey_visibility: Optional["VisibilityType"] = "private",
         scenario_list_description: Optional[str] = None,
         scenario_list_alias: Optional[str] = None,
-        scenario_list_visibility: Optional["VisibilityType"] = "unlisted",
+        scenario_list_visibility: Optional["VisibilityType"] = "private",
     ):
         """Send the survey and scenario list to Coop.
 
