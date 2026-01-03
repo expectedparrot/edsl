@@ -247,37 +247,11 @@ class PersistenceMixin:
         # Return the string for non-Jupyter environments or when explicitly requested
         return response
 
-    # def push(
-    #     self,
-    #     description: Optional[str] = None,
-    #     alias: Optional[str] = None,
-    #     visibility: Optional[str] = "unlisted",
-    #     expected_parrot_url: Optional[str] = None,
-    # ):
-    #     """Upload this object to the EDSL cooperative platform.
-
-    #     This method serializes the object and posts it to the EDSL coop service,
-    #     making it accessible to others or for your own use across sessions.
-
-    #     Args:
-    #         description: Optional text description of the object
-    #         alias: Optional human-readable identifier for the object
-    #         visibility: Access level setting ("private", "unlisted", or "public")
-    #         expected_parrot_url: Optional custom URL for the coop service
-
-    #     Returns:
-    #         The response from the coop service containing the object's unique identifier
-    #     """
-    #     from edsl.coop import Coop
-
-    #     c = Coop(url=expected_parrot_url)
-    #     return c.create(self, description, alias, visibility)
-
     def push(
         self,
         description: Optional[str] = None,
         alias: Optional[str] = None,
-        visibility: Optional[str] = "unlisted",
+        visibility: Optional[str] = "private",
         expected_parrot_url: Optional[str] = None,
         force: bool = False,
     ) -> dict:

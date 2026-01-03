@@ -254,7 +254,7 @@ class Notebook(Base):
         self,
         description: Optional[str] = None,
         alias: Optional[str] = None,
-        visibility: Optional[str] = "unlisted",
+        visibility: Optional[str] = "private",
         expected_parrot_url: Optional[str] = None,
     ) -> dict:
         """
@@ -266,7 +266,7 @@ class Notebook(Base):
 
         :param description: Optional description for the notebook
         :param alias: Optional alias for the notebook
-        :param visibility: Visibility setting (default: "unlisted")
+        :param visibility: Visibility setting (default: "private")
         :param expected_parrot_url: Optional custom URL for the coop service
         :return: Response dictionary from the push operation
         """
