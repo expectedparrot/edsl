@@ -207,14 +207,24 @@ class AsyncInterviewRunner:
             # Filter out None results and yield a new list to avoid keeping the original tuple references
             valid_results = []
             for r in results:
-                if r is not None:
-                    result, interview, idx = r
-                    # Create a new tuple to break reference to the original
-                    new_tuple = (result, interview, idx)
-                    valid_results.append(new_tuple)
+                if r is None:
+                    continue
+                # When return_exceptions=True, asyncio.gather returns Exception objects
+                # for failed tasks instead of raising them. We must handle these explicitly.
+                if isinstance(r, Exception):
+                    self._logger.error(f"Interview failed with exception: {type(r).__name__}: {r}")
+                    # Re-raise critical exceptions that should stop the entire job
+                    from ..language_models.exceptions import LanguageModelInsufficientCreditsError
+                    if isinstance(r, (LanguageModelInsufficientCreditsError, JobTerminationError)):
+                        raise r
+                    continue
+                result, interview, idx = r
+                # Create a new tuple to break reference to the original
+                new_tuple = (result, interview, idx)
+                valid_results.append(new_tuple)
 
-                    # Clear original tuple to help GC
-                    del r
+                # Clear original tuple to help GC
+                del r
 
             yield valid_results
 
