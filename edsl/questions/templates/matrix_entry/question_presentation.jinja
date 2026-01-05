@@ -1,0 +1,24 @@
+{{question_text}}
+
+Items to rate (rows):
+{% for item in question_items %}
+    - {{item}}
+{% endfor %}
+
+Scenarios/Categories (columns):
+{% for column in question_columns %}
+    - {{column}}
+{% endfor %}
+
+{% if min_value is not none or max_value is not none %}
+Rating constraints:
+{% if min_value is not none and max_value is not none %}
+    Values must be between {{min_value}} and {{max_value}}
+{% elif min_value is not none %}
+    Values must be >= {{min_value}}
+{% elif max_value is not none %}
+    Values must be <= {{max_value}}
+{% endif %}
+{% endif %}
+
+Provide a numeric rating for each item across all scenarios.

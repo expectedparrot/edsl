@@ -55,15 +55,36 @@ class TestFeatureProcessor:
 
     def test_text_list_feature_detection(self):
         """Test detection of text list features."""
+        # With default (dummy) encoding, lists should be detected as list_dummy
         processor = FeatureProcessor()
 
         # Test bracketed lists
         text_series = pd.Series(["['Tool A', 'Tool B']", "['Tool C']", "['Tool A', 'Tool D']"])
-        assert processor.detect_feature_type(text_series) == 'text_list'
+        assert processor.detect_feature_type(text_series) == 'list_dummy'
 
         # Test comma-separated lists
         comma_series = pd.Series(["Tool A, Tool B", "Tool C", "Tool A, Tool D"])
-        assert processor.detect_feature_type(comma_series) == 'text_list'
+        assert processor.detect_feature_type(comma_series) == 'list_dummy'
+
+        # Test with explicit TF-IDF encoding - should be text_list
+        tfidf_processor = FeatureProcessor(list_encoding="tfidf")
+        assert tfidf_processor.detect_feature_type(text_series) == 'text_list'
+
+    def test_list_dummy_feature_detection(self):
+        """Test detection of list dummy features when dummy encoding is enabled."""
+        processor = FeatureProcessor(list_encoding="dummy")
+
+        # Test bracketed lists - should be detected as list_dummy
+        text_series = pd.Series(["['Tool A', 'Tool B']", "['Tool C']", "['Tool A', 'Tool D']"])
+        assert processor.detect_feature_type(text_series) == 'list_dummy'
+
+        # Test comma-separated lists - should be detected as list_dummy
+        comma_series = pd.Series(["Tool A, Tool B", "Tool C", "Tool A, Tool D"])
+        assert processor.detect_feature_type(comma_series) == 'list_dummy'
+
+        # Test with TF-IDF encoding (default) - should still be text_list
+        tfidf_processor = FeatureProcessor(list_encoding="tfidf")
+        assert tfidf_processor.detect_feature_type(text_series) == 'text_list'
 
     def test_fit_transform_basic(self):
         """Test basic fit_transform functionality."""
@@ -176,8 +197,9 @@ class TestFeatureProcessor:
         assert size_processor['mapping']['1-5'] < size_processor['mapping']['101-500']
 
     def test_text_list_processing(self):
-        """Test text list feature processing."""
-        processor = FeatureProcessor()
+        """Test text list feature processing with TF-IDF encoding."""
+        # Explicitly use TF-IDF encoding since dummy is now default
+        processor = FeatureProcessor(list_encoding="tfidf")
 
         # Create text list data
         df = pd.DataFrame({
@@ -191,6 +213,111 @@ class TestFeatureProcessor:
         tools_processor = processor.processors['tools']
         assert tools_processor['type'] == 'text_list'
         assert len(tools_processor['feature_names']) > 0
+
+    def test_list_dummy_processing(self):
+        """Test list dummy variable processing (default behavior)."""
+        processor = FeatureProcessor()  # Should use dummy encoding by default
+
+        # Create test data with your example format
+        df = pd.DataFrame({
+            'tools': ["['a', 'b', 'c']", "['b', 'c']", "['a']"],
+            'target': ['Yes', 'No', 'Yes']
+        })
+
+        X = processor.fit_transform(df, 'target')
+
+        # Check that dummy variables were created
+        tools_processor = processor.processors['tools']
+        assert tools_processor['type'] == 'list_dummy'
+
+        # Should have unique items a, b, c
+        expected_items = ['a', 'b', 'c']
+        assert tools_processor['unique_items'] == expected_items
+
+        # Should have 3 feature names (one for each item)
+        expected_feature_names = ['tools_a', 'tools_b', 'tools_c']
+        assert tools_processor['feature_names'] == expected_feature_names
+
+        # Test transformation results
+        # First row ['a', 'b', 'c'] should be [1, 1, 1] (after scaling)
+        # Second row ['b', 'c'] should be [0, 1, 1] (after scaling)
+        # Third row ['a'] should be [1, 0, 0] (after scaling)
+
+        # Since StandardScaler is applied, we need to check the raw dummy matrix
+        # Let's test the transform method on the same data to get raw dummies
+        raw_dummies = processor._transform_list_dummy(df['tools'], tools_processor)
+
+        # Check the binary patterns
+        expected_dummies = np.array([
+            [1.0, 1.0, 1.0],  # ['a', 'b', 'c'] -> a=1, b=1, c=1
+            [0.0, 1.0, 1.0],  # ['b', 'c'] -> a=0, b=1, c=1
+            [1.0, 0.0, 0.0]   # ['a'] -> a=1, b=0, c=0
+        ])
+        np.testing.assert_array_equal(raw_dummies, expected_dummies)
+
+    def test_list_dummy_with_missing_values(self):
+        """Test list dummy processing with missing values."""
+        processor = FeatureProcessor()  # Uses dummy encoding by default
+
+        df = pd.DataFrame({
+            'tools': ["['a', 'b']", None, "['a', 'c']", ""],
+            'target': ['Yes', 'No', 'Yes', 'No']
+        })
+
+        X = processor.fit_transform(df, 'target')
+
+        # Missing/empty values should be handled gracefully
+        tools_processor = processor.processors['tools']
+        assert tools_processor['type'] == 'list_dummy'
+
+        # Should still extract unique items from non-null values
+        expected_items = ['a', 'b', 'c']
+        assert tools_processor['unique_items'] == expected_items
+
+        # Test raw transformation
+        raw_dummies = processor._transform_list_dummy(df['tools'], tools_processor)
+        expected_dummies = np.array([
+            [1.0, 1.0, 0.0],  # ['a', 'b'] -> a=1, b=1, c=0
+            [0.0, 0.0, 0.0],  # None -> a=0, b=0, c=0
+            [1.0, 0.0, 1.0],  # ['a', 'c'] -> a=1, b=0, c=1
+            [0.0, 0.0, 0.0]   # "" -> a=0, b=0, c=0
+        ])
+        np.testing.assert_array_equal(raw_dummies, expected_dummies)
+
+    def test_list_dummy_different_formats(self):
+        """Test list dummy processing with different input formats."""
+        processor = FeatureProcessor()  # Uses dummy encoding by default
+
+        df = pd.DataFrame({
+            'tools': [
+                "['Tool A', 'Tool B']",  # Bracketed with quotes
+                "Tool A, Tool B",        # Comma-separated
+                '["Tool C", "Tool A"]',  # Double quotes
+                "Tool B,Tool C",         # No spaces after comma
+            ],
+            'target': ['A', 'B', 'A', 'B']
+        })
+
+        X = processor.fit_transform(df, 'target')
+
+        tools_processor = processor.processors['tools']
+        assert tools_processor['type'] == 'list_dummy'
+
+        # Should extract all unique tools
+        expected_items = ['Tool A', 'Tool B', 'Tool C']
+        assert sorted(tools_processor['unique_items']) == expected_items
+
+    def test_parse_list_items(self):
+        """Test the _parse_list_items helper method."""
+        processor = FeatureProcessor()  # Uses dummy encoding by default
+
+        # Test different formats
+        assert processor._parse_list_items("['a', 'b', 'c']") == ['a', 'b', 'c']
+        assert processor._parse_list_items('["x", "y"]') == ['x', 'y']
+        assert processor._parse_list_items("item1, item2") == ['item1', 'item2']
+        assert processor._parse_list_items("single") == ['single']
+        assert processor._parse_list_items("") == []
+        assert processor._parse_list_items("  ") == []
 
     def test_get_feature_info(self):
         """Test feature information retrieval."""

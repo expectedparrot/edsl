@@ -24,7 +24,8 @@ Core Question Types:
 - QuestionNumerical: Numeric responses within an optional range
 - QuestionList: Responses in the form of lists or arrays
 - QuestionDict: Responses with key-value pairs
-- QuestionMatrix: Grid-based responses with rows and columns
+- QuestionMatrix: Grid-based responses with rows and columns (selection-based)
+- QuestionMatrixEntry: Grid-based responses with numeric entry in each cell
 - QuestionBudget: Allocation of a budget across multiple options
 - QuestionDemand: Quantities demanded at various price points (demand curve)
 - QuestionRank: Ordering of items by preference or other criteria
@@ -120,6 +121,7 @@ from .question_functional import QuestionFunctional
 from .question_compute import QuestionCompute
 from .question_list import QuestionList
 from .question_matrix import QuestionMatrix
+from .question_matrix_entry import QuestionMatrixEntry
 from .question_dict import QuestionDict
 from .question_multiple_choice import QuestionMultipleChoice
 from .question_numerical import QuestionNumerical
@@ -175,6 +177,7 @@ __all__ = [
     "QuestionCompute",
     "QuestionList",
     "QuestionMatrix",
+    "QuestionMatrixEntry",
     "QuestionNumerical",
     "QuestionBudget",
     "QuestionDemand",
