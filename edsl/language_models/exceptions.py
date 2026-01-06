@@ -93,8 +93,8 @@ class LanguageModelBadResponseError(LanguageModelExceptions):
     )
     explanation = "This happens when the language model API responds, but does not return a usable or properly formatted answer."
 
-    def __init__(self, message, response_json: Optional[dict] = None):
-        super().__init__(message)
+    def __init__(self, message, response_json: Optional[dict] = None, silent: bool = False):
+        super().__init__(message, silent=silent)
         self.response_json = response_json
 
 
@@ -271,8 +271,8 @@ class LanguageModelTypeError(LanguageModelExceptions):
         ```
     """
 
-    def __init__(self, message="Type mismatch in language model operation", **kwargs):
-        super().__init__(message, **kwargs)
+    def __init__(self, message="Type mismatch in language model operation", silent: bool = False, **kwargs):
+        super().__init__(message, silent=silent, **kwargs)
 
 
 class LanguageModelImplementationError(LanguageModelExceptions):
@@ -349,8 +349,8 @@ class LanguageModelKeyError(LanguageModelExceptions):
         ```
     """
 
-    def __init__(self, message="Key missing in language model operation", **kwargs):
-        super().__init__(message, **kwargs)
+    def __init__(self, message="Key missing in language model operation", silent: bool = False, **kwargs):
+        super().__init__(message, silent=silent, **kwargs)
 
 
 class LanguageModelIndexError(LanguageModelExceptions):
@@ -376,9 +376,9 @@ class LanguageModelIndexError(LanguageModelExceptions):
     """
 
     def __init__(
-        self, message="Index out of range in language model operation", **kwargs
+        self, message="Index out of range in language model operation", silent: bool = False, **kwargs
     ):
-        super().__init__(message, **kwargs)
+        super().__init__(message, silent=silent, **kwargs)
 
 
 class LanguageModelBalanceError(LanguageModelExceptions):

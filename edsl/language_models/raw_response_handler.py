@@ -22,20 +22,25 @@ def _extract_item_from_raw_response(data, sequence):
             if isinstance(current_data, (list, tuple)):
                 if not isinstance(key, int):
                     raise LanguageModelTypeError(
-                        f"Expected integer index for sequence at position {i}, got {type(key).__name__}"
+                        f"Expected integer index for sequence at position {i}, got {type(key).__name__}",
+                        silent=True,
                     )
                 if key < 0 or key >= len(current_data):
                     raise LanguageModelIndexError(
-                        f"Index {key} out of range for sequence of length {len(current_data)} at position {i}"
+                        f"Index {key} out of range for sequence of length {len(current_data)} at position {i}",
+                        silent=True,
                     )
             elif isinstance(current_data, dict):
                 if key not in current_data:
                     raise LanguageModelKeyError(
-                        f"Key '{key}' not found in dictionary at position {i}"
+                        f"Key '{key}' not found in dictionary at position {i}",
+                        silent=True,
                     )
             else:
+                # Use silent=True to avoid logging noise for expected parsing variations
                 raise LanguageModelTypeError(
-                    f"Cannot index into {type(current_data).__name__} at position {i}. Full response is: {data} of type {type(data)}. Key sequence is: {sequence}"
+                    f"Cannot index into {type(current_data).__name__} at position {i}. Full response is: {data} of type {type(data)}. Key sequence is: {sequence}",
+                    silent=True,
                 )
 
             current_data = current_data[key]
@@ -48,7 +53,7 @@ def _extract_item_from_raw_response(data, sequence):
             else:
                 msg = f"Error accessing path: {path}. {str(e)}. Full response is: '{data}'"
 
-            raise LanguageModelBadResponseError(message=msg, response_json=data)
+            raise LanguageModelBadResponseError(message=msg, response_json=data, silent=True)
     if isinstance(current_data, str):
         return current_data.strip()
     else:
@@ -80,14 +85,14 @@ class RawResponseHandler:
             # For non-reasoning models or reasoning models with different response formats,
             # try to extract text directly from common response formats
             if isinstance(raw_response, dict):
-                # Responses API format for non-reasoning models
+                # Responses API format - iterate through output items to find message content
+                # For reasoning models, output[0] may be a reasoning block with content=None,
+                # and the actual message is in output[1] or later
                 if "output" in raw_response and isinstance(
                     raw_response["output"], list
                 ):
-                    # Try to get first message content
-                    if len(raw_response["output"]) > 0:
-                        item = raw_response["output"][0]
-                        if isinstance(item, dict) and "content" in item:
+                    for item in raw_response["output"]:
+                        if isinstance(item, dict) and "content" in item and item["content"] is not None:
                             if (
                                 isinstance(item["content"], list)
                                 and len(item["content"]) > 0
