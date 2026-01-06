@@ -1769,6 +1769,44 @@ class Jobs(Base):
         )
         return final_results
 
+    def new_run(self, n: int = 1, cache=None, debug: bool = False, timing: bool = False) -> "Results":
+        """Run the job using the new Runner system.
+
+        This is an alternative job execution approach using the runner module.
+
+        Parameters
+        ----------
+        n : int, optional
+            Number of iterations to run each interview (default: 1)
+        cache : Cache, optional
+            Cache object to store results
+        debug : bool, optional
+            Whether to enable debug output (default: False)
+        timing : bool, optional
+            Whether to print timing breakdown of execution phases (default: False)
+
+        Returns
+        -------
+            Results: A Results object containing all responses and metadata
+        """
+        import sys
+        import time as time_module
+        sys.path.insert(0, '/Users/johnhorton/tools/ep/runner')
+        from runner import Runner
+
+        t0 = time_module.time()
+        runner = Runner()
+        handle = runner.submit(self, n=n, cache=cache)
+        job_creation_time = time_module.time() - t0
+
+        results = handle.results(debug=debug, timing=timing)
+
+        # If timing was requested, print job creation time after the report
+        if timing:
+            print(f"(Job creation was: {job_creation_time*1000:.1f} ms)")
+
+        return results
+
     def run_batch(self, num_batches: int, **kwargs) -> Optional["Results"]:
         """Run the job by splitting interviews into batches and running them separately.
 

@@ -164,6 +164,32 @@ class RawResponseHandler:
             # If no usage info found, return empty dict
             return {}
 
+    def _path_exists(self, data, sequence) -> bool:
+        """Check if a path exists in data without raising exceptions."""
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except json.JSONDecodeError:
+                return False
+        current = data
+        for key in sequence:
+            if isinstance(current, (list, tuple)):
+                if not isinstance(key, int) or key < 0 or key >= len(current):
+                    return False
+            elif isinstance(current, dict):
+                if key not in current:
+                    return False
+            else:
+                return False
+            current = current[key]
+        return True
+
+    def _safe_extract(self, data, sequence):
+        """Extract value from path, returning None if path doesn't exist."""
+        if not self._path_exists(data, sequence):
+            return None
+        return _extract_item_from_raw_response(data, sequence)
+
     def get_reasoning_summary(self, raw_response):
         """
         Extract reasoning summary from the model response.
@@ -176,60 +202,50 @@ class RawResponseHandler:
         if self.reasoning_sequence is None:
             return None
 
-        try:
-            # First try the standard extraction path
-            summary_data = _extract_item_from_raw_response(
-                raw_response, self.reasoning_sequence
-            )
-
-            # If summary_data is a list of dictionaries with 'text' and 'type' fields
-            # (as in OpenAI's response format), combine them into a single string
+        def _format_summary(summary_data):
+            """Format summary data if it's a list of dicts with 'text' fields."""
             if isinstance(summary_data, list) and all(
                 isinstance(item, dict) and "text" in item for item in summary_data
             ):
                 return "\n\n".join(item["text"] for item in summary_data)
-
             return summary_data
-        except Exception:
-            # Fallback approaches for different response structures
-            try:
-                # Case 1: Direct dict with 'output' field (common OpenAI format)
-                if isinstance(raw_response, dict) and "output" in raw_response:
-                    output = raw_response["output"]
-                    if (
-                        isinstance(output, list)
-                        and len(output) > 0
-                        and "summary" in output[0]
-                    ):
-                        summary_data = output[0]["summary"]
-                        if isinstance(summary_data, list) and all(
-                            isinstance(item, dict) and "text" in item
-                            for item in summary_data
-                        ):
-                            return "\n\n".join(item["text"] for item in summary_data)
 
-                # Case 2: List where the first item is a dict with 'output' field
-                if isinstance(raw_response, list) and len(raw_response) > 0:
-                    first_item = raw_response[0]
-                    if isinstance(first_item, dict) and "output" in first_item:
-                        output = first_item["output"]
-                        if (
-                            isinstance(output, list)
-                            and len(output) > 0
-                            and "summary" in output[0]
-                        ):
-                            summary_data = output[0]["summary"]
-                            if isinstance(summary_data, list) and all(
-                                isinstance(item, dict) and "text" in item
-                                for item in summary_data
-                            ):
-                                return "\n\n".join(
-                                    item["text"] for item in summary_data
-                                )
-            except Exception:
-                pass
+        # First try the standard extraction path (check exists first)
+        if self._path_exists(raw_response, self.reasoning_sequence):
+            summary_data = _extract_item_from_raw_response(
+                raw_response, self.reasoning_sequence
+            )
+            return _format_summary(summary_data)
 
-            return None
+        # Fallback: Case 1 - Direct dict with 'output' field (common OpenAI format)
+        if isinstance(raw_response, dict) and "output" in raw_response:
+            output = raw_response["output"]
+            if (
+                isinstance(output, list)
+                and len(output) > 0
+                and isinstance(output[0], dict)
+                and "summary" in output[0]
+            ):
+                summary_data = output[0]["summary"]
+                if summary_data is not None:
+                    return _format_summary(summary_data)
+
+        # Fallback: Case 2 - List where the first item is a dict with 'output' field
+        if isinstance(raw_response, list) and len(raw_response) > 0:
+            first_item = raw_response[0]
+            if isinstance(first_item, dict) and "output" in first_item:
+                output = first_item["output"]
+                if (
+                    isinstance(output, list)
+                    and len(output) > 0
+                    and isinstance(output[0], dict)
+                    and "summary" in output[0]
+                ):
+                    summary_data = output[0]["summary"]
+                    if summary_data is not None:
+                        return _format_summary(summary_data)
+
+        return None
 
     def parse_response(self, raw_response: dict[str, Any]) -> Any:
         """Parses the API response and returns the response text."""
