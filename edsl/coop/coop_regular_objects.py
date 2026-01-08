@@ -20,14 +20,33 @@ class CoopRegularObjects(CoopObjects):
         total_count: Optional[int] = None,
     ):
         super().__init__(data, codebook)
-        self.current_page = current_page
+        # Store pagination info in store.meta rather than as instance attributes
+        self.store.meta["pagination"] = {
+            "current_page": current_page,
+            "total_pages": total_pages,
+            "page_size": page_size,
+            "total_count": total_count,
+        }
+
+    @property
+    def current_page(self) -> Optional[int]:
         """The current page of the search results."""
-        self.total_pages = total_pages
+        return self.store.meta.get("pagination", {}).get("current_page")
+
+    @property
+    def total_pages(self) -> Optional[int]:
         """The total number of pages in the search results."""
-        self.page_size = page_size
+        return self.store.meta.get("pagination", {}).get("total_pages")
+
+    @property
+    def page_size(self) -> Optional[int]:
         """The number of objects per page."""
-        self.total_count = total_count
+        return self.store.meta.get("pagination", {}).get("page_size")
+
+    @property
+    def total_count(self) -> Optional[int]:
         """The total number of objects that match the query (including those not in the current page)."""
+        return self.store.meta.get("pagination", {}).get("total_count")
 
     def fetch(self) -> List:
         """Fetch each object in the list and return them as EDSL objects.

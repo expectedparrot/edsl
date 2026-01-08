@@ -10,13 +10,9 @@ from .interview_tuple_filter import InterviewTupleFilter
 
 # Module-level timing dictionary for create_interviews performance tracking
 _create_interviews_timing = {
-    "hash_agents": 0.0,
-    "hash_models": 0.0,
-    "hash_scenarios": 0.0,
     "product_iteration": 0.0,
     "survey_draw": 0.0,
     "interview_creation": 0.0,
-    "hash_lookups": 0.0,
     "total": 0.0,
     "call_count": 0,
 }
@@ -45,30 +41,14 @@ class InterviewsConstructor:
         method_start = time.time()
         _create_interviews_timing["call_count"] += 1
 
-        t0 = time.time()
-        for index, agent in enumerate(self.jobs.agents):
-            agent._position_index = index
-        _create_interviews_timing["hash_agents"] += time.time() - t0
-
-        t1 = time.time()
-        for index, model in enumerate(self.jobs.models):
-            model._position_index = index
-        _create_interviews_timing["hash_models"] += time.time() - t1
-
-        t2 = time.time()
-        for index, scenario in enumerate(self.jobs.scenarios):
-            scenario._position_index = index
-            scenario.my_hash = hash(scenario)
-        _create_interviews_timing["hash_scenarios"] += time.time() - t2
-
         t3 = time.time()
         tuple_filter = InterviewTupleFilter(
             self.jobs.agents,
-            self.jobs.scenarios,
+            list(self.jobs.scenarios),  # Materialize scenarios once
             self.jobs.models,
             include_expression,
         )
-        for agent, scenario, model in tuple_filter:
+        for (agent_idx, agent), (scenario_idx, scenario), (model_idx, model) in tuple_filter:
             t5 = time.time()
             drawn_survey = (
                 self.jobs.survey.draw()
@@ -85,9 +65,9 @@ class InterviewsConstructor:
                 skip_retry=self.jobs.run_config.parameters.skip_retry,
                 raise_validation_errors=self.jobs.run_config.parameters.raise_validation_errors,
                 indices={
-                    "agent": agent._position_index,
-                    "model": model._position_index,
-                    "scenario": scenario._position_index,
+                    "agent": agent_idx,
+                    "model": model_idx,
+                    "scenario": scenario_idx,
                 },
             )
             _create_interviews_timing["interview_creation"] += time.time() - t6
