@@ -767,3 +767,190 @@ class ScenarioListLikelyRemove:
                 error_msg += "\\n  - Target variable distribution problems"
 
             raise ValueError(error_msg) from e
+
+    # =========================================================================
+    # Deprecated methods (as of 2026-01-08) - will be removed in future version
+    # =========================================================================
+
+    def to_agent_traits(self, agent_name: Optional[str] = None) -> "Agent":
+        """Convert all Scenario objects into traits of a single Agent.
+
+        .. deprecated:: 2026-01-08
+            Use ``sl.convert.agent_traits()`` instead.
+        """
+        warnings.warn(
+            "to_agent_traits() is deprecated as of 2026-01-08. "
+            "Use sl.convert.agent_traits() instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.convert.agent_traits(agent_name)
+
+    def to_scenario_list(self) -> "ScenarioList":
+        """Convert the ScenarioList to a ScenarioList.
+
+        .. deprecated:: 2026-01-08
+            Use ``sl.convert.scenario_list()`` instead.
+        """
+        warnings.warn(
+            "to_scenario_list() is deprecated as of 2026-01-08. "
+            "Use sl.convert.scenario_list() instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.convert.scenario_list()
+
+    def times(self, other: "ScenarioList") -> "ScenarioList":
+        """Takes the cross product of two ScenarioLists.
+
+        .. deprecated::
+            Use ``*`` operator instead.
+        """
+        warnings.warn("times is deprecated, use * instead", DeprecationWarning)
+        return self.__mul__(other)
+
+    def to_survey(self) -> "Survey":
+        """Convert the ScenarioList to a Survey.
+
+        .. deprecated:: 2026-01-08
+            Use ``sl.convert.survey()`` instead.
+        """
+        warnings.warn(
+            "to_survey() is deprecated as of 2026-01-08. "
+            "Use sl.convert.survey() instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.convert.survey()
+
+    def to_dataset(self) -> "Dataset":
+        """Convert the ScenarioList to a Dataset.
+
+        .. deprecated:: 2026-01-08
+            Use ``sl.convert.dataset()`` instead.
+        """
+        warnings.warn(
+            "to_dataset() is deprecated as of 2026-01-08. "
+            "Use sl.convert.dataset() instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.convert.dataset()
+
+    def to_scenario_of_lists(self) -> "Scenario":
+        """Collapse to a single Scenario with list-valued fields.
+
+        .. deprecated:: 2026-01-08
+            Use ``sl.convert.scenario_of_lists()`` instead.
+        """
+        warnings.warn(
+            "to_scenario_of_lists() is deprecated as of 2026-01-08. "
+            "Use sl.convert.scenario_of_lists() instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.convert.scenario_of_lists()
+
+    def to_key_value(self, field: str, value=None) -> Union[dict, set]:
+        """Return the set of values in the field.
+
+        .. deprecated:: 2026-01-08
+            Use ``sl.convert.key_value(field)`` instead.
+        """
+        warnings.warn(
+            "to_key_value() is deprecated as of 2026-01-08. "
+            "Use sl.convert.key_value(field) instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.convert.key_value(field, value)
+
+    def left_join(self, other: "ScenarioList", by: Union[str, list[str]]) -> "ScenarioList":
+        """Perform a left join with another ScenarioList.
+
+        .. deprecated:: 2026-01-08
+            Use ``sl.join.left(other, by)`` instead.
+        """
+        warnings.warn(
+            "left_join() is deprecated as of 2026-01-08. "
+            "Use sl.join.left(other, by) instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.join.left(other, by)
+
+    def inner_join(
+        self, other: "ScenarioList", by: Union[str, list[str]]
+    ) -> "ScenarioList":
+        """Perform an inner join with another ScenarioList.
+
+        .. deprecated:: 2026-01-08
+            Use ``sl.join.inner(other, by)`` instead.
+        """
+        warnings.warn(
+            "inner_join() is deprecated as of 2026-01-08. "
+            "Use sl.join.inner(other, by) instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.join.inner(other, by)
+
+    def right_join(
+        self, other: "ScenarioList", by: Union[str, list[str]]
+    ) -> "ScenarioList":
+        """Perform a right join with another ScenarioList.
+
+        .. deprecated:: 2026-01-08
+            Use ``sl.join.right(other, by)`` instead.
+        """
+        warnings.warn(
+            "right_join() is deprecated as of 2026-01-08. "
+            "Use sl.join.right(other, by) instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.join.right(other, by)
+
+    def to_agent_list(self):
+        """Convert the ScenarioList to an AgentList.
+
+        .. deprecated:: 2026-01-08
+            Use ``sl.convert.agent_list()`` instead.
+        """
+        warnings.warn(
+            "to_agent_list() is deprecated as of 2026-01-08. "
+            "Use sl.convert.agent_list() instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.convert.agent_list()
+
+    def to_agent_blueprint(
+        self,
+        *,
+        seed: Optional[int] = None,
+        cycle: bool = True,
+        dimension_name_field: str = "dimension",
+        dimension_values_field: str = "dimension_values",
+        dimension_description_field: Optional[str] = None,
+        dimension_probs_field: Optional[str] = None,
+    ):
+        """Create an AgentBlueprint from this ScenarioList.
+
+        .. deprecated:: 2026-01-08
+            Use ``sl.convert.agent_blueprint()`` instead.
+        """
+        warnings.warn(
+            "to_agent_blueprint() is deprecated as of 2026-01-08. "
+            "Use sl.convert.agent_blueprint() instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.convert.agent_blueprint(
+            seed=seed,
+            cycle=cycle,
+            dimension_name_field=dimension_name_field,
+            dimension_values_field=dimension_values_field,
+            dimension_description_field=dimension_description_field,
+            dimension_probs_field=dimension_probs_field,
+        )

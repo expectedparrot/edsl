@@ -88,18 +88,12 @@ from ..utilities import (
     sanitize_string,
     is_valid_variable_name,
     dict_hash,
-    memory_profile,
     list_split,
 )
 from ..display.utils import smart_truncate
 from ..dataset import ScenarioListOperationsMixin
-
-from ..db_list.sqlite_list import SQLiteList
-
 from .exceptions import ScenarioError
 from .scenario import Scenario
-from .firecrawl_scenario import FirecrawlRequest
-
 
 if TYPE_CHECKING:
     from ..dataset import Dataset
@@ -122,48 +116,43 @@ TableFormat: TypeAlias = Literal[
 ]
 
 from .scenario_list_likely_remove import ScenarioListLikelyRemove
+from .scenario_list_to import ScenarioListTo
+from .scenario_list_joins import ScenarioListJoin
 
 from edsl.versioning import GitMixin
 from edsl.versioning import event
-from edsl.versioning import AppendRowEvent, UpdateRowEvent
 
-from dataclasses import dataclass
-
-actual_store_notes = f""" 
-manifest:
-- object_uuid: str
-- object_type: str
-- column_names: list[str]
-- num_records: int
-- codebook dictionary 
-- order_uuids = []
-
-data:
-- individual scenario_dicts (jsonl)
-
-events: 
-- serialized events (jsonl)
-"""
-
-from dataclasses import dataclass, asdict
-from typing import Dict, Any, Tuple, Protocol, TypeVar, Generic
-
-# ============================================================================
-# Codec Protocol - converts between domain objects and JSON-serializable dicts
-# ============================================================================
-
-T = TypeVar('T')
-
-class Codec(Protocol[T]):
-    """Protocol for encoding/decoding domain objects to/from primitives."""
-    
-    def encode(self, obj: T) -> dict[str, Any]:
-        """Convert domain object to JSON-serializable dict."""
-        ...
-    
-    def decode(self, data: dict[str, Any]) -> T:
-        """Convert dict back to domain object."""
-        ...
+# Import event-sourcing infrastructure from edsl.store
+from edsl.store import (
+    Codec,
+    Store,
+    Event,
+    AppendRowEvent,
+    UpdateRowEvent,
+    RemoveRowsEvent,
+    InsertRowEvent,
+    UpdateEntryFieldEvent,
+    SetMetaEvent,
+    UpdateMetaEvent,
+    RemoveMetaKeyEvent,
+    ClearEntriesEvent,
+    AddFieldToAllEntriesEvent,
+    AddFieldByIndexEvent,
+    ReplaceAllEntriesEvent,
+    DropFieldsEvent,
+    KeepFieldsEvent,
+    RenameFieldsEvent,
+    ReorderEntriesEvent,
+    FillNaEvent,
+    StringCatFieldEvent,
+    ReplaceValuesEvent,
+    UniquifyFieldEvent,
+    NumberifyEvent,
+    TransformFieldEvent,
+    ReplaceEntriesAndMetaEvent,
+    ReorderKeysEvent,
+    apply_event,
+)
 
 
 class ScenarioCodec:
@@ -177,421 +166,6 @@ class ScenarioCodec:
     
     def decode(self, data: dict[str, Any]) -> "Scenario":
         return Scenario.from_dict(data)
-
-
-# ============================================================================
-# Event Sourcing - Events and Store
-# ============================================================================
-
-@dataclass(frozen=True)
-class Event:
-    @property
-    def name(self) -> str:
-        name = type(event).__name__
-        if name.endswith("Event"):
-            name = name[:-5]
-        # CamelCase to snake_case
-        return ''.join(f'_{c.lower()}' if c.isupper() else c for c in name).lstrip('_')
-    
-    @property
-    def payload(self) -> Dict[str, Any]:
-        return asdict(self)
-
-
-@dataclass(frozen=True)
-class AppendRowEvent(Event):
-    row: dict[str, Any]
-
-
-@dataclass(frozen=True)
-class UpdateRowEvent(Event):
-    index: int
-    row: dict[str, Any]
-
-
-@dataclass(frozen=True)
-class RemoveRowsEvent(Event):
-    """Event that removes rows at specified indices."""
-    indices: tuple[int, ...]  # Use tuple for hashability (frozen dataclass)
-
-
-@dataclass(frozen=True)
-class InsertRowEvent(Event):
-    """Event that inserts a row at a specified index."""
-    index: int
-    row: dict[str, Any]
-
-
-@dataclass(frozen=True)
-class UpdateEntryFieldEvent(Event):
-    """Event that updates a specific field in an entry at a given index."""
-    index: int
-    field: str
-    value: Any
-
-
-@dataclass(frozen=True)
-class SetMetaEvent(Event):
-    """Event that sets a single key-value pair in meta."""
-    key: str
-    value: Any
-
-
-@dataclass(frozen=True)
-class UpdateMetaEvent(Event):
-    """Event that merges multiple key-value pairs into meta."""
-    updates: dict[str, Any]
-
-
-@dataclass(frozen=True)
-class RemoveMetaKeyEvent(Event):
-    """Event that removes a key from meta."""
-    key: str
-
-
-@dataclass(frozen=True)
-class ClearEntriesEvent(Event):
-    """Event that removes all entries."""
-    pass
-
-
-@dataclass(frozen=True)
-class AddFieldToAllEntriesEvent(Event):
-    """Event that adds a field with the same value to all entries."""
-    field: str
-    value: Any
-
-
-@dataclass(frozen=True)
-class AddFieldByIndexEvent(Event):
-    """Event that adds a field with values corresponding to each entry by index."""
-    field: str
-    values: tuple[Any, ...]  # tuple for hashability
-
-
-@dataclass(frozen=True)
-class ReplaceAllEntriesEvent(Event):
-    """Event that replaces all entries with new ones."""
-    entries: tuple[dict[str, Any], ...]  # tuple for hashability
-
-
-@dataclass(frozen=True)
-class DropFieldsEvent(Event):
-    """Event that drops specified fields from all entries."""
-    fields: tuple[str, ...]  # tuple for hashability
-
-
-@dataclass(frozen=True)
-class KeepFieldsEvent(Event):
-    """Event that keeps only specified fields in all entries."""
-    fields: tuple[str, ...]  # tuple for hashability
-
-
-@dataclass(frozen=True)
-class RenameFieldsEvent(Event):
-    """Event that renames fields in all entries."""
-    rename_map: tuple[tuple[str, str], ...]  # tuple of (old, new) pairs for hashability
-
-
-@dataclass(frozen=True)
-class ReorderEntriesEvent(Event):
-    """Event that reorders entries by new index positions."""
-    new_order: tuple[int, ...]  # tuple of indices representing new order
-
-
-@dataclass(frozen=True)
-class FillNaEvent(Event):
-    """Event that fills NA/None values with a specified value."""
-    fill_value: Any
-
-
-@dataclass(frozen=True)
-class StringCatFieldEvent(Event):
-    """Event that concatenates a string to a field in all entries."""
-    field: str
-    addend: str
-    position: str  # "prefix" or "suffix"
-
-
-@dataclass(frozen=True)
-class ReplaceValuesEvent(Event):
-    """Event that replaces values in all entries based on a mapping."""
-    replacements: tuple[tuple[str, Any], ...]  # tuple of (old_str_value, new_value) pairs
-
-
-@dataclass(frozen=True)
-class UniquifyFieldEvent(Event):
-    """Event that makes field values unique by appending suffixes."""
-    field: str
-    new_values: tuple[Any, ...]  # pre-computed unique values for each entry
-
-
-@dataclass(frozen=True)
-class NumberifyEvent(Event):
-    """Event that converts string values to numeric types."""
-    conversions: tuple[tuple[int, str, Any], ...]  # (entry_idx, field, new_value) tuples
-
-
-@dataclass(frozen=True)
-class TransformFieldEvent(Event):
-    """Event that transforms field values with pre-computed results."""
-    field: str
-    new_field: str  # can be same as field for in-place transform
-    new_values: tuple[Any, ...]  # pre-computed transformed values
-
-
-@dataclass(frozen=True)
-class ReplaceEntriesAndMetaEvent(Event):
-    """Event that replaces all entries and updates meta simultaneously."""
-    entries: tuple[dict[str, Any], ...]  # tuple for hashability
-    meta_updates: tuple[tuple[str, Any], ...]  # key-value pairs to update in meta
-
-
-@dataclass(frozen=True)
-class ReorderKeysEvent(Event):
-    """Event that reorders keys in all entries."""
-    new_order: tuple[str, ...]  # ordered key names
-
-
-def apply_event(event: Event, store: Store) -> Store:
-    match event:
-        case AppendRowEvent():
-            return store.append(event.row)
-        case UpdateRowEvent():
-            return store.update_row(event.index, event.row)
-        case RemoveRowsEvent():
-            return store.remove_rows(event.indices)
-        case InsertRowEvent():
-            return store.insert_row(event.index, event.row)
-        case UpdateEntryFieldEvent():
-            return store.update_entry_field(event.index, event.field, event.value)
-        case SetMetaEvent():
-            return store.set_meta(event.key, event.value)
-        case UpdateMetaEvent():
-            return store.update_meta(event.updates)
-        case RemoveMetaKeyEvent():
-            return store.remove_meta_key(event.key)
-        case ClearEntriesEvent():
-            return store.clear_entries()
-        case AddFieldToAllEntriesEvent():
-            return store.add_field_to_all(event.field, event.value)
-        case AddFieldByIndexEvent():
-            return store.add_field_by_index(event.field, event.values)
-        case ReplaceAllEntriesEvent():
-            return store.replace_all_entries(event.entries)
-        case DropFieldsEvent():
-            return store.drop_fields(event.fields)
-        case KeepFieldsEvent():
-            return store.keep_fields(event.fields)
-        case RenameFieldsEvent():
-            return store.rename_fields(event.rename_map)
-        case ReorderEntriesEvent():
-            return store.reorder_entries(event.new_order)
-        case FillNaEvent():
-            return store.fill_na(event.fill_value)
-        case StringCatFieldEvent():
-            return store.string_cat_field(event.field, event.addend, event.position)
-        case ReplaceValuesEvent():
-            return store.replace_values(event.replacements)
-        case UniquifyFieldEvent():
-            return store.uniquify_field(event.field, event.new_values)
-        case NumberifyEvent():
-            return store.numberify(event.conversions)
-        case TransformFieldEvent():
-            return store.transform_field(event.field, event.new_field, event.new_values)
-        case ReplaceEntriesAndMetaEvent():
-            return store.replace_entries_and_meta(event.entries, event.meta_updates)
-        case ReorderKeysEvent():
-            return store.reorder_keys(event.new_order)
-        case _:
-            raise ValueError(f"Unknown event type: {type(event)}")
-
-@dataclass
-class Store:
-    entries: List[dict[str, Any]]
-    meta: dict[str, Any]
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-    def append(self, item: dict[str, Any]) -> "Store":
-        self.entries.append(item)
-        return self
-
-    def update_row(self, index: int, row: dict[str, Any]) -> "Store":
-        self.entries[index] = row
-        return self
-
-    def remove_rows(self, indices: tuple[int, ...]) -> "Store":
-        """Remove rows at specified indices."""
-        indices_to_remove = set(indices)
-        self.entries = [
-            row for i, row in enumerate(self.entries) 
-            if i not in indices_to_remove
-        ]
-        return self
-
-    def insert_row(self, index: int, row: dict[str, Any]) -> "Store":
-        """Insert a row at a specified index."""
-        self.entries.insert(index, row)
-        return self
-
-    def update_entry_field(self, index: int, field: str, value: Any) -> "Store":
-        """Update a specific field in an entry at a given index."""
-        self.entries[index][field] = value
-        return self
-
-    def set_meta(self, key: str, value: Any) -> "Store":
-        """Set a single key-value pair in meta."""
-        self.meta[key] = value
-        return self
-
-    def update_meta(self, updates: dict[str, Any]) -> "Store":
-        """Merge multiple key-value pairs into meta."""
-        self.meta.update(updates)
-        return self
-
-    def remove_meta_key(self, key: str) -> "Store":
-        """Remove a key from meta."""
-        self.meta.pop(key, None)
-        return self
-
-    def clear_entries(self) -> "Store":
-        """Remove all entries."""
-        self.entries.clear()
-        return self
-
-    def add_field_to_all(self, field: str, value: Any) -> "Store":
-        """Add a field with the same value to all entries."""
-        for entry in self.entries:
-            entry[field] = value
-        return self
-
-    def add_field_by_index(self, field: str, values: tuple[Any, ...]) -> "Store":
-        """Add a field with values corresponding to each entry by index."""
-        for i, entry in enumerate(self.entries):
-            entry[field] = values[i]
-        return self
-
-    def replace_all_entries(self, entries: tuple[dict[str, Any], ...]) -> "Store":
-        """Replace all entries with new ones."""
-        self.entries = list(entries)
-        return self
-
-    def drop_fields(self, fields: tuple[str, ...]) -> "Store":
-        """Drop specified fields from all entries."""
-        fields_set = set(fields)
-        for entry in self.entries:
-            for field in fields_set:
-                entry.pop(field, None)
-        return self
-
-    def keep_fields(self, fields: tuple[str, ...]) -> "Store":
-        """Keep only specified fields in all entries."""
-        fields_set = set(fields)
-        for i, entry in enumerate(self.entries):
-            self.entries[i] = {k: v for k, v in entry.items() if k in fields_set}
-        return self
-
-    def rename_fields(self, rename_map: tuple[tuple[str, str], ...]) -> "Store":
-        """Rename fields in all entries."""
-        for entry in self.entries:
-            for old_name, new_name in rename_map:
-                if old_name in entry:
-                    entry[new_name] = entry.pop(old_name)
-        return self
-
-    def reorder_entries(self, new_order: tuple[int, ...]) -> "Store":
-        """Reorder entries by new index positions."""
-        self.entries = [self.entries[i] for i in new_order]
-        return self
-
-    def fill_na(self, fill_value: Any) -> "Store":
-        """Fill NA/None values with a specified value."""
-        import math
-        
-        def is_null(val):
-            if val is None:
-                return True
-            if isinstance(val, float):
-                try:
-                    if math.isnan(val):
-                        return True
-                except (TypeError, ValueError):
-                    pass
-            if hasattr(val, "__str__"):
-                str_val = str(val).lower()
-                if str_val in ["nan", "none", "null", ""]:
-                    return True
-            return False
-        
-        for entry in self.entries:
-            for key in entry:
-                if is_null(entry[key]):
-                    entry[key] = fill_value
-        return self
-
-    def string_cat_field(self, field: str, addend: str, position: str) -> "Store":
-        """Concatenate a string to a field in all entries."""
-        for entry in self.entries:
-            if field in entry:
-                current = entry[field]
-                if isinstance(current, str):
-                    if position == "prefix":
-                        entry[field] = addend + current
-                    else:  # suffix
-                        entry[field] = current + addend
-        return self
-
-    def replace_values(self, replacements: tuple[tuple[str, Any], ...]) -> "Store":
-        """Replace values in all entries based on a mapping."""
-        replacements_dict = dict(replacements)
-        for entry in self.entries:
-            for key in entry:
-                str_val = str(entry[key])
-                if str_val in replacements_dict:
-                    entry[key] = replacements_dict[str_val]
-        return self
-
-    def uniquify_field(self, field: str, new_values: tuple[Any, ...]) -> "Store":
-        """Update field values with pre-computed unique values."""
-        for i, entry in enumerate(self.entries):
-            if field in entry:
-                entry[field] = new_values[i]
-        return self
-
-    def numberify(self, conversions: tuple[tuple[int, str, Any], ...]) -> "Store":
-        """Apply pre-computed numeric conversions."""
-        for entry_idx, field, new_value in conversions:
-            self.entries[entry_idx][field] = new_value
-        return self
-
-    def transform_field(self, field: str, new_field: str, new_values: tuple[Any, ...]) -> "Store":
-        """Update field with pre-computed transformed values."""
-        for i, entry in enumerate(self.entries):
-            entry[new_field] = new_values[i]
-        return self
-
-    def replace_entries_and_meta(
-        self, entries: tuple[dict[str, Any], ...], meta_updates: tuple[tuple[str, Any], ...]
-    ) -> "Store":
-        """Replace all entries and update meta in one operation."""
-        self.entries = list(entries)
-        for key, value in meta_updates:
-            self.meta[key] = value
-        return self
-
-    def reorder_keys(self, new_order: tuple[str, ...]) -> "Store":
-        """Reorder keys in all entries according to the specified order."""
-        self.entries = [
-            {key: entry[key] for key in new_order if key in entry}
-            for entry in self.entries
-        ]
-        return self
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Store":
-        return cls(**data)
 
 
 class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin, ScenarioListLikelyRemove):
@@ -623,6 +197,8 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         'store',
         # Properties with setters (these delegate to store.meta)
         'codebook',
+        # Namespace objects (cached)
+        '_to', '_join',
         # Conditional builder (ephemeral)
         '_cond_active', '_cond_branch', '_cond_condition', '_cond_ops',
         # GitMixin
@@ -694,6 +270,42 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
     @codebook.setter
     def codebook(self, value: dict[str, str]) -> None:
         self.store.meta["codebook"] = value
+
+    @property
+    def convert(self) -> ScenarioListTo:
+        """Namespace for conversion methods.
+        
+        Access conversion methods via this property:
+        
+            sl.convert.agent_list()
+            sl.convert.dataset()
+            sl.convert.survey()
+            sl.convert.agent_blueprint()
+            sl.convert.agent_traits()
+            sl.convert.scenario_of_lists()
+            sl.convert.key_value(field)
+        
+        Created: 2026-01-08
+        """
+        if not hasattr(self, '_to') or self._to is None:
+            self._to = ScenarioListTo(self)
+        return self._to
+
+    @property
+    def join(self) -> ScenarioListJoin:
+        """Namespace for join methods.
+        
+        Access join methods via this property:
+        
+            sl.join.left(other, by='key')
+            sl.join.inner(other, by='key')
+            sl.join.right(other, by='key')
+        
+        Created: 2026-01-08
+        """
+        if not hasattr(self, '_join') or self._join is None:
+            self._join = ScenarioListJoin(self)
+        return self._join
 
     # @property
     # def codebook(self) -> dict[str, str]:
@@ -945,16 +557,13 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         """Sum the values of a field across all scenarios."""
         return sum(scenario[field] for scenario in self)
 
-    def unique(self) -> ScenarioList:
-        """
-        Return a new ScenarioList containing only unique Scenario objects.
+    def unique(self) -> "ScenarioList":
+        """Remove duplicate scenarios in-place, keeping first occurrence.
 
-        This method removes duplicate Scenario objects based on their hash values,
-        which are determined by their content. Two Scenarios with identical key-value
-        pairs will have the same hash and be considered duplicates.
-
+        This is an alias for deduplicate() for backwards compatibility.
+        
         Returns:
-            A new ScenarioList containing only unique Scenario objects.
+            self: For method chaining.
 
         Examples:
             >>> from edsl.scenarios import Scenario, ScenarioList
@@ -962,28 +571,11 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             >>> s2 = Scenario({"a": 1})  # Same content as s1
             >>> s3 = Scenario({"a": 2})
             >>> sl = ScenarioList([s1, s2, s3])
-            >>> unique_sl = sl.unique()
-            >>> len(unique_sl)
+            >>> sl.unique()
+            >>> len(sl)
             2
-            >>> unique_sl
-            ScenarioList([Scenario({'a': 1}), Scenario({'a': 2})])
-
-        Notes:
-            - The order of scenarios in the result is not guaranteed due to the use of sets
-            - Uniqueness is determined by the Scenario's __hash__ method
-            - The original ScenarioList is not modified
-            - This implementation is memory efficient as it processes scenarios one at a time
         """
-        seen_hashes = set()
-        result = ScenarioList()
-
-        for scenario in self.data:
-            scenario_hash = hash(scenario)
-            if scenario_hash not in seen_hashes:
-                seen_hashes.add(scenario_hash)
-                result.append(scenario)
-
-        return result
+        return self.deduplicate()
 
     @event
     def deduplicate(self) -> RemoveRowsEvent:
@@ -1084,29 +676,6 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
 
         return UniquifyFieldEvent(field=field, new_values=tuple(new_values))
 
-    def to_agent_traits(self, agent_name: Optional[str] = None) -> "Agent":
-        """Convert all Scenario objects into traits of a single Agent.
-
-        Aggregates each Scenario's key/value pairs into a single Agent's
-        traits. If duplicate keys appear across scenarios, later occurrences
-        are suffixed with an incrementing index (e.g., "key_1", "key_2").
-        If a field named "name" is present, it is treated as "scenario_name"
-        to avoid clobbering an Agent's own name.
-
-        Args:
-            agent_name: Optional custom agent name. Defaults to
-                "Agent_from_{N}_scenarios" when not provided.
-
-        Returns:
-            Agent: An Agent instance whose traits include all fields from all scenarios.
-
-        Notes:
-            Implementation is delegated to `ScenarioListTransformer.to_agent_traits`.
-        """
-        from .scenario_list_transformer import ScenarioListTransformer
-
-        return ScenarioListTransformer.to_agent_traits(self, agent_name)
-
     @property
     def has_jinja_braces(self) -> bool:
         """
@@ -1135,35 +704,38 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
                 return True
         return False
 
-    def _convert_jinja_braces(self) -> ScenarioList:
+    @event
+    def _convert_jinja_braces(self) -> ReplaceAllEntriesEvent:
         """
         Convert Jinja braces to alternative symbols in all Scenarios in the list.
 
-        This method creates a new ScenarioList where all Jinja template braces
-        ({{ and }}) in string values are converted to alternative symbols (<< and >>).
+        This method modifies the ScenarioList in-place, converting all Jinja template 
+        braces ({{ and }}) in string values to alternative symbols (<< and >>).
         This is useful when you need to prevent template processing or avoid conflicts
         with other templating systems.
 
         Returns:
-            A new ScenarioList with converted braces in all Scenarios.
+            self for method chaining.
 
         Examples:
             >>> from edsl.scenarios import Scenario, ScenarioList
             >>> s = Scenario({"text": "Template with {{variable}}"})
             >>> sl = ScenarioList([s])
-            >>> converted = sl._convert_jinja_braces()
-            >>> converted[0]["text"]
+            >>> sl._convert_jinja_braces()
+            ScenarioList([Scenario({'text': 'Template with <<variable>>'})])
+            >>> sl[0]["text"]
             'Template with <<variable>>'
 
         Notes:
-            - The original ScenarioList is not modified
+            - This modifies the ScenarioList in-place
             - This is primarily intended for internal use
             - The default replacement symbols are << and >>
         """
-        converted_sl = ScenarioList()
-        for scenario in self:
-            converted_sl.append(scenario._convert_jinja_braces())
-        return converted_sl
+        converted_entries = tuple(
+            self._codec.encode(scenario._convert_jinja_braces())
+            for scenario in self
+        )
+        return ReplaceAllEntriesEvent(entries=converted_entries)
 
     @event
     def give_valid_names(self, existing_codebook: dict = None) -> ReplaceEntriesAndMetaEvent:
@@ -1401,17 +973,30 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         return Scenario(combined_dict)
 
 
-    def __add__(self, other):
+    def __add__(self, other) -> "ScenarioList":
+        """Combine this ScenarioList with another Scenario or ScenarioList.
+        
+        Args:
+            other: A Scenario or ScenarioList to add.
+            
+        Returns:
+            A new ScenarioList with the combined entries.
+            
+        Raises:
+            ScenarioError: If other is not a Scenario or ScenarioList.
+        """
         if isinstance(other, Scenario):
-            new_list = self.duplicate()
-            new_list.append(other)
-            return new_list
+            other_entries = [self._codec.encode(other)]
         elif isinstance(other, ScenarioList):
-            new_list = self.duplicate()
-            for item in other:
-                new_list.append(item)
+            other_entries = [self._codec.encode(item) for item in other]
         else:
             raise ScenarioError("Don't know how to combine!")
+        
+        # Create new ScenarioList and apply event to it (preserves + semantics)
+        new_list = self.duplicate()
+        new_entries = tuple(new_list.store.entries) + tuple(other_entries)
+        event_obj = ReplaceAllEntriesEvent(entries=new_entries)
+        apply_event(event_obj, new_list.store)
         return new_list
 
     @event
@@ -1526,13 +1111,6 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         1262252885757976162
         """
         return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
-
-    def to_scenario_list(self) -> "ScenarioList":
-        """Convert the ScenarioList to a ScenarioList.
-
-        This is useful when the user calls to_scenario_list on an object that is already a ScenarioList but they don't know it.
-        """
-        return self
 
     def __hash__(self) -> int:
         """Return the hash of the ScenarioList using a memory-efficient streaming approach.
@@ -1663,33 +1241,24 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         ScenarioList([Scenario({'a': 1, 'b': 3}), Scenario({'a': 1, 'b': 4}), Scenario({'a': 2, 'b': 3}), Scenario({'a': 2, 'b': 4})])
         """
         from itertools import product
-        from .scenario import Scenario
 
         if isinstance(other, Scenario):
             other = ScenarioList([other])
         elif not isinstance(other, ScenarioList):
             from .exceptions import TypeScenarioError
-
             raise TypeScenarioError(f"Cannot multiply ScenarioList with {type(other)}")
 
-        new_sl = ScenarioList(data=[], codebook=self.codebook)
-        for s1, s2 in product(self, other):
-            new_sl.append(s1 + s2)
-        return new_sl
-
-    def times(self, other: ScenarioList) -> ScenarioList:
-        """Takes the cross product of two ScenarioLists.
-
-        Example:
-
-        >>> s1 = ScenarioList([Scenario({'a': 1}), Scenario({'a': 2})])
-        >>> s2 = ScenarioList([Scenario({'b': 1}), Scenario({'b': 2})])
-        >>> s1 * s2
-        ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2}), Scenario({'a': 2, 'b': 1}), Scenario({'a': 2, 'b': 2})])
-        """
-
-        warnings.warn("times is deprecated, use * instead", DeprecationWarning)
-        return self.__mul__(other)
+        # Compute cross product entries
+        new_entries = [
+            self._codec.encode(s1 + s2)
+            for s1, s2 in product(self, other)
+        ]
+        
+        # Create new ScenarioList and apply event (preserves * semantics)
+        new_list = ScenarioList(data=[], codebook=dict(self.codebook))
+        event_obj = ReplaceAllEntriesEvent(entries=tuple(new_entries))
+        apply_event(event_obj, new_list.store)
+        return new_list
 
     @event
     def shuffle(self, seed: Optional[str] = None) -> ReorderEntriesEvent:
@@ -2425,81 +1994,6 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         """
         return ReorderKeysEvent(new_order=tuple(new_order))
 
-    def to_survey(self) -> "Survey":
-        from ..questions import QuestionBase
-        from ..surveys import Survey
-
-        s = Survey()
-        for index, scenario in enumerate(self):
-            d = scenario.to_dict(add_edsl_version=False)
-            if d["question_type"] == "free_text":
-                if "question_options" in d:
-                    _ = d.pop("question_options")
-            if "question_name" not in d or d["question_name"] is None:
-                d["question_name"] = f"question_{index}"
-
-            if d["question_type"] is None:
-                d["question_type"] = "free_text"
-                d["question_options"] = None
-
-            if "weight" in d:
-                d["weight"] = float(d["weight"])
-
-            new_d = d
-            question = QuestionBase.from_dict(new_d)
-            s.add_question(question)
-
-        return s
-
-    def to_dataset(self) -> "Dataset":
-        """
-        Convert the ScenarioList to a Dataset.
-
-        >>> s = ScenarioList.from_list("a", [1,2,3])
-        >>> s.to_dataset()
-        Dataset([{'a': [1, 2, 3]}])
-        >>> s = ScenarioList.from_list("a", [1,2,3]).add_list("b", [4,5,6])
-        >>> s.to_dataset()
-        Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
-        """
-        from ..dataset import Dataset
-
-        if not self.data:
-            return Dataset([])
-
-        keys = list(self[0].keys())
-        for scenario in self:
-            new_keys = list(scenario.keys())
-            if new_keys != keys:
-                # Use dict.fromkeys to preserve order while ensuring uniqueness
-                keys = list(dict.fromkeys(keys + new_keys))
-        data = [
-            {key: [scenario.get(key, None) for scenario in self.data]} for key in keys
-        ]
-        return Dataset(data)
-
-    def to_scenario_of_lists(self) -> "Scenario":
-        """Collapse to a single Scenario with list-valued fields.
-
-        For every key that appears anywhere in the list, creates a field whose
-        value is the row-wise list of that key's values across the ScenarioList,
-        padding with None where a row is missing the key.
-
-        Examples:
-            >>> s = ScenarioList.from_list('a', [1, 2, 3])
-            >>> s.to_scenario_of_lists()
-            Scenario({'a': [1, 2, 3]})
-            >>> s2 = ScenarioList([Scenario({'a': 1}), Scenario({'b': 2})])
-            >>> s2.to_scenario_of_lists()
-            Scenario({'a': [1, None], 'b': [None, 2]})
-
-        Notes:
-            Implementation is delegated to `ScenarioListTransformer.to_scenario_of_lists`.
-        """
-        from .scenario_list_transformer import ScenarioListTransformer
-
-        return ScenarioListTransformer.to_scenario_of_lists(self)
-
     @event
     def unpack(
         self, field: str, new_names: Optional[List[str]] = None, keep_original=True
@@ -2575,12 +2069,13 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         """
         return AddFieldToAllEntriesEvent(field=name, value=value)
 
-    def tack_on(self, replacements: dict[str, Any], index: int = -1) -> "ScenarioList":
-        """Add a duplicate of an existing scenario with optional value replacements.
+    @event
+    def tack_on(self, replacements: dict[str, Any], index: int = -1) -> AppendRowEvent:
+        """Add a duplicate of an existing scenario with optional value replacements (in-place).
 
         This method duplicates the scenario at *index* (default ``-1`` which refers to the
         last scenario), applies the key/value pairs provided in *replacements*, and
-        returns a new ScenarioList with the modified scenario appended.
+        appends the modified scenario to this ScenarioList.
 
         Args:
             replacements: Mapping of field names to new values to overwrite in the cloned
@@ -2589,8 +2084,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
                 like normal Python lists (``-1`` is the last item).
 
         Returns:
-            ScenarioList: A new ScenarioList containing all original scenarios plus the
-            newly created one.
+            self for method chaining.
 
         Raises:
             ScenarioError: If the ScenarioList is empty, *index* is out of range, or if
@@ -2623,10 +2117,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         for key, value in replacements.items():
             new_scenario[key] = value
 
-        # Duplicate the ScenarioList and append the modified scenario
-        new_sl = self.duplicate()
-        new_sl.append(new_scenario)
-        return new_sl
+        return AppendRowEvent(row=self._codec.encode(new_scenario))
 
     @event
     def rename(self, replacement_dict: dict) -> RenameFieldsEvent:
@@ -2660,40 +2151,37 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
 
         return RenameFieldsEvent(rename_map=tuple(replacement_dict.items()))
 
-    def snakify(self) -> ScenarioList:
-        """Convert all scenario keys to valid Python identifiers (snake_case).
+    @event
+    def snakify(self) -> RenameFieldsEvent:
+        """Convert all scenario keys to valid Python identifiers (snake_case) in-place.
 
-        This method delegates to ScenarioSnakifier to transform all keys to lowercase,
-        replace spaces and special characters with underscores, and ensure all keys are
-        valid Python identifiers. If multiple keys would map to the same snakified name,
-        numbers are appended to ensure uniqueness.
+        This method transforms all keys to lowercase, replaces spaces and special 
+        characters with underscores, and ensures all keys are valid Python identifiers. 
+        If multiple keys would map to the same snakified name, numbers are appended 
+        to ensure uniqueness.
 
         Returns:
-            ScenarioList: A new ScenarioList with snakified keys.
+            self for method chaining.
 
         Examples:
             >>> s = ScenarioList([Scenario({'First Name': 'Alice', 'Age Group': '30s'})])
-            >>> result = s.snakify()
-            >>> sorted(result[0].keys())
+            >>> s.snakify()
+            ScenarioList([Scenario({'first_name': 'Alice', 'age_group': '30s'})])
+            >>> sorted(s[0].keys())
             ['age_group', 'first_name']
-            >>> result[0]['first_name']
-            'Alice'
-            >>> result[0]['age_group']
-            '30s'
 
             >>> s = ScenarioList([Scenario({'name': 'Alice', 'Name': 'Bob', 'NAME': 'Charlie'})])
-            >>> result = s.snakify()
-            >>> sorted(result[0].keys())
-            ['name', 'name_1', 'name_2']
+            >>> s.snakify()
+            ScenarioList([Scenario({'name': 'Alice', 'name_1': 'Bob', 'name_2': 'Charlie'})])
 
             >>> s = ScenarioList([Scenario({'User-Name': 'Alice', '123field': 'test', 'valid_key': 'keep'})])
-            >>> result = s.snakify()
-            >>> sorted(result[0].keys())
-            ['_123field', 'user_name', 'valid_key']
+            >>> s.snakify()
+            ScenarioList([Scenario({'user_name': 'Alice', '_123field': 'test', 'valid_key': 'keep'})])
         """
         from .scenario_snakifier import ScenarioSnakifier
 
-        return ScenarioSnakifier(self).snakify()
+        replacement_dict = ScenarioSnakifier(self).create_key_mapping()
+        return RenameFieldsEvent(rename_map=tuple(replacement_dict.items()))
 
     def replace_names(self, new_names: list) -> ScenarioList:
         """Replace the field names in the scenarios with a new list of names.
@@ -2717,87 +2205,6 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         old_names = list(self[0].keys())
         replacement_dict = dict(zip(old_names, new_names))
         return self.rename(replacement_dict)
-
-    def to_key_value(self, field: str, value=None) -> Union[dict, set]:
-        """Return the set of values in the field.
-
-        :param field: The field to extract values from.
-        :param value: An optional field to use as the value in the key-value pair.
-
-        Example:
-
-        >>> s = ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
-        >>> s.to_key_value('name') == {'Alice', 'Bob'}
-        True
-        """
-        if value is None:
-            return {scenario[field] for scenario in self}
-        else:
-            return {scenario[field]: scenario[value] for scenario in self}
-
-    def left_join(self, other: ScenarioList, by: Union[str, list[str]]) -> ScenarioList:
-        """Perform a left join with another ScenarioList, following SQL join semantics.
-
-        Args:
-            other: The ScenarioList to join with
-            by: String or list of strings representing the key(s) to join on. Cannot be empty.
-
-        >>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
-        >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Los Angeles'})])
-        >>> s3 = s1.left_join(s2, 'name')
-        >>> s3 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'}), Scenario({'age': 25, 'location': None, 'name': 'Bob'})])
-        True
-        """
-        from .scenario_join import ScenarioJoin
-
-        sj = ScenarioJoin(self, other)
-        return sj.left_join(by)
-
-    def inner_join(
-        self, other: ScenarioList, by: Union[str, list[str]]
-    ) -> ScenarioList:
-        """Perform an inner join with another ScenarioList, following SQL join semantics.
-
-        Args:
-            other: The ScenarioList to join with
-            by: String or list of strings representing the key(s) to join on. Cannot be empty.
-
-        Returns:
-            A new ScenarioList containing only scenarios that have matches in both ScenarioLists
-
-        >>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
-        >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Los Angeles'})])
-        >>> s4 = s1.inner_join(s2, 'name')
-        >>> s4 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'})])
-        True
-        """
-        from .scenario_join import ScenarioJoin
-
-        sj = ScenarioJoin(self, other)
-        return sj.inner_join(by)
-
-    def right_join(
-        self, other: ScenarioList, by: Union[str, list[str]]
-    ) -> ScenarioList:
-        """Perform a right join with another ScenarioList, following SQL join semantics.
-
-        Args:
-            other: The ScenarioList to join with
-            by: String or list of strings representing the key(s) to join on. Cannot be empty.
-
-        Returns:
-            A new ScenarioList containing all right scenarios with matching left data added
-
-        >>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
-        >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Los Angeles'})])
-        >>> s5 = s1.right_join(s2, 'name')
-        >>> s5 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'}), Scenario({'age': None, 'location': 'Los Angeles', 'name': 'Charlie'})])
-        True
-        """
-        from .scenario_join import ScenarioJoin
-
-        sj = ScenarioJoin(self, other)
-        return sj.right_join(by)
 
     def to_dict(self, sort: bool = False, add_edsl_version: bool = True) -> dict:
         """
@@ -3069,49 +2476,6 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
                 # Fallback to empty scenario
                 return Scenario({})
 
-    def to_agent_list(self):
-        """Convert the ScenarioList to an AgentList.
-
-        This method supports special fields that map to Agent parameters:
-        - "name": Will be used as the agent's name
-        - "agent_parameters": A dictionary containing:
-            - "instruction": The agent's instruction text
-            - "name": The agent's name (overrides the "name" field if present)
-
-        Example:
-            >>> from edsl import ScenarioList, Scenario
-            >>> # Basic usage with traits
-            >>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
-            >>> al = s.to_agent_list()
-            >>> al
-            AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
-
-            >>> # Using agent name
-            >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 22})])
-            >>> al = s.to_agent_list()
-            >>> al[0].name
-            'Alice'
-
-            >>> # Using agent parameters for instructions
-            >>> s = ScenarioList([Scenario({
-            ...     'age': 22,
-            ...     'agent_parameters': {
-            ...         'instruction': 'You are a helpful assistant',
-            ...         'name': 'Assistant'
-            ...     }
-            ... })])
-            >>> al = s.to_agent_list()
-            >>> al[0].instruction
-            'You are a helpful assistant'
-            >>> al[0].name
-            'Assistant'
-        """
-        from ..agents import AgentList
-
-        return AgentList.from_scenario_list(self)
-
-    
-
     @event
     def chunk(
         self,
@@ -3183,38 +2547,6 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             "edsl.scenarios.scenario_combinator"
         ).ScenarioCombinator
         return ScenarioCombinator.iter_choose_k(self, k=k, order_matters=order_matters)
-
-    def to_agent_blueprint(
-        self,
-        *,
-        seed: Optional[int] = None,
-        cycle: bool = True,
-        dimension_name_field: str = "dimension",
-        dimension_values_field: str = "dimension_values",
-        dimension_description_field: Optional[str] = None,
-        dimension_probs_field: Optional[str] = None,
-    ):
-        """Create an AgentBlueprint from this ScenarioList.
-
-        Args:
-            seed: Optional seed for deterministic permutation order.
-            cycle: Whether to continue cycling through permutations indefinitely.
-            dimension_name_field: Field name to read the dimension name from.
-            dimension_values_field: Field name to read the dimension values from.
-            dimension_description_field: Optional field name for the dimension description.
-            dimension_probs_field: Optional field name for probability weights.
-        """
-        from .agent_blueprint import AgentBlueprint
-
-        return AgentBlueprint.from_scenario_list(
-            self,
-            seed=seed,
-            cycle=cycle,
-            dimension_name_field=dimension_name_field,
-            dimension_values_field=dimension_values_field,
-            dimension_description_field=dimension_description_field,
-            dimension_probs_field=dimension_probs_field,
-        )
 
     @event
     def collapse(
