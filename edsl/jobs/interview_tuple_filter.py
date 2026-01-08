@@ -15,8 +15,9 @@ class InterviewTupleFilter:
     """
     Filters combinations of agents, scenarios, and models based on a Jinja2 expression.
 
-    When iterated, yields (agent, scenario, model) tuples that satisfy the include expression.
-    If no expression is provided, yields all combinations (equivalent to itertools.product).
+    When iterated, yields ((agent_idx, agent), (scenario_idx, scenario), (model_idx, model)) 
+    tuples that satisfy the include expression. If no expression is provided, yields all 
+    combinations (equivalent to itertools.product).
 
     Example expressions:
         - "{{ scenario._index }} == {{ agent._index }}"  # Only matching indices
@@ -25,8 +26,8 @@ class InterviewTupleFilter:
 
     Usage:
         filter = InterviewTupleFilter(agents, scenarios, models, "{{ scenario._index }} == {{ agent._index }}")
-        for agent, scenario, model in filter:
-            # process matching tuples
+        for (agent_idx, agent), (scenario_idx, scenario), (model_idx, model) in filter:
+            # process matching tuples with their indices
     """
 
     def __init__(
@@ -62,11 +63,17 @@ class InterviewTupleFilter:
         result_str = result.strip().lower()
         return result_str == "true"
 
-    def __iter__(self) -> Generator[Tuple[Any, Any, Any], None, None]:
-        """Iterate over all valid (agent, scenario, model) tuples."""
-        for agent, scenario, model in product(self.agents, self.scenarios, self.models):
-            if self._evaluate_expression(agent, scenario, model):
-                yield agent, scenario, model
+    def __iter__(self) -> Generator[Tuple[Tuple[int, Any], Tuple[int, Any], Tuple[int, Any]], None, None]:
+        """Iterate over all valid (agent, scenario, model) tuples with their indices.
+        
+        Yields:
+            Tuple of ((agent_idx, agent), (scenario_idx, scenario), (model_idx, model))
+        """
+        for agent_idx, agent in enumerate(self.agents):
+            for scenario_idx, scenario in enumerate(self.scenarios):
+                for model_idx, model in enumerate(self.models):
+                    if self._evaluate_expression(agent, scenario, model):
+                        yield (agent_idx, agent), (scenario_idx, scenario), (model_idx, model)
 
     def __len__(self) -> int:
         """
@@ -93,13 +100,13 @@ if __name__ == "__main__":
     # Test with no filter
     print("No filter (all combinations):")
     f = InterviewTupleFilter(agents, scenarios, models, None)
-    for t in f:
-        print(f"  {t}")
+    for (agent_idx, agent), (scenario_idx, scenario), (model_idx, model) in f:
+        print(f"  agent[{agent_idx}]={agent}, scenario[{scenario_idx}]={scenario}, model[{model_idx}]={model}")
 
     # Test with index equality
     print("\nWith filter (scenario._index == agent._index):")
     f = InterviewTupleFilter(
         agents, scenarios, models, "{{ scenario._index == agent._index }}"
     )
-    for t in f:
-        print(f"  {t}")
+    for (agent_idx, agent), (scenario_idx, scenario), (model_idx, model) in f:
+        print(f"  agent[{agent_idx}]={agent}, scenario[{scenario_idx}]={scenario}, model[{model_idx}]={model}")

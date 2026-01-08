@@ -6,6 +6,7 @@ Provides the event decorator and GitMixin class.
 
 from __future__ import annotations
 
+import warnings
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .models import Commit, PushResult, Status
@@ -195,11 +196,69 @@ class GitMixin:
         new_git = self._git.delete_branch(name)
         return self._mutate(new_git)
 
-    def git_checkout(self, rev: str, *, force: bool = False) -> "GitMixin":
-        """Checkout a branch or commit. Mutates in place and returns self."""
+    def git_checkout(self, rev: Optional[str] = None, *, force: bool = False) -> "GitMixin":
+        """Checkout a branch or commit. Mutates in place and returns self.
+        
+        If rev is not provided, shows available branches and recent commits.
+        """
         self._ensure_git_init()
+        
+        if rev is None:
+            # Show available options instead of failing
+            repo = self._git.view.repo
+            refs = repo.list_refs()
+            current_ref = self._git.view.head_ref
+            current_commit = self._git.view.commit_hash
+            
+            lines = ["No revision specified. Available options:\n"]
+            
+            # Show current HEAD state
+            if current_ref is None:
+                lines.append(f"HEAD is detached at {current_commit[:8]}")
+                lines.append("")
+            
+            # Show branches
+            branches = [r for r in refs if r.kind == "branch"]
+            if branches:
+                lines.append("Branches:")
+                for ref in branches:
+                    marker = "* " if ref.name == current_ref else "  "
+                    lines.append(f"  {marker}{ref.name}")
+                lines.append("")
+            
+            # Show tags
+            tags = [r for r in refs if r.kind == "tag"]
+            if tags:
+                lines.append("Tags:")
+                for ref in tags:
+                    lines.append(f"    {ref.name}")
+                lines.append("")
+            
+            # Show recent commits
+            commits = self._git.log(limit=5)
+            if commits:
+                lines.append("Recent commits:")
+                for c in commits:
+                    short_hash = c.commit_id[:8]
+                    msg = c.message[:40] + ("..." if len(c.message) > 40 else "")
+                    lines.append(f"    {short_hash}  {msg}")
+            
+            raise ValueError("\n".join(lines))
+        
         new_git = self._git.checkout(rev, force=force)
-        return self._mutate(new_git, from_git=True)
+        result = self._mutate(new_git, from_git=True)
+        
+        # Warn if entering detached HEAD state
+        if new_git.view.head_ref is None:
+            warnings.warn(
+                f"You are in 'detached HEAD' state at {new_git.view.commit_hash[:8]}. "
+                "You can look around and make changes, but commits made here won't belong "
+                "to any branch. To keep changes, create a branch with git_branch('name').",
+                UserWarning,
+                stacklevel=2
+            )
+        
+        return result
 
     def git_add_remote(self, name: str, remote: Remote) -> "GitMixin":
         """Add a remote repository. Mutates in place and returns self."""
