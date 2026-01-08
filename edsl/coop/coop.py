@@ -3845,6 +3845,7 @@ class Coop(CoopFunctionsMixin):
 
         - We need this function because URL detection with print() does not work alongside animations in VSCode.
         """
+        import sys
         from rich import print as rich_print
         from rich.console import Console
 
