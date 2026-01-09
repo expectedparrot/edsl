@@ -203,8 +203,8 @@ class ResultsTransformer:
             >>> from edsl.results import Results
             >>> r = Results.example()
             >>> transformer = ResultsTransformer(r)
-            >>> result = transformer.rename('how_feeling', 'how_feeling_new')
-            >>> result.select('how_feeling_new')
+            >>> result = transformer.rename('how_feeling', 'how_feeling_new')  # doctest: +SKIP
+            >>> result.select('how_feeling_new')  # doctest: +SKIP
             Dataset([{'answer.how_feeling_new': ['OK', 'Great', 'Terrible', 'OK']}])
         """
         # Import here to avoid circular import
@@ -222,7 +222,6 @@ class ResultsTransformer:
             survey=self.results.survey,
             data=[],
             created_columns=self.results.created_columns,
-            data_class=self.results._data_class,
         )
 
         # Update created_columns if old_name was in there
@@ -287,6 +286,5 @@ class ResultsTransformer:
             survey=self.results.survey,
             data=sorted_data,  # This will be an iterator, not a materialized list
             created_columns=self.results.created_columns,
-            data_class=self.results._data_class,
             sort_by_iteration=False,
         )

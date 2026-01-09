@@ -124,7 +124,6 @@ class ResultsFilter:
                 survey=self.results.survey,
                 data=matching_results,
                 created_columns=self.results.created_columns,
-                data_class=self.results._data_class,  # Preserve the original data class
             )
 
             if len(filtered_results) == 0:
