@@ -66,6 +66,11 @@ class AgentListSerializer:
         template = agent_list.traits_presentation_template
         if template is not None:
             d["traits_presentation_template"] = template
+        
+        # Add instruction from store.meta if present
+        instruction = agent_list.instruction
+        if instruction is not None:
+            d["instruction"] = instruction
 
         if add_edsl_version:
             from edsl import __version__
@@ -102,16 +107,17 @@ class AgentListSerializer:
             print("Current data is", data)
             raise ValueError("agent_list key not found in data")
 
-        # Create AgentList with codebook if provided
+        # Create AgentList with codebook, traits_presentation_template, and instruction if provided
         codebook = data.get("codebook")
+        traits_presentation_template = data.get("traits_presentation_template")
+        instruction = data.get("instruction")
         agents = [Agent.from_dict(agent_dict) for agent_dict in agent_data]
-        agent_list = AgentList(agents, codebook=codebook)
-
-        # Apply traits_presentation_template if present in the dictionary
-        if "traits_presentation_template" in data and data["traits_presentation_template"]:
-            agent_list = agent_list.set_traits_presentation_template(
-                data["traits_presentation_template"]
-            )
+        agent_list = AgentList(
+            agents, 
+            codebook=codebook,
+            traits_presentation_template=traits_presentation_template,
+            instruction=instruction,
+        )
 
         return agent_list
 
