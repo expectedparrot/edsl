@@ -278,11 +278,11 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
         Examples:
             >>> d = Dataset([{'words': [['hello', 'world'], ['good', 'morning']]}])
-            >>> d.collapse('words').data  # doctest: +SKIP
+            >>> d.collapse('words').data
             [{'words': [[['hello', 'world'], ['good', 'morning']]]}]
 
             >>> d = Dataset([{'numbers': [1, 2, 3]}])
-            >>> d.collapse('numbers', separator=',').data  # doctest: +SKIP
+            >>> d.collapse('numbers', separator=',').data
             [{'numbers': ['1,2,3']}]
         """
         return self.to_scenario_list().collapse(field, separator).to_dataset()
