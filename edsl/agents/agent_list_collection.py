@@ -191,9 +191,10 @@ class AgentListCollection(ItemCollection):
         results_list = [
             Results(survey=results.survey, data=d[i]) for i in range(len(self))
         ]
-        for i, results in enumerate(results_list):
+        # Set names on results using event-based method (Results is immutable)
+        for i in range(len(results_list)):
             if hasattr(self[i], "name") and self[i].name is not None:
-                results.name = self[i].name
+                results_list[i] = results_list[i].set_name(self[i].name)
 
         return ResultsList(results_list)
 

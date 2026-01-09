@@ -1022,8 +1022,8 @@ class Jobs(Base):
                 # Set the order attribute on the result for correct ordering
                 result.order = idx
 
-                results_obj.add_task_history_entry(interview)
-                # insert_sorted returns a new Results instance (Results is immutable)
+                # Results is immutable - capture new instances from event methods
+                results_obj = results_obj.add_task_history_entry(interview)
                 results_obj = results_obj.insert_sorted(result)
 
                 # Memory management: Set up reference for next iteration and clear old references
@@ -1036,9 +1036,11 @@ class Jobs(Base):
                 del interview
 
             # Finalize results object with cache and bucket collection
-            results_obj.cache = results_obj.relevant_cache(
+            # Results is immutable, so these methods return new instances
+            filtered_cache = results_obj.relevant_cache(
                 self.run_config.environment.cache
             )
+            results_obj = results_obj.set_cache(filtered_cache)
             results_obj.bucket_collection = (
                 self.run_config.environment.bucket_collection
             )
@@ -1976,7 +1978,6 @@ class Jobs(Base):
 
         # Merge all batch results while preserving original order
         self._logger.info("Merging batch results and restoring original order")
-        final_results = Results(survey=self.survey, data=[], task_history=TaskHistory())
 
         # Collect all individual results from all batches
         all_results = []
@@ -1989,24 +1990,30 @@ class Jobs(Base):
 
         # Sort results by their original order
         all_results.sort(key=lambda x: x.order)
-        final_results.data = all_results
 
         # Merge task histories - create a new TaskHistory with all interviews
+        merged_task_history = TaskHistory()
         if all_task_histories:
-            merged_task_history = TaskHistory()
             for task_history in all_task_histories:
                 # Add each interview from the task history to the merged one
                 for interview in task_history.total_interviews:
                     merged_task_history.add_interview(interview)
-            final_results.task_history = merged_task_history
 
-        # Merge other attributes from the first batch result
-        if batch_results:
-            first_batch = batch_results[0]
-            final_results.cache = first_batch.cache
-            # Only set bucket_collection if it exists on the first batch
-            if hasattr(first_batch, "bucket_collection"):
-                final_results.bucket_collection = first_batch.bucket_collection
+        # Get other attributes from the first batch result
+        first_batch = batch_results[0] if batch_results else None
+        merged_cache = first_batch.cache if first_batch else None
+
+        # Create the final Results object with all data (Results is immutable)
+        final_results = Results(
+            survey=self.survey,
+            data=all_results,
+            task_history=merged_task_history,
+            cache=merged_cache,
+        )
+        
+        # Set bucket_collection if it exists (this is an allowed attr)
+        if first_batch and hasattr(first_batch, "bucket_collection"):
+            final_results.bucket_collection = first_batch.bucket_collection
 
         self._logger.info("Applying post-run methods to merged results")
         final_results = self._apply_post_run_methods(final_results)
