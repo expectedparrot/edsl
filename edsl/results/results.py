@@ -39,7 +39,7 @@ from __future__ import annotations
 import json
 import warnings
 from dataclasses import dataclass
-from typing import Optional, Callable, Any, Union, List, TYPE_CHECKING
+from typing import Optional, Callable, Any, Union, List, Dict, TYPE_CHECKING
 from collections.abc import MutableSequence
 
 from ..base import Base
@@ -62,6 +62,15 @@ if TYPE_CHECKING:
 
 from ..utilities import dict_hash
 from ..dataset import ResultsOperationsMixin
+
+# Import event-sourcing infrastructure
+from ..versioning import GitMixin, event
+from ..store import (
+    Store,
+    AppendRowEvent,
+    SetMetaEvent,
+    apply_event,
+)
 
 from .result import Result
 from .results_filter import ResultsFilter
@@ -86,6 +95,20 @@ from .exceptions import (
 )
 
 
+class ResultCodec:
+    """Codec for Result objects - handles encoding/decoding for the Store."""
+    
+    def encode(self, obj: Union["Result", dict[str, Any]]) -> dict[str, Any]:
+        """Encode a Result to a dictionary for storage."""
+        if isinstance(obj, dict):
+            return dict(obj)
+        return obj.to_dict(add_edsl_version=False, include_cache_info=True)
+    
+    def decode(self, data: dict[str, Any]) -> "Result":
+        """Decode a dictionary back to a Result object."""
+        return Result.from_dict(data)
+
+
 @dataclass
 class AgentListSplit:
     """Result of splitting a Results object into train/test AgentLists with corresponding surveys.
@@ -103,7 +126,7 @@ class AgentListSplit:
     test_survey: "Survey"
 
 
-class Results(MutableSequence, ResultsOperationsMixin, Base):
+class Results(GitMixin, MutableSequence, ResultsOperationsMixin, Base):
     """A collection of Result objects with powerful data analysis capabilities.
 
     The Results class is the primary container for working with data from EDSL surveys.
@@ -111,6 +134,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     inspired by data manipulation libraries like dplyr and pandas. The Results class
     implements a functional, fluent interface for data manipulation where each method
     returns a new Results object, allowing method chaining.
+
+    The Results class uses an event-sourcing architecture where all mutations are
+    captured as events and applied to a Store backend. This enables version control,
+    immutability patterns, and integration with git-like operations via GitMixin.
+    
+    Note: Results is fundamentally append-only. Result objects are immutable and cannot
+    be modified after creation. The only supported mutation is appending new Results.
 
     Attributes:
         survey: The Survey object containing the questions used to generate results.
@@ -157,6 +187,33 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/results.html"
 
+    # Event-sourcing infrastructure
+    _versioned = 'store'
+    _store_class = Store
+    _event_handler = apply_event
+    _codec = ResultCodec()
+
+    # Allowed instance attributes - prevents external code from storing temporary data
+    _allowed_attrs = frozenset({
+        # Core state
+        'store',
+        # Legacy data access (for compatibility during transition)
+        'data', '_data_class',
+        # Survey and metadata
+        'survey', 'created_columns', 'cache', 'task_history', 'name',
+        '_job_uuid', '_total_results', 'completed', '_fetching',
+        # Internal helpers
+        '_shelve_path', '_shelf_keys',
+        '_cache_manager', '_properties', '_container', '_grouper',
+        '_report',
+        # GitMixin
+        '_git', '_needs_git_init', '_last_push_result',
+        # Remote job info
+        'job_info',
+        # Job execution runtime attributes
+        'bucket_collection', 'jobs_runner_status', 'key_lookup', 'order',
+    })
+
     known_data_types = [
         "answer",
         "scenario",
@@ -175,6 +232,20 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         "reasoning_summary",
         "validated",
     ]
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Restrict attribute setting to allowed attributes only.
+        
+        This prevents external code from using Results instances to store
+        temporary data, enforcing immutability through the event-based Store mechanism.
+        """
+        if name in self._allowed_attrs:
+            super().__setattr__(name, value)
+        else:
+            raise AttributeError(
+                f"Cannot set attribute '{name}' on Results. "
+                f"Results is immutable - use event-based methods to modify data."
+            )
 
     def __init__(
         self,
@@ -234,7 +305,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             else:
                 data = sorted(data, key=lambda x: x.data.get("iteration", 0))
 
-        # Initialize data with the appropriate class
+        # Initialize data with the appropriate class (for compatibility)
         self.data = self._data_class(data or [])
 
         from ..caching import Cache
@@ -277,6 +348,135 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             self._add_output_functions()
 
         self._report = None
+
+        # Initialize GitMixin
+        super().__init__()
+        
+        # Initialize the event-sourced store from current state
+        self._sync_store_from_state()
+
+    def _sync_store_from_state(self) -> None:
+        """Synchronize the internal state to the event-sourced store.
+        
+        This method converts the Results' current state (data list, survey, etc.)
+        into the Store's entries and meta format. Called during initialization
+        and after state changes.
+        """
+        # Encode all Result objects as entries
+        entries = [
+            self._codec.encode(result)
+            for result in self.data
+        ]
+        
+        # Build meta from current attributes
+        meta: Dict[str, Any] = {
+            "created_columns": self.created_columns,
+        }
+        
+        # Serialize survey if present
+        if self.survey is not None:
+            meta["survey"] = self.survey.to_dict(add_edsl_version=False)
+        
+        # Serialize cache if present and has data
+        if self.cache is not None:
+            meta["cache"] = self.cache.to_dict()
+        
+        # Serialize task_history if present
+        if self.task_history is not None:
+            meta["task_history"] = self.task_history.to_dict()
+        
+        # Add other metadata
+        if self._job_uuid is not None:
+            meta["job_uuid"] = self._job_uuid
+        if self._total_results is not None:
+            meta["total_results"] = self._total_results
+        if self.name is not None:
+            meta["name"] = self.name
+        
+        self.store = Store(entries=entries, meta=meta)
+
+    def _sync_state_from_store(self) -> None:
+        """Synchronize the event-sourced store to the internal state.
+        
+        This method reconstructs the Results' internal attributes from the Store's
+        entries and meta. Used when creating new Results instances from store state
+        (e.g., after an event is applied or a git checkout).
+        """
+        from ..caching import Cache
+        from ..tasks import TaskHistory
+        import tempfile
+        import os
+        
+        # Decode all entries back to Result objects
+        self.data = self._data_class([
+            self._codec.decode(entry) for entry in self.store.entries
+        ])
+        
+        # Restore metadata
+        meta = self.store.meta
+        self.created_columns = meta.get("created_columns", [])
+        
+        # Restore survey
+        if "survey" in meta and meta["survey"] is not None:
+            from ..surveys import Survey
+            self.survey = Survey.from_dict(meta["survey"])
+        else:
+            self.survey = None
+        
+        # Restore cache
+        if "cache" in meta and meta["cache"] is not None:
+            self.cache = Cache.from_dict(meta["cache"])
+        else:
+            self.cache = Cache()
+        
+        # Restore task_history
+        if "task_history" in meta and meta["task_history"] is not None:
+            self.task_history = TaskHistory.from_dict(meta["task_history"])
+        else:
+            self.task_history = TaskHistory(interviews=[])
+        
+        # Restore other metadata
+        self._job_uuid = meta.get("job_uuid")
+        self._total_results = meta.get("total_results")
+        self.name = meta.get("name")
+        
+        # Reinitialize helper objects
+        self._shelve_path = os.path.join(
+            tempfile.gettempdir(), f"edsl_results_{os.getpid()}"
+        )
+        self._shelf_keys = set()
+        self._cache_manager = DataTypeCacheManager(self)
+        self._properties = ResultsProperties(self)
+        self._container = ResultsContainer(self)
+        self._grouper = ResultsGrouper(self)
+        self._report = None
+
+    @classmethod
+    def _from_state(cls, state: Dict[str, Any]) -> "Results":
+        """Reconstruct a Results object from a dictionary state.
+        
+        This method is used by GitMixin to create new instances after events
+        are applied or git operations are performed.
+        """
+        instance = object.__new__(cls)
+        
+        # Set up minimal state for store reconstruction
+        instance.completed = True
+        instance._fetching = False
+        instance._data_class = list
+        
+        # Create store from state
+        store = cls._store_class.from_dict(state)
+        instance.store = store
+        
+        # Initialize git state
+        instance._git = None
+        instance._needs_git_init = False
+        
+        # Sync internal state from store
+        instance._sync_state_from_store()
+        
+        return instance
 
     def view(self) -> None:
         """View the results in a Jupyter notebook."""
@@ -561,13 +761,42 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         return self._grouper.agent_answers_by_question(agent_key_fields, separator)
 
-    def extend_sorted(self, other):
-        """Extend the Results list with items from another iterable.
+    def extend_sorted(self, other) -> "Results":
+        """Extend the Results by appending items from another iterable, preserving order.
 
-        This method preserves ordering based on 'order' attribute if present,
-        otherwise falls back to 'iteration' attribute.
+        This method creates a new Results instance with all items from both
+        this Results and the other iterable, sorted by 'order' attribute if present,
+        otherwise by 'iteration' attribute. Results is immutable.
+
+        Args:
+            other: Iterable of Result objects to append.
+            
+        Returns:
+            Results: A new Results instance with the sorted, extended data.
         """
-        return self._container.extend_sorted(other)
+        # Collect all items (existing and new)
+        all_items = list(self.data)
+        all_items.extend(other)
+
+        # Sort combined list by order attribute if available, otherwise by iteration
+        def get_sort_key(item):
+            if hasattr(item, "order"):
+                return (0, item.order)  # Order attribute takes precedence
+            return (1, item.data["iteration"])  # Iteration is secondary
+
+        all_items.sort(key=get_sort_key)
+
+        return Results(
+            survey=self.survey,
+            data=all_items,
+            name=self.name,
+            created_columns=self.created_columns,
+            cache=self.cache,
+            job_uuid=self._job_uuid,
+            total_results=self._total_results,
+            task_history=self.task_history,
+            sort_by_iteration=False,  # Already sorted
+        )
 
     def compute_job_cost(self, include_cached_responses_in_cost: bool = False) -> float:
         """Compute the cost of a completed job in USD.
@@ -615,11 +844,34 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     @ensure_ready
     def __setitem__(self, i, item):
-        return self._container.__setitem__(i, item)
+        """Block item assignment - Results is immutable.
+        
+        Results objects are append-only. Individual Result objects cannot be
+        replaced or modified after creation.
+        
+        Raises:
+            ResultsError: Always raised as Results is immutable.
+        """
+        raise ResultsError(
+            "Cannot set items in Results - Results is immutable. "
+            "Result objects cannot be modified after creation. "
+            "Use append_result() to add new results."
+        )
 
     @ensure_ready
     def __delitem__(self, i):
-        return self._container.__delitem__(i)
+        """Block item deletion - Results is immutable.
+        
+        Results objects are append-only. Individual Result objects cannot be
+        deleted after creation.
+        
+        Raises:
+            ResultsError: Always raised as Results is immutable.
+        """
+        raise ResultsError(
+            "Cannot delete items from Results - Results is immutable. "
+            "Result objects cannot be removed after creation."
+        )
 
     @ensure_ready
     def __len__(self):
@@ -627,18 +879,71 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
     @ensure_ready
     def insert(self, index, item):
-        return self._container.insert(index, item)
+        """Block arbitrary insertion - Results is append-only.
+        
+        Results objects only support appending new results at the end.
+        Use append_result() to add new results.
+        
+        Raises:
+            ResultsError: Always raised as Results is append-only.
+        """
+        raise ResultsError(
+            "Cannot insert items at arbitrary positions in Results - Results is append-only. "
+            "Use append_result() to add new results at the end."
+        )
+
+    @event
+    def append_result(self, result: "Result") -> AppendRowEvent:
+        """Append a new Result to this Results object.
+        
+        This is the primary way to add new results. Returns a new Results
+        instance with the appended result (Results is immutable).
+        
+        Args:
+            result: A Result object to append.
+            
+        Returns:
+            AppendRowEvent: The event representing the append operation.
+            
+        Note:
+            Due to the @event decorator, this method returns a new Results
+            instance with the appended result, not the event itself.
+        """
+        encoded = self._codec.encode(result)
+        return AppendRowEvent(row=encoded)
 
     @ensure_ready
-    def extend(self, other):
-        """Extend the Results list with items from another iterable."""
-        return self._container.extend(other)
+    def extend(self, other) -> "Results":
+        """Extend the Results by appending items from another iterable.
+        
+        This method creates a new Results instance with all items from both
+        this Results and the other iterable. Results is immutable.
+        
+        Args:
+            other: Iterable of Result objects to append.
+            
+        Returns:
+            Results: A new Results instance with the extended data.
+        """
+        # Since Results is immutable, we create a new instance with combined data
+        combined_data = list(self.data)
+        combined_data.extend(other)
+        return Results(
+            survey=self.survey,
+            data=combined_data,
+            name=self.name,
+            created_columns=self.created_columns,
+            cache=self.cache,
+            job_uuid=self._job_uuid,
+            total_results=self._total_results,
+            task_history=self.task_history,
+        )
 
     def __add__(self, other: Results) -> Results:
         """Add two Results objects together.
 
         Combines two Results objects into a new one. Both objects must have the same
-        survey and created columns.
+        survey and created columns. Results is immutable, so this creates a new instance.
 
         Args:
             other: A Results object to add to this one.
@@ -667,7 +972,29 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             ...     True
             True
         """
-        return self._container.__add__(other)
+        if self.survey != other.survey:
+            raise ResultsError(
+                "The surveys are not the same so the results cannot be added together."
+            )
+        if self.created_columns != other.created_columns:
+            raise ResultsError(
+                "The created columns are not the same so they cannot be added together."
+            )
+
+        # Create a new Results with combined data
+        combined_data = list(self.data)
+        combined_data.extend(other.data)
+
+        return Results(
+            survey=self.survey,
+            data=combined_data,
+            name=self.name,
+            created_columns=self.created_columns,
+            cache=self.cache,
+            job_uuid=self._job_uuid,
+            total_results=self._total_results,
+            task_history=self.task_history,
+        )
 
     def _repr_html_(self):
         if not self.completed:
@@ -2466,38 +2793,96 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         return self._properties.shelf_keys
 
     @ensure_ready
-    def insert_sorted(self, item: "Result") -> None:
-        """Insert a Result object into the Results list while maintaining sort order.
+    def insert_sorted(self, item: "Result") -> "Results":
+        """Insert a Result object while maintaining sort order.
 
         Uses the 'order' attribute if present, otherwise falls back to 'iteration' attribute.
-        Utilizes bisect for efficient insertion point finding.
+        Returns a new Results instance since Results is immutable.
 
         Args:
             item: A Result object to insert
+
+        Returns:
+            Results: A new Results instance with the item inserted in sorted order.
 
         Examples:
             >>> r = Results.example()
             >>> new_result = r[0].copy()
             >>> new_result.order = 1.5  # Insert between items
-            >>> r.insert_sorted(new_result)
+            >>> r2 = r.insert_sorted(new_result)
+            >>> len(r2) == len(r) + 1
+            True
         """
-        return self._container.insert_sorted(item)
+        from bisect import bisect_left
+        
+        def get_sort_key(result):
+            if hasattr(result, "order"):
+                return (0, result.order)  # Order attribute takes precedence
+            return (1, result.data["iteration"])  # Iteration is secondary
 
-    def insert_from_shelf(self) -> None:
-        """Move all shelved results into memory using insert_sorted method.
+        # Get the sort key for the new item
+        item_key = get_sort_key(item)
 
-        This method delegates to the ResultsSerializer class to handle the shelf operations.
-        Clears the shelf after successful insertion.
+        # Get list of sort keys for existing items
+        keys = [get_sort_key(x) for x in self.data]
+
+        # Find insertion point
+        index = bisect_left(keys, item_key)
+
+        # Create new data list with item inserted
+        new_data = list(self.data)
+        new_data.insert(index, item)
+
+        return Results(
+            survey=self.survey,
+            data=new_data,
+            name=self.name,
+            created_columns=self.created_columns,
+            cache=self.cache,
+            job_uuid=self._job_uuid,
+            total_results=self._total_results,
+            task_history=self.task_history,
+            sort_by_iteration=False,  # Already sorted
+        )
+
+    def insert_from_shelf(self) -> "Results":
+        """Move all shelved results into a new Results instance.
+
+        Returns a new Results instance with the shelved results inserted in sorted order.
+        Clears the shelf after successful insertion. Results is immutable.
 
         This method preserves the original order of results by using their 'order'
         attribute if available, which ensures consistent ordering even after
         serialization/deserialization.
 
+        Returns:
+            Results: A new Results instance with the shelved results inserted.
+
         Raises:
             ResultsError: If there's an error accessing or clearing the shelf
         """
-        serializer = ResultsSerializer(self)
-        return serializer.insert_from_shelf()
+        import shelve
+        
+        if not self._shelf_keys:
+            return self
+
+        # Collect all results from shelf
+        shelved_results = []
+        with shelve.open(self._shelve_path) as shelf:
+            for key in self._shelf_keys:
+                result_dict = shelf[key]
+                result = Result.from_dict(result_dict)
+                shelved_results.append(result)
+
+            # Clear the shelf
+            for key in self._shelf_keys:
+                del shelf[key]
+
+        # Clear the tracking set
+        self._shelf_keys.clear()
+
+        # Create new Results with all shelved results inserted in sorted order
+        return self.extend_sorted(shelved_results)
 
     def to_disk(self, filepath: str) -> None:
         """Serialize the Results object to a zip file, preserving the SQLite database.

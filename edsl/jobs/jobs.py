@@ -1023,7 +1023,8 @@ class Jobs(Base):
                 result.order = idx
 
                 results_obj.add_task_history_entry(interview)
-                results_obj.insert_sorted(result)
+                # insert_sorted returns a new Results instance (Results is immutable)
+                results_obj = results_obj.insert_sorted(result)
 
                 # Memory management: Set up reference for next iteration and clear old references
                 weakref.ref(interview)
@@ -1066,7 +1067,8 @@ class Jobs(Base):
             # For async execution mode (simplified path without progress bar)
             self._logger.info("Starting async interview execution (no progress bar)")
             try:
-                await process_interviews(interview_runner, results)
+                # process_interviews returns the updated Results (Results is immutable)
+                results = await process_interviews(interview_runner, results)
             except Exception as e:
                 from .exceptions import JobTerminationError
                 from ..language_models.exceptions import (
@@ -1094,7 +1096,8 @@ class Jobs(Base):
             self._logger.info("Starting sync interview execution with progress bar")
             with ProgressBarManager(self, run_config, self.run_config.parameters):
                 try:
-                    await process_interviews(interview_runner, results)
+                    # process_interviews returns the updated Results (Results is immutable)
+                    results = await process_interviews(interview_runner, results)
                 except KeyboardInterrupt:
                     self._logger.info("Keyboard interrupt received during execution")
                     print("Keyboard interrupt received. Stopping gracefully...")

@@ -150,11 +150,10 @@ class ResultsSerializer:
         )
         name = data.get("name", None)
 
-        # Create a Results object with original order preserved
-        # using the empty data list initially
+        # Create a Results object with the data directly (Results is immutable)
         params = {
             "survey": survey,
-            "data": [],  # Start with empty data
+            "data": results_data,
             "created_columns": created_columns,
             "cache": cache,
             "task_history": task_history,
@@ -163,9 +162,6 @@ class ResultsSerializer:
 
         try:
             results = Results(**params)
-            # Add each result individually to respect order attributes
-            for result in results_data:
-                results.append(result)
         except Exception as e:
             raise ResultsDeserializationError(f"Error in Results.from_dict: {e}")
         return results
