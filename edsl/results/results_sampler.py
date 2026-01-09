@@ -44,14 +44,6 @@ class ResultsSampler:
         # Import here to avoid circular imports
         from .results import Results
 
-        # Create new Results object with same properties but empty data
-        shuffled_results = Results(
-            survey=self.results.survey,
-            data=[],
-            created_columns=self.results.created_columns,
-            data_class=self.results._data_class,
-        )
-
         # First pass: copy data while tracking indices
         indices = list(range(len(self.results.data)))
 
@@ -60,11 +52,16 @@ class ResultsSampler:
             j = random.randrange(i + 1)
             indices[i], indices[j] = indices[j], indices[i]
 
-        # Final pass: append items in shuffled order
-        for idx in indices:
-            shuffled_results.append(self.results.data[idx])
+        # Collect items in shuffled order (Results is immutable, create with full data)
+        shuffled_data = [self.results.data[idx] for idx in indices]
 
-        return shuffled_results
+        # Create new Results object with shuffled data
+        return Results(
+            survey=self.results.survey,
+            data=shuffled_data,
+            created_columns=self.results.created_columns,
+            data_class=self.results._data_class,
+        )
 
     def sample(
         self,
@@ -99,38 +96,27 @@ class ResultsSampler:
         # Import here to avoid circular imports
         from .results import Results
 
-        # Create new Results object with same properties but empty data
-        sampled_results = Results(
-            survey=self.results.survey,
-            data=[],
-            created_columns=self.results.created_columns,
-            data_class=self.results._data_class,
-        )
-
         if with_replacement:
-            # For sampling with replacement, we can generate indices and sample one at a time
-            indices = (random.randrange(len(self.results.data)) for _ in range(n))
-            for i in indices:
-                sampled_results.append(self.results.data[i])
+            # For sampling with replacement, generate indices and collect items
+            indices = [random.randrange(len(self.results.data)) for _ in range(n)]
+            sampled_data = [self.results.data[i] for i in indices]
         else:
-            # For sampling without replacement, use reservoir sampling
+            # For sampling without replacement
             if n > len(self.results.data):
                 raise ResultsError(
                     f"Cannot sample {n} items from a list of length {len(self.results.data)}."
                 )
 
-            # Reservoir sampling algorithm
-            for i, item in enumerate(self.results.data):
-                if i < n:
-                    # Fill the reservoir initially
-                    sampled_results.append(item)
-                else:
-                    # Randomly replace items with decreasing probability
-                    j = random.randrange(i + 1)
-                    if j < n:
-                        sampled_results.data[j] = item
+            # Use random.sample for simple random sampling without replacement
+            sampled_data = random.sample(list(self.results.data), n)
 
-        return sampled_results
+        # Create new Results object with sampled data (Results is immutable)
+        return Results(
+            survey=self.results.survey,
+            data=sampled_data,
+            created_columns=self.results.created_columns,
+            data_class=self.results._data_class,
+        )
 
     def sample_legacy(self, n: int) -> "Results":
         """Return a random sample of the results using legacy algorithm.

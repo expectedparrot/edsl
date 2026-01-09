@@ -109,24 +109,23 @@ class ResultsFilter:
             )
 
         try:
-            # Create new Results object with same class as original but empty data
-            filtered_results = Results(
-                survey=self.results.survey,
-                data=[],  # Empty data list
-                created_columns=self.results.created_columns,
-                data_class=self.results._data_class,  # Preserve the original data class
-            )
-
-            # Process one result at a time
+            # Collect matching results first (Results is immutable, can't append)
+            matching_results = []
             for result in self.results.data:
                 from .results_transformer import ResultsTransformer
 
                 evaluator = ResultsTransformer._create_evaluator(result)
                 result.check_expression(normalized_expression)  # check expression
                 if evaluator.eval(normalized_expression):
-                    filtered_results.append(
-                        result
-                    )  # Use append method to add matching results
+                    matching_results.append(result)
+
+            # Create new Results object with filtered data
+            filtered_results = Results(
+                survey=self.results.survey,
+                data=matching_results,
+                created_columns=self.results.created_columns,
+                data_class=self.results._data_class,  # Preserve the original data class
+            )
 
             if len(filtered_results) == 0:
                 warnings.warn("No results remain after applying the filter.")
@@ -135,16 +134,16 @@ class ResultsFilter:
 
         except ValueError as e:
             raise ResultsFilterError(
-                f"Error in filter. Exception:{e}",
-                f"The expression you provided was: {expression}",
-                "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.",
+                f"Error in filter. Exception: {e}\n"
+                f"The expression you provided was: {expression}\n"
+                "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details."
             )
         except Exception as e:
             raise ResultsFilterError(
-                f"Error in filter. Exception:{e}.",
-                f"The expression you provided was: {expression}.",
-                "Please make sure that the expression is a valid Python expression that evaluates to a boolean.",
-                'For example, \'how_feeling == "Great"\' is a valid expression, as is \'how_feeling in ["Great", "Terrible"]\'.',
-                "However, 'how_feeling = \"Great\"' is not a valid expression.",
-                "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.",
+                f"Error in filter. Exception: {e}.\n"
+                f"The expression you provided was: {expression}.\n"
+                "Please make sure that the expression is a valid Python expression that evaluates to a boolean.\n"
+                'For example, \'how_feeling == "Great"\' is a valid expression, as is \'how_feeling in ["Great", "Terrible"]\'.\n'
+                "However, 'how_feeling = \"Great\"' is not a valid expression.\n"
+                "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details."
             )
