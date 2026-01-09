@@ -260,6 +260,22 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
     def codebook(self, value: dict[str, str]) -> None:
         self.store.meta["codebook"] = value
 
+    def to_dataset(self) -> "Dataset":
+        """Convert the ScenarioList to a Dataset.
+        
+        This method overrides the generic RepresentationMixin.to_dataset to use
+        the proper columnar format conversion.
+        
+        Returns:
+            Dataset: A Dataset with columns for each scenario key.
+            
+        Examples:
+            >>> s = ScenarioList.from_list("a", [1, 2, 3])
+            >>> s.to_dataset()
+            Dataset([{'a': [1, 2, 3]}])
+        """
+        return self.convert.dataset()
+
     @property
     def convert(self) -> ScenarioListTo:
         """Namespace for conversion methods.

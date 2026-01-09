@@ -60,7 +60,6 @@ class ResultsSampler:
             survey=self.results.survey,
             data=shuffled_data,
             created_columns=self.results.created_columns,
-            data_class=self.results._data_class,
         )
 
     def sample(
@@ -115,7 +114,6 @@ class ResultsSampler:
             survey=self.results.survey,
             data=sampled_data,
             created_columns=self.results.created_columns,
-            data_class=self.results._data_class,
         )
 
     def sample_legacy(self, n: int) -> "Results":
