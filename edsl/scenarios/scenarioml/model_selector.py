@@ -6,30 +6,94 @@ Prioritizes generalization over training performance and includes comprehensive
 diagnostics for model evaluation.
 """
 
-import numpy as np
-import pandas as pd
 from dataclasses import dataclass
-from typing import Dict, List, Any, Optional
-from sklearn.model_selection import (
-    cross_val_score,
-    train_test_split,
-    StratifiedKFold,
-    KFold,
-)
-from sklearn.preprocessing import LabelEncoder
-from sklearn.linear_model import LogisticRegressionCV, Ridge, Lasso
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.metrics import accuracy_score, r2_score
+from typing import Dict, List, Any, Optional, TYPE_CHECKING
 import warnings
 
-# Import XGBoost with fallback
-try:
-    import xgboost as xgb
+if TYPE_CHECKING:
+    import numpy as np
+    import pandas as pd
 
-    HAS_XGBOOST = True
-except ImportError:
-    HAS_XGBOOST = False
-    warnings.warn("XGBoost not available. Install with: pip install xgboost")
+# Lazy-loaded numpy
+_numpy = None
+
+def _get_numpy():
+    """Lazy import numpy."""
+    global _numpy
+    if _numpy is None:
+        import numpy as _numpy
+    return _numpy
+
+# Lazy-loaded modules (populated on first use)
+_sklearn_model_selection = None
+_sklearn_preprocessing = None
+_sklearn_linear_model = None
+_sklearn_ensemble = None
+_sklearn_metrics = None
+_pandas = None
+_xgboost = None
+_HAS_XGBOOST = None
+
+
+def _get_sklearn_model_selection():
+    """Lazy import sklearn.model_selection."""
+    global _sklearn_model_selection
+    if _sklearn_model_selection is None:
+        from sklearn import model_selection as _sklearn_model_selection
+    return _sklearn_model_selection
+
+
+def _get_sklearn_preprocessing():
+    """Lazy import sklearn.preprocessing."""
+    global _sklearn_preprocessing
+    if _sklearn_preprocessing is None:
+        from sklearn import preprocessing as _sklearn_preprocessing
+    return _sklearn_preprocessing
+
+
+def _get_sklearn_linear_model():
+    """Lazy import sklearn.linear_model."""
+    global _sklearn_linear_model
+    if _sklearn_linear_model is None:
+        from sklearn import linear_model as _sklearn_linear_model
+    return _sklearn_linear_model
+
+
+def _get_sklearn_ensemble():
+    """Lazy import sklearn.ensemble."""
+    global _sklearn_ensemble
+    if _sklearn_ensemble is None:
+        from sklearn import ensemble as _sklearn_ensemble
+    return _sklearn_ensemble
+
+
+def _get_sklearn_metrics():
+    """Lazy import sklearn.metrics."""
+    global _sklearn_metrics
+    if _sklearn_metrics is None:
+        from sklearn import metrics as _sklearn_metrics
+    return _sklearn_metrics
+
+
+def _get_pandas():
+    """Lazy import pandas."""
+    global _pandas
+    if _pandas is None:
+        import pandas as _pandas
+    return _pandas
+
+
+def _get_xgboost():
+    """Lazy import xgboost with fallback."""
+    global _xgboost, _HAS_XGBOOST
+    if _HAS_XGBOOST is None:
+        try:
+            import xgboost as _xgboost
+            _HAS_XGBOOST = True
+        except ImportError:
+            _HAS_XGBOOST = False
+            warnings.warn("XGBoost not available. Install with: pip install xgboost")
+    return _xgboost, _HAS_XGBOOST
 
 
 @dataclass
@@ -80,25 +144,28 @@ class ModelSelector:
 
     def _initialize_classification_models(self) -> Dict[str, Any]:
         """Initialize classification model portfolio with conservative hyperparameters."""
+        linear_model = _get_sklearn_linear_model()
+        ensemble = _get_sklearn_ensemble()
+
         models = {
-            "logistic_ridge": LogisticRegressionCV(
+            "logistic_ridge": linear_model.LogisticRegressionCV(
                 penalty="l2",
-                Cs=np.logspace(-4, 2, 20),
+                Cs=_get_numpy().logspace(-4, 2, 20),
                 cv=5,
                 scoring="accuracy",
                 random_state=self.random_state,
                 max_iter=1000,
             ),
-            "logistic_lasso": LogisticRegressionCV(
+            "logistic_lasso": linear_model.LogisticRegressionCV(
                 penalty="l1",
-                Cs=np.logspace(-4, 2, 20),
+                Cs=_get_numpy().logspace(-4, 2, 20),
                 cv=5,
                 scoring="accuracy",
                 random_state=self.random_state,
                 max_iter=1000,
                 solver="liblinear",
             ),
-            "random_forest": RandomForestClassifier(
+            "random_forest": ensemble.RandomForestClassifier(
                 n_estimators=100,
                 max_depth=5,
                 random_state=self.random_state,
@@ -108,6 +175,7 @@ class ModelSelector:
         }
 
         # Add XGBoost if available
+        xgb, HAS_XGBOOST = _get_xgboost()
         if HAS_XGBOOST:
             models["xgboost_conservative"] = xgb.XGBClassifier(
                 max_depth=3,
@@ -126,10 +194,13 @@ class ModelSelector:
 
     def _initialize_regression_models(self) -> Dict[str, Any]:
         """Initialize regression model portfolio with conservative hyperparameters."""
+        linear_model = _get_sklearn_linear_model()
+        ensemble = _get_sklearn_ensemble()
+
         models = {
-            "ridge": Ridge(alpha=1.0, random_state=self.random_state),
-            "lasso": Lasso(alpha=0.1, random_state=self.random_state, max_iter=1000),
-            "random_forest": RandomForestRegressor(
+            "ridge": linear_model.Ridge(alpha=1.0, random_state=self.random_state),
+            "lasso": linear_model.Lasso(alpha=0.1, random_state=self.random_state, max_iter=1000),
+            "random_forest": ensemble.RandomForestRegressor(
                 n_estimators=100,
                 max_depth=5,
                 random_state=self.random_state,
@@ -139,6 +210,7 @@ class ModelSelector:
         }
 
         # Add XGBoost if available
+        xgb, HAS_XGBOOST = _get_xgboost()
         if HAS_XGBOOST:
             models["xgboost_conservative"] = xgb.XGBRegressor(
                 max_depth=3,
@@ -154,7 +226,7 @@ class ModelSelector:
 
         return models
 
-    def _detect_problem_type(self, y: np.ndarray) -> str:
+    def _detect_problem_type(self, y: "np.ndarray") -> str:
         """
         Detect whether this is a classification or regression problem.
 
@@ -175,7 +247,7 @@ class ModelSelector:
 
         return "classification"
 
-    def _is_numeric_array(self, y: np.ndarray) -> bool:
+    def _is_numeric_array(self, y: "np.ndarray") -> bool:
         """Check if array contains numeric values."""
         try:
             # Try to convert to float
@@ -185,7 +257,7 @@ class ModelSelector:
             return False
 
     def compare_models(
-        self, X: np.ndarray, y: np.ndarray, feature_names: List[str]
+        self, X: "np.ndarray", y: "np.ndarray", feature_names: List[str]
     ) -> List[ModelResult]:
         """
         Compare multiple models and return results.
@@ -207,16 +279,19 @@ class ModelSelector:
             return self._compare_regression_models(X, y, feature_names)
 
     def _compare_classification_models(
-        self, X: np.ndarray, y: np.ndarray, feature_names: List[str]
+        self, X: "np.ndarray", y: "np.ndarray", feature_names: List[str]
     ) -> List[ModelResult]:
         """Compare classification models."""
+        preprocessing = _get_sklearn_preprocessing()
+        model_selection = _get_sklearn_model_selection()
+
         # Encode target labels
-        label_encoder = LabelEncoder()
+        label_encoder = preprocessing.LabelEncoder()
         y_encoded = label_encoder.fit_transform(y)
 
         # Handle small datasets gracefully
         n_samples = len(y_encoded)
-        unique_classes, class_counts = np.unique(y_encoded, return_counts=True)
+        unique_classes, class_counts = _get_numpy().unique(y_encoded, return_counts=True)
         min_class_count = min(class_counts)
 
         # For very small datasets, use the whole dataset for both training and testing
@@ -230,7 +305,7 @@ class ModelSelector:
             test_size = max(0.1, min(0.3, 2.0 / min_class_count))
 
             try:
-                X_train, X_test, y_train, y_test = train_test_split(
+                X_train, X_test, y_train, y_test = model_selection.train_test_split(
                     X,
                     y_encoded,
                     test_size=test_size,
@@ -239,7 +314,7 @@ class ModelSelector:
                 )
             except ValueError:
                 # Fallback: no stratification for problematic cases
-                X_train, X_test, y_train, y_test = train_test_split(
+                X_train, X_test, y_train, y_test = model_selection.train_test_split(
                     X, y_encoded, test_size=test_size, random_state=self.random_state
                 )
 
@@ -265,11 +340,13 @@ class ModelSelector:
         return results
 
     def _compare_regression_models(
-        self, X: np.ndarray, y: np.ndarray, feature_names: List[str]
+        self, X: "np.ndarray", y: "np.ndarray", feature_names: List[str]
     ) -> List[ModelResult]:
         """Compare regression models."""
+        model_selection = _get_sklearn_model_selection()
+
         # Convert target to float
-        y_float = np.array([float(val) for val in y])
+        y_float = _get_numpy().array([float(val) for val in y])
 
         # Handle small datasets gracefully
         n_samples = len(y_float)
@@ -281,7 +358,7 @@ class ModelSelector:
         else:
             # Create train/test split with appropriate test size
             test_size = max(0.1, min(0.3, 2.0 / n_samples))
-            X_train, X_test, y_train, y_test = train_test_split(
+            X_train, X_test, y_train, y_test = model_selection.train_test_split(
                 X, y_float, test_size=test_size, random_state=self.random_state
             )
 
@@ -303,30 +380,32 @@ class ModelSelector:
         self,
         model,
         model_name: str,
-        X_train: np.ndarray,
-        X_test: np.ndarray,
-        y_train: np.ndarray,
-        y_test: np.ndarray,
+        X_train: "np.ndarray",
+        X_test: "np.ndarray",
+        y_train: "np.ndarray",
+        y_test: "np.ndarray",
         feature_names: List[str],
-        label_encoder: LabelEncoder,
+        label_encoder,
     ) -> ModelResult:
         """Evaluate a single model with comprehensive metrics."""
+        model_selection = _get_sklearn_model_selection()
+        metrics = _get_sklearn_metrics()
 
         # Cross-validation on training set - adapt to small datasets
         n_samples = X_train.shape[0]
         if n_samples < 5:
             # Too few samples for cross-validation, use train score as proxy
             model.fit(X_train, y_train)
-            cv_score = accuracy_score(y_train, model.predict(X_train))
+            cv_score = metrics.accuracy_score(y_train, model.predict(X_train))
             cv_std = 0.0
         else:
             # Use appropriate number of folds for dataset size
             n_splits = min(5, n_samples)
-            cv_scores = cross_val_score(
+            cv_scores = model_selection.cross_val_score(
                 model,
                 X_train,
                 y_train,
-                cv=StratifiedKFold(
+                cv=model_selection.StratifiedKFold(
                     n_splits=n_splits, shuffle=True, random_state=self.random_state
                 ),
                 scoring="accuracy",
@@ -338,8 +417,8 @@ class ModelSelector:
         model.fit(X_train, y_train)
 
         # Evaluate on training and test sets
-        train_score = accuracy_score(y_train, model.predict(X_train))
-        test_score = accuracy_score(y_test, model.predict(X_test))
+        train_score = metrics.accuracy_score(y_train, model.predict(X_train))
+        test_score = metrics.accuracy_score(y_test, model.predict(X_test))
 
         # Calculate overfitting gap
         overfitting_gap = max(0, train_score - test_score)
@@ -367,29 +446,31 @@ class ModelSelector:
         self,
         model,
         model_name: str,
-        X_train: np.ndarray,
-        X_test: np.ndarray,
-        y_train: np.ndarray,
-        y_test: np.ndarray,
+        X_train: "np.ndarray",
+        X_test: "np.ndarray",
+        y_train: "np.ndarray",
+        y_test: "np.ndarray",
         feature_names: List[str],
     ) -> ModelResult:
         """Evaluate a single regression model with comprehensive metrics."""
+        model_selection = _get_sklearn_model_selection()
+        metrics = _get_sklearn_metrics()
 
         # Cross-validation on training set (using R² score) - adapt to small datasets
         n_samples = X_train.shape[0]
         if n_samples < 5:
             # Too few samples for cross-validation, use train score as proxy
             model.fit(X_train, y_train)
-            cv_score = r2_score(y_train, model.predict(X_train))
+            cv_score = metrics.r2_score(y_train, model.predict(X_train))
             cv_std = 0.0
         else:
             # Use appropriate number of folds for dataset size
             n_splits = min(5, n_samples)
-            cv_scores = cross_val_score(
+            cv_scores = model_selection.cross_val_score(
                 model,
                 X_train,
                 y_train,
-                cv=KFold(
+                cv=model_selection.KFold(
                     n_splits=n_splits, shuffle=True, random_state=self.random_state
                 ),
                 scoring="r2",
@@ -401,8 +482,8 @@ class ModelSelector:
         model.fit(X_train, y_train)
 
         # Evaluate on training and test sets using R² score
-        train_score = r2_score(y_train, model.predict(X_train))
-        test_score = r2_score(y_test, model.predict(X_test))
+        train_score = metrics.r2_score(y_train, model.predict(X_train))
+        test_score = metrics.r2_score(y_test, model.predict(X_test))
 
         # Calculate overfitting gap
         overfitting_gap = max(0, train_score - test_score)
@@ -455,7 +536,7 @@ class ModelSelector:
 
         return best_result
 
-    def get_model_diagnostics(self, results: List[ModelResult]) -> pd.DataFrame:
+    def get_model_diagnostics(self, results: List[ModelResult]) -> "pd.DataFrame":
         """
         Get comprehensive model comparison diagnostics.
 
@@ -465,6 +546,7 @@ class ModelSelector:
         Returns:
             DataFrame with model comparison metrics
         """
+        pd = _get_pandas()
         diagnostics_data = []
 
         for result in results:
@@ -488,7 +570,7 @@ class ModelSelector:
         df = pd.DataFrame(diagnostics_data)
         return df.sort_values("Selection Score", ascending=False).reset_index(drop=True)
 
-    def validate_data(self, X: np.ndarray, y: np.ndarray) -> None:
+    def validate_data(self, X: "np.ndarray", y: "np.ndarray") -> None:
         """
         Validate input data for model training.
 
@@ -532,11 +614,11 @@ class ModelSelector:
 
         if problem_type == "classification":
             # Check target distribution for classification
-            unique_targets = np.unique(y)
+            unique_targets = _get_numpy().unique(y)
             if len(unique_targets) < 2:
                 raise ValueError("Target variable must have at least 2 classes")
 
-            min_class_count = min([np.sum(y == target) for target in unique_targets])
+            min_class_count = min([_get_numpy().sum(y == target) for target in unique_targets])
             if min_class_count < 2:
                 raise ValueError("Each target class must have at least 2 samples")
         else:
@@ -581,7 +663,7 @@ class ModelSelector:
                 importances = np.ones(len(feature_names)) / len(feature_names)
 
             # Normalize to sum to 1
-            importances = importances / np.sum(importances)
+            importances = importances / _get_numpy().sum(importances)
 
             return dict(zip(feature_names, importances))
 

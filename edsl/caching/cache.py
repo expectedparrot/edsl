@@ -37,7 +37,6 @@ from ..base import Base
 from ..utilities import remove_edsl_version, dict_hash
 from .exceptions import CacheError
 from .sql_dict import SQLiteDict
-import requests
 
 if TYPE_CHECKING:
     from .cache_entry import CacheEntry
@@ -226,6 +225,7 @@ class Cache(Base):
             CacheEntry: The cache entry if found, None otherwise
         """
         try:
+            import requests
             # Make request to the new endpoint
             url = f"{self.coop.api_url}/api/v0/remote-cache/get-by-key/{cache_key}"
             headers = self.coop.headers

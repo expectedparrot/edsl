@@ -6,13 +6,25 @@ with comprehensive error handling, persistence capabilities, and diagnostics.
 """
 
 import os
-import joblib
-import pandas as pd
-from typing import Dict, List, Any, Union
+from typing import Dict, List, Any, Union, TYPE_CHECKING
 import warnings
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 from .model_selector import ModelResult
 from .feature_processor import FeatureProcessor
+
+# Lazy-loaded pandas
+_pandas = None
+
+
+def _get_pandas():
+    """Lazy import pandas."""
+    global _pandas
+    if _pandas is None:
+        import pandas as _pandas
+    return _pandas
 
 
 class Prediction:
@@ -82,6 +94,7 @@ class Prediction:
 
         try:
             # Convert to DataFrame
+            pd = _get_pandas()
             df = pd.DataFrame(scenarios)
 
             # Transform features
@@ -140,6 +153,7 @@ class Prediction:
 
         try:
             # Convert to DataFrame
+            pd = _get_pandas()
             df = pd.DataFrame(scenarios)
 
             # Transform features
@@ -253,6 +267,7 @@ class Prediction:
             }
 
             # Save using joblib
+            import joblib
             joblib.dump(save_data, filepath)
 
         except Exception as e:
@@ -274,6 +289,7 @@ class Prediction:
         """
         try:
             # Load data
+            import joblib
             save_data = joblib.load(filepath)
 
             # Check version compatibility

@@ -4,28 +4,48 @@ EDSL Extensions Module
 This module provides functionality for:
 1. Interacting with the Extension Gateway API for calling existing services
 2. Creating new EDSL services without FastAPI knowledge using the service framework
+
+Gateway client and extension interface are lazily imported to avoid loading httpx at import time.
 """
 
-# Core extension functionality - no heavy dependencies
-from .gateway_client import (
-    ExtensionGatewayClient,
-    call_service,
-    list_services,
-    create_service,
-)
-
-from .extension_interface import (
-    ExtensionManager,
-    Extensions,
-    ExtensionService,
-    extension,
-    extensions,
-)
-
-
-# Service framework imports - only available if uvicorn is installed
+# Lazy imports for all components to avoid loading httpx/uvicorn at import time
 def __getattr__(name):
-    """Lazy import for service framework components to avoid uvicorn dependency for basic extensions"""
+    """Lazy import for extension components to avoid heavy dependencies at import time."""
+    # Gateway client components (requires httpx)
+    if name in ["ExtensionGatewayClient", "call_service", "list_services", "create_service"]:
+        from .gateway_client import (
+            ExtensionGatewayClient,
+            call_service,
+            list_services,
+            create_service,
+        )
+        globals().update({
+            "ExtensionGatewayClient": ExtensionGatewayClient,
+            "call_service": call_service,
+            "list_services": list_services,
+            "create_service": create_service,
+        })
+        return globals()[name]
+
+    # Extension interface components
+    if name in ["ExtensionManager", "Extensions", "ExtensionService", "extension", "extensions"]:
+        from .extension_interface import (
+            ExtensionManager,
+            Extensions,
+            ExtensionService,
+            extension,
+            extensions,
+        )
+        globals().update({
+            "ExtensionManager": ExtensionManager,
+            "Extensions": Extensions,
+            "ExtensionService": ExtensionService,
+            "extension": extension,
+            "extensions": extensions,
+        })
+        return globals()[name]
+
+    # Service framework components (requires uvicorn)
     if name in [
         "edsl_service",
         "input_param",

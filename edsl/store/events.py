@@ -472,3 +472,124 @@ def apply_event(event: Event, store: "Store") -> "Store":
         case _:
             raise ValueError(f"Unknown event type: {type(event)}")
 
+
+# =============================================================================
+# Event Registry
+# =============================================================================
+
+# Build registry mapping snake_case names to event classes
+EVENT_REGISTRY: Dict[str, type] = {}
+
+def _build_registry():
+    """Build the event registry from all Event subclasses in this module."""
+    import inspect
+    for name, obj in globals().items():
+        if (inspect.isclass(obj)
+            and issubclass(obj, Event)
+            and obj is not Event
+            and name.endswith('Event')):
+            # Create instance to get the snake_case name
+            # We need a dummy instance - use empty values
+            EVENT_REGISTRY[obj.__name__] = obj
+
+_build_registry()
+
+
+def get_event_class(event_name: str) -> type:
+    """
+    Get an event class by name.
+
+    Args:
+        event_name: Either the class name (e.g., 'AppendRowEvent')
+                   or snake_case name (e.g., 'append_row')
+
+    Returns:
+        The event class.
+
+    Raises:
+        ValueError: If event name is not found.
+    """
+    # Try direct class name lookup first
+    if event_name in EVENT_REGISTRY:
+        return EVENT_REGISTRY[event_name]
+
+    # Try snake_case to class name conversion
+    # append_row -> AppendRowEvent
+    class_name = ''.join(word.capitalize() for word in event_name.split('_')) + 'Event'
+    if class_name in EVENT_REGISTRY:
+        return EVENT_REGISTRY[class_name]
+
+    raise ValueError(f"Unknown event: {event_name}. Available events: {list(EVENT_REGISTRY.keys())}")
+
+
+def create_event(event_name: str, payload: Dict[str, Any]) -> Event:
+    """
+    Create an event instance from a name and payload.
+
+    Handles type conversions needed for frozen dataclasses:
+    - Lists are converted to tuples for hashability
+    - Nested lists of lists/dicts are converted appropriately
+
+    Args:
+        event_name: Either class name or snake_case name
+        payload: Dictionary of event parameters
+
+    Returns:
+        An Event instance.
+
+    Raises:
+        ValueError: If event name is not found or payload is invalid.
+    """
+    event_class = get_event_class(event_name)
+
+    # Convert lists to tuples recursively for hashability
+    def convert_for_frozen(value: Any) -> Any:
+        if isinstance(value, list):
+            # Check if it's a list of tuples (like rename_map)
+            if value and isinstance(value[0], (list, tuple)) and len(value[0]) == 2:
+                return tuple(tuple(item) for item in value)
+            return tuple(convert_for_frozen(item) for item in value)
+        elif isinstance(value, dict):
+            # Keep dicts as-is (they're used as row data)
+            return value
+        return value
+
+    converted_payload = {k: convert_for_frozen(v) for k, v in payload.items()}
+
+    try:
+        return event_class(**converted_payload)
+    except TypeError as e:
+        raise ValueError(f"Invalid payload for {event_name}: {e}")
+
+
+def list_events() -> Dict[str, Dict[str, Any]]:
+    """
+    List all available events with their parameter schemas.
+
+    Returns:
+        Dictionary mapping event names to their schemas.
+    """
+    import dataclasses
+    result = {}
+    for class_name, event_class in EVENT_REGISTRY.items():
+        # Get snake_case name
+        name = class_name
+        if name.endswith("Event"):
+            name = name[:-5]
+        snake_name = ''.join(f'_{c.lower()}' if c.isupper() else c for c in name).lstrip('_')
+
+        # Get fields from dataclass
+        fields = {}
+        for field in dataclasses.fields(event_class):
+            field_type = str(field.type)
+            # Clean up type representation
+            field_type = field_type.replace("typing.", "").replace("<class '", "").replace("'>", "")
+            fields[field.name] = field_type
+
+        result[snake_name] = {
+            "class_name": class_name,
+            "fields": fields,
+            "doc": event_class.__doc__ or "",
+        }
+    return result
+

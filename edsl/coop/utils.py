@@ -2,7 +2,6 @@ import math
 from typing import Literal, Optional, Type, Union, TYPE_CHECKING
 
 from ..agents import Agent, AgentList
-from ..caching import Cache
 from ..notebooks import Notebook
 from ..results import Results
 from ..scenarios import Scenario, ScenarioList
@@ -13,13 +12,14 @@ from ..macros.composite_macro import CompositeMacro
 from ..questions import QuestionBase
 
 if TYPE_CHECKING:
+    from ..caching import Cache
     from ..language_models import ModelList
     from ..language_models import LanguageModel
 
 EDSLObject = Union[
     Agent,
     AgentList,
-    Cache,
+    "Cache",
     "LanguageModel",
     "ModelList",
     Notebook,
@@ -89,8 +89,9 @@ class ObjectRegistry:
 
     @classmethod
     def _get_objects(cls):
-        """Lazy import of language models to avoid circular imports"""
+        """Lazy import of language models and cache to avoid circular imports"""
         from ..language_models import LanguageModel, ModelList
+        from ..caching import Cache
 
         return [
             {"object_type": "agent", "edsl_class": Agent},

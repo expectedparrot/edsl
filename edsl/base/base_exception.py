@@ -1,5 +1,4 @@
 import sys
-from IPython.core.interactiveshell import InteractiveShell
 
 # Example logger import
 from .. import logger
@@ -126,6 +125,7 @@ class BaseException(Exception):
     @classmethod
     def _install_ipython_hook(cls):
         """Use IPython's recommended approach for a custom exception handler."""
+        from IPython.core.interactiveshell import InteractiveShell
 
         shell = InteractiveShell.instance()
 

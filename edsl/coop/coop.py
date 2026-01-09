@@ -1,9 +1,17 @@
-import aiohttp
 import base64
 import json
 import os
-import requests
 import time
+
+# Lazy import for requests to speed up module import time
+_requests = None
+
+def _get_requests():
+    """Lazily import requests module."""
+    global _requests
+    if _requests is None:
+        import requests as _requests
+    return _requests
 
 from typing import (
     Any,
@@ -21,10 +29,11 @@ from uuid import UUID
 from .. import __version__
 
 from ..config import CONFIG
-from ..caching import CacheEntry
 from ..logger import get_logger
 
 if TYPE_CHECKING:
+    from requests import Response
+    from ..caching import CacheEntry
     from ..jobs import Jobs
     from ..scenarios import Scenario, ScenarioList
     from ..surveys import Survey
@@ -231,7 +240,7 @@ class Coop(CoopFunctionsMixin):
         payload: Optional[dict[str, Any]] = None,
         params: Optional[dict[str, Any]] = None,
         timeout: Optional[float] = 10,
-    ) -> requests.Response:
+    ) -> "Response":
         """
         Send a request to the server and return the response.
         """
@@ -265,11 +274,11 @@ class Coop(CoopFunctionsMixin):
 
         try:
             if method in ["GET", "DELETE"]:
-                response = requests.request(
+                response = _get_requests().request(
                     method, url, params=params, headers=self.headers, timeout=timeout
                 )
             elif method in ["POST", "PATCH"]:
-                response = requests.request(
+                response = _get_requests().request(
                     method,
                     url,
                     params=params,
@@ -289,15 +298,15 @@ class Coop(CoopFunctionsMixin):
                 f"Received response: {response.status_code} from {method} {url}"
             )
 
-        except requests.ConnectionError as e:
+        except _get_requests().ConnectionError as e:
             error_msg = f"Could not connect to the server at {url}."
             self._logger.error(f"Connection error: {error_msg} - {str(e)}")
-            raise requests.ConnectionError(error_msg)
-        except requests.Timeout as e:
+            raise _get_requests().ConnectionError(error_msg)
+        except _get_requests().Timeout as e:
             error_msg = f"Request to {url} timed out after {timeout} seconds."
             self._logger.error(f"Timeout error: {error_msg} - {str(e)}")
             raise
-        except requests.RequestException as e:
+        except _get_requests().RequestException as e:
             error_msg = f"Request to {url} failed."
             self._logger.error(f"Request error: {error_msg} - {str(e)}")
             raise
@@ -454,7 +463,7 @@ class Coop(CoopFunctionsMixin):
         return None
 
     def _resolve_server_response(
-        self, response: requests.Response, check_api_key: bool = True
+        self, response: "Response", check_api_key: bool = True
     ) -> None:
         """
         Check the response from the server and raise errors as appropriate.
@@ -550,7 +559,7 @@ class Coop(CoopFunctionsMixin):
             self._logger.error(f"Server response error: {message}")
             raise CoopServerResponseError(message)
 
-    def _resolve_gcs_response(self, response: requests.Response) -> None:
+    def _resolve_gcs_response(self, response: "Response") -> None:
         """
         Check the response from uploading or downloading a file from Google Cloud Storage.
         Raise errors as appropriate.
@@ -1152,7 +1161,7 @@ class Coop(CoopFunctionsMixin):
 
                 raise CoopResponseError("No signed url was provided.")
 
-            response = requests.put(
+            response = _get_requests().put(
                 signed_url, data=json_data.encode(), headers=headers
             )
             self._resolve_gcs_response(response)
@@ -1185,7 +1194,7 @@ class Coop(CoopFunctionsMixin):
                     byte_data = formatted_python_string.encode("utf-8")
                 else:
                     byte_data = base64.b64decode(object_dict["base64_string"])
-                response = requests.put(
+                response = _get_requests().put(
                     file_store_upload_signed_url,
                     data=byte_data,
                     headers=headers,
@@ -1293,7 +1302,7 @@ class Coop(CoopFunctionsMixin):
         json_string = response.json().get("json_string")
         if "load_from:" in json_string[0:12]:
             load_link = json_string.split("load_from:")[1]
-            object_data = requests.get(load_link)
+            object_data = _get_requests().get(load_link)
             self._resolve_gcs_response(object_data)
             json_string = object_data.text
         object_type = response.json().get("object_type")
@@ -1695,7 +1704,7 @@ class Coop(CoopFunctionsMixin):
         )
 
         # Upload to GCS using signed URL
-        gcs_response = requests.put(
+        gcs_response = _get_requests().put(
             signed_url,
             data=json_content,
             headers={"Content-Type": "application/json"},
@@ -1728,7 +1737,7 @@ class Coop(CoopFunctionsMixin):
     def remote_cache_get(
         self,
         job_uuid: Optional[Union[str, UUID]] = None,
-    ) -> List[CacheEntry]:
+    ) -> List["CacheEntry"]:
         """
         Get all remote cache entries.
 
@@ -1737,6 +1746,8 @@ class Coop(CoopFunctionsMixin):
         >>> coop.remote_cache_get(job_uuid="...")
         [CacheEntry(...), CacheEntry(...), ...]
         """
+        from ..caching import CacheEntry
+
         if job_uuid is None:
             from .exceptions import CoopValueError
 
@@ -1758,7 +1769,7 @@ class Coop(CoopFunctionsMixin):
     def remote_cache_get_by_key(
         self,
         select_keys: Optional[List[str]] = None,
-    ) -> List[CacheEntry]:
+    ) -> List["CacheEntry"]:
         """
         Get all remote cache entries.
 
@@ -1767,6 +1778,8 @@ class Coop(CoopFunctionsMixin):
         >>> coop.remote_cache_get_by_key(selected_keys=["..."])
         [CacheEntry(...), CacheEntry(...), ...]
         """
+        from ..caching import CacheEntry
+
         if select_keys is None or len(select_keys) == 0:
             from .exceptions import CoopValueError
 
@@ -1865,7 +1878,7 @@ class Coop(CoopFunctionsMixin):
 
             raise CoopResponseError("No signed url was provided.")
 
-        response = requests.put(
+        response = _get_requests().put(
             upload_signed_url,
             data=json.dumps(
                 job.to_dict(),
@@ -2231,7 +2244,7 @@ class Coop(CoopFunctionsMixin):
                 job_json = json_string
 
             try:
-                response = requests.get(signed_url)
+                response = _get_requests().get(signed_url)
                 self._resolve_gcs_response(response)
                 job_json = json.dumps(response.json())
             except Exception:
@@ -3119,6 +3132,7 @@ class Coop(CoopFunctionsMixin):
             "system_prompt": system_prompt,
         }
         # Use aiohttp to send a POST request asynchronously
+        import aiohttp
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=data) as response:
                 response_data = await response.json()
@@ -3138,7 +3152,7 @@ class Coop(CoopFunctionsMixin):
         else:
             data = {"json_string": json.dumps({"survey": survey, "email": ""})}
 
-        response_json = requests.post(url, headers=self.headers, data=json.dumps(data))
+        response_json = _get_requests().post(url, headers=self.headers, data=json.dumps(data))
 
         return response_json
 
@@ -3381,7 +3395,7 @@ class Coop(CoopFunctionsMixin):
             return self.get(url_or_uuid, expected_object_type)
 
         try:
-            response = requests.get(signed_url)
+            response = _get_requests().get(signed_url)
 
             self._resolve_gcs_response(response)
 
@@ -3519,7 +3533,7 @@ class Coop(CoopFunctionsMixin):
                     file_content = base64.b64decode(base64_string)
 
                     # Upload to GCS
-                    upload_response = requests.put(
+                    upload_response = _get_requests().put(
                         upload_url,
                         data=file_content,
                         headers={
@@ -3799,7 +3813,7 @@ class Coop(CoopFunctionsMixin):
                     error_msg += f"\nObject type: {type(object_dict)}"
                     error_msg += f"\nObject class: {object.__class__.__name__}"
                 raise CoopSerializationError(error_msg) from e
-        response = requests.put(
+        response = _get_requests().put(
             signed_url,
             data=json_data.encode(),
             headers={"Content-Type": "application/json"},

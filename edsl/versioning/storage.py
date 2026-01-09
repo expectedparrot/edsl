@@ -42,12 +42,57 @@ class BaseObjectStore:
     def get_commit(self, commit_id: str) -> Commit:
         return self._commits[commit_id]
 
-    def put_commit(self, commit: Commit, state_id: str) -> None:
+    def put_commit(self, commit: Commit, state_id: str = None) -> None:
+        """Store a commit, optionally with a state snapshot."""
         self._commits[commit.commit_id] = commit
-        self._commit_to_state[commit.commit_id] = state_id
+        if state_id is not None:
+            self._commit_to_state[commit.commit_id] = state_id
 
     def get_commit_state_id(self, commit_id: str) -> str:
-        return self._commit_to_state[commit_id]
+        """Get state_id for a commit. Returns None if no snapshot exists."""
+        return self._commit_to_state.get(commit_id)
+
+    def has_snapshot(self, commit_id: str) -> bool:
+        """Check if a commit has a state snapshot."""
+        return commit_id in self._commit_to_state
+
+    def find_nearest_snapshot(self, commit_id: str) -> tuple:
+        """
+        Find the nearest ancestor commit with a snapshot.
+
+        Returns:
+            (snapshot_commit_id, state_id, events_to_replay)
+            where events_to_replay is a list of (event_name, event_payload)
+            from snapshot to target commit (in order).
+        """
+        events_to_replay = []
+        current_id = commit_id
+
+        while current_id:
+            # Check if this commit has a snapshot
+            state_id = self._commit_to_state.get(current_id)
+            if state_id is not None:
+                # Found a snapshot - reverse events to get correct order
+                events_to_replay.reverse()
+                return (current_id, state_id, events_to_replay)
+
+            # No snapshot - record the event and move to parent
+            commit = self._commits.get(current_id)
+            if commit is None:
+                break
+
+            # Don't replay 'init' events (they create empty state)
+            if commit.event_name != "init":
+                events_to_replay.append((commit.event_name, commit.event_payload))
+
+            # Move to first parent
+            if commit.parents:
+                current_id = commit.parents[0]
+            else:
+                current_id = None
+
+        # No snapshot found - return None
+        return (None, None, [])
 
     def has_ref(self, name: str) -> bool:
         return name in self._refs
