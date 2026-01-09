@@ -320,6 +320,76 @@ class Store:
         return self
 
     # =========================================================================
+    # Survey-Specific Operations
+    # =========================================================================
+
+    def add_rule(self, rule_dict: dict[str, Any]) -> "Store":
+        """Add a rule to the rules list in meta."""
+        if "rules" not in self.meta:
+            self.meta["rules"] = []
+        self.meta["rules"].append(rule_dict)
+        return self
+
+    def remove_rules_for_question(self, question_index: int) -> "Store":
+        """Remove all rules associated with a specific question index."""
+        if "rules" in self.meta:
+            self.meta["rules"] = [
+                rule for rule in self.meta["rules"]
+                if rule.get("current_q") != question_index
+            ]
+        return self
+
+    def update_rule_indices(self, index_offset: int, from_index: int) -> "Store":
+        """Update rule indices after question insertion/deletion."""
+        if "rules" in self.meta:
+            for rule in self.meta["rules"]:
+                if rule.get("current_q", 0) >= from_index:
+                    rule["current_q"] = rule.get("current_q", 0) + index_offset
+                if isinstance(rule.get("next_q"), int) and rule.get("next_q", 0) >= from_index:
+                    rule["next_q"] = rule.get("next_q", 0) + index_offset
+        return self
+
+    def set_memory_plan(self, memory_plan_dict: dict[str, Any]) -> "Store":
+        """Set the memory plan in meta."""
+        self.meta["memory_plan"] = memory_plan_dict
+        return self
+
+    def add_memory_for_question(self, focal_question: str, prior_questions: tuple[str, ...]) -> "Store":
+        """Add memory entries for a specific question."""
+        if "memory_plan" not in self.meta:
+            self.meta["memory_plan"] = {}
+        self.meta["memory_plan"][focal_question] = list(prior_questions)
+        return self
+
+    def add_question_group(self, group_name: str, start_index: int, end_index: int) -> "Store":
+        """Add a question group to meta."""
+        if "question_groups" not in self.meta:
+            self.meta["question_groups"] = {}
+        self.meta["question_groups"][group_name] = (start_index, end_index)
+        return self
+
+    def add_pseudo_index(self, name: str, pseudo_index: float) -> "Store":
+        """Add a pseudo index for an instruction."""
+        if "pseudo_indices" not in self.meta:
+            self.meta["pseudo_indices"] = {}
+        self.meta["pseudo_indices"][name] = pseudo_index
+        return self
+
+    def remove_pseudo_index(self, name: str) -> "Store":
+        """Remove a pseudo index."""
+        if "pseudo_indices" in self.meta:
+            self.meta["pseudo_indices"].pop(name, None)
+        return self
+
+    def update_pseudo_indices(self, index_offset: int, from_index: float) -> "Store":
+        """Update pseudo indices after insertion/deletion."""
+        if "pseudo_indices" in self.meta:
+            for name, idx in list(self.meta["pseudo_indices"].items()):
+                if idx >= from_index:
+                    self.meta["pseudo_indices"][name] = idx + index_offset
+        return self
+
+    # =========================================================================
     # Serialization
     # =========================================================================
 
