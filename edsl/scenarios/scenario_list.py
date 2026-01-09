@@ -2026,6 +2026,9 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
                     names = new_names if new_names else [f"{field}_{i}" for i in range(len(values))]
                     for name, value in zip(names, values):
                         new_entry[name] = value
+                elif new_names and len(new_names) == 1:
+                    # Handle scalar values when a single new name is provided
+                    new_entry[new_names[0]] = values
                 if not keep_original:
                     del new_entry[field]
             new_entries.append(new_entry)
@@ -2590,8 +2593,11 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         for key, values in groups.items():
             new_entry = dict(key)
             
-            # Apply prefix/postfix and format values
-            formatted_values = [f"{prefix}{v}{postfix}" for v in values]
+            # Apply prefix/postfix only when provided, to preserve original value types
+            if prefix or postfix:
+                formatted_values = [f"{prefix}{v}{postfix}" for v in values]
+            else:
+                formatted_values = values
             
             if separator is not None:
                 new_entry[field] = separator.join(str(v) for v in formatted_values)

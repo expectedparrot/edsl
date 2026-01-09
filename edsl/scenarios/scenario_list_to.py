@@ -28,6 +28,7 @@ class ScenarioListTo:
     
     Access via the `.convert` property on ScenarioList:
     
+        >>> from edsl import ScenarioList, Scenario
         >>> sl = ScenarioList([Scenario({'age': 22, 'name': 'Alice'})])
         >>> al = sl.convert.agent_list()
         >>> ds = sl.convert.dataset()
@@ -144,6 +145,7 @@ class ScenarioListTo:
     def dataset(self) -> "Dataset":
         """Convert the ScenarioList to a Dataset.
 
+        >>> from edsl import ScenarioList
         >>> s = ScenarioList.from_list("a", [1,2,3])
         >>> s.convert.dataset()
         Dataset([{'a': [1, 2, 3]}])
@@ -171,6 +173,7 @@ class ScenarioListTo:
         value is the row-wise list of that key's values across the ScenarioList.
 
         Examples:
+            >>> from edsl import ScenarioList
             >>> s = ScenarioList.from_list('a', [1, 2, 3])
             >>> s.convert.scenario_of_lists()
             Scenario({'a': [1, 2, 3]})
@@ -186,6 +189,7 @@ class ScenarioListTo:
             value: An optional field to use as the value in the key-value pair.
 
         Example:
+            >>> from edsl import ScenarioList, Scenario
             >>> s = ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
             >>> s.convert.key_value('name') == {'Alice', 'Bob'}
             True

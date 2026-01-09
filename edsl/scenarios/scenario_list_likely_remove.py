@@ -378,6 +378,8 @@ class ScenarioListLikelyRemove:
         examples_string = line_separator.join(example_lines)
 
         # Create new ScenarioList with added fields
+        from .scenario_list import ScenarioList
+        
         new_scenarios = []
         for scenario in self:
             new_scenario = scenario.copy()
