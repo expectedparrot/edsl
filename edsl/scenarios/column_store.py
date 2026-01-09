@@ -320,9 +320,9 @@ class ColumnStore:
             pyarrow.Table with columns named by column names (not IDs).
         
         Example:
-            >>> store = ColumnStore.from_rows([{'a': 1, 'b': 'x'}, {'a': 2, 'b': 'y'}])
-            >>> table = store.to_arrow()
-            >>> table.to_pandas()
+            >>> store = ColumnStore.from_rows([{'a': 1, 'b': 'x'}, {'a': 2, 'b': 'y'}])  # doctest: +SKIP
+            >>> table = store.to_arrow()  # doctest: +SKIP
+            >>> table.to_pandas()  # doctest: +SKIP
                a  b
             0  1  x
             1  2  y

@@ -17,12 +17,22 @@ class InterviewExceptionEntry:
         traceback_format="text",
         answers=None,
         time=None,  # Added time parameter for deserialization
+        traceback_string=None,  # Pre-captured traceback string
     ):
         self.time = time or datetime.datetime.now().isoformat()
         self.exception = exception
         self.invigilator = invigilator
         self.traceback_format = traceback_format
         self.answers = answers
+        # Capture traceback immediately before it gets cleared
+        if traceback_string is not None:
+            self._traceback_string = traceback_string
+        elif hasattr(exception, "__traceback__") and exception.__traceback__:
+            self._traceback_string = "".join(
+                traceback.format_exception(type(exception), exception, exception.__traceback__)
+            )
+        else:
+            self._traceback_string = None
 
     @property
     def exception_type(self) -> str:
@@ -130,14 +140,15 @@ class InterviewExceptionEntry:
         >>> entry.text_traceback
         'Traceback (most recent call last):...'
         """
+        # Use pre-captured traceback if available
+        if self._traceback_string:
+            return self._traceback_string
+        # Fallback to formatting from exception (may not have traceback attached)
         e = self.exception
-        # Check if the exception has a traceback attribute
         if hasattr(e, "__traceback__") and e.__traceback__:
-            tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+            return "".join(traceback.format_exception(type(e), e, e.__traceback__))
         else:
-            # Use the message as traceback if no traceback available
-            tb_str = f"Exception: {str(e)}"
-        return tb_str
+            return f"Exception: {str(e)}"
 
     @property
     def html_traceback(self) -> str:
@@ -277,8 +288,15 @@ class InterviewExceptionEntry:
 
         # Use the original timestamp from serialization
         time = data.get("time")
+        # Restore the traceback string from serialization
+        traceback_string = data.get("traceback")
 
-        return cls(exception=exception, invigilator=invigilator, time=time)
+        return cls(
+            exception=exception,
+            invigilator=invigilator,
+            time=time,
+            traceback_string=traceback_string,
+        )
 
 
 class InterviewExceptionCollection(UserDict):

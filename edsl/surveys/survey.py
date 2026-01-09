@@ -2418,10 +2418,10 @@ class Survey(GitMixin, Base):
             >>> s.by(Agent.example())
             Jobs(...)
 
-            Chain all components in a single call:
+            Chain multiple components by calling by() multiple times:
 
             >>> from edsl.language_models import LanguageModel
-            >>> s.by(Agent.example(), LanguageModel.example())
+            >>> s.by(Agent.example()).by(LanguageModel.example())
             Jobs(...)
         """
         from edsl.jobs import Jobs

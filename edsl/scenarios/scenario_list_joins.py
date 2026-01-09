@@ -24,6 +24,7 @@ class ScenarioListJoin:
     
     Access via the `.join` property on ScenarioList:
     
+        >>> from edsl import ScenarioList, Scenario
         >>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30})])
         >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'city': 'NYC'})])
         >>> result = s1.join.left(s2, by='name')
@@ -46,6 +47,7 @@ class ScenarioListJoin:
             A new ScenarioList with left join results.
 
         Example:
+            >>> from edsl import ScenarioList, Scenario
             >>> s1 = ScenarioList([
             ...     Scenario({'name': 'Alice', 'age': 30}),
             ...     Scenario({'name': 'Bob', 'age': 25})
@@ -79,6 +81,7 @@ class ScenarioListJoin:
             A new ScenarioList containing only scenarios that have matches in both.
 
         Example:
+            >>> from edsl import ScenarioList, Scenario
             >>> s1 = ScenarioList([
             ...     Scenario({'name': 'Alice', 'age': 30}),
             ...     Scenario({'name': 'Bob', 'age': 25})
@@ -111,6 +114,7 @@ class ScenarioListJoin:
             A new ScenarioList containing all right scenarios with matching left data.
 
         Example:
+            >>> from edsl import ScenarioList, Scenario
             >>> s1 = ScenarioList([
             ...     Scenario({'name': 'Alice', 'age': 30}),
             ...     Scenario({'name': 'Bob', 'age': 25})
