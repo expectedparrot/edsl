@@ -288,6 +288,70 @@ class CollapseByFieldEvent(Event):
 
 
 # =============================================================================
+# Survey-Specific Events
+# =============================================================================
+
+@dataclass(frozen=True)
+class AddRuleEvent(Event):
+    """Event that adds a navigation rule to the survey."""
+    rule_dict: dict[str, Any]  # Serialized rule
+
+
+@dataclass(frozen=True)
+class RemoveRulesForQuestionEvent(Event):
+    """Event that removes all rules for a specific question index."""
+    question_index: int
+
+
+@dataclass(frozen=True)
+class UpdateRuleIndicesEvent(Event):
+    """Event that updates rule indices after question insertion/deletion."""
+    index_offset: int  # Amount to offset indices by
+    from_index: int  # Only update indices >= this value
+
+
+@dataclass(frozen=True)
+class SetMemoryPlanEvent(Event):
+    """Event that sets the memory plan for the survey."""
+    memory_plan_dict: dict[str, Any]  # Serialized memory plan
+
+
+@dataclass(frozen=True)
+class AddMemoryForQuestionEvent(Event):
+    """Event that adds memory entries for a specific question."""
+    focal_question: str
+    prior_questions: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class AddQuestionGroupEvent(Event):
+    """Event that adds a question group to the survey."""
+    group_name: str
+    start_index: int
+    end_index: int
+
+
+@dataclass(frozen=True)
+class AddPseudoIndexEvent(Event):
+    """Event that adds a pseudo index for an instruction."""
+    entry_name: str  # Using entry_name to avoid conflict with Event.name property
+    pseudo_index: float
+
+
+@dataclass(frozen=True)
+class RemovePseudoIndexEvent(Event):
+    """Event that removes a pseudo index."""
+    entry_name: str  # Using entry_name to avoid conflict with Event.name property
+
+
+@dataclass(frozen=True)
+class UpdatePseudoIndicesEvent(Event):
+    """Event that updates pseudo indices after insertion/deletion."""
+    index_offset: int
+    from_index: float
+
+
+# =============================================================================
 # Event Dispatcher
 # =============================================================================
 
@@ -362,6 +426,26 @@ def apply_event(event: Event, store: "Store") -> "Store":
             return store.set_field_by_index('name', event.names)
         case CollapseByFieldEvent():
             return store.collapse_by_field(event.group_field, event.merge_field, event.result_entries)
+        
+        # Survey-Specific Events
+        case AddRuleEvent():
+            return store.add_rule(event.rule_dict)
+        case RemoveRulesForQuestionEvent():
+            return store.remove_rules_for_question(event.question_index)
+        case UpdateRuleIndicesEvent():
+            return store.update_rule_indices(event.index_offset, event.from_index)
+        case SetMemoryPlanEvent():
+            return store.set_memory_plan(event.memory_plan_dict)
+        case AddMemoryForQuestionEvent():
+            return store.add_memory_for_question(event.focal_question, event.prior_questions)
+        case AddQuestionGroupEvent():
+            return store.add_question_group(event.group_name, event.start_index, event.end_index)
+        case AddPseudoIndexEvent():
+            return store.add_pseudo_index(event.entry_name, event.pseudo_index)
+        case RemovePseudoIndexEvent():
+            return store.remove_pseudo_index(event.entry_name)
+        case UpdatePseudoIndicesEvent():
+            return store.update_pseudo_indices(event.index_offset, event.from_index)
         
         # Value Events
         case FillNaEvent():

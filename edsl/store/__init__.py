@@ -51,6 +51,16 @@ from .events import (
     # Agent-Specific Events
     SetAgentNamesEvent,
     CollapseByFieldEvent,
+    # Survey-Specific Events
+    AddRuleEvent,
+    RemoveRulesForQuestionEvent,
+    UpdateRuleIndicesEvent,
+    SetMemoryPlanEvent,
+    AddMemoryForQuestionEvent,
+    AddQuestionGroupEvent,
+    AddPseudoIndexEvent,
+    RemovePseudoIndexEvent,
+    UpdatePseudoIndicesEvent,
     # Value Events
     FillNaEvent,
     StringCatFieldEvent,
@@ -99,6 +109,16 @@ __all__ = [
     # Agent-Specific Events
     "SetAgentNamesEvent",
     "CollapseByFieldEvent",
+    # Survey-Specific Events
+    "AddRuleEvent",
+    "RemoveRulesForQuestionEvent",
+    "UpdateRuleIndicesEvent",
+    "SetMemoryPlanEvent",
+    "AddMemoryForQuestionEvent",
+    "AddQuestionGroupEvent",
+    "AddPseudoIndexEvent",
+    "RemovePseudoIndexEvent",
+    "UpdatePseudoIndicesEvent",
     # Value Events
     "FillNaEvent",
     "StringCatFieldEvent",

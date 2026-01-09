@@ -5,6 +5,9 @@ and managing surveys. A Survey consists of questions, instructions, and rules th
 determine the flow of questions based on previous answers.
 
 Surveys can include skip logic, memory management, and question groups.
+
+The Survey class uses an event-sourcing architecture where all mutations are captured
+as events, enabling version control and immutability patterns through GitMixin.
 """
 
 from __future__ import annotations
@@ -28,6 +31,32 @@ from typing_extensions import Literal
 from ..base import Base
 from ..scenarios import Scenario
 from ..utilities import remove_edsl_version, with_spinner
+
+# Import event-sourcing infrastructure
+from ..versioning import GitMixin, event
+from ..store import (
+    Store,
+    Event,
+    AppendRowEvent,
+    InsertRowEvent,
+    RemoveRowsEvent,
+    ReorderEntriesEvent,
+    ReplaceAllEntriesEvent,
+    SetMetaEvent,
+    UpdateMetaEvent,
+    # Survey-specific events
+    AddRuleEvent,
+    RemoveRulesForQuestionEvent,
+    UpdateRuleIndicesEvent,
+    SetMemoryPlanEvent,
+    AddMemoryForQuestionEvent,
+    AddQuestionGroupEvent,
+    AddPseudoIndexEvent,
+    RemovePseudoIndexEvent,
+    UpdatePseudoIndicesEvent,
+    apply_event,
+)
+from .survey_codec import SurveyCodec
 
 if TYPE_CHECKING:
     from ..questions import QuestionBase
@@ -75,7 +104,7 @@ from .exceptions import (
 )
 
 
-class Survey(Base):
+class Survey(GitMixin, Base):
     """A collection of questions with logic for navigating between them.
 
     Survey is the main class for creating, modifying, and running surveys. It supports:
@@ -92,11 +121,18 @@ class Survey(Base):
     3. Run the survey with agents or humans
     4. Export the survey in various formats
 
-    The survey maintains the order of questions, any skip logic rules, and handles
-    serialization for storage or transmission.
+    The Survey class uses an event-sourcing architecture where all mutations are
+    captured as events and applied to a Store backend. This enables version control,
+    immutability patterns, and integration with git-like operations via GitMixin.
     """
 
     __documentation__ = """https://docs.expectedparrot.com/en/latest/surveys.html"""
+
+    # Event-sourcing infrastructure
+    _versioned = 'store'
+    _store_class = Store
+    _event_handler = apply_event
+    _codec = SurveyCodec()
 
     questions = QuestionsDescriptor()
     """A descriptor that manages the list of questions in the survey.
@@ -215,6 +251,121 @@ class Survey(Base):
         # Validate survey structure (e.g., check for forward piping references)
         # This will raise SurveyPipingReferenceError if questions are in wrong order
         self.dag()
+
+        # Initialize GitMixin and Store for event sourcing
+        GitMixin.__init__(self)
+        
+        # Build the Store from the current state
+        self._sync_store_from_state()
+        
+        # Mark that the store is initialized (used to avoid syncing during construction)
+        self._store_initialized = True
+
+    def _sync_store_from_state(self) -> None:
+        """Build/update the Store from the current survey state.
+        
+        This method syncs the Store entries and metadata from the survey's
+        current attributes (_questions, rule_collection, memory_plan, etc.).
+        It's called after initialization and can be called after direct modifications.
+        """
+        # Encode all questions to store entries
+        entries = []
+        for question in self._questions:
+            entries.append(self._codec.encode(question))
+        
+        # Build metadata from survey state
+        meta = {
+            "rule_collection": self.rule_collection.to_dict(add_edsl_version=False),
+            "memory_plan": self.memory_plan.to_dict(add_edsl_version=False),
+            "question_groups": dict(self.question_groups),
+            "questions_to_randomize": list(self.questions_to_randomize),
+            "pseudo_indices": dict(self._pseudo_indices),
+            "instruction_names_to_instructions": {
+                name: inst.to_dict(add_edsl_version=False)
+                for name, inst in self._instruction_names_to_instructions.items()
+            },
+        }
+        
+        if self.name is not None:
+            meta["name"] = self.name
+        
+        # Create or update the Store
+        self.store = Store(entries=entries, meta=meta)
+
+    @classmethod
+    def _from_state(cls, state: Dict[str, Any]) -> "Survey":
+        """Create a Survey instance from a Store state dictionary.
+        
+        This method is used by GitMixin to create new instances after
+        applying events. It reconstructs all Survey attributes from the
+        Store's entries and metadata.
+        
+        Args:
+            state: Dictionary with 'entries' (questions) and 'meta' (rules, memory, etc.)
+            
+        Returns:
+            A new Survey instance with all attributes reconstructed from state.
+        """
+        # Create a minimal instance without calling normal __init__
+        instance = object.__new__(cls)
+        
+        # Create the Store
+        store = Store.from_dict(state)
+        instance.store = store
+        
+        # Decode questions from store entries
+        questions = []
+        for entry in store.entries:
+            questions.append(cls._codec.decode(entry))
+        
+        # Set up questions (bypassing descriptor to avoid side effects)
+        instance.__dict__['_questions'] = questions
+        instance.raw_passed_questions = None
+        
+        # Reconstruct rule_collection from meta
+        rule_collection_dict = store.meta.get("rule_collection", {})
+        if rule_collection_dict:
+            instance.rule_collection = RuleCollection.from_dict(rule_collection_dict)
+        else:
+            instance.rule_collection = RuleCollection(num_questions=len(questions))
+        
+        # Reconstruct memory_plan from meta
+        memory_plan_dict = store.meta.get("memory_plan", {})
+        if memory_plan_dict:
+            instance.memory_plan = MemoryPlan.from_dict(memory_plan_dict)
+        else:
+            instance.memory_plan = MemoryPlan(instance)
+        
+        # Reconstruct other attributes from meta
+        instance.question_groups = dict(store.meta.get("question_groups", {}))
+        instance.__dict__['_questions_to_randomize'] = list(store.meta.get("questions_to_randomize", []))
+        instance.name = store.meta.get("name")
+        
+        # Reconstruct pseudo_indices
+        pseudo_indices_dict = store.meta.get("pseudo_indices", {})
+        instance._pseudo_indices = PseudoIndices(pseudo_indices_dict)
+        
+        # Reconstruct instructions from meta
+        instructions_dict = store.meta.get("instruction_names_to_instructions", {})
+        instance._instruction_names_to_instructions = {}
+        for name, inst_dict in instructions_dict.items():
+            if inst_dict.get("edsl_class_name") == "ChangeInstruction":
+                instance._instruction_names_to_instructions[name] = ChangeInstruction.from_dict(inst_dict)
+            else:
+                instance._instruction_names_to_instructions[name] = Instruction.from_dict(inst_dict)
+        
+        # Initialize other instance attributes
+        instance._seed = None
+        instance._cached_instruction_collection = None
+        instance._exporter = SurveyExport(instance)
+        instance._navigator = SurveyNavigator(instance)
+        
+        # Initialize GitMixin attributes
+        instance._git = None
+        instance._needs_git_init = False
+        instance._store_initialized = True
+        
+        return instance
 
     def clipboard_data(self):
         """Return the clipboard data for the survey."""
@@ -366,7 +517,9 @@ class Survey(Base):
         >>> s._pseudo_indices
         {'intro': -0.5}
         """
-        return EditSurvey(self).add_instruction(instruction)
+        result = EditSurvey(self).add_instruction(instruction)
+        self._sync_store_from_state()
+        return result
 
     @classmethod
     def random_survey(cls):
@@ -1199,7 +1352,9 @@ class Survey(Base):
         >>> s.move_question("q0", 2).question_names
         ['q1', 'q2', 'q0']
         """
-        return EditSurvey(self).move_question(identifier, new_index)
+        result = EditSurvey(self).move_question(identifier, new_index)
+        self._sync_store_from_state()
+        return result
 
     def delete_question(self, identifier: Union[str, int]) -> Survey:
         """
@@ -1219,7 +1374,9 @@ class Survey(Base):
         >>> len(s.questions)
         0
         """
-        return EditSurvey(self).delete_question(identifier)
+        result = EditSurvey(self).delete_question(identifier)
+        self._sync_store_from_state()
+        return result
 
     def add_question(
         self, question: QuestionBase, index: Optional[int] = None
@@ -1239,7 +1396,11 @@ class Survey(Base):
 
         # Adding a question with a duplicate name would raise SurveyCreationError
         """
-        return EditSurvey(self).add_question(question, index)
+        result = EditSurvey(self).add_question(question, index)
+        # Only sync if store exists (not during initial construction)
+        if getattr(self, '_store_initialized', False):
+            self._sync_store_from_state()
+        return result
 
     def combine_multiple_choice_to_matrix(
         self,
@@ -1527,6 +1688,7 @@ class Survey(Base):
             >>> s = Survey.example().set_full_memory_mode()
         """
         MemoryManagement(self)._set_memory_plan(lambda i: self.question_names[:i])
+        self._sync_store_from_state()
         return self
 
     def set_lagged_memory(self, lags: int) -> Survey:
@@ -1551,6 +1713,7 @@ class Survey(Base):
         MemoryManagement(self)._set_memory_plan(
             lambda i: self.question_names[max(0, i - lags) : i]
         )
+        self._sync_store_from_state()
         return self
 
     def _set_memory_plan(self, prior_questions_func: Callable) -> None:
@@ -1597,9 +1760,11 @@ class Survey(Base):
             >>> s.memory_plan
             {'q2': Memory(prior_questions=['q0'])}
         """
-        return MemoryManagement(self).add_targeted_memory(
+        result = MemoryManagement(self).add_targeted_memory(
             focal_question, prior_question
         )
+        self._sync_store_from_state()
+        return result
 
     def add_memory_collection(
         self,
@@ -1628,9 +1793,11 @@ class Survey(Base):
             >>> s.memory_plan
             {'q2': Memory(prior_questions=['q0', 'q1'])}
         """
-        return MemoryManagement(self).add_memory_collection(
+        result = MemoryManagement(self).add_memory_collection(
             focal_question, prior_questions
         )
+        self._sync_store_from_state()
+        return result
 
     def add_question_group(
         self,
@@ -1766,6 +1933,7 @@ class Survey(Base):
         self._validate_group_dependencies(start_index, end_index, group_name)
 
         self.question_groups[group_name] = (start_index, end_index)
+        self._sync_store_from_state()
         return self
 
     def _validate_group_dependencies(
@@ -2086,9 +2254,11 @@ class Survey(Base):
         # Only proceed if question_index is an integer (not EndOfSurvey)
         if isinstance(question_index, int):
             next_index = question_index + 1
-            return RuleManager(self).add_rule(
+            result = RuleManager(self).add_rule(
                 question, expression, next_index, before_rule=True
             )
+            self._sync_store_from_state()
+            return result
         else:
             raise SurveyCreationError("Cannot add skip rule to EndOfSurvey")
 
@@ -2135,9 +2305,12 @@ class Survey(Base):
             >>> from edsl.surveys.base import EndOfSurvey
             >>> s = Survey.example().add_rule("q0", "{{ q0.answer }} == 'end'", EndOfSurvey)
         """
-        return RuleManager(self).add_rule(
+        result = RuleManager(self).add_rule(
             question, expression, next_question, before_rule=before_rule
         )
+        # Sync the Store with the updated state
+        self._sync_store_from_state()
+        return result
 
     def add_followup_questions(
         self,
