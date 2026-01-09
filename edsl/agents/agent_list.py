@@ -155,17 +155,19 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         agent: "Agent",
         expected_codebook: dict,
         expected_template: Optional[str],
+        expected_instruction: Optional[str],
     ) -> None:
-        """Validate that an agent has consistent codebook and traits_presentation_template.
+        """Validate that an agent has consistent codebook, template, and instruction.
         
-        This method ensures all agents in an AgentList have identical codebook and
-        traits_presentation_template values. If an agent has different values, an
-        AgentListError is raised.
+        This method ensures all agents in an AgentList have identical codebook,
+        traits_presentation_template, and instruction values. If an agent has 
+        different values, an AgentListError is raised.
         
         Args:
             agent: The agent to validate
             expected_codebook: The expected codebook value (from first agent or list)
             expected_template: The expected traits_presentation_template value
+            expected_instruction: The expected instruction value
             
         Raises:
             AgentListError: If the agent's values differ from expected values
@@ -182,11 +184,20 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
                 f"Agent traits_presentation_template differs from AgentList template. "
                 f"All agents in an AgentList must have the same traits_presentation_template."
             )
+        
+        agent_instruction = agent.instruction
+        if agent_instruction != expected_instruction:
+            raise AgentListError(
+                f"Agent instruction differs from AgentList instruction. "
+                f"All agents in an AgentList must have the same instruction."
+            )
 
     def __init__(
         self,
         data: Optional[list["Agent"] | str] = None,
         codebook: Optional[dict[str, str]] = None,
+        traits_presentation_template: Optional[str] = None,
+        instruction: Optional[str] = None,
     ):
         """Initialize a new AgentList.
 
@@ -200,20 +211,35 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         >>> al_with_codebook = AgentList([Agent(traits = {'age': 22})], codebook={'age': 'Age in years'})
         >>> al_with_codebook[0].codebook
         {'age': 'Age in years'}
+        >>> al_with_template = AgentList([Agent(traits = {'age': 22})], 
+        ...                              traits_presentation_template="Age: {{age}}")
+        >>> al_with_template.traits_presentation_template
+        'Age: {{age}}'
+        >>> al_with_instruction = AgentList([Agent(traits = {'age': 22})], 
+        ...                                 instruction="Answer as a person of this age")
+        >>> al_with_instruction.instruction
+        'Answer as a person of this age'
 
         Args:
             data: A list of Agent objects. If None, creates an empty AgentList.
             codebook: Optional dictionary mapping trait names to descriptions.
                       If provided, will be applied to all agents in the list.
+            traits_presentation_template: Optional Jinja2 template for formatting traits.
+                      If provided, will be applied to all agents in the list.
+            instruction: Optional instruction text for how agents should behave.
+                      If provided, will be applied to all agents in the list.
                       
         Raises:
-            AgentListError: If agents have inconsistent codebook or traits_presentation_template values.
+            AgentListError: If agents have inconsistent codebook, traits_presentation_template,
+                           or instruction values (when the respective parameter is not explicitly provided).
         """
         super().__init__()  # Initialize GitMixin
         
         data_to_store = []
         original_agents = []  # Cache original agents to preserve non-serializable methods
-        canonical_template = None
+        canonical_codebook = codebook
+        canonical_template = traits_presentation_template
+        canonical_instruction = instruction
         
         if data is not None and isinstance(data, str):
             al = AgentList.pull(data)
@@ -221,40 +247,57 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
                 raise ValueError(
                     "Codebook cannot be provided when pulling from a remote source"
                 )
-            codebook = al.codebook
+            if traits_presentation_template is not None:
+                raise ValueError(
+                    "traits_presentation_template cannot be provided when pulling from a remote source"
+                )
+            if instruction is not None:
+                raise ValueError(
+                    "instruction cannot be provided when pulling from a remote source"
+                )
+            canonical_codebook = al.codebook
             canonical_template = al.traits_presentation_template
+            canonical_instruction = al.instruction
             for item in al.data:
                 data_to_store.append(self._codec.encode(item))
                 original_agents.append(item)
         else:
             agents_list = list(data or [])
             
-            # Extract canonical values from first agent (if any)
+            # Extract canonical values from first agent (if not explicitly provided)
             if agents_list:
                 first_agent = agents_list[0]
                 
-                # If codebook not explicitly provided, extract from first agent
                 codebook_provided = codebook is not None
-                if not codebook_provided:
-                    codebook = first_agent.codebook
-                    
-                # Always extract traits_presentation_template from first agent
-                canonical_template = first_agent.traits_presentation_template
+                template_provided = traits_presentation_template is not None
+                instruction_provided = instruction is not None
                 
-                # Only validate consistency if codebook was not explicitly provided
-                # (explicit codebook overrides all agents; extracted codebook must match)
+                # If not explicitly provided, extract from first agent
                 if not codebook_provided:
-                    for agent in agents_list:
-                        self._validate_agent_consistency(agent, codebook or {}, canonical_template)
-                else:
-                    # Still validate traits_presentation_template consistency
-                    for agent in agents_list:
-                        agent_template = agent.traits_presentation_template
-                        if agent_template != canonical_template:
-                            raise AgentListError(
-                                f"Agent traits_presentation_template differs from first agent's template. "
-                                f"All agents in an AgentList must have the same traits_presentation_template."
-                            )
+                    canonical_codebook = first_agent.codebook
+                if not template_provided:
+                    canonical_template = first_agent.traits_presentation_template
+                if not instruction_provided:
+                    canonical_instruction = first_agent.instruction
+                
+                # Validate consistency for values not explicitly provided
+                # (explicit values override all agents; extracted values must match)
+                for agent in agents_list:
+                    if not codebook_provided and agent.codebook != canonical_codebook:
+                        raise AgentListError(
+                            f"Agent codebook {agent.codebook} differs from AgentList codebook {canonical_codebook}. "
+                            f"All agents in an AgentList must have the same codebook."
+                        )
+                    if not template_provided and agent.traits_presentation_template != canonical_template:
+                        raise AgentListError(
+                            f"Agent traits_presentation_template differs from AgentList template. "
+                            f"All agents in an AgentList must have the same traits_presentation_template."
+                        )
+                    if not instruction_provided and agent.instruction != canonical_instruction:
+                        raise AgentListError(
+                            f"Agent instruction differs from AgentList instruction. "
+                            f"All agents in an AgentList must have the same instruction."
+                        )
             
             for item in agents_list:
                 # Encode Agent objects to dicts for primitive store
@@ -265,8 +308,9 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         self.store = Store(
             entries=data_to_store, 
             meta={
-                "codebook": codebook or {},
+                "codebook": canonical_codebook or {},
                 "traits_presentation_template": canonical_template,
+                "instruction": canonical_instruction,
             }
         )
         self._codebook = None  # Will be read from store.meta
@@ -274,7 +318,7 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         self._agent_cache = original_agents if original_agents else None
 
     def _apply_list_attributes(self, agent: "Agent") -> None:
-        """Apply list-level codebook and template to an agent without changing 'explicitly set' flags.
+        """Apply list-level codebook, template, and instruction to an agent without changing 'explicitly set' flags.
         
         This method applies values from store.meta to an agent while preserving the
         agent's original 'set' flags. This ensures that agents accessed through the
@@ -282,6 +326,7 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         """
         codebook = self.store.meta.get("codebook", {})
         template = self.store.meta.get("traits_presentation_template")
+        instruction = self.store.meta.get("instruction")
         
         # Apply codebook (descriptor handles storage)
         agent.codebook = codebook
@@ -289,6 +334,13 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         # Apply template directly to internal attribute to avoid setting the "explicitly set" flag
         if template is not None:
             agent._traits_presentation_template = template
+            # Invalidate cached hash if it exists
+            if hasattr(agent, "_cached_hash"):
+                delattr(agent, "_cached_hash")
+        
+        # Apply instruction directly to internal attribute to avoid setting the "set_instructions" flag
+        if instruction is not None:
+            agent._instruction = instruction
             # Invalidate cached hash if it exists
             if hasattr(agent, "_cached_hash"):
                 delattr(agent, "_cached_hash")
@@ -321,13 +373,13 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
     def append(self, item: "Agent") -> "AgentList":
         """Add an agent to the list.
         
-        If the list is empty, the agent's codebook and traits_presentation_template
-        become the canonical values for the list. Otherwise, the agent must have
-        matching values or an AgentListError is raised.
+        If the list is empty, the agent's codebook, traits_presentation_template, and
+        instruction become the canonical values for the list. Otherwise, the agent must
+        have matching values or an AgentListError is raised.
         
         Raises:
-            AgentListError: If the agent's codebook or traits_presentation_template
-                differs from the list's canonical values.
+            AgentListError: If the agent's codebook, traits_presentation_template, or
+                instruction differs from the list's canonical values.
                 
         Returns:
             AgentList: A new AgentList with the agent added.
@@ -337,7 +389,8 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         if not is_first_agent:
             expected_codebook = self.store.meta.get("codebook", {})
             expected_template = self.store.meta.get("traits_presentation_template")
-            self._validate_agent_consistency(item, expected_codebook, expected_template)
+            expected_instruction = self.store.meta.get("instruction")
+            self._validate_agent_consistency(item, expected_codebook, expected_template, expected_instruction)
         
         # Apply the append event
         append_event = AppendRowEvent(row=self._codec.encode(item))
@@ -347,6 +400,7 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         if is_first_agent:
             self.store.meta["codebook"] = item.codebook
             self.store.meta["traits_presentation_template"] = item.traits_presentation_template
+            self.store.meta["instruction"] = item.instruction
         
         # Invalidate cache since we modified the store
         self._agent_cache = None
@@ -371,16 +425,17 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
     def __setitem__(self, index, value) -> UpdateRowEvent:
         """Set item at index.
         
-        The agent being set must have matching codebook and traits_presentation_template
-        values or an AgentListError is raised.
+        The agent being set must have matching codebook, traits_presentation_template,
+        and instruction values or an AgentListError is raised.
         
         Raises:
-            AgentListError: If the agent's codebook or traits_presentation_template
-                differs from the list's canonical values.
+            AgentListError: If the agent's codebook, traits_presentation_template, or
+                instruction differs from the list's canonical values.
         """
         expected_codebook = self.store.meta.get("codebook", {})
         expected_template = self.store.meta.get("traits_presentation_template")
-        self._validate_agent_consistency(value, expected_codebook, expected_template)
+        expected_instruction = self.store.meta.get("instruction")
+        self._validate_agent_consistency(value, expected_codebook, expected_template, expected_instruction)
         return UpdateRowEvent(index=index, row=self._codec.encode(value))
 
     @event
@@ -400,18 +455,19 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
     def insert(self, index, value) -> InsertRowEvent:
         """Insert value at index.
         
-        If the list is empty, the agent's codebook and traits_presentation_template
-        become the canonical values for the list. Otherwise, the agent must have
-        matching values or an AgentListError is raised.
+        If the list is empty, the agent's codebook, traits_presentation_template, and
+        instruction become the canonical values for the list. Otherwise, the agent must
+        have matching values or an AgentListError is raised.
         
         Raises:
-            AgentListError: If the agent's codebook or traits_presentation_template
-                differs from the list's canonical values.
+            AgentListError: If the agent's codebook, traits_presentation_template, or
+                instruction differs from the list's canonical values.
         """
         if len(self.store.entries) > 0:
             expected_codebook = self.store.meta.get("codebook", {})
             expected_template = self.store.meta.get("traits_presentation_template")
-            self._validate_agent_consistency(value, expected_codebook, expected_template)
+            expected_instruction = self.store.meta.get("instruction")
+            self._validate_agent_consistency(value, expected_codebook, expected_template, expected_instruction)
         
         return InsertRowEvent(index=index, row=self._codec.encode(value))
 
@@ -433,16 +489,21 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         return self.data[-1]
 
     @event
-    def set_instruction(self, instruction: str) -> AddFieldToAllEntriesEvent:
+    def set_instruction(self, instruction: str) -> SetMetaEvent:
         """Set the instruction for all agents in the list.
+
+        This updates the list-level instruction which is applied to all agents
+        when they are accessed. The instruction is stored in store.meta.
 
         Args:
             instruction: The instruction to set.
         
         Returns:
-            AddFieldToAllEntriesEvent: Event that sets instruction on all entries.
+            SetMetaEvent: Event that sets instruction in store.meta.
         """
-        return AddFieldToAllEntriesEvent(field='instruction', value=instruction)
+        # Invalidate cache so new instruction is applied on next access
+        self._agent_cache = None
+        return SetMetaEvent(key="instruction", value=instruction)
 
     def set_dynamic_traits(self, function: Callable) -> "AgentList":
         """Set the dynamic traits for all agents in the list.
@@ -562,11 +623,13 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         return AgentList([agent.with_categories(*categories) for agent in self.data])
 
     @event
-    def add_instructions(self, instructions: str) -> AddFieldToAllEntriesEvent:
+    def add_instructions(self, instructions: str) -> SetMetaEvent:
         """Apply instructions to all agents in the list.
 
         This method provides a more intuitive name for setting instructions
-        on all agents, avoiding the need to iterate manually.
+        on all agents, avoiding the need to iterate manually. The instruction
+        is stored at the list level in store.meta and applied to all agents
+        when they are accessed.
 
         Args:
             instructions: The instructions to apply to all agents.
@@ -581,7 +644,9 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
             >>> agents[0].instruction
             'Answer as if you were this age'
         """
-        return AddFieldToAllEntriesEvent(field='instruction', value=instructions)
+        # Invalidate cache so new instruction is applied on next access
+        self._agent_cache = None
+        return SetMetaEvent(key="instruction", value=instructions)
 
     def __add__(self, other: AgentList) -> AgentList:
         """Add two AgentLists together."""
@@ -592,10 +657,18 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         if hasattr(self, "codebook") and hasattr(other, "codebook"):
             if self.codebook != other.codebook:
                 raise ValueError("AgentLists must have the same codebook")
+        
+        if self.traits_presentation_template != other.traits_presentation_template:
+            raise ValueError("AgentLists must have the same traits_presentation_template")
+        
+        if self.instruction != other.instruction:
+            raise ValueError("AgentLists must have the same instruction")
 
         return AgentList(
             self.data + other.data,
             codebook=self.codebook if hasattr(self, "codebook") else None,
+            traits_presentation_template=self.traits_presentation_template,
+            instruction=self.instruction,
         )
 
     @property
@@ -1682,6 +1755,13 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         True
         >>> result['codebook'] == example_codebook
         True
+        >>> example_instruction = 'Answer as a test subject'
+        >>> al = AgentList.example().set_instruction(example_instruction)
+        >>> result = al.to_dict(add_edsl_version=False)
+        >>> 'instruction' in result
+        True
+        >>> result['instruction'] == example_instruction
+        True
         """
         from .agent_list_serializer import AgentListSerializer
 
@@ -1830,7 +1910,37 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
                 style=RICH_STYLES["dim"],
             )
 
-        output.append("    ]\n", style=RICH_STYLES["default"])
+        output.append("    ],\n", style=RICH_STYLES["default"])
+        
+        # Show codebook if present
+        if self.codebook:
+            output.append("    codebook=", style=RICH_STYLES["default"])
+            output.append(f"{self.codebook}", style=RICH_STYLES["secondary"])
+            output.append(",\n", style=RICH_STYLES["default"])
+        
+        # Show traits_presentation_template if present
+        if self.traits_presentation_template:
+            template_repr = repr(self.traits_presentation_template)
+            # Truncate if too long
+            max_template_len = 60
+            if len(template_repr) > max_template_len:
+                template_repr = template_repr[:max_template_len - 3] + "...'"
+            output.append("    traits_presentation_template=", style=RICH_STYLES["default"])
+            output.append(f"{template_repr}", style=RICH_STYLES["secondary"])
+            output.append(",\n", style=RICH_STYLES["default"])
+        
+        # Show instruction if present (and not the default)
+        from .agent import Agent
+        if self.instruction and self.instruction != Agent.default_instruction:
+            instruction_repr = repr(self.instruction)
+            # Truncate if too long
+            max_instruction_len = 60
+            if len(instruction_repr) > max_instruction_len:
+                instruction_repr = instruction_repr[:max_instruction_len - 3] + "...'"
+            output.append("    instruction=", style=RICH_STYLES["default"])
+            output.append(f"{instruction_repr}", style=RICH_STYLES["secondary"])
+            output.append(",\n", style=RICH_STYLES["default"])
+        
         output.append(")", style=RICH_STYLES["primary"])
 
         # Render to string
@@ -1943,6 +2053,11 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         >>> al2 = AgentList.from_dict(al.to_dict())
         >>> al2[0].codebook == example_codebook
         True
+        >>> example_instruction = 'Answer as a test subject'
+        >>> al = AgentList([Agent.example()]).set_instruction(example_instruction)
+        >>> al2 = AgentList.from_dict(al.to_dict())
+        >>> al2.instruction == example_instruction
+        True
         """
         from .agent_list_factories import AgentListFactories
 
@@ -2020,6 +2135,18 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
             Optional[str]: The Jinja2 template for formatting traits, or None if using default.
         """
         return self.store.meta.get("traits_presentation_template")
+
+    @property
+    def instruction(self) -> Optional[str]:
+        """Return the instruction for the AgentList from store.meta.
+        
+        This instruction is applied to all agents in the list when they are accessed.
+        All agents in the list must have the same instruction.
+        
+        Returns:
+            Optional[str]: The instruction text, or None if using default.
+        """
+        return self.store.meta.get("instruction")
 
     def code(self, string=True) -> Union[str, list[str]]:
         """Return code to construct an AgentList.

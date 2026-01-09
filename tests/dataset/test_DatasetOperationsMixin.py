@@ -109,9 +109,10 @@ class TestDatasetOperationsMixin:
     def test_to_agent_list_agent_parameters_path(self):
         """Test to_agent_list correctly handles agent_parameters field."""
         # Create a dataset with agent_parameters field
+        # Note: All agents in an AgentList must have the same instruction
         agent_params = [
             {"name": "Agent1", "instruction": "Be helpful"},
-            {"name": "Agent2", "instruction": "Be concise"}
+            {"name": "Agent2", "instruction": "Be helpful"}
         ]
         dataset = Dataset([{'agent_parameters': agent_params}])
         
@@ -125,7 +126,7 @@ class TestDatasetOperationsMixin:
         assert agent_list[0].name == 'Agent1'
         assert agent_list[0].instruction == 'Be helpful'
         assert agent_list[1].name == 'Agent2'
-        assert agent_list[1].instruction == 'Be concise'
+        assert agent_list[1].instruction == 'Be helpful'
         
     def test_to_agent_list_traits_only_path(self):
         """Test to_agent_list correctly handles case with no name or agent_parameters."""
