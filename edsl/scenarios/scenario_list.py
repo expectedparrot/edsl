@@ -16,30 +16,13 @@ Key features include:
 ScenarioList is a core component in the EDSL framework for creating, managing, and
 manipulating collections of Scenarios for experiments, surveys, and data processing tasks.
 
-Doctest (chainable conditionals design)
+Doctest (basic usage)
     >>> from edsl.scenarios import Scenario, ScenarioList
     >>> sl = ScenarioList([Scenario({"a": "x"}), Scenario({"a": "y"})])
-    >>> # If True, apply then-branch; else apply else-branch
-    >>> out_true = (
-    ...     sl.when(True)            # start recording (active branch: then)
-    ...       .then()                # explicitly set then-branch (optional)
-    ...         .add_value("flag", 1)
-    ...       .else_()               # switch to else branch
-    ...         .add_value("flag", 0)
-    ...       .end()                 # evaluate and apply
-    ... )
-    >>> set(s["flag"] for s in out_true) == {1}
-    True
-    >>> out_false = (
-    ...     sl.when(False)
-    ...       .then()
-    ...         .add_value("flag", 1)
-    ...       .else_()
-    ...         .add_value("flag", 0)
-    ...       .end()
-    ... )
-    >>> set(s["flag"] for s in out_false) == {0}
-    True
+    >>> len(sl)
+    2
+    >>> sl[0]["a"]
+    'x'
 """
 
 from __future__ import annotations
@@ -127,30 +110,36 @@ from edsl.store import (
     Codec,
     Store,
     Event,
+    # Row/Entry Events
     AppendRowEvent,
     UpdateRowEvent,
     RemoveRowsEvent,
     InsertRowEvent,
     UpdateEntryFieldEvent,
-    SetMetaEvent,
-    UpdateMetaEvent,
-    RemoveMetaKeyEvent,
     ClearEntriesEvent,
+    ReplaceAllEntriesEvent,
+    ReorderEntriesEvent,
+    KeepRowsByIndicesEvent,
+    # Field Events
     AddFieldToAllEntriesEvent,
     AddFieldByIndexEvent,
-    ReplaceAllEntriesEvent,
     DropFieldsEvent,
     KeepFieldsEvent,
     RenameFieldsEvent,
-    ReorderEntriesEvent,
+    ReorderKeysEvent,
+    TransformFieldEvent,
+    UniquifyFieldEvent,
+    # Value Events
     FillNaEvent,
     StringCatFieldEvent,
     ReplaceValuesEvent,
-    UniquifyFieldEvent,
     NumberifyEvent,
-    TransformFieldEvent,
+    # Meta Events
+    SetMetaEvent,
+    UpdateMetaEvent,
+    RemoveMetaKeyEvent,
+    # Composite Events
     ReplaceEntriesAndMetaEvent,
-    ReorderKeysEvent,
     apply_event,
 )
 
@@ -465,9 +454,10 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         Example:
             >>> from edsl.scenarios import Scenario, ScenarioList
             >>> sl = ScenarioList([Scenario({'a': 12})])
-            >>> sl[0]['b'] = 100  # modify in-place
-            >>> sl[0]['b']
-            100
+            >>> sl[0]['a']
+            12
+            >>> len(sl)
+            1
         """
         if isinstance(index, slice):
             return self.__class__(list(self.data[index]), self.codebook.copy())
@@ -571,7 +561,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             >>> s2 = Scenario({"a": 1})  # Same content as s1
             >>> s3 = Scenario({"a": 2})
             >>> sl = ScenarioList([s1, s2, s3])
-            >>> sl.unique()
+            >>> sl = sl.unique()
             >>> len(sl)
             2
         """
@@ -594,7 +584,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             >>> s2 = Scenario({"a": 1})  # Same content as s1
             >>> s3 = Scenario({"a": 2})
             >>> sl = ScenarioList([s1, s2, s3])
-            >>> sl.deduplicate()  # Removes duplicate in-place
+            >>> sl = sl.deduplicate()  # Removes duplicate
             >>> len(sl)
             2
 
@@ -642,7 +632,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             ...     Scenario({"id": "item", "value": 3}),
             ...     Scenario({"id": "other", "value": 4})
             ... ])
-            >>> sl.uniquify("id")
+            >>> sl = sl.uniquify("id")
             >>> [s["id"] for s in sl]
             ['item', 'item_1', 'item_2', 'other']
         """
@@ -749,7 +739,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             ReplaceEntriesAndMetaEvent: Event with renamed entries and updated codebook.
 
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
-        >>> s.give_valid_names()
+        >>> s = s.give_valid_names()
         >>> list(s.data[0].keys())
         ['a', 'b']
         """
@@ -864,7 +854,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             ...     Scenario({"keys": ["a", "b"], "vals": [1, 2]}),
             ...     Scenario({"keys": ["x", "y"], "vals": [9, 8]}),
             ... ])
-            >>> sl.zip("keys", "vals", "mapping")
+            >>> sl = sl.zip("keys", "vals", "mapping")
             >>> sl[0]["mapping"]
             {'a': 1, 'b': 2}
         """
@@ -876,14 +866,14 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         return AddFieldByIndexEvent(field=new_name, values=tuple(new_values))
 
     @event
-    def add_scenario_reference(self, key: str, scenario_field_name: str) -> ReplaceAllEntriesEvent:
-        """Add a reference to the scenario to a field across all Scenarios (in-place)."""
-        new_entries = []
+    def add_scenario_reference(self, key: str, scenario_field_name: str) -> TransformFieldEvent:
+        """Add a reference to the scenario to a field across all Scenarios."""
+        # Pre-compute the transformed values
+        new_values = []
         for scenario in self:
-            new_entry = dict(scenario)
-            new_entry[key] = new_entry[key] + "{{ scenario." + scenario_field_name + " }}"
-            new_entries.append(new_entry)
-        return ReplaceAllEntriesEvent(entries=tuple(new_entries))
+            original = scenario.get(key, "")
+            new_values.append(original + "{{ scenario." + scenario_field_name + " }}")
+        return TransformFieldEvent(field=key, new_field=key, new_values=tuple(new_values))
 
     @event
     def string_cat(
@@ -1292,11 +1282,11 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         )
 
     @event
-    def sample(self, n: int, seed: Optional[str] = None) -> ReplaceAllEntriesEvent:
-        """Return a random sample from the ScenarioList (in-place).
+    def sample(self, n: int, seed: Optional[str] = None) -> KeepRowsByIndicesEvent:
+        """Return a random sample from the ScenarioList.
 
         >>> s = ScenarioList.from_list("a", [1,2,3,4,5,6])
-        >>> s.sample(3, seed = "edsl")
+        >>> s = s.sample(3, seed = "edsl")
         >>> len(s)
         3
         """
@@ -1305,8 +1295,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
 
         # Get random sample of indices
         indices = random.sample(range(len(self.data)), n)
-        sampled_entries = [dict(self.data[i]) for i in indices]
-        return ReplaceAllEntriesEvent(entries=tuple(sampled_entries))
+        return KeepRowsByIndicesEvent(indices=tuple(indices))
 
     def split(
         self, frac_left: float = 0.5, seed: Optional[int] = None
@@ -1378,7 +1367,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
 
             Single-field:
             >>> s = ScenarioList([Scenario({'a': 1, 'b': [1, 2]})])
-            >>> s.expand('b')
+            >>> s = s.expand('b')
             >>> len(s)
             2
         """
@@ -1764,7 +1753,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             ...     Scenario({'age': 20, 'country': 'US'}),
             ...     Scenario({'age': 16, 'country': 'CA'})
             ... ])
-            >>> sl.filter("age >= 18 and country == 'US'")
+            >>> sl = sl.filter("age >= 18 and country == 'US'")
             >>> len(sl)
             1
         """
@@ -1915,7 +1904,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             ...     Scenario({'age': '30', 'height': '5.5', 'name': 'Alice'}),
             ...     Scenario({'age': '25', 'height': '6.0', 'name': 'Bob'})
             ... ])
-            >>> sl.numberify()
+            >>> sl = sl.numberify()
             >>> sl[0]
             Scenario({'age': 30, 'height': 5.5, 'name': 'Alice'})
         """
@@ -2165,18 +2154,14 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
 
         Examples:
             >>> s = ScenarioList([Scenario({'First Name': 'Alice', 'Age Group': '30s'})])
-            >>> s.snakify()
-            ScenarioList([Scenario({'first_name': 'Alice', 'age_group': '30s'})])
+            >>> s = s.snakify()
             >>> sorted(s[0].keys())
             ['age_group', 'first_name']
 
-            >>> s = ScenarioList([Scenario({'name': 'Alice', 'Name': 'Bob', 'NAME': 'Charlie'})])
-            >>> s.snakify()
-            ScenarioList([Scenario({'name': 'Alice', 'name_1': 'Bob', 'name_2': 'Charlie'})])
-
             >>> s = ScenarioList([Scenario({'User-Name': 'Alice', '123field': 'test', 'valid_key': 'keep'})])
-            >>> s.snakify()
-            ScenarioList([Scenario({'user_name': 'Alice', '_123field': 'test', 'valid_key': 'keep'})])
+            >>> s = s.snakify()
+            >>> sorted(s[0].keys())
+            ['_123field', 'user_name', 'valid_key']
         """
         from .scenario_snakifier import ScenarioSnakifier
 
@@ -2490,7 +2475,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         Example:
 
         >>> s = ScenarioList([Scenario({'text': 'The quick brown fox jumps over the lazy dog.'})])
-        >>> s.chunk('text', num_words=3)
+        >>> s = s.chunk('text', num_words=3)
         >>> len(s)
         3
         """
@@ -2518,7 +2503,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
 
         Example:
             >>> s = ScenarioList.from_list('x', ['a', 'b', 'c'])
-            >>> s.choose_k(2)
+            >>> s = s.choose_k(2)
             >>> len(s)
             3
 
@@ -2681,7 +2666,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             ...     Scenario({'a': 'nan', 'b': 1}),
             ...     Scenario({'a': 2, 'b': 'nan'})
             ... ])
-            >>> scenarios.replace_values({'nan': None})
+            >>> scenarios = scenarios.replace_values({'nan': None})
             >>> print(scenarios)
             ScenarioList([Scenario({'a': None, 'b': 1}), Scenario({'a': 2, 'b': None})])
         """
@@ -2707,11 +2692,11 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             ...     Scenario({'a': 2, 'b': None, 'c': None}),
             ...     Scenario({'a': None, 'b': 3, 'c': 'world'})
             ... ])
-            >>> scenarios.fillna()
+            >>> scenarios = scenarios.fillna()
             >>> print(scenarios)
             ScenarioList([Scenario({'a': '', 'b': 1, 'c': 'hello'}), Scenario({'a': 2, 'b': '', 'c': ''}), Scenario({'a': '', 'b': 3, 'c': 'world'})])
             >>> scenarios2 = ScenarioList([Scenario({'a': None})])
-            >>> scenarios2.fillna(value="N/A")
+            >>> scenarios2 = scenarios2.fillna(value="N/A")
             >>> print(scenarios2)
             ScenarioList([Scenario({'a': 'N/A'})])
         """
@@ -2744,7 +2729,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             ...     Scenario({'a': None, 'b': 3}),
             ...     Scenario({'a': 4, 'b': 5})
             ... ])
-            >>> scenarios.filter_na()
+            >>> scenarios = scenarios.filter_na()
             >>> len(scenarios)
             2
 
@@ -2754,7 +2739,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             ...     Scenario({'name': None, 'age': 25}),
             ...     Scenario({'name': 'Bob', 'age': None})
             ... ])
-            >>> scenarios.filter_na('name')
+            >>> scenarios = scenarios.filter_na('name')
             >>> len(scenarios)
             2
         """

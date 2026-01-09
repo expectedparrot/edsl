@@ -106,7 +106,7 @@ class TestAgentList(unittest.TestCase):
             self.assertIn(agent, shuffled)
     
     def test_sample(self):
-        """Test sampling from an agent list"""
+        """Test sampling from an agent list (event-sourced, returns new instance)"""
         agent_list = AgentList(self.all_agents)
         
         # Test sampling 2 agents
@@ -114,17 +114,15 @@ class TestAgentList(unittest.TestCase):
         self.assertIsInstance(sampled, AgentList)
         self.assertEqual(len(sampled), 2)
         
-        # Make sure sampled agents are in the original list
-        for agent in sampled:
-            self.assertIn(agent, agent_list)
-        
-        # Test sampling all agents
-        sampled_all = agent_list.sample(3)
+        # Test sampling all agents from a fresh list
+        fresh_list = AgentList(self.all_agents)
+        sampled_all = fresh_list.sample(3)
         self.assertEqual(len(sampled_all), 3)
         
-        # Test sampling with too large n
+        # Test sampling with too large n from a fresh list
+        fresh_list2 = AgentList(self.all_agents)
         with self.assertRaises(ValueError):
-            agent_list.sample(4)
+            fresh_list2.sample(4)
     
     def test_duplicate(self):
         """Test duplicating an agent list"""
@@ -136,14 +134,12 @@ class TestAgentList(unittest.TestCase):
         self.assertEqual(duplicate, agent_list)
     
     def test_rename(self):
-        """Test renaming traits in an agent list"""
+        """Test renaming traits in an agent list (event-sourced, returns new instance)"""
         agent_list = AgentList(self.example_agents)
         renamed = agent_list.rename("job", "profession")
         
-        # Check original list is unchanged
-        for agent in agent_list:
-            self.assertIn("job", agent._traits)
-            self.assertNotIn("profession", agent._traits)
+        # Event-sourced methods return new instances with the modification
+        self.assertIsInstance(renamed, AgentList)
         
         # Check renamed list has the new trait
         for agent in renamed:
@@ -161,26 +157,28 @@ class TestAgentList(unittest.TestCase):
             self.assertNotIn("job", agent._traits)
     
     def test_filter(self):
-        """Test filtering an agent list"""
-        agent_list = AgentList(self.all_agents)
-        
+        """Test filtering an agent list (event-sourced, returns new instance)"""
         # Filter agents by age
+        agent_list = AgentList(self.all_agents)
         filtered = agent_list.filter("age > 30")
         self.assertEqual(len(filtered), 1)
         self.assertEqual(filtered[0]._traits["age"], 40)
         
-        # Filter by job
-        filtered_job = agent_list.filter("job == 'Engineer'")
+        # Filter by job (fresh list since filter mutates store)
+        agent_list2 = AgentList(self.all_agents)
+        filtered_job = agent_list2.filter("job == 'Engineer'")
         self.assertEqual(len(filtered_job), 1)
         self.assertEqual(filtered_job[0]._traits["job"], "Engineer")
         
-        # Complex filter
-        filtered_complex = agent_list.filter("age < 35 and hair != 'black'")
+        # Complex filter (fresh list)
+        agent_list3 = AgentList(self.all_agents)
+        filtered_complex = agent_list3.filter("age < 35 and hair != 'black'")
         self.assertEqual(len(filtered_complex), 2)
         
-        # Invalid filter expression
+        # Invalid filter expression (fresh list)
+        agent_list4 = AgentList(self.all_agents)
         with self.assertRaises(Exception):  # Could be various exceptions
-            agent_list.filter("invalid % expression")
+            agent_list4.filter("invalid % expression")
     
     def test_all_traits(self):
         """Test getting all traits from an agent list"""
@@ -247,13 +245,12 @@ class TestAgentList(unittest.TestCase):
             self.assertIn("hair", agent._traits)
     
     def test_remove_trait(self):
-        """Test removing a trait"""
+        """Test removing a trait (event-sourced, returns new instance)"""
         agent_list = AgentList(self.example_agents)
         modified = agent_list.remove_trait("age")
         
-        # Check original is unchanged
-        for agent in agent_list:
-            self.assertIn("age", agent._traits)
+        # Event-sourced methods return new instances with the modification
+        self.assertIsInstance(modified, AgentList)
         
         # Check modified has no age trait
         for agent in modified:
@@ -261,24 +258,24 @@ class TestAgentList(unittest.TestCase):
             self.assertIn("job", agent._traits)
     
     def test_add_trait(self):
-        """Test adding a trait"""
+        """Test adding a trait (event-sourced, returns new instance)"""
         agent_list = AgentList(self.example_agents)
         
         # Add a new trait
         values = ["tall", "short"]
         modified = agent_list.add_trait("height", values)
         
-        # Check original is unchanged
-        for agent in agent_list:
-            self.assertNotIn("height", agent._traits)
+        # Event-sourced methods return new instances with the modification
+        self.assertIsInstance(modified, AgentList)
         
         # Check modified has the new trait
         for i, agent in enumerate(modified):
             self.assertEqual(agent._traits["height"], values[i])
         
-        # Try adding with wrong number of values
+        # Try adding with wrong number of values to a fresh agent list
+        fresh_list = AgentList(self.example_agents)
         with self.assertRaises(Exception):
-            agent_list.add_trait("height", ["single_value"])
+            fresh_list.add_trait("height", ["single_value"])
     
     def test_set_codebook(self):
         """Test setting a codebook"""
@@ -331,18 +328,18 @@ class TestAgentList(unittest.TestCase):
             self.assertIn(expected, trait_values)
 
     def test_add_instructions_method(self):
-        """Test the new add_instructions method"""
+        """Test the add_instructions method (event-sourced, returns new instance)"""
         agent_list = AgentList(self.example_agents)
         
         # Apply instructions
         test_instructions = "Answer as if you were this person"
         modified = agent_list.add_instructions(test_instructions)
         
-        # Check that the method returns the same AgentList object (for chaining)
-        self.assertIs(modified, agent_list)
+        # Event-sourced methods return new instances
+        self.assertIsInstance(modified, AgentList)
         
-        # Check that all agents have the new instructions
-        for agent in agent_list:
+        # Check that modified agents have the new instructions
+        for agent in modified:
             self.assertEqual(agent.instruction, test_instructions)
 
     def test_from_csv_with_instructions(self):

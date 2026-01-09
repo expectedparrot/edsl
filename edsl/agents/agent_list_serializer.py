@@ -57,19 +57,15 @@ class AgentListSerializer:
             ]
         }
 
-        # Add codebook if all agents have the same codebook
-        if len(agent_list.data) > 0:
-            # Get the first agent's codebook
-            first_codebook = agent_list.data[0].codebook
-
-            # Check if all agents have the same codebook
-            all_same = all(
-                agent.codebook == first_codebook for agent in agent_list.data
-            )
-
-            # Only include codebook if it's non-empty and consistent across all agents
-            if all_same and first_codebook:
-                d["codebook"] = first_codebook
+        # Add codebook from store.meta if present
+        codebook = agent_list.codebook
+        if codebook:
+            d["codebook"] = codebook
+        
+        # Add traits_presentation_template from store.meta if present
+        template = agent_list.traits_presentation_template
+        if template is not None:
+            d["traits_presentation_template"] = template
 
         if add_edsl_version:
             from edsl import __version__
@@ -106,12 +102,16 @@ class AgentListSerializer:
             print("Current data is", data)
             raise ValueError("agent_list key not found in data")
 
+        # Create AgentList with codebook if provided
+        codebook = data.get("codebook")
         agents = [Agent.from_dict(agent_dict) for agent_dict in agent_data]
-        agent_list = AgentList(agents)
+        agent_list = AgentList(agents, codebook=codebook)
 
-        # Apply codebook if present in the dictionary
-        if "codebook" in data and data["codebook"]:
-            agent_list.set_codebook(data["codebook"])
+        # Apply traits_presentation_template if present in the dictionary
+        if "traits_presentation_template" in data and data["traits_presentation_template"]:
+            agent_list = agent_list.set_traits_presentation_template(
+                data["traits_presentation_template"]
+            )
 
         return agent_list
 

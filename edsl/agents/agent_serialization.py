@@ -164,17 +164,18 @@ class AgentSerialization:
             )  # in case answer_question_directly will appear with _ in agent.__dict__
             answer_question_directly_func = agent.answer_question_directly
 
-            if (
-                answer_question_directly_func
-                and raw_data.get("answer_question_directly_source_code", None)
-                is not None
-            ):
-                raw_data["answer_question_directly_source_code"] = inspect.getsource(
-                    answer_question_directly_func
-                )
-                raw_data["answer_question_directly_function_name"] = (
-                    agent.answer_question_directly_function_name
-                )
+            if answer_question_directly_func:
+                try:
+                    raw_data["answer_question_directly_source_code"] = inspect.getsource(
+                        answer_question_directly_func
+                    )
+                    raw_data["answer_question_directly_function_name"] = (
+                        agent.answer_question_directly_function_name
+                    )
+                except (OSError, TypeError):
+                    # Can't get source for closures, lambdas, or dynamically defined functions
+                    # The method won't survive serialization
+                    pass
         raw_data["traits"] = dict(raw_data["traits"])
 
         if hasattr(agent, "trait_categories"):

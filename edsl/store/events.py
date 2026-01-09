@@ -212,6 +212,82 @@ class ReplaceEntriesAndMetaEvent(Event):
 
 
 # =============================================================================
+# Row Selection Events
+# =============================================================================
+
+@dataclass(frozen=True)
+class KeepRowsByIndicesEvent(Event):
+    """Event that keeps only rows at specified indices (inverse of RemoveRowsEvent)."""
+    indices: tuple[int, ...]  # indices to keep
+
+
+# =============================================================================
+# Nested Field Events (for structures like Agent with 'traits' dict)
+# =============================================================================
+
+@dataclass(frozen=True)
+class DropNestedFieldsEvent(Event):
+    """Event that drops fields from a nested dict field in all entries."""
+    parent_field: str  # e.g., 'traits'
+    fields: tuple[str, ...]  # fields to drop from the nested dict
+
+
+@dataclass(frozen=True)
+class KeepNestedFieldsEvent(Event):
+    """Event that keeps only specified fields in a nested dict field."""
+    parent_field: str  # e.g., 'traits'
+    fields: tuple[str, ...]  # fields to keep in the nested dict
+
+
+@dataclass(frozen=True)
+class RenameNestedFieldEvent(Event):
+    """Event that renames a field within a nested dict field."""
+    parent_field: str  # e.g., 'traits'
+    old_name: str
+    new_name: str
+
+
+@dataclass(frozen=True)
+class AddNestedFieldByIndexEvent(Event):
+    """Event that adds a field to a nested dict with per-entry values."""
+    parent_field: str  # e.g., 'traits'
+    field: str  # field name to add
+    values: tuple[Any, ...]  # per-entry values
+
+
+@dataclass(frozen=True)
+class TranslateNestedValuesEvent(Event):
+    """Event that translates values in nested fields based on a mapping."""
+    parent_field: str  # e.g., 'traits'
+    value_map: tuple[tuple[str, tuple[tuple[Any, Any], ...]], ...]  # (field_name, ((old, new), ...))
+
+
+@dataclass(frozen=True)
+class NumberifyNestedFieldsEvent(Event):
+    """Event that converts string values to numbers in nested fields."""
+    parent_field: str  # e.g., 'traits'
+    conversions: tuple[tuple[int, str, Any], ...]  # (entry_idx, field, new_value)
+
+
+# =============================================================================
+# Agent-Specific Events
+# =============================================================================
+
+@dataclass(frozen=True)
+class SetAgentNamesEvent(Event):
+    """Event that sets names for agents (name field at entry level)."""
+    names: tuple[str, ...]  # per-entry names
+
+
+@dataclass(frozen=True)
+class CollapseByFieldEvent(Event):
+    """Event that collapses entries with same field value, merging nested dicts."""
+    group_field: str  # field to group by (e.g., 'name')
+    merge_field: str  # nested dict field to merge (e.g., 'traits')
+    result_entries: tuple[dict[str, Any], ...]  # pre-computed collapsed entries
+
+
+# =============================================================================
 # Event Dispatcher
 # =============================================================================
 
@@ -229,6 +305,7 @@ def apply_event(event: Event, store: "Store") -> "Store":
         ValueError: If the event type is unknown.
     """
     match event:
+        # Row/Entry Events
         case AppendRowEvent():
             return store.append(event.row)
         case UpdateRowEvent():
@@ -239,44 +316,75 @@ def apply_event(event: Event, store: "Store") -> "Store":
             return store.insert_row(event.index, event.row)
         case UpdateEntryFieldEvent():
             return store.update_entry_field(event.index, event.field, event.value)
-        case SetMetaEvent():
-            return store.set_meta(event.key, event.value)
-        case UpdateMetaEvent():
-            return store.update_meta(event.updates)
-        case RemoveMetaKeyEvent():
-            return store.remove_meta_key(event.key)
         case ClearEntriesEvent():
             return store.clear_entries()
+        case ReplaceAllEntriesEvent():
+            return store.replace_all_entries(event.entries)
+        case ReorderEntriesEvent():
+            return store.reorder_entries(event.new_order)
+        case KeepRowsByIndicesEvent():
+            return store.keep_rows_by_indices(event.indices)
+        
+        # Field Events
         case AddFieldToAllEntriesEvent():
             return store.add_field_to_all(event.field, event.value)
         case AddFieldByIndexEvent():
             return store.add_field_by_index(event.field, event.values)
-        case ReplaceAllEntriesEvent():
-            return store.replace_all_entries(event.entries)
         case DropFieldsEvent():
             return store.drop_fields(event.fields)
         case KeepFieldsEvent():
             return store.keep_fields(event.fields)
         case RenameFieldsEvent():
             return store.rename_fields(event.rename_map)
-        case ReorderEntriesEvent():
-            return store.reorder_entries(event.new_order)
+        case ReorderKeysEvent():
+            return store.reorder_keys(event.new_order)
+        case TransformFieldEvent():
+            return store.transform_field(event.field, event.new_field, event.new_values)
+        case UniquifyFieldEvent():
+            return store.uniquify_field(event.field, event.new_values)
+        
+        # Nested Field Events
+        case DropNestedFieldsEvent():
+            return store.drop_nested_fields(event.parent_field, event.fields)
+        case KeepNestedFieldsEvent():
+            return store.keep_nested_fields(event.parent_field, event.fields)
+        case RenameNestedFieldEvent():
+            return store.rename_nested_field(event.parent_field, event.old_name, event.new_name)
+        case AddNestedFieldByIndexEvent():
+            return store.add_nested_field_by_index(event.parent_field, event.field, event.values)
+        case TranslateNestedValuesEvent():
+            return store.translate_nested_values(event.parent_field, event.value_map)
+        case NumberifyNestedFieldsEvent():
+            return store.numberify_nested_fields(event.parent_field, event.conversions)
+        
+        # Agent-Specific Events
+        case SetAgentNamesEvent():
+            return store.set_field_by_index('name', event.names)
+        case CollapseByFieldEvent():
+            return store.collapse_by_field(event.group_field, event.merge_field, event.result_entries)
+        
+        # Value Events
         case FillNaEvent():
             return store.fill_na(event.fill_value)
         case StringCatFieldEvent():
             return store.string_cat_field(event.field, event.addend, event.position)
         case ReplaceValuesEvent():
             return store.replace_values(event.replacements)
-        case UniquifyFieldEvent():
-            return store.uniquify_field(event.field, event.new_values)
         case NumberifyEvent():
             return store.numberify(event.conversions)
-        case TransformFieldEvent():
-            return store.transform_field(event.field, event.new_field, event.new_values)
+        
+        # Meta Events
+        case SetMetaEvent():
+            return store.set_meta(event.key, event.value)
+        case UpdateMetaEvent():
+            return store.update_meta(event.updates)
+        case RemoveMetaKeyEvent():
+            return store.remove_meta_key(event.key)
+        
+        # Composite Events
         case ReplaceEntriesAndMetaEvent():
             return store.replace_entries_and_meta(event.entries, event.meta_updates)
-        case ReorderKeysEvent():
-            return store.reorder_keys(event.new_order)
+        
         case _:
             raise ValueError(f"Unknown event type: {type(event)}")
 

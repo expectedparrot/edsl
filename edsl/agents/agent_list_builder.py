@@ -93,33 +93,33 @@ class AgentListBuilder:
         """
         from ..scenarios import ScenarioList
         from .agent_list import AgentList
+        from .agent import Agent
 
         # Create ScenarioList from the source (it handles auto-detection)
         scenario_list = ScenarioList.from_source(source_type_or_data, *args, **kwargs)
 
-        # Convert to AgentList
-        agent_list = AgentList.from_scenario_list(scenario_list)
+        # Convert scenarios to agents, applying name field if specified
+        agents = []
+        for scenario in scenario_list:
+            traits = dict(scenario)
+            agent_name = None
+            if name_field and name_field in traits:
+                agent_name = str(traits.pop(name_field))
+            agents.append(Agent(traits=traits, name=agent_name))
 
-        # Apply name field if specified (for CSV-like sources)
-        if name_field and hasattr(agent_list, "data") and len(agent_list.data) > 0:
-            new_agents = []
-            for agent in agent_list.data:
-                if name_field in agent.traits:
-                    agent_name = agent.traits.pop(name_field)
-                    agent.name = agent_name
-                new_agents.append(agent)
-            agent_list.data = new_agents
+        # Create the AgentList
+        agent_list = AgentList(agents)
 
-        # Apply instructions if specified
+        # Apply instructions if specified (returns new instance)
         if instructions:
-            agent_list.set_instruction(instructions)
+            agent_list = agent_list.set_instruction(instructions)
 
-        # Apply codebook if specified
+        # Apply codebook if specified (returns new instance)
         if codebook:
             # Check if codebook is a CSV file path
             if isinstance(codebook, str) and codebook.lower().endswith(".csv"):
                 codebook = AgentListBuilder._load_codebook_from_csv(codebook)
-            agent_list.set_codebook(codebook)
+            agent_list = agent_list.set_codebook(codebook)
 
         return agent_list
 

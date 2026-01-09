@@ -128,6 +128,9 @@ class CodebookDescriptor:
             codebook_dict: Dictionary mapping trait keys to descriptions
         """
         instance.__dict__[self.name] = Codebook(codebook_dict)
+        # Invalidate cached hash since codebook is included in hash computation
+        if hasattr(instance, "_cached_hash"):
+            delattr(instance, "_cached_hash")
 
     def __set_name__(self, owner, name: str) -> None:
         """Set the name of the attribute in the instance's dictionary.
