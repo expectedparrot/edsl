@@ -6,9 +6,9 @@ from .. import QuestionFreeText, Results, AgentList, ScenarioList, Scenario
 from ..questions import QuestionBase
 from ..results.result import Result
 from jinja2 import Template
-from ..caching import Cache
 
 if TYPE_CHECKING:
+    from ..caching import Cache
     from .. import Model
 
 from .next_speaker_utilities import (
@@ -80,6 +80,7 @@ class Conversation:
         self.per_round_message_template = per_round_message_template
 
         if cache is None:
+            from ..caching import Cache
             self.cache = Cache()
         else:
             self.cache = cache
@@ -286,6 +287,7 @@ class ConversationList:
             conversation.add_index(i)
 
         if cache is None:
+            from ..caching import Cache
             self.cache = Cache()
         else:
             self.cache = cache

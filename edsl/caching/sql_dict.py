@@ -13,7 +13,7 @@ from typing import Any, Generator, Optional, Union, Dict, TypeVar
 
 from ..config import CONFIG
 from .cache_entry import CacheEntry
-from .orm import Data
+# Data is imported lazily inside methods to avoid loading sqlalchemy at import time
 
 T = TypeVar("T")
 
@@ -77,7 +77,7 @@ class SQLiteDict:
         if not self.db_path.startswith("sqlite:///"):
             self.db_path = f"sqlite:///{self.db_path}"
         try:
-            from .orm import Base
+            from .orm import Base, Data  # Import Data to register it with Base before create_all
 
             self.engine = create_engine(self.db_path, echo=False, future=True)
             Base.metadata.create_all(self.engine)
@@ -248,6 +248,7 @@ class SQLiteDict:
             raise CacheValueError(
                 f"new_d must be a dict or SQLiteDict object (got {type(new_d)})"
             )
+        from .orm import Data
         current_batch = 0
         with self.Session() as db:
             for key, value in new_d.items():
@@ -269,6 +270,7 @@ class SQLiteDict:
         >>> list(d.values()) == [CacheEntry.example()]
         True
         """
+        from .orm import Data
         with self.Session() as db:
             for instance in db.query(Data).all():
                 yield CacheEntry.from_dict(json.loads(instance.value))
@@ -282,6 +284,7 @@ class SQLiteDict:
         >>> list(d.items()) == [("foo", CacheEntry.example())]
         True
         """
+        from .orm import Data
         with self.Session() as db:
             for instance in db.query(Data).all():
                 yield (instance.key, CacheEntry.from_dict(json.loads(instance.value)))
@@ -307,6 +310,7 @@ class SQLiteDict:
         >>> d.get("foo", "missing")
         'missing'
         """
+        from .orm import Data
         with self.Session() as db:
             instance = db.query(Data).filter_by(key=key).one_or_none()
             if instance:
@@ -328,6 +332,7 @@ class SQLiteDict:
         >>> "bar" in d
         False
         """
+        from .orm import Data
         with self.Session() as db:
             return db.query(Data).filter_by(key=key).first() is not None
 
@@ -340,6 +345,7 @@ class SQLiteDict:
         >>> list(iter(d)) == ["foo"]
         True
         """
+        from .orm import Data
         with self.Session() as db:
             for instance in db.query(Data).all():
                 yield instance.key
@@ -355,6 +361,7 @@ class SQLiteDict:
         >>> len(d)
         1
         """
+        from .orm import Data
         with self.Session() as db:
             return db.query(Data).count()
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import time
-import requests
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import Any, Dict, Optional, TYPE_CHECKING
@@ -364,6 +363,7 @@ class JobsRunnerStatus(JobsRunnerStatusBase):
 
     def setup(self) -> None:
         """Creates a local job on Coop if one does not already exist."""
+        import requests
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key or 'None'}",
@@ -383,6 +383,7 @@ class JobsRunnerStatus(JobsRunnerStatusBase):
 
     def send_status_update(self) -> None:
         """Sends current status to the web endpoint using the instance's job_uuid."""
+        import requests
         try:
             status_dict = self.get_status_dict()
             status_dict["job_id"] = str(self.job_uuid)

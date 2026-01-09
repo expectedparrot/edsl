@@ -13,9 +13,20 @@ Strategy classes:
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Union, Tuple
-import numpy as np
-from scipy.optimize import minimize
+from typing import Any, Dict, List, Optional, Union, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import numpy as np
+
+# Lazy import for numpy to speed up module import time
+_np = None
+
+def _get_numpy():
+    """Lazily import numpy module."""
+    global _np
+    if _np is None:
+        import numpy as _np
+    return _np
 
 
 class WeightingStrategy(ABC):
@@ -32,7 +43,7 @@ class WeightingStrategy(ABC):
     """
 
     @abstractmethod
-    def find_weights(self, responses: List[Any], target: Any, **kwargs) -> np.ndarray:
+    def find_weights(self, responses: List[Any], target: Any, **kwargs) -> "np.ndarray":
         """Find optimal weights to match target distribution.
 
         Args:
@@ -41,7 +52,7 @@ class WeightingStrategy(ABC):
             **kwargs: Strategy-specific parameters
 
         Returns:
-            np.ndarray: Normalized weights (sum to 1.0)
+            "np.ndarray": Normalized weights (sum to 1.0)
         """
         pass
 
@@ -72,7 +83,7 @@ class WeightingStrategy(ABC):
         pass
 
     def get_weighted_distribution(
-        self, responses: List[Any], weights: np.ndarray
+        self, responses: List[Any], weights: "np.ndarray"
     ) -> Dict:
         """Compute weighted distribution from responses and weights.
 
@@ -132,7 +143,7 @@ class CategoricalKLStrategy(WeightingStrategy):
         """
         # Validate target distribution sums to 1.0
         total = sum(target.values())
-        if not np.isclose(total, 1.0, rtol=1e-5):
+        if not _get_numpy().isclose(total, 1.0, rtol=1e-5):
             raise ValueError(
                 f"Target distribution probabilities must sum to 1.0, got {total}"
             )
@@ -148,7 +159,7 @@ class CategoricalKLStrategy(WeightingStrategy):
 
     def find_weights(
         self, responses: List[Any], target: Dict[str, float], **kwargs
-    ) -> np.ndarray:
+    ) -> "np.ndarray":
         """Find optimal weights using scipy optimization.
 
         Args:
@@ -157,15 +168,17 @@ class CategoricalKLStrategy(WeightingStrategy):
             **kwargs: Additional arguments (ignored for this strategy)
 
         Returns:
-            np.ndarray: Normalized weights that minimize KL divergence
+            "np.ndarray": Normalized weights that minimize KL divergence
         """
         self.validate_inputs(responses, target)
+
+        from scipy.optimize import minimize
 
         n = len(responses)
         categories = list(target.keys())
 
         # Create indicator matrix: n x num_categories
-        indicators = np.zeros((n, len(categories)))
+        indicators = _get_numpy().zeros((n, len(categories)))
         for i, resp in enumerate(responses):
             if resp in target:
                 j = categories.index(resp)
@@ -173,7 +186,7 @@ class CategoricalKLStrategy(WeightingStrategy):
 
         # Objective function: KL divergence KL(P||Q)
         def kl_divergence(log_weights):
-            weights = np.exp(log_weights)  # Ensure positivity
+            weights = _get_numpy().exp(log_weights)  # Ensure positivity
             weights = weights / weights.sum()  # Normalize
 
             # Compute weighted distribution P
@@ -183,17 +196,17 @@ class CategoricalKLStrategy(WeightingStrategy):
             kl = 0.0
             for j, cat in enumerate(categories):
                 if p[j] > 1e-10:  # Avoid log(0)
-                    kl += p[j] * np.log(p[j] / target[cat])
+                    kl += p[j] * _get_numpy().log(p[j] / target[cat])
             return kl
 
         # Initialize with uniform weights in log space
-        log_w0 = np.zeros(n)
+        log_w0 = _get_numpy().zeros(n)
 
         # Optimize using specified method
         result = minimize(kl_divergence, log_w0, method=self.optimization_method)
 
         # Extract and normalize weights
-        weights = np.exp(result.x)
+        weights = _get_numpy().exp(result.x)
         return weights / weights.sum()
 
     def compute_metric(self, empirical_dist: Dict, target_dist: Dict) -> float:
@@ -216,7 +229,7 @@ class CategoricalKLStrategy(WeightingStrategy):
                     # If target has 0 probability but empirical doesn't,
                     # KL divergence is infinite
                     return float("inf")
-                kl += p_c * np.log(p_c / q_c)
+                kl += p_c * _get_numpy().log(p_c / q_c)
 
         return kl
 
@@ -253,7 +266,7 @@ class IterativeProportionalFittingStrategy(WeightingStrategy):
         """
         # Same validation as CategoricalKLStrategy
         total = sum(target.values())
-        if not np.isclose(total, 1.0, rtol=1e-5):
+        if not _get_numpy().isclose(total, 1.0, rtol=1e-5):
             raise ValueError(
                 f"Target distribution probabilities must sum to 1.0, got {total}"
             )
@@ -272,7 +285,7 @@ class IterativeProportionalFittingStrategy(WeightingStrategy):
         target: Dict[str, float],
         max_iter: Optional[int] = None,
         **kwargs,
-    ) -> np.ndarray:
+    ) -> "np.ndarray":
         """Find optimal weights using Iterative Proportional Fitting.
 
         Args:
@@ -282,12 +295,12 @@ class IterativeProportionalFittingStrategy(WeightingStrategy):
             **kwargs: Additional arguments (ignored)
 
         Returns:
-            np.ndarray: Normalized weights
+            "np.ndarray": Normalized weights
         """
         self.validate_inputs(responses, target)
 
         n = len(responses)
-        weights = np.ones(n)
+        weights = _get_numpy().ones(n)
         iterations = max_iter if max_iter is not None else self.max_iter
 
         for iteration in range(iterations):
@@ -327,7 +340,7 @@ class IterativeProportionalFittingStrategy(WeightingStrategy):
             if p_c > 1e-10:
                 if q_c < 1e-10:
                     return float("inf")
-                kl += p_c * np.log(p_c / q_c)
+                kl += p_c * _get_numpy().log(p_c / q_c)
 
         return kl
 
@@ -358,28 +371,28 @@ class BinnedContinuousKLStrategy(WeightingStrategy):
         self.bins = bins
         self.categorical_strategy = CategoricalKLStrategy(optimization_method)
 
-    def _create_bins(self, responses: List[float]) -> np.ndarray:
+    def _create_bins(self, responses: List[float]) -> "np.ndarray":
         """Create bin edges from responses.
 
         Args:
             responses: List of numerical responses
 
         Returns:
-            np.ndarray: Bin edges
+            "np.ndarray": Bin edges
         """
         if self.bins is None:
             # Auto: use Sturges' rule for number of bins
-            n_bins = int(np.ceil(np.log2(len(responses)) + 1))
-            return np.linspace(min(responses), max(responses), n_bins + 1)
+            n_bins = int(_get_numpy().ceil(_get_numpy().log2(len(responses)) + 1))
+            return _get_numpy().linspace(min(responses), max(responses), n_bins + 1)
         elif isinstance(self.bins, int):
             # Number of bins specified
-            return np.linspace(min(responses), max(responses), self.bins + 1)
+            return _get_numpy().linspace(min(responses), max(responses), self.bins + 1)
         else:
             # Explicit bin edges provided
-            return np.array(self.bins)
+            return _get_numpy().array(self.bins)
 
     def _discretize_responses(
-        self, responses: List[float], bin_edges: np.ndarray
+        self, responses: List[float], bin_edges: "np.ndarray"
     ) -> Tuple[List[str], Dict[str, Tuple[float, float]]]:
         """Convert continuous responses to categorical bins.
 
@@ -434,7 +447,7 @@ class BinnedContinuousKLStrategy(WeightingStrategy):
             prob = 0.0
             for (t_lower, t_upper), t_prob in target.items():
                 # Check if bins overlap/match
-                if np.isclose(lower, t_lower) and np.isclose(upper, t_upper):
+                if _get_numpy().isclose(lower, t_lower) and _get_numpy().isclose(upper, t_upper):
                     prob = t_prob
                     break
 
@@ -473,7 +486,7 @@ class BinnedContinuousKLStrategy(WeightingStrategy):
 
         # Validate target distribution sums to 1.0
         total = sum(target.values())
-        if not np.isclose(total, 1.0, rtol=1e-5):
+        if not _get_numpy().isclose(total, 1.0, rtol=1e-5):
             raise ValueError(
                 f"Target distribution probabilities must sum to 1.0, got {total}"
             )
@@ -483,7 +496,7 @@ class BinnedContinuousKLStrategy(WeightingStrategy):
         responses: List[float],
         target: Dict[Tuple[float, float], float],
         **kwargs,
-    ) -> np.ndarray:
+    ) -> "np.ndarray":
         """Find optimal weights for continuous responses via binning.
 
         Args:
@@ -492,7 +505,7 @@ class BinnedContinuousKLStrategy(WeightingStrategy):
             **kwargs: Additional arguments passed to categorical strategy
 
         Returns:
-            np.ndarray: Normalized weights that minimize KL divergence
+            "np.ndarray": Normalized weights that minimize KL divergence
         """
         self.validate_inputs(responses, target)
 

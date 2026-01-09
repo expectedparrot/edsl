@@ -5,15 +5,21 @@ This module provides wrapper classes and functions that abstract the IPython.dis
 functionality to enable potential future replacement with alternative implementations.
 """
 
-try:
-    from IPython.display import display as ipython_display
-    from IPython.display import HTML as IPythonHTML
-    from IPython.display import FileLink as IPythonFileLink
-    from IPython.display import IFrame as IPythonIFrame
+# Lazy-loaded IPython modules
+_ipython_display_module = None
+_IPYTHON_AVAILABLE = None
 
-    _IPYTHON_AVAILABLE = True
-except ImportError:
-    _IPYTHON_AVAILABLE = False
+
+def _get_ipython_display():
+    """Lazy import IPython.display module."""
+    global _ipython_display_module, _IPYTHON_AVAILABLE
+    if _IPYTHON_AVAILABLE is None:
+        try:
+            from IPython import display as _ipython_display_module
+            _IPYTHON_AVAILABLE = True
+        except ImportError:
+            _IPYTHON_AVAILABLE = False
+    return _ipython_display_module, _IPYTHON_AVAILABLE
 
 
 def is_notebook_environment():
@@ -54,8 +60,9 @@ class HTML:
         self.metadata = metadata
         self.kwargs = kwargs
 
-        if _IPYTHON_AVAILABLE and is_notebook_environment():
-            self._ipython_html = IPythonHTML(data, metadata, **kwargs)
+        ipython_module, available = _get_ipython_display()
+        if available and is_notebook_environment():
+            self._ipython_html = ipython_module.HTML(data, metadata, **kwargs)
         else:
             self._ipython_html = None
 
@@ -92,8 +99,9 @@ class FileLink:
         self.result_html_suffix = result_html_suffix
         self.kwargs = kwargs
 
-        if _IPYTHON_AVAILABLE and is_notebook_environment():
-            self._ipython_filelink = IPythonFileLink(
+        ipython_module, available = _get_ipython_display()
+        if available and is_notebook_environment():
+            self._ipython_filelink = ipython_module.FileLink(
                 path, url_prefix, result_html_prefix, result_html_suffix, **kwargs
             )
         else:
@@ -120,8 +128,9 @@ class IFrame:
         self.height = height
         self.kwargs = kwargs
 
-        if _IPYTHON_AVAILABLE and is_notebook_environment():
-            self._ipython_iframe = IPythonIFrame(src, width, height, **kwargs)
+        ipython_module, available = _get_ipython_display()
+        if available and is_notebook_environment():
+            self._ipython_iframe = ipython_module.IFrame(src, width, height, **kwargs)
         else:
             self._ipython_iframe = None
 
@@ -144,8 +153,9 @@ def display(obj, *args, **kwargs):
         *args: Additional objects to display
         **kwargs: Additional keyword arguments for display
     """
-    if _IPYTHON_AVAILABLE and is_notebook_environment():
-        ipython_display(obj, *args, **kwargs)
+    ipython_module, available = _get_ipython_display()
+    if available and is_notebook_environment():
+        ipython_module.display(obj, *args, **kwargs)
     else:
         # Fallback behavior when not in notebook environment
         if hasattr(obj, "_repr_html_"):

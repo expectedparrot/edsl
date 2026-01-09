@@ -6,7 +6,6 @@ suggestions.
 """
 
 from typing import TYPE_CHECKING, Optional
-import pandas as pd
 
 if TYPE_CHECKING:
     from .results import Results
@@ -60,6 +59,7 @@ class ResultsAnalyzer:
             >>> analyzer = ResultsAnalyzer(r)
             >>> # analysis_results = analyzer.spot_issues()  # Would analyze null responses
         """
+        import pandas as pd
         from ..questions import QuestionFreeText, QuestionDict
         from ..surveys import Survey
         from ..scenarios import Scenario, ScenarioList

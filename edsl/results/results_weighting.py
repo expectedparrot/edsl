@@ -13,8 +13,20 @@ Strategies available:
 For implementation details, see results_weighting_strategies.py
 """
 
-import numpy as np
 from typing import Dict, List, Optional, Union, Tuple, TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import numpy as np
+
+# Lazy import for numpy to speed up module import time
+_np = None
+
+def _get_numpy():
+    """Lazily import numpy module."""
+    global _np
+    if _np is None:
+        import numpy as _np
+    return _np
 
 from .results_weighting_strategies import (
     WeightingStrategy,
@@ -121,7 +133,7 @@ class ResultsWeighting:
         method: Optional[str] = None,
         max_iter: int = 100,
         **kwargs,
-    ) -> np.ndarray:
+    ) -> "np.ndarray":
         """
         Find optimal weights to match a target distribution.
 
@@ -212,7 +224,7 @@ class ResultsWeighting:
         )
 
     def get_weighted_distribution(
-        self, question_name: str, weights: np.ndarray, strategy: str = "categorical_kl"
+        self, question_name: str, weights: "np.ndarray", strategy: str = "categorical_kl"
     ) -> Dict:
         """
         Compute the weighted empirical distribution for a question.
@@ -306,7 +318,7 @@ class ResultsWeighting:
         strategies: Optional[Dict[str, str]] = None,
         aggregation: str = "weighted_sum",
         **kwargs,
-    ) -> np.ndarray:
+    ) -> "np.ndarray":
         """
         Find optimal weights that simultaneously match multiple target distributions.
 
@@ -445,6 +457,7 @@ class ResultsWeighting:
 
         # Objective function
         def objective(log_weights):
+            np = _get_numpy()
             weights = np.exp(log_weights)
             weights = weights / weights.sum()
 
@@ -465,11 +478,12 @@ class ResultsWeighting:
             return aggregate_func(metrics)
 
         # Initialize with uniform weights
+        np = _get_numpy()
         log_w0 = np.zeros(n)
 
         # Optimize
         result = minimize(objective, log_w0, method="L-BFGS-B")
 
         # Extract and normalize weights
-        weights = np.exp(result.x)
+        weights = _get_numpy().exp(result.x)
         return weights / weights.sum()

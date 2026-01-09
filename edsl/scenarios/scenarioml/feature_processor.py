@@ -7,11 +7,50 @@ and text list features with robust handling of missing values and unseen categor
 """
 
 import re
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Any
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.feature_extraction.text import TfidfVectorizer
+from typing import Dict, List, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import numpy as np
+    import pandas as pd
+
+# Lazy-loaded numpy
+_numpy = None
+
+def _get_numpy():
+    """Lazy import numpy."""
+    global _numpy
+    if _numpy is None:
+        import numpy as _numpy
+    return _numpy
+
+# Lazy-loaded modules
+_pandas = None
+_sklearn_preprocessing = None
+_sklearn_feature_extraction = None
+
+
+def _get_pandas():
+    """Lazy import pandas."""
+    global _pandas
+    if _pandas is None:
+        import pandas as _pandas
+    return _pandas
+
+
+def _get_sklearn_preprocessing():
+    """Lazy import sklearn.preprocessing."""
+    global _sklearn_preprocessing
+    if _sklearn_preprocessing is None:
+        from sklearn import preprocessing as _sklearn_preprocessing
+    return _sklearn_preprocessing
+
+
+def _get_sklearn_feature_extraction():
+    """Lazy import sklearn.feature_extraction.text."""
+    global _sklearn_feature_extraction
+    if _sklearn_feature_extraction is None:
+        from sklearn.feature_extraction import text as _sklearn_feature_extraction
+    return _sklearn_feature_extraction
 
 
 class FeatureProcessor:
@@ -79,7 +118,7 @@ class FeatureProcessor:
             },
         }
 
-    def detect_feature_type(self, series: pd.Series) -> str:
+    def detect_feature_type(self, series: "pd.Series") -> str:
         """
         Detect the feature type of a pandas Series.
 
@@ -89,6 +128,8 @@ class FeatureProcessor:
         Returns:
             Feature type: 'numeric', 'ordinal', 'text_list', or 'categorical'
         """
+        pd = _get_pandas()
+
         # Remove null values for analysis
         non_null_series = series.dropna()
 
@@ -113,7 +154,7 @@ class FeatureProcessor:
         # Default to categorical
         return "categorical"
 
-    def _is_text_list(self, series: pd.Series) -> bool:
+    def _is_text_list(self, series: "pd.Series") -> bool:
         """Check if series contains text lists like "['item1', 'item2']"."""
         # Sample a few values to check
         sample_size = min(10, len(series))
@@ -153,7 +194,7 @@ class FeatureProcessor:
         # Pattern: digits, possibly with commas as thousands separators
         return bool(re.match(r"^\d{1,3}(,\d{3})*(\.\d+)?$", cleaned))
 
-    def _is_ordinal(self, series: pd.Series) -> bool:
+    def _is_ordinal(self, series: "pd.Series") -> bool:
         """Check if series matches known ordinal patterns."""
         unique_values = set(series.unique())
 
@@ -166,7 +207,7 @@ class FeatureProcessor:
 
         return False
 
-    def _get_ordinal_mapping(self, series: pd.Series) -> Dict[str, int]:
+    def _get_ordinal_mapping(self, series: "pd.Series") -> Dict[str, int]:
         """Get the appropriate ordinal mapping for a series."""
         unique_values = set(series.unique())
 
@@ -182,7 +223,7 @@ class FeatureProcessor:
 
         return best_match if best_match else {}
 
-    def fit_transform(self, df: pd.DataFrame, target_col: str) -> np.ndarray:
+    def fit_transform(self, df: "pd.DataFrame", target_col: str) -> "np.ndarray":
         """
         Fit processors and transform features.
 
@@ -193,6 +234,8 @@ class FeatureProcessor:
         Returns:
             Transformed feature matrix
         """
+        preprocessing = _get_sklearn_preprocessing()
+
         # Validate inputs
         if len(df) < 3:
             raise ValueError(
@@ -237,15 +280,15 @@ class FeatureProcessor:
             transformed_features.append(features)
 
         # Combine all features
-        combined_features = np.hstack(transformed_features)
+        combined_features = _get_numpy().hstack(transformed_features)
 
         # Apply standard scaling
-        self._scaler = StandardScaler()
+        self._scaler = preprocessing.StandardScaler()
         scaled_features = self._scaler.fit_transform(combined_features)
 
         return scaled_features
 
-    def transform(self, df: pd.DataFrame) -> np.ndarray:
+    def transform(self, df: "pd.DataFrame") -> "np.ndarray":
         """
         Transform new data using fitted processors.
 
@@ -255,13 +298,14 @@ class FeatureProcessor:
         Returns:
             Transformed feature matrix
         """
+        pd = _get_pandas()
         transformed_features = []
 
         for col in self.processors.keys():
             # Handle missing columns
             if col not in df.columns:
                 # Create a series of NaN values
-                series = pd.Series([np.nan] * len(df), name=col)
+                series = pd.Series([_get_numpy().nan] * len(df), name=col)
             else:
                 series = df[col]
 
@@ -280,14 +324,14 @@ class FeatureProcessor:
             transformed_features.append(features)
 
         # Combine all features
-        combined_features = np.hstack(transformed_features)
+        combined_features = _get_numpy().hstack(transformed_features)
 
         # Apply standard scaling
         scaled_features = self._scaler.transform(combined_features)
 
         return scaled_features
 
-    def _fit_numeric(self, series: pd.Series, col_name: str) -> Dict[str, Any]:
+    def _fit_numeric(self, series: "pd.Series", col_name: str) -> Dict[str, Any]:
         """Fit numeric feature processor."""
         median_value = series.median()
         self.feature_names.append(col_name)
@@ -295,14 +339,14 @@ class FeatureProcessor:
         return {"type": "numeric", "median": median_value, "feature_names": [col_name]}
 
     def _transform_numeric(
-        self, series: pd.Series, processor_info: Dict[str, Any]
-    ) -> np.ndarray:
+        self, series: "pd.Series", processor_info: Dict[str, Any]
+    ) -> "np.ndarray":
         """Transform numeric features."""
         # Fill missing values with median
         filled_series = series.fillna(processor_info["median"])
         return filled_series.values.reshape(-1, 1)
 
-    def _fit_ordinal(self, series: pd.Series, col_name: str) -> Dict[str, Any]:
+    def _fit_ordinal(self, series: "pd.Series", col_name: str) -> Dict[str, Any]:
         """Fit ordinal feature processor."""
         mapping = self._get_ordinal_mapping(series)
         self.feature_names.append(col_name)
@@ -315,8 +359,8 @@ class FeatureProcessor:
         }
 
     def _transform_ordinal(
-        self, series: pd.Series, processor_info: Dict[str, Any]
-    ) -> np.ndarray:
+        self, series: "pd.Series", processor_info: Dict[str, Any]
+    ) -> "np.ndarray":
         """Transform ordinal features."""
         mapping = processor_info["mapping"]
         default_value = processor_info["default_value"]
@@ -327,20 +371,22 @@ class FeatureProcessor:
 
         return mapped_values.values.reshape(-1, 1)
 
-    def _fit_categorical(self, series: pd.Series, col_name: str) -> Dict[str, Any]:
+    def _fit_categorical(self, series: "pd.Series", col_name: str) -> Dict[str, Any]:
         """Fit categorical feature processor."""
+        preprocessing = _get_sklearn_preprocessing()
+
         # Add 'Unknown' to handle unseen categories
         unique_values = list(series.dropna().unique()) + ["Unknown"]
 
-        encoder = LabelEncoder()
+        encoder = preprocessing.LabelEncoder()
         encoder.fit(unique_values)
         self.feature_names.append(col_name)
 
         return {"type": "categorical", "encoder": encoder, "feature_names": [col_name]}
 
     def _transform_categorical(
-        self, series: pd.Series, processor_info: Dict[str, Any]
-    ) -> np.ndarray:
+        self, series: "pd.Series", processor_info: Dict[str, Any]
+    ) -> "np.ndarray":
         """Transform categorical features."""
         encoder = processor_info["encoder"]
 
@@ -358,13 +404,15 @@ class FeatureProcessor:
         encoded_values = filled_series.apply(safe_transform)
         return encoded_values.values.reshape(-1, 1)
 
-    def _fit_text_list(self, series: pd.Series, col_name: str) -> Dict[str, Any]:
+    def _fit_text_list(self, series: "pd.Series", col_name: str) -> Dict[str, Any]:
         """Fit text list feature processor."""
+        feature_extraction = _get_sklearn_feature_extraction()
+
         # Clean text lists
         cleaned_series = self._clean_text_lists(series)
 
         # Fit TF-IDF vectorizer
-        vectorizer = TfidfVectorizer(
+        vectorizer = feature_extraction.TfidfVectorizer(
             max_features=10,
             stop_words="english",
             min_df=2,
@@ -391,14 +439,14 @@ class FeatureProcessor:
         }
 
     def _transform_text_list(
-        self, series: pd.Series, processor_info: Dict[str, Any]
-    ) -> np.ndarray:
+        self, series: "pd.Series", processor_info: Dict[str, Any]
+    ) -> "np.ndarray":
         """Transform text list features."""
         vectorizer = processor_info["vectorizer"]
 
         if vectorizer is None:
             # Return zeros if vectorizer failed during fitting
-            return np.zeros((len(series), 1))
+            return _get_numpy().zeros((len(series), 1))
 
         # Clean text lists
         cleaned_series = self._clean_text_lists(series)
@@ -409,10 +457,11 @@ class FeatureProcessor:
             return tfidf_matrix.toarray()
         except Exception:
             # Fallback if transformation fails
-            return np.zeros((len(series), len(processor_info["feature_names"])))
+            return _get_numpy().zeros((len(series), len(processor_info["feature_names"])))
 
-    def _clean_text_lists(self, series: pd.Series) -> pd.Series:
+    def _clean_text_lists(self, series: "pd.Series") -> "pd.Series":
         """Clean text list format for TF-IDF processing."""
+        pd = _get_pandas()
 
         def clean_text(text):
             if pd.isna(text):

@@ -7,10 +7,10 @@ Server: FastAPI application that stores commits, states, and refs.
 Client: HTTPRemote class that implements the Remote protocol.
 
 Usage (Server):
-    python -m edsl.object_versions.http_remote --port 8765
+    python -m edsl.versioning.http_remote --port 8765
 
 Usage (Client):
-    from edsl.object_versions import HTTPRemote, VersionedList
+    from edsl.versioning import HTTPRemote, ObjectVersionsServer
 
     # Connect by alias
     remote = HTTPRemote.from_alias("http://localhost:8765", "john/my-list")
@@ -18,11 +18,17 @@ Usage (Client):
     # Or connect by repo UUID
     remote = HTTPRemote("http://localhost:8765", repo_id="abc123")
 
-    vl = VersionedList([{'x': 1}])
-    vl = vl.git_add_remote("origin", remote)
-    vl = vl.append({'x': 2})
-    vl = vl.git_commit("added row")
-    vl.git_push()
+    # High-level server interface
+    server = ObjectVersionsServer("http://localhost:8765")
+    data = server.clone("my-repo")  # Returns dict with entries/meta
+
+    # Apply events via API
+    import requests
+    requests.post(f"{server.url}/api/repos/{repo_id}/events", json={
+        "event_name": "append_row",
+        "event_payload": {"row": {"x": 1}},
+        "message": "Added row"
+    })
 """
 
 from __future__ import annotations
@@ -33,13 +39,32 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Literal
 
-import requests
 from pydantic import BaseModel
+
+# Lazy import for requests to speed up module import time
+_requests = None
+
+def _get_requests():
+    """Lazily import requests module."""
+    global _requests
+    if _requests is None:
+        import requests as _requests
+    return _requests
 
 from .models import Commit, Ref
 from .protocols import Remote
 from .storage import BaseObjectStore
 from .utils import _utcnow
+
+# Import event system from edsl.store
+from edsl.store import Store, create_event, apply_event, list_events
+
+# Import versioning modules
+from .snapshot_manager import SnapshotManager, SnapshotConfig, get_snapshot_stats
+from .event_compaction import EventCompactor, compact_events, analyze_events
+from .time_travel import TimeTraveler, get_history, find_commit_at_time
+from .validation import EventValidator, validate_event, dry_run
+from .metrics import MetricsCollector, StorageAnalyzer, get_collector, timed
 
 
 # ----------------------------
@@ -100,6 +125,13 @@ class RepoInfo(BaseModel):
     commits_count: int
 
 
+class DryRunModel(BaseModel):
+    """Events to validate via dry-run."""
+    events: List[EventItem]
+    branch: str = "main"
+    strict: bool = False  # Treat warnings as errors
+
+
 # ----------------------------
 # HTTP Remote Client
 # ----------------------------
@@ -121,7 +153,7 @@ class HTTPRemote:
         Create HTTPRemote by resolving an alias (e.g., "john/my-list").
         """
         # Resolve alias to repo_id
-        resp = requests.get(
+        resp = _get_requests().get(
             f"{url.rstrip('/')}/api/aliases/{alias}",
             timeout=timeout
         )
@@ -137,7 +169,7 @@ class HTTPRemote:
         Create a new repository on the server.
         Returns an HTTPRemote connected to the new repo.
         """
-        resp = requests.post(
+        resp = _get_requests().post(
             f"{url.rstrip('/')}/api/repos",
             json={"alias": alias, "description": description},
             timeout=timeout
@@ -146,11 +178,11 @@ class HTTPRemote:
         repo_id = resp.json()["repo_id"]
         return cls(url=url, repo_id=repo_id, name=name, timeout=timeout)
 
-    def _request(self, method: str, path: str, **kwargs) -> requests.Response:
+    def _request(self, method: str, path: str, **kwargs):
         """Make HTTP request to server."""
         url = f"{self.url.rstrip('/')}/api/repos/{self.repo_id}{path}"
         kwargs.setdefault('timeout', self.timeout)
-        response = requests.request(method, url, **kwargs)
+        response = _get_requests().request(method, url, **kwargs)
         response.raise_for_status()
         return response
 
@@ -160,7 +192,7 @@ class HTTPRemote:
         try:
             resp = self._request('GET', f'/states/{state_id}/exists')
             return resp.json().get('exists', False)
-        except requests.HTTPError as e:
+        except _get_requests().HTTPError as e:
             if e.response.status_code == 404:
                 return False
             raise
@@ -180,7 +212,7 @@ class HTTPRemote:
         try:
             resp = self._request('GET', f'/commits/{commit_id}/exists')
             return resp.json().get('exists', False)
-        except requests.HTTPError as e:
+        except _get_requests().HTTPError as e:
             if e.response.status_code == 404:
                 return False
             raise
@@ -221,7 +253,7 @@ class HTTPRemote:
         try:
             resp = self._request('GET', f'/refs/{name}/exists')
             return resp.json().get('exists', False)
-        except requests.HTTPError as e:
+        except _get_requests().HTTPError as e:
             if e.response.status_code == 404:
                 return False
             raise
@@ -289,13 +321,13 @@ class ObjectVersionsServer:
         """Resolve alias or repo_id to repo_id."""
         # First, try as alias
         try:
-            resp = requests.get(
+            resp = _get_requests().get(
                 f"{self.url.rstrip('/')}/api/aliases/{repo}",
                 timeout=self.timeout
             )
             if resp.status_code == 200:
                 return resp.json()["repo_id"]
-        except requests.RequestException:
+        except _get_requests().RequestException:
             pass
 
         # Assume it's a repo_id
@@ -303,7 +335,7 @@ class ObjectVersionsServer:
 
     def list_repos(self) -> List[Dict[str, Any]]:
         """List all repositories on the server."""
-        resp = requests.get(
+        resp = _get_requests().get(
             f"{self.url.rstrip('/')}/api/repos",
             timeout=self.timeout
         )
@@ -321,7 +353,7 @@ class ObjectVersionsServer:
         repo_id = self._resolve_repo(repo)
         return HTTPRemote(url=self.url, repo_id=repo_id, name=name, timeout=self.timeout)
 
-    def clone(self, repo: str, ref_name: str = "main"):
+    def clone(self, repo: str, ref_name: str = "main") -> Dict[str, Any]:
         """
         Clone a repository from the server.
 
@@ -330,36 +362,42 @@ class ObjectVersionsServer:
             ref_name: Branch to clone (default: "main")
 
         Returns:
-            VersionedList with data from the remote
+            Dict with 'entries', 'meta', 'remote', 'repo_id', 'branch'
         """
-        from .git_facade import clone_from_remote, ExpectedParrotGit
-        from .list_store import VersionedList
-
+        repo_id = self._resolve_repo(repo)
         remote = self.get_remote(repo)
-        view = clone_from_remote(remote, ref_name)
-        git = ExpectedParrotGit(view)
-        git = git.add_remote("origin", remote)
-        rows = git.view.get_base_state()
-        state = rows[0] if rows else {}
-        instance = VersionedList._from_state(state)
-        instance._git = git
-        return instance
+
+        # Fetch current data
+        resp = _get_requests().get(
+            f"{self.url.rstrip('/')}/api/repos/{repo_id}/data",
+            params={"branch": ref_name},
+            timeout=self.timeout
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        return {
+            "entries": data.get("entries", data.get("rows", [])),
+            "meta": data.get("meta", data.get("metadata", {})),
+            "remote": remote,
+            "repo_id": repo_id,
+            "branch": ref_name,
+            "commit_id": data.get("commit_id"),
+        }
 
     def create(self, alias: Optional[str] = None, description: Optional[str] = None,
-               initial_data: Optional[List[Dict]] = None):
+               initial_data: Optional[List[Dict]] = None) -> Dict[str, Any]:
         """
         Create a new repository on the server.
 
         Args:
             alias: Optional alias (e.g., "my-data")
             description: Optional description
-            initial_data: Optional initial rows
+            initial_data: Optional initial entries
 
         Returns:
-            VersionedList connected to the new repo
+            Dict with 'entries', 'meta', 'remote', 'repo_id'
         """
-        from .list_store import VersionedList
-
         remote = HTTPRemote.create_repo(
             url=self.url,
             alias=alias,
@@ -367,18 +405,33 @@ class ObjectVersionsServer:
             timeout=self.timeout
         )
 
+        # If initial data provided, push it via events
         if initial_data:
-            vl = VersionedList(initial_data)
-        else:
-            vl = VersionedList([])
+            # Create initial commit with all data
+            resp = _get_requests().post(
+                f"{self.url.rstrip('/')}/api/repos/{remote.repo_id}/events",
+                json={
+                    "event_name": "replace_all_entries",
+                    "event_payload": {"entries": initial_data},
+                    "message": "Initial data",
+                    "author": "api",
+                    "branch": "main"
+                },
+                timeout=self.timeout
+            )
+            # If branch doesn't exist yet, we need to initialize first
+            if resp.status_code == 400:
+                # Initialize with empty state first, then add data
+                # For now, just return the remote - initialization handled elsewhere
+                pass
 
-        vl = vl.git_init()
-        vl = vl.git_add_remote("origin", remote)
-        if initial_data:
-            vl = vl.git_commit("Initial data")
-            vl.git_push()
-
-        return vl
+        return {
+            "entries": initial_data or [],
+            "meta": {},
+            "remote": remote,
+            "repo_id": remote.repo_id,
+            "alias": alias,
+        }
 
 
 # ----------------------------
@@ -464,7 +517,8 @@ def create_app(db_url: Optional[str] = None):
         else:
             if repo_id not in repos:
                 raise HTTPException(404, f"Repository '{repo_id}' not found")
-            return repos[repo_id]
+            # Return the store, not the RepoStorage wrapper
+            return repos[repo_id].store
 
     def get_repo_info(repo_id: str):
         if use_db:
@@ -524,16 +578,59 @@ def create_app(db_url: Optional[str] = None):
                 for r in repos.values()
             ]
 
+    def initialize_repo_with_empty_state(storage, repo_id: str):
+        """Initialize a repository with an empty state and main branch."""
+        import hashlib
+
+        # Create empty initial state
+        initial_store = Store(entries=[], meta={})
+        state_bytes = serialize_store(initial_store)
+        state_id = hashlib.sha256(state_bytes).hexdigest()[:16]
+
+        # Create initial commit
+        now = _utcnow()
+        commit_data = {
+            "parents": [],
+            "timestamp": now.isoformat(),
+            "message": "Initial commit",
+            "event_name": "init",
+            "event_payload": {},
+            "author": "system",
+        }
+        commit_str = json.dumps(commit_data, sort_keys=True)
+        commit_id = hashlib.sha256(commit_str.encode()).hexdigest()[:16]
+
+        commit = Commit(
+            commit_id=commit_id,
+            parents=(),
+            timestamp=now,
+            message="Initial commit",
+            event_name="init",
+            event_payload={},
+            author="system",
+        )
+
+        # Store state, commit, and create main branch
+        storage.put_state_bytes(state_id, state_bytes)
+        storage.put_commit(commit, state_id)
+        storage.upsert_ref("main", commit_id, "branch")
+
+        return commit_id
+
     @app.post("/api/repos")
     def create_repo_endpoint(payload: CreateRepoModel = Body(...)):
         repo_id = uuid.uuid4().hex
         if use_db:
             db.create_repo(repo_id, alias=payload.alias, description=payload.description)
             repo = db.get_repo(repo_id)
+            storage = db.get_repo_storage(repo_id)
+            # Initialize with empty state and main branch
+            commit_id = initialize_repo_with_empty_state(storage, repo_id)
             return {
                 "repo_id": repo_id,
                 "alias": payload.alias,
                 "created_at": repo.created_at.isoformat(),
+                "initial_commit": commit_id,
             }
         else:
             repo = RepoStorage(
@@ -544,11 +641,14 @@ def create_app(db_url: Optional[str] = None):
             repos[repo_id] = repo
             if payload.alias:
                 aliases[payload.alias] = repo_id
+            # Initialize with empty state and main branch
+            commit_id = initialize_repo_with_empty_state(repo.store, repo_id)
             return {
                 "repo_id": repo_id,
-            "alias": payload.alias,
-            "created_at": repo.created_at.isoformat(),
-        }
+                "alias": payload.alias,
+                "created_at": repo.created_at.isoformat(),
+                "initial_commit": commit_id,
+            }
 
     @app.get("/api/repos/{repo_id}")
     def get_repo_info_endpoint(repo_id: str):
@@ -783,16 +883,107 @@ def create_app(db_url: Optional[str] = None):
             }
         )
 
+    # --- Helper function to load state from either format ---
+
+    def load_store_from_state(state_bytes: bytes) -> Store:
+        """
+        Load a Store from state bytes, supporting both old and new formats.
+
+        Old format (ListStore): [{"rows": [...], "metadata": {...}}]
+        New format (Store): [{"entries": [...], "meta": {...}}]
+        """
+        state_list = json.loads(state_bytes.decode('utf-8'))
+        state_dict = state_list[0] if isinstance(state_list, list) else state_list
+
+        # Support both formats
+        if "entries" in state_dict:
+            # New format
+            return Store(
+                entries=list(state_dict.get("entries", [])),
+                meta=dict(state_dict.get("meta", {}))
+            )
+        else:
+            # Old ListStore format - convert
+            return Store(
+                entries=list(state_dict.get("rows", [])),
+                meta=dict(state_dict.get("metadata", {}))
+            )
+
+    def serialize_store(store: Store) -> bytes:
+        """Serialize a Store to bytes in the standard format."""
+        # Use new format with entries/meta
+        state_dict = {"entries": store.entries, "meta": store.meta}
+        state_list = [state_dict]
+        return json.dumps(state_list, sort_keys=True).encode('utf-8')
+
+    def materialize_at_commit(storage, commit_id: str) -> Store:
+        """
+        Materialize the state at a specific commit by replaying events.
+
+        Finds the nearest ancestor with a snapshot and replays events forward.
+        Handles batch events by unpacking and applying sub-events.
+
+        Args:
+            storage: The storage backend
+            commit_id: Target commit to materialize
+
+        Returns:
+            Store with materialized state
+
+        Raises:
+            HTTPException: If no snapshot found in ancestry
+        """
+        snapshot_commit_id, state_id, events_to_replay = storage.find_nearest_snapshot(commit_id)
+
+        if state_id is None:
+            raise HTTPException(500, f"No snapshot found in ancestry of commit {commit_id}")
+
+        # Load the snapshot
+        state_bytes = storage.get_state_bytes(state_id)
+        store = load_store_from_state(state_bytes)
+
+        # Replay events to reach target commit
+        for event_name, event_payload in events_to_replay:
+            try:
+                if event_name == "batch":
+                    # Unpack batch events and apply each sub-event
+                    sub_events = event_payload.get("events", [])
+                    for sub in sub_events:
+                        sub_event = create_event(sub["event_name"], sub["event_payload"])
+                        apply_event(sub_event, store)
+                else:
+                    event = create_event(event_name, event_payload)
+                    apply_event(event, store)
+            except ValueError as e:
+                raise HTTPException(500, f"Error replaying event '{event_name}': {e}")
+
+        return store
+
+    # --- List available events endpoint ---
+
+    @app.get("/api/events")
+    def list_events_endpoint():
+        """List all available events with their parameter schemas."""
+        return list_events()
+
     # --- Apply Event endpoint (server-side mutation) ---
 
     @app.post("/api/repos/{repo_id}/events")
     def apply_event_endpoint(repo_id: str, payload: ApplyEventModel = Body(...)):
         """
         Apply an event to the repository, creating a new commit.
-        This allows the frontend to make edits without a full push cycle.
+
+        Events are stored without creating a state snapshot (event-sourcing).
+        State is materialized on-demand by replaying events from the nearest snapshot.
+        Use POST /api/repos/{repo_id}/snapshot to create a snapshot.
+
+        Uses the dynamic event registry from edsl.store. Events are specified
+        by snake_case name (e.g., 'append_row', 'remove_rows', 'rename_fields')
+        and their payloads are passed directly to the event constructor.
+
+        See GET /api/events for a list of available events and their schemas.
         """
         import hashlib
-        from .list_store import ListStore
 
         storage = get_repo_storage(repo_id)
         branch = payload.branch
@@ -803,70 +994,18 @@ def create_app(db_url: Optional[str] = None):
 
         ref = storage.get_ref(branch)
         head_commit_id = ref.commit_id
-        head_state_id = storage.get_commit_state_id(head_commit_id)
 
-        # Load current state (stored as [store.to_dict()])
-        state_bytes = storage.get_state_bytes(head_state_id)
-        state_list = json.loads(state_bytes.decode('utf-8'))
-        # State is stored as a list containing the store dict
-        state_dict = state_list[0] if isinstance(state_list, list) else state_list
-        current_store = ListStore.from_dict(state_dict)
-
-        # Apply the event to get new state
+        # Validate the event can be created (don't need to apply it for storage)
         event_name = payload.event_name
         event_payload = payload.event_payload
 
-        if event_name == "append_row":
-            new_store = current_store.append(event_payload.get("row", {}))
-        elif event_name == "extend_rows":
-            new_store = current_store.extend(event_payload.get("rows", []))
-        elif event_name == "update_row":
-            new_store = current_store.update_at(
-                event_payload.get("index", 0),
-                event_payload.get("row", {})
-            )
-        elif event_name == "delete_row":
-            new_store = current_store.delete_at(event_payload.get("index", 0))
-        elif event_name == "set_metadata":
-            new_store = current_store.set_metadata(
-                event_payload.get("key", ""),
-                event_payload.get("value")
-            )
-        elif event_name == "sort_rows":
-            new_store = current_store.sort(
-                key=lambda r: r.get(event_payload.get("key_field", "")),
-                reverse=event_payload.get("reverse", False)
-            )
-        elif event_name == "update_cell":
-            new_store = current_store.update_cell(
-                event_payload.get("row_index", 0),
-                event_payload.get("column", ""),
-                event_payload.get("value")
-            )
-        elif event_name == "add_column":
-            new_store = current_store.add_column(
-                event_payload.get("column", ""),
-                event_payload.get("default_value")
-            )
-        elif event_name == "delete_column":
-            new_store = current_store.delete_column(
-                event_payload.get("column", "")
-            )
-        elif event_name == "rename_column":
-            new_store = current_store.rename_column(
-                event_payload.get("old_name", ""),
-                event_payload.get("new_name", "")
-            )
-        else:
-            raise HTTPException(400, f"Unknown event type: {event_name}")
+        try:
+            # Just validate the event - don't need full materialization
+            event = create_event(event_name, event_payload)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
 
-        # Serialize new state (stored as [store.to_dict()] to match git format)
-        new_state_dict = new_store.to_dict()
-        new_state_list = [new_state_dict]
-        new_state_bytes = json.dumps(new_state_list, sort_keys=True).encode('utf-8')
-        new_state_id = hashlib.sha256(new_state_bytes).hexdigest()[:16]
-
-        # Create commit
+        # Create commit (event-only, no state snapshot)
         now = _utcnow()
         commit_data = {
             "parents": [head_commit_id],
@@ -889,9 +1028,8 @@ def create_app(db_url: Optional[str] = None):
             author=payload.author,
         )
 
-        # Store state, commit, and update ref
-        storage.put_state_bytes(new_state_id, new_state_bytes)
-        storage.put_commit(commit, new_state_id)
+        # Store commit WITHOUT state snapshot (event-only)
+        storage.put_commit(commit)  # No state_id
         storage.upsert_ref(branch, new_commit_id, "branch")
 
         # Notify SSE subscribers
@@ -905,8 +1043,7 @@ def create_app(db_url: Optional[str] = None):
         return {
             "status": "ok",
             "commit_id": new_commit_id,
-            "state_id": new_state_id,
-            "rows_count": len(new_store),
+            "snapshot": False,  # No snapshot created
         }
 
     # --- Batch commit endpoint (multiple events -> one commit) ---
@@ -915,10 +1052,14 @@ def create_app(db_url: Optional[str] = None):
     def batch_commit_endpoint(repo_id: str, payload: BatchCommitModel = Body(...)):
         """
         Apply multiple events as a single commit.
-        Used by the React editor to batch pending changes.
+
+        Events are stored without creating a state snapshot (event-sourcing).
+        The batch is stored as a single commit with event_name="batch".
+        State is materialized on-demand by replaying events.
+
+        See GET /api/events for a list of available events and their schemas.
         """
         import hashlib
-        from .list_store import ListStore
 
         if not payload.events:
             raise HTTPException(400, "No events to commit")
@@ -932,75 +1073,28 @@ def create_app(db_url: Optional[str] = None):
 
         ref = storage.get_ref(branch)
         head_commit_id = ref.commit_id
-        head_state_id = storage.get_commit_state_id(head_commit_id)
 
-        # Load current state
-        state_bytes = storage.get_state_bytes(head_state_id)
-        state_list = json.loads(state_bytes.decode('utf-8'))
-        state_dict = state_list[0] if isinstance(state_list, list) else state_list
-        current_store = ListStore.from_dict(state_dict)
-
-        # Apply all events sequentially
-        applied_events = []
+        # Validate all events can be created
+        validated_events = []
         for ev in payload.events:
             event_name = ev.event_name
             event_payload = ev.event_payload
 
-            if event_name == "append_row":
-                current_store = current_store.append(event_payload.get("row", {}))
-            elif event_name == "extend_rows":
-                current_store = current_store.extend(event_payload.get("rows", []))
-            elif event_name == "update_row":
-                current_store = current_store.update_at(
-                    event_payload.get("index", 0),
-                    event_payload.get("row", {})
-                )
-            elif event_name == "delete_row":
-                current_store = current_store.delete_at(event_payload.get("index", 0))
-            elif event_name == "set_metadata":
-                current_store = current_store.set_metadata(
-                    event_payload.get("key", ""),
-                    event_payload.get("value")
-                )
-            elif event_name == "update_cell":
-                current_store = current_store.update_cell(
-                    event_payload.get("row_index", 0),
-                    event_payload.get("column", ""),
-                    event_payload.get("value")
-                )
-            elif event_name == "add_column":
-                current_store = current_store.add_column(
-                    event_payload.get("column", ""),
-                    event_payload.get("default_value")
-                )
-            elif event_name == "delete_column":
-                current_store = current_store.delete_column(
-                    event_payload.get("column", "")
-                )
-            elif event_name == "rename_column":
-                current_store = current_store.rename_column(
-                    event_payload.get("old_name", ""),
-                    event_payload.get("new_name", "")
-                )
-            else:
-                raise HTTPException(400, f"Unknown event type: {event_name}")
+            try:
+                # Validate by creating the event
+                event = create_event(event_name, event_payload)
+                validated_events.append({"event_name": event_name, "event_payload": event_payload})
+            except ValueError as e:
+                raise HTTPException(400, f"Error validating event '{event_name}': {e}")
 
-            applied_events.append({"event_name": event_name, "event_payload": event_payload})
-
-        # Serialize new state
-        new_state_dict = current_store.to_dict()
-        new_state_list = [new_state_dict]
-        new_state_bytes = json.dumps(new_state_list, sort_keys=True).encode('utf-8')
-        new_state_id = hashlib.sha256(new_state_bytes).hexdigest()[:16]
-
-        # Create commit with batch event
+        # Create commit with batch event (no state snapshot)
         now = _utcnow()
         commit_data = {
             "parents": [head_commit_id],
             "timestamp": now.isoformat(),
-            "message": payload.message or f"batch ({len(applied_events)} events)",
+            "message": payload.message or f"batch ({len(validated_events)} events)",
             "event_name": "batch",
-            "event_payload": {"events": applied_events},
+            "event_payload": {"events": validated_events},
             "author": payload.author,
         }
         commit_str = json.dumps(commit_data, sort_keys=True)
@@ -1010,61 +1104,447 @@ def create_app(db_url: Optional[str] = None):
             commit_id=new_commit_id,
             parents=(head_commit_id,),
             timestamp=now,
-            message=payload.message or f"batch ({len(applied_events)} events)",
+            message=payload.message or f"batch ({len(validated_events)} events)",
             event_name="batch",
-            event_payload={"events": applied_events},
+            event_payload={"events": validated_events},
             author=payload.author,
         )
 
-        # Store state, commit, and update ref
-        storage.put_state_bytes(new_state_id, new_state_bytes)
-        storage.put_commit(commit, new_state_id)
+        # Store commit WITHOUT state snapshot (event-only)
+        storage.put_commit(commit)  # No state_id
         storage.upsert_ref(branch, new_commit_id, "branch")
 
         # Notify SSE subscribers
         notify_subscribers(repo_id, "commit", {
             "commit_id": new_commit_id,
             "branch": branch,
-            "message": payload.message or f"batch ({len(applied_events)} events)",
-            "events_applied": len(applied_events),
+            "message": payload.message or f"batch ({len(validated_events)} events)",
+            "events_applied": len(validated_events),
         })
 
         return {
             "status": "ok",
             "commit_id": new_commit_id,
-            "state_id": new_state_id,
-            "rows_count": len(current_store),
-            "events_applied": len(applied_events),
+            "snapshot": False,  # No snapshot created
+            "events_applied": len(validated_events),
         }
+
+    # --- Create snapshot endpoint ---
+
+    @app.post("/api/repos/{repo_id}/snapshot")
+    def create_snapshot_endpoint(repo_id: str, branch: str = "main"):
+        """
+        Create a state snapshot at the current HEAD of a branch.
+
+        Materializes the current state by replaying events from the nearest
+        existing snapshot, then stores the result as a new snapshot.
+
+        Use this periodically to improve read performance by reducing
+        the number of events that need to be replayed.
+        """
+        import hashlib
+
+        storage = get_repo_storage(repo_id)
+
+        if not storage.has_ref(branch):
+            raise HTTPException(400, f"Branch '{branch}' does not exist")
+
+        ref = storage.get_ref(branch)
+        commit_id = ref.commit_id
+
+        # Check if snapshot already exists
+        if storage.has_snapshot(commit_id):
+            return {
+                "status": "exists",
+                "commit_id": commit_id,
+                "message": "Snapshot already exists for this commit",
+            }
+
+        # Materialize state at this commit
+        store = materialize_at_commit(storage, commit_id)
+
+        # Store the snapshot
+        state_bytes = serialize_store(store)
+        state_id = hashlib.sha256(state_bytes).hexdigest()[:16]
+        storage.put_state_bytes(state_id, state_bytes)
+
+        # Link snapshot to commit
+        storage._commit_to_state[commit_id] = state_id
+
+        return {
+            "status": "ok",
+            "commit_id": commit_id,
+            "state_id": state_id,
+            "entries_count": len(store.entries),
+        }
+
+    # --- Snapshot statistics endpoint ---
+
+    @app.get("/api/repos/{repo_id}/snapshot/stats")
+    def get_snapshot_stats_endpoint(repo_id: str, branch: str = "main"):
+        """
+        Get snapshot statistics for the repository.
+
+        Returns information about snapshot coverage, replay efficiency,
+        and recommendations for creating new snapshots.
+        """
+        storage = get_repo_storage(repo_id)
+
+        if not storage.has_ref(branch):
+            raise HTTPException(400, f"Branch '{branch}' does not exist")
+
+        ref = storage.get_ref(branch)
+        stats = get_snapshot_stats(storage, ref.commit_id)
+
+        return {
+            "total_commits": stats.total_commits,
+            "total_snapshots": stats.total_snapshots,
+            "snapshot_coverage": round(stats.snapshot_coverage * 100, 2),
+            "max_events_to_replay": stats.max_events_to_replay,
+            "avg_events_to_replay": round(stats.avg_events_to_replay, 2),
+            "events_since_last_snapshot": stats.events_since_last_snapshot,
+            "snapshot_commits": stats.snapshot_commits[:10],  # Limit to 10
+            "recommendations": _get_snapshot_recommendations(stats),
+        }
+
+    def _get_snapshot_recommendations(stats):
+        """Generate recommendations based on snapshot stats."""
+        recommendations = []
+        if stats.events_since_last_snapshot > 50:
+            recommendations.append("Create a snapshot - many events since last snapshot")
+        if stats.snapshot_coverage < 0.02:
+            recommendations.append("Low snapshot coverage - consider creating more snapshots")
+        if stats.max_events_to_replay > 100:
+            recommendations.append("High max replay count - snapshots would improve read performance")
+        return recommendations
+
+    # --- Snapshot garbage collection endpoint ---
+
+    @app.post("/api/repos/{repo_id}/snapshot/gc")
+    def gc_snapshots_endpoint(repo_id: str, branch: str = "main", keep: int = 10):
+        """
+        Garbage collect old snapshots, keeping only the most recent N.
+
+        Always keeps:
+        - The initial commit snapshot (required for replay)
+        - The most recent N snapshots
+        """
+        from .snapshot_manager import gc_snapshots as gc_fn
+
+        storage = get_repo_storage(repo_id)
+
+        if not storage.has_ref(branch):
+            raise HTTPException(400, f"Branch '{branch}' does not exist")
+
+        ref = storage.get_ref(branch)
+        result = gc_fn(storage, ref.commit_id, keep_count=keep)
+
+        return result
+
+    # --- Event compaction analysis endpoint ---
+
+    @app.get("/api/repos/{repo_id}/events/compact/analyze")
+    def analyze_compaction_endpoint(repo_id: str, branch: str = "main"):
+        """
+        Analyze potential compaction savings for the event log.
+
+        Shows how many events could be reduced through compaction
+        without actually performing the compaction.
+        """
+        storage = get_repo_storage(repo_id)
+
+        if not storage.has_ref(branch):
+            raise HTTPException(400, f"Branch '{branch}' does not exist")
+
+        ref = storage.get_ref(branch)
+
+        # Collect all events in history
+        events = []
+        current = ref.commit_id
+        while current:
+            if not storage.has_commit(current):
+                break
+            commit = storage.get_commit(current)
+            if commit.event_name != "init":
+                if commit.event_name == "batch":
+                    for sub in commit.event_payload.get("events", []):
+                        events.append((sub["event_name"], sub["event_payload"]))
+                else:
+                    events.append((commit.event_name, commit.event_payload))
+            if not commit.parents:
+                break
+            current = commit.parents[0]
+
+        events.reverse()  # Oldest first
+        analysis = analyze_events(events)
+
+        return analysis
+
+    # --- Time travel / history endpoints ---
+
+    @app.get("/api/repos/{repo_id}/history/at")
+    def get_state_at_time_endpoint(
+        repo_id: str,
+        timestamp: str,
+        branch: str = "main"
+    ):
+        """
+        Get the state at a specific point in time.
+
+        Args:
+            timestamp: ISO format timestamp (e.g., "2024-01-15T10:30:00")
+        """
+        from datetime import datetime as dt
+
+        storage = get_repo_storage(repo_id)
+
+        if not storage.has_ref(branch):
+            raise HTTPException(400, f"Branch '{branch}' does not exist")
+
+        try:
+            target_time = dt.fromisoformat(timestamp)
+        except ValueError:
+            raise HTTPException(400, f"Invalid timestamp format: {timestamp}")
+
+        ref = storage.get_ref(branch)
+        commit_id = find_commit_at_time(storage, ref.commit_id, target_time)
+
+        if not commit_id:
+            raise HTTPException(404, f"No commit found at or before {timestamp}")
+
+        # Materialize state at that commit
+        store = materialize_at_commit(storage, commit_id)
+        commit = storage.get_commit(commit_id)
+
+        return {
+            "commit_id": commit_id,
+            "timestamp": commit.timestamp.isoformat(),
+            "message": commit.message,
+            "entries": store.entries,
+            "meta": store.meta,
+            "entries_count": len(store.entries),
+        }
+
+    @app.get("/api/repos/{repo_id}/history/search")
+    def search_history_endpoint(
+        repo_id: str,
+        query: str,
+        branch: str = "main",
+        limit: int = 20
+    ):
+        """
+        Search commit history by message.
+
+        Args:
+            query: Search pattern (case-insensitive substring match)
+        """
+        storage = get_repo_storage(repo_id)
+
+        if not storage.has_ref(branch):
+            raise HTTPException(400, f"Branch '{branch}' does not exist")
+
+        ref = storage.get_ref(branch)
+        traveler = TimeTraveler(storage)
+        commit_ids = traveler.find_commit_by_message(ref.commit_id, query)[:limit]
+
+        results = []
+        for cid in commit_ids:
+            commit = storage.get_commit(cid)
+            results.append({
+                "commit_id": cid,
+                "message": commit.message,
+                "event_name": commit.event_name,
+                "author": commit.author,
+                "timestamp": commit.timestamp.isoformat(),
+            })
+
+        return {"query": query, "results": results, "count": len(results)}
+
+    @app.get("/api/repos/{repo_id}/history/diff")
+    def diff_commits_endpoint(
+        repo_id: str,
+        from_commit: str,
+        to_commit: str
+    ):
+        """
+        Get the diff between two commits.
+
+        Shows entries added, removed, modified, and field changes.
+        """
+        storage = get_repo_storage(repo_id)
+
+        if not storage.has_commit(from_commit):
+            raise HTTPException(404, f"Commit '{from_commit}' not found")
+        if not storage.has_commit(to_commit):
+            raise HTTPException(404, f"Commit '{to_commit}' not found")
+
+        # Materialize both states
+        state1 = materialize_at_commit(storage, from_commit)
+        state2 = materialize_at_commit(storage, to_commit)
+
+        traveler = TimeTraveler(storage)
+        diff = traveler.diff_states(
+            {"entries": state1.entries, "meta": state1.meta},
+            {"entries": state2.entries, "meta": state2.meta},
+            from_commit, to_commit
+        )
+
+        return {
+            "from_commit": diff.from_commit,
+            "to_commit": diff.to_commit,
+            "entries_added": diff.entries_added,
+            "entries_removed": diff.entries_removed,
+            "entries_modified": diff.entries_modified,
+            "fields_added": diff.fields_added,
+            "fields_removed": diff.fields_removed,
+            "meta_changes": {k: {"old": v[0], "new": v[1]} for k, v in diff.meta_changes.items()},
+        }
+
+    # --- Validation / dry-run endpoint ---
+
+    @app.post("/api/repos/{repo_id}/events/validate")
+    def validate_events_endpoint(repo_id: str, payload: DryRunModel = Body(...)):
+        """
+        Validate events without applying them (dry-run).
+
+        Returns validation results for each event, showing any errors
+        or warnings that would occur if the events were applied.
+        """
+        storage = get_repo_storage(repo_id)
+        branch = payload.branch
+
+        if not storage.has_ref(branch):
+            raise HTTPException(400, f"Branch '{branch}' does not exist")
+
+        ref = storage.get_ref(branch)
+
+        # Materialize current state
+        store = materialize_at_commit(storage, ref.commit_id)
+        current_state = {"entries": store.entries, "meta": store.meta}
+
+        # Define apply function for dry-run
+        def apply_fn(event_name, event_payload, state):
+            import copy
+            temp_store = Store(
+                entries=copy.deepcopy(state.get("entries", [])),
+                meta=copy.deepcopy(state.get("meta", {}))
+            )
+            event = create_event(event_name, event_payload)
+            apply_event(event, temp_store)
+            return {"entries": temp_store.entries, "meta": temp_store.meta}
+
+        # Run dry-run
+        events = [(e.event_name, e.event_payload) for e in payload.events]
+        validator = EventValidator(strict=payload.strict)
+        result = validator.dry_run(events, current_state, apply_fn)
+
+        # Format results
+        validation_results = []
+        for event_name, event_payload, vr in result.validation_results:
+            validation_results.append({
+                "event_name": event_name,
+                "valid": vr.valid,
+                "issues": [
+                    {
+                        "severity": i.severity.value,
+                        "code": i.code,
+                        "message": i.message,
+                        "field": i.field,
+                    }
+                    for i in vr.issues
+                ]
+            })
+
+        return {
+            "success": result.success,
+            "summary": result.summary,
+            "validation_results": validation_results,
+            "final_state_preview": {
+                "entries_count": len(result.final_state.get("entries", [])) if result.final_state else None,
+            } if result.success else None,
+        }
+
+    # --- Metrics endpoint ---
+
+    @app.get("/api/repos/{repo_id}/metrics")
+    def get_repo_metrics_endpoint(repo_id: str, branch: str = "main"):
+        """
+        Get metrics for a repository.
+
+        Returns storage metrics, health status, and recommendations.
+        """
+        storage = get_repo_storage(repo_id)
+
+        if not storage.has_ref(branch):
+            raise HTTPException(400, f"Branch '{branch}' does not exist")
+
+        ref = storage.get_ref(branch)
+
+        # Get storage metrics
+        analyzer = StorageAnalyzer(storage)
+        storage_metrics = analyzer.get_storage_metrics(ref.commit_id)
+        health = analyzer.check_health(ref.commit_id)
+
+        return {
+            "storage": {
+                "total_commits": storage_metrics.total_commits,
+                "total_snapshots": storage_metrics.total_snapshots,
+                "total_events": storage_metrics.total_events,
+                "snapshot_coverage": round(storage_metrics.snapshot_coverage * 100, 2),
+                "avg_snapshot_size_bytes": round(storage_metrics.avg_snapshot_size_bytes),
+                "total_storage_bytes": storage_metrics.total_storage_bytes,
+            },
+            "health": {
+                "healthy": health.healthy,
+                "issues": health.issues,
+                "recommendations": health.recommendations,
+                "scores": health.scores,
+            },
+        }
+
+    @app.get("/api/metrics")
+    def get_global_metrics_endpoint():
+        """
+        Get global server metrics.
+
+        Returns performance metrics, counters, and timing information.
+        """
+        from .metrics import get_metrics_summary
+        return get_metrics_summary()
 
     # --- Get state at specific commit ---
 
     @app.get("/api/repos/{repo_id}/commits/{commit_id}/data")
     def get_commit_data_endpoint(repo_id: str, commit_id: str):
-        """Get the data (rows) at a specific commit."""
-        from .list_store import ListStore
+        """
+        Get the data (entries) at a specific commit.
 
+        Materializes state by replaying events from the nearest snapshot.
+        """
         storage = get_repo_storage(repo_id)
 
         if not storage.has_commit(commit_id):
             raise HTTPException(404, f"Commit '{commit_id}' not found")
 
-        state_id = storage.get_commit_state_id(commit_id)
-        state_bytes = storage.get_state_bytes(state_id)
-        state_list = json.loads(state_bytes.decode('utf-8'))
-        state_dict = state_list[0] if isinstance(state_list, list) else state_list
-        store = ListStore.from_dict(state_dict)
-
+        # Materialize state at this commit (replays events if needed)
+        store = materialize_at_commit(storage, commit_id)
         commit = storage.get_commit(commit_id)
 
+        # Check how many events were replayed
+        snapshot_id, _, events = storage.find_nearest_snapshot(commit_id)
+
         return {
-            "rows": store.to_list(),
-            "metadata": store.metadata,
+            "entries": store.entries,
+            "meta": store.meta,
+            # Backward compatibility aliases
+            "rows": store.entries,
+            "metadata": store.meta,
             "commit_id": commit_id,
             "message": commit.message,
             "author": commit.author,
             "timestamp": commit.timestamp.isoformat(),
-            "rows_count": len(store),
+            "entries_count": len(store.entries),
+            "events_replayed": len(events),
         }
 
     # --- Get commit history ---
@@ -1103,28 +1583,35 @@ def create_app(db_url: Optional[str] = None):
 
     @app.get("/api/repos/{repo_id}/data")
     def get_data_endpoint(repo_id: str, branch: str = "main"):
-        """Get the current data (rows) for a repository."""
-        from .list_store import ListStore
+        """
+        Get the current data (entries) for a repository.
 
+        Materializes state by replaying events from the nearest snapshot.
+        """
         storage = get_repo_storage(repo_id)
 
         if not storage.has_ref(branch):
             raise HTTPException(400, f"Branch '{branch}' does not exist")
 
         ref = storage.get_ref(branch)
-        state_id = storage.get_commit_state_id(ref.commit_id)
-        state_bytes = storage.get_state_bytes(state_id)
-        state_list = json.loads(state_bytes.decode('utf-8'))
-        # State is stored as [store.to_dict()]
-        state_dict = state_list[0] if isinstance(state_list, list) else state_list
-        store = ListStore.from_dict(state_dict)
+        commit_id = ref.commit_id
+
+        # Materialize state at HEAD (replays events if needed)
+        store = materialize_at_commit(storage, commit_id)
+
+        # Check how many events were replayed
+        snapshot_id, _, events = storage.find_nearest_snapshot(commit_id)
 
         return {
-            "rows": store.to_list(),
-            "metadata": store.metadata,
+            "entries": store.entries,
+            "meta": store.meta,
+            # Backward compatibility aliases
+            "rows": store.entries,
+            "metadata": store.meta,
             "branch": branch,
-            "commit_id": ref.commit_id,
-            "rows_count": len(store),
+            "commit_id": commit_id,
+            "entries_count": len(store.entries),
+            "events_replayed": len(events),
         }
 
     # --- Web UI ---
@@ -1287,40 +1774,33 @@ def create_app(db_url: Optional[str] = None):
     @app.get("/repos/{repo_id}", response_class=HTMLResponse)
     def object_view_ui(repo_id: str, branch: str = "main"):
         """Interactive view for a repository's data with edit capabilities."""
-        from .list_store import ListStore
-
-        # Get repo info
+        # Get repo info and storage
+        storage = get_repo_storage(repo_id)
         if use_db:
             repo = db.get_repo(repo_id)
-            if not repo:
-                raise HTTPException(404, f"Repository '{repo_id}' not found")
-            storage = db.get_repo_storage(repo_id)
-            alias = repo.alias
+            alias = repo.alias if repo else None
         else:
-            if repo_id not in repos:
-                raise HTTPException(404, f"Repository '{repo_id}' not found")
-            repo = repos[repo_id]
-            storage = repo
-            alias = repo.alias
+            repo = repos.get(repo_id)
+            alias = repo.alias if repo else None
 
-        # Get current data
+        # Get current data using materialization
         if not storage.has_ref(branch):
             # No data yet
             rows = []
             metadata = {}
             commit_id = None
             columns = []
+            events_replayed = 0
         else:
             ref = storage.get_ref(branch)
             commit_id = ref.commit_id
-            state_id = storage.get_commit_state_id(commit_id)
-            state_bytes = storage.get_state_bytes(state_id)
-            state_list = json.loads(state_bytes.decode('utf-8'))
-            # State is stored as [store.to_dict()]
-            state_dict = state_list[0] if isinstance(state_list, list) else state_list
-            store = ListStore.from_dict(state_dict)
-            rows = store.to_list()
-            metadata = store.metadata
+            store = materialize_at_commit(storage, commit_id)
+            rows = store.entries
+            metadata = store.meta
+
+            # Check how many events were replayed
+            _, _, events = storage.find_nearest_snapshot(commit_id)
+            events_replayed = len(events)
 
             # Infer columns from data
             columns = []
@@ -1364,12 +1844,29 @@ def create_app(db_url: Optional[str] = None):
         # Build commits HTML
         commits_html = ""
         for c in commits_list:
+            # Format payload as collapsible JSON
+            payload_json = json.dumps(c.event_payload, indent=2) if c.event_payload else "{}"
+            payload_preview = json.dumps(c.event_payload)[:50] + "..." if len(json.dumps(c.event_payload)) > 50 else json.dumps(c.event_payload)
             commits_html += f"""
             <tr>
-                <td><code>{c.commit_id[:8]}</code></td>
+                <td>
+                    <a href="#" class="time-travel-link" data-commit="{c.commit_id}" title="View data at this commit">
+                        <code>{c.commit_id[:8]}</code>
+                    </a>
+                </td>
                 <td>{c.message}</td>
                 <td><span class="badge bg-secondary">{c.event_name}</span></td>
                 <td>{c.author}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-secondary" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#payload-{c.commit_id[:8]}"
+                            aria-expanded="false">
+                        Show
+                    </button>
+                    <div class="collapse mt-2" id="payload-{c.commit_id[:8]}">
+                        <pre class="bg-light p-2 rounded" style="font-size: 0.8em; max-height: 200px; overflow: auto;"><code>{payload_json}</code></pre>
+                    </div>
+                </td>
             </tr>
             """
 
@@ -1399,12 +1896,16 @@ def create_app(db_url: Optional[str] = None):
                 </nav>
 
                 <h1>{alias or repo_id[:12]}</h1>
-                <p class="text-muted">
+                <p class="text-muted" id="repoInfo">
                     ID: <code>{repo_id}</code> |
                     Branch: <strong>{branch}</strong> |
-                    Rows: <strong>{len(rows)}</strong> |
-                    Commit: <code>{commit_id[:8] if commit_id else 'none'}</code>
+                    Rows: <strong id="rowCount">{len(rows)}</strong> |
+                    Commit: <code id="currentCommit">{commit_id[:8] if commit_id else 'none'}</code>
                 </p>
+                <div id="timeTravelBanner" class="alert alert-warning d-none" role="alert">
+                    <strong>Time Travel Mode:</strong> Viewing data at commit <code id="viewingCommit"></code>
+                    <button class="btn btn-sm btn-outline-dark ms-3" onclick="returnToHead()">Return to HEAD</button>
+                </div>
 
                 <!-- Add Row Form -->
                 <div id="addRowForm">
@@ -1425,8 +1926,16 @@ def create_app(db_url: Optional[str] = None):
                     </div>
                 </div>
 
+                <!-- Metadata Section -->
+                <div id="metaSection" class="mb-4">
+                    <h3>Metadata <small class="text-muted">({len(metadata)} keys)</small></h3>
+                    <div class="bg-light p-3 rounded" style="max-height: 300px; overflow: auto;">
+                        <pre id="metaContent" style="margin: 0; font-size: 0.85em;"><code>{json.dumps(metadata, indent=2, default=str) if metadata else '{}'}</code></pre>
+                    </div>
+                </div>
+
                 <!-- Data Table -->
-                <h3>Data</h3>
+                <h3>Data <small class="text-muted">({len(rows)} entries)</small></h3>
                 <table class="table table-striped table-hover" id="dataTable">
                     <thead>
                         <tr>
@@ -1449,21 +1958,23 @@ def create_app(db_url: Optional[str] = None):
                             <th>Message</th>
                             <th>Event</th>
                             <th>Author</th>
+                            <th>Payload</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {commits_html if commits_html else '<tr><td colspan="4" class="text-muted">No commits yet</td></tr>'}
+                        {commits_html if commits_html else '<tr><td colspan="5" class="text-muted">No commits yet</td></tr>'}
                     </tbody>
                 </table>
 
                 <!-- Clone Instructions -->
                 <div class="mt-4 p-3 bg-light rounded">
                     <h5>Clone this data</h5>
-                    <pre><code>from edsl.object_versions import VersionedList, HTTPRemote
+                    <pre><code>from edsl.versioning import ObjectVersionsServer
 
-remote = HTTPRemote(url="http://localhost:8766", repo_id="{repo_id}")
-data = VersionedList.git_clone(remote)
-print(data.to_list())</code></pre>
+server = ObjectVersionsServer("http://localhost:8766")
+data = server.clone("{repo_id}")
+print(data["entries"])  # List of entries
+print(data["meta"])     # Metadata dict</code></pre>
                 </div>
             </div>
 
@@ -1587,6 +2098,92 @@ print(data.to_list())</code></pre>
                 }});
                 document.querySelectorAll('.delete-btn').forEach(btn => {{
                     btn.addEventListener('click', () => deleteRow(parseInt(btn.dataset.index)));
+                }});
+
+                // Time travel functionality
+                const HEAD_COMMIT = "{commit_id or ''}";
+                let isTimeTraveling = false;
+
+                async function timeTravel(commitId) {{
+                    try {{
+                        const response = await fetch(API_BASE + '/commits/' + commitId + '/data');
+                        if (!response.ok) {{
+                            throw new Error('Failed to fetch data at commit');
+                        }}
+                        const data = await response.json();
+
+                        // Update the table with historical data
+                        updateDataTable(data.entries);
+
+                        // Update metadata
+                        updateMetadata(data.meta || {{}});
+
+                        // Show time travel banner
+                        document.getElementById('timeTravelBanner').classList.remove('d-none');
+                        document.getElementById('viewingCommit').textContent = commitId.slice(0, 8);
+                        document.getElementById('rowCount').textContent = data.entries.length;
+                        document.getElementById('currentCommit').textContent = commitId.slice(0, 8);
+
+                        // Disable editing in time travel mode
+                        document.getElementById('addRowForm').style.opacity = '0.5';
+                        document.getElementById('addRowForm').style.pointerEvents = 'none';
+
+                        isTimeTraveling = true;
+                        showToast('Viewing data at commit ' + commitId.slice(0, 8));
+                    }} catch (err) {{
+                        showToast(err.message, 'error');
+                    }}
+                }}
+
+                function updateMetadata(meta) {{
+                    const metaContent = document.getElementById('metaContent');
+                    const metaKeys = Object.keys(meta).length;
+                    document.querySelector('#metaSection h3').innerHTML = 'Metadata <small class="text-muted">(' + metaKeys + ' keys)</small>';
+                    metaContent.innerHTML = '<code>' + JSON.stringify(meta, null, 2) + '</code>';
+                }}
+
+                function returnToHead() {{
+                    location.reload();
+                }}
+
+                function updateDataTable(entries) {{
+                    const tbody = document.querySelector('#dataTable tbody');
+
+                    if (!entries || entries.length === 0) {{
+                        tbody.innerHTML = '<tr><td colspan="100" class="text-muted">No data at this commit</td></tr>';
+                        return;
+                    }}
+
+                    // Get all unique columns
+                    const columns = [];
+                    entries.forEach(row => {{
+                        Object.keys(row).forEach(key => {{
+                            if (!columns.includes(key)) columns.push(key);
+                        }});
+                    }});
+
+                    // Update header
+                    const thead = document.querySelector('#dataTable thead tr');
+                    thead.innerHTML = '<th>#</th>' + columns.map(c => '<th>' + c + '</th>').join('') + '<th>Actions</th>';
+
+                    // Update body
+                    tbody.innerHTML = entries.map((row, i) => {{
+                        const cells = columns.map(col => '<td>' + JSON.stringify(row[col] !== undefined ? row[col] : '') + '</td>').join('');
+                        return `<tr data-index="${{i}}">
+                            <td>${{i}}</td>
+                            ${{cells}}
+                            <td><em class="text-muted">read-only</em></td>
+                        </tr>`;
+                    }}).join('');
+                }}
+
+                // Wire up time travel links
+                document.querySelectorAll('.time-travel-link').forEach(link => {{
+                    link.addEventListener('click', (e) => {{
+                        e.preventDefault();
+                        const commitId = link.dataset.commit;
+                        timeTravel(commitId);
+                    }});
                 }});
             </script>
         </body>

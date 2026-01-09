@@ -73,6 +73,11 @@ from .events import (
     # Composite Events
     ReplaceEntriesAndMetaEvent,
     apply_event,
+    # Registry functions
+    EVENT_REGISTRY,
+    get_event_class,
+    create_event,
+    list_events,
 )
 from .store import Store
 
@@ -131,6 +136,11 @@ __all__ = [
     # Composite Events
     "ReplaceEntriesAndMetaEvent",
     "apply_event",
+    # Registry functions
+    "EVENT_REGISTRY",
+    "get_event_class",
+    "create_event",
+    "list_events",
     # Store
     "Store",
 ]
