@@ -78,18 +78,11 @@ class ResultsRemoteFetcher:
             coop = Coop()
             remote_results = coop.pull(results_uuid, expected_object_type="results")
 
-            # Update this instance with remote data
-            self.results.data = remote_results.data
-            self.results.survey = remote_results.survey
-            self.results.created_columns = remote_results.created_columns
-            self.results.cache = remote_results.cache
-            self.results.task_history = remote_results.task_history
-            self.results.completed = True
-
-            # Set job_uuid and results_uuid from remote data
-            self.results.job_uuid = job_info.job_uuid
-            if hasattr(remote_results, "results_uuid"):
-                self.results.results_uuid = remote_results.results_uuid
+            # Replace this instance's results with the remote results
+            # Since Results is immutable, we replace the reference entirely
+            # The remote results should already have all necessary data in its store
+            remote_results.completed = True
+            self.results = remote_results
 
             return True
 

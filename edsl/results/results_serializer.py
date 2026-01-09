@@ -390,13 +390,24 @@ class ResultsSerializer:
                 metadata_path = temp_path / "metadata.json"
                 metadata = json.loads(metadata_path.read_text())
 
-                # 2. Create a new Results instance
+                # 2. Load data from the SQLite database if it exists
+                db_path = temp_path / "results.db"
+                result_data = []
+                if db_path.exists():
+                    # Create a temporary ResultsSQLList to read the data
+                    temp_db = data_class()
+                    temp_db.copy_from(str(db_path))
+                    # Extract all Result objects from the database
+                    result_data = list(temp_db)
+                
+                # 3. Create a new Results instance with the loaded data
                 results = Results(
                     survey=(
                         Survey.from_dict(metadata["survey"])
                         if metadata["survey"]
                         else None
                     ),
+                    data=result_data,
                     created_columns=metadata["created_columns"],
                     cache=(
                         Cache.from_dict(metadata["cache"])
@@ -411,16 +422,6 @@ class ResultsSerializer:
                     job_uuid=metadata["job_uuid"],
                     total_results=metadata["total_results"],
                 )
-
-                # 3. Set the SQLite database path if it exists
-                db_path = temp_path / "results.db"
-                if db_path.exists():
-                    # Create a new ResultsSQLList instance
-                    new_db = data_class()
-                    # Copy data from the source database - convert Path to string
-                    new_db.copy_from(str(db_path))
-                    # Set the new database as the results data
-                    results.data = new_db
 
                 results.completed = metadata["completed"]
                 return results

@@ -193,26 +193,186 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, Base):
     _event_handler = apply_event
     _codec = ResultCodec()
 
-    # Allowed instance attributes - prevents external code from storing temporary data
+    # Allowed instance attributes - minimal set for truly immutable Results
     _allowed_attrs = frozenset({
-        # Core state
+        # Core state - the single source of truth
         'store',
-        # Legacy data access (for compatibility during transition)
-        'data', '_data_class',
-        # Survey and metadata
-        'survey', 'created_columns', 'cache', 'task_history', 'name',
-        '_job_uuid', '_total_results', 'completed', '_fetching',
-        # Internal helpers
-        '_shelve_path', '_shelf_keys',
-        '_cache_manager', '_properties', '_container', '_grouper',
-        '_report',
+        # Properties with setters (these delegate to cache attributes)
+        'completed', '_fetching', '_data_class', '_report',
+        # Runtime state caches (backing stores for properties)
+        '_data_class_cache', '_completed_cache', '_fetching_cache',
+        # Lazy-initialized helper caches (private backing stores for properties)
+        '_cache_manager_cache', '_properties_cache', '_container_cache', 
+        '_grouper_cache', '_report_cache',
+        '_shelve_path_cache', '_shelf_keys_cache',
         # GitMixin
         '_git', '_needs_git_init', '_last_push_result',
-        # Remote job info
+        # Remote job info (runtime only)
         'job_info',
-        # Job execution runtime attributes
+        # Job execution runtime attributes (not persisted in store)
         'bucket_collection', 'jobs_runner_status', 'key_lookup', 'order',
     })
+    
+    # =========================================================================
+    # Properties that read from store - these make Results truly immutable
+    # =========================================================================
+    
+    @property
+    def data(self) -> list:
+        """Returns the list of Result objects, decoded from the store.
+        
+        This is a computed property - the source of truth is always self.store.entries.
+        """
+        if not hasattr(self, 'store') or self.store is None:
+            return self._data_class([])
+        return self._data_class([
+            self._codec.decode(entry) for entry in self.store.entries
+        ])
+    
+    @property
+    def survey(self) -> Optional["Survey"]:
+        """Get survey from store meta."""
+        if not hasattr(self, 'store') or self.store is None:
+            return None
+        survey_dict = self.store.meta.get("survey")
+        if survey_dict is None:
+            return None
+        from ..surveys import Survey
+        return Survey.from_dict(survey_dict)
+    
+    @property
+    def cache(self) -> "Cache":
+        """Get cache from store meta."""
+        from ..caching import Cache
+        if not hasattr(self, 'store') or self.store is None:
+            return Cache()
+        cache_dict = self.store.meta.get("cache")
+        if cache_dict is None:
+            return Cache()
+        return Cache.from_dict(cache_dict)
+    
+    @property
+    def task_history(self) -> "TaskHistory":
+        """Get task_history from store meta."""
+        from ..tasks import TaskHistory
+        if not hasattr(self, 'store') or self.store is None:
+            return TaskHistory(interviews=[])
+        th_dict = self.store.meta.get("task_history")
+        if th_dict is None:
+            return TaskHistory(interviews=[])
+        return TaskHistory.from_dict(th_dict)
+    
+    @property
+    def created_columns(self) -> list[str]:
+        """Get created_columns from store meta."""
+        if not hasattr(self, 'store') or self.store is None:
+            return []
+        return self.store.meta.get("created_columns", [])
+    
+    @property
+    def name(self) -> Optional[str]:
+        """Get name from store meta."""
+        if not hasattr(self, 'store') or self.store is None:
+            return None
+        return self.store.meta.get("name")
+    
+    @property
+    def _job_uuid(self) -> Optional[str]:
+        """Get job_uuid from store meta."""
+        if not hasattr(self, 'store') or self.store is None:
+            return None
+        return self.store.meta.get("job_uuid")
+    
+    @property
+    def _total_results(self) -> Optional[int]:
+        """Get total_results from store meta."""
+        if not hasattr(self, 'store') or self.store is None:
+            return None
+        return self.store.meta.get("total_results")
+    
+    # =========================================================================
+    # Runtime state properties (not persisted in store)
+    # =========================================================================
+    
+    @property
+    def completed(self) -> bool:
+        """Get completed flag (defaults to True)."""
+        if not hasattr(self, '_completed_cache'):
+            return True  # Default
+        return self._completed_cache
+    
+    @completed.setter
+    def completed(self, value: bool):
+        """Set completed flag."""
+        object.__setattr__(self, '_completed_cache', value)
+    
+    @property
+    def _fetching(self) -> bool:
+        """Get fetching flag (defaults to False)."""
+        if not hasattr(self, '_fetching_cache'):
+            return False  # Default
+        return self._fetching_cache
+    
+    @_fetching.setter
+    def _fetching(self, value: bool):
+        """Set fetching flag."""
+        object.__setattr__(self, '_fetching_cache', value)
+    
+    @property
+    def _data_class(self):
+        """Get data class (defaults to list)."""
+        if not hasattr(self, '_data_class_cache'):
+            return list  # Default
+        return self._data_class_cache
+    
+    @_data_class.setter
+    def _data_class(self, value):
+        """Set data class."""
+        object.__setattr__(self, '_data_class_cache', value)
+    
+    # =========================================================================
+    # Lazy-initialized helper objects (cached for performance)
+    # =========================================================================
+    
+    @property
+    def _cache_manager(self) -> "DataTypeCacheManager":
+        """Get cache manager, creating if needed."""
+        if not hasattr(self, '_cache_manager_cache') or self._cache_manager_cache is None:
+            object.__setattr__(self, '_cache_manager_cache', DataTypeCacheManager(self))
+        return self._cache_manager_cache
+    
+    @property
+    def _properties(self) -> "ResultsProperties":
+        """Get properties handler, creating if needed."""
+        if not hasattr(self, '_properties_cache') or self._properties_cache is None:
+            object.__setattr__(self, '_properties_cache', ResultsProperties(self))
+        return self._properties_cache
+    
+    @property
+    def _container(self) -> "ResultsContainer":
+        """Get container handler, creating if needed."""
+        if not hasattr(self, '_container_cache') or self._container_cache is None:
+            object.__setattr__(self, '_container_cache', ResultsContainer(self))
+        return self._container_cache
+    
+    @property
+    def _grouper(self) -> "ResultsGrouper":
+        """Get grouper handler, creating if needed."""
+        if not hasattr(self, '_grouper_cache') or self._grouper_cache is None:
+            object.__setattr__(self, '_grouper_cache', ResultsGrouper(self))
+        return self._grouper_cache
+    
+    @property
+    def _report(self):
+        """Get report, creating if needed."""
+        if not hasattr(self, '_report_cache'):
+            object.__setattr__(self, '_report_cache', None)
+        return self._report_cache
+    
+    @_report.setter
+    def _report(self, value):
+        """Set report cache."""
+        object.__setattr__(self, '_report_cache', value)
 
     known_data_types = [
         "answer",
@@ -273,17 +433,18 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, Base):
             sort_by_iteration: Whether to sort data by iteration before initializing.
             data_class: The class to use for the data container (default: list).
         """
+        # Handle pull from string UUID
         if survey is not None and isinstance(survey, str):
             pulled_results = Results.pull(survey)
             self.__dict__.update(pulled_results.__dict__)
             return
 
+        # Runtime state (not persisted in store)
         self.completed = True
         self._fetching = False
 
         # Determine the data class to use
         if data is not None:
-            # Use the class of the provided data if it's not a basic list
             self._data_class = (
                 data.__class__ if not isinstance(data, list) else data_class
             )
@@ -292,191 +453,74 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, Base):
 
         # Sort data appropriately before initialization if needed
         if data and sort_by_iteration:
-            # First try to sort by order attribute if present on any result
             has_order = any(hasattr(item, "order") for item in data)
             if has_order:
-
                 def get_order(item):
                     if hasattr(item, "order"):
                         return item.order
                     return item.data.get("iteration", 0) * 1000
-
                 data = sorted(data, key=get_order)
             else:
                 data = sorted(data, key=lambda x: x.data.get("iteration", 0))
 
-        # Initialize data with the appropriate class (for compatibility)
-        self.data = self._data_class(data or [])
-
+        # Initialize GitMixin
+        super().__init__()
+        
+        # Build the store directly - this is the single source of truth
         from ..caching import Cache
         from ..tasks import TaskHistory
-        import tempfile
-        import os
-
-        # Create a unique shelve path in the system temp directory
-        self._shelve_path = os.path.join(
-            tempfile.gettempdir(), f"edsl_results_{os.getpid()}"
-        )
-        self._shelf_keys = set()  # Track shelved result keys
-
-        self.survey = survey
-        self.created_columns = created_columns or []
-        self._job_uuid = job_uuid
-        self._total_results = total_results
-        self.cache = cache or Cache()
-
-        self.task_history = task_history or TaskHistory(interviews=[])
-
-        # Initialize cache manager for expensive operations
-        self._cache_manager = DataTypeCacheManager(self)
-
-        # Initialize properties handler
-        self._properties = ResultsProperties(self)
-
-        # Initialize container handler
-        self._container = ResultsContainer(self)
-
-        # Initialize grouper handler
-        self._grouper = ResultsGrouper(self)
-
-        if name is not None:
-            self.name = name
+        
+        entries = [self._codec.encode(result) for result in (data or [])]
+        
+        meta: Dict[str, Any] = {
+            "created_columns": created_columns or [],
+        }
+        
+        if survey is not None:
+            meta["survey"] = survey.to_dict(add_edsl_version=False)
+        
+        if cache is not None:
+            meta["cache"] = cache.to_dict()
         else:
-            self.name = None
+            meta["cache"] = Cache().to_dict()
+        
+        if task_history is not None:
+            meta["task_history"] = task_history.to_dict()
+        else:
+            meta["task_history"] = TaskHistory(interviews=[]).to_dict()
+        
+        if job_uuid is not None:
+            meta["job_uuid"] = job_uuid
+        if total_results is not None:
+            meta["total_results"] = total_results
+        if name is not None:
+            meta["name"] = name
+        
+        self.store = Store(entries=entries, meta=meta)
 
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
 
-        self._report = None
-
-        # Initialize GitMixin
-        super().__init__()
-        
-        # Initialize the event-sourced store from current state
-        self._sync_store_from_state()
-
-    def _sync_store_from_state(self) -> None:
-        """Synchronize the internal state to the event-sourced store.
-        
-        This method converts the Results' current state (data list, survey, etc.)
-        into the Store's entries and meta format. Called during initialization
-        and after state changes.
-        """
-        # Encode all Result objects as entries
-        entries = [
-            self._codec.encode(result)
-            for result in self.data
-        ]
-        
-        # Build meta from current attributes
-        meta: Dict[str, Any] = {
-            "created_columns": self.created_columns,
-        }
-        
-        # Serialize survey if present
-        if self.survey is not None:
-            meta["survey"] = self.survey.to_dict(add_edsl_version=False)
-        
-        # Serialize cache if present and has data
-        if self.cache is not None:
-            meta["cache"] = self.cache.to_dict()
-        
-        # Serialize task_history if present
-        if self.task_history is not None:
-            meta["task_history"] = self.task_history.to_dict()
-        
-        # Add other metadata
-        if self._job_uuid is not None:
-            meta["job_uuid"] = self._job_uuid
-        if self._total_results is not None:
-            meta["total_results"] = self._total_results
-        if self.name is not None:
-            meta["name"] = self.name
-        
-        self.store = Store(entries=entries, meta=meta)
-
-    def _sync_state_from_store(self) -> None:
-        """Synchronize the event-sourced store to the internal state.
-        
-        This method reconstructs the Results' internal attributes from the Store's
-        entries and meta. Used when creating new Results instances from store state
-        (e.g., after an event is applied or a git checkout).
-        """
-        from ..caching import Cache
-        from ..tasks import TaskHistory
-        import tempfile
-        import os
-        
-        # Decode all entries back to Result objects
-        self.data = self._data_class([
-            self._codec.decode(entry) for entry in self.store.entries
-        ])
-        
-        # Restore metadata
-        meta = self.store.meta
-        self.created_columns = meta.get("created_columns", [])
-        
-        # Restore survey
-        if "survey" in meta and meta["survey"] is not None:
-            from ..surveys import Survey
-            self.survey = Survey.from_dict(meta["survey"])
-        else:
-            self.survey = None
-        
-        # Restore cache
-        if "cache" in meta and meta["cache"] is not None:
-            self.cache = Cache.from_dict(meta["cache"])
-        else:
-            self.cache = Cache()
-        
-        # Restore task_history
-        if "task_history" in meta and meta["task_history"] is not None:
-            self.task_history = TaskHistory.from_dict(meta["task_history"])
-        else:
-            self.task_history = TaskHistory(interviews=[])
-        
-        # Restore other metadata
-        self._job_uuid = meta.get("job_uuid")
-        self._total_results = meta.get("total_results")
-        self.name = meta.get("name")
-        
-        # Reinitialize helper objects
-        self._shelve_path = os.path.join(
-            tempfile.gettempdir(), f"edsl_results_{os.getpid()}"
-        )
-        self._shelf_keys = set()
-        self._cache_manager = DataTypeCacheManager(self)
-        self._properties = ResultsProperties(self)
-        self._container = ResultsContainer(self)
-        self._grouper = ResultsGrouper(self)
-        self._report = None
-
-    @classmethod
-    def _from_state(cls, state: Dict[str, Any]) -> "Results":
-        """Reconstruct a Results object from a dictionary state.
-        
-        This method is used by GitMixin to create new instances after events
-        are applied or git operations are performed.
-        """
-        instance = object.__new__(cls)
-        
-        # Set up minimal state for store reconstruction
-        instance.completed = True
-        instance._fetching = False
-        instance._data_class = list
-        
-        # Create store from state
-        store = cls._store_class.from_dict(state)
-        instance.store = store
-        
-        # Initialize git state
-        instance._git = None
-        instance._needs_git_init = False
-        
-        # Sync internal state from store
-        instance._sync_state_from_store()
-        
-        return instance
+    # =========================================================================
+    # Lazy-initialized helper properties
+    # =========================================================================
+    
+    @property
+    def _shelve_path(self) -> str:
+        """Get shelve path, creating if needed."""
+        if not hasattr(self, '_shelve_path_cache'):
+            import tempfile
+            import os
+            object.__setattr__(self, '_shelve_path_cache', 
+                os.path.join(tempfile.gettempdir(), f"edsl_results_{os.getpid()}"))
+        return self._shelve_path_cache
+    
+    @property
+    def _shelf_keys(self) -> set:
+        """Get shelf keys set, creating if needed."""
+        if not hasattr(self, '_shelf_keys_cache'):
+            object.__setattr__(self, '_shelf_keys_cache', set())
+        return self._shelf_keys_cache
 
     def view(self) -> None:
         """View the results in a Jupyter notebook."""
@@ -555,8 +599,23 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, Base):
         results.job_info = job_info
         return results
 
-    def add_task_history_entry(self, interview: "Interview") -> None:
-        self.task_history.add_interview(interview)
+    @event
+    def add_task_history_entry(self, interview: "Interview") -> SetMetaEvent:
+        """Add an interview to the task history (returns new Results via event)."""
+        from ..tasks import TaskHistory
+        # Get current task_history and add the interview to it
+        current_th = self.task_history
+        # Create a new TaskHistory and manually copy over the existing data
+        new_th = TaskHistory(
+            interviews=[],  # Start empty, we'll add refs directly
+            include_traceback=current_th.include_traceback
+        )
+        # Copy existing interview refs directly (they're already InterviewReference objects)
+        new_th.total_interviews = list(current_th.total_interviews)
+        new_th._interviews = dict(current_th._interviews)
+        # Add the new interview through the proper method
+        new_th.add_interview(interview)
+        return SetMetaEvent(key="task_history", value=new_th.to_dict())
 
     def get_answers(self, question_name: str) -> list:
         """Get the answers for a given question name.
@@ -639,8 +698,29 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, Base):
         return cache_keys
 
     def relevant_cache(self, cache: Cache) -> Cache:
+        """Return a subset of the cache containing only keys relevant to these results."""
         cache_keys = self._cache_keys()
         return cache.subset(cache_keys)
+    
+    @event
+    def set_cache(self, cache: Cache) -> SetMetaEvent:
+        """Set the cache for these results (returns new Results via event)."""
+        return SetMetaEvent(key="cache", value=cache.to_dict())
+    
+    @event
+    def set_task_history(self, task_history: "TaskHistory") -> SetMetaEvent:
+        """Set the task_history for these results (returns new Results via event)."""
+        return SetMetaEvent(key="task_history", value=task_history.to_dict())
+    
+    @event
+    def set_name(self, name: str) -> SetMetaEvent:
+        """Set the name for these results (returns new Results via event)."""
+        return SetMetaEvent(key="name", value=name)
+    
+    @event
+    def set_created_columns(self, created_columns: list[str]) -> SetMetaEvent:
+        """Set the created_columns for these results (returns new Results via event)."""
+        return SetMetaEvent(key="created_columns", value=created_columns)
 
     def analyze(self, *question_names: str) -> "QuestionAnalysis":
         try:

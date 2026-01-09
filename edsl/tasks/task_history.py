@@ -81,6 +81,49 @@ class TaskHistory(RepresentationMixin):
         self.include_traceback = include_traceback
 
         self.max_interviews = max_interviews
+    
+    @staticmethod
+    def _get_model_name(model) -> str:
+        """Get model name from either a Model object or a dict."""
+        if hasattr(model, 'model'):
+            return model.model
+        elif isinstance(model, dict):
+            return model.get('model', 'unknown')
+        return 'unknown'
+    
+    @staticmethod
+    def _get_inference_service(model) -> str:
+        """Get inference service from either a Model object or a dict."""
+        if hasattr(model, '_inference_service_'):
+            return model._inference_service_
+        elif isinstance(model, dict):
+            return model.get('inference_service', 'unknown')
+        return 'unknown'
+    
+    @staticmethod
+    def _get_question_type(survey, question_name: str) -> str:
+        """Get question type from either a Survey object or a dict."""
+        if hasattr(survey, '_get_question_by_name'):
+            return survey._get_question_by_name(question_name).question_type
+        elif isinstance(survey, dict):
+            # Search through questions in the serialized survey
+            for q in survey.get('questions', []):
+                if q.get('question_name') == question_name:
+                    return q.get('question_type', 'unknown')
+        return 'unknown'
+    
+    @staticmethod
+    def _get_survey_questions(survey) -> list:
+        """Get questions from either a Survey object or a dict."""
+        if hasattr(survey, 'questions'):
+            return survey.questions
+        elif isinstance(survey, dict):
+            # Return dicts that have question_name and question_type
+            return [
+                type('Question', (), {'question_name': q.get('question_name'), 'question_type': q.get('question_type')})()
+                for q in survey.get('questions', [])
+            ]
+        return []
 
     def add_interview(self, interview: "Interview"):
         """Add a single interview to the history"""
@@ -541,8 +584,8 @@ class TaskHistory(RepresentationMixin):
                     # Create a unique identifier for this exception based on its content
                     exception_key = (
                         exception.exception.__class__.__name__,  # Exception type
-                        interview.model._inference_service_,  # Service
-                        interview.model.model,  # Model
+                        self._get_inference_service(interview.model),  # Service
+                        self._get_model_name(interview.model),  # Model
                         question_name,  # Question name
                         exception.name,  # Exception name
                         (
@@ -559,8 +602,8 @@ class TaskHistory(RepresentationMixin):
                         # Add to the summary table
                         table_key = (
                             exception.exception.__class__.__name__,  # Exception type
-                            interview.model._inference_service_,  # Service
-                            interview.model.model,  # Model
+                            self._get_inference_service(interview.model),  # Service
+                            self._get_model_name(interview.model),  # Model
                             question_name,  # Question name
                         )
 
@@ -589,7 +632,7 @@ class TaskHistory(RepresentationMixin):
         """Return a dictionary of exceptions tallied by service."""
         exceptions_by_service = {}
         for interview in self.total_interviews:
-            service = interview.model._inference_service_
+            service = self._get_inference_service(interview.model)
             if service not in exceptions_by_service:
                 exceptions_by_service[service] = 0
             if interview.exceptions != {}:
@@ -602,16 +645,14 @@ class TaskHistory(RepresentationMixin):
         exceptions_by_question_name = {}
         for interview in self.total_interviews:
             for question_name, exceptions in interview.exceptions.items():
-                question_type = interview.survey._get_question_by_name(
-                    question_name
-                ).question_type
+                question_type = self._get_question_type(interview.survey, question_name)
                 if (question_name, question_type) not in exceptions_by_question_name:
                     exceptions_by_question_name[(question_name, question_type)] = 0
                 exceptions_by_question_name[(question_name, question_type)] += len(
                     exceptions
                 )
 
-        for question in self.total_interviews[0].survey.questions:
+        for question in self._get_survey_questions(self.total_interviews[0].survey):
             if (
                 question.question_name,
                 question.question_type,
@@ -635,8 +676,8 @@ class TaskHistory(RepresentationMixin):
         """Return a dictionary of exceptions tallied by model and question name."""
         exceptions_by_model = {}
         for interview in self.total_interviews:
-            model = interview.model.model
-            service = interview.model._inference_service_
+            model = self._get_model_name(interview.model)
+            service = self._get_inference_service(interview.model)
             for question_name, exceptions in interview.exceptions.items():
                 key = (service, model, question_name)
                 if key not in exceptions_by_model:
@@ -653,7 +694,13 @@ class TaskHistory(RepresentationMixin):
         if css is None:
             css = self.css()
 
-        models_used = set([i.model.model for index, i in self._interviews.items()])
+        # Handle both Model objects and dicts (from deserialization)
+        models_used = set()
+        for index, i in self._interviews.items():
+            if hasattr(i.model, 'model'):
+                models_used.add(i.model.model)
+            elif isinstance(i.model, dict):
+                models_used.add(i.model.get('model', 'unknown'))
 
         from jinja2 import Environment
         from ..utilities import TemplateLoader
