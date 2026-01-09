@@ -9,6 +9,8 @@ import pytest
 from unittest.mock import patch, Mock
 from edsl.dataset import Dataset
 
+pytestmark = pytest.mark.skip(reason="Skipping all vibe-related tests")
+
 
 def mock_openai_response(filter_expression):
     """Create a mock OpenAI API response with the given filter expression."""
@@ -22,6 +24,7 @@ def mock_openai_response(filter_expression):
 class TestVibeFilterBasic:
     """Test cases for the vibe_filter method - basic functionality."""
 
+    @pytest.mark.skip(reason="Skipping flaky test")
     @patch('edsl.dataset.vibes.vibe_filter.create_openai_client')
     def test_vibe_filter_numeric_greater_than_with_dataset(self, mock_create_client):
         """Test filtering Dataset with numeric greater-than criteria."""

@@ -78,6 +78,15 @@ class Store:
         self.entries = [self.entries[i] for i in new_order]
         return self
 
+    def keep_rows_by_indices(self, indices: tuple[int, ...]) -> "Store":
+        """Keep only entries at specified indices (inverse of remove_rows)."""
+        indices_set = set(indices)
+        self.entries = [
+            row for i, row in enumerate(self.entries)
+            if i in indices_set
+        ]
+        return self
+
     # =========================================================================
     # Field Operations
     # =========================================================================
@@ -136,6 +145,89 @@ class Store:
         for i, entry in enumerate(self.entries):
             if field in entry:
                 entry[field] = new_values[i]
+        return self
+
+    # =========================================================================
+    # Nested Field Operations
+    # =========================================================================
+
+    def drop_nested_fields(self, parent_field: str, fields: tuple[str, ...]) -> "Store":
+        """Drop fields from a nested dict field in all entries."""
+        fields_set = set(fields)
+        for entry in self.entries:
+            if parent_field in entry and isinstance(entry[parent_field], dict):
+                for field in fields_set:
+                    entry[parent_field].pop(field, None)
+        return self
+
+    def keep_nested_fields(self, parent_field: str, fields: tuple[str, ...]) -> "Store":
+        """Keep only specified fields in a nested dict field."""
+        fields_set = set(fields)
+        for entry in self.entries:
+            if parent_field in entry and isinstance(entry[parent_field], dict):
+                entry[parent_field] = {
+                    k: v for k, v in entry[parent_field].items()
+                    if k in fields_set
+                }
+        return self
+
+    def rename_nested_field(self, parent_field: str, old_name: str, new_name: str) -> "Store":
+        """Rename a field within a nested dict field."""
+        for entry in self.entries:
+            if parent_field in entry and isinstance(entry[parent_field], dict):
+                nested = entry[parent_field]
+                if old_name in nested:
+                    nested[new_name] = nested.pop(old_name)
+        return self
+
+    def add_nested_field_by_index(
+        self, parent_field: str, field: str, values: tuple[Any, ...]
+    ) -> "Store":
+        """Add a field to a nested dict with per-entry values."""
+        for i, entry in enumerate(self.entries):
+            if parent_field not in entry:
+                entry[parent_field] = {}
+            entry[parent_field][field] = values[i]
+        return self
+
+    def translate_nested_values(
+        self, parent_field: str, value_map: tuple[tuple[str, tuple[tuple[Any, Any], ...]], ...]
+    ) -> "Store":
+        """Translate values in nested fields based on a mapping."""
+        # Convert to more usable format: {field: {old: new, ...}}
+        translations = {
+            field: dict(mappings)
+            for field, mappings in value_map
+        }
+        for entry in self.entries:
+            if parent_field in entry and isinstance(entry[parent_field], dict):
+                nested = entry[parent_field]
+                for field, mapping in translations.items():
+                    if field in nested and nested[field] in mapping:
+                        nested[field] = mapping[nested[field]]
+        return self
+
+    def numberify_nested_fields(
+        self, parent_field: str, conversions: tuple[tuple[int, str, Any], ...]
+    ) -> "Store":
+        """Apply pre-computed numeric conversions to nested fields."""
+        for entry_idx, field, new_value in conversions:
+            if parent_field in self.entries[entry_idx]:
+                self.entries[entry_idx][parent_field][field] = new_value
+        return self
+
+    def set_field_by_index(self, field: str, values: tuple[Any, ...]) -> "Store":
+        """Set a top-level field with per-entry values."""
+        for i, entry in enumerate(self.entries):
+            entry[field] = values[i]
+        return self
+
+    def collapse_by_field(
+        self, group_field: str, merge_field: str, result_entries: tuple[dict[str, Any], ...]
+    ) -> "Store":
+        """Replace entries with pre-computed collapsed entries."""
+        # The collapsing logic is done by the caller; we just apply the result
+        self.entries = list(result_entries)
         return self
 
     # =========================================================================

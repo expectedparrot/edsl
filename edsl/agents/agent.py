@@ -350,6 +350,9 @@ class Agent(Base):
         """Set the traits presentation template and mark it as explicitly set."""
         self._traits_presentation_template = value
         self.set_traits_presentation_template = True
+        # Invalidate cached hash since template is included in hash computation
+        if hasattr(self, "_cached_hash"):
+            delattr(self, "_cached_hash")
 
     @property
     def invigilator(self):

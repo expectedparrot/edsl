@@ -22,30 +22,46 @@ Created: 2026-01-08
 from .codec import Codec
 from .events import (
     Event,
+    # Row/Entry Events
     AppendRowEvent,
     UpdateRowEvent,
     RemoveRowsEvent,
     InsertRowEvent,
     UpdateEntryFieldEvent,
-    SetMetaEvent,
-    UpdateMetaEvent,
-    RemoveMetaKeyEvent,
     ClearEntriesEvent,
+    ReplaceAllEntriesEvent,
+    ReorderEntriesEvent,
+    KeepRowsByIndicesEvent,
+    # Field Events
     AddFieldToAllEntriesEvent,
     AddFieldByIndexEvent,
-    ReplaceAllEntriesEvent,
     DropFieldsEvent,
     KeepFieldsEvent,
     RenameFieldsEvent,
-    ReorderEntriesEvent,
+    ReorderKeysEvent,
+    TransformFieldEvent,
+    UniquifyFieldEvent,
+    # Nested Field Events
+    DropNestedFieldsEvent,
+    KeepNestedFieldsEvent,
+    RenameNestedFieldEvent,
+    AddNestedFieldByIndexEvent,
+    TranslateNestedValuesEvent,
+    NumberifyNestedFieldsEvent,
+    # Agent-Specific Events
+    SetAgentNamesEvent,
+    CollapseByFieldEvent,
+    # Value Events
     FillNaEvent,
     StringCatFieldEvent,
     ReplaceValuesEvent,
-    UniquifyFieldEvent,
     NumberifyEvent,
-    TransformFieldEvent,
+    # Meta Events
+    SetMetaEvent,
+    UpdateMetaEvent,
+    RemoveMetaKeyEvent,
+    # Composite Events
     ReplaceEntriesAndMetaEvent,
-    ReorderKeysEvent,
     apply_event,
 )
 from .store import Store
@@ -53,32 +69,47 @@ from .store import Store
 __all__ = [
     # Codec
     "Codec",
-    # Events
+    # Row/Entry Events
     "Event",
     "AppendRowEvent",
     "UpdateRowEvent",
     "RemoveRowsEvent",
     "InsertRowEvent",
     "UpdateEntryFieldEvent",
-    "SetMetaEvent",
-    "UpdateMetaEvent",
-    "RemoveMetaKeyEvent",
     "ClearEntriesEvent",
+    "ReplaceAllEntriesEvent",
+    "ReorderEntriesEvent",
+    "KeepRowsByIndicesEvent",
+    # Field Events
     "AddFieldToAllEntriesEvent",
     "AddFieldByIndexEvent",
-    "ReplaceAllEntriesEvent",
     "DropFieldsEvent",
     "KeepFieldsEvent",
     "RenameFieldsEvent",
-    "ReorderEntriesEvent",
+    "ReorderKeysEvent",
+    "TransformFieldEvent",
+    "UniquifyFieldEvent",
+    # Nested Field Events
+    "DropNestedFieldsEvent",
+    "KeepNestedFieldsEvent",
+    "RenameNestedFieldEvent",
+    "AddNestedFieldByIndexEvent",
+    "TranslateNestedValuesEvent",
+    "NumberifyNestedFieldsEvent",
+    # Agent-Specific Events
+    "SetAgentNamesEvent",
+    "CollapseByFieldEvent",
+    # Value Events
     "FillNaEvent",
     "StringCatFieldEvent",
     "ReplaceValuesEvent",
-    "UniquifyFieldEvent",
     "NumberifyEvent",
-    "TransformFieldEvent",
+    # Meta Events
+    "SetMetaEvent",
+    "UpdateMetaEvent",
+    "RemoveMetaKeyEvent",
+    # Composite Events
     "ReplaceEntriesAndMetaEvent",
-    "ReorderKeysEvent",
     "apply_event",
     # Store
     "Store",
