@@ -159,7 +159,7 @@ class SurveyNavigator:
             >>> q1 = QuestionMultipleChoice(question_name="q1", question_text="Age?", question_options=["18-30", "31-50", "50+"])
             >>> q2 = QuestionMultipleChoice(question_name="q2", question_text="Gender?", question_options=["Male", "Female", "Other"])
             >>> survey = Survey([q1, q2])
-            >>> _ = survey.create_allowable_groups("section", max_group_size=2)
+            >>> survey = survey.create_allowable_groups("section", max_group_size=2)
             >>> result = survey.next_question_group(None, {})  # Get first group
             >>> result[0]  # Group name
             'section_0'
@@ -276,7 +276,7 @@ class SurveyNavigator:
             >>> q3 = QuestionMultipleChoice(question_name="q3", question_text="Income?", question_options=["Low", "Medium", "High"])
             >>> q4 = QuestionMultipleChoice(question_name="q4", question_text="Location?", question_options=["Urban", "Suburban", "Rural"])
             >>> survey = Survey([q1, q2, q3, q4])
-            >>> _ = survey.create_allowable_groups("section", max_group_size=2)
+            >>> survey = survey.create_allowable_groups("section", max_group_size=2)
             >>> survey.get_question_group("q1")
             'section_0'
             >>> survey.get_question_group("q3")
@@ -327,7 +327,7 @@ class SurveyNavigator:
             >>> q1 = QuestionMultipleChoice(question_name="q1", question_text="Age?", question_options=["18-30", "31-50"])
             >>> q2 = QuestionMultipleChoice(question_name="q2", question_text="Gender?", question_options=["Male", "Female"])
             >>> survey = Survey([i, q1, q2])
-            >>> _ = survey.create_allowable_groups("section", max_group_size=2)
+            >>> survey = survey.create_allowable_groups("section", max_group_size=2)
             >>> result = survey.next_question_group_with_instructions(i, {})
             >>> result[0]  # Group name
             'section_0'
@@ -731,7 +731,7 @@ class SurveyNavigator:
             >>> q2 = QuestionMultipleChoice(question_name="q2", question_text="Gender?", question_options=["Male", "Female", "Other"])
             >>> i = Instruction(name="intro", text="Please answer the following questions.")
             >>> survey = Survey([i, q1, q2])
-            >>> _ = survey.create_allowable_groups("section", max_group_size=2)
+            >>> survey = survey.create_allowable_groups("section", max_group_size=2)
             >>> result = survey.next_questions_with_instructions(None, {})  # Get first group
             >>> len(result)  # Should include instruction and questions from the group
             3

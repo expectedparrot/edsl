@@ -531,7 +531,7 @@ class AgentTraitsManager:
         # Create scenario list with results
         sl = ScenarioList([])
         for trait_name, description, score in all_matches:
-            sl.append(
+            sl = sl.append(
                 Scenario(
                     {
                         "description": description,

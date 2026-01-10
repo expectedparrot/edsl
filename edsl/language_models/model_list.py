@@ -115,7 +115,7 @@ class ModelList(Base, UserList):
         for model in self:
             d = {"model_name": model.model, "service_name": model._inference_service_}
             d.update(model.parameters)
-            sl.append(Scenario(d))
+            sl = sl.append(Scenario(d))
         return sl
 
     def filter(self, expression: str):

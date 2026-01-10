@@ -120,10 +120,10 @@ class EditSurvey:
         >>> q1 = QuestionMultipleChoice(question_text="Q1", question_options=["A", "B"], question_name="q1")
         >>> q2 = QuestionMultipleChoice(question_text="Q2", question_options=["C", "D"], question_name="q2")
         >>> s = Survey().add_question(q1).add_question(q2)
-        >>> _ = s.delete_question("q1")
+        >>> s = s.delete_question("q1")
         >>> len(s.questions)
         1
-        >>> _ = s.delete_question(0)
+        >>> s = s.delete_question(0)
         >>> len(s.questions)
         0
         """

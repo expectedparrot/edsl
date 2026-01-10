@@ -289,7 +289,7 @@ class Interview:
         Examples:
             >>> i = Interview.example()
             >>> hash(i)
-            1670837906923478736
+            124077653413966424
         """
         # Create the base dictionary with core components
         d = {
