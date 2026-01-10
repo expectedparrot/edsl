@@ -307,6 +307,19 @@ class Results(
             self.store.meta["job_uuid"] = value
 
     @property
+    def results_uuid(self) -> Optional[str]:
+        """Get results_uuid from store meta."""
+        if not hasattr(self, "store") or self.store is None:
+            return None
+        return self.store.meta.get("results_uuid")
+
+    @results_uuid.setter
+    def results_uuid(self, value: str) -> None:
+        """Set results_uuid in store meta."""
+        if hasattr(self, "store") and self.store is not None:
+            self.store.meta["results_uuid"] = value
+
+    @property
     def _total_results(self) -> Optional[int]:
         """Get total_results from store meta."""
         if not hasattr(self, "store") or self.store is None:
