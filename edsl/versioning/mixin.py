@@ -383,7 +383,7 @@ class GitMixin:
 
     def git_push(self, remote_name: str = "origin", ref_name: Optional[str] = None,
                  *, force: bool = False, alias: str = None, description: str = None,
-                 username: str = None) -> "GitMixin":
+                 username: str = None) -> None:
         """Push to remote. Handles remote creation and _info automatically.
         
         On first push:
@@ -393,6 +393,8 @@ class GitMixin:
         
         _info is source of truth once set (kwargs ignored after first push).
         To change _info, use git_set_info() explicitly.
+        
+        Prints git-style output showing the push result and view URL.
         
         Args:
             remote_name: Name of remote (default: "origin")
@@ -407,11 +409,12 @@ class GitMixin:
         
         # Create remote if doesn't exist
         remote = self._git._remotes.get(remote_name)
+        server_url = None  # Track server URL for view URL
         if remote is None:
             from edsl.config import CONFIG
-            url = CONFIG.get("EDSL_GIT_SERVER")
-            self._git = self._git.add_remote(remote_name, url)
-            remote = url
+            server_url = CONFIG.get("EDSL_GIT_SERVER")
+            self._git = self._git.add_remote(remote_name, server_url)
+            remote = server_url
         
         # Handle _info - it's the source of truth once set
         info = self.git_get_info()
@@ -446,6 +449,7 @@ class GitMixin:
         
         # Create repo on server if remote is URL string
         if isinstance(remote, str):
+            server_url = remote  # Track before conversion
             from edsl.versioning.http_remote import HTTPRemote
             real_remote = HTTPRemote.create_repo(
                 url=remote, 
@@ -453,9 +457,27 @@ class GitMixin:
                 description=resolved_description
             )
             self._git = self._git.remove_remote(remote_name).add_remote(remote_name, real_remote)
+        elif server_url is None:
+            # Remote is HTTPRemote object - try to get URL from it
+            from edsl.versioning.http_remote import HTTPRemote
+            if isinstance(remote, HTTPRemote):
+                server_url = remote._base_url
         
         self._last_push_result = self._git.push(remote_name, ref_name, force=force)
-        return self
+        
+        # Build view URL
+        view_url = f"{server_url.rstrip('/')}/{resolved_alias}" if server_url else None
+        
+        # Print git-style output
+        result = self._last_push_result
+        old = result.old_commit[:7] if result.old_commit else "0000000"
+        new = result.new_commit[:7]
+        print(f"To {remote_name}")
+        print(f"   {old}..{new}  {result.ref_name} -> {result.ref_name}")
+        if result.commits_pushed > 0:
+            print(f"   ({result.commits_pushed} commit{'s' if result.commits_pushed != 1 else ''} pushed)")
+        if view_url:
+            print(f"View at: {view_url}")
 
     @property
     def last_push_result(self) -> Optional[PushResult]:
