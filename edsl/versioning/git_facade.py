@@ -13,6 +13,22 @@ from .utils import _utcnow, _sha256, _stable_dumps
 from .models import Commit, PushResult, Status
 from .protocols import Repo, Remote
 from .storage import InMemoryRepo
+from .exceptions import (
+    NonFastForwardPushError,
+    StagedChangesError,
+    RefNotFoundError,
+    RemoteNotFoundError,
+    RemoteAlreadyExistsError,
+    DetachedHeadError,
+    NothingToCommitError,
+    BranchDeleteError,
+    AmbiguousRevisionError,
+    UnknownRevisionError,
+    RemoteRefNotFoundError,
+    PullConflictError,
+    CommitBehindError,
+    InvalidHeadStateError,
+)
 
 
 # ----------------------------
@@ -32,7 +48,7 @@ class ObjectView:
             return self.base_commit
         if self.head_ref is not None:
             return self.repo.get_ref(self.head_ref).commit_id
-        raise ValueError("Invalid HEAD state: no base_commit or head_ref")
+        raise InvalidHeadStateError()
 
     def get_base_state(self) -> List[Dict[str, Any]]:
         cid = self._resolve_base_commit()
@@ -88,8 +104,8 @@ def _resolve_commit_prefix(repo: Repo, prefix: str) -> str:
     if len(matches) == 1:
         return matches[0]
     if len(matches) > 1:
-        raise ValueError(f"Ambiguous commit prefix: {prefix}")
-    raise ValueError(f"Unknown rev: {prefix}")
+        raise AmbiguousRevisionError(prefix)
+    raise UnknownRevisionError(prefix)
 
 
 # ----------------------------
@@ -127,7 +143,7 @@ class ExpectedParrotGit:
 
     def checkout(self, rev: str, *, force: bool = False) -> "ExpectedParrotGit":
         if self._view.has_staged and not force:
-            raise ValueError("You have staged changes; commit/discard or use force=True")
+            raise StagedChangesError("checkout")
         repo = self._view.repo
         if repo.has_ref(rev):
             cid = repo.get_ref(rev).commit_id
@@ -139,7 +155,7 @@ class ExpectedParrotGit:
 
     def branch(self, name: str) -> "ExpectedParrotGit":
         if self._view.has_staged:
-            raise ValueError("You have staged changes; commit/discard before branching")
+            raise StagedChangesError("branch")
         repo = self._view.repo
         current_commit = self._view.commit_hash
         repo.upsert_ref(name, current_commit, kind="branch")
@@ -148,13 +164,13 @@ class ExpectedParrotGit:
 
     def delete_branch(self, name: str) -> "ExpectedParrotGit":
         if name == self._view.head_ref:
-            raise ValueError(f"Cannot delete the current branch '{name}'")
+            raise BranchDeleteError(name, "it is the current branch")
         repo = self._view.repo
         if not repo.has_ref(name):
-            raise ValueError(f"Branch '{name}' does not exist")
+            raise RefNotFoundError(name)
         ref = repo.get_ref(name)
         if ref.kind != "branch":
-            raise ValueError(f"'{name}' is a {ref.kind}, not a branch")
+            raise BranchDeleteError(name, f"it is a {ref.kind}, not a branch")
         repo.delete_ref(name)
         return self._with_view(self._view)
 
@@ -180,16 +196,13 @@ class ExpectedParrotGit:
     def commit(self, message: str, *, author: str = "unknown", force: bool = False,
                state: List[Dict[str, Any]]) -> "ExpectedParrotGit":
         if not self._view.pending_events:
-            raise ValueError("Nothing to commit (clean).")
+            raise NothingToCommitError()
         if self._view.head_ref is not None and self._view.is_behind():
             if not force:
                 branch = self._view.head_ref
-                our_base = self._view.commit_hash[:10]
-                current = self._view.repo.get_ref(branch).commit_id[:10]
-                raise ValueError(
-                    f"Cannot commit: your base commit ({our_base}) is behind "
-                    f"'{branch}' ({current}). Use force=True to overwrite."
-                )
+                our_base = self._view.commit_hash
+                current = self._view.repo.get_ref(branch).commit_id
+                raise CommitBehindError(branch, our_base, current)
 
         repo = self._view.repo
         parent = self._view.commit_hash
@@ -234,14 +247,14 @@ class ExpectedParrotGit:
 
     def add_remote(self, name: str, remote: Remote) -> "ExpectedParrotGit":
         if name in self._remotes:
-            raise ValueError(f"Remote '{name}' already exists")
+            raise RemoteAlreadyExistsError(name)
         new_remotes = dict(self._remotes)
         new_remotes[name] = remote
         return ExpectedParrotGit(self._view, remotes=new_remotes)
 
     def remove_remote(self, name: str) -> "ExpectedParrotGit":
         if name not in self._remotes:
-            raise ValueError(f"Remote '{name}' does not exist")
+            raise RemoteNotFoundError(name)
         new_remotes = dict(self._remotes)
         del new_remotes[name]
         return ExpectedParrotGit(self._view, remotes=new_remotes)
@@ -254,20 +267,20 @@ class ExpectedParrotGit:
     def push(self, remote_name: str = "origin", ref_name: Optional[str] = None,
              *, force: bool = False) -> PushResult:
         if self._view.has_staged:
-            raise ValueError("Cannot push with staged changes; commit first")
+            raise StagedChangesError("push")
         if remote_name not in self._remotes:
-            raise ValueError(f"Remote '{remote_name}' not found")
+            raise RemoteNotFoundError(remote_name)
 
         remote = self._remotes[remote_name]
         repo = self._view.repo
 
         if ref_name is None:
             if self._view.head_ref is None:
-                raise ValueError("Cannot push detached HEAD without specifying ref_name")
+                raise DetachedHeadError("push")
             ref_name = self._view.head_ref
 
         if not repo.has_ref(ref_name):
-            raise ValueError(f"Local ref '{ref_name}' does not exist")
+            raise RefNotFoundError(ref_name)
 
         local_ref = repo.get_ref(ref_name)
         local_commit_id = local_ref.commit_id
@@ -278,10 +291,7 @@ class ExpectedParrotGit:
             if old_commit == local_commit_id:
                 return PushResult(remote_name, ref_name, old_commit, local_commit_id, 0, 0)
             if not force and not self._is_ancestor(old_commit, local_commit_id):
-                raise ValueError(
-                    f"Non-fast-forward push rejected. Remote '{ref_name}' is at "
-                    f"{old_commit[:10]}, local is at {local_commit_id[:10]}. Use force=True."
-                )
+                raise NonFastForwardPushError(ref_name, old_commit, local_commit_id)
 
         commits_to_push = self._collect_missing_commits(local_commit_id, remote)
         states_pushed = 0
@@ -300,20 +310,20 @@ class ExpectedParrotGit:
     def pull(self, remote_name: str = "origin",
              ref_name: Optional[str] = None) -> "ExpectedParrotGit":
         if self._view.has_staged:
-            raise ValueError("Cannot pull with staged changes; commit first")
+            raise StagedChangesError("pull")
         if remote_name not in self._remotes:
-            raise ValueError(f"Remote '{remote_name}' not found")
+            raise RemoteNotFoundError(remote_name)
 
         remote = self._remotes[remote_name]
         repo = self._view.repo
 
         if ref_name is None:
             if self._view.head_ref is None:
-                raise ValueError("Cannot pull to detached HEAD without specifying ref_name")
+                raise DetachedHeadError("pull")
             ref_name = self._view.head_ref
 
         if not remote.has_ref(ref_name):
-            raise ValueError(f"Remote ref '{ref_name}' does not exist")
+            raise RemoteRefNotFoundError(remote_name, ref_name)
 
         remote_ref = remote.get_ref(ref_name)
         remote_commit_id = remote_ref.commit_id
@@ -334,9 +344,7 @@ class ExpectedParrotGit:
 
         fast_forward = old_commit is None or self._is_ancestor(old_commit, remote_commit_id)
         if not fast_forward:
-            raise ValueError(
-                f"Pull would result in non-fast-forward. Merge not yet implemented."
-            )
+            raise PullConflictError(ref_name, old_commit, remote_commit_id)
 
         repo.upsert_ref(ref_name, remote_commit_id, kind=remote_ref.kind)
         new_view = ObjectView(repo=repo, head_ref=ref_name, base_commit=remote_commit_id)
@@ -344,7 +352,7 @@ class ExpectedParrotGit:
 
     def fetch(self, remote_name: str = "origin") -> Dict[str, int]:
         if remote_name not in self._remotes:
-            raise ValueError(f"Remote '{remote_name}' not found")
+            raise RemoteNotFoundError(remote_name)
 
         remote = self._remotes[remote_name]
         repo = self._view.repo
@@ -422,7 +430,7 @@ class ExpectedParrotGit:
 def clone_from_remote(remote: Remote, ref_name: str = "main") -> ObjectView:
     """Clone a repository from a remote."""
     if not remote.has_ref(ref_name):
-        raise ValueError(f"Remote does not have ref '{ref_name}'")
+        raise RemoteRefNotFoundError("remote", ref_name)
 
     local_repo = InMemoryRepo()
     remote_ref = remote.get_ref(ref_name)

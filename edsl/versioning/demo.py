@@ -7,10 +7,13 @@ server = ObjectVersionsServer("http://localhost:8765")
 
 s = Survey.example()
 
-result = server.create(alias="new_survey", description="Example survey")
+result = server.create(alias="new_survey-two", description="Example survey")
 s.git_add_remote("origin", result["remote"])
 s.git_push()
 
 print("Pushed successfully!")
 print(f"Repo ID: {result['repo_id']}")
 print("View at: http://localhost:8765/")
+
+
+news = Survey.git_clone(result['remote'], "main")
