@@ -295,12 +295,32 @@ class Jobs(Base):
     @models.setter
     def models(self, value) -> None:
         from ..language_models import ModelList
+        from ..language_models.raw_model_list import RawModelList
+
+        def _has_non_serializable_features(model) -> bool:
+            """Check if a model has features that can't be serialized."""
+            # Check for common non-serializable attributes
+            if hasattr(model, 'func') or hasattr(model, 'throw_exception') or hasattr(model, 'scripted_responses'):
+                return True
+            # Check for scripted model
+            if getattr(model, '_model_', None) == 'scripted':
+                return True
+            # Check if model class is from utilities (dynamically created for testing)
+            if type(model).__module__ == 'edsl.language_models.utilities':
+                return True
+            return False
 
         if value:
-            if not isinstance(value, ModelList):
-                self._models = ModelList(value)
-            else:
+            if isinstance(value, (ModelList, RawModelList)):
                 self._models = value
+            else:
+                # Check if any model has non-serializable features
+                models_list = value if isinstance(value, list) else [value]
+                has_non_serializable = any(_has_non_serializable_features(m) for m in models_list)
+                if has_non_serializable:
+                    self._models = RawModelList(models_list)
+                else:
+                    self._models = ModelList(models_list)
         else:
             self._models = ModelList(None)
 
