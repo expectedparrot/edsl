@@ -66,6 +66,17 @@ def __getattr__(name):
     if name in ('MetricsCollector', 'StorageAnalyzer', 'get_collector', 'timed', 'get_metrics_summary'):
         from . import metrics
         return getattr(metrics, name)
+    # Exceptions
+    if name in (
+        'VersioningError', 'NonFastForwardPushError', 'StagedChangesError',
+        'RefNotFoundError', 'CommitNotFoundError', 'RemoteNotFoundError',
+        'RemoteAlreadyExistsError', 'DetachedHeadError', 'NothingToCommitError',
+        'BranchDeleteError', 'AmbiguousRevisionError', 'UnknownRevisionError',
+        'RemoteRefNotFoundError', 'PullConflictError', 'StateNotFoundError',
+        'CommitBehindError', 'InvalidHeadStateError',
+    ):
+        from . import exceptions
+        return getattr(exceptions, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 __all__ = [
@@ -138,4 +149,23 @@ __all__ = [
     'get_collector',
     'timed',
     'get_metrics_summary',
+
+    # Exceptions
+    'VersioningError',
+    'NonFastForwardPushError',
+    'StagedChangesError',
+    'RefNotFoundError',
+    'CommitNotFoundError',
+    'RemoteNotFoundError',
+    'RemoteAlreadyExistsError',
+    'DetachedHeadError',
+    'NothingToCommitError',
+    'BranchDeleteError',
+    'AmbiguousRevisionError',
+    'UnknownRevisionError',
+    'RemoteRefNotFoundError',
+    'PullConflictError',
+    'StateNotFoundError',
+    'CommitBehindError',
+    'InvalidHeadStateError',
 ]

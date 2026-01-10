@@ -189,6 +189,23 @@ class DBRepoStorage:
             raise KeyError(f"Commit {commit_id} not found")
         return cm.state_id
 
+    def find_nearest_snapshot(self, commit_id: str) -> tuple:
+        """
+        Find the nearest ancestor commit with a snapshot.
+
+        In the DB backend, every commit has a state_id, so we just return
+        the commit's own state directly (no events to replay).
+
+        Returns:
+            (snapshot_commit_id, state_id, events_to_replay)
+        """
+        cm = self.session.query(CommitModel).filter_by(
+            repo_id=self.repo_id, commit_id=commit_id
+        ).first()
+        if not cm:
+            return (None, None, [])
+        return (commit_id, cm.state_id, [])
+
     # --- Ref operations ---
 
     def has_ref(self, name: str) -> bool:
