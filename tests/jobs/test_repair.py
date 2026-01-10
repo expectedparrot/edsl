@@ -17,3 +17,4 @@ def test_repair_off():
         results = q.by(m).run(
             n=100, progress_bar=False, cache=False, stop_on_exception=True, disable_remote_inference=True
         )
+
