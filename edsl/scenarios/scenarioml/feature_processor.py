@@ -16,12 +16,14 @@ if TYPE_CHECKING:
 # Lazy-loaded numpy
 _numpy = None
 
+
 def _get_numpy():
     """Lazy import numpy."""
     global _numpy
     if _numpy is None:
         import numpy as _numpy
     return _numpy
+
 
 # Lazy-loaded modules
 _pandas = None
@@ -457,7 +459,9 @@ class FeatureProcessor:
             return tfidf_matrix.toarray()
         except Exception:
             # Fallback if transformation fails
-            return _get_numpy().zeros((len(series), len(processor_info["feature_names"])))
+            return _get_numpy().zeros(
+                (len(series), len(processor_info["feature_names"]))
+            )
 
     def _clean_text_lists(self, series: "pd.Series") -> "pd.Series":
         """Clean text list format for TF-IDF processing."""

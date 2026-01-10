@@ -19,7 +19,7 @@ class QuestionRenamer:
         survey: "Survey", old_name: str, new_name: str
     ) -> tuple[tuple[dict[str, Any], ...], tuple[tuple[str, Any], ...]]:
         """Compute the new state for a survey with a question renamed.
-        
+
         Returns:
             Tuple of (new_entries, meta_updates) suitable for ReplaceEntriesAndMetaEvent
         """
@@ -65,7 +65,9 @@ class QuestionRenamer:
                 entry_copy["question_name"] = new_name
             # Update question_text piping references
             if "question_text" in entry_copy:
-                entry_copy["question_text"] = update_piping_in_text(entry_copy["question_text"])
+                entry_copy["question_text"] = update_piping_in_text(
+                    entry_copy["question_text"]
+                )
             # Update question_options if they exist
             if "question_options" in entry_copy and entry_copy["question_options"]:
                 entry_copy["question_options"] = [
@@ -109,7 +111,7 @@ class QuestionRenamer:
                 q_name_to_idx[new_name] = idx
             rule_dict["question_name_to_index"] = q_name_to_idx
             new_rules.append(rule_dict)
-        
+
         new_rule_collection = {
             "rules": new_rules,
             "num_questions": rule_collection.num_questions,
@@ -128,20 +130,23 @@ class QuestionRenamer:
                     new_name if prior_q == old_name else prior_q
                     for prior_q in memory.data
                 ]
-                new_memory_plan_data[new_focal] = {"prior_questions": new_prior_questions}
+                new_memory_plan_data[new_focal] = {
+                    "prior_questions": new_prior_questions
+                }
             else:
                 # Keep as-is
-                new_memory_plan_data[new_focal] = memory.to_dict() if hasattr(memory, "to_dict") else {}
+                new_memory_plan_data[new_focal] = (
+                    memory.to_dict() if hasattr(memory, "to_dict") else {}
+                )
 
         # Update survey_question_names
         old_question_names = getattr(memory_plan, "survey_question_names", [])
         new_question_names = [
-            new_name if q_name == old_name else q_name
-            for q_name in old_question_names
+            new_name if q_name == old_name else q_name for q_name in old_question_names
         ]
-        
+
         old_question_texts = getattr(memory_plan, "question_texts", [])
-        
+
         new_memory_plan = {
             "survey_question_names": new_question_names,
             "survey_question_texts": list(old_question_texts),
@@ -164,7 +169,11 @@ class QuestionRenamer:
         instructions = survey._instruction_names_to_instructions
         new_instructions = {}
         for inst_name, inst in instructions.items():
-            inst_dict = inst.to_dict(add_edsl_version=False) if hasattr(inst, "to_dict") else dict(inst)
+            inst_dict = (
+                inst.to_dict(add_edsl_version=False)
+                if hasattr(inst, "to_dict")
+                else dict(inst)
+            )
             if "text" in inst_dict:
                 inst_dict["text"] = update_piping_in_text(inst_dict["text"])
             new_instructions[inst_name] = inst_dict
@@ -227,23 +236,27 @@ class QuestionRenamer:
         )
 
         # Create the event
-        event = ReplaceEntriesAndMetaEvent(entries=new_entries, meta_updates=meta_updates)
+        event = ReplaceEntriesAndMetaEvent(
+            entries=new_entries, meta_updates=meta_updates
+        )
 
         # Apply the event via the Survey's event system
         # We need to mimic what the @event decorator does
         survey._ensure_git_init()
-        
+
         # Apply event to a copy of the store
         from edsl.store import Store
+
         new_store = Store.from_dict(survey.store.to_dict())
         from edsl.store.events import apply_event
+
         apply_event(event, new_store)
-        
+
         # Create new instance from the modified state
         new_survey = survey._from_state(new_store.to_dict())
-        
+
         # Stage for git
         if new_survey._git is not None:
             new_survey._git.stage(event)
-        
+
         return new_survey

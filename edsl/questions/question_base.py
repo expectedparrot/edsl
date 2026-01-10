@@ -199,34 +199,34 @@ class QuestionBase(
 
     _answering_instructions = None
     _question_presentation = None
-    
+
     # Cache for __init__ signatures to avoid expensive inspect.signature() calls
     _init_signature_cache: dict = {}
 
     @classmethod
     def _filter_params_for_class(cls, question_class: type, data: dict) -> dict:
         """Filter data dict to only include params accepted by question_class.__init__.
-        
+
         Uses a cache to avoid expensive inspect.signature() calls on every deserialization.
         """
         import inspect
-        
+
         cache_key = question_class.__name__
         if cache_key not in cls._init_signature_cache:
             try:
                 init_signature = inspect.signature(question_class.__init__)
-                valid_params = set(init_signature.parameters.keys()) - {'self'}
+                valid_params = set(init_signature.parameters.keys()) - {"self"}
                 has_var_keyword = any(
-                    p.kind == inspect.Parameter.VAR_KEYWORD 
+                    p.kind == inspect.Parameter.VAR_KEYWORD
                     for p in init_signature.parameters.values()
                 )
                 cls._init_signature_cache[cache_key] = (valid_params, has_var_keyword)
             except (ValueError, TypeError):
                 # Fall back - accept all params
                 cls._init_signature_cache[cache_key] = (None, True)
-        
+
         valid_params, has_var_keyword = cls._init_signature_cache[cache_key]
-        
+
         if valid_params is None or has_var_keyword:
             return data
         else:
@@ -640,7 +640,9 @@ class QuestionBase(
         filtered_data = cls._filter_params_for_class(question_class, local_data)
 
         if "model_instructions" in local_data:
-            model_instructions = filtered_data.pop("model_instructions", None) or local_data.get("model_instructions")
+            model_instructions = filtered_data.pop(
+                "model_instructions", None
+            ) or local_data.get("model_instructions")
             new_q = question_class(**filtered_data)
             new_q.model_instructions = model_instructions
             return new_q

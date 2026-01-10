@@ -146,18 +146,24 @@ from edsl.store import (
 
 class ScenarioCodec:
     """Codec for Scenario objects."""
-    
+
     def encode(self, obj: Union["Scenario", dict[str, Any]]) -> dict[str, Any]:
         # Handle both Scenario objects and plain dicts
         if isinstance(obj, dict):
             return dict(obj)
         return obj.to_dict(add_edsl_version=False)
-    
+
     def decode(self, data: dict[str, Any]) -> "Scenario":
         return Scenario.from_dict(data)
 
 
-class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin, ScenarioListLikelyRemove):
+class ScenarioList(
+    GitMixin,
+    MutableSequence,
+    Base,
+    ScenarioListOperationsMixin,
+    ScenarioListLikelyRemove,
+):
     """
     A collection of Scenario objects with advanced operations for manipulation and analysis.
 
@@ -175,28 +181,36 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         "https://docs.expectedparrot.com/en/latest/scenarios.html#scenariolist"
     )
 
-    _versioned = 'store'
+    _versioned = "store"
     _store_class = Store
     _event_handler = apply_event
     _codec = ScenarioCodec()  # Codec for Scenario <-> dict conversion
 
     # Allowed instance attributes - prevents external code from storing temporary data
-    _allowed_attrs = frozenset({
-        # Core state
-        'store',
-        # Properties with setters (these delegate to store.meta)
-        'codebook',
-        # Namespace objects (cached)
-        '_to', '_join',
-        # Conditional builder (ephemeral)
-        '_cond_active', '_cond_branch', '_cond_condition', '_cond_ops',
-        # GitMixin
-        '_git', '_needs_git_init', '_last_push_result',
-    })
+    _allowed_attrs = frozenset(
+        {
+            # Core state
+            "store",
+            # Properties with setters (these delegate to store.meta)
+            "codebook",
+            # Namespace objects (cached)
+            "_to",
+            "_join",
+            # Conditional builder (ephemeral)
+            "_cond_active",
+            "_cond_branch",
+            "_cond_condition",
+            "_cond_ops",
+            # GitMixin
+            "_git",
+            "_needs_git_init",
+            "_last_push_result",
+        }
+    )
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Restrict attribute setting to allowed attributes only.
-        
+
         This prevents external code from using ScenarioList instances to store
         temporary data, enforcing immutability through the event-based Store mechanism.
         """
@@ -231,7 +245,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             for item in data or []:
                 # Encode Scenario objects to dicts for primitive store
                 data_to_store.append(self._codec.encode(item))
-        #self.codebook = codebook or {}
+        # self.codebook = codebook or {}
         # Conditional builder state (ephemeral)
         self._cond_active: bool = False
         self._cond_branch: Optional[str] = None
@@ -242,7 +256,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         }
 
         self.store = Store(entries=data_to_store, meta={"codebook": codebook or {}})
-    
+
     @event
     def append(self, item: Scenario) -> None:
         return AppendRowEvent(row=self._codec.encode(item))
@@ -262,13 +276,13 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
 
     def to_dataset(self) -> "Dataset":
         """Convert the ScenarioList to a Dataset.
-        
+
         This method overrides the generic RepresentationMixin.to_dataset to use
         the proper columnar format conversion.
-        
+
         Returns:
             Dataset: A Dataset with columns for each scenario key.
-            
+
         Examples:
             >>> s = ScenarioList.from_list("a", [1, 2, 3])
             >>> s.to_dataset()
@@ -279,9 +293,9 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
     @property
     def convert(self) -> ScenarioListTo:
         """Namespace for conversion methods.
-        
+
         Access conversion methods via this property:
-        
+
             sl.convert.agent_list()
             sl.convert.dataset()
             sl.convert.survey()
@@ -289,26 +303,26 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             sl.convert.agent_traits()
             sl.convert.scenario_of_lists()
             sl.convert.key_value(field)
-        
+
         Created: 2026-01-08
         """
-        if not hasattr(self, '_to') or self._to is None:
+        if not hasattr(self, "_to") or self._to is None:
             self._to = ScenarioListTo(self)
         return self._to
 
     @property
     def join(self) -> ScenarioListJoin:
         """Namespace for join methods.
-        
+
         Access join methods via this property:
-        
+
             sl.join.left(other, by='key')
             sl.join.inner(other, by='key')
             sl.join.right(other, by='key')
-        
+
         Created: 2026-01-08
         """
-        if not hasattr(self, '_join') or self._join is None:
+        if not hasattr(self, "_join") or self._join is None:
             self._join = ScenarioListJoin(self)
         return self._join
 
@@ -479,7 +493,6 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             return self.__class__(list(self.data[index]), self.codebook.copy())
         return self.data[index]
 
-
     @event
     def __setitem__(self, index, value):
         """Set item at index."""
@@ -567,7 +580,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         """Remove duplicate scenarios in-place, keeping first occurrence.
 
         This is an alias for deduplicate() for backwards compatibility.
-        
+
         Returns:
             self: For method chaining.
 
@@ -715,7 +728,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         """
         Convert Jinja braces to alternative symbols in all Scenarios in the list.
 
-        This method modifies the ScenarioList in-place, converting all Jinja template 
+        This method modifies the ScenarioList in-place, converting all Jinja template
         braces ({{ and }}) in string values to alternative symbols (<< and >>).
         This is useful when you need to prevent template processing or avoid conflicts
         with other templating systems.
@@ -737,13 +750,14 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             - The default replacement symbols are << and >>
         """
         converted_entries = tuple(
-            self._codec.encode(scenario._convert_jinja_braces())
-            for scenario in self
+            self._codec.encode(scenario._convert_jinja_braces()) for scenario in self
         )
         return ReplaceAllEntriesEvent(entries=converted_entries)
 
     @event
-    def give_valid_names(self, existing_codebook: dict = None) -> ReplaceEntriesAndMetaEvent:
+    def give_valid_names(
+        self, existing_codebook: dict = None
+    ) -> ReplaceEntriesAndMetaEvent:
         """Give valid names to the scenario keys (in-place), using an existing codebook if provided.
 
         Args:
@@ -781,8 +795,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             new_entries.append(new_entry)
 
         return ReplaceEntriesAndMetaEvent(
-            entries=tuple(new_entries),
-            meta_updates=(("codebook", codebook),)
+            entries=tuple(new_entries), meta_updates=(("codebook", codebook),)
         )
 
     @event
@@ -805,23 +818,29 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             ReplaceAllEntriesEvent: Event with unpivoted entries.
         """
         id_vars = id_vars or []
-        
+
         new_entries = []
         for scenario in self.data:
             # Determine value_vars if not specified
-            vars_to_unpivot = value_vars or [k for k in scenario.keys() if k not in id_vars]
-            
+            vars_to_unpivot = value_vars or [
+                k for k in scenario.keys() if k not in id_vars
+            ]
+
             for var_name in vars_to_unpivot:
                 new_entry = {id_var: scenario.get(id_var) for id_var in id_vars}
                 new_entry["variable"] = var_name
                 new_entry["value"] = scenario.get(var_name)
                 new_entries.append(new_entry)
-        
+
         return ReplaceAllEntriesEvent(entries=tuple(new_entries))
 
     @event
     def apply(
-        self, func: Callable, field: str, new_name: Optional[str] = None, replace: bool = False
+        self,
+        func: Callable,
+        field: str,
+        new_name: Optional[str] = None,
+        replace: bool = False,
     ) -> TransformFieldEvent:
         """Apply a function to a field across all scenarios (in-place).
 
@@ -845,8 +864,10 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
                 new_values.append(func(scenario[field]))
             else:
                 new_values.append(None)
-        
-        return TransformFieldEvent(field=field, new_field=target_field, new_values=tuple(new_values))
+
+        return TransformFieldEvent(
+            field=field, new_field=target_field, new_values=tuple(new_values)
+        )
 
     @event
     def zip(self, field_a: str, field_b: str, new_name: str) -> AddFieldByIndexEvent:
@@ -877,18 +898,22 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         for scenario in self.data:
             zipped = dict(zip(scenario[field_a], scenario[field_b]))
             new_values.append(zipped)
-        
+
         return AddFieldByIndexEvent(field=new_name, values=tuple(new_values))
 
     @event
-    def add_scenario_reference(self, key: str, scenario_field_name: str) -> TransformFieldEvent:
+    def add_scenario_reference(
+        self, key: str, scenario_field_name: str
+    ) -> TransformFieldEvent:
         """Add a reference to the scenario to a field across all Scenarios."""
         # Pre-compute the transformed values
         new_values = []
         for scenario in self:
             original = scenario.get(key, "")
             new_values.append(original + "{{ scenario." + scenario_field_name + " }}")
-        return TransformFieldEvent(field=key, new_field=key, new_values=tuple(new_values))
+        return TransformFieldEvent(
+            field=key, new_field=key, new_values=tuple(new_values)
+        )
 
     @event
     def string_cat(
@@ -927,7 +952,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
 
         The condition may be a boolean or a string such as 'yes'/'no', 'true'/'false', '1'/'0'.
         Non-empty strings are coerced using a permissive truthy mapping.
-        
+
         If condition is falsy, no changes are made.
         """
         if not self._cond_to_bool(condition):
@@ -977,16 +1002,15 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         # Return a single Scenario with all the key/value pairs
         return Scenario(combined_dict)
 
-
     def __add__(self, other) -> "ScenarioList":
         """Combine this ScenarioList with another Scenario or ScenarioList.
-        
+
         Args:
             other: A Scenario or ScenarioList to add.
-            
+
         Returns:
             A new ScenarioList with the combined entries.
-            
+
         Raises:
             ScenarioError: If other is not a Scenario or ScenarioList.
         """
@@ -996,7 +1020,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             other_entries = [self._codec.encode(item) for item in other]
         else:
             raise ScenarioError("Don't know how to combine!")
-        
+
         # Create new ScenarioList and apply event to it (preserves + semantics)
         new_list = self.duplicate()
         new_entries = tuple(new_list.store.entries) + tuple(other_entries)
@@ -1025,9 +1049,9 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             ReplaceAllEntriesEvent: Event with pivoted entries.
         """
         from collections import defaultdict
-        
+
         id_vars = id_vars or []
-        
+
         # Group by id_vars and collect var_name -> value_name mappings
         groups = defaultdict(dict)
         for scenario in self.data:
@@ -1036,14 +1060,14 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             value = scenario.get(value_name)
             if column_name is not None:
                 groups[key][column_name] = value
-        
+
         # Build pivoted entries
         new_entries = []
         for key, values in groups.items():
             new_entry = dict(zip(id_vars, key))
             new_entry.update(values)
             new_entries.append(new_entry)
-        
+
         return ReplaceAllEntriesEvent(entries=tuple(new_entries))
 
     @event
@@ -1068,14 +1092,14 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             ScenarioError: If the function arity does not match variables or returns non-dict.
         """
         from collections import defaultdict
-        
+
         # Group scenarios by id_vars
         groups = defaultdict(lambda: {var: [] for var in variables})
         for scenario in self.data:
             key = tuple(scenario.get(id_var) for id_var in id_vars)
             for var in variables:
                 groups[key][var].append(scenario.get(var))
-        
+
         # Apply function to each group
         new_entries = []
         for key, var_lists in groups.items():
@@ -1084,10 +1108,12 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             args = [var_lists[var] for var in variables]
             result = func(*args)
             if not isinstance(result, dict):
-                raise ValueError(f"group_by function must return a dict, got {type(result)}")
+                raise ValueError(
+                    f"group_by function must return a dict, got {type(result)}"
+                )
             new_entry.update(result)
             new_entries.append(new_entry)
-        
+
         return ReplaceAllEntriesEvent(entries=tuple(new_entries))
 
     @property
@@ -1154,7 +1180,6 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         Used primarily for doctests and debugging.
         """
         return f"ScenarioList([{', '.join([x._eval_repr_() for x in self.data])}])"
-
 
     def _summary_repr(self, MAX_SCENARIOS: int = 10, MAX_FIELDS: int = 500) -> str:
         """Generate a summary representation of the ScenarioList with Rich formatting.
@@ -1251,14 +1276,12 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             other = ScenarioList([other])
         elif not isinstance(other, ScenarioList):
             from .exceptions import TypeScenarioError
+
             raise TypeScenarioError(f"Cannot multiply ScenarioList with {type(other)}")
 
         # Compute cross product entries
-        new_entries = [
-            self._codec.encode(s1 + s2)
-            for s1, s2 in product(self, other)
-        ]
-        
+        new_entries = [self._codec.encode(s1 + s2) for s1, s2 in product(self, other)]
+
         # Create new ScenarioList and apply event (preserves * semantics)
         new_list = ScenarioList(data=[], codebook=dict(self.codebook))
         event_obj = ReplaceAllEntriesEvent(entries=tuple(new_entries))
@@ -1282,18 +1305,17 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
     @event
     def full_replace(self, other: "ScenarioList") -> ReplaceEntriesAndMetaEvent:
         """Replace the ScenarioList contents with another ScenarioList's contents (in-place).
-        
+
         Args:
             other: The ScenarioList to copy data from.
-            
+
         Returns:
             ReplaceEntriesAndMetaEvent: Event that replaces all entries and metadata.
         """
         # Encode all scenarios from the other list
         new_entries = tuple(self._codec.encode(s) for s in other.data)
         return ReplaceEntriesAndMetaEvent(
-            entries=new_entries,
-            meta_updates=(("codebook", other.codebook),)
+            entries=new_entries, meta_updates=(("codebook", other.codebook),)
         )
 
     @event
@@ -1360,9 +1382,10 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         """
         return list_split(self, frac_left, seed)
 
-
     @event
-    def expand(self, *expand_fields: str, number_field: bool = False) -> ReplaceAllEntriesEvent:
+    def expand(
+        self, *expand_fields: str, number_field: bool = False
+    ) -> ReplaceAllEntriesEvent:
         """Expand the ScenarioList by one or more fields (in-place).
 
         - When a single field is provided, behavior is unchanged: expand rows by that field.
@@ -1390,7 +1413,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             raise ScenarioError("expand() requires at least one field name")
 
         new_entries = []
-        
+
         # Single-field case
         if len(expand_fields) == 1:
             expand_field = expand_fields[0]
@@ -1464,23 +1487,23 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         """
         if new_field_name is None:
             new_field_name = "concat_" + "_".join(fields)
-        
+
         new_entries = []
         for scenario in self.data:
             new_entry = {k: v for k, v in scenario.items() if k not in fields}
-            
+
             # Collect values with prefix/postfix
             values = [f"{prefix}{scenario.get(f, '')}{postfix}" for f in fields]
-            
+
             if output_type == "string":
                 new_entry[new_field_name] = separator.join(str(v) for v in values)
             elif output_type == "list":
                 new_entry[new_field_name] = values
             elif output_type == "set":
                 new_entry[new_field_name] = set(values)
-            
+
             new_entries.append(new_entry)
-        
+
         return ReplaceAllEntriesEvent(entries=tuple(new_entries))
 
     def concatenate(
@@ -1599,7 +1622,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
                 if drop_field:
                     del new_entry[field]
             new_entries.append(new_entry)
-        
+
         return ReplaceAllEntriesEvent(entries=tuple(new_entries))
 
     @event
@@ -1626,8 +1649,10 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
                 new_values.append(func(scenario[field]))
             else:
                 new_values.append(None)
-        
-        return TransformFieldEvent(field=field, new_field=target_field, new_values=tuple(new_values))
+
+        return TransformFieldEvent(
+            field=field, new_field=target_field, new_values=tuple(new_values)
+        )
 
     @event
     def mutate(
@@ -1650,22 +1675,24 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             ScenarioError: If the var name is invalid or evaluation fails.
         """
         from simpleeval import simple_eval
-        
+
         # Parse "var_name = expression"
         if "=" not in new_var_string:
-            raise ScenarioError(f"Invalid mutate expression: {new_var_string}. Expected 'var_name = expression'")
-        
+            raise ScenarioError(
+                f"Invalid mutate expression: {new_var_string}. Expected 'var_name = expression'"
+            )
+
         parts = new_var_string.split("=", 1)
         new_var_name = parts[0].strip()
         expression = parts[1].strip()
-        
+
         if not is_valid_variable_name(new_var_name):
             raise ScenarioError(f"Invalid variable name: {new_var_name}")
-        
+
         # Pre-compute values for each scenario
         new_values = []
         functions = functions_dict or {}
-        
+
         for scenario in self.data:
             names = dict(scenario)
             names.update(functions)
@@ -1674,7 +1701,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             except Exception as e:
                 raise ScenarioError(f"Error evaluating '{expression}': {e}")
             new_values.append(result)
-        
+
         return AddFieldByIndexEvent(field=new_var_name, values=tuple(new_values))
 
     @event
@@ -1688,11 +1715,12 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         Returns:
             ReorderEntriesEvent: Event containing new order indices.
         """
+
         # Get indices sorted by the specified fields
         def sort_key(idx):
             scenario = self.data[idx]
             return tuple(scenario.get(f) for f in fields)
-        
+
         indices = list(range(len(self.data)))
         indices.sort(key=sort_key, reverse=reverse)
         return ReorderEntriesEvent(new_order=tuple(indices))
@@ -1774,22 +1802,22 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         """
         from simpleeval import simple_eval
         import re
-        
+
         # Handle dotted field names by replacing dots with a placeholder in both
         # the expression and the names dict
         def escape_dotted_keys(names_dict, expr):
             """Replace dotted keys with underscore versions."""
             escaped_names = {}
             modified_expr = expr
-            
+
             # Sort by length descending to replace longer keys first
             # (e.g., "answer.example.nested" before "answer.example")
             sorted_keys = sorted(names_dict.keys(), key=len, reverse=True)
-            
+
             for key in sorted_keys:
-                if '.' in key:
+                if "." in key:
                     # Create escaped version of key
-                    escaped_key = key.replace('.', '_DOT_')
+                    escaped_key = key.replace(".", "_DOT_")
                     escaped_names[escaped_key] = names_dict[key]
                     # Replace in expression - use word boundaries to avoid partial matches
                     # Match the dotted key pattern
@@ -1797,9 +1825,9 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
                     modified_expr = re.sub(pattern, escaped_key, modified_expr)
                 else:
                     escaped_names[key] = names_dict[key]
-            
+
             return escaped_names, modified_expr
-        
+
         indices_to_remove = []
         for i, scenario in enumerate(self.data):
             names = dict(scenario)
@@ -1809,10 +1837,11 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
                 if not result:
                     indices_to_remove.append(i)
             except Exception as e:
-                raise ScenarioError(f"Error evaluating '{expression}' on scenario {i}: {e}")
-        
-        return RemoveRowsEvent(indices=tuple(indices_to_remove))
+                raise ScenarioError(
+                    f"Error evaluating '{expression}' on scenario {i}: {e}"
+                )
 
+        return RemoveRowsEvent(indices=tuple(indices_to_remove))
 
     @classmethod
     def from_urls(
@@ -1860,12 +1889,13 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         all_keys = set()
         for scenario in self:
             all_keys.update(scenario.keys())
-        
+
         missing = set(fields) - all_keys
         if missing:
             from .exceptions import KeyScenarioError
+
             raise KeyScenarioError(f"Keys {missing} not found in any scenario")
-        
+
         return KeepFieldsEvent(fields=tuple(fields))
 
     @event
@@ -1923,6 +1953,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             >>> sl[0]
             Scenario({'age': 30, 'height': 5.5, 'name': 'Alice'})
         """
+
         def try_convert(val):
             if val is None or isinstance(val, (int, float)):
                 return val
@@ -1937,14 +1968,14 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
                     except ValueError:
                         return val
             return val
-        
+
         conversions = []
         for i, scenario in enumerate(self.data):
             for key, value in scenario.items():
                 new_value = try_convert(value)
                 if new_value != value:
                     conversions.append((i, key, new_value))
-        
+
         return NumberifyEvent(conversions=tuple(conversions))
 
     def table(
@@ -2022,7 +2053,11 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             if field in new_entry:
                 values = new_entry[field]
                 if isinstance(values, (list, tuple)):
-                    names = new_names if new_names else [f"{field}_{i}" for i in range(len(values))]
+                    names = (
+                        new_names
+                        if new_names
+                        else [f"{field}_{i}" for i in range(len(values))]
+                    )
                     for name, value in zip(names, values):
                         new_entry[name] = value
                 elif new_names and len(new_names) == 1:
@@ -2031,7 +2066,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
                 if not keep_original:
                     del new_entry[field]
             new_entries.append(new_entry)
-        
+
         return ReplaceAllEntriesEvent(entries=tuple(new_entries))
 
     @event
@@ -2162,9 +2197,9 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
     def snakify(self) -> RenameFieldsEvent:
         """Convert all scenario keys to valid Python identifiers (snake_case) in-place.
 
-        This method transforms all keys to lowercase, replaces spaces and special 
-        characters with underscores, and ensures all keys are valid Python identifiers. 
-        If multiple keys would map to the same snakified name, numbers are appended 
+        This method transforms all keys to lowercase, replaces spaces and special
+        characters with underscores, and ensures all keys are valid Python identifiers.
+        If multiple keys would map to the same snakified name, numbers are appended
         to ensure uniqueness.
 
         Returns:
@@ -2577,7 +2612,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             ReplaceAllEntriesEvent: Event with collapsed entries.
         """
         from collections import defaultdict
-        
+
         # Group scenarios by all fields except the target field
         groups = defaultdict(list)
         for scenario in self.data:
@@ -2586,28 +2621,28 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             # Make key hashable
             key = tuple(sorted(key_dict.items()))
             groups[key].append(scenario.get(field))
-        
+
         # Build collapsed entries
         new_entries = []
         for key, values in groups.items():
             new_entry = dict(key)
-            
+
             # Apply prefix/postfix only when provided, to preserve original value types
             if prefix or postfix:
                 formatted_values = [f"{prefix}{v}{postfix}" for v in values]
             else:
                 formatted_values = values
-            
+
             if separator is not None:
                 new_entry[field] = separator.join(str(v) for v in formatted_values)
             else:
                 new_entry[field] = formatted_values
-            
+
             if add_count:
                 new_entry["num_collapsed_rows"] = len(values)
-            
+
             new_entries.append(new_entry)
-        
+
         return ReplaceAllEntriesEvent(entries=tuple(new_entries))
 
     @event
@@ -2639,22 +2674,22 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         """
         import itertools
         import string
-        
+
         if num_options < 2:
             raise ValueError("num_options must be at least 2")
-        
+
         if use_alphabet and num_options > 26:
             raise ValueError("num_options cannot exceed 26 when use_alphabet is True")
-        
+
         # Get all scenarios as dicts
         scenarios = list(self.data)
-        
+
         # Generate combinations or permutations
         if bidirectional:
             combos = itertools.permutations(range(len(scenarios)), num_options)
         else:
             combos = itertools.combinations(range(len(scenarios)), num_options)
-        
+
         # Build comparison entries
         new_entries = []
         for combo in combos:
@@ -2668,7 +2703,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
                 for field, value in scenarios[idx].items():
                     new_entry[f"{key}_{field}"] = value
             new_entries.append(new_entry)
-        
+
         return ReplaceAllEntriesEvent(entries=tuple(new_entries))
 
     @event
@@ -2805,7 +2840,6 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
                 indices_to_remove.append(i)
 
         return RemoveRowsEvent(indices=tuple(indices_to_remove))
-
 
     @classmethod
     def from_source(

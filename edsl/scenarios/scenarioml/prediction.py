@@ -268,6 +268,7 @@ class Prediction:
 
             # Save using joblib
             import joblib
+
             joblib.dump(save_data, filepath)
 
         except Exception as e:
@@ -290,6 +291,7 @@ class Prediction:
         try:
             # Load data
             import joblib
+
             save_data = joblib.load(filepath)
 
             # Check version compatibility

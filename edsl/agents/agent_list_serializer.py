@@ -61,12 +61,12 @@ class AgentListSerializer:
         codebook = agent_list.codebook
         if codebook:
             d["codebook"] = codebook
-        
+
         # Add traits_presentation_template from store.meta if present
         template = agent_list.traits_presentation_template
         if template is not None:
             d["traits_presentation_template"] = template
-        
+
         # Add instruction from store.meta if present
         instruction = agent_list.instruction
         if instruction is not None:
@@ -113,7 +113,7 @@ class AgentListSerializer:
         instruction = data.get("instruction")
         agents = [Agent.from_dict(agent_dict) for agent_dict in agent_data]
         agent_list = AgentList(
-            agents, 
+            agents,
             codebook=codebook,
             traits_presentation_template=traits_presentation_template,
             instruction=instruction,

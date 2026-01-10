@@ -18,6 +18,7 @@ def _get_base():
     global _Base
     if _Base is None:
         from sqlalchemy.orm import declarative_base
+
         _Base = declarative_base()
     return _Base
 
@@ -27,6 +28,7 @@ def _get_data_class():
     global _Data
     if _Data is None:
         from sqlalchemy import Column, String
+
         Base = _get_base()
 
         class Data(Base):
@@ -42,6 +44,7 @@ def _get_data_class():
                 key (Column): Primary key column for storing lookup keys
                 value (Column): Column for storing serialized data values
             """
+
             __tablename__ = "data"
             key = Column(String, primary_key=True)
             value = Column(String)
@@ -52,8 +55,8 @@ def _get_data_class():
 
 # For backward compatibility, provide module-level access via __getattr__
 def __getattr__(name):
-    if name == 'Base':
+    if name == "Base":
         return _get_base()
-    if name == 'Data':
+    if name == "Data":
         return _get_data_class()
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

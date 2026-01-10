@@ -25,18 +25,18 @@ if TYPE_CHECKING:
 
 class ScenarioListTo:
     """Namespace for ScenarioList conversion methods.
-    
+
     Access via the `.convert` property on ScenarioList:
-    
+
         >>> from edsl import ScenarioList, Scenario
         >>> sl = ScenarioList([Scenario({'age': 22, 'name': 'Alice'})])
         >>> al = sl.convert.agent_list()
         >>> ds = sl.convert.dataset()
     """
-    
+
     def __init__(self, scenario_list: "ScenarioList"):
         self._sl = scenario_list
-    
+
     def agent_list(self) -> "AgentList":
         """Convert the ScenarioList to an AgentList.
 
@@ -59,8 +59,9 @@ class ScenarioListTo:
             'Alice'
         """
         from ..agents import AgentList
+
         return AgentList.from_scenario_list(self._sl)
-    
+
     def agent_blueprint(
         self,
         *,
@@ -82,6 +83,7 @@ class ScenarioListTo:
             dimension_probs_field: Optional field name for probability weights.
         """
         from .agent_blueprint import AgentBlueprint
+
         return AgentBlueprint.from_scenario_list(
             self._sl,
             seed=seed,
@@ -91,7 +93,7 @@ class ScenarioListTo:
             dimension_description_field=dimension_description_field,
             dimension_probs_field=dimension_probs_field,
         )
-    
+
     def agent_traits(self, agent_name: Optional[str] = None) -> "Agent":
         """Convert all Scenario objects into traits of a single Agent.
 
@@ -107,11 +109,12 @@ class ScenarioListTo:
             Agent: An Agent instance whose traits include all fields from all scenarios.
         """
         from .scenario_list_transformer import ScenarioListTransformer
+
         return ScenarioListTransformer.to_agent_traits(self._sl, agent_name)
-    
+
     def survey(self) -> "Survey":
         """Convert the ScenarioList to a Survey.
-        
+
         Each Scenario should contain question data including:
         - question_type: The type of question (e.g., 'free_text', 'multiple_choice')
         - question_text: The question text
@@ -141,7 +144,7 @@ class ScenarioListTo:
             s.add_question(question)
 
         return s
-    
+
     def dataset(self) -> "Dataset":
         """Convert the ScenarioList to a Dataset.
 
@@ -161,11 +164,11 @@ class ScenarioListTo:
             if new_keys != keys:
                 keys = list(dict.fromkeys(keys + new_keys))
         data = [
-            {key: [scenario.get(key, None) for scenario in self._sl.data]} 
+            {key: [scenario.get(key, None) for scenario in self._sl.data]}
             for key in keys
         ]
         return Dataset(data)
-    
+
     def scenario_of_lists(self) -> "Scenario":
         """Collapse to a single Scenario with list-valued fields.
 
@@ -179,8 +182,9 @@ class ScenarioListTo:
             Scenario({'a': [1, 2, 3]})
         """
         from .scenario_list_transformer import ScenarioListTransformer
+
         return ScenarioListTransformer.to_scenario_of_lists(self._sl)
-    
+
     def key_value(self, field: str, value: Optional[str] = None) -> Union[dict, set]:
         """Return the set of values in the field, or a dict if value field specified.
 
@@ -198,8 +202,7 @@ class ScenarioListTo:
             return {scenario[field] for scenario in self._sl}
         else:
             return {scenario[field]: scenario[value] for scenario in self._sl}
-    
+
     def scenario_list(self) -> "ScenarioList":
         """Return a copy of this ScenarioList (identity conversion)."""
         return self._sl.duplicate()
-

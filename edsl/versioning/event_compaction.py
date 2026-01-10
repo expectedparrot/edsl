@@ -16,6 +16,7 @@ from enum import Enum
 @dataclass
 class CompactedEvent:
     """A compacted event with provenance information."""
+
     event_name: str
     event_payload: Dict[str, Any]
     original_count: int  # How many events this represents
@@ -25,6 +26,7 @@ class CompactedEvent:
 @dataclass
 class CompactionResult:
     """Result of compacting a sequence of events."""
+
     compacted_events: List[CompactedEvent]
     original_count: int
     compacted_count: int
@@ -44,9 +46,7 @@ class EventCompactor:
     """
 
     def compact(
-        self,
-        events: List[Tuple[str, Dict[str, Any]]],
-        aggressive: bool = False
+        self, events: List[Tuple[str, Dict[str, Any]]], aggressive: bool = False
     ) -> CompactionResult:
         """
         Compact a sequence of events.
@@ -64,7 +64,7 @@ class EventCompactor:
                 original_count=0,
                 compacted_count=0,
                 savings_percent=0.0,
-                removed_events=[]
+                removed_events=[],
             )
 
         removed_events = []
@@ -89,28 +89,31 @@ class EventCompactor:
         # Build compacted result
         compacted = []
         for i, (event_name, payload) in enumerate(events):
-            compacted.append(CompactedEvent(
-                event_name=event_name,
-                event_payload=payload,
-                original_count=1,  # Could track this better
-                original_indices=[i]
-            ))
+            compacted.append(
+                CompactedEvent(
+                    event_name=event_name,
+                    event_payload=payload,
+                    original_count=1,  # Could track this better
+                    original_indices=[i],
+                )
+            )
 
         original_count = len(events) + len(removed_events)
         compacted_count = len(compacted)
-        savings = (1 - compacted_count / original_count) * 100 if original_count > 0 else 0
+        savings = (
+            (1 - compacted_count / original_count) * 100 if original_count > 0 else 0
+        )
 
         return CompactionResult(
             compacted_events=compacted,
             original_count=original_count,
             compacted_count=compacted_count,
             savings_percent=round(savings, 2),
-            removed_events=removed_events
+            removed_events=removed_events,
         )
 
     def _remove_append_remove_pairs(
-        self,
-        events: List[Tuple[str, Dict[str, Any]]]
+        self, events: List[Tuple[str, Dict[str, Any]]]
     ) -> Tuple[List[Tuple[str, Dict[str, Any]]], List[Tuple[int, str, str]]]:
         """Remove append_row followed by remove_rows that removes that row."""
         result = []
@@ -124,7 +127,9 @@ class EventCompactor:
 
             if event_name == "append_row":
                 # Look ahead for a remove that targets this row
-                row_index = len([e for e in events[:i] if e[0] == "append_row"]) + len(result)
+                row_index = len([e for e in events[:i] if e[0] == "append_row"]) + len(
+                    result
+                )
 
                 for j in range(i + 1, len(events)):
                     if j in skip_indices:
@@ -152,8 +157,7 @@ class EventCompactor:
         return result, removed
 
     def _merge_row_updates(
-        self,
-        events: List[Tuple[str, Dict[str, Any]]]
+        self, events: List[Tuple[str, Dict[str, Any]]]
     ) -> Tuple[List[Tuple[str, Dict[str, Any]]], List[Tuple[int, str, str]]]:
         """Merge consecutive update_row events for the same row."""
         if not events:
@@ -175,7 +179,10 @@ class EventCompactor:
                 # Look for consecutive updates to the same row
                 while j < len(events):
                     next_name, next_payload = events[j]
-                    if next_name == "update_row" and next_payload.get("index") == target_index:
+                    if (
+                        next_name == "update_row"
+                        and next_payload.get("index") == target_index
+                    ):
                         # Merge this update
                         merged_row.update(next_payload.get("row", {}))
                         removed.append((j, next_name, f"merged into update at {i}"))
@@ -184,7 +191,9 @@ class EventCompactor:
                     else:
                         break
 
-                result.append(("update_row", {"index": target_index, "row": merged_row}))
+                result.append(
+                    ("update_row", {"index": target_index, "row": merged_row})
+                )
                 i = j
             else:
                 result.append((event_name, payload))
@@ -193,8 +202,7 @@ class EventCompactor:
         return result, removed
 
     def _combine_field_ops(
-        self,
-        events: List[Tuple[str, Dict[str, Any]]]
+        self, events: List[Tuple[str, Dict[str, Any]]]
     ) -> Tuple[List[Tuple[str, Dict[str, Any]]], List[Tuple[int, str, str]]]:
         """Combine consecutive field operations."""
         if not events:
@@ -215,8 +223,12 @@ class EventCompactor:
                 while j < len(events):
                     next_name, next_payload = events[j]
                     if next_name == "add_field_to_all_entries":
-                        fields_to_add[next_payload.get("field")] = next_payload.get("value")
-                        removed.append((j, next_name, f"combined with add_field at {i}"))
+                        fields_to_add[next_payload.get("field")] = next_payload.get(
+                            "value"
+                        )
+                        removed.append(
+                            (j, next_name, f"combined with add_field at {i}")
+                        )
                         j += 1
                     else:
                         break
@@ -224,7 +236,12 @@ class EventCompactor:
                 if len(fields_to_add) > 1:
                     # Convert to update_meta or batch
                     for field, value in fields_to_add.items():
-                        result.append(("add_field_to_all_entries", {"field": field, "value": value}))
+                        result.append(
+                            (
+                                "add_field_to_all_entries",
+                                {"field": field, "value": value},
+                            )
+                        )
                 else:
                     result.append((event_name, payload))
                 i = j
@@ -254,7 +271,9 @@ class EventCompactor:
                     else:
                         break
 
-                result.append(("rename_fields", {"rename_map": list(rename_map.items())}))
+                result.append(
+                    ("rename_fields", {"rename_map": list(rename_map.items())})
+                )
                 i = j
 
             elif event_name == "drop_fields":
@@ -266,7 +285,9 @@ class EventCompactor:
                     next_name, next_payload = events[j]
                     if next_name == "drop_fields":
                         fields_to_drop.update(next_payload.get("fields", []))
-                        removed.append((j, next_name, f"combined with drop_fields at {i}"))
+                        removed.append(
+                            (j, next_name, f"combined with drop_fields at {i}")
+                        )
                         j += 1
                     else:
                         break
@@ -280,8 +301,7 @@ class EventCompactor:
         return result, removed
 
     def _remove_no_ops(
-        self,
-        events: List[Tuple[str, Dict[str, Any]]]
+        self, events: List[Tuple[str, Dict[str, Any]]]
     ) -> Tuple[List[Tuple[str, Dict[str, Any]]], List[Tuple[int, str, str]]]:
         """Remove operations that have no effect."""
         result = []
@@ -317,8 +337,7 @@ class EventCompactor:
         return result, removed
 
     def analyze_compaction_potential(
-        self,
-        events: List[Tuple[str, Dict[str, Any]]]
+        self, events: List[Tuple[str, Dict[str, Any]]]
     ) -> Dict[str, Any]:
         """
         Analyze events without actually compacting.
@@ -344,26 +363,30 @@ class EventCompactor:
             "potential_reduction": result.original_count - result.compacted_count,
             "potential_savings_percent": result.savings_percent,
             "compaction_details": {
-                "append_remove_pairs": len([r for r in result.removed_events if "cancelled by" in r[2]]),
-                "merged_updates": len([r for r in result.removed_events if "merged" in r[2]]),
-                "combined_ops": len([r for r in result.removed_events if "combined" in r[2]]),
+                "append_remove_pairs": len(
+                    [r for r in result.removed_events if "cancelled by" in r[2]]
+                ),
+                "merged_updates": len(
+                    [r for r in result.removed_events if "merged" in r[2]]
+                ),
+                "combined_ops": len(
+                    [r for r in result.removed_events if "combined" in r[2]]
+                ),
                 "no_ops": len([r for r in result.removed_events if "no-op" in r[2]]),
-            }
+            },
         }
 
 
 # Convenience functions
 
+
 def compact_events(
-    events: List[Tuple[str, Dict[str, Any]]],
-    aggressive: bool = False
+    events: List[Tuple[str, Dict[str, Any]]], aggressive: bool = False
 ) -> CompactionResult:
     """Compact a sequence of events."""
     return EventCompactor().compact(events, aggressive)
 
 
-def analyze_events(
-    events: List[Tuple[str, Dict[str, Any]]]
-) -> Dict[str, Any]:
+def analyze_events(events: List[Tuple[str, Dict[str, Any]]]) -> Dict[str, Any]:
     """Analyze compaction potential for events."""
     return EventCompactor().analyze_compaction_potential(events)

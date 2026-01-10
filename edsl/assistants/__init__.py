@@ -13,5 +13,6 @@ __all__ = ["SurveyAssistant"]
 def __getattr__(name):
     if name == "SurveyAssistant":
         from .survey_assistant import SurveyAssistant
+
         return SurveyAssistant
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

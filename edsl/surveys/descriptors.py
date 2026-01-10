@@ -31,7 +31,7 @@ class BaseDescriptor(ABC):
 
 class QuestionsDescriptor(BaseDescriptor):
     """Descriptor for questions.
-    
+
     This descriptor reads questions from the Store (single source of truth).
     Questions are decoded from store.entries and cached for performance.
     """
@@ -40,18 +40,18 @@ class QuestionsDescriptor(BaseDescriptor):
         """Get questions by decoding from store.entries (cached for performance)."""
         if instance is None:
             return self
-        
+
         # Check cache first
-        cached = getattr(instance, '_cached_questions', None)
+        cached = getattr(instance, "_cached_questions", None)
         if cached is not None:
             return cached
-        
+
         # Read from Store (single source of truth) and cache
-        store = getattr(instance, 'store', None)
-        if store is not None and hasattr(store, 'entries'):
+        store = getattr(instance, "store", None)
+        if store is not None and hasattr(store, "entries"):
             questions = [instance._codec.decode(entry) for entry in store.entries]
             # Cache the decoded questions
-            object.__setattr__(instance, '_cached_questions', questions)
+            object.__setattr__(instance, "_cached_questions", questions)
             return questions
         return []
 
@@ -82,7 +82,7 @@ class QuestionsDescriptor(BaseDescriptor):
 
     def __set__(self, instance, value: Any) -> None:
         """Setting questions directly is not allowed after construction.
-        
+
         Use add_question/delete_question event-sourced methods instead.
         """
         # Validate the value

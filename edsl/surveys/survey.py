@@ -133,7 +133,7 @@ class Survey(GitMixin, Base):
     __documentation__ = """https://docs.expectedparrot.com/en/latest/surveys.html"""
 
     # Event-sourcing infrastructure
-    _versioned = 'store'
+    _versioned = "store"
     _store_class = Store
     _event_handler = apply_event
     _codec = SurveyCodec()
@@ -157,7 +157,7 @@ class Survey(GitMixin, Base):
     @property
     def _questions(self) -> List["QuestionType"]:
         """Backward-compatible property to access questions.
-        
+
         This property provides backward compatibility for code that accesses
         the internal _questions attribute directly. It delegates to the
         questions descriptor which reads from the Store.
@@ -167,29 +167,29 @@ class Survey(GitMixin, Base):
     # =========================================================================
     # Properties that read from Store (single source of truth)
     # =========================================================================
-    
+
     @property
     def rule_collection(self) -> "RuleCollection":
         """Get rule collection from Store meta."""
-        store = getattr(self, 'store', None)
+        store = getattr(self, "store", None)
         if store is None:
             return RuleCollection()
         rc_dict = store.meta.get("rule_collection", {})
         if rc_dict:
             return RuleCollection.from_dict(rc_dict)
         return RuleCollection(num_questions=len(self.questions))
-    
+
     @rule_collection.setter
     def rule_collection(self, value: "RuleCollection") -> None:
         """Set rule collection in Store meta."""
-        store = getattr(self, 'store', None)
+        store = getattr(self, "store", None)
         if store is not None:
             store.meta["rule_collection"] = value.to_dict(add_edsl_version=False)
-    
+
     @property
     def memory_plan(self) -> "MemoryPlan":
         """Get memory plan from Store meta."""
-        store = getattr(self, 'store', None)
+        store = getattr(self, "store", None)
         if store is None:
             return MemoryPlan(survey=None, data={})
         mp_dict = store.meta.get("memory_plan", {})
@@ -199,50 +199,50 @@ class Survey(GitMixin, Base):
             mp_dict["survey_question_texts"] = [q.question_text for q in self.questions]
             return MemoryPlan.from_dict(mp_dict)
         return MemoryPlan(self)
-    
+
     @property
     def question_groups(self) -> Dict[str, Tuple[int, int]]:
         """Get question groups from Store meta."""
-        store = getattr(self, 'store', None)
+        store = getattr(self, "store", None)
         if store is None:
             return {}
         return dict(store.meta.get("question_groups", {}))
-    
+
     @question_groups.setter
     def question_groups(self, value: Dict[str, Tuple[int, int]]) -> None:
         """Set question groups in Store meta."""
-        store = getattr(self, 'store', None)
+        store = getattr(self, "store", None)
         if store is not None:
             store.meta["question_groups"] = dict(value)
-    
+
     @property
     def name(self) -> Optional[str]:
         """Get survey name from Store meta."""
-        store = getattr(self, 'store', None)
+        store = getattr(self, "store", None)
         if store is None:
             return None
         return store.meta.get("name")
-    
+
     @name.setter
     def name(self, value: Optional[str]) -> None:
         """Set survey name in Store meta."""
-        store = getattr(self, 'store', None)
+        store = getattr(self, "store", None)
         if store is not None:
             store.meta["name"] = value
-    
+
     @property
     def _pseudo_indices(self) -> "PseudoIndices":
         """Get pseudo indices from Store meta."""
-        store = getattr(self, 'store', None)
+        store = getattr(self, "store", None)
         if store is None:
             return PseudoIndices()
         pi_dict = store.meta.get("pseudo_indices", {})
         return PseudoIndices(pi_dict)
-    
+
     @property
     def _instruction_names_to_instructions(self) -> Dict[str, Any]:
         """Get instructions from Store meta."""
-        store = getattr(self, 'store', None)
+        store = getattr(self, "store", None)
         if store is None:
             return {}
         instructions_dict = store.meta.get("instruction_names_to_instructions", {})
@@ -258,11 +258,11 @@ class Survey(GitMixin, Base):
                 inst.pseudo_index = pseudo_indices[inst_name]
             result[inst_name] = inst
         return result
-    
+
     @property
     def questions_to_randomize(self) -> List[str]:
         """Get questions_to_randomize from Store meta."""
-        store = getattr(self, 'store', None)
+        store = getattr(self, "store", None)
         if store is None:
             return []
         return list(store.meta.get("questions_to_randomize", []))
@@ -315,32 +315,37 @@ class Survey(GitMixin, Base):
         self.raw_passed_questions = questions
 
         # Process raw questions - returns (true_questions, instructions_dict, pseudo_indices_dict)
-        true_questions, instructions_dict, pseudo_indices_dict = self._process_raw_questions(
-            self.raw_passed_questions
+        true_questions, instructions_dict, pseudo_indices_dict = (
+            self._process_raw_questions(self.raw_passed_questions)
         )
-        
+
         # Encode questions for store entries
         entries = [self._codec.encode(q) for q in true_questions]
-        
+
         # Build question_name_to_index mapping (needed for rules)
         q_name_to_idx = {q.question_name: i for i, q in enumerate(true_questions)}
-        
+
         # Build rule_collection (use provided or create default)
         if rule_collection is not None:
             rc = rule_collection
         else:
             from .rules.rule import Rule
             from .base import RulePriority
-            rc = RuleCollection(num_questions=len(true_questions) if true_questions else None)
+
+            rc = RuleCollection(
+                num_questions=len(true_questions) if true_questions else None
+            )
             for i, q in enumerate(true_questions):
-                rc.add_rule(Rule(
-                    current_q=i,
-                    expression="True",
-                    next_q=i + 1,
-                    question_name_to_index=q_name_to_idx,
-                    priority=RulePriority.DEFAULT.value,
-                ))
-        
+                rc.add_rule(
+                    Rule(
+                        current_q=i,
+                        expression="True",
+                        next_q=i + 1,
+                        question_name_to_index=q_name_to_idx,
+                        priority=RulePriority.DEFAULT.value,
+                    )
+                )
+
         # Build memory_plan dict
         if memory_plan is not None:
             mp_dict = memory_plan.to_dict(add_edsl_version=False)
@@ -349,15 +354,15 @@ class Survey(GitMixin, Base):
             mp_dict = {
                 "survey_question_names": [q.question_name for q in true_questions],
                 "survey_question_texts": [q.question_text for q in true_questions],
-                "data": {}
+                "data": {},
             }
-        
+
         # Serialize instructions
         instructions_serialized = {
             inst_name: inst.to_dict(add_edsl_version=False)
             for inst_name, inst in instructions_dict.items()
         }
-        
+
         # Validate questions_to_randomize
         qtr_list = list(questions_to_randomize or [])
         if qtr_list and true_questions:
@@ -365,12 +370,13 @@ class Survey(GitMixin, Base):
             for qname in qtr_list:
                 if qname not in question_names_in_survey:
                     from .exceptions import SurveyQuestionsToRandomizeError
+
                     raise SurveyQuestionsToRandomizeError(
                         f"questions_to_randomize contains question name '{qname}' "
                         f"which is not present in the survey. "
                         f"Valid question names are: {sorted(question_names_in_survey)}"
                     )
-        
+
         # Build Store directly - single source of truth
         self.store = Store(
             entries=entries,
@@ -382,7 +388,7 @@ class Survey(GitMixin, Base):
                 "pseudo_indices": dict(pseudo_indices_dict),
                 "instruction_names_to_instructions": instructions_serialized,
                 "name": name,
-            }
+            },
         )
 
         self._seed: Optional[int] = None
@@ -403,48 +409,48 @@ class Survey(GitMixin, Base):
     @classmethod
     def _from_state(cls, state: Dict[str, Any]) -> "Survey":
         """Create a Survey instance from a Store state dictionary.
-        
+
         This method is used by GitMixin to create new instances after
         applying events. All Survey data (questions, rules, memory, etc.)
         is read directly from the Store via properties.
-        
+
         Args:
             state: Dictionary with 'entries' (questions) and 'meta' (rules, memory, etc.)
-            
+
         Returns:
             A new Survey instance with the Store as single source of truth.
         """
         return cls._from_store(Store.from_dict(state))
-    
+
     @classmethod
     def _from_store(cls, store: Store) -> "Survey":
         """Create a Survey instance directly from a Store object.
-        
+
         This is a fast path used by GitMixin to avoid dict serialization
         round-trips during event application.
-        
+
         Args:
             store: A Store instance with entries and meta.
-            
+
         Returns:
             A new Survey instance with the provided Store.
         """
         # Create a minimal instance without calling normal __init__
         instance = object.__new__(cls)
-        
+
         # Directly assign the Store
         instance.store = store
-        
+
         # Non-Store attributes
         instance.raw_passed_questions = None
         instance._seed = None
         instance._cached_instruction_collection = None
         instance._exporter = SurveyExport(instance)
         instance._navigator = SurveyNavigator(instance)
-        
+
         # Initialize GitMixin
         GitMixin.__init__(instance)
-        
+
         return instance
 
     def clipboard_data(self):
@@ -537,7 +543,7 @@ class Survey(GitMixin, Base):
         self, questions: Optional[List["QuestionType"]]
     ) -> tuple[list, dict, dict]:
         """Process the raw questions passed to the survey.
-        
+
         Returns:
             Tuple of (true_questions, instruction_names_to_instructions, pseudo_indices)
         """
@@ -603,20 +609,24 @@ class Survey(GitMixin, Base):
         from .exceptions import SurveyCreationError
         from edsl.store import ReplaceEntriesAndMetaEvent, Store
         from edsl.store.events import apply_event
-        
+
         # Validate
         if instruction.name in self._instruction_names_to_instructions:
             raise SurveyCreationError(
                 f"""Instruction name '{instruction.name}' already exists in survey. Existing names are {list(self._instruction_names_to_instructions.keys())}."""
             )
-        
+
         # Build new instructions dict (serialize all instructions to dicts)
         new_instructions = {
-            name: inst.to_dict(add_edsl_version=False) if hasattr(inst, 'to_dict') else inst
+            name: (
+                inst.to_dict(add_edsl_version=False)
+                if hasattr(inst, "to_dict")
+                else inst
+            )
             for name, inst in self._instruction_names_to_instructions.items()
         }
         new_instructions[instruction.name] = instruction.to_dict(add_edsl_version=False)
-        
+
         # Compute new pseudo_index
         pseudo_indices = PseudoIndices(dict(self._pseudo_indices))
         if pseudo_indices.last_item_was_instruction:
@@ -630,10 +640,10 @@ class Survey(GitMixin, Base):
             )
         else:
             pseudo_index = pseudo_indices.max_pseudo_index + 1.0 / 2.0
-        
+
         new_pseudo_indices = dict(pseudo_indices)
         new_pseudo_indices[instruction.name] = pseudo_index
-        
+
         # Build meta updates (keep entries the same)
         meta_updates = (
             ("instruction_names_to_instructions", new_instructions),
@@ -642,30 +652,32 @@ class Survey(GitMixin, Base):
             ("rule_collection", self.store.meta.get("rule_collection", {})),
             ("memory_plan", self.store.meta.get("memory_plan", {})),
             ("question_groups", self.store.meta.get("question_groups", {})),
-            ("questions_to_randomize", self.store.meta.get("questions_to_randomize", [])),
+            (
+                "questions_to_randomize",
+                self.store.meta.get("questions_to_randomize", []),
+            ),
             ("name", self.store.meta.get("name")),
         )
-        
+
         # Create the event
         event = ReplaceEntriesAndMetaEvent(
-            entries=tuple(self.store.entries),
-            meta_updates=meta_updates
+            entries=tuple(self.store.entries), meta_updates=meta_updates
         )
-        
+
         # Apply event via the Survey's event system
         self._ensure_git_init()
-        
+
         # Apply event to a copy of the store
         new_store = Store.from_dict(self.store.to_dict())
         apply_event(event, new_store)
-        
+
         # Create new instance from the modified state
         new_survey = self._from_state(new_store.to_dict())
-        
+
         # Stage for git
         if new_survey._git is not None:
             new_survey._git.stage(event)
-        
+
         return new_survey
 
     @classmethod
@@ -1491,10 +1503,12 @@ class Survey(GitMixin, Base):
         return Survey(questions=self.questions + other.questions)
 
     @event
-    def move_question(self, identifier: Union[str, int], new_index: int) -> MoveSurveyQuestionEvent:
+    def move_question(
+        self, identifier: Union[str, int], new_index: int
+    ) -> MoveSurveyQuestionEvent:
         """
         Move a question to a new position in the survey.
-        
+
         :param identifier: The name or index of the question to move.
         :param new_index: The target index position.
         :return: A new Survey instance with the question moved.
@@ -1508,7 +1522,7 @@ class Survey(GitMixin, Base):
         """
         from .rules.rule import Rule
         from .base import RulePriority
-        
+
         # Resolve the identifier to an index
         if isinstance(identifier, str):
             if identifier not in self.question_names:
@@ -1524,17 +1538,17 @@ class Survey(GitMixin, Base):
             raise SurveyError(
                 "Identifier must be either a string (question name) or an integer (question index)."
             )
-        
+
         # Get the question being moved
         question = self.questions[from_index]
         question_name = question.question_name
         question_row = self._codec.encode(question)
-        
+
         # Build the new rule for the question at its new position
         # After move, compute what the name_to_index would look like
         num_questions = len(self.questions)
         adjusted_to_index = new_index if new_index <= from_index else new_index - 1
-        
+
         new_rule_dict = {
             "current_q": adjusted_to_index,
             "expression": "True",
@@ -1543,13 +1557,13 @@ class Survey(GitMixin, Base):
             "question_name_to_index": {},  # Will be rebuilt by _from_state
             "before_rule": False,
         }
-        
+
         return MoveSurveyQuestionEvent(
             from_index=from_index,
             to_index=new_index,
             question_name=question_name,
             question_row=question_row,
-            new_rule_dict=new_rule_dict
+            new_rule_dict=new_rule_dict,
         )
 
     @event
@@ -1585,10 +1599,9 @@ class Survey(GitMixin, Base):
             raise SurveyError(
                 "Identifier must be either a string (question name) or an integer (question index)."
             )
-        
+
         return DeleteSurveyQuestionEvent(
-            index=delete_index,
-            question_name=question_name
+            index=delete_index, question_name=question_name
         )
 
     @event
@@ -1613,14 +1626,14 @@ class Survey(GitMixin, Base):
         """
         from .rules.rule import Rule
         from .base import RulePriority
-        
+
         # Validation - check for duplicate names
         if question.question_name in self.question_names:
             raise SurveyCreationError(
                 f"Question name '{question.question_name}' already exists in survey. "
                 f"Existing names are {self.question_names}."
             )
-        
+
         # Determine the actual index
         num_questions = len(self.questions)
         if index is None:
@@ -1633,12 +1646,12 @@ class Survey(GitMixin, Base):
             if index < 0:
                 raise SurveyCreationError(f"Index {index} is less than 0.")
             actual_index = index
-        
+
         is_interior = actual_index < num_questions
-        
+
         # Encode the question
         question_row = self._codec.encode(question)
-        
+
         # Build the default rule for this question
         # After insertion, question_name_to_index needs to include the new question
         updated_name_to_index = dict(self.question_name_to_index)
@@ -1648,7 +1661,7 @@ class Survey(GitMixin, Base):
                 if idx >= actual_index:
                     updated_name_to_index[name] = idx + 1
         updated_name_to_index[question.question_name] = actual_index
-        
+
         rule_dict = {
             "current_q": actual_index,
             "expression": "True",
@@ -1657,7 +1670,7 @@ class Survey(GitMixin, Base):
             "question_name_to_index": updated_name_to_index,
             "before_rule": False,
         }
-        
+
         # Return the composite event - the wrapper handles the rest
         return AddSurveyQuestionEvent(
             question_row=question_row,
@@ -1665,7 +1678,7 @@ class Survey(GitMixin, Base):
             rule_dict=rule_dict,
             pseudo_index_name=question.question_name,
             pseudo_index_value=float(actual_index),
-            is_interior=is_interior
+            is_interior=is_interior,
         )
 
     def combine_multiple_choice_to_matrix(
@@ -1956,19 +1969,23 @@ class Survey(GitMixin, Base):
         """
         from edsl.store.events import SetMemoryPlanEvent
         from .memory import Memory
-        
+
         # Build the full memory plan
         memory_plan_data = {}
         for i, question_name in enumerate(self.question_names):
             prior_questions = self.question_names[:i]
             if prior_questions:
-                memory_plan_data[question_name] = Memory(prior_questions=prior_questions).to_dict()
-        
-        return SetMemoryPlanEvent(memory_plan_dict={
-            "data": memory_plan_data,
-            "survey_question_names": list(self.question_names),
-            "survey_question_texts": [q.question_text for q in self.questions],
-        })
+                memory_plan_data[question_name] = Memory(
+                    prior_questions=prior_questions
+                ).to_dict()
+
+        return SetMemoryPlanEvent(
+            memory_plan_dict={
+                "data": memory_plan_data,
+                "survey_question_names": list(self.question_names),
+                "survey_question_texts": [q.question_text for q in self.questions],
+            }
+        )
 
     @event
     def set_lagged_memory(self, lags: int) -> "SetMemoryPlanEvent":
@@ -1992,19 +2009,23 @@ class Survey(GitMixin, Base):
         """
         from edsl.store.events import SetMemoryPlanEvent
         from .memory import Memory
-        
+
         # Build the lagged memory plan
         memory_plan_data = {}
         for i, question_name in enumerate(self.question_names):
-            prior_questions = self.question_names[max(0, i - lags):i]
+            prior_questions = self.question_names[max(0, i - lags) : i]
             if prior_questions:
-                memory_plan_data[question_name] = Memory(prior_questions=prior_questions).to_dict()
-        
-        return SetMemoryPlanEvent(memory_plan_dict={
-            "data": memory_plan_data,
-            "survey_question_names": list(self.question_names),
-            "survey_question_texts": [q.question_text for q in self.questions],
-        })
+                memory_plan_data[question_name] = Memory(
+                    prior_questions=prior_questions
+                ).to_dict()
+
+        return SetMemoryPlanEvent(
+            memory_plan_dict={
+                "data": memory_plan_data,
+                "survey_question_names": list(self.question_names),
+                "survey_question_texts": [q.question_text for q in self.questions],
+            }
+        )
 
     def _set_memory_plan(self, prior_questions_func: Callable) -> None:
         """Set a custom memory plan based on a provided function.
@@ -2052,19 +2073,19 @@ class Survey(GitMixin, Base):
             {'q2': Memory(prior_questions=['q0'])}
         """
         from edsl.store.events import AddMemoryForQuestionEvent
-        
+
         focal_index = self._get_question_index(focal_question)
         prior_index = self._get_question_index(prior_question)
-        
+
         focal_question_name = self.question_names[focal_index]
         prior_question_name = self.question_names[prior_index]
-        
+
         # Check that prior question comes before focal question
         if focal_index <= prior_index:
             raise SurveyError(
                 f"{prior_question_name} must come before {focal_question_name}."
             )
-        
+
         # Check that memory doesn't already include this prior question
         # Memory is a UserList, so check membership directly
         existing_memory = self.memory_plan.data.get(focal_question_name)
@@ -2072,17 +2093,16 @@ class Survey(GitMixin, Base):
             raise SurveyError(
                 f"Memory for {focal_question_name} already includes {prior_question_name}"
             )
-        
+
         # Get existing prior questions and add the new one
         # Memory is a UserList, so iterate over it directly
         existing_prior = []
         if existing_memory:
             existing_prior = list(existing_memory)  # UserList is iterable
         all_prior = existing_prior + [prior_question_name]
-        
+
         return AddMemoryForQuestionEvent(
-            focal_question=focal_question_name,
-            prior_questions=tuple(all_prior)
+            focal_question=focal_question_name, prior_questions=tuple(all_prior)
         )
 
     @event
@@ -2114,17 +2134,16 @@ class Survey(GitMixin, Base):
             {'q2': Memory(prior_questions=['q0', 'q1'])}
         """
         from edsl.store.events import AddMemoryForQuestionEvent
+
         focal_question_name = self.question_names[
             self._get_question_index(focal_question)
         ]
         prior_question_names = tuple(
-            self.question_names[self._get_question_index(pq)]
-            for pq in prior_questions
+            self.question_names[self._get_question_index(pq)] for pq in prior_questions
         )
-        
+
         return AddMemoryForQuestionEvent(
-            focal_question=focal_question_name,
-            prior_questions=prior_question_names
+            focal_question=focal_question_name, prior_questions=prior_question_names
         )
 
     @event
@@ -2262,10 +2281,9 @@ class Survey(GitMixin, Base):
         self._validate_group_dependencies(start_index, end_index, group_name)
 
         from edsl.store.events import AddQuestionGroupEvent
+
         return AddQuestionGroupEvent(
-            group_name=group_name,
-            start_index=start_index,
-            end_index=end_index
+            group_name=group_name, start_index=start_index, end_index=end_index
         )
 
     def _validate_group_dependencies(
@@ -2439,7 +2457,7 @@ class Survey(GitMixin, Base):
         # Track which questions have been grouped
         grouped_questions = set()
         group_counter = 0
-        
+
         # Track the current survey as we apply changes
         current_survey = self
 
@@ -2488,11 +2506,15 @@ class Survey(GitMixin, Base):
             # Create and apply the group
             if current_group:
                 group_name = f"{group_name_prefix}_{group_counter}"
-                start_question = current_survey.questions[current_group[0]].question_name
+                start_question = current_survey.questions[
+                    current_group[0]
+                ].question_name
                 end_question = current_survey.questions[current_group[-1]].question_name
 
                 # Use the existing add_question_group method (event-sourced, returns new survey)
-                current_survey = current_survey.add_question_group(start_question, end_question, group_name)
+                current_survey = current_survey.add_question_group(
+                    start_question, end_question, group_name
+                )
                 group_counter += 1
 
         return current_survey
@@ -2533,9 +2555,9 @@ class Survey(GitMixin, Base):
         """
         from edsl.store.events import AddRuleEvent
         from .rules.rule_manager import ValidatedString
-        
+
         expression = ValidatedString(expression)
-        
+
         # Warn if expression doesn't reference any prior questions
         prior_question_appears = False
         for prior_question in self.questions:
@@ -2544,10 +2566,11 @@ class Survey(GitMixin, Base):
 
         if not prior_question_appears:
             import warnings
+
             warnings.warn(
                 f"The expression {expression} does not contain any prior question names. This is probably a mistake."
             )
-        
+
         rule_dict = RuleManager(self).add_rule(question, expression, EndOfSurvey)
         return AddRuleEvent(rule_dict=rule_dict)
 
@@ -2605,6 +2628,7 @@ class Survey(GitMixin, Base):
             >>> s = s.add_skip_rule("q1", "{{ q0.answer }} == 'skip next'")
         """
         from edsl.store.events import AddRuleEvent
+
         question_index = self._get_question_index(question)
 
         # Only proceed if question_index is an integer (not EndOfSurvey)
@@ -2662,6 +2686,7 @@ class Survey(GitMixin, Base):
             >>> s = Survey.example().add_rule("q0", "{{ q0.answer }} == 'end'", EndOfSurvey)
         """
         from edsl.store.events import AddRuleEvent
+
         rule_dict = RuleManager(self).add_rule(
             question, expression, next_question, before_rule=before_rule
         )

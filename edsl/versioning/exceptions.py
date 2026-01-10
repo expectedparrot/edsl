@@ -152,7 +152,9 @@ class DetachedHeadError(VersioningError):
 
     def __init__(self, operation: str, **kwargs):
         self.operation = operation
-        message = f"Cannot {operation} in detached HEAD state without specifying ref_name"
+        message = (
+            f"Cannot {operation} in detached HEAD state without specifying ref_name"
+        )
         super().__init__(message, **kwargs)
 
 

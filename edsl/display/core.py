@@ -16,6 +16,7 @@ def _get_ipython_display():
     if _IPYTHON_AVAILABLE is None:
         try:
             from IPython import display as _ipython_display_module
+
             _IPYTHON_AVAILABLE = True
         except ImportError:
             _IPYTHON_AVAILABLE = False

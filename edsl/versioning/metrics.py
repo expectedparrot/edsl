@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 @dataclass
 class TimingMetric:
     """A single timing measurement."""
+
     operation: str
     duration_ms: float
     timestamp: datetime
@@ -32,6 +33,7 @@ class TimingMetric:
 @dataclass
 class StorageMetrics:
     """Storage-related metrics."""
+
     total_commits: int
     total_snapshots: int
     total_events: int
@@ -44,6 +46,7 @@ class StorageMetrics:
 @dataclass
 class PerformanceMetrics:
     """Performance-related metrics."""
+
     avg_replay_time_ms: float
     max_replay_time_ms: float
     avg_events_replayed: float
@@ -55,6 +58,7 @@ class PerformanceMetrics:
 @dataclass
 class HealthStatus:
     """Repository health status."""
+
     healthy: bool
     issues: List[str]
     recommendations: List[str]
@@ -88,30 +92,30 @@ class MetricsCollector:
         self,
         operation: str,
         duration_ms: float,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Record a timing measurement."""
         with self._lock:
-            self._timings.append(TimingMetric(
-                operation=operation,
-                duration_ms=duration_ms,
-                timestamp=datetime.now(),
-                details=details
-            ))
+            self._timings.append(
+                TimingMetric(
+                    operation=operation,
+                    duration_ms=duration_ms,
+                    timestamp=datetime.now(),
+                    details=details,
+                )
+            )
 
     def record_replay(
-        self,
-        events_replayed: int,
-        duration_ms: float,
-        commit_id: str
+        self, events_replayed: int, duration_ms: float, commit_id: str
     ) -> None:
         """Record an event replay operation."""
         with self._lock:
             self._counters["replays"] += 1
-        self.record_timing("replay", duration_ms, {
-            "events_replayed": events_replayed,
-            "commit_id": commit_id
-        })
+        self.record_timing(
+            "replay",
+            duration_ms,
+            {"events_replayed": events_replayed, "commit_id": commit_id},
+        )
 
     def record_commit(self, event_name: str, duration_ms: float) -> None:
         """Record a commit operation."""
@@ -132,9 +136,7 @@ class MetricsCollector:
             self._counters[counter] = self._counters.get(counter, 0) + amount
 
     def get_timings(
-        self,
-        operation: Optional[str] = None,
-        since: Optional[datetime] = None
+        self, operation: Optional[str] = None, since: Optional[datetime] = None
     ) -> List[TimingMetric]:
         """Get timing measurements, optionally filtered."""
         with self._lock:
@@ -147,10 +149,7 @@ class MetricsCollector:
 
         return timings
 
-    def get_performance_metrics(
-        self,
-        window_seconds: int = 300
-    ) -> PerformanceMetrics:
+    def get_performance_metrics(self, window_seconds: int = 300) -> PerformanceMetrics:
         """
         Get performance metrics for recent operations.
 
@@ -165,13 +164,13 @@ class MetricsCollector:
         if replay_timings:
             replay_times = [t.duration_ms for t in replay_timings]
             events_replayed = [
-                t.details.get("events_replayed", 0)
-                for t in replay_timings
-                if t.details
+                t.details.get("events_replayed", 0) for t in replay_timings if t.details
             ]
             avg_replay = sum(replay_times) / len(replay_times)
             max_replay = max(replay_times)
-            avg_events = sum(events_replayed) / len(events_replayed) if events_replayed else 0
+            avg_events = (
+                sum(events_replayed) / len(events_replayed) if events_replayed else 0
+            )
             max_events = max(events_replayed) if events_replayed else 0
         else:
             avg_replay = 0
@@ -194,7 +193,7 @@ class MetricsCollector:
             avg_events_replayed=avg_events,
             max_events_replayed=max_events,
             events_per_second=events / effective_elapsed,
-            commits_per_second=commits / effective_elapsed
+            commits_per_second=commits / effective_elapsed,
         )
 
     def get_counters(self) -> Dict[str, int]:
@@ -260,7 +259,9 @@ class StorageAnalyzer:
 
         total_commits = len(commits)
         total_snapshots = len(snapshots)
-        avg_snapshot_size = total_snapshot_size / total_snapshots if total_snapshots else 0
+        avg_snapshot_size = (
+            total_snapshot_size / total_snapshots if total_snapshots else 0
+        )
 
         # Estimate event-only storage (very rough)
         avg_event_size = 200  # bytes per event, rough estimate
@@ -273,7 +274,7 @@ class StorageAnalyzer:
             snapshot_coverage=total_snapshots / total_commits if total_commits else 0,
             avg_snapshot_size_bytes=avg_snapshot_size,
             total_storage_bytes=total_snapshot_size + estimated_event_only,
-            estimated_event_only_bytes=estimated_event_only
+            estimated_event_only_bytes=estimated_event_only,
         )
 
     def check_health(self, head_commit_id: str) -> HealthStatus:
@@ -330,7 +331,7 @@ class StorageAnalyzer:
             healthy=healthy,
             issues=issues,
             recommendations=recommendations,
-            scores=scores
+            scores=scores,
         )
 
 
@@ -342,7 +343,7 @@ class Timer:
         self,
         collector: MetricsCollector,
         operation: str,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[Dict[str, Any]] = None,
     ):
         self.collector = collector
         self.operation = operation
@@ -357,11 +358,7 @@ class Timer:
     def __exit__(self, *args):
         end_time = time.perf_counter()
         self.duration_ms = (end_time - self.start_time) * 1000
-        self.collector.record_timing(
-            self.operation,
-            self.duration_ms,
-            self.details
-        )
+        self.collector.record_timing(self.operation, self.duration_ms, self.details)
 
     def add_detail(self, key: str, value: Any) -> None:
         """Add a detail after the timer started."""
@@ -384,6 +381,7 @@ def set_collector(collector: MetricsCollector) -> None:
 
 
 # Convenience functions
+
 
 def record_timing(operation: str, duration_ms: float, details: Optional[Dict] = None):
     """Record a timing to the global collector."""
@@ -408,5 +406,5 @@ def get_metrics_summary() -> Dict[str, Any]:
             "avg_events_replayed": round(perf.avg_events_replayed, 1),
             "events_per_second": round(perf.events_per_second, 2),
             "commits_per_second": round(perf.commits_per_second, 2),
-        }
+        },
     }

@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 @dataclass
 class HistoryPoint:
     """A point in the repository history."""
+
     commit_id: str
     timestamp: datetime
     message: str
@@ -32,6 +33,7 @@ class HistoryPoint:
 @dataclass
 class StateDiff:
     """Difference between two states."""
+
     from_commit: str
     to_commit: str
     entries_added: int
@@ -59,7 +61,7 @@ class TimeTraveler:
         since: Optional[datetime] = None,
         until: Optional[datetime] = None,
         author: Optional[str] = None,
-        event_filter: Optional[List[str]] = None
+        event_filter: Optional[List[str]] = None,
     ) -> List[HistoryPoint]:
         """
         Get commit history with optional filtering.
@@ -101,14 +103,16 @@ class TimeTraveler:
                 current = commit.parents[0] if commit.parents else None
                 continue
 
-            history.append(HistoryPoint(
-                commit_id=commit.commit_id,
-                timestamp=commit.timestamp,
-                message=commit.message,
-                author=commit.author,
-                event_name=commit.event_name,
-                has_snapshot=self.storage.has_snapshot(current)
-            ))
+            history.append(
+                HistoryPoint(
+                    commit_id=commit.commit_id,
+                    timestamp=commit.timestamp,
+                    message=commit.message,
+                    author=commit.author,
+                    event_name=commit.event_name,
+                    has_snapshot=self.storage.has_snapshot(current),
+                )
+            )
 
             count += 1
             current = commit.parents[0] if commit.parents else None
@@ -116,9 +120,7 @@ class TimeTraveler:
         return history
 
     def find_commit_at_time(
-        self,
-        head_commit_id: str,
-        target_time: datetime
+        self, head_commit_id: str, target_time: datetime
     ) -> Optional[str]:
         """
         Find the commit that was HEAD at a specific time.
@@ -141,10 +143,7 @@ class TimeTraveler:
         return None
 
     def find_commit_by_message(
-        self,
-        head_commit_id: str,
-        pattern: str,
-        regex: bool = False
+        self, head_commit_id: str, pattern: str, regex: bool = False
     ) -> List[str]:
         """
         Find commits by message pattern.
@@ -180,10 +179,7 @@ class TimeTraveler:
         return matches
 
     def find_commit_by_event(
-        self,
-        head_commit_id: str,
-        event_name: str,
-        nth: int = 1
+        self, head_commit_id: str, event_name: str, nth: int = 1
     ) -> Optional[str]:
         """
         Find the nth occurrence of a specific event type.
@@ -213,11 +209,7 @@ class TimeTraveler:
 
         return None
 
-    def get_ancestor(
-        self,
-        commit_id: str,
-        n: int = 1
-    ) -> Optional[str]:
+    def get_ancestor(self, commit_id: str, n: int = 1) -> Optional[str]:
         """
         Get the nth ancestor of a commit.
 
@@ -245,7 +237,7 @@ class TimeTraveler:
         state1: Dict[str, Any],
         state2: Dict[str, Any],
         commit1_id: str = "state1",
-        commit2_id: str = "state2"
+        commit2_id: str = "state2",
     ) -> StateDiff:
         """
         Compute difference between two states.
@@ -270,10 +262,7 @@ class TimeTraveler:
 
         # Count modified entries
         min_len = min(len(entries1), len(entries2))
-        entries_modified = sum(
-            1 for i in range(min_len)
-            if entries1[i] != entries2[i]
-        )
+        entries_modified = sum(1 for i in range(min_len) if entries1[i] != entries2[i])
 
         # Find field changes
         fields1 = set()
@@ -303,14 +292,10 @@ class TimeTraveler:
             entries_modified=entries_modified,
             fields_added=fields_added,
             fields_removed=fields_removed,
-            meta_changes=meta_changes
+            meta_changes=meta_changes,
         )
 
-    def get_commits_between(
-        self,
-        from_commit: str,
-        to_commit: str
-    ) -> List[str]:
+    def get_commits_between(self, from_commit: str, to_commit: str) -> List[str]:
         """
         Get all commits between two points.
 
@@ -329,9 +314,7 @@ class TimeTraveler:
         return commits
 
     def get_events_between(
-        self,
-        from_commit: str,
-        to_commit: str
+        self, from_commit: str, to_commit: str
     ) -> List[Tuple[str, Dict[str, Any]]]:
         """
         Get all events between two commits.
@@ -351,28 +334,23 @@ class TimeTraveler:
 
 # Convenience functions
 
+
 def get_history(
-    storage: "BaseObjectStore",
-    head_commit_id: str,
-    limit: Optional[int] = None
+    storage: "BaseObjectStore", head_commit_id: str, limit: Optional[int] = None
 ) -> List[HistoryPoint]:
     """Get commit history."""
     return TimeTraveler(storage).get_history(head_commit_id, limit=limit)
 
 
 def find_commit_at_time(
-    storage: "BaseObjectStore",
-    head_commit_id: str,
-    target_time: datetime
+    storage: "BaseObjectStore", head_commit_id: str, target_time: datetime
 ) -> Optional[str]:
     """Find commit at specific time."""
     return TimeTraveler(storage).find_commit_at_time(head_commit_id, target_time)
 
 
 def get_ancestor(
-    storage: "BaseObjectStore",
-    commit_id: str,
-    n: int = 1
+    storage: "BaseObjectStore", commit_id: str, n: int = 1
 ) -> Optional[str]:
     """Get nth ancestor of commit."""
     return TimeTraveler(storage).get_ancestor(commit_id, n)
@@ -383,7 +361,7 @@ def diff_commits(
     state1: Dict[str, Any],
     state2: Dict[str, Any],
     commit1_id: str = "state1",
-    commit2_id: str = "state2"
+    commit2_id: str = "state2",
 ) -> StateDiff:
     """Diff two states."""
     return TimeTraveler(storage).diff_states(state1, state2, commit1_id, commit2_id)

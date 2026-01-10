@@ -1,9 +1,10 @@
 from typing import Optional
-#from .scenario_list import ScenarioList
+
+# from .scenario_list import ScenarioList
 ##from .scenario import Scenario
-#from .conjoint_profile_generator import ConjointProfileGenerator
-#from .scenarioml.feature_processor import FeatureProcessor
-#from .scenarioml.model_selector import ModelSelector
+# from .conjoint_profile_generator import ConjointProfileGenerator
+# from .scenarioml.feature_processor import FeatureProcessor
+# from .scenarioml.model_selector import ModelSelector
 from .scenarioml.prediction import Prediction
 from typing import List, Union
 from .exceptions import ScenarioError
@@ -11,8 +12,8 @@ import warnings
 import os
 from typing import Sequence
 
-class ScenarioListLikelyRemove:
 
+class ScenarioListLikelyRemove:
 
     def to_ranked_scenario_list(
         self,
@@ -95,7 +96,6 @@ class ScenarioListLikelyRemove:
             tau=tau,
         )
 
-
     @classmethod
     def from_directory(
         cls,
@@ -162,6 +162,7 @@ class ScenarioListLikelyRemove:
         # rename the keys in all scenarios
         from .scenario_list import ScenarioList
         from .scenario import Scenario
+
         if key_name != "file":
             # Create a new ScenarioList
             result = ScenarioList([])
@@ -177,7 +178,6 @@ class ScenarioListLikelyRemove:
 
         return sl
 
-
     def vibe_filter(
         self,
         criteria: str,
@@ -185,7 +185,7 @@ class ScenarioListLikelyRemove:
         model: str = "gpt-4o",
         temperature: float = 0.1,
         show_expression: bool = False,
-    ) -> 'ScenarioList':
+    ) -> "ScenarioList":
         """
         Filter the scenario list using natural language criteria.
 
@@ -246,7 +246,6 @@ class ScenarioListLikelyRemove:
 
         # Use the scenario list's built-in filter method which returns ScenarioList
         return self.filter(filter_expr)
-
 
     def few_shot_examples(
         self,
@@ -379,7 +378,7 @@ class ScenarioListLikelyRemove:
 
         # Create new ScenarioList with added fields
         from .scenario_list import ScenarioList
-        
+
         new_scenarios = []
         for scenario in self:
             new_scenario = scenario.copy()
@@ -392,7 +391,6 @@ class ScenarioListLikelyRemove:
             new_scenarios.append(new_scenario)
 
         return ScenarioList(new_scenarios, codebook=self.codebook)
-
 
     @classmethod
     def vibe_extract(
@@ -524,7 +522,6 @@ class ScenarioListLikelyRemove:
 
         return Scenario(**d)
 
-
     @classmethod
     def from_vibes(cls, description: str) -> "ScenarioList":
         """Create a ScenarioList from a vibe description.
@@ -538,7 +535,6 @@ class ScenarioListLikelyRemove:
         gen = ScenarioGenerator(model="gpt-4o", temperature=0.7)
         result = gen.generate_scenarios(description)
         return cls([Scenario(scenario) for scenario in result["scenarios"]])
-
 
     @classmethod
     def from_prompt(
@@ -557,7 +553,6 @@ class ScenarioListLikelyRemove:
         )
         results = q.run(verbose=verbose)
         return results.select(name).to_scenario_list().expand(name)
-
 
     def create_conjoint_comparisons(
         self,
@@ -784,7 +779,7 @@ class ScenarioListLikelyRemove:
             "to_agent_traits() is deprecated as of 2026-01-08. "
             "Use sl.convert.agent_traits() instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.convert.agent_traits(agent_name)
 
@@ -798,7 +793,7 @@ class ScenarioListLikelyRemove:
             "to_scenario_list() is deprecated as of 2026-01-08. "
             "Use sl.convert.scenario_list() instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.convert.scenario_list()
 
@@ -821,7 +816,7 @@ class ScenarioListLikelyRemove:
             "to_survey() is deprecated as of 2026-01-08. "
             "Use sl.convert.survey() instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.convert.survey()
 
@@ -835,7 +830,7 @@ class ScenarioListLikelyRemove:
             "to_dataset() is deprecated as of 2026-01-08. "
             "Use sl.convert.dataset() instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.convert.dataset()
 
@@ -849,7 +844,7 @@ class ScenarioListLikelyRemove:
             "to_scenario_of_lists() is deprecated as of 2026-01-08. "
             "Use sl.convert.scenario_of_lists() instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.convert.scenario_of_lists()
 
@@ -863,11 +858,13 @@ class ScenarioListLikelyRemove:
             "to_key_value() is deprecated as of 2026-01-08. "
             "Use sl.convert.key_value(field) instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.convert.key_value(field, value)
 
-    def left_join(self, other: "ScenarioList", by: Union[str, list[str]]) -> "ScenarioList":
+    def left_join(
+        self, other: "ScenarioList", by: Union[str, list[str]]
+    ) -> "ScenarioList":
         """Perform a left join with another ScenarioList.
 
         .. deprecated:: 2026-01-08
@@ -877,7 +874,7 @@ class ScenarioListLikelyRemove:
             "left_join() is deprecated as of 2026-01-08. "
             "Use sl.join.left(other, by) instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.join.left(other, by)
 
@@ -893,7 +890,7 @@ class ScenarioListLikelyRemove:
             "inner_join() is deprecated as of 2026-01-08. "
             "Use sl.join.inner(other, by) instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.join.inner(other, by)
 
@@ -909,7 +906,7 @@ class ScenarioListLikelyRemove:
             "right_join() is deprecated as of 2026-01-08. "
             "Use sl.join.right(other, by) instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.join.right(other, by)
 
@@ -923,7 +920,7 @@ class ScenarioListLikelyRemove:
             "to_agent_list() is deprecated as of 2026-01-08. "
             "Use sl.convert.agent_list() instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.convert.agent_list()
 
@@ -946,7 +943,7 @@ class ScenarioListLikelyRemove:
             "to_agent_blueprint() is deprecated as of 2026-01-08. "
             "Use sl.convert.agent_blueprint() instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.convert.agent_blueprint(
             seed=seed,

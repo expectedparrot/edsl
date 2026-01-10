@@ -30,7 +30,7 @@ class ChangeInstruction:
         """Compare change instructions by name."""
         if not isinstance(other, ChangeInstruction):
             return False
-        return getattr(self, 'name', None) == getattr(other, 'name', None)
+        return getattr(self, "name", None) == getattr(other, "name", None)
 
     def to_dict(self, add_edsl_version=True):
         d = {
@@ -39,10 +39,11 @@ class ChangeInstruction:
             "edsl_class_name": "ChangeInstruction",
         }
         # Include name if it exists
-        if hasattr(self, 'name'):
+        if hasattr(self, "name"):
             d["name"] = self.name
         if add_edsl_version:
             from .. import __version__
+
             d["edsl_version"] = __version__
         return d
 

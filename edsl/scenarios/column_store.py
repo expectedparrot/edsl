@@ -3,7 +3,17 @@ from __future__ import annotations
 import copy
 import uuid
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Protocol, Sequence, TYPE_CHECKING
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Protocol,
+    Sequence,
+    TYPE_CHECKING,
+)
 
 
 def _gen_col_id() -> str:
@@ -18,16 +28,17 @@ def _gen_row_id() -> str:
 
 class Event(Protocol):
     version: int
+
     def execute(self, store: "ColumnStore") -> None: ...
 
 
 class ColumnStore:
     """
     A column-oriented data store with ID-based column AND row storage.
-    
+
     Both columns and rows are stored with stable UUIDs, with separate name/order mappings.
     This makes rename and reorder operations O(1) - just update mappings, not data.
-    
+
     Attributes:
         _cols: Dict mapping column_id → list of values (indexed by row position)
         _col_names: Dict mapping column_name → column_id
@@ -35,7 +46,7 @@ class ColumnStore:
         _nrows: Number of rows
         _meta: Arbitrary metadata
         _version: Event version number
-    
+
     Design:
         - Column data is stored by column UUID, values indexed by position
         - Row order is determined by _row_ids list
@@ -43,7 +54,7 @@ class ColumnStore:
         - Reordering rows = reordering _row_ids (O(n) but no data copying)
         - Renaming columns = updating _col_names mapping (O(1))
     """
-    
+
     def __init__(
         self,
         *,
@@ -62,19 +73,19 @@ class ColumnStore:
         self._nrows = nrows
         self._meta = dict(meta or {})
         self._version = version
-        
+
         # Track applied event IDs to prevent duplicate application
         # This is a defensive measure against bugs in version/snapshot logic
         self._applied_event_ids: set = set()
-        
+
         # Ensure _row_ids matches _nrows if not provided
         if not self._row_ids and self._nrows > 0:
             self._row_ids = [_gen_row_id() for _ in range(self._nrows)]
-        
+
     # ─────────────────────────────────────────────────────────────
     # ID ↔ Name helpers
     # ─────────────────────────────────────────────────────────────
-    
+
     def _name_to_id(self, name: str) -> str:
         """Get column ID from name. Raises KeyError if not found."""
         return self._col_names[name]
@@ -98,7 +109,7 @@ class ColumnStore:
         meta: Optional[Dict[str, Any]] = None,
     ) -> "ColumnStore":
         """Create a ColumnStore from a sequence of row dicts.
-        
+
         Note: Column order is preserved based on first appearance across all rows.
         """
         # Collect names preserving insertion order (first seen wins)
@@ -109,21 +120,23 @@ class ColumnStore:
                 if k not in seen:
                     seen.add(k)
                     names.append(k)
-        
+
         # Generate IDs for each column name (dict preserves insertion order in Python 3.7+)
         col_names = {name: _gen_col_id() for name in names}
-        
+
         # Generate IDs for each row
         row_ids = [_gen_row_id() for _ in rows]
-        
+
         # Build column data using IDs
         cols = {col_id: [] for col_id in col_names.values()}
         for r in rows:
             for name, col_id in col_names.items():
                 cols[col_id].append(r.get(name))
-        
-        return cls(cols=cols, col_names=col_names, row_ids=row_ids, nrows=len(rows), meta=meta)
-    
+
+        return cls(
+            cols=cols, col_names=col_names, row_ids=row_ids, nrows=len(rows), meta=meta
+        )
+
     @classmethod
     def from_events(
         cls,
@@ -131,12 +144,12 @@ class ColumnStore:
     ) -> "ColumnStore":
         """
         Create a ColumnStore by replaying a sequence of events.
-        
+
         Args:
             events: Events to replay
             log: Optional EventLog to attach
             branch: Optional branch name
-        
+
         Returns:
             ColumnStore with state resulting from replaying events
         """
@@ -148,18 +161,18 @@ class ColumnStore:
             meta={},
             version=0,
         )
-        
+
         for event in events:
             event.execute(store)
-        
+
         return store
 
     def to_rows(self, include_row_id: bool = False) -> List[Dict[str, Any]]:
         """Convert to list of row dicts (using column names, not IDs).
-        
+
         Args:
             include_row_id: If True, include '_row_id' in each row dict
-        
+
         Returns:
             List of row dictionaries in current order
         """
@@ -167,7 +180,7 @@ class ColumnStore:
         for i in range(self._nrows):
             row = {}
             if include_row_id and self._row_ids:
-                row['_row_id'] = self._row_ids[i]
+                row["_row_id"] = self._row_ids[i]
             for name, col_id in self._col_names.items():
                 row[name] = self._cols[col_id][i]
             rows.append(row)
@@ -218,23 +231,22 @@ class ColumnStore:
                 raise ValueError("Non-contiguous event stream")
             e.execute(self)
             self._version = e.version
-        
-        
+
     def snapshot(self) -> "ColumnStore":
         """
         Create a branch (fork) at current state.
-        
+
         Returns a new ColumnStore on a new branch, sharing the same EventLog.
         Both stores can evolve independently.
-        
+
         Returns:
             New ColumnStore instance on the forked branch
-        
+
         Example:
             store = ColumnStore.from_rows([{"a": 1}], log=EventLog())
             forked = store.snapshot()
             # store and forked now have independent histories
-        """    
+        """
         # Create new ColumnStore with same data but different branch
         return ColumnStore(
             cols=copy.deepcopy(self._cols),
@@ -243,20 +255,20 @@ class ColumnStore:
             nrows=self._nrows,
             meta=copy.deepcopy(self._meta),
         )
-    
+
     def get_row_id(self, index: int) -> str:
         """Get the row ID at the given index."""
         if index < 0:
             index = self._nrows + index
         return self._row_ids[index]
-    
+
     def get_row_index(self, row_id: str) -> int:
         """Get the index of a row by its ID. Returns -1 if not found."""
         try:
             return self._row_ids.index(row_id)
         except ValueError:
             return -1
-    
+
     def get_row_by_id(self, row_id: str) -> Optional[Dict[str, Any]]:
         """Get a row by its ID. Returns None if not found."""
         idx = self.get_row_index(row_id)
@@ -266,18 +278,18 @@ class ColumnStore:
         for name, col_id in self._col_names.items():
             row[name] = self._cols[col_id][idx]
         return row
-    
+
     @property
     def row_ids(self) -> List[str]:
         """Return list of row IDs in current order."""
         return list(self._row_ids)
-    
+
     def __repr__(self) -> str:
         names = list(self._col_names.keys())
         col_str = ", ".join(names[:5])
         if len(names) > 5:
             col_str += f", ... ({len(names) - 5} more)"
-        
+
         # Show preview of first few rows (using names)
         preview_rows = min(3, self._nrows)
         if preview_rows > 0 and names:
@@ -290,9 +302,9 @@ class ColumnStore:
                 rows_str += f"; ... ({self._nrows - preview_rows} more rows)"
         else:
             rows_str = "(empty)"
-        
+
         meta_str = f", meta={self._meta}" if self._meta else ""
-        
+
         return f"ColumnStore(cols=[{col_str}], nrows={self._nrows}, version={self._version}{meta_str})\n  Data: {rows_str}"
 
     def __len__(self) -> int:
@@ -311,14 +323,14 @@ class ColumnStore:
     def shape(self) -> tuple:
         """Return (nrows, ncols) like pandas."""
         return (self._nrows, len(self._col_names))
-        
+
     def to_arrow(self) -> "pyarrow.Table":
         """
         Export to a PyArrow Table.
-        
+
         Returns:
             pyarrow.Table with columns named by column names (not IDs).
-        
+
         Example:
             >>> store = ColumnStore.from_rows([{'a': 1, 'b': 'x'}, {'a': 2, 'b': 'y'}])  # doctest: +SKIP
             >>> table = store.to_arrow()  # doctest: +SKIP
@@ -328,37 +340,39 @@ class ColumnStore:
             1  2  y
         """
         import pyarrow as pa
-        
+
         # Build dict with column names as keys
         data = {name: self._cols[col_id] for name, col_id in self._col_names.items()}
         return pa.Table.from_pydict(data)
 
     @classmethod
-    def from_arrow(cls, table: "pyarrow.Table", meta: Optional[Dict[str, Any]] = None) -> "ColumnStore":
+    def from_arrow(
+        cls, table: "pyarrow.Table", meta: Optional[Dict[str, Any]] = None
+    ) -> "ColumnStore":
         """
         Create a ColumnStore from a PyArrow Table.
-        
+
         Args:
             table: PyArrow Table to import
             meta: Optional metadata dict
-            
+
         Returns:
             ColumnStore with data from the table
         """
         import pyarrow as pa
-        
+
         col_names = {}
         cols = {}
-        
+
         for name in table.column_names:
             col_id = _gen_col_id()
             col_names[name] = col_id
             # Convert to Python list
             cols[col_id] = table.column(name).to_pylist()
-        
+
         # Generate row IDs
         row_ids = [_gen_row_id() for _ in range(table.num_rows)]
-        
+
         return cls(
             cols=cols,
             col_names=col_names,
@@ -370,37 +384,39 @@ class ColumnStore:
     def to_parquet(self, path: Optional[str] = None) -> str:
         """
         Write to a Parquet file.
-        
+
         Args:
             path: File path to write to. If None, writes to 'store.parquet'
                   in the current directory.
-        
+
         Returns:
             The path the file was written to.
         """
         import pyarrow.parquet as pq
-        
+
         if path is None:
             path = "store.parquet"
-        
+
         table = self.to_arrow()
         pq.write_table(table, path)
         return path
 
     @classmethod
-    def from_parquet(cls, path: str, meta: Optional[Dict[str, Any]] = None) -> "ColumnStore":
+    def from_parquet(
+        cls, path: str, meta: Optional[Dict[str, Any]] = None
+    ) -> "ColumnStore":
         """
         Read from a Parquet file.
-        
+
         Args:
             path: File path to read from
             meta: Optional metadata dict
-            
+
         Returns:
             ColumnStore with data from the file
         """
         import pyarrow.parquet as pq
-        
+
         table = pq.read_table(path)
         return cls.from_arrow(table, meta=meta)
 

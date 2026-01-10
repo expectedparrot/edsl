@@ -29,7 +29,9 @@ class InterviewExceptionEntry:
             self._traceback_string = traceback_string
         elif hasattr(exception, "__traceback__") and exception.__traceback__:
             self._traceback_string = "".join(
-                traceback.format_exception(type(exception), exception, exception.__traceback__)
+                traceback.format_exception(
+                    type(exception), exception, exception.__traceback__
+                )
             )
         else:
             self._traceback_string = None

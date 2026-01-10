@@ -19,9 +19,11 @@ from .models import Commit, Ref
 # Shared storage base class
 # ----------------------------
 
+
 @dataclass
 class BaseObjectStore:
     """Base class with shared storage logic for repos and remotes."""
+
     _states: Dict[str, bytes] = field(default_factory=dict)
     _commits: Dict[str, Commit] = field(default_factory=dict)
     _commit_to_state: Dict[str, str] = field(default_factory=dict)
@@ -100,7 +102,9 @@ class BaseObjectStore:
     def get_ref(self, name: str) -> Ref:
         return self._refs[name]
 
-    def upsert_ref(self, name: str, commit_id: str, kind: Literal["branch", "tag"] = "branch") -> None:
+    def upsert_ref(
+        self, name: str, commit_id: str, kind: Literal["branch", "tag"] = "branch"
+    ) -> None:
         self._refs[name] = Ref(name=name, commit_id=commit_id, kind=kind)
 
     def delete_ref(self, name: str) -> None:
@@ -156,9 +160,11 @@ class BaseObjectStore:
 # In-memory repo implementation
 # ----------------------------
 
+
 @dataclass
 class InMemoryRepo(BaseObjectStore):
     """Local repository with full Repo protocol support."""
+
     repo_id: str = field(default_factory=lambda: uuid.uuid4().hex)
 
     def put_state(self, state: List[Dict[str, Any]]) -> str:
@@ -172,7 +178,9 @@ class InMemoryRepo(BaseObjectStore):
         rows = json.loads(b.decode("utf-8"))
         return [dict(r) for r in rows]
 
-    def list_commits_first_parent(self, start_commit: str, limit: int = 50) -> List[Commit]:
+    def list_commits_first_parent(
+        self, start_commit: str, limit: int = 50
+    ) -> List[Commit]:
         out: List[Commit] = []
         cur = start_commit
         for _ in range(limit):
@@ -193,7 +201,9 @@ class InMemoryRepo(BaseObjectStore):
 # In-memory remote implementation
 # ----------------------------
 
+
 @dataclass
 class InMemoryRemote(BaseObjectStore):
     """In-memory implementation of a Remote."""
+
     name: str = "origin"

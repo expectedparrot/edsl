@@ -125,7 +125,7 @@ class RuleManager:
             priority=new_priority,
             before_rule=before_rule,
         )
-        
+
         return new_rule.to_dict(add_edsl_version=False)
 
     def add_stop_rule(

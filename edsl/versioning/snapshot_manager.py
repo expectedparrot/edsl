@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 @dataclass
 class SnapshotStats:
     """Statistics about snapshots in a repository."""
+
     total_commits: int
     total_snapshots: int
     snapshot_coverage: float  # Percentage of commits with snapshots
@@ -31,6 +32,7 @@ class SnapshotStats:
 @dataclass
 class SnapshotConfig:
     """Configuration for auto-snapshotting."""
+
     auto_snapshot_threshold: int = 50  # Create snapshot after N events
     min_snapshot_interval: int = 10  # Minimum commits between snapshots
     keep_snapshots: int = 10  # Number of snapshots to keep during GC
@@ -66,7 +68,9 @@ class SnapshotManager:
         events_since = len(events)
         return events_since >= self.config.auto_snapshot_threshold
 
-    def get_stats(self, storage: "BaseObjectStore", head_commit_id: str) -> SnapshotStats:
+    def get_stats(
+        self, storage: "BaseObjectStore", head_commit_id: str
+    ) -> SnapshotStats:
         """
         Calculate snapshot statistics for a repository.
 
@@ -110,9 +114,13 @@ class SnapshotManager:
         return SnapshotStats(
             total_commits=total_commits,
             total_snapshots=total_snapshots,
-            snapshot_coverage=total_snapshots / total_commits if total_commits > 0 else 0,
+            snapshot_coverage=(
+                total_snapshots / total_commits if total_commits > 0 else 0
+            ),
             max_events_to_replay=max(events_to_replay) if events_to_replay else 0,
-            avg_events_to_replay=sum(events_to_replay) / len(events_to_replay) if events_to_replay else 0,
+            avg_events_to_replay=(
+                sum(events_to_replay) / len(events_to_replay) if events_to_replay else 0
+            ),
             snapshot_commits=snapshots,
             events_since_last_snapshot=events_since_last,
         )
@@ -121,7 +129,7 @@ class SnapshotManager:
         self,
         storage: "BaseObjectStore",
         head_commit_id: str,
-        keep_count: Optional[int] = None
+        keep_count: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Garbage collect old snapshots, keeping only the most recent N.
@@ -187,10 +195,7 @@ class SnapshotManager:
         }
 
     def find_optimal_snapshot_points(
-        self,
-        storage: "BaseObjectStore",
-        head_commit_id: str,
-        target_interval: int = 50
+        self, storage: "BaseObjectStore", head_commit_id: str, target_interval: int = 50
     ) -> List[str]:
         """
         Find optimal commits for creating new snapshots.
@@ -225,10 +230,9 @@ class SnapshotManager:
 
 # Convenience functions for use without instantiating manager
 
+
 def should_auto_snapshot(
-    storage: "BaseObjectStore",
-    commit_id: str,
-    threshold: int = 50
+    storage: "BaseObjectStore", commit_id: str, threshold: int = 50
 ) -> bool:
     """Check if auto-snapshot should be created."""
     manager = SnapshotManager(SnapshotConfig(auto_snapshot_threshold=threshold))
@@ -236,8 +240,7 @@ def should_auto_snapshot(
 
 
 def get_snapshot_stats(
-    storage: "BaseObjectStore",
-    head_commit_id: str
+    storage: "BaseObjectStore", head_commit_id: str
 ) -> SnapshotStats:
     """Get snapshot statistics."""
     manager = SnapshotManager()
@@ -245,9 +248,7 @@ def get_snapshot_stats(
 
 
 def gc_snapshots(
-    storage: "BaseObjectStore",
-    head_commit_id: str,
-    keep_count: int = 10
+    storage: "BaseObjectStore", head_commit_id: str, keep_count: int = 10
 ) -> Dict[str, Any]:
     """Garbage collect old snapshots."""
     manager = SnapshotManager()

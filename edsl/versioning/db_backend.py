@@ -10,7 +10,16 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Literal
 import json
 
-from sqlalchemy import create_engine, Column, String, Text, DateTime, ForeignKey, LargeBinary, Index
+from sqlalchemy import (
+    create_engine,
+    Column,
+    String,
+    Text,
+    DateTime,
+    ForeignKey,
+    LargeBinary,
+    Index,
+)
 from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
 from sqlalchemy.pool import StaticPool
 
@@ -24,9 +33,11 @@ Base = declarative_base()
 # SQLAlchemy Models
 # ----------------------------
 
+
 class RepoModel(Base):
     """Repository table."""
-    __tablename__ = 'repos'
+
+    __tablename__ = "repos"
 
     repo_id = Column(String(64), primary_key=True)
     alias = Column(String(256), unique=True, nullable=True, index=True)
@@ -34,17 +45,24 @@ class RepoModel(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
-    commits = relationship("CommitModel", back_populates="repo", cascade="all, delete-orphan")
-    states = relationship("StateModel", back_populates="repo", cascade="all, delete-orphan")
+    commits = relationship(
+        "CommitModel", back_populates="repo", cascade="all, delete-orphan"
+    )
+    states = relationship(
+        "StateModel", back_populates="repo", cascade="all, delete-orphan"
+    )
     refs = relationship("RefModel", back_populates="repo", cascade="all, delete-orphan")
 
 
 class CommitModel(Base):
     """Commit table."""
-    __tablename__ = 'commits'
+
+    __tablename__ = "commits"
 
     id = Column(String(128), primary_key=True)  # repo_id + commit_id
-    repo_id = Column(String(64), ForeignKey('repos.repo_id'), nullable=False, index=True)
+    repo_id = Column(
+        String(64), ForeignKey("repos.repo_id"), nullable=False, index=True
+    )
     commit_id = Column(String(64), nullable=False, index=True)
     parents = Column(Text, nullable=False)  # JSON array
     timestamp = Column(DateTime, nullable=False)
@@ -56,33 +74,35 @@ class CommitModel(Base):
 
     repo = relationship("RepoModel", back_populates="commits")
 
-    __table_args__ = (
-        Index('ix_commits_repo_commit', 'repo_id', 'commit_id'),
-    )
+    __table_args__ = (Index("ix_commits_repo_commit", "repo_id", "commit_id"),)
 
 
 class StateModel(Base):
     """State (blob) table."""
-    __tablename__ = 'states'
+
+    __tablename__ = "states"
 
     id = Column(String(128), primary_key=True)  # repo_id + state_id
-    repo_id = Column(String(64), ForeignKey('repos.repo_id'), nullable=False, index=True)
+    repo_id = Column(
+        String(64), ForeignKey("repos.repo_id"), nullable=False, index=True
+    )
     state_id = Column(String(64), nullable=False, index=True)
     data = Column(LargeBinary, nullable=False)
 
     repo = relationship("RepoModel", back_populates="states")
 
-    __table_args__ = (
-        Index('ix_states_repo_state', 'repo_id', 'state_id'),
-    )
+    __table_args__ = (Index("ix_states_repo_state", "repo_id", "state_id"),)
 
 
 class RefModel(Base):
     """Ref (branch/tag) table."""
-    __tablename__ = 'refs'
+
+    __tablename__ = "refs"
 
     id = Column(String(320), primary_key=True)  # repo_id + name
-    repo_id = Column(String(64), ForeignKey('repos.repo_id'), nullable=False, index=True)
+    repo_id = Column(
+        String(64), ForeignKey("repos.repo_id"), nullable=False, index=True
+    )
     name = Column(String(256), nullable=False)
     commit_id = Column(String(64), nullable=False)
     kind = Column(String(16), default="branch")
@@ -90,14 +110,13 @@ class RefModel(Base):
 
     repo = relationship("RepoModel", back_populates="refs")
 
-    __table_args__ = (
-        Index('ix_refs_repo_name', 'repo_id', 'name'),
-    )
+    __table_args__ = (Index("ix_refs_repo_name", "repo_id", "name"),)
 
 
 # ----------------------------
 # Database-backed Repository Storage
 # ----------------------------
+
 
 class DBRepoStorage:
     """Database-backed storage for a single repository."""
@@ -112,22 +131,29 @@ class DBRepoStorage:
     # --- State operations ---
 
     def has_state(self, state_id: str) -> bool:
-        return self.session.query(StateModel).filter_by(
-            repo_id=self.repo_id, state_id=state_id
-        ).first() is not None
+        return (
+            self.session.query(StateModel)
+            .filter_by(repo_id=self.repo_id, state_id=state_id)
+            .first()
+            is not None
+        )
 
     def get_state_bytes(self, state_id: str) -> bytes:
-        state = self.session.query(StateModel).filter_by(
-            repo_id=self.repo_id, state_id=state_id
-        ).first()
+        state = (
+            self.session.query(StateModel)
+            .filter_by(repo_id=self.repo_id, state_id=state_id)
+            .first()
+        )
         if not state:
             raise KeyError(f"State {state_id} not found")
         return state.data
 
     def put_state_bytes(self, state_id: str, data: bytes) -> None:
-        existing = self.session.query(StateModel).filter_by(
-            repo_id=self.repo_id, state_id=state_id
-        ).first()
+        existing = (
+            self.session.query(StateModel)
+            .filter_by(repo_id=self.repo_id, state_id=state_id)
+            .first()
+        )
         if not existing:
             state = StateModel(
                 id=self._make_id(state_id),
@@ -141,14 +167,19 @@ class DBRepoStorage:
     # --- Commit operations ---
 
     def has_commit(self, commit_id: str) -> bool:
-        return self.session.query(CommitModel).filter_by(
-            repo_id=self.repo_id, commit_id=commit_id
-        ).first() is not None
+        return (
+            self.session.query(CommitModel)
+            .filter_by(repo_id=self.repo_id, commit_id=commit_id)
+            .first()
+            is not None
+        )
 
     def get_commit(self, commit_id: str) -> Commit:
-        cm = self.session.query(CommitModel).filter_by(
-            repo_id=self.repo_id, commit_id=commit_id
-        ).first()
+        cm = (
+            self.session.query(CommitModel)
+            .filter_by(repo_id=self.repo_id, commit_id=commit_id)
+            .first()
+        )
         if not cm:
             raise KeyError(f"Commit {commit_id} not found")
         return Commit(
@@ -162,9 +193,11 @@ class DBRepoStorage:
         )
 
     def put_commit(self, commit: Commit, state_id: str) -> None:
-        existing = self.session.query(CommitModel).filter_by(
-            repo_id=self.repo_id, commit_id=commit.commit_id
-        ).first()
+        existing = (
+            self.session.query(CommitModel)
+            .filter_by(repo_id=self.repo_id, commit_id=commit.commit_id)
+            .first()
+        )
         if not existing:
             cm = CommitModel(
                 id=self._make_id(commit.commit_id),
@@ -182,9 +215,11 @@ class DBRepoStorage:
             self.session.commit()
 
     def get_commit_state_id(self, commit_id: str) -> str:
-        cm = self.session.query(CommitModel).filter_by(
-            repo_id=self.repo_id, commit_id=commit_id
-        ).first()
+        cm = (
+            self.session.query(CommitModel)
+            .filter_by(repo_id=self.repo_id, commit_id=commit_id)
+            .first()
+        )
         if not cm:
             raise KeyError(f"Commit {commit_id} not found")
         return cm.state_id
@@ -199,9 +234,11 @@ class DBRepoStorage:
         Returns:
             (snapshot_commit_id, state_id, events_to_replay)
         """
-        cm = self.session.query(CommitModel).filter_by(
-            repo_id=self.repo_id, commit_id=commit_id
-        ).first()
+        cm = (
+            self.session.query(CommitModel)
+            .filter_by(repo_id=self.repo_id, commit_id=commit_id)
+            .first()
+        )
         if not cm:
             return (None, None, [])
         return (commit_id, cm.state_id, [])
@@ -209,14 +246,19 @@ class DBRepoStorage:
     # --- Ref operations ---
 
     def has_ref(self, name: str) -> bool:
-        return self.session.query(RefModel).filter_by(
-            repo_id=self.repo_id, name=name
-        ).first() is not None
+        return (
+            self.session.query(RefModel)
+            .filter_by(repo_id=self.repo_id, name=name)
+            .first()
+            is not None
+        )
 
     def get_ref(self, name: str) -> Ref:
-        rm = self.session.query(RefModel).filter_by(
-            repo_id=self.repo_id, name=name
-        ).first()
+        rm = (
+            self.session.query(RefModel)
+            .filter_by(repo_id=self.repo_id, name=name)
+            .first()
+        )
         if not rm:
             raise KeyError(f"Ref {name} not found")
         return Ref(
@@ -227,9 +269,11 @@ class DBRepoStorage:
         )
 
     def upsert_ref(self, name: str, commit_id: str, kind: str = "branch") -> None:
-        rm = self.session.query(RefModel).filter_by(
-            repo_id=self.repo_id, name=name
-        ).first()
+        rm = (
+            self.session.query(RefModel)
+            .filter_by(repo_id=self.repo_id, name=name)
+            .first()
+        )
         if rm:
             rm.commit_id = commit_id
             rm.kind = kind
@@ -246,9 +290,11 @@ class DBRepoStorage:
         self.session.commit()
 
     def delete_ref(self, name: str) -> None:
-        rm = self.session.query(RefModel).filter_by(
-            repo_id=self.repo_id, name=name
-        ).first()
+        rm = (
+            self.session.query(RefModel)
+            .filter_by(repo_id=self.repo_id, name=name)
+            .first()
+        )
         if rm:
             self.session.delete(rm)
             self.session.commit()
@@ -256,7 +302,9 @@ class DBRepoStorage:
     def list_refs(self) -> List[Ref]:
         refs = self.session.query(RefModel).filter_by(repo_id=self.repo_id).all()
         return [
-            Ref(name=r.name, commit_id=r.commit_id, kind=r.kind, updated_at=r.updated_at)
+            Ref(
+                name=r.name, commit_id=r.commit_id, kind=r.kind, updated_at=r.updated_at
+            )
             for r in refs
         ]
 
@@ -275,6 +323,7 @@ class DBRepoStorage:
 # ----------------------------
 # Database Manager
 # ----------------------------
+
 
 class DatabaseManager:
     """Manages database connections and repository access."""
@@ -344,6 +393,7 @@ class DatabaseManager:
                 return existing, False
 
             import uuid
+
             new_repo_id = repo_id or uuid.uuid4().hex
             repo = RepoModel(
                 repo_id=new_repo_id,

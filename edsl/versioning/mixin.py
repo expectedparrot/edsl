@@ -20,22 +20,23 @@ from .exceptions import InvalidAliasError, MissingAliasError
 # Alias validation
 # ----------------------------
 
+
 def validate_alias(alias: str) -> str:
     """Validate and normalize alias for URL safety.
-    
+
     Rules:
     - Lowercase only
     - No spaces (use dashes)
     - No underscores (use dashes)
     - Alphanumeric and dashes only
     - No leading/trailing dashes
-    
+
     Args:
         alias: The alias to validate (can be "name" or "owner/name")
-        
+
     Returns:
         Normalized lowercase alias
-        
+
     Raises:
         InvalidAliasError: If the alias format is invalid
     """
@@ -50,7 +51,7 @@ def validate_alias(alias: str) -> str:
 
 def _validate_alias_part(part: str) -> str:
     """Validate a single part (owner or name) of an alias.
-    
+
     Strict validation - rejects invalid format rather than normalizing.
     """
     if not part:
@@ -63,7 +64,7 @@ def _validate_alias_part(part: str) -> str:
         raise InvalidAliasError("Alias must be lowercase")
     if "--" in part:
         raise InvalidAliasError("Alias cannot contain consecutive dashes")
-    if not re.match(r'^[a-z0-9]([a-z0-9-]*[a-z0-9])?$', part):
+    if not re.match(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", part):
         raise InvalidAliasError(
             "Alias must be lowercase alphanumeric with dashes, no leading/trailing dashes"
         )
@@ -73,6 +74,7 @@ def _validate_alias_part(part: str) -> str:
 # ----------------------------
 # Event decorator
 # ----------------------------
+
 
 def event(method: Callable) -> Callable:
     """
@@ -90,6 +92,7 @@ def event(method: Callable) -> Callable:
 # ----------------------------
 # GitMixin
 # ----------------------------
+
 
 class GitMixin:
     """
@@ -114,7 +117,7 @@ class GitMixin:
 
     def _ensure_git_init(self) -> None:
         if getattr(self, "_needs_git_init", False):
-            if not hasattr(self.__class__, '_versioned'):
+            if not hasattr(self.__class__, "_versioned"):
                 raise TypeError(
                     f"GitMixin subclass '{self.__class__.__name__}' must define _versioned."
                 )
@@ -136,27 +139,33 @@ class GitMixin:
             current_store = getattr(self, self.__class__._versioned, None)
             if current_store is None:
                 raise ValueError(f"Store not found for class {self.__class__.__name__}")
-            event_handler = getattr(self.__class__, '_event_handler', None)
+            event_handler = getattr(self.__class__, "_event_handler", None)
             if event_handler is None:
-                raise ValueError(f"Event handler not found for class {self.__class__.__name__}")
+                raise ValueError(
+                    f"Event handler not found for class {self.__class__.__name__}"
+                )
 
             # Copy the store before applying the event to preserve immutability
             # apply_event mutates in-place, so we need a fresh copy
-            store_class = getattr(self.__class__, '_store_class', dict)
+            store_class = getattr(self.__class__, "_store_class", dict)
             if store_class is dict:
                 store_copy = dict(current_store)
-            elif hasattr(current_store, 'copy'):
+            elif hasattr(current_store, "copy"):
                 # Fast path: use Store.copy() which avoids deep copy
                 store_copy = current_store.copy()
             else:
                 store_copy = store_class.from_dict(current_store.to_dict())
-            
+
             new_store = event_handler(event_obj, store_copy)
-            
-            new_git = self._git.apply_event(event_obj.name, getattr(event_obj, 'payload', {}))
-            
+
+            new_git = self._git.apply_event(
+                event_obj.name, getattr(event_obj, "payload", {})
+            )
+
             # Fast path: if we have _from_store, use it to avoid dict round-trip
-            if hasattr(self.__class__, '_from_store') and not isinstance(new_store, dict):
+            if hasattr(self.__class__, "_from_store") and not isinstance(
+                new_store, dict
+            ):
                 new_instance = self.__class__._from_store(new_store)
             else:
                 # Fallback: serialize to dict for _from_state
@@ -165,10 +174,11 @@ class GitMixin:
                 else:
                     new_state = new_store.to_dict()
                 new_instance = self._from_state(new_state)
-            
+
             new_instance._git = new_git
             new_instance._needs_git_init = False
             return new_instance
+
         return wrapper
 
     def _to_state(self) -> Dict[str, Any]:
@@ -180,7 +190,7 @@ class GitMixin:
     @classmethod
     def _from_state(cls, state: Dict[str, Any]) -> "GitMixin":
         instance = object.__new__(cls)
-        store_class = getattr(cls, '_store_class', dict)
+        store_class = getattr(cls, "_store_class", dict)
         if store_class is dict:
             store = dict(state)
         else:
@@ -190,7 +200,9 @@ class GitMixin:
         instance._needs_git_init = False
         return instance
 
-    def _evolve(self, new_git: ExpectedParrotGit, *, from_git: bool = False) -> "GitMixin":
+    def _evolve(
+        self, new_git: ExpectedParrotGit, *, from_git: bool = False
+    ) -> "GitMixin":
         """Legacy method - creates new instance. Use _mutate for in-place updates."""
         if from_git:
             rows = new_git.view.get_base_state()
@@ -202,7 +214,9 @@ class GitMixin:
         new_instance._git = new_git
         return new_instance
 
-    def _mutate(self, new_git: ExpectedParrotGit, *, from_git: bool = False) -> "GitMixin":
+    def _mutate(
+        self, new_git: ExpectedParrotGit, *, from_git: bool = False
+    ) -> "GitMixin":
         """Update this instance in place and return self for chaining."""
         if from_git:
             # Update internal data from git state
@@ -214,7 +228,7 @@ class GitMixin:
 
     def _update_from_state(self, state: Dict[str, Any]) -> None:
         """Update internal data from a state dict."""
-        store_class = getattr(self.__class__, '_store_class', dict)
+        store_class = getattr(self.__class__, "_store_class", dict)
         if store_class is dict:
             store = dict(state)
         else:
@@ -247,30 +261,32 @@ class GitMixin:
 
     def git_set_info(self, alias: str = None, description: str = None) -> "GitMixin":
         """Store alias and description in meta['_info'] for use by git_push.
-        
+
         This creates a staged change that should be committed before pushing.
         """
         self._ensure_git_init()
         state = self._to_state()
-        
+
         # Get or create _info dict inside meta
         if "meta" not in state:
             state["meta"] = {}
         if "_info" not in state["meta"]:
             state["meta"]["_info"] = {}
-        
+
         if alias is not None:
             state["meta"]["_info"]["alias"] = alias
         if description is not None:
             state["meta"]["_info"]["description"] = description
-        
+
         # Update the store with new state
         self._update_from_state(state)
-        
+
         # Stage the change
-        new_git = self._git.apply_event("set_info", {"alias": alias, "description": description})
+        new_git = self._git.apply_event(
+            "set_info", {"alias": alias, "description": description}
+        )
         self._git = new_git
-        
+
         return self
 
     def git_get_info(self) -> Dict[str, Any]:
@@ -282,11 +298,15 @@ class GitMixin:
 
     # --- Git operations (git_ prefix) ---
 
-    def git_commit(self, message: str, *, author: str = "unknown", force: bool = False) -> "GitMixin":
+    def git_commit(
+        self, message: str, *, author: str = "unknown", force: bool = False
+    ) -> "GitMixin":
         """Commit pending events. Mutates in place and returns self for chaining."""
         self._ensure_git_init()
         current_state = [self._to_state()]
-        new_git = self._git.commit(message, author=author, force=force, state=current_state)
+        new_git = self._git.commit(
+            message, author=author, force=force, state=current_state
+        )
         return self._mutate(new_git)
 
     def git_discard(self) -> "GitMixin":
@@ -307,27 +327,29 @@ class GitMixin:
         new_git = self._git.delete_branch(name)
         return self._mutate(new_git)
 
-    def git_checkout(self, rev: Optional[str] = None, *, force: bool = False) -> "GitMixin":
+    def git_checkout(
+        self, rev: Optional[str] = None, *, force: bool = False
+    ) -> "GitMixin":
         """Checkout a branch or commit. Mutates in place and returns self.
-        
+
         If rev is not provided, shows available branches and recent commits.
         """
         self._ensure_git_init()
-        
+
         if rev is None:
             # Show available options instead of failing
             repo = self._git.view.repo
             refs = repo.list_refs()
             current_ref = self._git.view.head_ref
             current_commit = self._git.view.commit_hash
-            
+
             lines = ["No revision specified. Available options:\n"]
-            
+
             # Show current HEAD state
             if current_ref is None:
                 lines.append(f"HEAD is detached at {current_commit[:8]}")
                 lines.append("")
-            
+
             # Show branches
             branches = [r for r in refs if r.kind == "branch"]
             if branches:
@@ -336,7 +358,7 @@ class GitMixin:
                     marker = "* " if ref.name == current_ref else "  "
                     lines.append(f"  {marker}{ref.name}")
                 lines.append("")
-            
+
             # Show tags
             tags = [r for r in refs if r.kind == "tag"]
             if tags:
@@ -344,7 +366,7 @@ class GitMixin:
                 for ref in tags:
                     lines.append(f"    {ref.name}")
                 lines.append("")
-            
+
             # Show recent commits
             commits = self._git.log(limit=5)
             if commits:
@@ -353,12 +375,12 @@ class GitMixin:
                     short_hash = c.commit_id[:8]
                     msg = c.message[:40] + ("..." if len(c.message) > 40 else "")
                     lines.append(f"    {short_hash}  {msg}")
-            
+
             raise ValueError("\n".join(lines))
-        
+
         new_git = self._git.checkout(rev, force=force)
         result = self._mutate(new_git, from_git=True)
-        
+
         # Warn if entering detached HEAD state
         if new_git.view.head_ref is None:
             warnings.warn(
@@ -366,14 +388,16 @@ class GitMixin:
                 "You can look around and make changes, but commits made here won't belong "
                 "to any branch. To keep changes, create a branch with git_branch('name').",
                 UserWarning,
-                stacklevel=2
+                stacklevel=2,
             )
-        
+
         return result
 
-    def git_add_remote(self, name: str = "origin", url: Union[Remote, str] = None) -> "GitMixin":
+    def git_add_remote(
+        self, name: str = "origin", url: Union[Remote, str] = None
+    ) -> "GitMixin":
         """Add a remote repository. Optional - git_push creates 'origin' automatically.
-        
+
         Args:
             name: Remote name (default: "origin")
             url: URL string or Remote object. Defaults to EDSL_GIT_SERVER from config.
@@ -381,6 +405,7 @@ class GitMixin:
         self._ensure_git_init()
         if url is None:
             from edsl.config import CONFIG
+
             url = CONFIG.get("EDSL_GIT_SERVER")
         new_git = self._git.add_remote(name, url)
         return self._mutate(new_git)
@@ -391,41 +416,49 @@ class GitMixin:
         new_git = self._git.remove_remote(name)
         return self._mutate(new_git)
 
-    def git_push(self, remote_name: str = "origin", ref_name: Optional[str] = None,
-                 *, force: bool = False, alias: str = None, description: str = None,
-                 username: str = None) -> None:
+    def git_push(
+        self,
+        remote_name: str = "origin",
+        ref_name: Optional[str] = None,
+        *,
+        force: bool = False,
+        alias: str = None,
+        description: str = None,
+        username: str = None,
+    ) -> None:
         """Push to remote. Handles remote creation and _info automatically.
-        
+
         On first push:
         - If no remote exists, creates "origin" using EDSL_GIT_SERVER from config
         - If _info empty, populates from kwargs and commits
         - Creates repo on server, then pushes
-        
+
         _info is source of truth once set (kwargs ignored after first push).
         To change _info, use git_set_info() explicitly.
-        
+
         Prints git-style output showing the push result and view URL.
-        
+
         Args:
             remote_name: Name of remote (default: "origin")
             ref_name: Branch to push (default: current branch)
             force: Force push even if not fast-forward
             alias: Alias for the repo (required on first push if not in _info)
             description: Description for the repo (optional)
-            username: Username namespace (e.g., "john"). If not provided and alias 
+            username: Username namespace (e.g., "john"). If not provided and alias
                      doesn't contain "/", will try to get from Coop profile.
         """
         self._ensure_git_init()
-        
+
         # Create remote if doesn't exist
         remote = self._git._remotes.get(remote_name)
         server_url = None  # Track server URL for view URL
         if remote is None:
             from edsl.config import CONFIG
+
             server_url = CONFIG.get("EDSL_GIT_SERVER")
             self._git = self._git.add_remote(remote_name, server_url)
             remote = server_url
-        
+
         # Handle _info - it's the source of truth once set
         info = self.git_get_info()
         if info.get("alias"):
@@ -443,6 +476,7 @@ class GitMixin:
                     # Try to get from Coop profile
                     try:
                         from edsl.coop import Coop
+
                         profile = Coop().get_profile()
                         resolved_alias = f"{profile['username']}/{resolved_alias}"
                     except Exception:
@@ -456,28 +490,30 @@ class GitMixin:
             self.git_commit(f"Set info: {resolved_alias}")
         else:
             raise MissingAliasError()
-        
+
         # Create repo on server if remote is URL string
         if isinstance(remote, str):
             server_url = remote  # Track before conversion
             from edsl.versioning.http_remote import HTTPRemote
+
             real_remote = HTTPRemote.create_repo(
-                url=remote, 
-                alias=resolved_alias, 
-                description=resolved_description
+                url=remote, alias=resolved_alias, description=resolved_description
             )
-            self._git = self._git.remove_remote(remote_name).add_remote(remote_name, real_remote)
+            self._git = self._git.remove_remote(remote_name).add_remote(
+                remote_name, real_remote
+            )
         elif server_url is None:
             # Remote is HTTPRemote object - try to get URL from it
             from edsl.versioning.http_remote import HTTPRemote
+
             if isinstance(remote, HTTPRemote):
                 server_url = remote._base_url
-        
+
         self._last_push_result = self._git.push(remote_name, ref_name, force=force)
-        
+
         # Build view URL
         view_url = f"{server_url.rstrip('/')}/{resolved_alias}" if server_url else None
-        
+
         # Print git-style output
         result = self._last_push_result
         old = result.old_commit[:7] if result.old_commit else "0000000"
@@ -485,16 +521,20 @@ class GitMixin:
         print(f"To {remote_name}")
         print(f"   {old}..{new}  {result.ref_name} -> {result.ref_name}")
         if result.commits_pushed > 0:
-            print(f"   ({result.commits_pushed} commit{'s' if result.commits_pushed != 1 else ''} pushed)")
+            print(
+                f"   ({result.commits_pushed} commit{'s' if result.commits_pushed != 1 else ''} pushed)"
+            )
         if view_url:
             print(f"View at: {view_url}")
 
     @property
     def last_push_result(self) -> Optional[PushResult]:
         """Result of the last git_push() call."""
-        return getattr(self, '_last_push_result', None)
+        return getattr(self, "_last_push_result", None)
 
-    def git_pull(self, remote_name: str = "origin", ref_name: Optional[str] = None) -> "GitMixin":
+    def git_pull(
+        self, remote_name: str = "origin", ref_name: Optional[str] = None
+    ) -> "GitMixin":
         """Pull from remote. Mutates in place and returns self for chaining."""
         self._ensure_git_init()
         new_git = self._git.pull(remote_name, ref_name)
@@ -506,10 +546,11 @@ class GitMixin:
         return self._git.fetch(remote_name)
 
     @classmethod
-    def git_clone(cls, alias: str, url: str = None, ref_name: str = "main", 
-                  username: str = None) -> "GitMixin":
+    def git_clone(
+        cls, alias: str, url: str = None, ref_name: str = "main", username: str = None
+    ) -> "GitMixin":
         """Clone from a remote repository by alias.
-        
+
         Args:
             alias: Repository alias. Can be:
                 - Short: "my-survey" → resolves to "<username>/my-survey"
@@ -518,15 +559,16 @@ class GitMixin:
             ref_name: Branch to clone (default: "main")
             username: Username namespace for short aliases. If not provided and alias
                      doesn't contain "/", will try to get from Coop profile.
-            
+
         Returns:
             New instance cloned from the remote repository.
         """
         # Get URL from config if not provided
         if url is None:
             from edsl.config import CONFIG
+
             url = CONFIG.get("EDSL_GIT_SERVER")
-        
+
         # Resolve short alias to fully qualified
         resolved_alias = alias
         if "/" not in alias:
@@ -535,6 +577,7 @@ class GitMixin:
             else:
                 try:
                     from edsl.coop import Coop
+
                     profile = Coop().get_profile()
                     resolved_alias = f"{profile['username']}/{alias}"
                 except Exception:
@@ -542,11 +585,12 @@ class GitMixin:
                         "Short alias requires a username namespace. Either provide a fully-qualified "
                         "alias (e.g., 'john/my-survey') or pass username='john'."
                     )
-        
+
         # Create remote from URL and alias
         from edsl.versioning.http_remote import HTTPRemote
+
         remote = HTTPRemote.from_alias(url=url, alias=resolved_alias)
-        
+
         view = clone_from_remote(remote, ref_name)
         git = ExpectedParrotGit(view)
         git = git.add_remote("origin", remote)

@@ -4,32 +4,34 @@ import warnings
 from .utilities import ensure_ready
 
 
-
-class ResultsLikelyRemoveMixin: 
+class ResultsLikelyRemoveMixin:
 
     @property
     def created_columns(self) -> list[str]:
         """Get created_columns from store meta."""
-        if not hasattr(self, 'store') or self.store is None:
+        if not hasattr(self, "store") or self.store is None:
             return []
         return self.store.meta.get("created_columns", [])
-
 
     @property
     def _shelve_path(self) -> str:
         """Get shelve path, creating if needed."""
-        if not hasattr(self, '_shelve_path_cache'):
+        if not hasattr(self, "_shelve_path_cache"):
             import tempfile
             import os
-            object.__setattr__(self, '_shelve_path_cache', 
-                os.path.join(tempfile.gettempdir(), f"edsl_results_{os.getpid()}"))
+
+            object.__setattr__(
+                self,
+                "_shelve_path_cache",
+                os.path.join(tempfile.gettempdir(), f"edsl_results_{os.getpid()}"),
+            )
         return self._shelve_path_cache
-    
+
     @property
     def _shelf_keys(self) -> set:
         """Get shelf keys set, creating if needed."""
-        if not hasattr(self, '_shelf_keys_cache'):
-            object.__setattr__(self, '_shelf_keys_cache', set())
+        if not hasattr(self, "_shelf_keys_cache"):
+            object.__setattr__(self, "_shelf_keys_cache", set())
         return self._shelf_keys_cache
 
     def view(self) -> None:
@@ -80,7 +82,6 @@ class ResultsLikelyRemoveMixin:
 
         return Transcripts(self, show_comments=show_comments)
 
-
     @property
     def vibe(self) -> "ResultsVibeAccessor":
         """Access vibe-based results analysis methods.
@@ -100,10 +101,6 @@ class ResultsLikelyRemoveMixin:
         from .vibes.vibe_accessor import ResultsVibeAccessor
 
         return ResultsVibeAccessor(self)
-
-
-    
-
 
     def vibe_analyze(
         self,
@@ -176,7 +173,6 @@ class ResultsLikelyRemoveMixin:
             generate_summary=generate_summary,
         )
 
-
     def extend_sorted(self, other) -> "Results":
         """Extend the Results by appending items from another iterable, preserving order.
 
@@ -186,12 +182,12 @@ class ResultsLikelyRemoveMixin:
 
         Args:
             other: Iterable of Result objects to append.
-            
+
         Returns:
             Results: A new Results instance with the sorted, extended data.
         """
         from .results import Results
-        
+
         # Collect all items (existing and new)
         all_items = list(self.data)
         all_items.extend(other)
@@ -253,9 +249,9 @@ class ResultsLikelyRemoveMixin:
             Dataset([{'answer.is_long': [False, False, True, False]}])
         """
         from .results_transformer import ResultsTransformer
+
         transformer = ResultsTransformer(self)
         return transformer.mutate(new_var_string, functions_dict)
-
 
     @ensure_ready
     def rename(self, old_name: str, new_name: str) -> "Results":
@@ -277,6 +273,7 @@ class ResultsLikelyRemoveMixin:
             Dataset([{'answer.how_feeling_new': ['OK', 'Great', 'Terrible', 'OK']}])
         """
         from .results_transformer import ResultsTransformer
+
         transformer = ResultsTransformer(self)
         return transformer.rename(old_name, new_name)
 
@@ -291,6 +288,7 @@ class ResultsLikelyRemoveMixin:
             Results: A new Results object with shuffled data.
         """
         from .results_sampler import ResultsSampler
+
         sampler = ResultsSampler(self)
         return sampler.shuffle(seed)
 
@@ -314,11 +312,11 @@ class ResultsLikelyRemoveMixin:
             Results: A new Results object containing the sampled data.
         """
         from .results_sampler import ResultsSampler
+
         sampler = ResultsSampler(self)
         return sampler.sample(
             n=n, frac=frac, with_replacement=with_replacement, seed=seed
         )
-
 
     @classmethod
     def from_survey_monkey(
@@ -555,7 +553,6 @@ class ResultsLikelyRemoveMixin:
             agent.name = uuid.uuid4()
         return None
 
-
     def find_weights_for_target_distribution(
         self,
         question_name: str,
@@ -622,6 +619,7 @@ class ResultsLikelyRemoveMixin:
             >>> # )
         """
         from .results_weighting import ResultsWeighting
+
         weighter = ResultsWeighting(self)
         return weighter.find_optimal_weights(
             question_name=question_name,
@@ -699,6 +697,7 @@ class ResultsLikelyRemoveMixin:
             >>> # weights = r.find_weights_for_multiple_targets(targets_mixed, strategies=strategies)
         """
         from .results_weighting import ResultsWeighting
+
         weighter = ResultsWeighting(self)
         return weighter.find_weights_for_multiple_targets(
             targets=targets,
@@ -708,7 +707,7 @@ class ResultsLikelyRemoveMixin:
             **kwargs,
         )
 
-    def __add__(self, other: 'Results') -> 'Results':
+    def __add__(self, other: "Results") -> "Results":
         """Add two Results objects together.
 
         Combines two Results objects into a new one. Both objects must have the same
@@ -733,6 +732,7 @@ class ResultsLikelyRemoveMixin:
             True
         """
         from .exceptions import ResultsError
+
         if self.survey != other.survey:
             raise ResultsError(
                 "The surveys are not the same so the results cannot be added together."
@@ -758,7 +758,6 @@ class ResultsLikelyRemoveMixin:
             task_history=self.task_history,
         )
 
-
     def to_disk(self, filepath: str) -> None:
         """Serialize the Results object to a zip file, preserving the SQLite database.
 
@@ -776,6 +775,7 @@ class ResultsLikelyRemoveMixin:
             ResultsError: If there's an error during serialization
         """
         from .results_serializer import ResultsSerializer
+
         serializer = ResultsSerializer(self)
         return serializer.to_disk(filepath)
 
@@ -800,8 +800,8 @@ class ResultsLikelyRemoveMixin:
             ResultsError: If there's an error during deserialization
         """
         from .results_serializer import ResultsSerializer
-        return ResultsSerializer.from_disk(filepath)
 
+        return ResultsSerializer.from_disk(filepath)
 
     @ensure_ready
     def insert_sorted(self, item: "Result") -> "Results":
@@ -874,9 +874,11 @@ class ResultsLikelyRemoveMixin:
         Raises:
             ResultsError: If there's an error accessing or clearing the shelf
         """
-        raise NotImplementedError("insert_from_shelf is not implemented for Results objects")
+        raise NotImplementedError(
+            "insert_from_shelf is not implemented for Results objects"
+        )
         import shelve
-        
+
         if not self._shelf_keys:
             return self
 
@@ -898,8 +900,7 @@ class ResultsLikelyRemoveMixin:
         # Create new Results with all shelved results inserted in sorted order
         return self.extend_sorted(shelved_results)
 
-
-    def spot_issues(self, models: Optional['ModelList'] = None) -> "Results":
+    def spot_issues(self, models: Optional["ModelList"] = None) -> "Results":
         """Run a survey to spot issues and suggest improvements for prompts that had no model response.
 
         This method delegates to the ResultsAnalyzer class to handle the analysis and debugging.
@@ -987,7 +988,7 @@ class ResultsLikelyRemoveMixin:
         warnings.warn(
             "results.score(f) is deprecated. Use results.scoring.score(f) instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.scoring.score(f)
 
@@ -995,7 +996,7 @@ class ResultsLikelyRemoveMixin:
         """Score the results using an answer key.
 
         .. deprecated::
-            Use `results.scoring.score_with_answer_key(answer_key)` instead. 
+            Use `results.scoring.score_with_answer_key(answer_key)` instead.
             This method will be removed in a future version.
 
         This method delegates to the ResultsScorer class to handle the scoring operation.
@@ -1010,7 +1011,7 @@ class ResultsLikelyRemoveMixin:
             "results.score_with_answer_key(answer_key) is deprecated. "
             "Use results.scoring.score_with_answer_key(answer_key) instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.scoring.score_with_answer_key(answer_key)
 
@@ -1045,7 +1046,7 @@ class ResultsLikelyRemoveMixin:
         warnings.warn(
             "results.split(...) is deprecated. Use results.ml.split(...) instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.ml.split(
             train_questions=train_questions,
@@ -1079,29 +1080,10 @@ class ResultsLikelyRemoveMixin:
             "results.augmented_agents(...) is deprecated. "
             "Use results.ml.augmented_agents(...) instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.ml.augmented_agents(
             *fields,
             include_existing_traits=include_existing_traits,
             include_codebook=include_codebook,
         )
-
-
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-
-
-

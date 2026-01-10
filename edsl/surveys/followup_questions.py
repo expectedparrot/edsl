@@ -142,7 +142,7 @@ class FollowupQuestionAdder:
         #
         # Get the rule collection (we need to modify and save it back)
         rc = modified_survey.rule_collection
-        
+
         # Fix the default rule from the reference question to point to first followup
         first_followup_index = insert_index
         for rule in rc:
@@ -172,7 +172,7 @@ class FollowupQuestionAdder:
                     # Update it to point to the next question in sequence
                     rule.next_q = next_index
                     break
-        
+
         # Save the modified rule collection back to the survey
         modified_survey.rule_collection = rc
 
