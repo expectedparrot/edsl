@@ -619,20 +619,43 @@ def create_app(db_url: Optional[str] = None):
 
     @app.post("/api/repos")
     def create_repo_endpoint(payload: CreateRepoModel = Body(...)):
-        repo_id = uuid.uuid4().hex
         if use_db:
-            db.create_repo(repo_id, alias=payload.alias, description=payload.description)
-            repo = db.get_repo(repo_id)
-            storage = db.get_repo_storage(repo_id)
-            # Initialize with empty state and main branch
-            commit_id = initialize_repo_with_empty_state(storage, repo_id)
+            repo, created = db.get_or_create_repo(
+                alias=payload.alias,
+                description=payload.description,
+            )
+            storage = db.get_repo_storage(repo.repo_id)
+            # Get current HEAD if exists (don't initialize - first push establishes history)
+            try:
+                ref = storage.get_ref("main")
+                commit_id = ref.commit_id
+            except KeyError:
+                commit_id = None
             return {
-                "repo_id": repo_id,
+                "repo_id": repo.repo_id,
                 "alias": payload.alias,
                 "created_at": repo.created_at.isoformat(),
                 "initial_commit": commit_id,
+                "created": created,
             }
         else:
+            # Check if alias already exists
+            if payload.alias and payload.alias in aliases:
+                repo_id = aliases[payload.alias]
+                repo = repos[repo_id]
+                try:
+                    ref = repo.store.get_ref("main")
+                    commit_id = ref.commit_id
+                except KeyError:
+                    commit_id = None
+                return {
+                    "repo_id": repo_id,
+                    "alias": payload.alias,
+                    "created_at": repo.created_at.isoformat(),
+                    "initial_commit": commit_id,
+                    "created": False,
+                }
+            repo_id = uuid.uuid4().hex
             repo = RepoStorage(
                 repo_id=repo_id,
                 alias=payload.alias,
@@ -641,13 +664,13 @@ def create_app(db_url: Optional[str] = None):
             repos[repo_id] = repo
             if payload.alias:
                 aliases[payload.alias] = repo_id
-            # Initialize with empty state and main branch
-            commit_id = initialize_repo_with_empty_state(repo.store, repo_id)
+            # Don't initialize - first push establishes history
             return {
                 "repo_id": repo_id,
                 "alias": payload.alias,
                 "created_at": repo.created_at.isoformat(),
-                "initial_commit": commit_id,
+                "initial_commit": None,
+                "created": True,
             }
 
     @app.get("/api/repos/{repo_id}")
@@ -754,12 +777,12 @@ def create_app(db_url: Optional[str] = None):
 
     # --- Ref endpoints ---
 
-    @app.get("/api/repos/{repo_id}/refs/{name}/exists")
+    @app.get("/api/repos/{repo_id}/refs/{name:path}/exists")
     def ref_exists_endpoint(repo_id: str, name: str):
         storage = get_repo_storage(repo_id)
         return {"exists": storage.has_ref(name)}
 
-    @app.get("/api/repos/{repo_id}/refs/{name}")
+    @app.get("/api/repos/{repo_id}/refs/{name:path}")
     def get_ref_endpoint(repo_id: str, name: str):
         storage = get_repo_storage(repo_id)
         if not storage.has_ref(name):
@@ -785,7 +808,7 @@ def create_app(db_url: Optional[str] = None):
             for r in refs
         ]
 
-    @app.put("/api/repos/{repo_id}/refs/{name}")
+    @app.put("/api/repos/{repo_id}/refs/{name:path}")
     def upsert_ref_endpoint(repo_id: str, name: str, payload: RefModel = Body(...)):
         storage = get_repo_storage(repo_id)
         storage.upsert_ref(payload.name, payload.commit_id, payload.kind)
@@ -799,7 +822,7 @@ def create_app(db_url: Optional[str] = None):
 
         return {"status": "ok"}
 
-    @app.delete("/api/repos/{repo_id}/refs/{name}")
+    @app.delete("/api/repos/{repo_id}/refs/{name:path}")
     def delete_ref_endpoint(repo_id: str, name: str):
         storage = get_repo_storage(repo_id)
         if not storage.has_ref(name):
@@ -883,35 +906,17 @@ def create_app(db_url: Optional[str] = None):
             }
         )
 
-    # --- Helper function to load state from either format ---
-
     def load_store_from_state(state_bytes: bytes) -> Store:
-        """
-        Load a Store from state bytes, supporting both old and new formats.
-
-        Old format (ListStore): [{"rows": [...], "metadata": {...}}]
-        New format (Store): [{"entries": [...], "meta": {...}}]
-        """
+        """Load a Store from state bytes."""
         state_list = json.loads(state_bytes.decode('utf-8'))
         state_dict = state_list[0] if isinstance(state_list, list) else state_list
-
-        # Support both formats
-        if "entries" in state_dict:
-            # New format
-            return Store(
-                entries=list(state_dict.get("entries", [])),
-                meta=dict(state_dict.get("meta", {}))
-            )
-        else:
-            # Old ListStore format - convert
-            return Store(
-                entries=list(state_dict.get("rows", [])),
-                meta=dict(state_dict.get("metadata", {}))
-            )
+        return Store(
+            entries=list(state_dict.get("entries", [])),
+            meta=dict(state_dict.get("meta", {}))
+        )
 
     def serialize_store(store: Store) -> bytes:
-        """Serialize a Store to bytes in the standard format."""
-        # Use new format with entries/meta
+        """Serialize a Store to bytes."""
         state_dict = {"entries": store.entries, "meta": store.meta}
         state_list = [state_dict]
         return json.dumps(state_list, sort_keys=True).encode('utf-8')
@@ -1783,6 +1788,11 @@ def create_app(db_url: Optional[str] = None):
             repo = repos.get(repo_id)
             alias = repo.alias if repo else None
 
+        # Get all refs (branches and tags)
+        all_refs = storage.list_refs()
+        branches = [r for r in all_refs if r.kind == "branch"]
+        tags = [r for r in all_refs if r.kind == "tag"]
+
         # Get current data using materialization
         if not storage.has_ref(branch):
             # No data yet
@@ -1867,6 +1877,11 @@ def create_app(db_url: Optional[str] = None):
                         <pre class="bg-light p-2 rounded" style="font-size: 0.8em; max-height: 200px; overflow: auto;"><code>{payload_json}</code></pre>
                     </div>
                 </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-info fork-btn" data-commit="{c.commit_id}" title="Create branch from this commit">
+                        Fork
+                    </button>
+                </td>
             </tr>
             """
 
@@ -1896,9 +1911,27 @@ def create_app(db_url: Optional[str] = None):
                 </nav>
 
                 <h1>{alias or repo_id[:12]}</h1>
+
+                <!-- Branch and Fork Controls -->
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="form-label mb-0"><strong>Branch:</strong></label>
+                        <select class="form-select form-select-sm" id="branchSelect" style="width: auto;" onchange="switchBranch(this.value)">
+                            {"".join(f'<option value="{b.name}" {"selected" if b.name == branch else ""}>{b.name}</option>' for b in branches) if branches else '<option value="main">main</option>'}
+                        </select>
+                    </div>
+                    <button class="btn btn-sm btn-outline-success" onclick="showCreateBranchModal()">
+                        + New Branch
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" onclick="showForkModal()">
+                        Fork
+                    </button>
+                    {f'<span class="badge bg-info">{len(tags)} tags</span>' if tags else ''}
+                </div>
+
                 <p class="text-muted" id="repoInfo">
                     ID: <code>{repo_id}</code> |
-                    Branch: <strong>{branch}</strong> |
+                    Branches: <strong>{len(branches)}</strong> |
                     Rows: <strong id="rowCount">{len(rows)}</strong> |
                     Commit: <code id="currentCommit">{commit_id[:8] if commit_id else 'none'}</code>
                 </p>
@@ -1959,19 +1992,32 @@ def create_app(db_url: Optional[str] = None):
                             <th>Event</th>
                             <th>Author</th>
                             <th>Payload</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {commits_html if commits_html else '<tr><td colspan="5" class="text-muted">No commits yet</td></tr>'}
+                        {commits_html if commits_html else '<tr><td colspan="6" class="text-muted">No commits yet</td></tr>'}
                     </tbody>
                 </table>
 
                 <!-- Clone Instructions -->
                 <div class="mt-4 p-3 bg-light rounded">
-                    <h5>Clone this data</h5>
+                    <h5>Clone as Survey Object</h5>
+                    <pre><code>from edsl import Survey
+from edsl.versioning import HTTPRemote
+
+# Connect to the repository
+remote = HTTPRemote("http://localhost:8765", repo_id="{repo_id}")
+
+# Clone as a Survey object (with full git history)
+survey = Survey.git_clone(remote, ref_name="{branch}")
+print(survey.questions)  # List of questions
+print(survey.branch_name)  # Current branch</code></pre>
+
+                    <h5 class="mt-3">Or fetch raw data</h5>
                     <pre><code>from edsl.versioning import ObjectVersionsServer
 
-server = ObjectVersionsServer("http://localhost:8766")
+server = ObjectVersionsServer("http://localhost:8765")
 data = server.clone("{repo_id}")
 print(data["entries"])  # List of entries
 print(data["meta"])     # Metadata dict</code></pre>
@@ -2000,6 +2046,59 @@ print(data["meta"])     # Metadata dict</code></pre>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                             <button type="button" class="btn btn-primary" onclick="saveEdit()">Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Branch Modal -->
+            <div class="modal fade" id="createBranchModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Create New Branch</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Branch Name</label>
+                                <input type="text" class="form-control" id="newBranchName" placeholder="feature/my-changes">
+                            </div>
+                            <p class="text-muted small">
+                                New branch will be created from current HEAD (<code>{commit_id[:8] if commit_id else 'none'}</code>)
+                            </p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-success" onclick="createBranch()">Create Branch</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fork Modal (create branch from specific commit) -->
+            <div class="modal fade" id="forkModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Fork (Create Branch from Commit)</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Source Commit</label>
+                                <select class="form-select" id="forkSourceCommit">
+                                    {"".join(f'<option value="{c.commit_id}">{c.commit_id[:8]} - {c.message[:30]}</option>' for c in commits_list)}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">New Branch Name</label>
+                                <input type="text" class="form-control" id="forkBranchName" placeholder="fork/experiment">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" onclick="createFork()">Create Fork</button>
                         </div>
                     </div>
                 </div>
@@ -2088,7 +2187,7 @@ print(data["meta"])     # Metadata dict</code></pre>
 
                 function deleteRow(index) {{
                     if (confirm('Delete row ' + index + '?')) {{
-                        applyEvent('delete_row', {{ index: index }}, 'Deleted row ' + index);
+                        applyEvent('remove_rows', {{ indices: [index] }}, 'Deleted row ' + index);
                     }}
                 }}
 
@@ -2183,6 +2282,105 @@ print(data["meta"])     # Metadata dict</code></pre>
                         e.preventDefault();
                         const commitId = link.dataset.commit;
                         timeTravel(commitId);
+                    }});
+                }});
+
+                // Branch and Fork functionality
+                function switchBranch(branchName) {{
+                    window.location.href = '/repos/' + REPO_ID + '?branch=' + encodeURIComponent(branchName);
+                }}
+
+                function showCreateBranchModal() {{
+                    document.getElementById('newBranchName').value = '';
+                    new bootstrap.Modal(document.getElementById('createBranchModal')).show();
+                }}
+
+                function showForkModal(commitId = null) {{
+                    if (commitId) {{
+                        document.getElementById('forkSourceCommit').value = commitId;
+                    }}
+                    document.getElementById('forkBranchName').value = '';
+                    new bootstrap.Modal(document.getElementById('forkModal')).show();
+                }}
+
+                async function createBranch() {{
+                    const branchName = document.getElementById('newBranchName').value.trim();
+                    if (!branchName) {{
+                        showToast('Please enter a branch name', 'error');
+                        return;
+                    }}
+
+                    try {{
+                        // Get current HEAD commit
+                        const headCommit = document.getElementById('currentCommit').textContent;
+                        const refsResp = await fetch(API_BASE + '/refs/' + BRANCH);
+                        const refData = await refsResp.json();
+                        const commitId = refData.commit_id;
+
+                        // Create the new branch pointing to the same commit
+                        const response = await fetch(API_BASE + '/refs/' + encodeURIComponent(branchName), {{
+                            method: 'PUT',
+                            headers: {{ 'Content-Type': 'application/json' }},
+                            body: JSON.stringify({{
+                                name: branchName,
+                                commit_id: commitId,
+                                kind: 'branch'
+                            }})
+                        }});
+
+                        if (!response.ok) {{
+                            const err = await response.json();
+                            throw new Error(err.detail || 'Failed to create branch');
+                        }}
+
+                        showToast('Branch "' + branchName + '" created');
+                        bootstrap.Modal.getInstance(document.getElementById('createBranchModal')).hide();
+                        setTimeout(() => switchBranch(branchName), 500);
+                    }} catch (err) {{
+                        showToast(err.message, 'error');
+                    }}
+                }}
+
+                async function createFork() {{
+                    const branchName = document.getElementById('forkBranchName').value.trim();
+                    const sourceCommit = document.getElementById('forkSourceCommit').value;
+
+                    if (!branchName) {{
+                        showToast('Please enter a branch name', 'error');
+                        return;
+                    }}
+
+                    try {{
+                        // Create the new branch pointing to the selected commit
+                        const response = await fetch(API_BASE + '/refs/' + encodeURIComponent(branchName), {{
+                            method: 'PUT',
+                            headers: {{ 'Content-Type': 'application/json' }},
+                            body: JSON.stringify({{
+                                name: branchName,
+                                commit_id: sourceCommit,
+                                kind: 'branch'
+                            }})
+                        }});
+
+                        if (!response.ok) {{
+                            const err = await response.json();
+                            throw new Error(err.detail || 'Failed to create fork');
+                        }}
+
+                        showToast('Fork "' + branchName + '" created from ' + sourceCommit.slice(0, 8));
+                        bootstrap.Modal.getInstance(document.getElementById('forkModal')).hide();
+                        setTimeout(() => switchBranch(branchName), 500);
+                    }} catch (err) {{
+                        showToast(err.message, 'error');
+                    }}
+                }}
+
+                // Wire up fork buttons in commits table
+                document.querySelectorAll('.fork-btn').forEach(btn => {{
+                    btn.addEventListener('click', () => {{
+                        const commitId = btn.dataset.commit;
+                        document.getElementById('forkSourceCommit').value = commitId;
+                        showForkModal(commitId);
                     }});
                 }});
             </script>
