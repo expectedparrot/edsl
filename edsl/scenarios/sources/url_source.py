@@ -72,7 +72,7 @@ class URLSource(Source):
                 response = requests.get(url)
                 response.raise_for_status()
                 scenario = Scenario({self.field_name: response.text})
-                result.append(scenario)
+                result = result.append(scenario)  # Capture returned instance
             except requests.RequestException as e:
                 warnings.warn(f"Failed to fetch URL {url}: {str(e)}")
                 continue

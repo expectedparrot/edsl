@@ -21,9 +21,9 @@ def create_survey():
                 q = QuestionFreeText(
                     question_text=f"XX{i}XX", question_name=f"question_{i}"
                 )
-            survey.add_question(q)
+            survey = survey.add_question(q)
             if i > 0 and chained:
-                survey.add_targeted_memory(f"question_{i}", f"question_{i-1}")
+                survey = survey.add_targeted_memory(f"question_{i}", f"question_{i-1}")
         return survey
 
     return _create_survey

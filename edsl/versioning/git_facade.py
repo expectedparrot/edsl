@@ -7,7 +7,7 @@ Provides ObjectView, ExpectedParrotGit, and bootstrapping functions.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Set
+from typing import Any, Dict, List, Optional, Tuple, Set, Union
 
 from .utils import _utcnow, _sha256, _stable_dumps
 from .models import Commit, PushResult, Status
@@ -245,7 +245,8 @@ class ExpectedParrotGit:
 
     # --- Remote management ---
 
-    def add_remote(self, name: str, remote: Remote) -> "ExpectedParrotGit":
+    def add_remote(self, name: str, remote: Union[Remote, str]) -> "ExpectedParrotGit":
+        """Add a remote. Can be a Remote object or URL string."""
         if name in self._remotes:
             raise RemoteAlreadyExistsError(name)
         new_remotes = dict(self._remotes)

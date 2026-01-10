@@ -324,3 +324,43 @@ class InvalidHeadStateError(VersioningError):
     def __init__(self, **kwargs):
         message = "Invalid HEAD state: no base_commit or head_ref"
         super().__init__(message, **kwargs)
+
+
+class InvalidAliasError(VersioningError):
+    """
+    Exception raised when an alias format is invalid.
+
+    Aliases must be URL-safe:
+    - Lowercase alphanumeric characters and dashes only
+    - No spaces (use dashes instead)
+    - No underscores (use dashes instead)
+    - No leading or trailing dashes
+    - Format: "name" or "owner/name"
+
+    To fix this error:
+    1. Use lowercase letters, numbers, and dashes only
+    2. Replace spaces and underscores with dashes
+    3. Remove leading/trailing dashes
+    """
+
+    def __init__(self, message: str, **kwargs):
+        super().__init__(message, **kwargs)
+
+
+class MissingAliasError(VersioningError):
+    """
+    Exception raised when alias is required but not provided.
+
+    This occurs when trying to push to a new repository without
+    specifying an alias, and no alias is stored in the object's
+    _info metadata.
+
+    To fix this error:
+    1. Pass alias as a kwarg to git_push(): git_push(alias="my-name")
+    2. Or set it first with git_set_info(alias="my-name")
+    """
+
+    def __init__(self, message: str = None, **kwargs):
+        if message is None:
+            message = "alias required: pass as kwarg or call git_set_info() first"
+        super().__init__(message, **kwargs)

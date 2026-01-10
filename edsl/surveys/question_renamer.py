@@ -5,7 +5,7 @@ updating all references throughout the survey structure.
 """
 
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .survey import Survey
@@ -13,6 +13,175 @@ if TYPE_CHECKING:
 
 class QuestionRenamer:
     """Handles renaming questions and updating all references in a survey."""
+
+    @staticmethod
+    def compute_renamed_state(
+        survey: "Survey", old_name: str, new_name: str
+    ) -> tuple[tuple[dict[str, Any], ...], tuple[tuple[str, Any], ...]]:
+        """Compute the new state for a survey with a question renamed.
+        
+        Returns:
+            Tuple of (new_entries, meta_updates) suitable for ReplaceEntriesAndMetaEvent
+        """
+        from .exceptions import SurveyError
+        from .memory.memory import Memory
+
+        # Validate inputs
+        if old_name not in survey.question_name_to_index:
+            raise SurveyError(f"Question '{old_name}' not found in survey.")
+
+        if new_name in survey.question_name_to_index:
+            raise SurveyError(f"Question name '{new_name}' already exists in survey.")
+
+        if not new_name.isidentifier():
+            raise SurveyError(
+                f"New question name '{new_name}' is not a valid Python identifier."
+            )
+
+        # Helper function for updating piping references in text
+        def update_piping_in_text(text: str) -> str:
+            """Update piping references in text strings."""
+            # Handle {{ old_name.answer }} format
+            text = re.sub(
+                rf"\{{\{{\s*{re.escape(old_name)}\.answer\s*\}}\}}",
+                f"{{{{ {new_name}.answer }}}}",
+                text,
+            )
+            # Handle {{ old_name }} format
+            text = re.sub(
+                rf"\{{\{{\s*{re.escape(old_name)}\s*\}}\}}",
+                f"{{{{ {new_name} }}}}",
+                text,
+            )
+            return text
+
+        # 1. Build new entries (questions) with the renamed question
+        question_index = survey.question_name_to_index[old_name]
+        new_entries = []
+        for i, entry in enumerate(survey.store.entries):
+            entry_copy = dict(entry)
+            if i == question_index:
+                # Rename this question
+                entry_copy["question_name"] = new_name
+            # Update question_text piping references
+            if "question_text" in entry_copy:
+                entry_copy["question_text"] = update_piping_in_text(entry_copy["question_text"])
+            # Update question_options if they exist
+            if "question_options" in entry_copy and entry_copy["question_options"]:
+                entry_copy["question_options"] = [
+                    update_piping_in_text(opt) if isinstance(opt, str) else opt
+                    for opt in entry_copy["question_options"]
+                ]
+            new_entries.append(entry_copy)
+
+        # 2. Build new rule_collection with updated references
+        rule_collection = survey.rule_collection
+        new_rules = []
+        for rule in rule_collection:
+            rule_dict = rule.to_dict(add_edsl_version=False)
+            # Update expression
+            expression = rule_dict.get("expression", "")
+            # Old format: 'q1.answer' (standalone references)
+            expression = re.sub(
+                rf"\b{re.escape(old_name)}\.answer\b",
+                f"{new_name}.answer",
+                expression,
+            )
+            expression = re.sub(
+                rf"\b{re.escape(old_name)}\b(?!\.)", new_name, expression
+            )
+            # New format: {{ q1.answer }} (Jinja2 template references)
+            expression = re.sub(
+                rf"\{{\{{\s*{re.escape(old_name)}\.answer\s*\}}\}}",
+                f"{{{{ {new_name}.answer }}}}",
+                expression,
+            )
+            expression = re.sub(
+                rf"\{{\{{\s*{re.escape(old_name)}\s*\}}\}}",
+                f"{{{{ {new_name} }}}}",
+                expression,
+            )
+            rule_dict["expression"] = expression
+            # Update question_name_to_index
+            q_name_to_idx = dict(rule_dict.get("question_name_to_index", {}))
+            if old_name in q_name_to_idx:
+                idx = q_name_to_idx.pop(old_name)
+                q_name_to_idx[new_name] = idx
+            rule_dict["question_name_to_index"] = q_name_to_idx
+            new_rules.append(rule_dict)
+        
+        new_rule_collection = {
+            "rules": new_rules,
+            "num_questions": rule_collection.num_questions,
+        }
+
+        # 3. Build new memory_plan with updated references
+        memory_plan = survey.memory_plan
+        new_memory_plan_data = {}
+        for focal_question, memory in memory_plan.data.items():
+            # Update focal question name if it matches
+            new_focal = new_name if focal_question == old_name else focal_question
+
+            # Update prior questions list
+            if hasattr(memory, "data"):
+                new_prior_questions = [
+                    new_name if prior_q == old_name else prior_q
+                    for prior_q in memory.data
+                ]
+                new_memory_plan_data[new_focal] = {"prior_questions": new_prior_questions}
+            else:
+                # Keep as-is
+                new_memory_plan_data[new_focal] = memory.to_dict() if hasattr(memory, "to_dict") else {}
+
+        # Update survey_question_names
+        old_question_names = getattr(memory_plan, "survey_question_names", [])
+        new_question_names = [
+            new_name if q_name == old_name else q_name
+            for q_name in old_question_names
+        ]
+        
+        old_question_texts = getattr(memory_plan, "question_texts", [])
+        
+        new_memory_plan = {
+            "survey_question_names": new_question_names,
+            "survey_question_texts": list(old_question_texts),
+            "data": new_memory_plan_data,
+        }
+
+        # 4. Update pseudo_indices
+        pseudo_indices = dict(survey._pseudo_indices)
+        if old_name in pseudo_indices:
+            idx_value = pseudo_indices.pop(old_name)
+            pseudo_indices[new_name] = idx_value
+
+        # 5. Update question_groups
+        question_groups = dict(survey.question_groups)
+        if old_name in question_groups:
+            group_range = question_groups.pop(old_name)
+            question_groups[new_name] = group_range
+
+        # 6. Update instructions
+        instructions = survey._instruction_names_to_instructions
+        new_instructions = {}
+        for inst_name, inst in instructions.items():
+            inst_dict = inst.to_dict(add_edsl_version=False) if hasattr(inst, "to_dict") else dict(inst)
+            if "text" in inst_dict:
+                inst_dict["text"] = update_piping_in_text(inst_dict["text"])
+            new_instructions[inst_name] = inst_dict
+
+        # Build meta updates
+        meta_updates = (
+            ("rule_collection", new_rule_collection),
+            ("memory_plan", new_memory_plan),
+            ("pseudo_indices", pseudo_indices),
+            ("question_groups", question_groups),
+            ("instruction_names_to_instructions", new_instructions),
+            # Preserve other meta fields
+            ("questions_to_randomize", list(survey.questions_to_randomize)),
+            ("name", survey.name),
+        )
+
+        return (tuple(new_entries), meta_updates)
 
     @staticmethod
     def with_renamed_question(
@@ -50,133 +219,31 @@ class QuestionRenamer:
             >>> # Rules are also updated
             >>> s_renamed.show_rules()  # doctest: +SKIP
         """
-        from .exceptions import SurveyError
+        from edsl.store import ReplaceEntriesAndMetaEvent
 
-        # Validate inputs
-        if old_name not in survey.question_name_to_index:
-            raise SurveyError(f"Question '{old_name}' not found in survey.")
+        # Compute the new state
+        new_entries, meta_updates = QuestionRenamer.compute_renamed_state(
+            survey, old_name, new_name
+        )
 
-        if new_name in survey.question_name_to_index:
-            raise SurveyError(f"Question name '{new_name}' already exists in survey.")
+        # Create the event
+        event = ReplaceEntriesAndMetaEvent(entries=new_entries, meta_updates=meta_updates)
 
-        if not new_name.isidentifier():
-            raise SurveyError(
-                f"New question name '{new_name}' is not a valid Python identifier."
-            )
-
-        # Create a copy of the survey to work with
-        new_survey = survey.duplicate()
-
-        # 1. Update the question name itself
-        question_index = new_survey.question_name_to_index[old_name]
-        target_question = new_survey.questions[question_index]
-        target_question.question_name = new_name
-
-        # 2. Update all rules that reference the old question name
-        for rule in new_survey.rule_collection:
-            # Update expressions - handle both old format (q1) and new format ({{ q1.answer }})
-            # Old format: 'q1' or 'q1.answer' (standalone references)
-            rule.expression = re.sub(
-                rf"\b{re.escape(old_name)}\.answer\b",
-                f"{new_name}.answer",
-                rule.expression,
-            )
-            rule.expression = re.sub(
-                rf"\b{re.escape(old_name)}\b(?!\.)", new_name, rule.expression
-            )
-
-            # New format: {{ q1.answer }} (Jinja2 template references)
-            rule.expression = re.sub(
-                rf"\{{\{{\s*{re.escape(old_name)}\.answer\s*\}}\}}",
-                f"{{{{ {new_name}.answer }}}}",
-                rule.expression,
-            )
-            rule.expression = re.sub(
-                rf"\{{\{{\s*{re.escape(old_name)}\s*\}}\}}",
-                f"{{{{ {new_name} }}}}",
-                rule.expression,
-            )
-
-            # Update the question_name_to_index mapping in the rule
-            if old_name in rule.question_name_to_index:
-                index = rule.question_name_to_index.pop(old_name)
-                rule.question_name_to_index[new_name] = index
-
-        # 3. Update memory plans
-        new_memory_plan_data = {}
-        for focal_question, memory in new_survey.memory_plan.data.items():
-            # Update focal question name if it matches
-            new_focal = new_name if focal_question == old_name else focal_question
-
-            # Update prior questions list (Memory class stores questions in data attribute)
-            if hasattr(memory, "data"):
-                new_prior_questions = [
-                    new_name if prior_q == old_name else prior_q
-                    for prior_q in memory.data
-                ]
-                # Create new memory object with updated prior questions
-                from .memory.memory import Memory
-
-                new_memory = Memory(prior_questions=new_prior_questions)
-                new_memory_plan_data[new_focal] = new_memory
-            else:
-                new_memory_plan_data[new_focal] = memory
-
-        new_survey.memory_plan.data = new_memory_plan_data
-
-        # Update the memory plan's internal question name list
-        if hasattr(new_survey.memory_plan, "survey_question_names"):
-            new_survey.memory_plan.survey_question_names = [
-                new_name if q_name == old_name else q_name
-                for q_name in new_survey.memory_plan.survey_question_names
-            ]
-
-        # 4. Update piping references in all questions
-        def update_piping_in_text(text: str) -> str:
-            """Update piping references in text strings."""
-            # Handle {{ old_name.answer }} format
-            text = re.sub(
-                rf"\{{\{{\s*{re.escape(old_name)}\.answer\s*\}}\}}",
-                f"{{{{ {new_name}.answer }}}}",
-                text,
-            )
-            # Handle {{ old_name }} format
-            text = re.sub(
-                rf"\{{\{{\s*{re.escape(old_name)}\s*\}}\}}",
-                f"{{{{ {new_name} }}}}",
-                text,
-            )
-            return text
-
-        for question in new_survey.questions:
-            # Update question text
-            question.question_text = update_piping_in_text(question.question_text)
-
-            # Update question options if they exist
-            if hasattr(question, "question_options") and question.question_options:
-                question.question_options = [
-                    update_piping_in_text(option) if isinstance(option, str) else option
-                    for option in question.question_options
-                ]
-
-        # 5. Update instructions
-        for (
-            instruction_name,
-            instruction,
-        ) in new_survey._instruction_names_to_instructions.items():
-            if hasattr(instruction, "text"):
-                instruction.text = update_piping_in_text(instruction.text)
-
-        # 6. Update question groups - only if the renamed question is a key (not just in ranges)
-        # Question groups use indices for ranges, so we don't need to update those
-        # But if someone created a group with the same name as a question, we should handle that
-        if old_name in new_survey.question_groups:
-            group_range = new_survey.question_groups.pop(old_name)
-            new_survey.question_groups[new_name] = group_range
-
-        # 7. Update pseudo indices
-        if old_name in new_survey._pseudo_indices:
-            pseudo_index = new_survey._pseudo_indices.pop(old_name)
-            new_survey._pseudo_indices[new_name] = pseudo_index
-
+        # Apply the event via the Survey's event system
+        # We need to mimic what the @event decorator does
+        survey._ensure_git_init()
+        
+        # Apply event to a copy of the store
+        from edsl.store import Store
+        new_store = Store.from_dict(survey.store.to_dict())
+        from edsl.store.events import apply_event
+        apply_event(event, new_store)
+        
+        # Create new instance from the modified state
+        new_survey = survey._from_state(new_store.to_dict())
+        
+        # Stage for git
+        if new_survey._git is not None:
+            new_survey._git.stage(event)
+        
         return new_survey

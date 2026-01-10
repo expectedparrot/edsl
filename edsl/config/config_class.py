@@ -141,6 +141,10 @@ CONFIG_MAP = {
         "info": "This config var determines the default table renderer for displaying datasets in notebooks (options: 'pandas', 'datatables', 'rich', 'tabulator').",
         "valid_values": EDSL_TABLE_RENDERERS,
     },
+    "EDSL_GIT_SERVER": {
+        "default": "http://localhost:8765",
+        "info": "Default server URL for git operations (push/clone).",
+    },
 }
 
 

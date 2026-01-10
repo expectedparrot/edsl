@@ -175,7 +175,12 @@ class JobsComponentConstructor:
         )
         for current_object in current_objects:
             for new_object in passed_objects:
-                new_objects.append(current_object + new_object)
+                combined = current_object + new_object
+                # Event-sourced containers (AgentList, ScenarioList) return new objects from append
+                # Regular lists (for models) modify in place and return None
+                result = new_objects.append(combined)
+                if result is not None:
+                    new_objects = result
         return new_objects
 
     @staticmethod

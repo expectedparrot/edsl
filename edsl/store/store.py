@@ -323,30 +323,48 @@ class Store:
     # Survey-Specific Operations
     # =========================================================================
 
+    def _ensure_rule_collection(self) -> None:
+        """Ensure rule_collection structure exists in meta."""
+        if "rule_collection" not in self.meta:
+            self.meta["rule_collection"] = {"rules": [], "num_questions": None}
+        elif "rules" not in self.meta["rule_collection"]:
+            self.meta["rule_collection"]["rules"] = []
+
     def add_rule(self, rule_dict: dict[str, Any]) -> "Store":
-        """Add a rule to the rules list in meta."""
-        if "rules" not in self.meta:
-            self.meta["rules"] = []
-        self.meta["rules"].append(rule_dict)
+        """Add a rule to the rule_collection in meta."""
+        self._ensure_rule_collection()
+        self.meta["rule_collection"]["rules"].append(rule_dict)
+        # Update num_questions based on current_q
+        current_q = rule_dict.get("current_q", 0)
+        if self.meta["rule_collection"]["num_questions"] is None:
+            self.meta["rule_collection"]["num_questions"] = current_q + 1
+        else:
+            self.meta["rule_collection"]["num_questions"] = max(
+                self.meta["rule_collection"]["num_questions"], 
+                current_q + 1
+            )
         return self
 
     def remove_rules_for_question(self, question_index: int) -> "Store":
         """Remove all rules associated with a specific question index."""
-        if "rules" in self.meta:
-            self.meta["rules"] = [
-                rule for rule in self.meta["rules"]
-                if rule.get("current_q") != question_index
-            ]
+        self._ensure_rule_collection()
+        self.meta["rule_collection"]["rules"] = [
+            rule for rule in self.meta["rule_collection"]["rules"]
+            if rule.get("current_q") != question_index
+        ]
         return self
 
     def update_rule_indices(self, index_offset: int, from_index: int) -> "Store":
         """Update rule indices after question insertion/deletion."""
-        if "rules" in self.meta:
-            for rule in self.meta["rules"]:
-                if rule.get("current_q", 0) >= from_index:
-                    rule["current_q"] = rule.get("current_q", 0) + index_offset
-                if isinstance(rule.get("next_q"), int) and rule.get("next_q", 0) >= from_index:
-                    rule["next_q"] = rule.get("next_q", 0) + index_offset
+        self._ensure_rule_collection()
+        for rule in self.meta["rule_collection"]["rules"]:
+            if rule.get("current_q", 0) >= from_index:
+                rule["current_q"] = rule.get("current_q", 0) + index_offset
+            if isinstance(rule.get("next_q"), int) and rule.get("next_q", 0) >= from_index:
+                rule["next_q"] = rule.get("next_q", 0) + index_offset
+        # Update num_questions
+        if self.meta["rule_collection"]["num_questions"] is not None:
+            self.meta["rule_collection"]["num_questions"] += index_offset
         return self
 
     def set_memory_plan(self, memory_plan_dict: dict[str, Any]) -> "Store":
@@ -355,10 +373,17 @@ class Store:
         return self
 
     def add_memory_for_question(self, focal_question: str, prior_questions: tuple[str, ...]) -> "Store":
-        """Add memory entries for a specific question."""
+        """Add memory entries for a specific question.
+        
+        Stores in the format expected by MemoryPlan.from_dict:
+        {"data": {"focal_q": {"prior_questions": ["q1", "q2"]}}}
+        """
         if "memory_plan" not in self.meta:
-            self.meta["memory_plan"] = {}
-        self.meta["memory_plan"][focal_question] = list(prior_questions)
+            self.meta["memory_plan"] = {"data": {}}
+        if "data" not in self.meta["memory_plan"]:
+            self.meta["memory_plan"]["data"] = {}
+        # Store in Memory dict format
+        self.meta["memory_plan"]["data"][focal_question] = {"prior_questions": list(prior_questions)}
         return self
 
     def add_question_group(self, group_name: str, start_index: int, end_index: int) -> "Store":
@@ -387,6 +412,144 @@ class Store:
             for name, idx in list(self.meta["pseudo_indices"].items()):
                 if idx >= from_index:
                     self.meta["pseudo_indices"][name] = idx + index_offset
+        return self
+
+    # =========================================================================
+    # Survey Composite Operations
+    # =========================================================================
+
+    def add_survey_question(
+        self,
+        question_row: dict[str, Any],
+        index: int,
+        rule_dict: dict[str, Any],
+        pseudo_index_name: str,
+        pseudo_index_value: float,
+        is_interior: bool
+    ) -> "Store":
+        """Add a question to a survey atomically.
+        
+        This method:
+        1. Inserts/appends the question entry
+        2. Updates existing rule indices if interior insertion
+        3. Adds the default rule for the question
+        4. Updates existing pseudo indices if interior insertion
+        5. Adds the pseudo index for the question
+        """
+        # 1. Insert the question entry
+        if index == -1 or index >= len(self.entries):
+            self.entries.append(question_row)
+        else:
+            self.entries.insert(index, question_row)
+        
+        # 2. Update existing rule indices if interior insertion
+        if is_interior:
+            self.update_rule_indices(1, index)
+            self.update_pseudo_indices(1, index)
+        
+        # 3. Add the default rule
+        self.add_rule(rule_dict)
+        
+        # 4. Add the pseudo index
+        self.add_pseudo_index(pseudo_index_name, pseudo_index_value)
+        
+        return self
+
+    def delete_survey_question(
+        self,
+        index: int,
+        question_name: str
+    ) -> "Store":
+        """Delete a question from a survey atomically.
+        
+        This method:
+        1. Removes rules for the question
+        2. Updates remaining rule indices
+        3. Removes the question entry
+        4. Removes the pseudo index
+        5. Updates remaining pseudo indices
+        6. Updates memory_plan to remove the question
+        """
+        # 1. Remove rules for this question
+        self.remove_rules_for_question(index)
+        
+        # 2. Update remaining rule indices (shift down by 1 for indices > deleted)
+        self.update_rule_indices(-1, index + 1)
+        
+        # 3. Remove the question entry
+        if 0 <= index < len(self.entries):
+            self.entries.pop(index)
+        
+        # 4. Remove the pseudo index
+        self.remove_pseudo_index(question_name)
+        
+        # 5. Update remaining pseudo indices
+        self.update_pseudo_indices(-1, index + 1)
+        
+        # 6. Update memory_plan to remove the deleted question
+        memory_plan = self.meta.get("memory_plan", {})
+        if memory_plan:
+            # Remove from survey_question_names
+            survey_names = memory_plan.get("survey_question_names", [])
+            if question_name in survey_names:
+                name_idx = survey_names.index(question_name)
+                survey_names = list(survey_names)
+                survey_names.pop(name_idx)
+                memory_plan["survey_question_names"] = survey_names
+                
+                # Remove corresponding survey_question_text
+                survey_texts = list(memory_plan.get("survey_question_texts", []))
+                if name_idx < len(survey_texts):
+                    survey_texts.pop(name_idx)
+                    memory_plan["survey_question_texts"] = survey_texts
+            
+            # Remove from memory_plan data (both as focal and prior question)
+            data = memory_plan.get("data", {})
+            # Remove as focal question
+            if question_name in data:
+                del data[question_name]
+            # Remove as prior question in other focal questions
+            for focal_q, memory_entry in list(data.items()):
+                if isinstance(memory_entry, dict) and "prior_questions" in memory_entry:
+                    prior_qs = memory_entry["prior_questions"]
+                    if question_name in prior_qs:
+                        memory_entry["prior_questions"] = [
+                            q for q in prior_qs if q != question_name
+                        ]
+            memory_plan["data"] = data
+            self.meta["memory_plan"] = memory_plan
+        
+        return self
+
+    def move_survey_question(
+        self,
+        from_index: int,
+        to_index: int,
+        question_name: str,
+        question_row: dict[str, Any],
+        new_rule_dict: dict[str, Any]
+    ) -> "Store":
+        """Move a question within a survey atomically.
+        
+        Implemented as delete + insert with appropriate rule/index updates.
+        """
+        # Delete from old position
+        self.delete_survey_question(from_index, question_name)
+        
+        # Adjust target index if needed (deletion shifts indices)
+        adjusted_to_index = to_index if to_index <= from_index else to_index - 1
+        
+        # Add at new position
+        is_interior = adjusted_to_index < len(self.entries)
+        self.add_survey_question(
+            question_row,
+            adjusted_to_index,
+            new_rule_dict,
+            question_name,
+            float(adjusted_to_index),
+            is_interior
+        )
+        
         return self
 
     # =========================================================================

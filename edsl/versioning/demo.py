@@ -1,19 +1,15 @@
 """Simple demo: push a Survey to the remote server."""
 
 from edsl import Survey
-from edsl.versioning import ObjectVersionsServer
 
-server = ObjectVersionsServer("http://localhost:8765")
-
+# First push - just one line!
 s = Survey.example()
-
-result = server.create(alias="new_survey-two", description="Example survey")
-s.git_add_remote("origin", result["remote"])
-s.git_push()
+s.git_push(alias="my-survey-new", description="Example survey", username="john")
+# Creates "origin" remote from config, sets _info, commits, creates repo, pushes
 
 print("Pushed successfully!")
-print(f"Repo ID: {result['repo_id']}")
-print("View at: http://localhost:8765/")
+print("View at: http://localhost:8765/john/my-survey-new")
 
-
-news = Survey.git_clone(result['remote'], "main")
+# Clone it back
+cloned = Survey.git_clone("my-survey-new", username="john")
+print(f"Cloned survey has {len(cloned.questions)} questions")

@@ -30,11 +30,21 @@ class BaseDescriptor(ABC):
 
 
 class QuestionsDescriptor(BaseDescriptor):
-    """Descriptor for questions."""
+    """Descriptor for questions.
+    
+    This descriptor reads questions from the Store (single source of truth).
+    Questions are decoded from store.entries on each access.
+    """
 
     def __get__(self, instance, owner):
-        """Get the value of the attribute."""
-        return instance.__dict__[self.name]
+        """Get questions by decoding from store.entries."""
+        if instance is None:
+            return self
+        # Read from Store (single source of truth)
+        store = getattr(instance, 'store', None)
+        if store is not None and hasattr(store, 'entries'):
+            return [instance._codec.decode(entry) for entry in store.entries]
+        return []
 
     def validate(self, value: Any, instance) -> None:
         """Validate the value. If it is invalid, raise an exception. If it is valid, do nothing."""
@@ -62,11 +72,15 @@ class QuestionsDescriptor(BaseDescriptor):
             )
 
     def __set__(self, instance, value: Any) -> None:
-        """Set the value of the attribute."""
+        """Setting questions directly is not allowed after construction.
+        
+        Use add_question/delete_question event-sourced methods instead.
+        """
+        # Validate the value
         self.validate(value, instance)
-        instance.__dict__[self.name] = []
-        for question in value:
-            instance.add_question(question)
+        # Note: questions are set during __init__ by building the Store directly.
+        # This setter exists only for validation during construction.
+        # After construction, use event-sourced methods.
 
     def __set_name__(self, owner, name: str) -> None:
         """Set the name of the attribute."""

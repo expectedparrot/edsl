@@ -1853,12 +1853,17 @@ def create_app(db_url: Optional[str] = None):
 
         # Build commits HTML
         commits_html = ""
-        for c in commits_list:
+        for i, c in enumerate(commits_list):
             # Format payload as collapsible JSON
             payload_json = json.dumps(c.event_payload, indent=2) if c.event_payload else "{}"
             payload_preview = json.dumps(c.event_payload)[:50] + "..." if len(json.dumps(c.event_payload)) > 50 else json.dumps(c.event_payload)
             commits_html += f"""
             <tr>
+                <td>
+                    <input type="checkbox" class="form-check-input compare-checkbox" 
+                           data-commit="{c.commit_id[:8]}" data-index="{i}"
+                           onchange="updateCompareButton()">
+                </td>
                 <td>
                     <a href="#" class="time-travel-link" data-commit="{c.commit_id}" title="View data at this commit">
                         <code>{c.commit_id[:8]}</code>
@@ -1926,6 +1931,9 @@ def create_app(db_url: Optional[str] = None):
                     <button class="btn btn-sm btn-outline-primary" onclick="showForkModal()">
                         Fork
                     </button>
+                    <a href="/{alias}/network" class="btn btn-sm btn-outline-secondary">
+                        🕸️ Network
+                    </a>
                     {f'<span class="badge bg-info">{len(tags)} tags</span>' if tags else ''}
                 </div>
 
@@ -1983,10 +1991,19 @@ def create_app(db_url: Optional[str] = None):
                 </table>
 
                 <!-- Commit History -->
-                <h3>Recent Commits</h3>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h3 class="mb-0">Recent Commits</h3>
+                    <div>
+                        <button id="compareBtn" class="btn btn-sm btn-primary" disabled onclick="compareSelected()">
+                            Compare Selected (0)
+                        </button>
+                        <a href="/{alias}/commits" class="btn btn-sm btn-outline-secondary">View All</a>
+                    </div>
+                </div>
                 <table class="table table-sm">
                     <thead>
                         <tr>
+                            <th style="width: 30px;"><input type="checkbox" class="form-check-input" id="selectAllCommits" onchange="toggleAllCommits(this)"></th>
                             <th>ID</th>
                             <th>Message</th>
                             <th>Event</th>
@@ -1996,7 +2013,7 @@ def create_app(db_url: Optional[str] = None):
                         </tr>
                     </thead>
                     <tbody>
-                        {commits_html if commits_html else '<tr><td colspan="6" class="text-muted">No commits yet</td></tr>'}
+                        {commits_html if commits_html else '<tr><td colspan="7" class="text-muted">No commits yet</td></tr>'}
                     </tbody>
                 </table>
 
@@ -2004,23 +2021,17 @@ def create_app(db_url: Optional[str] = None):
                 <div class="mt-4 p-3 bg-light rounded">
                     <h5>Clone as Survey Object</h5>
                     <pre><code>from edsl import Survey
-from edsl.versioning import HTTPRemote
 
-# Connect to the repository
-remote = HTTPRemote("http://localhost:8765", repo_id="{repo_id}")
+# Clone by alias
+survey = Survey.git_clone("{alias or repo_id}")
 
-# Clone as a Survey object (with full git history)
-survey = Survey.git_clone(remote, ref_name="{branch}")
 print(survey.questions)  # List of questions
 print(survey.branch_name)  # Current branch</code></pre>
 
-                    <h5 class="mt-3">Or fetch raw data</h5>
-                    <pre><code>from edsl.versioning import ObjectVersionsServer
-
-server = ObjectVersionsServer("http://localhost:8765")
-data = server.clone("{repo_id}")
-print(data["entries"])  # List of entries
-print(data["meta"])     # Metadata dict</code></pre>
+                    <h5 class="mt-3">Push changes back</h5>
+                    <pre><code># After making changes, push back
+survey.git_commit("Your changes")
+survey.git_push()</code></pre>
                 </div>
             </div>
 
@@ -2285,6 +2296,46 @@ print(data["meta"])     # Metadata dict</code></pre>
                     }});
                 }});
 
+                // Compare functionality
+                function updateCompareButton() {{
+                    const checkboxes = document.querySelectorAll('.compare-checkbox:checked');
+                    const btn = document.getElementById('compareBtn');
+                    const count = checkboxes.length;
+                    btn.textContent = `Compare Selected (${{count}})`;
+                    btn.disabled = count !== 2;
+                    if (count === 2) {{
+                        btn.classList.remove('btn-primary');
+                        btn.classList.add('btn-success');
+                    }} else {{
+                        btn.classList.remove('btn-success');
+                        btn.classList.add('btn-primary');
+                    }}
+                }}
+
+                function toggleAllCommits(selectAll) {{
+                    const checkboxes = document.querySelectorAll('.compare-checkbox');
+                    // Only select first 2 if checking all
+                    checkboxes.forEach((cb, i) => {{
+                        cb.checked = selectAll.checked && i < 2;
+                    }});
+                    updateCompareButton();
+                }}
+
+                function compareSelected() {{
+                    const checkboxes = document.querySelectorAll('.compare-checkbox:checked');
+                    if (checkboxes.length !== 2) {{
+                        showToast('Please select exactly 2 commits to compare', 'error');
+                        return;
+                    }}
+                    // Sort by index to get older commit first
+                    const commits = Array.from(checkboxes)
+                        .sort((a, b) => parseInt(b.dataset.index) - parseInt(a.dataset.index))
+                        .map(cb => cb.dataset.commit);
+                    const base = commits[0];
+                    const head = commits[1];
+                    window.location.href = `/{alias}/compare/${{base}}...${{head}}`;
+                }}
+
                 // Branch and Fork functionality
                 function switchBranch(branchName) {{
                     window.location.href = '/repos/' + REPO_ID + '?branch=' + encodeURIComponent(branchName);
@@ -2384,6 +2435,901 @@ print(data["meta"])     # Metadata dict</code></pre>
                     }});
                 }});
             </script>
+        </body>
+        </html>
+        """
+        return html
+
+    # --- GitHub-style URL: /<username>/<alias> ---
+    
+    @app.get("/{username}/{alias_name}", response_class=HTMLResponse)
+    def alias_view_ui(username: str, alias_name: str, branch: str = "main"):
+        """GitHub-style URL routing: /<username>/<alias> shows the repo page directly."""
+        # Skip if it looks like an API or static route
+        if username in ("api", "repos", "static", "favicon.ico"):
+            raise HTTPException(404, "Not found")
+        
+        full_alias = f"{username}/{alias_name}"
+        
+        # Resolve alias to repo_id
+        if use_db:
+            repo = db.get_repo_by_alias(full_alias)
+            if not repo:
+                raise HTTPException(404, f"Repository '{full_alias}' not found")
+            repo_id = repo.repo_id
+        else:
+            if full_alias not in aliases:
+                raise HTTPException(404, f"Repository '{full_alias}' not found")
+            repo_id = aliases[full_alias]
+        
+        # Render the page directly (same as object_view_ui)
+        return object_view_ui(repo_id, branch)
+
+    # --- GitHub-style commits URL: /<username>/<alias>/commits ---
+    
+    @app.get("/{username}/{alias_name}/commits", response_class=HTMLResponse)
+    def commits_list_ui(username: str, alias_name: str, branch: str = "main"):
+        """GitHub-style commits URL: shows commit history for a branch."""
+        full_alias = f"{username}/{alias_name}"
+        
+        # Resolve alias to repo_id
+        if use_db:
+            repo = db.get_repo_by_alias(full_alias)
+            if not repo:
+                raise HTTPException(404, f"Repository '{full_alias}' not found")
+            repo_id = repo.repo_id
+        else:
+            if full_alias not in aliases:
+                raise HTTPException(404, f"Repository '{full_alias}' not found")
+            repo_id = aliases[full_alias]
+        
+        storage = get_repo_storage(repo_id)
+        
+        if not storage.has_ref(branch):
+            raise HTTPException(404, f"Branch '{branch}' not found")
+        
+        # Get all commits
+        ref = storage.get_ref(branch)
+        commits_list = []
+        current = ref.commit_id
+        while current and storage.has_commit(current):
+            commit = storage.get_commit(current)
+            commits_list.append(commit)
+            if not commit.parents:
+                break
+            current = commit.parents[0]
+        
+        # Build commits HTML
+        commits_html = ""
+        for i, c in enumerate(commits_list):
+            is_head = (i == 0)
+            commits_html += f"""
+            <div class="commit-item {'border-primary' if is_head else ''}" style="border-left: 3px solid {'#0d6efd' if is_head else '#dee2e6'}; padding-left: 15px; margin-bottom: 15px;">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="mb-1">
+                            <a href="/{full_alias}/commit/{c.commit_id[:8]}">{c.message}</a>
+                            {' <span class="badge bg-success">HEAD</span>' if is_head else ''}
+                        </h6>
+                        <small class="text-muted">
+                            {c.author} committed on {c.timestamp.strftime('%b %d, %Y at %H:%M')}
+                        </small>
+                    </div>
+                    <div>
+                        <a href="/{full_alias}/commit/{c.commit_id[:8]}" class="btn btn-sm btn-outline-secondary">
+                            <code>{c.commit_id[:7]}</code>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            """
+        
+        # Branch selector
+        all_refs = storage.list_refs()
+        branch_options = "".join(
+            f'<option value="{r.name}" {"selected" if r.name == branch else ""}>{r.name}</option>'
+            for r in all_refs
+        )
+        
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>{full_alias} - Commits</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <style>
+                body {{ padding: 20px; }}
+                code {{ background: #f4f4f4; padding: 2px 6px; border-radius: 3px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2><a href="/{full_alias}">{full_alias}</a> / Commits</h2>
+                    <select class="form-select" style="width: auto;" onchange="window.location.href='/{full_alias}/commits?branch=' + this.value">
+                        {branch_options}
+                    </select>
+                </div>
+                
+                <p class="text-muted">{len(commits_list)} commits on <strong>{branch}</strong></p>
+                
+                <div class="commits-list">
+                    {commits_html}
+                </div>
+                
+                <div class="mt-4">
+                    <a href="/{full_alias}" class="btn btn-primary">← Back to repo</a>
+                    <a href="/{full_alias}/branches" class="btn btn-outline-secondary">View branches</a>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        return html
+
+    # --- GitHub-style commits for specific branch: /<username>/<alias>/commits/<branch> ---
+    
+    @app.get("/{username}/{alias_name}/commits/{branch_name}", response_class=HTMLResponse)
+    def commits_branch_ui(username: str, alias_name: str, branch_name: str):
+        """GitHub-style commits URL with branch in path."""
+        return commits_list_ui(username, alias_name, branch=branch_name)
+
+    # --- GitHub-style compare URL: /<username>/<alias>/compare/<base>...<head> ---
+    
+    @app.get("/{username}/{alias_name}/compare/{comparison}", response_class=HTMLResponse)
+    def compare_view_ui(username: str, alias_name: str, comparison: str):
+        """GitHub-style compare URL: shows diff between two refs/commits using jsondiffpatch."""
+        full_alias = f"{username}/{alias_name}"
+        
+        # Parse comparison (base...head or base..head)
+        if "..." in comparison:
+            base_ref, head_ref = comparison.split("...", 1)
+        elif ".." in comparison:
+            base_ref, head_ref = comparison.split("..", 1)
+        else:
+            raise HTTPException(400, "Invalid comparison format. Use 'base...head' or 'base..head'")
+        
+        # Resolve alias to repo_id
+        if use_db:
+            repo = db.get_repo_by_alias(full_alias)
+            if not repo:
+                raise HTTPException(404, f"Repository '{full_alias}' not found")
+            repo_id = repo.repo_id
+        else:
+            if full_alias not in aliases:
+                raise HTTPException(404, f"Repository '{full_alias}' not found")
+            repo_id = aliases[full_alias]
+        
+        storage = get_repo_storage(repo_id)
+        
+        # Resolve refs to commit IDs
+        def resolve_ref(ref_str):
+            # Try as branch name first
+            if storage.has_ref(ref_str):
+                return storage.get_ref(ref_str).commit_id, ref_str
+            # Try as commit hash (prefix match)
+            if len(ref_str) >= 7:
+                # Search for matching commit
+                for r in storage.list_refs():
+                    current = r.commit_id
+                    for _ in range(100):
+                        if current.startswith(ref_str):
+                            return current, ref_str[:8]
+                        if not storage.has_commit(current):
+                            break
+                        commit = storage.get_commit(current)
+                        if not commit.parents:
+                            break
+                        current = commit.parents[0]
+            raise HTTPException(404, f"Ref '{ref_str}' not found")
+        
+        base_commit, base_label = resolve_ref(base_ref)
+        head_commit, head_label = resolve_ref(head_ref)
+        
+        # Get states at both commits
+        base_store = materialize_at_commit(storage, base_commit)
+        head_store = materialize_at_commit(storage, head_commit)
+        
+        # Build full state objects for comparison
+        base_state = {"entries": base_store.entries, "meta": base_store.meta}
+        head_state = {"entries": head_store.entries, "meta": head_store.meta}
+        
+        # JSON encode for embedding in HTML
+        base_state_json = json.dumps(base_state)
+        head_state_json = json.dumps(head_state)
+        
+        # Quick stats for badges
+        base_len = len(base_store.entries)
+        head_len = len(head_store.entries)
+        added_count = max(0, head_len - base_len)
+        removed_count = max(0, base_len - head_len)
+        
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>{full_alias} - Compare {base_label}...{head_label}</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsondiffpatch/dist/formatters-styles/html.css">
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsondiffpatch/dist/formatters-styles/annotated.css">
+            <style>
+                body {{ padding: 20px; }}
+                code {{ background: #f4f4f4; padding: 2px 6px; border-radius: 3px; }}
+                .jsondiffpatch-delta {{ font-family: monospace; font-size: 13px; }}
+                .jsondiffpatch-added .jsondiffpatch-property-name,
+                .jsondiffpatch-added .jsondiffpatch-value pre {{ background: #bbffbb; }}
+                .jsondiffpatch-modified .jsondiffpatch-left-value pre {{ background: #ffbbbb; text-decoration: line-through; }}
+                .jsondiffpatch-modified .jsondiffpatch-right-value pre {{ background: #bbffbb; }}
+                .jsondiffpatch-deleted .jsondiffpatch-property-name,
+                .jsondiffpatch-deleted .jsondiffpatch-value pre {{ background: #ffbbbb; text-decoration: line-through; }}
+                .diff-container {{ background: #f8f9fa; padding: 15px; border-radius: 8px; }}
+                .diff-section {{ margin-bottom: 20px; }}
+                .diff-section h5 {{ border-bottom: 1px solid #dee2e6; padding-bottom: 8px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h2><a href="/{full_alias}">{full_alias}</a> / Compare</h2>
+                
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-2">
+                            <a href="/{full_alias}/commit/{base_commit[:8]}" class="btn btn-outline-secondary">
+                                <code>{base_label}</code>
+                            </a>
+                            <span class="text-muted">→</span>
+                            <a href="/{full_alias}/commit/{head_commit[:8]}" class="btn btn-outline-primary">
+                                <code>{head_label}</code>
+                            </a>
+                            <span class="ms-3">
+                                <span class="badge bg-secondary">{base_len} → {head_len} entries</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Diff tabs -->
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#entriesDiff" type="button">
+                            Entries Diff
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#metaDiff" type="button">
+                            Metadata Diff
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#fullDiff" type="button">
+                            Full Diff
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content">
+                    <div class="tab-pane fade show active diff-container" id="entriesDiff">
+                        <h5>Entries Changes</h5>
+                        <div id="entriesDiffOutput"></div>
+                    </div>
+                    <div class="tab-pane fade diff-container" id="metaDiff">
+                        <h5>Metadata Changes</h5>
+                        <div id="metaDiffOutput"></div>
+                    </div>
+                    <div class="tab-pane fade diff-container" id="fullDiff">
+                        <h5>Full State Diff</h5>
+                        <div id="fullDiffOutput"></div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <a href="/{full_alias}" class="btn btn-primary">← Back to repo</a>
+                    <a href="/{full_alias}/commits" class="btn btn-outline-secondary">View commits</a>
+                </div>
+            </div>
+            
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/jsondiffpatch/dist/jsondiffpatch.umd.min.js"></script>
+            <script>
+                const baseState = {base_state_json};
+                const headState = {head_state_json};
+                
+                // Create differ instance
+                const jsondiffpatch = window.jsondiffpatch;
+                const differ = jsondiffpatch.create({{
+                    objectHash: function(obj, index) {{
+                        // Use question_name as key if available, otherwise index
+                        return obj.question_name || obj.name || index;
+                    }},
+                    arrays: {{
+                        detectMove: true,
+                        includeValueOnMove: true
+                    }},
+                    textDiff: {{
+                        minLength: 60
+                    }}
+                }});
+                
+                // Compute diffs
+                const entriesDelta = differ.diff(baseState.entries, headState.entries);
+                const metaDelta = differ.diff(baseState.meta, headState.meta);
+                const fullDelta = differ.diff(baseState, headState);
+                
+                // Render diffs
+                function renderDiff(delta, targetId, leftObj) {{
+                    const target = document.getElementById(targetId);
+                    if (!delta) {{
+                        target.innerHTML = '<div class="alert alert-info">No changes</div>';
+                        return;
+                    }}
+                    target.innerHTML = jsondiffpatch.formatters.html.format(delta, leftObj);
+                }}
+                
+                renderDiff(entriesDelta, 'entriesDiffOutput', baseState.entries);
+                renderDiff(metaDelta, 'metaDiffOutput', baseState.meta);
+                renderDiff(fullDelta, 'fullDiffOutput', baseState);
+                
+                // Enable show unchanged toggle
+                jsondiffpatch.formatters.html.showUnchanged(true);
+            </script>
+        </body>
+        </html>
+        """
+        return html
+
+    # --- GitHub-style network URL: /<username>/<alias>/network ---
+    
+    @app.get("/{username}/{alias_name}/network", response_class=HTMLResponse)
+    def network_view_ui(username: str, alias_name: str):
+        """GitHub-style network graph: visualizes branches and commits."""
+        full_alias = f"{username}/{alias_name}"
+        
+        # Resolve alias to repo_id
+        if use_db:
+            repo = db.get_repo_by_alias(full_alias)
+            if not repo:
+                raise HTTPException(404, f"Repository '{full_alias}' not found")
+            repo_id = repo.repo_id
+        else:
+            if full_alias not in aliases:
+                raise HTTPException(404, f"Repository '{full_alias}' not found")
+            repo_id = aliases[full_alias]
+        
+        storage = get_repo_storage(repo_id)
+        refs = list(storage.list_refs())
+        
+        # Build commit graph data
+        all_commits = {}
+        branch_commits = {}
+        
+        for ref in refs:
+            branch_commits[ref.name] = []
+            current = ref.commit_id
+            for _ in range(50):  # Limit to 50 commits per branch
+                if not current or current in all_commits:
+                    if current in all_commits:
+                        branch_commits[ref.name].append(current)
+                    break
+                if not storage.has_commit(current):
+                    break
+                commit = storage.get_commit(current)
+                all_commits[current] = {
+                    "id": current,
+                    "short_id": current[:8],
+                    "message": commit.message,
+                    "author": commit.author,
+                    "timestamp": commit.timestamp.isoformat(),
+                    "parents": list(commit.parents) if commit.parents else [],
+                    "branches": []
+                }
+                branch_commits[ref.name].append(current)
+                current = commit.parents[0] if commit.parents else None
+        
+        # Mark which branches each commit belongs to
+        for branch_name, commits in branch_commits.items():
+            for commit_id in commits:
+                if commit_id in all_commits:
+                    all_commits[commit_id]["branches"].append(branch_name)
+        
+        # Convert to JSON for JavaScript
+        commits_json = json.dumps(list(all_commits.values()))
+        branches_json = json.dumps([{"name": r.name, "commit_id": r.commit_id} for r in refs])
+        
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>{full_alias} - Network</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <style>
+                body {{ padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
+                .network-container {{ 
+                    overflow-x: auto; 
+                    background: #f6f8fa; 
+                    border: 1px solid #d0d7de; 
+                    border-radius: 6px;
+                    padding: 20px;
+                }}
+                .branch-lane {{
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: 10px;
+                    min-height: 40px;
+                }}
+                .branch-label {{
+                    width: 120px;
+                    font-weight: 600;
+                    font-size: 12px;
+                    color: #57606a;
+                    flex-shrink: 0;
+                }}
+                .commits-track {{
+                    display: flex;
+                    align-items: center;
+                    position: relative;
+                    flex-grow: 1;
+                }}
+                .commit-dot {{
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    margin-right: 20px;
+                    cursor: pointer;
+                    position: relative;
+                    z-index: 10;
+                    transition: transform 0.2s;
+                }}
+                .commit-dot:hover {{
+                    transform: scale(1.5);
+                }}
+                .commit-dot.main {{ background: #2da44e; }}
+                .commit-dot.other {{ background: #0969da; }}
+                .commit-dot.shared {{ background: #8250df; }}
+                .tooltip {{
+                    position: absolute;
+                    background: #24292f;
+                    color: white;
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    font-size: 12px;
+                    z-index: 1000;
+                    max-width: 300px;
+                    pointer-events: none;
+                    box-shadow: 0 8px 24px rgba(140,149,159,0.2);
+                }}
+                .tooltip-hash {{ color: #7ee787; font-family: monospace; }}
+                .tooltip-message {{ margin-top: 4px; }}
+                .tooltip-meta {{ color: #8b949e; margin-top: 4px; font-size: 11px; }}
+                .commit-line {{
+                    position: absolute;
+                    height: 2px;
+                    background: #d0d7de;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    z-index: 1;
+                }}
+                svg {{ overflow: visible; }}
+                .link {{ stroke: #d0d7de; stroke-width: 2; fill: none; }}
+                .node {{ cursor: pointer; }}
+                .node circle {{ stroke: white; stroke-width: 2; }}
+                .node text {{ font-size: 10px; fill: #57606a; }}
+            </style>
+        </head>
+        <body>
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2><a href="/{full_alias}">{full_alias}</a> / Network</h2>
+                    <a href="/{full_alias}/branches" class="btn btn-outline-secondary btn-sm">View Branches</a>
+                </div>
+                
+                <p class="text-muted">{len(refs)} branch(es), {len(all_commits)} commit(s)</p>
+                
+                <div class="network-container">
+                    <svg id="networkGraph" width="100%" height="400"></svg>
+                </div>
+                
+                <div id="tooltip" class="tooltip" style="display: none;"></div>
+                
+                <div class="mt-4">
+                    <h5>Legend</h5>
+                    <span class="me-3"><span class="commit-dot main d-inline-block" style="vertical-align: middle;"></span> main branch</span>
+                    <span class="me-3"><span class="commit-dot other d-inline-block" style="vertical-align: middle;"></span> other branches</span>
+                    <span><span class="commit-dot shared d-inline-block" style="vertical-align: middle;"></span> shared commits</span>
+                </div>
+                
+                <div class="mt-4">
+                    <a href="/{full_alias}" class="btn btn-primary">← Back to repo</a>
+                    <a href="/{full_alias}/commits" class="btn btn-outline-secondary">View Commits</a>
+                </div>
+            </div>
+            
+            <script src="https://d3js.org/d3.v7.min.js"></script>
+            <script>
+                const commits = {commits_json};
+                const branches = {branches_json};
+                const fullAlias = "{full_alias}";
+                
+                // Build graph
+                const svg = d3.select("#networkGraph");
+                const container = svg.node().parentElement;
+                const width = Math.max(container.clientWidth - 40, commits.length * 60 + 200);
+                const height = Math.max(300, branches.length * 60 + 100);
+                
+                svg.attr("width", width).attr("height", height);
+                
+                // Create zoomable group
+                const g = svg.append("g").attr("transform", "translate(100, 40)");
+                
+                // Add zoom behavior
+                const zoom = d3.zoom()
+                    .scaleExtent([0.3, 3])
+                    .on("zoom", (event) => {{
+                        g.attr("transform", event.transform);
+                    }});
+                
+                svg.call(zoom);
+                
+                // Add zoom controls info
+                svg.append("text")
+                    .attr("x", 10)
+                    .attr("y", height - 10)
+                    .attr("font-size", "10px")
+                    .attr("fill", "#8b949e")
+                    .text("Scroll to zoom, drag to pan");
+                
+                // Create branch lanes
+                const branchY = {{}};
+                branches.forEach((b, i) => {{
+                    branchY[b.name] = i * 50;
+                    g.append("text")
+                        .attr("x", -10)
+                        .attr("y", branchY[b.name] + 4)
+                        .attr("text-anchor", "end")
+                        .attr("font-size", "12px")
+                        .attr("font-weight", "600")
+                        .attr("fill", "#57606a")
+                        .text(b.name);
+                    
+                    // Branch line
+                    g.append("line")
+                        .attr("x1", 0)
+                        .attr("x2", width - 140)
+                        .attr("y1", branchY[b.name])
+                        .attr("y2", branchY[b.name])
+                        .attr("stroke", "#e1e4e8")
+                        .attr("stroke-width", 1)
+                        .attr("stroke-dasharray", "4,4");
+                }});
+                
+                // Position commits by timestamp
+                const sortedCommits = [...commits].sort((a, b) => 
+                    new Date(a.timestamp) - new Date(b.timestamp)
+                );
+                
+                const commitX = {{}};
+                sortedCommits.forEach((c, i) => {{
+                    commitX[c.id] = i * 50 + 20;
+                }});
+                
+                // Draw parent links
+                commits.forEach(commit => {{
+                    if (commit.parents.length > 0) {{
+                        const cx = commitX[commit.id];
+                        const cy = commit.branches.includes("main") ? branchY["main"] || 0 : 
+                                   branchY[commit.branches[0]] || 0;
+                        
+                        commit.parents.forEach(parentId => {{
+                            const px = commitX[parentId];
+                            if (px !== undefined) {{
+                                const parentCommit = commits.find(c => c.id === parentId);
+                                const py = parentCommit && parentCommit.branches.includes("main") ? branchY["main"] || 0 :
+                                           parentCommit ? branchY[parentCommit.branches[0]] || 0 : cy;
+                                
+                                if (cy === py) {{
+                                    // Same branch - straight line
+                                    g.append("line")
+                                        .attr("x1", px)
+                                        .attr("x2", cx)
+                                        .attr("y1", py)
+                                        .attr("y2", cy)
+                                        .attr("stroke", "#d0d7de")
+                                        .attr("stroke-width", 2);
+                                }} else {{
+                                    // Different branches - curved path
+                                    g.append("path")
+                                        .attr("d", `M${{px}},${{py}} C${{(px+cx)/2}},${{py}} ${{(px+cx)/2}},${{cy}} ${{cx}},${{cy}}`)
+                                        .attr("stroke", "#d0d7de")
+                                        .attr("stroke-width", 2)
+                                        .attr("fill", "none");
+                                }}
+                            }}
+                        }});
+                    }}
+                }});
+                
+                // Draw commit nodes
+                const tooltip = d3.select("#tooltip");
+                
+                commits.forEach(commit => {{
+                    const cx = commitX[commit.id];
+                    const mainBranch = commit.branches.includes("main");
+                    const shared = commit.branches.length > 1;
+                    const cy = mainBranch ? branchY["main"] || 0 : branchY[commit.branches[0]] || 0;
+                    
+                    const color = shared ? "#8250df" : (mainBranch ? "#2da44e" : "#0969da");
+                    
+                    g.append("circle")
+                        .attr("cx", cx)
+                        .attr("cy", cy)
+                        .attr("r", 6)
+                        .attr("fill", color)
+                        .attr("stroke", "white")
+                        .attr("stroke-width", 2)
+                        .attr("cursor", "pointer")
+                        .on("mouseover", function(event) {{
+                            d3.select(this).attr("r", 9);
+                            tooltip.style("display", "block")
+                                .html(`
+                                    <div class="tooltip-hash">${{commit.short_id}}</div>
+                                    <div class="tooltip-message">${{commit.message}}</div>
+                                    <div class="tooltip-meta">${{commit.author}} · ${{new Date(commit.timestamp).toLocaleDateString()}}</div>
+                                    <div class="tooltip-meta">Branches: ${{commit.branches.join(", ")}}</div>
+                                `)
+                                .style("left", (event.pageX + 10) + "px")
+                                .style("top", (event.pageY - 10) + "px");
+                        }})
+                        .on("mouseout", function() {{
+                            d3.select(this).attr("r", 6);
+                            tooltip.style("display", "none");
+                        }})
+                        .on("click", function() {{
+                            window.location.href = `/${{fullAlias}}/commit/${{commit.short_id}}`;
+                        }});
+                }});
+            </script>
+        </body>
+        </html>
+        """
+        return html
+
+    # --- GitHub-style tree URL: /<username>/<alias>/tree/<branch> ---
+    
+    @app.get("/{username}/{alias_name}/tree/{branch_name}", response_class=HTMLResponse)
+    def tree_view_ui(username: str, alias_name: str, branch_name: str):
+        """GitHub-style tree URL: shows repo at a specific branch."""
+        full_alias = f"{username}/{alias_name}"
+        
+        # Resolve alias to repo_id
+        if use_db:
+            repo = db.get_repo_by_alias(full_alias)
+            if not repo:
+                raise HTTPException(404, f"Repository '{full_alias}' not found")
+            repo_id = repo.repo_id
+        else:
+            if full_alias not in aliases:
+                raise HTTPException(404, f"Repository '{full_alias}' not found")
+            repo_id = aliases[full_alias]
+        
+        storage = get_repo_storage(repo_id)
+        
+        # Check if branch exists
+        if not storage.has_ref(branch_name):
+            raise HTTPException(404, f"Branch '{branch_name}' not found")
+        
+        # Render using the main view with the specified branch
+        return object_view_ui(repo_id, branch_name)
+
+    # --- GitHub-style branches URL: /<username>/<alias>/branches ---
+    
+    @app.get("/{username}/{alias_name}/branches", response_class=HTMLResponse)
+    def branches_view_ui(username: str, alias_name: str):
+        """GitHub-style branches URL: lists all branches for the repo."""
+        full_alias = f"{username}/{alias_name}"
+        
+        # Resolve alias to repo_id
+        if use_db:
+            repo = db.get_repo_by_alias(full_alias)
+            if not repo:
+                raise HTTPException(404, f"Repository '{full_alias}' not found")
+            repo_id = repo.repo_id
+        else:
+            if full_alias not in aliases:
+                raise HTTPException(404, f"Repository '{full_alias}' not found")
+            repo_id = aliases[full_alias]
+        
+        storage = get_repo_storage(repo_id)
+        refs = storage.list_refs()
+        
+        # Build branches table
+        branches_html = ""
+        for ref in refs:
+            commit = storage.get_commit(ref.commit_id) if storage.has_commit(ref.commit_id) else None
+            message = commit.message if commit else "Unknown"
+            author = commit.author if commit else "Unknown"
+            timestamp = commit.timestamp.isoformat() if commit else "Unknown"
+            
+            branches_html += f"""
+            <tr>
+                <td>
+                    <a href="/{full_alias}?branch={ref.name}">
+                        <strong>{ref.name}</strong>
+                    </a>
+                    {' <span class="badge bg-primary">default</span>' if ref.name == "main" else ''}
+                </td>
+                <td>
+                    <a href="/{full_alias}/commit/{ref.commit_id[:8]}">
+                        <code>{ref.commit_id[:8]}</code>
+                    </a>
+                </td>
+                <td>{message[:50]}{'...' if len(message) > 50 else ''}</td>
+                <td>{author}</td>
+                <td>{timestamp[:19] if timestamp != "Unknown" else timestamp}</td>
+            </tr>
+            """
+        
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>{full_alias} - Branches</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <style>
+                body {{ padding: 20px; }}
+                code {{ background: #f4f4f4; padding: 2px 6px; border-radius: 3px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h2><a href="/{full_alias}">{full_alias}</a> / Branches</h2>
+                
+                <p class="text-muted">{len(refs)} branch{'es' if len(refs) != 1 else ''}</p>
+                
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Branch</th>
+                            <th>Commit</th>
+                            <th>Message</th>
+                            <th>Author</th>
+                            <th>Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {branches_html}
+                    </tbody>
+                </table>
+                
+                <div class="mt-4">
+                    <a href="/{full_alias}" class="btn btn-primary">← Back to repo</a>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        return html
+
+    # --- GitHub-style commit URL: /<username>/<alias>/commit/<hash> ---
+    
+    @app.get("/{username}/{alias_name}/commit/{commit_hash}", response_class=HTMLResponse)
+    def commit_view_ui(username: str, alias_name: str, commit_hash: str):
+        """GitHub-style commit URL: shows repo at a specific commit (detached HEAD)."""
+        full_alias = f"{username}/{alias_name}"
+        
+        # Resolve alias to repo_id
+        if use_db:
+            repo = db.get_repo_by_alias(full_alias)
+            if not repo:
+                raise HTTPException(404, f"Repository '{full_alias}' not found")
+            repo_id = repo.repo_id
+        else:
+            if full_alias not in aliases:
+                raise HTTPException(404, f"Repository '{full_alias}' not found")
+            repo_id = aliases[full_alias]
+        
+        # Get repo storage and verify commit exists
+        storage = get_repo_storage(repo_id)
+        
+        # Support short hashes (prefix match)
+        resolved_hash = commit_hash
+        if len(commit_hash) < 64:
+            # Try to find a matching commit
+            found = None
+            # Check recent commits on main branch
+            if storage.has_ref("main"):
+                ref = storage.get_ref("main")
+                current = ref.commit_id
+                for _ in range(100):  # Search last 100 commits
+                    if current.startswith(commit_hash):
+                        found = current
+                        break
+                    if not storage.has_commit(current):
+                        break
+                    commit = storage.get_commit(current)
+                    if not commit.parents:
+                        break
+                    current = commit.parents[0]
+            if found:
+                resolved_hash = found
+        
+        if not storage.has_commit(resolved_hash):
+            raise HTTPException(404, f"Commit '{commit_hash}' not found")
+        
+        # Check if this is HEAD of any branch
+        is_head = False
+        head_branch = None
+        for ref in storage.list_refs():
+            if ref.commit_id == resolved_hash:
+                is_head = True
+                head_branch = ref.name
+                break
+        
+        # Build a special detached HEAD view
+        commit = storage.get_commit(resolved_hash)
+        store = materialize_at_commit(storage, resolved_hash)
+        rows = store.entries
+        metadata = store.meta
+        
+        # Infer columns from data
+        columns = []
+        if rows:
+            for row in rows:
+                for key in row.keys():
+                    if key not in columns:
+                        columns.append(key)
+        
+        # Build rows HTML
+        rows_html = ""
+        for i, row in enumerate(rows):
+            cells = "".join(f"<td>{json.dumps(row.get(col, ''))}</td>" for col in columns)
+            rows_html += f"<tr><td>{i}</td>{cells}</tr>"
+        
+        columns_header = "".join(f"<th>{col}</th>" for col in columns)
+        
+        # Detached HEAD warning
+        if is_head:
+            head_status = f'<span class="badge bg-success">HEAD of {head_branch}</span>'
+        else:
+            head_status = '<span class="badge bg-warning text-dark">Detached HEAD</span>'
+        
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>{full_alias} @ {resolved_hash[:8]}</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <style>
+                body {{ padding: 20px; }}
+                code {{ background: #f4f4f4; padding: 2px 6px; border-radius: 3px; }}
+                .commit-info {{ background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h2><a href="/{full_alias}">{full_alias}</a> @ <code>{resolved_hash[:8]}</code></h2>
+                
+                <div class="commit-info">
+                    <p><strong>Commit:</strong> <code>{resolved_hash}</code> {head_status}</p>
+                    <p><strong>Message:</strong> {commit.message}</p>
+                    <p><strong>Author:</strong> {commit.author}</p>
+                    <p><strong>Date:</strong> {commit.timestamp.isoformat()}</p>
+                    {f'<p><strong>Parent:</strong> <a href="/{full_alias}/commit/{commit.parents[0][:8]}"><code>{commit.parents[0][:8]}</code></a></p>' if commit.parents else '<p><strong>Parent:</strong> <em>Initial commit</em></p>'}
+                </div>
+                
+                <h4>Data at this commit ({len(rows)} entries)</h4>
+                <table class="table table-striped table-bordered">
+                    <thead class="table-dark">
+                        <tr><th>#</th>{columns_header}</tr>
+                    </thead>
+                    <tbody>{rows_html}</tbody>
+                </table>
+                
+                <h4 class="mt-4">Metadata</h4>
+                <pre class="bg-light p-3 rounded"><code>{json.dumps(metadata, indent=2)}</code></pre>
+                
+                <div class="mt-4">
+                    <a href="/{full_alias}" class="btn btn-primary">← Back to latest</a>
+                </div>
+            </div>
         </body>
         </html>
         """

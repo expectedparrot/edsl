@@ -251,9 +251,9 @@ def test_handle_model_exception():
         q = QuestionFreeText(
             question_text="How are you?", question_name=f"question_{i}"
         )
-        survey.add_question(q)
+        survey = survey.add_question(q)
         if i > 0:
-            survey.add_targeted_memory(f"question_{i}", f"question_{i-1}")
+            survey = survey.add_targeted_memory(f"question_{i}", f"question_{i-1}")
 
     target_exception = ConnectionNotAvailable
     model = create_exception_throwing_model(target_exception, 0.1)

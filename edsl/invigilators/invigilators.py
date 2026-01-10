@@ -243,7 +243,7 @@ class InvigilatorBase(ABC):
             survey = Survey.example()
 
         if question not in survey.questions and question is not None:
-            survey.add_question(question)
+            survey = survey.add_question(question)
 
         question = question or survey.questions[0]
         scenario = scenario or Scenario.example()

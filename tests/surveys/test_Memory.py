@@ -61,6 +61,6 @@ class TestMemory(unittest.TestCase):
             q = QuestionFreeText(
                 question_text="How are you?", question_name=f"question_{i}"
             )
-            survey.add_question(q)
+            survey = survey.add_question(q)
             if i > 0:
-                survey.add_targeted_memory(f"question_{i}", f"question_{i-1}")
+                survey = survey.add_targeted_memory(f"question_{i}", f"question_{i-1}")
