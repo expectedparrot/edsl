@@ -296,6 +296,17 @@ class Results(
         return self.store.meta.get("job_uuid")
 
     @property
+    def job_uuid(self) -> Optional[str]:
+        """Get job_uuid from store meta."""
+        return self._job_uuid
+
+    @job_uuid.setter
+    def job_uuid(self, value: str) -> None:
+        """Set job_uuid in store meta."""
+        if hasattr(self, "store") and self.store is not None:
+            self.store.meta["job_uuid"] = value
+
+    @property
     def _total_results(self) -> Optional[int]:
         """Get total_results from store meta."""
         if not hasattr(self, "store") or self.store is None:
@@ -425,7 +436,11 @@ class Results(
         This prevents external code from using Results instances to store
         temporary data, enforcing immutability through the event-based Store mechanism.
         """
-        if name in self._allowed_attrs:
+        # Check if there's a property with a setter for this name
+        prop = getattr(type(self), name, None)
+        if isinstance(prop, property) and prop.fset is not None:
+            prop.fset(self, value)
+        elif name in self._allowed_attrs:
             super().__setattr__(name, value)
         else:
             raise AttributeError(
