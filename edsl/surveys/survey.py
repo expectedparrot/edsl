@@ -414,11 +414,26 @@ class Survey(GitMixin, Base):
         Returns:
             A new Survey instance with the Store as single source of truth.
         """
+        return cls._from_store(Store.from_dict(state))
+    
+    @classmethod
+    def _from_store(cls, store: Store) -> "Survey":
+        """Create a Survey instance directly from a Store object.
+        
+        This is a fast path used by GitMixin to avoid dict serialization
+        round-trips during event application.
+        
+        Args:
+            store: A Store instance with entries and meta.
+            
+        Returns:
+            A new Survey instance with the provided Store.
+        """
         # Create a minimal instance without calling normal __init__
         instance = object.__new__(cls)
         
-        # Create the Store - all Survey data is accessed via properties reading from this
-        instance.store = Store.from_dict(state)
+        # Directly assign the Store
+        instance.store = store
         
         # Non-Store attributes
         instance.raw_passed_questions = None
