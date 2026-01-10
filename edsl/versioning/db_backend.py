@@ -308,6 +308,38 @@ class DatabaseManager:
         finally:
             session.close()
 
+    def get_or_create_repo(
+        self,
+        alias: str,
+        repo_id: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> tuple[RepoModel, bool]:
+        """
+        Get existing repo by alias or create a new one.
+
+        Returns:
+            Tuple of (repo, created) where created is True if a new repo was created.
+        """
+        session = self.get_session()
+        try:
+            existing = session.query(RepoModel).filter_by(alias=alias).first()
+            if existing:
+                return existing, False
+
+            import uuid
+            new_repo_id = repo_id or uuid.uuid4().hex
+            repo = RepoModel(
+                repo_id=new_repo_id,
+                alias=alias,
+                description=description,
+            )
+            session.add(repo)
+            session.commit()
+            session.refresh(repo)
+            return repo, True
+        finally:
+            session.close()
+
     def get_repo(self, repo_id: str) -> Optional[RepoModel]:
         """Get repository by ID."""
         session = self.get_session()
