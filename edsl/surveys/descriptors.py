@@ -33,17 +33,26 @@ class QuestionsDescriptor(BaseDescriptor):
     """Descriptor for questions.
     
     This descriptor reads questions from the Store (single source of truth).
-    Questions are decoded from store.entries on each access.
+    Questions are decoded from store.entries and cached for performance.
     """
 
     def __get__(self, instance, owner):
-        """Get questions by decoding from store.entries."""
+        """Get questions by decoding from store.entries (cached for performance)."""
         if instance is None:
             return self
-        # Read from Store (single source of truth)
+        
+        # Check cache first
+        cached = getattr(instance, '_cached_questions', None)
+        if cached is not None:
+            return cached
+        
+        # Read from Store (single source of truth) and cache
         store = getattr(instance, 'store', None)
         if store is not None and hasattr(store, 'entries'):
-            return [instance._codec.decode(entry) for entry in store.entries]
+            questions = [instance._codec.decode(entry) for entry in store.entries]
+            # Cache the decoded questions
+            object.__setattr__(instance, '_cached_questions', questions)
+            return questions
         return []
 
     def validate(self, value: Any, instance) -> None:

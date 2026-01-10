@@ -46,6 +46,10 @@ class ModelCodec:
 class ModelList(GitMixin, MutableSequence, Base):
     """
     A collection of LanguageModel objects with event-sourced versioning.
+    
+    Note: ModelList caches decoded model objects so that attribute mutations
+    (like setting remote_proxy) persist across iterations. The cache is
+    invalidated on event-sourced mutations (append, remove, clear).
     """
     
     __documentation__ = """https://docs.expectedparrot.com/en/latest/language_models.html#module-edsl.language_models.ModelList"""
@@ -58,6 +62,7 @@ class ModelList(GitMixin, MutableSequence, Base):
 
     _allowed_attrs = frozenset({
         'store',
+        '_cached_models',  # Cache for decoded model objects
         '_git', '_needs_git_init', '_last_push_result',
     })
 
@@ -77,19 +82,33 @@ class ModelList(GitMixin, MutableSequence, Base):
         if data is not None and isinstance(data, str):
             ml = ModelList.pull(data)
             self.store = Store(entries=list(ml.store.entries), meta=dict(ml.store.meta))
+            self._cached_models = None  # Will be populated on first access
             return
 
+        # Store the actual model objects if provided
+        if data is not None:
+            self._cached_models = list(data)
+        else:
+            self._cached_models = []
+        
+        # Also encode for the Store
         data_to_store = []
-        for item in data or []:
+        for item in self._cached_models:
             data_to_store.append(self._codec.encode(item))
         self.store = Store(entries=data_to_store, meta={})
 
-    # ========== Properties (read from Store) ==========
+    def _get_cached_models(self) -> List["LanguageModel"]:
+        """Get cached models, decoding from store if needed."""
+        if self._cached_models is None:
+            self._cached_models = [self._codec.decode(row) for row in self.store.entries]
+        return self._cached_models
+
+    # ========== Properties (read from cache/Store) ==========
 
     @property
     def data(self) -> List["LanguageModel"]:
-        """Decode store entries to Model objects on read."""
-        return [self._codec.decode(row) for row in self.store.entries]
+        """Return the list of Model objects (from cache if available)."""
+        return self._get_cached_models()
 
     @property
     def names(self):
@@ -104,8 +123,8 @@ class ModelList(GitMixin, MutableSequence, Base):
     
     def __getitem__(self, index):
         if isinstance(index, slice):
-            return ModelList(self.data[index])
-        return self._codec.decode(self.store.entries[index])
+            return ModelList(self._get_cached_models()[index])
+        return self._get_cached_models()[index]
 
     def __setitem__(self, index, value):
         raise TypeError("ModelList does not support item assignment. Use append().")
@@ -120,8 +139,8 @@ class ModelList(GitMixin, MutableSequence, Base):
         raise TypeError("ModelList does not support insert(). Use append().")
 
     def __iter__(self):
-        for entry in self.store.entries:
-            yield self._codec.decode(entry)
+        """Iterate over cached model objects."""
+        return iter(self._get_cached_models())
 
     # ========== Event-Sourced Mutations ==========
 
@@ -320,4 +339,3 @@ class ModelList(GitMixin, MutableSequence, Base):
 if __name__ == "__main__":
     import doctest
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-

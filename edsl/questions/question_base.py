@@ -199,6 +199,38 @@ class QuestionBase(
 
     _answering_instructions = None
     _question_presentation = None
+    
+    # Cache for __init__ signatures to avoid expensive inspect.signature() calls
+    _init_signature_cache: dict = {}
+
+    @classmethod
+    def _filter_params_for_class(cls, question_class: type, data: dict) -> dict:
+        """Filter data dict to only include params accepted by question_class.__init__.
+        
+        Uses a cache to avoid expensive inspect.signature() calls on every deserialization.
+        """
+        import inspect
+        
+        cache_key = question_class.__name__
+        if cache_key not in cls._init_signature_cache:
+            try:
+                init_signature = inspect.signature(question_class.__init__)
+                valid_params = set(init_signature.parameters.keys()) - {'self'}
+                has_var_keyword = any(
+                    p.kind == inspect.Parameter.VAR_KEYWORD 
+                    for p in init_signature.parameters.values()
+                )
+                cls._init_signature_cache[cache_key] = (valid_params, has_var_keyword)
+            except (ValueError, TypeError):
+                # Fall back - accept all params
+                cls._init_signature_cache[cache_key] = (None, True)
+        
+        valid_params, has_var_keyword = cls._init_signature_cache[cache_key]
+        
+        if valid_params is None or has_var_keyword:
+            return data
+        else:
+            return {k: v for k, v in data.items() if k in valid_params}
 
     def comment(
         self,
@@ -604,23 +636,8 @@ class QuestionBase(
 
         # Filter local_data to only include parameters accepted by the target class
         # This handles subclasses with limited __init__ parameters
-        import inspect
-        try:
-            init_signature = inspect.signature(question_class.__init__)
-            valid_params = set(init_signature.parameters.keys()) - {'self'}
-            # Check if the class accepts **kwargs
-            has_var_keyword = any(
-                p.kind == inspect.Parameter.VAR_KEYWORD 
-                for p in init_signature.parameters.values()
-            )
-            if not has_var_keyword:
-                # Filter to only valid params
-                filtered_data = {k: v for k, v in local_data.items() if k in valid_params}
-            else:
-                filtered_data = local_data
-        except (ValueError, TypeError):
-            # Fall back to using all data if we can't inspect
-            filtered_data = local_data
+        # Use cached signature info to avoid expensive inspect.signature() calls
+        filtered_data = cls._filter_params_for_class(question_class, local_data)
 
         if "model_instructions" in local_data:
             model_instructions = filtered_data.pop("model_instructions", None) or local_data.get("model_instructions")
