@@ -21,18 +21,18 @@ if TYPE_CHECKING:
 
 class ScenarioListJoin:
     """Namespace for ScenarioList join methods.
-    
+
     Access via the `.join` property on ScenarioList:
-    
+
         >>> from edsl import ScenarioList, Scenario
         >>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30})])
         >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'city': 'NYC'})])
         >>> result = s1.join.left(s2, by='name')
     """
-    
+
     def __init__(self, scenario_list: "ScenarioList"):
         self._sl = scenario_list
-    
+
     def left(self, other: "ScenarioList", by: Union[str, list[str]]) -> "ScenarioList":
         """Perform a left join with another ScenarioList, following SQL join semantics.
 
@@ -65,9 +65,10 @@ class ScenarioListJoin:
             True
         """
         from .scenario_join import ScenarioJoin
+
         sj = ScenarioJoin(self._sl, other)
         return sj.left_join(by)
-    
+
     def inner(self, other: "ScenarioList", by: Union[str, list[str]]) -> "ScenarioList":
         """Perform an inner join with another ScenarioList, following SQL join semantics.
 
@@ -97,9 +98,10 @@ class ScenarioListJoin:
             'Alice'
         """
         from .scenario_join import ScenarioJoin
+
         sj = ScenarioJoin(self._sl, other)
         return sj.inner_join(by)
-    
+
     def right(self, other: "ScenarioList", by: Union[str, list[str]]) -> "ScenarioList":
         """Perform a right join with another ScenarioList, following SQL join semantics.
 
@@ -132,6 +134,6 @@ class ScenarioListJoin:
             True
         """
         from .scenario_join import ScenarioJoin
+
         sj = ScenarioJoin(self._sl, other)
         return sj.right_join(by)
-

@@ -97,13 +97,13 @@ from .exceptions import (
 
 class ResultCodec:
     """Codec for Result objects - handles encoding/decoding for the Store."""
-    
+
     def encode(self, obj: Union["Result", dict[str, Any]]) -> dict[str, Any]:
         """Encode a Result to a dictionary for storage."""
         if isinstance(obj, dict):
             return dict(obj)
         return obj.to_dict(add_edsl_version=False, include_cache_info=True)
-    
+
     def decode(self, data: dict[str, Any]) -> "Result":
         """Decode a dictionary back to a Result object."""
         return Result.from_dict(data)
@@ -125,9 +125,13 @@ class AgentListSplit:
     train_survey: "Survey"
     test_survey: "Survey"
 
+
 from .results_likely_remove import ResultsLikelyRemoveMixin
 
-class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRemoveMixin, Base):
+
+class Results(
+    GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRemoveMixin, Base
+):
     """A collection of Result objects with powerful data analysis capabilities.
 
     The Results class is the primary container for working with data from EDSL surveys.
@@ -139,7 +143,7 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
     The Results class uses an event-sourcing architecture where all mutations are
     captured as events and applied to a Store backend. This enables version control,
     immutability patterns, and integration with git-like operations via GitMixin.
-    
+
     Note: Results is fundamentally append-only. Result objects are immutable and cannot
     be modified after creation. The only supported mutation is appending new Results.
 
@@ -189,160 +193,178 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
     __documentation__ = "https://docs.expectedparrot.com/en/latest/results.html"
 
     # Event-sourcing infrastructure
-    _versioned = 'store'
+    _versioned = "store"
     _store_class = Store
     _event_handler = apply_event
     _codec = ResultCodec()
 
     # Allowed instance attributes - minimal set for truly immutable Results
-    _allowed_attrs = frozenset({
-        # Core state - the single source of truth
-        'store',
-        # Properties with setters (these delegate to cache attributes)
-        'completed', '_fetching', '_report',
-        # Runtime state caches (backing stores for properties)
-        '_completed_cache', '_fetching_cache',
-        # Lazy-initialized helper caches (private backing stores for properties)
-        '_cache_manager_cache', '_properties_cache',
-        '_grouper_cache', '_report_cache',
-        '_shelve_path_cache', '_shelf_keys_cache',
-        # GitMixin
-        '_git', '_needs_git_init', '_last_push_result',
-        # Remote job info (runtime only)
-        'job_info',
-        # Job execution runtime attributes (not persisted in store)
-        'bucket_collection', 'jobs_runner_status', 'key_lookup', 'order',
-    })
-    
+    _allowed_attrs = frozenset(
+        {
+            # Core state - the single source of truth
+            "store",
+            # Properties with setters (these delegate to cache attributes)
+            "completed",
+            "_fetching",
+            "_report",
+            # Runtime state caches (backing stores for properties)
+            "_completed_cache",
+            "_fetching_cache",
+            # Lazy-initialized helper caches (private backing stores for properties)
+            "_cache_manager_cache",
+            "_properties_cache",
+            "_grouper_cache",
+            "_report_cache",
+            "_shelve_path_cache",
+            "_shelf_keys_cache",
+            # GitMixin
+            "_git",
+            "_needs_git_init",
+            "_last_push_result",
+            # Remote job info (runtime only)
+            "job_info",
+            # Job execution runtime attributes (not persisted in store)
+            "bucket_collection",
+            "jobs_runner_status",
+            "key_lookup",
+            "order",
+        }
+    )
+
     # =========================================================================
     # Properties that read from store - these make Results truly immutable
     # =========================================================================
-    
+
     @property
     def data(self) -> list:
         """Returns the list of Result objects, decoded from the store.
-        
+
         This is a computed property - the source of truth is always self.store.entries.
         """
-        if not hasattr(self, 'store') or self.store is None:
+        if not hasattr(self, "store") or self.store is None:
             return []
         return [self._codec.decode(entry) for entry in self.store.entries]
-    
+
     @property
     def survey(self) -> Optional["Survey"]:
         """Get survey from store meta."""
-        if not hasattr(self, 'store') or self.store is None:
+        if not hasattr(self, "store") or self.store is None:
             return None
         survey_dict = self.store.meta.get("survey")
         if survey_dict is None:
             return None
         from ..surveys import Survey
+
         return Survey.from_dict(survey_dict)
-    
+
     @property
     def cache(self) -> "Cache":
         """Get cache from store meta."""
         from ..caching import Cache
-        if not hasattr(self, 'store') or self.store is None:
+
+        if not hasattr(self, "store") or self.store is None:
             return Cache()
         cache_dict = self.store.meta.get("cache")
         if cache_dict is None:
             return Cache()
         return Cache.from_dict(cache_dict)
-    
+
     @property
     def task_history(self) -> "TaskHistory":
         """Get task_history from store meta."""
         from ..tasks import TaskHistory
-        if not hasattr(self, 'store') or self.store is None:
+
+        if not hasattr(self, "store") or self.store is None:
             return TaskHistory(interviews=[])
         th_dict = self.store.meta.get("task_history")
         if th_dict is None:
             return TaskHistory(interviews=[])
         return TaskHistory.from_dict(th_dict)
-    
-    
+
     @property
     def name(self) -> Optional[str]:
         """Get name from store meta."""
-        if not hasattr(self, 'store') or self.store is None:
+        if not hasattr(self, "store") or self.store is None:
             return None
         return self.store.meta.get("name")
-    
+
     @property
     def _job_uuid(self) -> Optional[str]:
         """Get job_uuid from store meta."""
-        if not hasattr(self, 'store') or self.store is None:
+        if not hasattr(self, "store") or self.store is None:
             return None
         return self.store.meta.get("job_uuid")
-    
+
     @property
     def _total_results(self) -> Optional[int]:
         """Get total_results from store meta."""
-        if not hasattr(self, 'store') or self.store is None:
+        if not hasattr(self, "store") or self.store is None:
             return None
         return self.store.meta.get("total_results")
-    
+
     # =========================================================================
     # Runtime state properties (not persisted in store)
     # =========================================================================
-    
+
     @property
     def completed(self) -> bool:
         """Get completed flag (defaults to True)."""
-        if not hasattr(self, '_completed_cache'):
+        if not hasattr(self, "_completed_cache"):
             return True  # Default
         return self._completed_cache
-    
+
     @completed.setter
     def completed(self, value: bool):
         """Set completed flag."""
-        object.__setattr__(self, '_completed_cache', value)
-    
+        object.__setattr__(self, "_completed_cache", value)
+
     @property
     def _fetching(self) -> bool:
         """Get fetching flag (defaults to False)."""
-        if not hasattr(self, '_fetching_cache'):
+        if not hasattr(self, "_fetching_cache"):
             return False  # Default
         return self._fetching_cache
-    
+
     @_fetching.setter
     def _fetching(self, value: bool):
         """Set fetching flag."""
-        object.__setattr__(self, '_fetching_cache', value)
-    
+        object.__setattr__(self, "_fetching_cache", value)
+
     # =========================================================================
     # Lazy-initialized helper objects (cached for performance)
     # =========================================================================
-    
+
     @property
     def _cache_manager(self) -> "DataTypeCacheManager":
         """Get cache manager, creating if needed."""
-        if not hasattr(self, '_cache_manager_cache') or self._cache_manager_cache is None:
-            object.__setattr__(self, '_cache_manager_cache', DataTypeCacheManager(self))
+        if (
+            not hasattr(self, "_cache_manager_cache")
+            or self._cache_manager_cache is None
+        ):
+            object.__setattr__(self, "_cache_manager_cache", DataTypeCacheManager(self))
         return self._cache_manager_cache
-    
+
     @property
     def _properties(self) -> "ResultsProperties":
         """Get properties handler, creating if needed."""
-        if not hasattr(self, '_properties_cache') or self._properties_cache is None:
-            object.__setattr__(self, '_properties_cache', ResultsProperties(self))
+        if not hasattr(self, "_properties_cache") or self._properties_cache is None:
+            object.__setattr__(self, "_properties_cache", ResultsProperties(self))
         return self._properties_cache
-    
+
     @property
     def _grouper(self) -> "ResultsGrouper":
         """Get grouper handler, creating if needed."""
-        if not hasattr(self, '_grouper_cache') or self._grouper_cache is None:
-            object.__setattr__(self, '_grouper_cache', ResultsGrouper(self))
+        if not hasattr(self, "_grouper_cache") or self._grouper_cache is None:
+            object.__setattr__(self, "_grouper_cache", ResultsGrouper(self))
         return self._grouper_cache
-    
+
     @property
     def scoring(self) -> "ResultsScorer":
         """Access scoring methods via namespace.
-        
+
         Returns:
             ResultsScorer: Accessor for scoring methods.
-            
+
         Examples:
             >>> r = Results.example()
             >>> def f(status): return 1 if status == 'Joyful' else 0
@@ -354,10 +376,10 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
     @property
     def ml(self) -> "ResultsML":
         """Access machine learning methods via namespace.
-        
+
         Returns:
             ResultsML: Accessor for ML methods like train/test splitting.
-            
+
         Examples:
             >>> # Create a train/test split
             >>> # split = results.ml.split(train_questions=['q1', 'q2'])
@@ -369,14 +391,14 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
     @property
     def _report(self):
         """Get report, creating if needed."""
-        if not hasattr(self, '_report_cache'):
-            object.__setattr__(self, '_report_cache', None)
+        if not hasattr(self, "_report_cache"):
+            object.__setattr__(self, "_report_cache", None)
         return self._report_cache
-    
+
     @_report.setter
     def _report(self, value):
         """Set report cache."""
-        object.__setattr__(self, '_report_cache', value)
+        object.__setattr__(self, "_report_cache", value)
 
     known_data_types = [
         "answer",
@@ -399,7 +421,7 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Restrict attribute setting to allowed attributes only.
-        
+
         This prevents external code from using Results instances to store
         temporary data, enforcing immutability through the event-based Store mechanism.
         """
@@ -449,47 +471,49 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
         if data and sort_by_iteration:
             has_order = any(hasattr(item, "order") for item in data)
             if has_order:
+
                 def get_order(item):
                     if hasattr(item, "order"):
                         return item.order
                     return item.data.get("iteration", 0) * 1000
+
                 data = sorted(data, key=get_order)
             else:
                 data = sorted(data, key=lambda x: x.data.get("iteration", 0))
 
         # Initialize GitMixin
         super().__init__()
-        
+
         # Build the store directly - this is the single source of truth
         from ..caching import Cache
         from ..tasks import TaskHistory
-        
+
         entries = [self._codec.encode(result) for result in (data or [])]
-        
+
         meta: Dict[str, Any] = {
             "created_columns": created_columns or [],
         }
-        
+
         if survey is not None:
             meta["survey"] = survey.to_dict(add_edsl_version=False)
-        
+
         if cache is not None:
             meta["cache"] = cache.to_dict()
         else:
             meta["cache"] = Cache().to_dict()
-        
+
         if task_history is not None:
             meta["task_history"] = task_history.to_dict()
         else:
             meta["task_history"] = TaskHistory(interviews=[]).to_dict()
-        
+
         if job_uuid is not None:
             meta["job_uuid"] = job_uuid
         if total_results is not None:
             meta["total_results"] = total_results
         if name is not None:
             meta["name"] = name
-        
+
         self.store = Store(entries=entries, meta=meta)
 
         if hasattr(self, "_add_output_functions"):
@@ -498,7 +522,7 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
     # =========================================================================
     # Lazy-initialized helper properties
     # =========================================================================
-    
+
     @classmethod
     def from_job_info(cls, job_info: dict) -> "Results":
         """Instantiate a Results object from a job info dictionary.
@@ -532,12 +556,13 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
     def add_task_history_entry(self, interview: "Interview") -> SetMetaEvent:
         """Add an interview to the task history (returns new Results via event)."""
         from ..tasks import TaskHistory
+
         # Get current task_history and add the interview to it
         current_th = self.task_history
         # Create a new TaskHistory and manually copy over the existing data
         new_th = TaskHistory(
             interviews=[],  # Start empty, we'll add refs directly
-            include_traceback=current_th.include_traceback
+            include_traceback=current_th.include_traceback,
         )
         # Copy existing interview refs directly (they're already InterviewReference objects)
         new_th.total_interviews = list(current_th.total_interviews)
@@ -630,22 +655,22 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
         """Return a subset of the cache containing only keys relevant to these results."""
         cache_keys = self._cache_keys()
         return cache.subset(cache_keys)
-    
+
     @event
     def set_cache(self, cache: Cache) -> SetMetaEvent:
         """Set the cache for these results (returns new Results via event)."""
         return SetMetaEvent(key="cache", value=cache.to_dict())
-    
+
     @event
     def set_task_history(self, task_history: "TaskHistory") -> SetMetaEvent:
         """Set the task_history for these results (returns new Results via event)."""
         return SetMetaEvent(key="task_history", value=task_history.to_dict())
-    
+
     @event
     def set_name(self, name: str) -> SetMetaEvent:
         """Set the name for these results (returns new Results via event)."""
         return SetMetaEvent(key="name", value=name)
-    
+
     @event
     def set_created_columns(self, created_columns: list[str]) -> SetMetaEvent:
         """Set the created_columns for these results (returns new Results via event)."""
@@ -663,7 +688,6 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
             self._report = Report(self)
 
         return self._report.analyze(*question_names)
-
 
     def agent_answers_by_question(
         self, agent_key_fields: Optional[List[str]] = None, separator: str = ","
@@ -736,9 +760,7 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
         if isinstance(i, int):
             return self.data[i]
         if isinstance(i, slice):
-            return self.__class__(
-                survey=self.survey, data=self.data[i]
-            )
+            return self.__class__(survey=self.survey, data=self.data[i])
         if isinstance(i, str):
             return self.to_dict()[i]
         raise ResultsError("Invalid argument type for indexing Results object")
@@ -746,10 +768,10 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
     @ensure_ready
     def __setitem__(self, i, item):
         """Block item assignment - Results is immutable.
-        
+
         Results objects are append-only. Individual Result objects cannot be
         replaced or modified after creation.
-        
+
         Raises:
             ResultsError: Always raised as Results is immutable.
         """
@@ -762,10 +784,10 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
     @ensure_ready
     def __delitem__(self, i):
         """Block item deletion - Results is immutable.
-        
+
         Results objects are append-only. Individual Result objects cannot be
         deleted after creation.
-        
+
         Raises:
             ResultsError: Always raised as Results is immutable.
         """
@@ -782,10 +804,10 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
     @ensure_ready
     def insert(self, index, item):
         """Block arbitrary insertion - Results is append-only.
-        
+
         Results objects only support appending new results at the end.
         Use append_result() to add new results.
-        
+
         Raises:
             ResultsError: Always raised as Results is append-only.
         """
@@ -797,16 +819,16 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
     @event
     def append_result(self, result: "Result") -> AppendRowEvent:
         """Append a new Result to this Results object.
-        
+
         This is the primary way to add new results. Returns a new Results
         instance with the appended result (Results is immutable).
-        
+
         Args:
             result: A Result object to append.
-            
+
         Returns:
             AppendRowEvent: The event representing the append operation.
-            
+
         Note:
             Due to the @event decorator, this method returns a new Results
             instance with the appended result, not the event itself.
@@ -817,14 +839,14 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
     @ensure_ready
     def extend(self, other) -> "Results":
         """Extend the Results by appending items from another iterable.
-        
+
         This method creates a new Results instance with all items from both
         this Results and the other iterable. Results is immutable - each append
         returns a new instance.
-        
+
         Args:
             other: Iterable of Result objects to append.
-            
+
         Returns:
             Results: A new Results instance with the extended data.
         """
@@ -833,7 +855,6 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
         for item in other:
             result = result.append(item)
         return result
-
 
     def _repr_html_(self):
         if not self.completed:
@@ -1351,7 +1372,6 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
         """
         return self.data[0]
 
-
     def long_view(
         self,
         scenario_fields: Optional[List[str]] = None,
@@ -1686,7 +1706,6 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
         )
         return results
 
-
     def rich_print(self):
         """Display an object as a table."""
         pass
@@ -1702,8 +1721,6 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
             self.task_history.show_exceptions(traceback)
         else:
             print("No exceptions to show.")
-
-
 
     def fetch_remote(self, job_info: Any) -> bool:
         """Fetch remote Results object and update this instance with the data.
@@ -1738,7 +1755,6 @@ class Results(GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRe
         """
         fetcher = ResultsRemoteFetcher(self)
         return fetcher.fetch(polling_interval)
-
 
 
 def main():  # pragma: no cover

@@ -21,12 +21,14 @@ if TYPE_CHECKING:
 # Lazy import for numpy to speed up module import time
 _np = None
 
+
 def _get_numpy():
     """Lazily import numpy module."""
     global _np
     if _np is None:
         import numpy as _np
     return _np
+
 
 from .results_weighting_strategies import (
     WeightingStrategy,
@@ -224,7 +226,10 @@ class ResultsWeighting:
         )
 
     def get_weighted_distribution(
-        self, question_name: str, weights: "np.ndarray", strategy: str = "categorical_kl"
+        self,
+        question_name: str,
+        weights: "np.ndarray",
+        strategy: str = "categorical_kl",
     ) -> Dict:
         """
         Compute the weighted empirical distribution for a question.

@@ -166,8 +166,8 @@ class AgentSerialization:
 
             if answer_question_directly_func:
                 try:
-                    raw_data["answer_question_directly_source_code"] = inspect.getsource(
-                        answer_question_directly_func
+                    raw_data["answer_question_directly_source_code"] = (
+                        inspect.getsource(answer_question_directly_func)
                     )
                     raw_data["answer_question_directly_function_name"] = (
                         agent.answer_question_directly_function_name

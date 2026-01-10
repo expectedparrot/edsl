@@ -35,9 +35,11 @@ from .exceptions import (
 # ObjectView
 # ----------------------------
 
+
 @dataclass(frozen=True)
 class ObjectView:
     """Immutable view of an object in a repo."""
+
     repo: Repo
     head_ref: Optional[str] = "main"
     base_commit: Optional[str] = None
@@ -73,6 +75,7 @@ class ObjectView:
 # ----------------------------
 # Helper functions
 # ----------------------------
+
 
 def _make_commit_id(
     *,
@@ -112,6 +115,7 @@ def _resolve_commit_prefix(repo: Repo, prefix: str) -> str:
 # ExpectedParrotGit facade
 # ----------------------------
 
+
 class ExpectedParrotGit:
     """Git-like operations over an ObjectView."""
 
@@ -139,7 +143,9 @@ class ExpectedParrotGit:
         )
 
     def log(self, limit: int = 20) -> List[Commit]:
-        return self._view.repo.list_commits_first_parent(self._view.commit_hash, limit=limit)
+        return self._view.repo.list_commits_first_parent(
+            self._view.commit_hash, limit=limit
+        )
 
     def checkout(self, rev: str, *, force: bool = False) -> "ExpectedParrotGit":
         if self._view.has_staged and not force:
@@ -174,7 +180,9 @@ class ExpectedParrotGit:
         repo.delete_ref(name)
         return self._with_view(self._view)
 
-    def apply_event(self, event_name: str, payload: Dict[str, Any]) -> "ExpectedParrotGit":
+    def apply_event(
+        self, event_name: str, payload: Dict[str, Any]
+    ) -> "ExpectedParrotGit":
         new_pending = self._view.pending_events + ((event_name, dict(payload)),)
         new_view = ObjectView(
             repo=self._view.repo,
@@ -193,8 +201,14 @@ class ExpectedParrotGit:
         )
         return self._with_view(new_view)
 
-    def commit(self, message: str, *, author: str = "unknown", force: bool = False,
-               state: List[Dict[str, Any]]) -> "ExpectedParrotGit":
+    def commit(
+        self,
+        message: str,
+        *,
+        author: str = "unknown",
+        force: bool = False,
+        state: List[Dict[str, Any]],
+    ) -> "ExpectedParrotGit":
         if not self._view.pending_events:
             raise NothingToCommitError()
         if self._view.head_ref is not None and self._view.is_behind():
@@ -237,7 +251,9 @@ class ExpectedParrotGit:
 
         if self._view.head_ref is not None:
             repo.upsert_ref(self._view.head_ref, commit_id, kind="branch")
-            new_view = ObjectView(repo=repo, head_ref=self._view.head_ref, base_commit=commit_id)
+            new_view = ObjectView(
+                repo=repo, head_ref=self._view.head_ref, base_commit=commit_id
+            )
         else:
             new_view = ObjectView(repo=repo, head_ref=None, base_commit=commit_id)
 
@@ -265,8 +281,13 @@ class ExpectedParrotGit:
 
     # --- Push / Pull ---
 
-    def push(self, remote_name: str = "origin", ref_name: Optional[str] = None,
-             *, force: bool = False) -> PushResult:
+    def push(
+        self,
+        remote_name: str = "origin",
+        ref_name: Optional[str] = None,
+        *,
+        force: bool = False,
+    ) -> PushResult:
         if self._view.has_staged:
             raise StagedChangesError("push")
         if remote_name not in self._remotes:
@@ -290,7 +311,9 @@ class ExpectedParrotGit:
         if remote.has_ref(ref_name):
             old_commit = remote.get_ref(ref_name).commit_id
             if old_commit == local_commit_id:
-                return PushResult(remote_name, ref_name, old_commit, local_commit_id, 0, 0)
+                return PushResult(
+                    remote_name, ref_name, old_commit, local_commit_id, 0, 0
+                )
             if not force and not self._is_ancestor(old_commit, local_commit_id):
                 raise NonFastForwardPushError(ref_name, old_commit, local_commit_id)
 
@@ -305,11 +328,18 @@ class ExpectedParrotGit:
             remote.put_commit(commit, state_id)
 
         remote.upsert_ref(ref_name, local_commit_id, kind=local_ref.kind)
-        return PushResult(remote_name, ref_name, old_commit, local_commit_id,
-                          len(commits_to_push), states_pushed)
+        return PushResult(
+            remote_name,
+            ref_name,
+            old_commit,
+            local_commit_id,
+            len(commits_to_push),
+            states_pushed,
+        )
 
-    def pull(self, remote_name: str = "origin",
-             ref_name: Optional[str] = None) -> "ExpectedParrotGit":
+    def pull(
+        self, remote_name: str = "origin", ref_name: Optional[str] = None
+    ) -> "ExpectedParrotGit":
         if self._view.has_staged:
             raise StagedChangesError("pull")
         if remote_name not in self._remotes:
@@ -335,7 +365,9 @@ class ExpectedParrotGit:
             if old_commit == remote_commit_id:
                 return self
 
-        commits_to_fetch = self._collect_missing_commits_from_remote(remote_commit_id, remote, repo)
+        commits_to_fetch = self._collect_missing_commits_from_remote(
+            remote_commit_id, remote, repo
+        )
         for commit in reversed(commits_to_fetch):
             state_id = remote.get_commit_state_id(commit.commit_id)
             if not repo.has_state(state_id):
@@ -343,12 +375,16 @@ class ExpectedParrotGit:
                 repo.put_state_bytes(state_id, state_bytes)
             repo.put_commit(commit, state_id)
 
-        fast_forward = old_commit is None or self._is_ancestor(old_commit, remote_commit_id)
+        fast_forward = old_commit is None or self._is_ancestor(
+            old_commit, remote_commit_id
+        )
         if not fast_forward:
             raise PullConflictError(ref_name, old_commit, remote_commit_id)
 
         repo.upsert_ref(ref_name, remote_commit_id, kind=remote_ref.kind)
-        new_view = ObjectView(repo=repo, head_ref=ref_name, base_commit=remote_commit_id)
+        new_view = ObjectView(
+            repo=repo, head_ref=ref_name, base_commit=remote_commit_id
+        )
         return self._with_view(new_view)
 
     def fetch(self, remote_name: str = "origin") -> Dict[str, int]:
@@ -427,6 +463,7 @@ class ExpectedParrotGit:
 # ----------------------------
 # Bootstrapping
 # ----------------------------
+
 
 def clone_from_remote(remote: Remote, ref_name: str = "main") -> ObjectView:
     """Clone a repository from a remote."""

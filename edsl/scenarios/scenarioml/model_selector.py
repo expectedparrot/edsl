@@ -17,12 +17,14 @@ if TYPE_CHECKING:
 # Lazy-loaded numpy
 _numpy = None
 
+
 def _get_numpy():
     """Lazy import numpy."""
     global _numpy
     if _numpy is None:
         import numpy as _numpy
     return _numpy
+
 
 # Lazy-loaded modules (populated on first use)
 _sklearn_model_selection = None
@@ -89,6 +91,7 @@ def _get_xgboost():
     if _HAS_XGBOOST is None:
         try:
             import xgboost as _xgboost
+
             _HAS_XGBOOST = True
         except ImportError:
             _HAS_XGBOOST = False
@@ -199,7 +202,9 @@ class ModelSelector:
 
         models = {
             "ridge": linear_model.Ridge(alpha=1.0, random_state=self.random_state),
-            "lasso": linear_model.Lasso(alpha=0.1, random_state=self.random_state, max_iter=1000),
+            "lasso": linear_model.Lasso(
+                alpha=0.1, random_state=self.random_state, max_iter=1000
+            ),
             "random_forest": ensemble.RandomForestRegressor(
                 n_estimators=100,
                 max_depth=5,
@@ -291,7 +296,9 @@ class ModelSelector:
 
         # Handle small datasets gracefully
         n_samples = len(y_encoded)
-        unique_classes, class_counts = _get_numpy().unique(y_encoded, return_counts=True)
+        unique_classes, class_counts = _get_numpy().unique(
+            y_encoded, return_counts=True
+        )
         min_class_count = min(class_counts)
 
         # For very small datasets, use the whole dataset for both training and testing
@@ -618,7 +625,9 @@ class ModelSelector:
             if len(unique_targets) < 2:
                 raise ValueError("Target variable must have at least 2 classes")
 
-            min_class_count = min([_get_numpy().sum(y == target) for target in unique_targets])
+            min_class_count = min(
+                [_get_numpy().sum(y == target) for target in unique_targets]
+            )
             if min_class_count < 2:
                 raise ValueError("Each target class must have at least 2 samples")
         else:

@@ -15,46 +15,51 @@ from typing import Any, List
 @dataclass
 class Store:
     """Event-sourced data store holding entries and metadata.
-    
+
     The Store is the central data structure that events operate on.
     Each method corresponds to an event type and mutates the store in-place.
-    
+
     Attributes:
         entries: List of dictionaries, each representing a row/record.
         meta: Dictionary of metadata (e.g., codebook, pagination info).
     """
+
     entries: List[dict[str, Any]]
     meta: dict[str, Any]
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize the store to a dictionary."""
         return asdict(self)
-    
+
     def copy(self) -> "Store":
         """Create a copy of the store optimized for event operations.
-        
+
         Entries are shallow-copied (new list, same dict refs) since individual
         entry dicts are treated as immutable - we only append/remove/replace.
-        
+
         Meta requires selective deep copying - only nested mutable structures
         (rule_collection, pseudo_indices, question_groups, memory_plan) need
         deep copies; other values can be shallow copied.
         """
         import copy
-        
+
         # Start with shallow copy of meta
         new_meta = dict(self.meta)
-        
+
         # Deep copy only the nested structures that get mutated
-        mutable_keys = ("rule_collection", "pseudo_indices", "question_groups", 
-                        "memory_plan", "instruction_names_to_instructions")
+        mutable_keys = (
+            "rule_collection",
+            "pseudo_indices",
+            "question_groups",
+            "memory_plan",
+            "instruction_names_to_instructions",
+        )
         for key in mutable_keys:
             if key in new_meta:
                 new_meta[key] = copy.deepcopy(new_meta[key])
-        
+
         return Store(
-            entries=list(self.entries),  # New list, same dict refs
-            meta=new_meta
+            entries=list(self.entries), meta=new_meta  # New list, same dict refs
         )
 
     # =========================================================================
@@ -75,8 +80,7 @@ class Store:
         """Remove entries at specified indices."""
         indices_to_remove = set(indices)
         self.entries = [
-            row for i, row in enumerate(self.entries) 
-            if i not in indices_to_remove
+            row for i, row in enumerate(self.entries) if i not in indices_to_remove
         ]
         return self
 
@@ -108,10 +112,7 @@ class Store:
     def keep_rows_by_indices(self, indices: tuple[int, ...]) -> "Store":
         """Keep only entries at specified indices (inverse of remove_rows)."""
         indices_set = set(indices)
-        self.entries = [
-            row for i, row in enumerate(self.entries)
-            if i in indices_set
-        ]
+        self.entries = [row for i, row in enumerate(self.entries) if i in indices_set]
         return self
 
     # =========================================================================
@@ -161,7 +162,9 @@ class Store:
         ]
         return self
 
-    def transform_field(self, field: str, new_field: str, new_values: tuple[Any, ...]) -> "Store":
+    def transform_field(
+        self, field: str, new_field: str, new_values: tuple[Any, ...]
+    ) -> "Store":
         """Update field with pre-computed transformed values."""
         for i, entry in enumerate(self.entries):
             entry[new_field] = new_values[i]
@@ -193,12 +196,13 @@ class Store:
         for entry in self.entries:
             if parent_field in entry and isinstance(entry[parent_field], dict):
                 entry[parent_field] = {
-                    k: v for k, v in entry[parent_field].items()
-                    if k in fields_set
+                    k: v for k, v in entry[parent_field].items() if k in fields_set
                 }
         return self
 
-    def rename_nested_field(self, parent_field: str, old_name: str, new_name: str) -> "Store":
+    def rename_nested_field(
+        self, parent_field: str, old_name: str, new_name: str
+    ) -> "Store":
         """Rename a field within a nested dict field."""
         for entry in self.entries:
             if parent_field in entry and isinstance(entry[parent_field], dict):
@@ -218,14 +222,13 @@ class Store:
         return self
 
     def translate_nested_values(
-        self, parent_field: str, value_map: tuple[tuple[str, tuple[tuple[Any, Any], ...]], ...]
+        self,
+        parent_field: str,
+        value_map: tuple[tuple[str, tuple[tuple[Any, Any], ...]], ...],
     ) -> "Store":
         """Translate values in nested fields based on a mapping."""
         # Convert to more usable format: {field: {old: new, ...}}
-        translations = {
-            field: dict(mappings)
-            for field, mappings in value_map
-        }
+        translations = {field: dict(mappings) for field, mappings in value_map}
         for entry in self.entries:
             if parent_field in entry and isinstance(entry[parent_field], dict):
                 nested = entry[parent_field]
@@ -250,7 +253,10 @@ class Store:
         return self
 
     def collapse_by_field(
-        self, group_field: str, merge_field: str, result_entries: tuple[dict[str, Any], ...]
+        self,
+        group_field: str,
+        merge_field: str,
+        result_entries: tuple[dict[str, Any], ...],
     ) -> "Store":
         """Replace entries with pre-computed collapsed entries."""
         # The collapsing logic is done by the caller; we just apply the result
@@ -264,7 +270,7 @@ class Store:
     def fill_na(self, fill_value: Any) -> "Store":
         """Fill NA/None values with a specified value."""
         import math
-        
+
         def is_null(val):
             if val is None:
                 return True
@@ -279,7 +285,7 @@ class Store:
                 if str_val in ["nan", "none", "null", ""]:
                     return True
             return False
-        
+
         for entry in self.entries:
             for key in entry:
                 if is_null(entry[key]):
@@ -338,7 +344,9 @@ class Store:
     # =========================================================================
 
     def replace_entries_and_meta(
-        self, entries: tuple[dict[str, Any], ...], meta_updates: tuple[tuple[str, Any], ...]
+        self,
+        entries: tuple[dict[str, Any], ...],
+        meta_updates: tuple[tuple[str, Any], ...],
     ) -> "Store":
         """Replace all entries and update meta in one operation."""
         self.entries = list(entries)
@@ -367,8 +375,7 @@ class Store:
             self.meta["rule_collection"]["num_questions"] = current_q + 1
         else:
             self.meta["rule_collection"]["num_questions"] = max(
-                self.meta["rule_collection"]["num_questions"], 
-                current_q + 1
+                self.meta["rule_collection"]["num_questions"], current_q + 1
             )
         return self
 
@@ -376,7 +383,8 @@ class Store:
         """Remove all rules associated with a specific question index."""
         self._ensure_rule_collection()
         self.meta["rule_collection"]["rules"] = [
-            rule for rule in self.meta["rule_collection"]["rules"]
+            rule
+            for rule in self.meta["rule_collection"]["rules"]
             if rule.get("current_q") != question_index
         ]
         return self
@@ -387,7 +395,10 @@ class Store:
         for rule in self.meta["rule_collection"]["rules"]:
             if rule.get("current_q", 0) >= from_index:
                 rule["current_q"] = rule.get("current_q", 0) + index_offset
-            if isinstance(rule.get("next_q"), int) and rule.get("next_q", 0) >= from_index:
+            if (
+                isinstance(rule.get("next_q"), int)
+                and rule.get("next_q", 0) >= from_index
+            ):
                 rule["next_q"] = rule.get("next_q", 0) + index_offset
         # Update num_questions
         if self.meta["rule_collection"]["num_questions"] is not None:
@@ -399,9 +410,11 @@ class Store:
         self.meta["memory_plan"] = memory_plan_dict
         return self
 
-    def add_memory_for_question(self, focal_question: str, prior_questions: tuple[str, ...]) -> "Store":
+    def add_memory_for_question(
+        self, focal_question: str, prior_questions: tuple[str, ...]
+    ) -> "Store":
         """Add memory entries for a specific question.
-        
+
         Stores in the format expected by MemoryPlan.from_dict:
         {"data": {"focal_q": {"prior_questions": ["q1", "q2"]}}}
         """
@@ -410,10 +423,14 @@ class Store:
         if "data" not in self.meta["memory_plan"]:
             self.meta["memory_plan"]["data"] = {}
         # Store in Memory dict format
-        self.meta["memory_plan"]["data"][focal_question] = {"prior_questions": list(prior_questions)}
+        self.meta["memory_plan"]["data"][focal_question] = {
+            "prior_questions": list(prior_questions)
+        }
         return self
 
-    def add_question_group(self, group_name: str, start_index: int, end_index: int) -> "Store":
+    def add_question_group(
+        self, group_name: str, start_index: int, end_index: int
+    ) -> "Store":
         """Add a question group to meta."""
         if "question_groups" not in self.meta:
             self.meta["question_groups"] = {}
@@ -452,10 +469,10 @@ class Store:
         rule_dict: dict[str, Any],
         pseudo_index_name: str,
         pseudo_index_value: float,
-        is_interior: bool
+        is_interior: bool,
     ) -> "Store":
         """Add a question to a survey atomically.
-        
+
         This method:
         1. Inserts/appends the question entry
         2. Updates existing rule indices if interior insertion
@@ -468,27 +485,23 @@ class Store:
             self.entries.append(question_row)
         else:
             self.entries.insert(index, question_row)
-        
+
         # 2. Update existing rule indices if interior insertion
         if is_interior:
             self.update_rule_indices(1, index)
             self.update_pseudo_indices(1, index)
-        
+
         # 3. Add the default rule
         self.add_rule(rule_dict)
-        
+
         # 4. Add the pseudo index
         self.add_pseudo_index(pseudo_index_name, pseudo_index_value)
-        
+
         return self
 
-    def delete_survey_question(
-        self,
-        index: int,
-        question_name: str
-    ) -> "Store":
+    def delete_survey_question(self, index: int, question_name: str) -> "Store":
         """Delete a question from a survey atomically.
-        
+
         This method:
         1. Removes rules for the question
         2. Updates remaining rule indices
@@ -499,20 +512,20 @@ class Store:
         """
         # 1. Remove rules for this question
         self.remove_rules_for_question(index)
-        
+
         # 2. Update remaining rule indices (shift down by 1 for indices > deleted)
         self.update_rule_indices(-1, index + 1)
-        
+
         # 3. Remove the question entry
         if 0 <= index < len(self.entries):
             self.entries.pop(index)
-        
+
         # 4. Remove the pseudo index
         self.remove_pseudo_index(question_name)
-        
+
         # 5. Update remaining pseudo indices
         self.update_pseudo_indices(-1, index + 1)
-        
+
         # 6. Update memory_plan to remove the deleted question
         memory_plan = self.meta.get("memory_plan", {})
         if memory_plan:
@@ -523,13 +536,13 @@ class Store:
                 survey_names = list(survey_names)
                 survey_names.pop(name_idx)
                 memory_plan["survey_question_names"] = survey_names
-                
+
                 # Remove corresponding survey_question_text
                 survey_texts = list(memory_plan.get("survey_question_texts", []))
                 if name_idx < len(survey_texts):
                     survey_texts.pop(name_idx)
                     memory_plan["survey_question_texts"] = survey_texts
-            
+
             # Remove from memory_plan data (both as focal and prior question)
             data = memory_plan.get("data", {})
             # Remove as focal question
@@ -545,7 +558,7 @@ class Store:
                         ]
             memory_plan["data"] = data
             self.meta["memory_plan"] = memory_plan
-        
+
         return self
 
     def move_survey_question(
@@ -554,19 +567,19 @@ class Store:
         to_index: int,
         question_name: str,
         question_row: dict[str, Any],
-        new_rule_dict: dict[str, Any]
+        new_rule_dict: dict[str, Any],
     ) -> "Store":
         """Move a question within a survey atomically.
-        
+
         Implemented as delete + insert with appropriate rule/index updates.
         The to_index refers to the desired final position in the result.
         """
         # Delete from old position
         self.delete_survey_question(from_index, question_name)
-        
+
         # No adjustment needed - to_index refers to the final position
         # After delete, inserting at to_index gives the correct final position
-        
+
         # Add at new position
         is_interior = to_index < len(self.entries)
         self.add_survey_question(
@@ -575,9 +588,9 @@ class Store:
             new_rule_dict,
             question_name,
             float(to_index),
-            is_interior
+            is_interior,
         )
-        
+
         return self
 
     # =========================================================================
@@ -588,4 +601,3 @@ class Store:
     def from_dict(cls, data: dict[str, Any]) -> "Store":
         """Create a Store from a dictionary."""
         return cls(**data)
-

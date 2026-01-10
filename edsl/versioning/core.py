@@ -43,29 +43,29 @@ from .mixin import GitMixin, event
 
 __all__ = [
     # Utilities
-    '_utcnow',
-    '_sha256',
-    '_stable_dumps',
+    "_utcnow",
+    "_sha256",
+    "_stable_dumps",
     # Models
-    'Event',
-    'Commit',
-    'Ref',
-    'PushResult',
-    'PullResult',
-    'Status',
+    "Event",
+    "Commit",
+    "Ref",
+    "PushResult",
+    "PullResult",
+    "Status",
     # Protocols
-    'Repo',
-    'Remote',
+    "Repo",
+    "Remote",
     # Storage
-    'BaseObjectStore',
-    'InMemoryRepo',
-    'InMemoryRemote',
+    "BaseObjectStore",
+    "InMemoryRepo",
+    "InMemoryRemote",
     # Git facade
-    'ObjectView',
-    'ExpectedParrotGit',
-    'clone_from_remote',
-    'init_repo',
+    "ObjectView",
+    "ExpectedParrotGit",
+    "clone_from_remote",
+    "init_repo",
     # Mixin
-    'GitMixin',
-    'event',
+    "GitMixin",
+    "event",
 ]

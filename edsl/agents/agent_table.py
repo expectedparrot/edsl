@@ -77,7 +77,9 @@ class AgentTable:
         # Handle empty traits case
         if not table_data:
             # Add empty row to avoid Dataset creation issues
-            table_data = table_data.append({"Trait": "", "Description": "", "Value": ""})
+            table_data = table_data.append(
+                {"Trait": "", "Description": "", "Value": ""}
+            )
 
         return table_data.to_dataset()
 

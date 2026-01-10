@@ -17,6 +17,7 @@ from .utils import _utcnow
 # Events
 # ----------------------------
 
+
 class Event(Protocol):
     """
     An Event describes a change to state.
@@ -26,23 +27,24 @@ class Event(Protocol):
     - payload: dict - event data (can be attribute or @property)
     - execute(store) -> new_store - apply event to store
     """
+
     name: str
 
     @property
-    def payload(self) -> Dict[str, Any]:
-        ...
+    def payload(self) -> Dict[str, Any]: ...
 
-    def execute(self, state: Any) -> Any:
-        ...
+    def execute(self, state: Any) -> Any: ...
 
 
 # ----------------------------
 # Commit / Refs
 # ----------------------------
 
+
 @dataclass(frozen=True)
 class Commit:
     """Immutable commit record."""
+
     commit_id: str
     parents: Tuple[str, ...]
     timestamp: datetime
@@ -55,6 +57,7 @@ class Commit:
 @dataclass(frozen=True)
 class Ref:
     """Reference (branch or tag) pointing to a commit."""
+
     name: str
     commit_id: str
     kind: Literal["branch", "tag"] = "branch"
@@ -65,9 +68,11 @@ class Ref:
 # Result dataclasses
 # ----------------------------
 
+
 @dataclass(frozen=True)
 class PushResult:
     """Result of a push operation."""
+
     remote_name: str
     ref_name: str
     old_commit: Optional[str]
@@ -79,6 +84,7 @@ class PushResult:
 @dataclass(frozen=True)
 class PullResult:
     """Result of a pull operation."""
+
     remote_name: str
     ref_name: str
     old_commit: Optional[str]
@@ -91,6 +97,7 @@ class PullResult:
 @dataclass(frozen=True)
 class Status:
     """Status of a repository."""
+
     repo_id: str
     head_commit: str
     head_ref: Optional[str]

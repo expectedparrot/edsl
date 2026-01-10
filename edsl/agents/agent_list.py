@@ -83,13 +83,13 @@ if TYPE_CHECKING:
 
 class AgentCodec:
     """Codec for Agent objects - handles encoding/decoding for the Store."""
-    
+
     def encode(self, obj: Union["Agent", dict[str, Any]]) -> dict[str, Any]:
         """Encode an Agent to a dictionary for storage."""
         if isinstance(obj, dict):
             return dict(obj)
         return obj.to_dict(add_edsl_version=False)
-    
+
     def decode(self, data: dict[str, Any]) -> "Agent":
         """Decode a dictionary back to an Agent object."""
         return Agent.from_dict(data)
@@ -119,26 +119,30 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
     )
 
     # Event-sourcing infrastructure
-    _versioned = 'store'
+    _versioned = "store"
     _store_class = Store
     _event_handler = apply_event
     _codec = AgentCodec()
 
     # Allowed instance attributes - prevents external code from storing temporary data
-    _allowed_attrs = frozenset({
-        # Core state
-        'store',
-        # Properties with setters
-        '_codebook',
-        # Agent cache (preserves non-serializable methods like answer_question_directly)
-        '_agent_cache',
-        # GitMixin
-        '_git', '_needs_git_init', '_last_push_result',
-    })
+    _allowed_attrs = frozenset(
+        {
+            # Core state
+            "store",
+            # Properties with setters
+            "_codebook",
+            # Agent cache (preserves non-serializable methods like answer_question_directly)
+            "_agent_cache",
+            # GitMixin
+            "_git",
+            "_needs_git_init",
+            "_last_push_result",
+        }
+    )
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Restrict attribute setting to allowed attributes only.
-        
+
         This prevents external code from using AgentList instances to store
         temporary data, enforcing immutability through the event-based Store mechanism.
         """
@@ -158,17 +162,17 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         expected_instruction: Optional[str],
     ) -> None:
         """Validate that an agent has consistent codebook, template, and instruction.
-        
+
         This method ensures all agents in an AgentList have identical codebook,
-        traits_presentation_template, and instruction values. If an agent has 
+        traits_presentation_template, and instruction values. If an agent has
         different values, an AgentListError is raised.
-        
+
         Args:
             agent: The agent to validate
             expected_codebook: The expected codebook value (from first agent or list)
             expected_template: The expected traits_presentation_template value
             expected_instruction: The expected instruction value
-            
+
         Raises:
             AgentListError: If the agent's values differ from expected values
         """
@@ -177,14 +181,14 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
                 f"Agent codebook {agent.codebook} differs from AgentList codebook {expected_codebook}. "
                 f"All agents in an AgentList must have the same codebook."
             )
-        
+
         agent_template = agent.traits_presentation_template
         if agent_template != expected_template:
             raise AgentListError(
                 f"Agent traits_presentation_template differs from AgentList template. "
                 f"All agents in an AgentList must have the same traits_presentation_template."
             )
-        
+
         agent_instruction = agent.instruction
         if agent_instruction != expected_instruction:
             raise AgentListError(
@@ -211,11 +215,11 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         >>> al_with_codebook = AgentList([Agent(traits = {'age': 22})], codebook={'age': 'Age in years'})
         >>> al_with_codebook[0].codebook
         {'age': 'Age in years'}
-        >>> al_with_template = AgentList([Agent(traits = {'age': 22})], 
+        >>> al_with_template = AgentList([Agent(traits = {'age': 22})],
         ...                              traits_presentation_template="Age: {{age}}")
         >>> al_with_template.traits_presentation_template
         'Age: {{age}}'
-        >>> al_with_instruction = AgentList([Agent(traits = {'age': 22})], 
+        >>> al_with_instruction = AgentList([Agent(traits = {'age': 22})],
         ...                                 instruction="Answer as a person of this age")
         >>> al_with_instruction.instruction
         'Answer as a person of this age'
@@ -228,19 +232,21 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
                       If provided, will be applied to all agents in the list.
             instruction: Optional instruction text for how agents should behave.
                       If provided, will be applied to all agents in the list.
-                      
+
         Raises:
             AgentListError: If agents have inconsistent codebook, traits_presentation_template,
                            or instruction values (when the respective parameter is not explicitly provided).
         """
         super().__init__()  # Initialize GitMixin
-        
+
         data_to_store = []
-        original_agents = []  # Cache original agents to preserve non-serializable methods
+        original_agents = (
+            []
+        )  # Cache original agents to preserve non-serializable methods
         canonical_codebook = codebook
         canonical_template = traits_presentation_template
         canonical_instruction = instruction
-        
+
         if data is not None and isinstance(data, str):
             al = AgentList.pull(data)
             if codebook is not None:
@@ -263,15 +269,15 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
                 original_agents.append(item)
         else:
             agents_list = list(data or [])
-            
+
             # Extract canonical values from first agent (if not explicitly provided)
             if agents_list:
                 first_agent = agents_list[0]
-                
+
                 codebook_provided = codebook is not None
                 template_provided = traits_presentation_template is not None
                 instruction_provided = instruction is not None
-                
+
                 # If not explicitly provided, extract from first agent
                 if not codebook_provided:
                     canonical_codebook = first_agent.codebook
@@ -279,7 +285,7 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
                     canonical_template = first_agent.traits_presentation_template
                 if not instruction_provided:
                     canonical_instruction = first_agent.instruction
-                
+
                 # Validate consistency for values not explicitly provided
                 # (explicit values override all agents; extracted values must match)
                 for agent in agents_list:
@@ -288,30 +294,36 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
                             f"Agent codebook {agent.codebook} differs from AgentList codebook {canonical_codebook}. "
                             f"All agents in an AgentList must have the same codebook."
                         )
-                    if not template_provided and agent.traits_presentation_template != canonical_template:
+                    if (
+                        not template_provided
+                        and agent.traits_presentation_template != canonical_template
+                    ):
                         raise AgentListError(
                             f"Agent traits_presentation_template differs from AgentList template. "
                             f"All agents in an AgentList must have the same traits_presentation_template."
                         )
-                    if not instruction_provided and agent.instruction != canonical_instruction:
+                    if (
+                        not instruction_provided
+                        and agent.instruction != canonical_instruction
+                    ):
                         raise AgentListError(
                             f"Agent instruction differs from AgentList instruction. "
                             f"All agents in an AgentList must have the same instruction."
                         )
-            
+
             for item in agents_list:
                 # Encode Agent objects to dicts for primitive store
                 data_to_store.append(self._codec.encode(item))
                 original_agents.append(item)
-        
+
         # Initialize the Store with encoded agents and metadata
         self.store = Store(
-            entries=data_to_store, 
+            entries=data_to_store,
             meta={
                 "codebook": canonical_codebook or {},
                 "traits_presentation_template": canonical_template,
                 "instruction": canonical_instruction,
-            }
+            },
         )
         self._codebook = None  # Will be read from store.meta
         # Cache original agents to preserve non-serializable methods like answer_question_directly
@@ -319,7 +331,7 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
 
     def _apply_list_attributes(self, agent: "Agent") -> None:
         """Apply list-level codebook, template, and instruction to an agent without changing 'explicitly set' flags.
-        
+
         This method applies values from store.meta to an agent while preserving the
         agent's original 'set' flags. This ensures that agents accessed through the
         list don't appear different in serialization than they did originally.
@@ -327,17 +339,17 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         codebook = self.store.meta.get("codebook", {})
         template = self.store.meta.get("traits_presentation_template")
         instruction = self.store.meta.get("instruction")
-        
+
         # Apply codebook (descriptor handles storage)
         agent.codebook = codebook
-        
+
         # Apply template directly to internal attribute to avoid setting the "explicitly set" flag
         if template is not None:
             agent._traits_presentation_template = template
             # Invalidate cached hash if it exists
             if hasattr(agent, "_cached_hash"):
                 delattr(agent, "_cached_hash")
-        
+
         # Apply instruction directly to internal attribute to avoid setting the "set_instructions" flag
         if instruction is not None:
             agent._instruction = instruction
@@ -348,19 +360,19 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
     @property
     def data(self) -> List["Agent"]:
         """Return Agent objects, using cache if available to preserve non-serializable methods.
-        
+
         Applies the canonical codebook and traits_presentation_template from store.meta
         to all returned agents, ensuring consistency across the list.
         """
         # If we have cached agents and the count matches, use them
         # (cache is valid only if no structural changes were made)
-        cache = getattr(self, '_agent_cache', None)
+        cache = getattr(self, "_agent_cache", None)
         if cache is not None and len(cache) == len(self.store.entries):
             # Apply canonical values to cached agents
             for agent in cache:
                 self._apply_list_attributes(agent)
             return cache
-        
+
         # Otherwise, decode from store (loses non-serializable methods)
         agents = []
         for row in self.store.entries:
@@ -372,39 +384,43 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
 
     def append(self, item: "Agent") -> "AgentList":
         """Add an agent to the list.
-        
+
         If the list is empty, the agent's codebook, traits_presentation_template, and
         instruction become the canonical values for the list. Otherwise, the agent must
         have matching values or an AgentListError is raised.
-        
+
         Raises:
             AgentListError: If the agent's codebook, traits_presentation_template, or
                 instruction differs from the list's canonical values.
-                
+
         Returns:
             AgentList: A new AgentList with the agent added.
         """
         is_first_agent = len(self.store.entries) == 0
-        
+
         if not is_first_agent:
             expected_codebook = self.store.meta.get("codebook", {})
             expected_template = self.store.meta.get("traits_presentation_template")
             expected_instruction = self.store.meta.get("instruction")
-            self._validate_agent_consistency(item, expected_codebook, expected_template, expected_instruction)
-        
+            self._validate_agent_consistency(
+                item, expected_codebook, expected_template, expected_instruction
+            )
+
         # Apply the append event
         append_event = AppendRowEvent(row=self._codec.encode(item))
         apply_event(append_event, self.store)
-        
+
         # If this was the first agent, update meta with its values
         if is_first_agent:
             self.store.meta["codebook"] = item.codebook
-            self.store.meta["traits_presentation_template"] = item.traits_presentation_template
+            self.store.meta["traits_presentation_template"] = (
+                item.traits_presentation_template
+            )
             self.store.meta["instruction"] = item.instruction
-        
+
         # Invalidate cache since we modified the store
         self._agent_cache = None
-        
+
         return self
 
     # Required MutableSequence abstract methods
@@ -424,10 +440,10 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
     @event
     def __setitem__(self, index, value) -> UpdateRowEvent:
         """Set item at index.
-        
+
         The agent being set must have matching codebook, traits_presentation_template,
         and instruction values or an AgentListError is raised.
-        
+
         Raises:
             AgentListError: If the agent's codebook, traits_presentation_template, or
                 instruction differs from the list's canonical values.
@@ -435,7 +451,9 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         expected_codebook = self.store.meta.get("codebook", {})
         expected_template = self.store.meta.get("traits_presentation_template")
         expected_instruction = self.store.meta.get("instruction")
-        self._validate_agent_consistency(value, expected_codebook, expected_template, expected_instruction)
+        self._validate_agent_consistency(
+            value, expected_codebook, expected_template, expected_instruction
+        )
         return UpdateRowEvent(index=index, row=self._codec.encode(value))
 
     @event
@@ -454,11 +472,11 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
     @event
     def insert(self, index, value) -> InsertRowEvent:
         """Insert value at index.
-        
+
         If the list is empty, the agent's codebook, traits_presentation_template, and
         instruction become the canonical values for the list. Otherwise, the agent must
         have matching values or an AgentListError is raised.
-        
+
         Raises:
             AgentListError: If the agent's codebook, traits_presentation_template, or
                 instruction differs from the list's canonical values.
@@ -467,8 +485,10 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
             expected_codebook = self.store.meta.get("codebook", {})
             expected_template = self.store.meta.get("traits_presentation_template")
             expected_instruction = self.store.meta.get("instruction")
-            self._validate_agent_consistency(value, expected_codebook, expected_template, expected_instruction)
-        
+            self._validate_agent_consistency(
+                value, expected_codebook, expected_template, expected_instruction
+            )
+
         return InsertRowEvent(index=index, row=self._codec.encode(value))
 
     @event
@@ -497,7 +517,7 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
 
         Args:
             instruction: The instruction to set.
-        
+
         Returns:
             SetMetaEvent: Event that sets instruction in store.meta.
         """
@@ -657,10 +677,12 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         if hasattr(self, "codebook") and hasattr(other, "codebook"):
             if self.codebook != other.codebook:
                 raise ValueError("AgentLists must have the same codebook")
-        
+
         if self.traits_presentation_template != other.traits_presentation_template:
-            raise ValueError("AgentLists must have the same traits_presentation_template")
-        
+            raise ValueError(
+                "AgentLists must have the same traits_presentation_template"
+            )
+
         if self.instruction != other.instruction:
             raise ValueError("AgentLists must have the same instruction")
 
@@ -695,8 +717,8 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         self, traits_presentation_template: str
     ) -> SetMetaEvent:
         """Set the traits presentation template for all agents in the list.
-        
-        This updates the canonical template in store.meta. When agents are 
+
+        This updates the canonical template in store.meta. When agents are
         accessed via the data property, they will receive this template value,
         ensuring all agents in the list have consistent templates.
 
@@ -707,8 +729,7 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
             SetMetaEvent: Event that updates the template in store.meta.
         """
         return SetMetaEvent(
-            key='traits_presentation_template', 
-            value=traits_presentation_template
+            key="traits_presentation_template", value=traits_presentation_template
         )
 
     @event
@@ -866,8 +887,10 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
                 fields_to_drop.extend(f)
             else:
                 fields_to_drop.append(f)
-        
-        return DropNestedFieldsEvent(parent_field='traits', fields=tuple(fields_to_drop))
+
+        return DropNestedFieldsEvent(
+            parent_field="traits", fields=tuple(fields_to_drop)
+        )
 
     @event
     def keep(self, *field_names: Union[str, List[str]]) -> KeepNestedFieldsEvent:
@@ -912,8 +935,10 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
                 fields_to_keep.extend(f)
             else:
                 fields_to_keep.append(f)
-        
-        return KeepNestedFieldsEvent(parent_field='traits', fields=tuple(fields_to_keep))
+
+        return KeepNestedFieldsEvent(
+            parent_field="traits", fields=tuple(fields_to_keep)
+        )
 
     def duplicate(self) -> AgentList:
         """Create a deep copy of the AgentList.
@@ -952,28 +977,26 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         """
         warned_about_none_name = False
         d = {}  # name -> merged entry dict
-        
+
         for entry in self.store.entries:
-            name = entry.get('name')
+            name = entry.get("name")
             if name is None:
                 if not warned_about_none_name and warn_about_none_name:
                     warnings.warn("Agent has no name, so it will be ignored.")
                     warned_about_none_name = True
-            
+
             if name not in d:
                 d[name] = dict(entry)
             else:
                 # Merge traits
-                if 'traits' in entry and 'traits' in d[name]:
-                    d[name]['traits'].update(entry['traits'])
-                elif 'traits' in entry:
-                    d[name]['traits'] = dict(entry['traits'])
-        
+                if "traits" in entry and "traits" in d[name]:
+                    d[name]["traits"].update(entry["traits"])
+                elif "traits" in entry:
+                    d[name]["traits"] = dict(entry["traits"])
+
         result_entries = tuple(d.values())
         return CollapseByFieldEvent(
-            group_field='name', 
-            merge_field='traits', 
-            result_entries=result_entries
+            group_field="name", merge_field="traits", result_entries=result_entries
         )
 
     @event
@@ -995,7 +1018,9 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
             >>> sorted(al[0].traits.items())
             [('b', 1), ('c', 1)]
         """
-        return RenameNestedFieldEvent(parent_field='traits', old_name=old_name, new_name=new_name)
+        return RenameNestedFieldEvent(
+            parent_field="traits", old_name=old_name, new_name=new_name
+        )
 
     @event
     def select(self, *traits) -> KeepNestedFieldsEvent:
@@ -1015,7 +1040,7 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
             >>> al[0].traits
             {'a': 1}
         """
-        return KeepNestedFieldsEvent(parent_field='traits', fields=tuple(traits))
+        return KeepNestedFieldsEvent(parent_field="traits", fields=tuple(traits))
 
     def _apply_names(
         self,
@@ -1082,30 +1107,30 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         """
         if not force_name:
             for entry in self.store.entries:
-                if entry.get('name') is not None:
+                if entry.get("name") is not None:
                     raise AgentListError(
                         "Agents already have names. Use force_name=True to override."
                     )
-        
+
         new_entries = []
         for entry in self.store.entries:
             new_entry = dict(entry)
-            traits = new_entry.get('traits', {})
-            
+            traits = new_entry.get("traits", {})
+
             # Build name from trait values
-            trait_values = [str(traits.get(key, '')) for key in trait_keys]
+            trait_values = [str(traits.get(key, "")) for key in trait_keys]
             new_name = separator.join(trait_values)
-            new_entry['name'] = new_name
-            
+            new_entry["name"] = new_name
+
             # Remove traits used for naming if requested
-            if remove_traits and 'traits' in new_entry:
-                new_traits = dict(new_entry['traits'])
+            if remove_traits and "traits" in new_entry:
+                new_traits = dict(new_entry["traits"])
                 for key in trait_keys:
                     new_traits.pop(key, None)
-                new_entry['traits'] = new_traits
-            
+                new_entry["traits"] = new_traits
+
             new_entries.append(new_entry)
-        
+
         return ReplaceAllEntriesEvent(entries=tuple(new_entries))
 
     def with_names(
@@ -1138,7 +1163,10 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         # Create a duplicate and apply naming via the event-decorated method
         new_agent_list = self.duplicate()
         return new_agent_list.give_names(
-            *trait_keys, remove_traits=remove_traits, separator=separator, force_name=force_name
+            *trait_keys,
+            remove_traits=remove_traits,
+            separator=separator,
+            force_name=force_name,
         )
 
     def _join(self, other: "AgentList", join_type: str = "inner") -> AgentList:
@@ -1237,21 +1265,23 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
             'steve'
         """
         from simpleeval import simple_eval
-        
+
         indices_to_remove = []
         for i, agent in enumerate(self.data):
             # Build names dict from agent traits and attributes
             names = dict(agent.traits)
             if agent.name is not None:
-                names['name'] = agent.name
-            
+                names["name"] = agent.name
+
             try:
                 result = simple_eval(expression, names=names)
                 if not result:
                     indices_to_remove.append(i)
             except Exception as e:
-                raise AgentListError(f"Error evaluating '{expression}' on agent {i}: {e}")
-        
+                raise AgentListError(
+                    f"Error evaluating '{expression}' on agent {i}: {e}"
+                )
+
         return RemoveRowsEvent(indices=tuple(indices_to_remove))
 
     def vibe_filter(
@@ -1459,7 +1489,7 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
             (trait_name, tuple(value_map.items()))
             for trait_name, value_map in codebook.items()
         )
-        return TranslateNestedValuesEvent(parent_field='traits', value_map=value_map)
+        return TranslateNestedValuesEvent(parent_field="traits", value_map=value_map)
 
     @event
     def remove_trait(self, trait: str) -> DropNestedFieldsEvent:
@@ -1472,7 +1502,7 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         >>> al[0].traits
         {'hair': 'brown', 'height': 5.5}
         """
-        return DropNestedFieldsEvent(parent_field='traits', fields=(trait,))
+        return DropNestedFieldsEvent(parent_field="traits", fields=(trait,))
 
     @property
     def names(self) -> List[str]:
@@ -1499,14 +1529,16 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
         # Handle single value case
         if not isinstance(values, list):
             values = [values] * len(self.store.entries)
-        
+
         if len(values) != len(self.store.entries):
             raise AgentListError(
                 f"The passed values have to be the same length as the agent list. "
                 f"Got {len(values)} values for {len(self.store.entries)} agents."
             )
-        
-        return AddNestedFieldByIndexEvent(parent_field='traits', field=trait, values=tuple(values))
+
+        return AddNestedFieldByIndexEvent(
+            parent_field="traits", field=trait, values=tuple(values)
+        )
 
     @event
     def numberify(self) -> NumberifyNestedFieldsEvent:
@@ -1546,6 +1578,7 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
             >>> al[0].traits
             {'count': 100, 'value': None, 'label': 'test'}
         """
+
         def try_convert(val):
             if val is None or isinstance(val, (int, float)):
                 return val
@@ -1560,17 +1593,19 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
                     except ValueError:
                         return val
             return val
-        
+
         # Pre-compute all conversions as (entry_idx, field, new_value) tuples
         conversions = []
         for i, entry in enumerate(self.store.entries):
-            if 'traits' in entry:
-                for key, value in entry['traits'].items():
+            if "traits" in entry:
+                for key, value in entry["traits"].items():
                     converted = try_convert(value)
                     if converted != value:  # Only record actual changes
                         conversions.append((i, key, converted))
-        
-        return NumberifyNestedFieldsEvent(parent_field='traits', conversions=tuple(conversions))
+
+        return NumberifyNestedFieldsEvent(
+            parent_field="traits", conversions=tuple(conversions)
+        )
 
     @event
     def filter_na(self, fields: Union[str, List[str]] = "*") -> RemoveRowsEvent:
@@ -1911,36 +1946,39 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
             )
 
         output.append("    ],\n", style=RICH_STYLES["default"])
-        
+
         # Show codebook if present
         if self.codebook:
             output.append("    codebook=", style=RICH_STYLES["default"])
             output.append(f"{self.codebook}", style=RICH_STYLES["secondary"])
             output.append(",\n", style=RICH_STYLES["default"])
-        
+
         # Show traits_presentation_template if present
         if self.traits_presentation_template:
             template_repr = repr(self.traits_presentation_template)
             # Truncate if too long
             max_template_len = 60
             if len(template_repr) > max_template_len:
-                template_repr = template_repr[:max_template_len - 3] + "...'"
-            output.append("    traits_presentation_template=", style=RICH_STYLES["default"])
+                template_repr = template_repr[: max_template_len - 3] + "...'"
+            output.append(
+                "    traits_presentation_template=", style=RICH_STYLES["default"]
+            )
             output.append(f"{template_repr}", style=RICH_STYLES["secondary"])
             output.append(",\n", style=RICH_STYLES["default"])
-        
+
         # Show instruction if present (and not the default)
         from .agent import Agent
+
         if self.instruction and self.instruction != Agent.default_instruction:
             instruction_repr = repr(self.instruction)
             # Truncate if too long
             max_instruction_len = 60
             if len(instruction_repr) > max_instruction_len:
-                instruction_repr = instruction_repr[:max_instruction_len - 3] + "...'"
+                instruction_repr = instruction_repr[: max_instruction_len - 3] + "...'"
             output.append("    instruction=", style=RICH_STYLES["default"])
             output.append(f"{instruction_repr}", style=RICH_STYLES["secondary"])
             output.append(",\n", style=RICH_STYLES["default"])
-        
+
         output.append(")", style=RICH_STYLES["primary"])
 
         # Render to string
@@ -1956,8 +1994,8 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
     @event
     def set_codebook(self, codebook: dict[str, str]) -> SetMetaEvent:
         """Set the codebook for all agents in the list.
-        
-        This updates the canonical codebook in store.meta. When agents are 
+
+        This updates the canonical codebook in store.meta. When agents are
         accessed via the data property, they will receive this codebook,
         ensuring all agents in the list have consistent codebook values.
 
@@ -1970,7 +2008,7 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
 
         Args:
             codebook: Dictionary mapping trait names to descriptions.
-            
+
         Returns:
             SetMetaEvent: Event that updates the codebook in store.meta.
         """
@@ -2127,10 +2165,10 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
     @property
     def traits_presentation_template(self) -> Optional[str]:
         """Return the traits presentation template for the AgentList from store.meta.
-        
+
         This template is applied to all agents in the list when they are accessed.
         All agents in the list must have the same traits_presentation_template.
-        
+
         Returns:
             Optional[str]: The Jinja2 template for formatting traits, or None if using default.
         """
@@ -2139,10 +2177,10 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
     @property
     def instruction(self) -> Optional[str]:
         """Return the instruction for the AgentList from store.meta.
-        
+
         This instruction is applied to all agents in the list when they are accessed.
         All agents in the list must have the same instruction.
-        
+
         Returns:
             Optional[str]: The instruction text, or None if using default.
         """

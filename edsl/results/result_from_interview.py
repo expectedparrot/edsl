@@ -323,103 +323,114 @@ class ResultFromInterview:
             return {}
 
         # Get scenario and answers for resolving templates
-        scenario = getattr(self.interview, 'scenario', None) or {}
-        answers = getattr(self.interview, 'answers', None) or {}
+        scenario = getattr(self.interview, "scenario", None) or {}
+        answers = getattr(self.interview, "answers", None) or {}
 
         result = {}
         for q in survey.questions:
             # Get the raw question_options
-            raw_options = getattr(q, 'question_options', None) if hasattr(q, 'question_options') else None
-            
+            raw_options = (
+                getattr(q, "question_options", None)
+                if hasattr(q, "question_options")
+                else None
+            )
+
             # Try to resolve templated options
-            resolved_options = self._resolve_question_options(raw_options, scenario, answers)
-            
+            resolved_options = self._resolve_question_options(
+                raw_options, scenario, answers
+            )
+
             result[q.question_name] = {
                 "question_text": q.question_text,
                 "question_type": q.question_type,
                 "question_options": resolved_options,
             }
-        
+
         return result
-    
+
     def _resolve_question_options(self, raw_options, scenario, answers):
         """Resolve templated question_options to actual values.
-        
+
         Args:
             raw_options: The raw question_options value (may be None, list, str template, or dict)
             scenario: The scenario dict for resolving scenario templates
             answers: The answers dict for resolving answer templates
-            
+
         Returns:
             The resolved options (list) or the raw value if no resolution is possible
         """
         if raw_options is None:
             return None
-        
+
         # If already a list, return as-is
         if isinstance(raw_options, list):
             return raw_options
-        
+
         # Handle dict-based options (e.g., {"from": "{{ q1.answer }}", "add": ["Other"]})
         if isinstance(raw_options, dict):
             from_value = raw_options.get("from")
             add_value = raw_options.get("add", [])
-            
+
             # Resolve the "from" template
             resolved_from = self._resolve_template_string(from_value, scenario, answers)
             if isinstance(resolved_from, list):
                 return resolved_from + list(add_value)
             # If we can't resolve, return the raw dict
             return raw_options
-        
+
         # Handle string template (e.g., "{{ q1.answer }}")
         if isinstance(raw_options, str):
             resolved = self._resolve_template_string(raw_options, scenario, answers)
             if resolved is not None and resolved != raw_options:
                 return resolved
             return raw_options
-        
+
         return raw_options
-    
+
     def _resolve_template_string(self, template_str, scenario, answers):
         """Resolve a template string like '{{ q1.answer }}' to its value.
-        
+
         Args:
             template_str: The template string to resolve
             scenario: The scenario dict
             answers: The answers dict
-            
+
         Returns:
             The resolved value or None if not resolvable
         """
         if not isinstance(template_str, str):
             return None
-        
+
         import re
+
         # Match {{ variable.attribute }} patterns
-        match = re.match(r'\{\{\s*(\w+)\.(\w+)\s*\}\}', template_str.strip())
+        match = re.match(r"\{\{\s*(\w+)\.(\w+)\s*\}\}", template_str.strip())
         if not match:
             return None
-        
+
         var_name, attr_name = match.groups()
-        
+
         # Check if it's a scenario variable
-        if var_name == 'scenario' and scenario:
-            scenario_dict = scenario if isinstance(scenario, dict) else getattr(scenario, 'data', {})
+        if var_name == "scenario" and scenario:
+            scenario_dict = (
+                scenario
+                if isinstance(scenario, dict)
+                else getattr(scenario, "data", {})
+            )
             if attr_name in scenario_dict:
                 return scenario_dict[attr_name]
-        
+
         # Check if it's referencing an answer (e.g., q1.answer)
         if answers:
             # Try direct key lookup (e.g., "q1")
             if var_name in answers:
                 answer_value = answers[var_name]
                 # Handle Answer objects
-                if hasattr(answer_value, 'answer'):
+                if hasattr(answer_value, "answer"):
                     return answer_value.answer
                 # Handle dict-like answers
-                if isinstance(answer_value, dict) and 'answer' in answer_value:
-                    return answer_value['answer']
+                if isinstance(answer_value, dict) and "answer" in answer_value:
+                    return answer_value["answer"]
                 return answer_value
-        
+
         return None

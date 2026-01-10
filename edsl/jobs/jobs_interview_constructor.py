@@ -48,7 +48,11 @@ class InterviewsConstructor:
             self.jobs.models,
             include_expression,
         )
-        for (agent_idx, agent), (scenario_idx, scenario), (model_idx, model) in tuple_filter:
+        for (
+            (agent_idx, agent),
+            (scenario_idx, scenario),
+            (model_idx, model),
+        ) in tuple_filter:
             t5 = time.time()
             drawn_survey = (
                 self.jobs.survey.draw()

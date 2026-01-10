@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 # Lazy import for numpy to speed up module import time
 _np = None
 
+
 def _get_numpy():
     """Lazily import numpy module."""
     global _np
@@ -447,7 +448,9 @@ class BinnedContinuousKLStrategy(WeightingStrategy):
             prob = 0.0
             for (t_lower, t_upper), t_prob in target.items():
                 # Check if bins overlap/match
-                if _get_numpy().isclose(lower, t_lower) and _get_numpy().isclose(upper, t_upper):
+                if _get_numpy().isclose(lower, t_lower) and _get_numpy().isclose(
+                    upper, t_upper
+                ):
                     prob = t_prob
                     break
 

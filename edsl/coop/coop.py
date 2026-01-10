@@ -6,12 +6,14 @@ import time
 # Lazy import for requests to speed up module import time
 _requests = None
 
+
 def _get_requests():
     """Lazily import requests module."""
     global _requests
     if _requests is None:
         import requests as _requests
     return _requests
+
 
 from typing import (
     Any,
@@ -3133,6 +3135,7 @@ class Coop(CoopFunctionsMixin):
         }
         # Use aiohttp to send a POST request asynchronously
         import aiohttp
+
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=data) as response:
                 response_data = await response.json()
@@ -3152,7 +3155,9 @@ class Coop(CoopFunctionsMixin):
         else:
             data = {"json_string": json.dumps({"survey": survey, "email": ""})}
 
-        response_json = _get_requests().post(url, headers=self.headers, data=json.dumps(data))
+        response_json = _get_requests().post(
+            url, headers=self.headers, data=json.dumps(data)
+        )
 
         return response_json
 

@@ -15,8 +15,8 @@ class InterviewTupleFilter:
     """
     Filters combinations of agents, scenarios, and models based on a Jinja2 expression.
 
-    When iterated, yields ((agent_idx, agent), (scenario_idx, scenario), (model_idx, model)) 
-    tuples that satisfy the include expression. If no expression is provided, yields all 
+    When iterated, yields ((agent_idx, agent), (scenario_idx, scenario), (model_idx, model))
+    tuples that satisfy the include expression. If no expression is provided, yields all
     combinations (equivalent to itertools.product).
 
     Example expressions:
@@ -63,9 +63,13 @@ class InterviewTupleFilter:
         result_str = result.strip().lower()
         return result_str == "true"
 
-    def __iter__(self) -> Generator[Tuple[Tuple[int, Any], Tuple[int, Any], Tuple[int, Any]], None, None]:
+    def __iter__(
+        self,
+    ) -> Generator[
+        Tuple[Tuple[int, Any], Tuple[int, Any], Tuple[int, Any]], None, None
+    ]:
         """Iterate over all valid (agent, scenario, model) tuples with their indices.
-        
+
         Yields:
             Tuple of ((agent_idx, agent), (scenario_idx, scenario), (model_idx, model))
         """
@@ -73,7 +77,10 @@ class InterviewTupleFilter:
             for scenario_idx, scenario in enumerate(self.scenarios):
                 for model_idx, model in enumerate(self.models):
                     if self._evaluate_expression(agent, scenario, model):
-                        yield (agent_idx, agent), (scenario_idx, scenario), (model_idx, model)
+                        yield (agent_idx, agent), (scenario_idx, scenario), (
+                            model_idx,
+                            model,
+                        )
 
     def __len__(self) -> int:
         """
@@ -101,7 +108,9 @@ if __name__ == "__main__":
     print("No filter (all combinations):")
     f = InterviewTupleFilter(agents, scenarios, models, None)
     for (agent_idx, agent), (scenario_idx, scenario), (model_idx, model) in f:
-        print(f"  agent[{agent_idx}]={agent}, scenario[{scenario_idx}]={scenario}, model[{model_idx}]={model}")
+        print(
+            f"  agent[{agent_idx}]={agent}, scenario[{scenario_idx}]={scenario}, model[{model_idx}]={model}"
+        )
 
     # Test with index equality
     print("\nWith filter (scenario._index == agent._index):")
@@ -109,4 +118,6 @@ if __name__ == "__main__":
         agents, scenarios, models, "{{ scenario._index == agent._index }}"
     )
     for (agent_idx, agent), (scenario_idx, scenario), (model_idx, model) in f:
-        print(f"  agent[{agent_idx}]={agent}, scenario[{scenario_idx}]={scenario}, model[{model_idx}]={model}")
+        print(
+            f"  agent[{agent_idx}]={agent}, scenario[{scenario_idx}]={scenario}, model[{model_idx}]={model}"
+        )

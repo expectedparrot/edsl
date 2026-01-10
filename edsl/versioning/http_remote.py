@@ -44,12 +44,14 @@ from pydantic import BaseModel
 # Lazy import for requests to speed up module import time
 _requests = None
 
+
 def _get_requests():
     """Lazily import requests module."""
     global _requests
     if _requests is None:
         import requests as _requests
     return _requests
+
 
 from .models import Commit, Ref
 from .protocols import Remote
@@ -70,6 +72,7 @@ from .metrics import MetricsCollector, StorageAnalyzer, get_collector, timed
 # ----------------------------
 # Pydantic models for API
 # ----------------------------
+
 
 class CommitModel(BaseModel):
     commit_id: str
@@ -95,6 +98,7 @@ class CreateRepoModel(BaseModel):
 
 class ApplyEventModel(BaseModel):
     """Event to apply to a repository."""
+
     event_name: str  # e.g., "append_row", "update_row", "delete_row"
     event_payload: Dict[str, Any]  # e.g., {"row": {"x": 1}} or {"index": 0}
     message: str = ""  # Commit message
@@ -104,12 +108,14 @@ class ApplyEventModel(BaseModel):
 
 class EventItem(BaseModel):
     """A single event in a batch."""
+
     event_name: str
     event_payload: Dict[str, Any]
 
 
 class BatchCommitModel(BaseModel):
     """Batch of events to commit together."""
+
     events: List[EventItem]
     message: str = ""
     author: str = "web"
@@ -127,6 +133,7 @@ class RepoInfo(BaseModel):
 
 class DryRunModel(BaseModel):
     """Events to validate via dry-run."""
+
     events: List[EventItem]
     branch: str = "main"
     strict: bool = False  # Treat warnings as errors
@@ -136,35 +143,43 @@ class DryRunModel(BaseModel):
 # HTTP Remote Client
 # ----------------------------
 
+
 @dataclass
 class HTTPRemote:
     """
     Remote that connects to an HTTP server.
     Implements the Remote protocol for use with GitMixin classes.
     """
+
     url: str
     repo_id: str
     name: str = "origin"
     timeout: int = 30
 
     @classmethod
-    def from_alias(cls, url: str, alias: str, name: str = "origin", timeout: int = 30) -> "HTTPRemote":
+    def from_alias(
+        cls, url: str, alias: str, name: str = "origin", timeout: int = 30
+    ) -> "HTTPRemote":
         """
         Create HTTPRemote by resolving an alias (e.g., "john/my-list").
         """
         # Resolve alias to repo_id
         resp = _get_requests().get(
-            f"{url.rstrip('/')}/api/aliases/{alias}",
-            timeout=timeout
+            f"{url.rstrip('/')}/api/aliases/{alias}", timeout=timeout
         )
         resp.raise_for_status()
         repo_id = resp.json()["repo_id"]
         return cls(url=url, repo_id=repo_id, name=name, timeout=timeout)
 
     @classmethod
-    def create_repo(cls, url: str, alias: Optional[str] = None,
-                    description: Optional[str] = None,
-                    name: str = "origin", timeout: int = 30) -> "HTTPRemote":
+    def create_repo(
+        cls,
+        url: str,
+        alias: Optional[str] = None,
+        description: Optional[str] = None,
+        name: str = "origin",
+        timeout: int = 30,
+    ) -> "HTTPRemote":
         """
         Create a new repository on the server.
         Returns an HTTPRemote connected to the new repo.
@@ -172,7 +187,7 @@ class HTTPRemote:
         resp = _get_requests().post(
             f"{url.rstrip('/')}/api/repos",
             json={"alias": alias, "description": description},
-            timeout=timeout
+            timeout=timeout,
         )
         resp.raise_for_status()
         repo_id = resp.json()["repo_id"]
@@ -181,7 +196,7 @@ class HTTPRemote:
     def _request(self, method: str, path: str, **kwargs):
         """Make HTTP request to server."""
         url = f"{self.url.rstrip('/')}/api/repos/{self.repo_id}{path}"
-        kwargs.setdefault('timeout', self.timeout)
+        kwargs.setdefault("timeout", self.timeout)
         response = _get_requests().request(method, url, **kwargs)
         response.raise_for_status()
         return response
@@ -190,111 +205,121 @@ class HTTPRemote:
 
     def has_state(self, state_id: str) -> bool:
         try:
-            resp = self._request('GET', f'/states/{state_id}/exists')
-            return resp.json().get('exists', False)
+            resp = self._request("GET", f"/states/{state_id}/exists")
+            return resp.json().get("exists", False)
         except _get_requests().HTTPError as e:
             if e.response.status_code == 404:
                 return False
             raise
 
     def get_state_bytes(self, state_id: str) -> bytes:
-        resp = self._request('GET', f'/states/{state_id}')
+        resp = self._request("GET", f"/states/{state_id}")
         return resp.content
 
     def put_state_bytes(self, state_id: str, data: bytes) -> None:
-        self._request('PUT', f'/states/{state_id}',
-                      data=data,
-                      headers={'Content-Type': 'application/octet-stream'})
+        self._request(
+            "PUT",
+            f"/states/{state_id}",
+            data=data,
+            headers={"Content-Type": "application/octet-stream"},
+        )
 
     # --- Commit operations ---
 
     def has_commit(self, commit_id: str) -> bool:
         try:
-            resp = self._request('GET', f'/commits/{commit_id}/exists')
-            return resp.json().get('exists', False)
+            resp = self._request("GET", f"/commits/{commit_id}/exists")
+            return resp.json().get("exists", False)
         except _get_requests().HTTPError as e:
             if e.response.status_code == 404:
                 return False
             raise
 
     def get_commit(self, commit_id: str) -> Commit:
-        resp = self._request('GET', f'/commits/{commit_id}')
+        resp = self._request("GET", f"/commits/{commit_id}")
         data = resp.json()
         return Commit(
-            commit_id=data['commit_id'],
-            parents=tuple(data['parents']),
-            timestamp=datetime.fromisoformat(data['timestamp']),
-            message=data['message'],
-            event_name=data['event_name'],
-            event_payload=data['event_payload'],
-            author=data.get('author', 'unknown'),
+            commit_id=data["commit_id"],
+            parents=tuple(data["parents"]),
+            timestamp=datetime.fromisoformat(data["timestamp"]),
+            message=data["message"],
+            event_name=data["event_name"],
+            event_payload=data["event_payload"],
+            author=data.get("author", "unknown"),
         )
 
     def put_commit(self, commit: Commit, state_id: str) -> None:
         data = {
-            'commit_id': commit.commit_id,
-            'parents': list(commit.parents),
-            'timestamp': commit.timestamp.isoformat(),
-            'message': commit.message,
-            'event_name': commit.event_name,
-            'event_payload': commit.event_payload,
-            'author': commit.author,
-            'state_id': state_id,
+            "commit_id": commit.commit_id,
+            "parents": list(commit.parents),
+            "timestamp": commit.timestamp.isoformat(),
+            "message": commit.message,
+            "event_name": commit.event_name,
+            "event_payload": commit.event_payload,
+            "author": commit.author,
+            "state_id": state_id,
         }
-        self._request('PUT', f'/commits/{commit.commit_id}', json=data)
+        self._request("PUT", f"/commits/{commit.commit_id}", json=data)
 
     def get_commit_state_id(self, commit_id: str) -> str:
-        resp = self._request('GET', f'/commits/{commit_id}/state_id')
-        return resp.json()['state_id']
+        resp = self._request("GET", f"/commits/{commit_id}/state_id")
+        return resp.json()["state_id"]
 
     # --- Ref operations ---
 
     def has_ref(self, name: str) -> bool:
         try:
-            resp = self._request('GET', f'/refs/{name}/exists')
-            return resp.json().get('exists', False)
+            resp = self._request("GET", f"/refs/{name}/exists")
+            return resp.json().get("exists", False)
         except _get_requests().HTTPError as e:
             if e.response.status_code == 404:
                 return False
             raise
 
     def get_ref(self, name: str) -> Ref:
-        resp = self._request('GET', f'/refs/{name}')
+        resp = self._request("GET", f"/refs/{name}")
         data = resp.json()
         return Ref(
-            name=data['name'],
-            commit_id=data['commit_id'],
-            kind=data.get('kind', 'branch'),
-            updated_at=datetime.fromisoformat(data['updated_at']) if 'updated_at' in data else _utcnow(),
+            name=data["name"],
+            commit_id=data["commit_id"],
+            kind=data.get("kind", "branch"),
+            updated_at=(
+                datetime.fromisoformat(data["updated_at"])
+                if "updated_at" in data
+                else _utcnow()
+            ),
         )
 
     def list_refs(self) -> List[Ref]:
-        resp = self._request('GET', '/refs')
+        resp = self._request("GET", "/refs")
         refs_data = resp.json()
         return [
             Ref(
-                name=r['name'],
-                commit_id=r['commit_id'],
-                kind=r.get('kind', 'branch'),
+                name=r["name"],
+                commit_id=r["commit_id"],
+                kind=r.get("kind", "branch"),
             )
             for r in refs_data
         ]
 
-    def upsert_ref(self, name: str, commit_id: str, kind: Literal["branch", "tag"] = "branch") -> None:
+    def upsert_ref(
+        self, name: str, commit_id: str, kind: Literal["branch", "tag"] = "branch"
+    ) -> None:
         data = {
-            'name': name,
-            'commit_id': commit_id,
-            'kind': kind,
+            "name": name,
+            "commit_id": commit_id,
+            "kind": kind,
         }
-        self._request('PUT', f'/refs/{name}', json=data)
+        self._request("PUT", f"/refs/{name}", json=data)
 
     def delete_ref(self, name: str) -> None:
-        self._request('DELETE', f'/refs/{name}')
+        self._request("DELETE", f"/refs/{name}")
 
 
 # ----------------------------
 # Server Connection Helper
 # ----------------------------
+
 
 @dataclass
 class ObjectVersionsServer:
@@ -314,6 +339,7 @@ class ObjectVersionsServer:
         # Create a new repo
         data = server.create("my-alias", initial_data=[{"x": 1}])
     """
+
     url: str
     timeout: int = 30
 
@@ -322,8 +348,7 @@ class ObjectVersionsServer:
         # First, try as alias
         try:
             resp = _get_requests().get(
-                f"{self.url.rstrip('/')}/api/aliases/{repo}",
-                timeout=self.timeout
+                f"{self.url.rstrip('/')}/api/aliases/{repo}", timeout=self.timeout
             )
             if resp.status_code == 200:
                 return resp.json()["repo_id"]
@@ -336,8 +361,7 @@ class ObjectVersionsServer:
     def list_repos(self) -> List[Dict[str, Any]]:
         """List all repositories on the server."""
         resp = _get_requests().get(
-            f"{self.url.rstrip('/')}/api/repos",
-            timeout=self.timeout
+            f"{self.url.rstrip('/')}/api/repos", timeout=self.timeout
         )
         resp.raise_for_status()
         return resp.json()
@@ -351,7 +375,9 @@ class ObjectVersionsServer:
             name: Remote name (default: "origin")
         """
         repo_id = self._resolve_repo(repo)
-        return HTTPRemote(url=self.url, repo_id=repo_id, name=name, timeout=self.timeout)
+        return HTTPRemote(
+            url=self.url, repo_id=repo_id, name=name, timeout=self.timeout
+        )
 
     def clone(self, repo: str, ref_name: str = "main") -> Dict[str, Any]:
         """
@@ -371,7 +397,7 @@ class ObjectVersionsServer:
         resp = _get_requests().get(
             f"{self.url.rstrip('/')}/api/repos/{repo_id}/data",
             params={"branch": ref_name},
-            timeout=self.timeout
+            timeout=self.timeout,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -385,8 +411,12 @@ class ObjectVersionsServer:
             "commit_id": data.get("commit_id"),
         }
 
-    def create(self, alias: Optional[str] = None, description: Optional[str] = None,
-               initial_data: Optional[List[Dict]] = None) -> Dict[str, Any]:
+    def create(
+        self,
+        alias: Optional[str] = None,
+        description: Optional[str] = None,
+        initial_data: Optional[List[Dict]] = None,
+    ) -> Dict[str, Any]:
         """
         Create a new repository on the server.
 
@@ -399,10 +429,7 @@ class ObjectVersionsServer:
             Dict with 'entries', 'meta', 'remote', 'repo_id'
         """
         remote = HTTPRemote.create_repo(
-            url=self.url,
-            alias=alias,
-            description=description,
-            timeout=self.timeout
+            url=self.url, alias=alias, description=description, timeout=self.timeout
         )
 
         # If initial data provided, push it via events
@@ -415,9 +442,9 @@ class ObjectVersionsServer:
                     "event_payload": {"entries": initial_data},
                     "message": "Initial data",
                     "author": "api",
-                    "branch": "main"
+                    "branch": "main",
                 },
-                timeout=self.timeout
+                timeout=self.timeout,
             )
             # If branch doesn't exist yet, we need to initialize first
             if resp.status_code == 400:
@@ -438,9 +465,11 @@ class ObjectVersionsServer:
 # Repository storage
 # ----------------------------
 
+
 @dataclass
 class RepoStorage:
     """Storage for a single repository."""
+
     repo_id: str
     alias: Optional[str] = None
     description: Optional[str] = None
@@ -452,6 +481,7 @@ class RepoStorage:
 # ----------------------------
 # FastAPI Server
 # ----------------------------
+
 
 def create_app(db_url: Optional[str] = None):
     """
@@ -486,7 +516,9 @@ def create_app(db_url: Optional[str] = None):
 
     def notify_subscribers(repo_id: str, event_type: str, data: Dict[str, Any]):
         """Notify all subscribers of a repo about an event."""
-        print(f"[SSE] notify_subscribers called: repo={repo_id}, event={event_type}, subscribers={len(subscribers.get(repo_id, []))}")
+        print(
+            f"[SSE] notify_subscribers called: repo={repo_id}, event={event_type}, subscribers={len(subscribers.get(repo_id, []))}"
+        )
         if repo_id in subscribers:
             for queue in subscribers[repo_id]:
                 try:
@@ -500,6 +532,7 @@ def create_app(db_url: Optional[str] = None):
     # Choose storage backend
     if db_url:
         from .db_backend import DatabaseManager
+
         db = DatabaseManager(db_url)
         use_db = True
     else:
@@ -556,14 +589,16 @@ def create_app(db_url: Optional[str] = None):
             result = []
             for r in repos_list:
                 storage = db.get_repo_storage(r.repo_id)
-                result.append({
-                    "repo_id": r.repo_id,
-                    "alias": r.alias,
-                    "description": r.description,
-                    "created_at": r.created_at.isoformat(),
-                    "refs_count": storage.refs_count(),
-                    "commits_count": storage.commits_count(),
-                })
+                result.append(
+                    {
+                        "repo_id": r.repo_id,
+                        "alias": r.alias,
+                        "description": r.description,
+                        "created_at": r.created_at.isoformat(),
+                        "refs_count": storage.refs_count(),
+                        "commits_count": storage.commits_count(),
+                    }
+                )
             return result
         else:
             return [
@@ -676,7 +711,11 @@ def create_app(db_url: Optional[str] = None):
     @app.get("/api/repos/{repo_id}")
     def get_repo_info_endpoint(repo_id: str):
         info = get_repo_info(repo_id)
-        info["created_at"] = info["created_at"].isoformat() if hasattr(info["created_at"], "isoformat") else info["created_at"]
+        info["created_at"] = (
+            info["created_at"].isoformat()
+            if hasattr(info["created_at"], "isoformat")
+            else info["created_at"]
+        )
         return info
 
     @app.put("/api/repos/{repo_id}/alias")
@@ -719,7 +758,7 @@ def create_app(db_url: Optional[str] = None):
             raise HTTPException(404, "State not found")
         return Response(
             content=storage.get_state_bytes(state_id),
-            media_type="application/octet-stream"
+            media_type="application/octet-stream",
         )
 
     @app.put("/api/repos/{repo_id}/states/{state_id}")
@@ -761,7 +800,9 @@ def create_app(db_url: Optional[str] = None):
             raise HTTPException(404, "Commit not found")
 
     @app.put("/api/repos/{repo_id}/commits/{commit_id}")
-    def put_commit_endpoint(repo_id: str, commit_id: str, payload: CommitModel = Body(...)):
+    def put_commit_endpoint(
+        repo_id: str, commit_id: str, payload: CommitModel = Body(...)
+    ):
         storage = get_repo_storage(repo_id)
         commit = Commit(
             commit_id=payload.commit_id,
@@ -814,11 +855,15 @@ def create_app(db_url: Optional[str] = None):
         storage.upsert_ref(payload.name, payload.commit_id, payload.kind)
 
         # Notify SSE subscribers (this is how Python clients push updates)
-        notify_subscribers(repo_id, "ref_update", {
-            "ref_name": payload.name,
-            "commit_id": payload.commit_id,
-            "kind": payload.kind,
-        })
+        notify_subscribers(
+            repo_id,
+            "ref_update",
+            {
+                "ref_name": payload.name,
+                "commit_id": payload.commit_id,
+                "kind": payload.kind,
+            },
+        )
 
         return {"status": "ok"}
 
@@ -864,7 +909,9 @@ def create_app(db_url: Optional[str] = None):
         if repo_id not in subscribers:
             subscribers[repo_id] = []
         subscribers[repo_id].append(queue)
-        print(f"[SSE] Client connected to repo {repo_id}, total subscribers: {len(subscribers[repo_id])}")
+        print(
+            f"[SSE] Client connected to repo {repo_id}, total subscribers: {len(subscribers[repo_id])}"
+        )
 
         async def event_generator():
             try:
@@ -903,23 +950,23 @@ def create_app(db_url: Optional[str] = None):
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
                 "X-Accel-Buffering": "no",  # Disable nginx buffering if present
-            }
+            },
         )
 
     def load_store_from_state(state_bytes: bytes) -> Store:
         """Load a Store from state bytes."""
-        state_list = json.loads(state_bytes.decode('utf-8'))
+        state_list = json.loads(state_bytes.decode("utf-8"))
         state_dict = state_list[0] if isinstance(state_list, list) else state_list
         return Store(
             entries=list(state_dict.get("entries", [])),
-            meta=dict(state_dict.get("meta", {}))
+            meta=dict(state_dict.get("meta", {})),
         )
 
     def serialize_store(store: Store) -> bytes:
         """Serialize a Store to bytes."""
         state_dict = {"entries": store.entries, "meta": store.meta}
         state_list = [state_dict]
-        return json.dumps(state_list, sort_keys=True).encode('utf-8')
+        return json.dumps(state_list, sort_keys=True).encode("utf-8")
 
     def materialize_at_commit(storage, commit_id: str) -> Store:
         """
@@ -938,10 +985,14 @@ def create_app(db_url: Optional[str] = None):
         Raises:
             HTTPException: If no snapshot found in ancestry
         """
-        snapshot_commit_id, state_id, events_to_replay = storage.find_nearest_snapshot(commit_id)
+        snapshot_commit_id, state_id, events_to_replay = storage.find_nearest_snapshot(
+            commit_id
+        )
 
         if state_id is None:
-            raise HTTPException(500, f"No snapshot found in ancestry of commit {commit_id}")
+            raise HTTPException(
+                500, f"No snapshot found in ancestry of commit {commit_id}"
+            )
 
         # Load the snapshot
         state_bytes = storage.get_state_bytes(state_id)
@@ -954,7 +1005,9 @@ def create_app(db_url: Optional[str] = None):
                     # Unpack batch events and apply each sub-event
                     sub_events = event_payload.get("events", [])
                     for sub in sub_events:
-                        sub_event = create_event(sub["event_name"], sub["event_payload"])
+                        sub_event = create_event(
+                            sub["event_name"], sub["event_payload"]
+                        )
                         apply_event(sub_event, store)
                 else:
                     event = create_event(event_name, event_payload)
@@ -1038,12 +1091,16 @@ def create_app(db_url: Optional[str] = None):
         storage.upsert_ref(branch, new_commit_id, "branch")
 
         # Notify SSE subscribers
-        notify_subscribers(repo_id, "commit", {
-            "commit_id": new_commit_id,
-            "branch": branch,
-            "message": payload.message or event_name,
-            "event_name": event_name,
-        })
+        notify_subscribers(
+            repo_id,
+            "commit",
+            {
+                "commit_id": new_commit_id,
+                "branch": branch,
+                "message": payload.message or event_name,
+                "event_name": event_name,
+            },
+        )
 
         return {
             "status": "ok",
@@ -1088,7 +1145,9 @@ def create_app(db_url: Optional[str] = None):
             try:
                 # Validate by creating the event
                 event = create_event(event_name, event_payload)
-                validated_events.append({"event_name": event_name, "event_payload": event_payload})
+                validated_events.append(
+                    {"event_name": event_name, "event_payload": event_payload}
+                )
             except ValueError as e:
                 raise HTTPException(400, f"Error validating event '{event_name}': {e}")
 
@@ -1120,12 +1179,16 @@ def create_app(db_url: Optional[str] = None):
         storage.upsert_ref(branch, new_commit_id, "branch")
 
         # Notify SSE subscribers
-        notify_subscribers(repo_id, "commit", {
-            "commit_id": new_commit_id,
-            "branch": branch,
-            "message": payload.message or f"batch ({len(validated_events)} events)",
-            "events_applied": len(validated_events),
-        })
+        notify_subscribers(
+            repo_id,
+            "commit",
+            {
+                "commit_id": new_commit_id,
+                "branch": branch,
+                "message": payload.message or f"batch ({len(validated_events)} events)",
+                "events_applied": len(validated_events),
+            },
+        )
 
         return {
             "status": "ok",
@@ -1216,11 +1279,17 @@ def create_app(db_url: Optional[str] = None):
         """Generate recommendations based on snapshot stats."""
         recommendations = []
         if stats.events_since_last_snapshot > 50:
-            recommendations.append("Create a snapshot - many events since last snapshot")
+            recommendations.append(
+                "Create a snapshot - many events since last snapshot"
+            )
         if stats.snapshot_coverage < 0.02:
-            recommendations.append("Low snapshot coverage - consider creating more snapshots")
+            recommendations.append(
+                "Low snapshot coverage - consider creating more snapshots"
+            )
         if stats.max_events_to_replay > 100:
-            recommendations.append("High max replay count - snapshots would improve read performance")
+            recommendations.append(
+                "High max replay count - snapshots would improve read performance"
+            )
         return recommendations
 
     # --- Snapshot garbage collection endpoint ---
@@ -1288,11 +1357,7 @@ def create_app(db_url: Optional[str] = None):
     # --- Time travel / history endpoints ---
 
     @app.get("/api/repos/{repo_id}/history/at")
-    def get_state_at_time_endpoint(
-        repo_id: str,
-        timestamp: str,
-        branch: str = "main"
-    ):
+    def get_state_at_time_endpoint(repo_id: str, timestamp: str, branch: str = "main"):
         """
         Get the state at a specific point in time.
 
@@ -1332,10 +1397,7 @@ def create_app(db_url: Optional[str] = None):
 
     @app.get("/api/repos/{repo_id}/history/search")
     def search_history_endpoint(
-        repo_id: str,
-        query: str,
-        branch: str = "main",
-        limit: int = 20
+        repo_id: str, query: str, branch: str = "main", limit: int = 20
     ):
         """
         Search commit history by message.
@@ -1355,22 +1417,20 @@ def create_app(db_url: Optional[str] = None):
         results = []
         for cid in commit_ids:
             commit = storage.get_commit(cid)
-            results.append({
-                "commit_id": cid,
-                "message": commit.message,
-                "event_name": commit.event_name,
-                "author": commit.author,
-                "timestamp": commit.timestamp.isoformat(),
-            })
+            results.append(
+                {
+                    "commit_id": cid,
+                    "message": commit.message,
+                    "event_name": commit.event_name,
+                    "author": commit.author,
+                    "timestamp": commit.timestamp.isoformat(),
+                }
+            )
 
         return {"query": query, "results": results, "count": len(results)}
 
     @app.get("/api/repos/{repo_id}/history/diff")
-    def diff_commits_endpoint(
-        repo_id: str,
-        from_commit: str,
-        to_commit: str
-    ):
+    def diff_commits_endpoint(repo_id: str, from_commit: str, to_commit: str):
         """
         Get the diff between two commits.
 
@@ -1391,7 +1451,8 @@ def create_app(db_url: Optional[str] = None):
         diff = traveler.diff_states(
             {"entries": state1.entries, "meta": state1.meta},
             {"entries": state2.entries, "meta": state2.meta},
-            from_commit, to_commit
+            from_commit,
+            to_commit,
         )
 
         return {
@@ -1402,7 +1463,9 @@ def create_app(db_url: Optional[str] = None):
             "entries_modified": diff.entries_modified,
             "fields_added": diff.fields_added,
             "fields_removed": diff.fields_removed,
-            "meta_changes": {k: {"old": v[0], "new": v[1]} for k, v in diff.meta_changes.items()},
+            "meta_changes": {
+                k: {"old": v[0], "new": v[1]} for k, v in diff.meta_changes.items()
+            },
         }
 
     # --- Validation / dry-run endpoint ---
@@ -1430,9 +1493,10 @@ def create_app(db_url: Optional[str] = None):
         # Define apply function for dry-run
         def apply_fn(event_name, event_payload, state):
             import copy
+
             temp_store = Store(
                 entries=copy.deepcopy(state.get("entries", [])),
-                meta=copy.deepcopy(state.get("meta", {}))
+                meta=copy.deepcopy(state.get("meta", {})),
             )
             event = create_event(event_name, event_payload)
             apply_event(event, temp_store)
@@ -1446,27 +1510,37 @@ def create_app(db_url: Optional[str] = None):
         # Format results
         validation_results = []
         for event_name, event_payload, vr in result.validation_results:
-            validation_results.append({
-                "event_name": event_name,
-                "valid": vr.valid,
-                "issues": [
-                    {
-                        "severity": i.severity.value,
-                        "code": i.code,
-                        "message": i.message,
-                        "field": i.field,
-                    }
-                    for i in vr.issues
-                ]
-            })
+            validation_results.append(
+                {
+                    "event_name": event_name,
+                    "valid": vr.valid,
+                    "issues": [
+                        {
+                            "severity": i.severity.value,
+                            "code": i.code,
+                            "message": i.message,
+                            "field": i.field,
+                        }
+                        for i in vr.issues
+                    ],
+                }
+            )
 
         return {
             "success": result.success,
             "summary": result.summary,
             "validation_results": validation_results,
-            "final_state_preview": {
-                "entries_count": len(result.final_state.get("entries", [])) if result.final_state else None,
-            } if result.success else None,
+            "final_state_preview": (
+                {
+                    "entries_count": (
+                        len(result.final_state.get("entries", []))
+                        if result.final_state
+                        else None
+                    ),
+                }
+                if result.success
+                else None
+            ),
         }
 
     # --- Metrics endpoint ---
@@ -1496,7 +1570,9 @@ def create_app(db_url: Optional[str] = None):
                 "total_snapshots": storage_metrics.total_snapshots,
                 "total_events": storage_metrics.total_events,
                 "snapshot_coverage": round(storage_metrics.snapshot_coverage * 100, 2),
-                "avg_snapshot_size_bytes": round(storage_metrics.avg_snapshot_size_bytes),
+                "avg_snapshot_size_bytes": round(
+                    storage_metrics.avg_snapshot_size_bytes
+                ),
                 "total_storage_bytes": storage_metrics.total_storage_bytes,
             },
             "health": {
@@ -1515,6 +1591,7 @@ def create_app(db_url: Optional[str] = None):
         Returns performance metrics, counters, and timing information.
         """
         from .metrics import get_metrics_summary
+
         return get_metrics_summary()
 
     # --- Get state at specific commit ---
@@ -1570,14 +1647,16 @@ def create_app(db_url: Optional[str] = None):
             if not storage.has_commit(current):
                 break
             commit = storage.get_commit(current)
-            commits.append({
-                "commit_id": commit.commit_id,
-                "message": commit.message,
-                "event_name": commit.event_name,
-                "author": commit.author,
-                "timestamp": commit.timestamp.isoformat(),
-                "parents": list(commit.parents),
-            })
+            commits.append(
+                {
+                    "commit_id": commit.commit_id,
+                    "message": commit.message,
+                    "event_name": commit.event_name,
+                    "author": commit.author,
+                    "timestamp": commit.timestamp.isoformat(),
+                    "parents": list(commit.parents),
+                }
+            )
             if not commit.parents:
                 break
             current = commit.parents[0]
@@ -1637,15 +1716,17 @@ def create_app(db_url: Optional[str] = None):
             recent_commits_data = []
             for repo in repos_list:
                 for commit in repo.store._commits.values():
-                    recent_commits_data.append({
-                        "repo_id": repo.repo_id,
-                        "alias": repo.alias,
-                        "commit_id": commit.commit_id,
-                        "message": commit.message,
-                        "event_name": commit.event_name,
-                        "author": commit.author,
-                        "timestamp": commit.timestamp,
-                    })
+                    recent_commits_data.append(
+                        {
+                            "repo_id": repo.repo_id,
+                            "alias": repo.alias,
+                            "commit_id": commit.commit_id,
+                            "message": commit.message,
+                            "event_name": commit.event_name,
+                            "author": commit.author,
+                            "timestamp": commit.timestamp,
+                        }
+                    )
             recent_commits_data.sort(key=lambda x: x["timestamp"], reverse=True)
             recent_commits_data = recent_commits_data[:15]
 
@@ -1836,7 +1917,9 @@ def create_app(db_url: Optional[str] = None):
         # Build rows HTML
         rows_html = ""
         for i, row in enumerate(rows):
-            cells = "".join(f"<td>{json.dumps(row.get(col, ''))}</td>" for col in columns)
+            cells = "".join(
+                f"<td>{json.dumps(row.get(col, ''))}</td>" for col in columns
+            )
             rows_html += f"""
             <tr data-index="{i}">
                 <td>{i}</td>
@@ -1855,8 +1938,14 @@ def create_app(db_url: Optional[str] = None):
         commits_html = ""
         for i, c in enumerate(commits_list):
             # Format payload as collapsible JSON
-            payload_json = json.dumps(c.event_payload, indent=2) if c.event_payload else "{}"
-            payload_preview = json.dumps(c.event_payload)[:50] + "..." if len(json.dumps(c.event_payload)) > 50 else json.dumps(c.event_payload)
+            payload_json = (
+                json.dumps(c.event_payload, indent=2) if c.event_payload else "{}"
+            )
+            payload_preview = (
+                json.dumps(c.event_payload)[:50] + "..."
+                if len(json.dumps(c.event_payload)) > 50
+                else json.dumps(c.event_payload)
+            )
             commits_html += f"""
             <tr>
                 <td>
@@ -2441,16 +2530,16 @@ survey.git_push()</code></pre>
         return html
 
     # --- GitHub-style URL: /<username>/<alias> ---
-    
+
     @app.get("/{username}/{alias_name}", response_class=HTMLResponse)
     def alias_view_ui(username: str, alias_name: str, branch: str = "main"):
         """GitHub-style URL routing: /<username>/<alias> shows the repo page directly."""
         # Skip if it looks like an API or static route
         if username in ("api", "repos", "static", "favicon.ico"):
             raise HTTPException(404, "Not found")
-        
+
         full_alias = f"{username}/{alias_name}"
-        
+
         # Resolve alias to repo_id
         if use_db:
             repo = db.get_repo_by_alias(full_alias)
@@ -2461,17 +2550,17 @@ survey.git_push()</code></pre>
             if full_alias not in aliases:
                 raise HTTPException(404, f"Repository '{full_alias}' not found")
             repo_id = aliases[full_alias]
-        
+
         # Render the page directly (same as object_view_ui)
         return object_view_ui(repo_id, branch)
 
     # --- GitHub-style commits URL: /<username>/<alias>/commits ---
-    
+
     @app.get("/{username}/{alias_name}/commits", response_class=HTMLResponse)
     def commits_list_ui(username: str, alias_name: str, branch: str = "main"):
         """GitHub-style commits URL: shows commit history for a branch."""
         full_alias = f"{username}/{alias_name}"
-        
+
         # Resolve alias to repo_id
         if use_db:
             repo = db.get_repo_by_alias(full_alias)
@@ -2482,12 +2571,12 @@ survey.git_push()</code></pre>
             if full_alias not in aliases:
                 raise HTTPException(404, f"Repository '{full_alias}' not found")
             repo_id = aliases[full_alias]
-        
+
         storage = get_repo_storage(repo_id)
-        
+
         if not storage.has_ref(branch):
             raise HTTPException(404, f"Branch '{branch}' not found")
-        
+
         # Get all commits
         ref = storage.get_ref(branch)
         commits_list = []
@@ -2498,11 +2587,11 @@ survey.git_push()</code></pre>
             if not commit.parents:
                 break
             current = commit.parents[0]
-        
+
         # Build commits HTML
         commits_html = ""
         for i, c in enumerate(commits_list):
-            is_head = (i == 0)
+            is_head = i == 0
             commits_html += f"""
             <div class="commit-item {'border-primary' if is_head else ''}" style="border-left: 3px solid {'#0d6efd' if is_head else '#dee2e6'}; padding-left: 15px; margin-bottom: 15px;">
                 <div class="d-flex justify-content-between align-items-start">
@@ -2523,14 +2612,14 @@ survey.git_push()</code></pre>
                 </div>
             </div>
             """
-        
+
         # Branch selector
         all_refs = storage.list_refs()
         branch_options = "".join(
             f'<option value="{r.name}" {"selected" if r.name == branch else ""}>{r.name}</option>'
             for r in all_refs
         )
-        
+
         html = f"""
         <!DOCTYPE html>
         <html>
@@ -2568,27 +2657,33 @@ survey.git_push()</code></pre>
         return html
 
     # --- GitHub-style commits for specific branch: /<username>/<alias>/commits/<branch> ---
-    
-    @app.get("/{username}/{alias_name}/commits/{branch_name}", response_class=HTMLResponse)
+
+    @app.get(
+        "/{username}/{alias_name}/commits/{branch_name}", response_class=HTMLResponse
+    )
     def commits_branch_ui(username: str, alias_name: str, branch_name: str):
         """GitHub-style commits URL with branch in path."""
         return commits_list_ui(username, alias_name, branch=branch_name)
 
     # --- GitHub-style compare URL: /<username>/<alias>/compare/<base>...<head> ---
-    
-    @app.get("/{username}/{alias_name}/compare/{comparison}", response_class=HTMLResponse)
+
+    @app.get(
+        "/{username}/{alias_name}/compare/{comparison}", response_class=HTMLResponse
+    )
     def compare_view_ui(username: str, alias_name: str, comparison: str):
         """GitHub-style compare URL: shows diff between two refs/commits using jsondiffpatch."""
         full_alias = f"{username}/{alias_name}"
-        
+
         # Parse comparison (base...head or base..head)
         if "..." in comparison:
             base_ref, head_ref = comparison.split("...", 1)
         elif ".." in comparison:
             base_ref, head_ref = comparison.split("..", 1)
         else:
-            raise HTTPException(400, "Invalid comparison format. Use 'base...head' or 'base..head'")
-        
+            raise HTTPException(
+                400, "Invalid comparison format. Use 'base...head' or 'base..head'"
+            )
+
         # Resolve alias to repo_id
         if use_db:
             repo = db.get_repo_by_alias(full_alias)
@@ -2599,9 +2694,9 @@ survey.git_push()</code></pre>
             if full_alias not in aliases:
                 raise HTTPException(404, f"Repository '{full_alias}' not found")
             repo_id = aliases[full_alias]
-        
+
         storage = get_repo_storage(repo_id)
-        
+
         # Resolve refs to commit IDs
         def resolve_ref(ref_str):
             # Try as branch name first
@@ -2622,28 +2717,28 @@ survey.git_push()</code></pre>
                             break
                         current = commit.parents[0]
             raise HTTPException(404, f"Ref '{ref_str}' not found")
-        
+
         base_commit, base_label = resolve_ref(base_ref)
         head_commit, head_label = resolve_ref(head_ref)
-        
+
         # Get states at both commits
         base_store = materialize_at_commit(storage, base_commit)
         head_store = materialize_at_commit(storage, head_commit)
-        
+
         # Build full state objects for comparison
         base_state = {"entries": base_store.entries, "meta": base_store.meta}
         head_state = {"entries": head_store.entries, "meta": head_store.meta}
-        
+
         # JSON encode for embedding in HTML
         base_state_json = json.dumps(base_state)
         head_state_json = json.dumps(head_state)
-        
+
         # Quick stats for badges
         base_len = len(base_store.entries)
         head_len = len(head_store.entries)
         added_count = max(0, head_len - base_len)
         removed_count = max(0, base_len - head_len)
-        
+
         html = f"""
         <!DOCTYPE html>
         <html>
@@ -2778,12 +2873,12 @@ survey.git_push()</code></pre>
         return html
 
     # --- GitHub-style network URL: /<username>/<alias>/network ---
-    
+
     @app.get("/{username}/{alias_name}/network", response_class=HTMLResponse)
     def network_view_ui(username: str, alias_name: str):
         """GitHub-style network graph: visualizes branches and commits."""
         full_alias = f"{username}/{alias_name}"
-        
+
         # Resolve alias to repo_id
         if use_db:
             repo = db.get_repo_by_alias(full_alias)
@@ -2794,14 +2889,14 @@ survey.git_push()</code></pre>
             if full_alias not in aliases:
                 raise HTTPException(404, f"Repository '{full_alias}' not found")
             repo_id = aliases[full_alias]
-        
+
         storage = get_repo_storage(repo_id)
         refs = list(storage.list_refs())
-        
+
         # Build commit graph data
         all_commits = {}
         branch_commits = {}
-        
+
         for ref in refs:
             branch_commits[ref.name] = []
             current = ref.commit_id
@@ -2820,21 +2915,23 @@ survey.git_push()</code></pre>
                     "author": commit.author,
                     "timestamp": commit.timestamp.isoformat(),
                     "parents": list(commit.parents) if commit.parents else [],
-                    "branches": []
+                    "branches": [],
                 }
                 branch_commits[ref.name].append(current)
                 current = commit.parents[0] if commit.parents else None
-        
+
         # Mark which branches each commit belongs to
         for branch_name, commits in branch_commits.items():
             for commit_id in commits:
                 if commit_id in all_commits:
                     all_commits[commit_id]["branches"].append(branch_name)
-        
+
         # Convert to JSON for JavaScript
         commits_json = json.dumps(list(all_commits.values()))
-        branches_json = json.dumps([{"name": r.name, "commit_id": r.commit_id} for r in refs])
-        
+        branches_json = json.dumps(
+            [{"name": r.name, "commit_id": r.commit_id} for r in refs]
+        )
+
         html = f"""
         <!DOCTYPE html>
         <html>
@@ -3093,12 +3190,12 @@ survey.git_push()</code></pre>
         return html
 
     # --- GitHub-style tree URL: /<username>/<alias>/tree/<branch> ---
-    
+
     @app.get("/{username}/{alias_name}/tree/{branch_name}", response_class=HTMLResponse)
     def tree_view_ui(username: str, alias_name: str, branch_name: str):
         """GitHub-style tree URL: shows repo at a specific branch."""
         full_alias = f"{username}/{alias_name}"
-        
+
         # Resolve alias to repo_id
         if use_db:
             repo = db.get_repo_by_alias(full_alias)
@@ -3109,23 +3206,23 @@ survey.git_push()</code></pre>
             if full_alias not in aliases:
                 raise HTTPException(404, f"Repository '{full_alias}' not found")
             repo_id = aliases[full_alias]
-        
+
         storage = get_repo_storage(repo_id)
-        
+
         # Check if branch exists
         if not storage.has_ref(branch_name):
             raise HTTPException(404, f"Branch '{branch_name}' not found")
-        
+
         # Render using the main view with the specified branch
         return object_view_ui(repo_id, branch_name)
 
     # --- GitHub-style branches URL: /<username>/<alias>/branches ---
-    
+
     @app.get("/{username}/{alias_name}/branches", response_class=HTMLResponse)
     def branches_view_ui(username: str, alias_name: str):
         """GitHub-style branches URL: lists all branches for the repo."""
         full_alias = f"{username}/{alias_name}"
-        
+
         # Resolve alias to repo_id
         if use_db:
             repo = db.get_repo_by_alias(full_alias)
@@ -3136,18 +3233,22 @@ survey.git_push()</code></pre>
             if full_alias not in aliases:
                 raise HTTPException(404, f"Repository '{full_alias}' not found")
             repo_id = aliases[full_alias]
-        
+
         storage = get_repo_storage(repo_id)
         refs = storage.list_refs()
-        
+
         # Build branches table
         branches_html = ""
         for ref in refs:
-            commit = storage.get_commit(ref.commit_id) if storage.has_commit(ref.commit_id) else None
+            commit = (
+                storage.get_commit(ref.commit_id)
+                if storage.has_commit(ref.commit_id)
+                else None
+            )
             message = commit.message if commit else "Unknown"
             author = commit.author if commit else "Unknown"
             timestamp = commit.timestamp.isoformat() if commit else "Unknown"
-            
+
             branches_html += f"""
             <tr>
                 <td>
@@ -3166,7 +3267,7 @@ survey.git_push()</code></pre>
                 <td>{timestamp[:19] if timestamp != "Unknown" else timestamp}</td>
             </tr>
             """
-        
+
         html = f"""
         <!DOCTYPE html>
         <html>
@@ -3209,12 +3310,14 @@ survey.git_push()</code></pre>
         return html
 
     # --- GitHub-style commit URL: /<username>/<alias>/commit/<hash> ---
-    
-    @app.get("/{username}/{alias_name}/commit/{commit_hash}", response_class=HTMLResponse)
+
+    @app.get(
+        "/{username}/{alias_name}/commit/{commit_hash}", response_class=HTMLResponse
+    )
     def commit_view_ui(username: str, alias_name: str, commit_hash: str):
         """GitHub-style commit URL: shows repo at a specific commit (detached HEAD)."""
         full_alias = f"{username}/{alias_name}"
-        
+
         # Resolve alias to repo_id
         if use_db:
             repo = db.get_repo_by_alias(full_alias)
@@ -3225,10 +3328,10 @@ survey.git_push()</code></pre>
             if full_alias not in aliases:
                 raise HTTPException(404, f"Repository '{full_alias}' not found")
             repo_id = aliases[full_alias]
-        
+
         # Get repo storage and verify commit exists
         storage = get_repo_storage(repo_id)
-        
+
         # Support short hashes (prefix match)
         resolved_hash = commit_hash
         if len(commit_hash) < 64:
@@ -3250,10 +3353,10 @@ survey.git_push()</code></pre>
                     current = commit.parents[0]
             if found:
                 resolved_hash = found
-        
+
         if not storage.has_commit(resolved_hash):
             raise HTTPException(404, f"Commit '{commit_hash}' not found")
-        
+
         # Check if this is HEAD of any branch
         is_head = False
         head_branch = None
@@ -3262,13 +3365,13 @@ survey.git_push()</code></pre>
                 is_head = True
                 head_branch = ref.name
                 break
-        
+
         # Build a special detached HEAD view
         commit = storage.get_commit(resolved_hash)
         store = materialize_at_commit(storage, resolved_hash)
         rows = store.entries
         metadata = store.meta
-        
+
         # Infer columns from data
         columns = []
         if rows:
@@ -3276,21 +3379,25 @@ survey.git_push()</code></pre>
                 for key in row.keys():
                     if key not in columns:
                         columns.append(key)
-        
+
         # Build rows HTML
         rows_html = ""
         for i, row in enumerate(rows):
-            cells = "".join(f"<td>{json.dumps(row.get(col, ''))}</td>" for col in columns)
+            cells = "".join(
+                f"<td>{json.dumps(row.get(col, ''))}</td>" for col in columns
+            )
             rows_html += f"<tr><td>{i}</td>{cells}</tr>"
-        
+
         columns_header = "".join(f"<th>{col}</th>" for col in columns)
-        
+
         # Detached HEAD warning
         if is_head:
             head_status = f'<span class="badge bg-success">HEAD of {head_branch}</span>'
         else:
-            head_status = '<span class="badge bg-warning text-dark">Detached HEAD</span>'
-        
+            head_status = (
+                '<span class="badge bg-warning text-dark">Detached HEAD</span>'
+            )
+
         html = f"""
         <!DOCTYPE html>
         <html>
@@ -3349,6 +3456,7 @@ def run_server(host: str = "0.0.0.0", port: int = 8765, db_url: Optional[str] = 
                 If None, uses in-memory storage.
     """
     import uvicorn
+
     app = create_app(db_url=db_url)
     uvicorn.run(app, host=host, port=port)
 
@@ -3357,13 +3465,20 @@ def run_server(host: str = "0.0.0.0", port: int = 8765, db_url: Optional[str] = 
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="Object Versions Remote Server")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
     parser.add_argument("--port", type=int, default=8765, help="Port to bind to")
-    parser.add_argument("--db", default="sqlite:///object_versions.db",
-                        help="Database URL (default: sqlite:///object_versions.db)")
-    parser.add_argument("--memory", action="store_true",
-                        help="Use in-memory storage instead of database")
+    parser.add_argument(
+        "--db",
+        default="sqlite:///object_versions.db",
+        help="Database URL (default: sqlite:///object_versions.db)",
+    )
+    parser.add_argument(
+        "--memory",
+        action="store_true",
+        help="Use in-memory storage instead of database",
+    )
     args = parser.parse_args()
 
     db_url = None if args.memory else args.db

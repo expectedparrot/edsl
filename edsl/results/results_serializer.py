@@ -399,7 +399,7 @@ class ResultsSerializer:
                     temp_db.copy_from(str(db_path))
                     # Extract all Result objects from the database
                     result_data = list(temp_db)
-                
+
                 # 3. Create a new Results instance with the loaded data
                 results = Results(
                     survey=(

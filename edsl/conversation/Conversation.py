@@ -81,6 +81,7 @@ class Conversation:
 
         if cache is None:
             from ..caching import Cache
+
             self.cache = Cache()
         else:
             self.cache = cache
@@ -239,10 +240,10 @@ What do you say next?"""
         i = 0
         while await self.continue_conversation():
             speaker = self.next_speaker()
-            
+
             # new retry lofic
             max_retries = 5  # maximal retry times
-            delay = 2        # wait for 2 s before retrying
+            delay = 2  # wait for 2 s before retrying
             attempt = 0
             result_statement = None
             success = False
@@ -259,12 +260,16 @@ What do you say next?"""
                 except Exception as e:
                     attempt += 1
                     if self.verbose:
-                        print(f"Agent {speaker.name} failed (Attempt {attempt}/{max_retries}): {e}")
-                    
+                        print(
+                            f"Agent {speaker.name} failed (Attempt {attempt}/{max_retries}): {e}"
+                        )
+
                     if attempt >= max_retries:
                         # if fails entirely, throw an exception
-                        raise Exception(f"Conversation crashed: Agent {speaker.name} failed after {max_retries} retries. Error: {e}")
-                    
+                        raise Exception(
+                            f"Conversation crashed: Agent {speaker.name} failed after {max_retries} retries. Error: {e}"
+                        )
+
                     # sleep 2 s before retrying
                     await asyncio.sleep(delay)
 
@@ -288,6 +293,7 @@ class ConversationList:
 
         if cache is None:
             from ..caching import Cache
+
             self.cache = Cache()
         else:
             self.cache = cache

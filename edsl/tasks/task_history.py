@@ -81,47 +81,54 @@ class TaskHistory(RepresentationMixin):
         self.include_traceback = include_traceback
 
         self.max_interviews = max_interviews
-    
+
     @staticmethod
     def _get_model_name(model) -> str:
         """Get model name from either a Model object or a dict."""
-        if hasattr(model, 'model'):
+        if hasattr(model, "model"):
             return model.model
         elif isinstance(model, dict):
-            return model.get('model', 'unknown')
-        return 'unknown'
-    
+            return model.get("model", "unknown")
+        return "unknown"
+
     @staticmethod
     def _get_inference_service(model) -> str:
         """Get inference service from either a Model object or a dict."""
-        if hasattr(model, '_inference_service_'):
+        if hasattr(model, "_inference_service_"):
             return model._inference_service_
         elif isinstance(model, dict):
-            return model.get('inference_service', 'unknown')
-        return 'unknown'
-    
+            return model.get("inference_service", "unknown")
+        return "unknown"
+
     @staticmethod
     def _get_question_type(survey, question_name: str) -> str:
         """Get question type from either a Survey object or a dict."""
-        if hasattr(survey, '_get_question_by_name'):
+        if hasattr(survey, "_get_question_by_name"):
             return survey._get_question_by_name(question_name).question_type
         elif isinstance(survey, dict):
             # Search through questions in the serialized survey
-            for q in survey.get('questions', []):
-                if q.get('question_name') == question_name:
-                    return q.get('question_type', 'unknown')
-        return 'unknown'
-    
+            for q in survey.get("questions", []):
+                if q.get("question_name") == question_name:
+                    return q.get("question_type", "unknown")
+        return "unknown"
+
     @staticmethod
     def _get_survey_questions(survey) -> list:
         """Get questions from either a Survey object or a dict."""
-        if hasattr(survey, 'questions'):
+        if hasattr(survey, "questions"):
             return survey.questions
         elif isinstance(survey, dict):
             # Return dicts that have question_name and question_type
             return [
-                type('Question', (), {'question_name': q.get('question_name'), 'question_type': q.get('question_type')})()
-                for q in survey.get('questions', [])
+                type(
+                    "Question",
+                    (),
+                    {
+                        "question_name": q.get("question_name"),
+                        "question_type": q.get("question_type"),
+                    },
+                )()
+                for q in survey.get("questions", [])
             ]
         return []
 
@@ -697,10 +704,10 @@ class TaskHistory(RepresentationMixin):
         # Handle both Model objects and dicts (from deserialization)
         models_used = set()
         for index, i in self._interviews.items():
-            if hasattr(i.model, 'model'):
+            if hasattr(i.model, "model"):
                 models_used.add(i.model.model)
             elif isinstance(i.model, dict):
-                models_used.add(i.model.get('model', 'unknown'))
+                models_used.add(i.model.get("model", "unknown"))
 
         from jinja2 import Environment
         from ..utilities import TemplateLoader

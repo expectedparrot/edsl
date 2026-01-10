@@ -300,13 +300,17 @@ class Jobs(Base):
         def _has_non_serializable_features(model) -> bool:
             """Check if a model has features that can't be serialized."""
             # Check for common non-serializable attributes
-            if hasattr(model, 'func') or hasattr(model, 'throw_exception') or hasattr(model, 'scripted_responses'):
+            if (
+                hasattr(model, "func")
+                or hasattr(model, "throw_exception")
+                or hasattr(model, "scripted_responses")
+            ):
                 return True
             # Check for scripted model
-            if getattr(model, '_model_', None) == 'scripted':
+            if getattr(model, "_model_", None) == "scripted":
                 return True
             # Check if model class is from utilities (dynamically created for testing)
-            if type(model).__module__ == 'edsl.language_models.utilities':
+            if type(model).__module__ == "edsl.language_models.utilities":
                 return True
             return False
 
@@ -316,7 +320,9 @@ class Jobs(Base):
             else:
                 # Check if any model has non-serializable features
                 models_list = value if isinstance(value, list) else [value]
-                has_non_serializable = any(_has_non_serializable_features(m) for m in models_list)
+                has_non_serializable = any(
+                    _has_non_serializable_features(m) for m in models_list
+                )
                 if has_non_serializable:
                     self._models = RawModelList(models_list)
                 else:
@@ -2030,7 +2036,7 @@ class Jobs(Base):
             task_history=merged_task_history,
             cache=merged_cache,
         )
-        
+
         # Set bucket_collection if it exists (this is an allowed attr)
         if first_batch and hasattr(first_batch, "bucket_collection"):
             final_results.bucket_collection = first_batch.bucket_collection

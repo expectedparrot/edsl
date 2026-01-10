@@ -17,6 +17,7 @@ from enum import Enum
 
 class DeltaOp(str, Enum):
     """Delta operation types."""
+
     ADD_ROW = "add_row"
     REMOVE_ROW = "remove_row"
     UPDATE_ROW = "update_row"
@@ -30,6 +31,7 @@ class DeltaOp(str, Enum):
 @dataclass
 class DeltaOperation:
     """A single delta operation."""
+
     op: DeltaOp
     path: str  # e.g., "entries.0", "entries.0.name", "meta.codebook"
     value: Any = None  # For add/update operations
@@ -39,6 +41,7 @@ class DeltaOperation:
 @dataclass
 class Delta:
     """A delta between two states."""
+
     base_state_id: str
     target_state_id: str
     operations: List[DeltaOperation]
@@ -50,7 +53,7 @@ class Delta:
             "operations": [
                 {"op": op.op.value, "path": op.path, "value": op.value}
                 for op in self.operations
-            ]
+            ],
         }
 
     @classmethod
@@ -60,12 +63,10 @@ class Delta:
             target_state_id=data["target_state_id"],
             operations=[
                 DeltaOperation(
-                    op=DeltaOp(op["op"]),
-                    path=op["path"],
-                    value=op.get("value")
+                    op=DeltaOp(op["op"]), path=op["path"], value=op.get("value")
                 )
                 for op in data["operations"]
-            ]
+            ],
         )
 
 
@@ -81,7 +82,7 @@ class DeltaCompressor:
         base_state: Dict[str, Any],
         target_state: Dict[str, Any],
         base_state_id: str,
-        target_state_id: str
+        target_state_id: str,
     ) -> Delta:
         """
         Compute the delta from base_state to target_state.
@@ -109,30 +110,34 @@ class DeltaCompressor:
         for i in range(max_len):
             if i >= len(base_entries):
                 # Row added
-                operations.append(DeltaOperation(
-                    op=DeltaOp.ADD_ROW,
-                    path=f"entries.{i}",
-                    value=target_entries[i]
-                ))
+                operations.append(
+                    DeltaOperation(
+                        op=DeltaOp.ADD_ROW, path=f"entries.{i}", value=target_entries[i]
+                    )
+                )
             elif i >= len(target_entries):
                 # Row removed (from end)
-                operations.append(DeltaOperation(
-                    op=DeltaOp.REMOVE_ROW,
-                    path=f"entries.{i}",
-                    old_value=base_entries[i]
-                ))
+                operations.append(
+                    DeltaOperation(
+                        op=DeltaOp.REMOVE_ROW,
+                        path=f"entries.{i}",
+                        old_value=base_entries[i],
+                    )
+                )
             elif base_entries[i] != target_entries[i]:
                 # Row changed - compute field-level diff
                 field_ops = self._diff_row(base_entries[i], target_entries[i], i)
                 if len(field_ops) < 3:  # Field-level more efficient
                     operations.extend(field_ops)
                 else:  # Full row replacement more efficient
-                    operations.append(DeltaOperation(
-                        op=DeltaOp.UPDATE_ROW,
-                        path=f"entries.{i}",
-                        value=target_entries[i],
-                        old_value=base_entries[i]
-                    ))
+                    operations.append(
+                        DeltaOperation(
+                            op=DeltaOp.UPDATE_ROW,
+                            path=f"entries.{i}",
+                            value=target_entries[i],
+                            old_value=base_entries[i],
+                        )
+                    )
 
         # Compare meta
         base_meta = base_state.get("meta", {})
@@ -141,39 +146,40 @@ class DeltaCompressor:
         # Keys in target but not base
         for key in target_meta:
             if key not in base_meta:
-                operations.append(DeltaOperation(
-                    op=DeltaOp.SET_META,
-                    path=f"meta.{key}",
-                    value=target_meta[key]
-                ))
+                operations.append(
+                    DeltaOperation(
+                        op=DeltaOp.SET_META, path=f"meta.{key}", value=target_meta[key]
+                    )
+                )
             elif base_meta[key] != target_meta[key]:
-                operations.append(DeltaOperation(
-                    op=DeltaOp.SET_META,
-                    path=f"meta.{key}",
-                    value=target_meta[key],
-                    old_value=base_meta[key]
-                ))
+                operations.append(
+                    DeltaOperation(
+                        op=DeltaOp.SET_META,
+                        path=f"meta.{key}",
+                        value=target_meta[key],
+                        old_value=base_meta[key],
+                    )
+                )
 
         # Keys removed
         for key in base_meta:
             if key not in target_meta:
-                operations.append(DeltaOperation(
-                    op=DeltaOp.REMOVE_META,
-                    path=f"meta.{key}",
-                    old_value=base_meta[key]
-                ))
+                operations.append(
+                    DeltaOperation(
+                        op=DeltaOp.REMOVE_META,
+                        path=f"meta.{key}",
+                        old_value=base_meta[key],
+                    )
+                )
 
         return Delta(
             base_state_id=base_state_id,
             target_state_id=target_state_id,
-            operations=operations
+            operations=operations,
         )
 
     def _diff_row(
-        self,
-        base_row: Dict[str, Any],
-        target_row: Dict[str, Any],
-        row_index: int
+        self, base_row: Dict[str, Any], target_row: Dict[str, Any], row_index: int
     ) -> List[DeltaOperation]:
         """Compute field-level diff for a row."""
         operations = []
@@ -181,35 +187,37 @@ class DeltaCompressor:
         # Fields added or changed
         for key in target_row:
             if key not in base_row:
-                operations.append(DeltaOperation(
-                    op=DeltaOp.ADD_FIELD,
-                    path=f"entries.{row_index}.{key}",
-                    value=target_row[key]
-                ))
+                operations.append(
+                    DeltaOperation(
+                        op=DeltaOp.ADD_FIELD,
+                        path=f"entries.{row_index}.{key}",
+                        value=target_row[key],
+                    )
+                )
             elif base_row[key] != target_row[key]:
-                operations.append(DeltaOperation(
-                    op=DeltaOp.UPDATE_FIELD,
-                    path=f"entries.{row_index}.{key}",
-                    value=target_row[key],
-                    old_value=base_row[key]
-                ))
+                operations.append(
+                    DeltaOperation(
+                        op=DeltaOp.UPDATE_FIELD,
+                        path=f"entries.{row_index}.{key}",
+                        value=target_row[key],
+                        old_value=base_row[key],
+                    )
+                )
 
         # Fields removed
         for key in base_row:
             if key not in target_row:
-                operations.append(DeltaOperation(
-                    op=DeltaOp.REMOVE_FIELD,
-                    path=f"entries.{row_index}.{key}",
-                    old_value=base_row[key]
-                ))
+                operations.append(
+                    DeltaOperation(
+                        op=DeltaOp.REMOVE_FIELD,
+                        path=f"entries.{row_index}.{key}",
+                        old_value=base_row[key],
+                    )
+                )
 
         return operations
 
-    def apply_delta(
-        self,
-        base_state: Dict[str, Any],
-        delta: Delta
-    ) -> Dict[str, Any]:
+    def apply_delta(self, base_state: Dict[str, Any], delta: Delta) -> Dict[str, Any]:
         """
         Apply a delta to a base state to produce target state.
 
@@ -221,6 +229,7 @@ class DeltaCompressor:
             The resulting state after applying delta
         """
         import copy
+
         result = copy.deepcopy(base_state)
 
         # Ensure entries and meta exist
@@ -276,7 +285,7 @@ class DeltaCompressor:
         base_state: Dict[str, Any],
         target_state: Dict[str, Any],
         base_state_id: str = "base",
-        target_state_id: str = "target"
+        target_state_id: str = "target",
     ) -> Dict[str, Any]:
         """
         Estimate storage savings from using delta vs full snapshot.
@@ -287,7 +296,9 @@ class DeltaCompressor:
         # Compute sizes
         full_size = len(json.dumps(target_state, sort_keys=True).encode())
 
-        delta = self.compute_delta(base_state, target_state, base_state_id, target_state_id)
+        delta = self.compute_delta(
+            base_state, target_state, base_state_id, target_state_id
+        )
         delta_size = len(json.dumps(delta.to_dict(), sort_keys=True).encode())
 
         savings = full_size - delta_size
@@ -305,11 +316,12 @@ class DeltaCompressor:
 
 # Convenience functions
 
+
 def compute_delta(
     base_state: Dict[str, Any],
     target_state: Dict[str, Any],
     base_id: str = "base",
-    target_id: str = "target"
+    target_id: str = "target",
 ) -> Delta:
     """Compute delta between two states."""
     return DeltaCompressor().compute_delta(base_state, target_state, base_id, target_id)
@@ -321,8 +333,7 @@ def apply_delta(base_state: Dict[str, Any], delta: Delta) -> Dict[str, Any]:
 
 
 def estimate_savings(
-    base_state: Dict[str, Any],
-    target_state: Dict[str, Any]
+    base_state: Dict[str, Any], target_state: Dict[str, Any]
 ) -> Dict[str, Any]:
     """Estimate storage savings from using delta."""
     return DeltaCompressor().estimate_savings(base_state, target_state)

@@ -226,6 +226,7 @@ class Cache(Base):
         """
         try:
             import requests
+
             # Make request to the new endpoint
             url = f"{self.coop.api_url}/api/v0/remote-cache/get-by-key/{cache_key}"
             headers = self.coop.headers

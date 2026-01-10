@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 @dataclass(frozen=True)
 class Event:
     """Base class for all store events."""
-    
+
     @property
     def name(self) -> str:
         """Return the event name in snake_case."""
@@ -26,8 +26,8 @@ class Event:
         if name.endswith("Event"):
             name = name[:-5]
         # CamelCase to snake_case
-        return ''.join(f'_{c.lower()}' if c.isupper() else c for c in name).lstrip('_')
-    
+        return "".join(f"_{c.lower()}" if c.isupper() else c for c in name).lstrip("_")
+
     @property
     def payload(self) -> Dict[str, Any]:
         """Return the event data as a dictionary."""
@@ -38,15 +38,18 @@ class Event:
 # Row/Entry Events
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class AppendRowEvent(Event):
     """Event that appends a row to entries."""
+
     row: dict[str, Any]
 
 
 @dataclass(frozen=True)
 class UpdateRowEvent(Event):
     """Event that updates a row at a specific index."""
+
     index: int
     row: dict[str, Any]
 
@@ -54,12 +57,14 @@ class UpdateRowEvent(Event):
 @dataclass(frozen=True)
 class RemoveRowsEvent(Event):
     """Event that removes rows at specified indices."""
+
     indices: tuple[int, ...]  # tuple for hashability
 
 
 @dataclass(frozen=True)
 class InsertRowEvent(Event):
     """Event that inserts a row at a specified index."""
+
     index: int
     row: dict[str, Any]
 
@@ -67,6 +72,7 @@ class InsertRowEvent(Event):
 @dataclass(frozen=True)
 class UpdateEntryFieldEvent(Event):
     """Event that updates a specific field in an entry at a given index."""
+
     index: int
     field: str
     value: Any
@@ -75,18 +81,21 @@ class UpdateEntryFieldEvent(Event):
 @dataclass(frozen=True)
 class ClearEntriesEvent(Event):
     """Event that removes all entries."""
+
     pass
 
 
 @dataclass(frozen=True)
 class ReplaceAllEntriesEvent(Event):
     """Event that replaces all entries with new ones."""
+
     entries: tuple[dict[str, Any], ...]  # tuple for hashability
 
 
 @dataclass(frozen=True)
 class ReorderEntriesEvent(Event):
     """Event that reorders entries by new index positions."""
+
     new_order: tuple[int, ...]  # tuple of indices
 
 
@@ -94,9 +103,11 @@ class ReorderEntriesEvent(Event):
 # Field Events
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class AddFieldToAllEntriesEvent(Event):
     """Event that adds a field with the same value to all entries."""
+
     field: str
     value: Any
 
@@ -104,6 +115,7 @@ class AddFieldToAllEntriesEvent(Event):
 @dataclass(frozen=True)
 class AddFieldByIndexEvent(Event):
     """Event that adds a field with values corresponding to each entry by index."""
+
     field: str
     values: tuple[Any, ...]  # tuple for hashability
 
@@ -111,30 +123,35 @@ class AddFieldByIndexEvent(Event):
 @dataclass(frozen=True)
 class DropFieldsEvent(Event):
     """Event that drops specified fields from all entries."""
+
     fields: tuple[str, ...]  # tuple for hashability
 
 
 @dataclass(frozen=True)
 class KeepFieldsEvent(Event):
     """Event that keeps only specified fields in all entries."""
+
     fields: tuple[str, ...]  # tuple for hashability
 
 
 @dataclass(frozen=True)
 class RenameFieldsEvent(Event):
     """Event that renames fields in all entries."""
+
     rename_map: tuple[tuple[str, str], ...]  # (old, new) pairs
 
 
 @dataclass(frozen=True)
 class ReorderKeysEvent(Event):
     """Event that reorders keys in all entries."""
+
     new_order: tuple[str, ...]  # ordered key names
 
 
 @dataclass(frozen=True)
 class TransformFieldEvent(Event):
     """Event that transforms field values with pre-computed results."""
+
     field: str
     new_field: str  # can be same as field for in-place transform
     new_values: tuple[Any, ...]  # pre-computed transformed values
@@ -143,6 +160,7 @@ class TransformFieldEvent(Event):
 @dataclass(frozen=True)
 class UniquifyFieldEvent(Event):
     """Event that makes field values unique by appending suffixes."""
+
     field: str
     new_values: tuple[Any, ...]  # pre-computed unique values
 
@@ -151,15 +169,18 @@ class UniquifyFieldEvent(Event):
 # Value Events
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class FillNaEvent(Event):
     """Event that fills NA/None values with a specified value."""
+
     fill_value: Any
 
 
 @dataclass(frozen=True)
 class StringCatFieldEvent(Event):
     """Event that concatenates a string to a field in all entries."""
+
     field: str
     addend: str
     position: str  # "prefix" or "suffix"
@@ -168,12 +189,14 @@ class StringCatFieldEvent(Event):
 @dataclass(frozen=True)
 class ReplaceValuesEvent(Event):
     """Event that replaces values in all entries based on a mapping."""
+
     replacements: tuple[tuple[str, Any], ...]  # (old_str_value, new_value) pairs
 
 
 @dataclass(frozen=True)
 class NumberifyEvent(Event):
     """Event that converts string values to numeric types."""
+
     conversions: tuple[tuple[int, str, Any], ...]  # (entry_idx, field, new_value)
 
 
@@ -181,9 +204,11 @@ class NumberifyEvent(Event):
 # Meta Events
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class SetMetaEvent(Event):
     """Event that sets a single key-value pair in meta."""
+
     key: str
     value: Any
 
@@ -191,12 +216,14 @@ class SetMetaEvent(Event):
 @dataclass(frozen=True)
 class UpdateMetaEvent(Event):
     """Event that merges multiple key-value pairs into meta."""
+
     updates: dict[str, Any]
 
 
 @dataclass(frozen=True)
 class RemoveMetaKeyEvent(Event):
     """Event that removes a key from meta."""
+
     key: str
 
 
@@ -204,9 +231,11 @@ class RemoveMetaKeyEvent(Event):
 # Composite Events
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class ReplaceEntriesAndMetaEvent(Event):
     """Event that replaces all entries and updates meta simultaneously."""
+
     entries: tuple[dict[str, Any], ...]  # tuple for hashability
     meta_updates: tuple[tuple[str, Any], ...]  # key-value pairs
 
@@ -215,9 +244,11 @@ class ReplaceEntriesAndMetaEvent(Event):
 # Row Selection Events
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class KeepRowsByIndicesEvent(Event):
     """Event that keeps only rows at specified indices (inverse of RemoveRowsEvent)."""
+
     indices: tuple[int, ...]  # indices to keep
 
 
@@ -225,9 +256,11 @@ class KeepRowsByIndicesEvent(Event):
 # Nested Field Events (for structures like Agent with 'traits' dict)
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class DropNestedFieldsEvent(Event):
     """Event that drops fields from a nested dict field in all entries."""
+
     parent_field: str  # e.g., 'traits'
     fields: tuple[str, ...]  # fields to drop from the nested dict
 
@@ -235,6 +268,7 @@ class DropNestedFieldsEvent(Event):
 @dataclass(frozen=True)
 class KeepNestedFieldsEvent(Event):
     """Event that keeps only specified fields in a nested dict field."""
+
     parent_field: str  # e.g., 'traits'
     fields: tuple[str, ...]  # fields to keep in the nested dict
 
@@ -242,6 +276,7 @@ class KeepNestedFieldsEvent(Event):
 @dataclass(frozen=True)
 class RenameNestedFieldEvent(Event):
     """Event that renames a field within a nested dict field."""
+
     parent_field: str  # e.g., 'traits'
     old_name: str
     new_name: str
@@ -250,6 +285,7 @@ class RenameNestedFieldEvent(Event):
 @dataclass(frozen=True)
 class AddNestedFieldByIndexEvent(Event):
     """Event that adds a field to a nested dict with per-entry values."""
+
     parent_field: str  # e.g., 'traits'
     field: str  # field name to add
     values: tuple[Any, ...]  # per-entry values
@@ -258,13 +294,17 @@ class AddNestedFieldByIndexEvent(Event):
 @dataclass(frozen=True)
 class TranslateNestedValuesEvent(Event):
     """Event that translates values in nested fields based on a mapping."""
+
     parent_field: str  # e.g., 'traits'
-    value_map: tuple[tuple[str, tuple[tuple[Any, Any], ...]], ...]  # (field_name, ((old, new), ...))
+    value_map: tuple[
+        tuple[str, tuple[tuple[Any, Any], ...]], ...
+    ]  # (field_name, ((old, new), ...))
 
 
 @dataclass(frozen=True)
 class NumberifyNestedFieldsEvent(Event):
     """Event that converts string values to numbers in nested fields."""
+
     parent_field: str  # e.g., 'traits'
     conversions: tuple[tuple[int, str, Any], ...]  # (entry_idx, field, new_value)
 
@@ -273,15 +313,18 @@ class NumberifyNestedFieldsEvent(Event):
 # Agent-Specific Events
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class SetAgentNamesEvent(Event):
     """Event that sets names for agents (name field at entry level)."""
+
     names: tuple[str, ...]  # per-entry names
 
 
 @dataclass(frozen=True)
 class CollapseByFieldEvent(Event):
     """Event that collapses entries with same field value, merging nested dicts."""
+
     group_field: str  # field to group by (e.g., 'name')
     merge_field: str  # nested dict field to merge (e.g., 'traits')
     result_entries: tuple[dict[str, Any], ...]  # pre-computed collapsed entries
@@ -291,21 +334,25 @@ class CollapseByFieldEvent(Event):
 # Survey-Specific Events
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class AddRuleEvent(Event):
     """Event that adds a navigation rule to the survey."""
+
     rule_dict: dict[str, Any]  # Serialized rule
 
 
 @dataclass(frozen=True)
 class RemoveRulesForQuestionEvent(Event):
     """Event that removes all rules for a specific question index."""
+
     question_index: int
 
 
 @dataclass(frozen=True)
 class UpdateRuleIndicesEvent(Event):
     """Event that updates rule indices after question insertion/deletion."""
+
     index_offset: int  # Amount to offset indices by
     from_index: int  # Only update indices >= this value
 
@@ -313,12 +360,14 @@ class UpdateRuleIndicesEvent(Event):
 @dataclass(frozen=True)
 class SetMemoryPlanEvent(Event):
     """Event that sets the memory plan for the survey."""
+
     memory_plan_dict: dict[str, Any]  # Serialized memory plan
 
 
 @dataclass(frozen=True)
 class AddMemoryForQuestionEvent(Event):
     """Event that adds memory entries for a specific question."""
+
     focal_question: str
     prior_questions: tuple[str, ...]
 
@@ -326,6 +375,7 @@ class AddMemoryForQuestionEvent(Event):
 @dataclass(frozen=True)
 class AddQuestionGroupEvent(Event):
     """Event that adds a question group to the survey."""
+
     group_name: str
     start_index: int
     end_index: int
@@ -334,6 +384,7 @@ class AddQuestionGroupEvent(Event):
 @dataclass(frozen=True)
 class AddPseudoIndexEvent(Event):
     """Event that adds a pseudo index for an instruction."""
+
     entry_name: str  # Using entry_name to avoid conflict with Event.name property
     pseudo_index: float
 
@@ -341,12 +392,14 @@ class AddPseudoIndexEvent(Event):
 @dataclass(frozen=True)
 class RemovePseudoIndexEvent(Event):
     """Event that removes a pseudo index."""
+
     entry_name: str  # Using entry_name to avoid conflict with Event.name property
 
 
 @dataclass(frozen=True)
 class UpdatePseudoIndicesEvent(Event):
     """Event that updates pseudo indices after insertion/deletion."""
+
     index_offset: int
     from_index: float
 
@@ -355,16 +408,18 @@ class UpdatePseudoIndicesEvent(Event):
 # Survey Composite Events
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class AddSurveyQuestionEvent(Event):
     """Composite event for adding a question to a survey.
-    
+
     This event atomically:
     1. Inserts/appends the question row to entries
     2. Adds a default rule for the question
     3. Updates rule indices if inserting in the middle
     4. Adds the pseudo index entry
     """
+
     question_row: dict[str, Any]  # Encoded question
     index: int  # Index to insert at (-1 means append)
     rule_dict: dict[str, Any]  # The default rule for this question
@@ -376,7 +431,7 @@ class AddSurveyQuestionEvent(Event):
 @dataclass(frozen=True)
 class DeleteSurveyQuestionEvent(Event):
     """Composite event for deleting a question from a survey.
-    
+
     This event atomically:
     1. Removes the question row from entries
     2. Removes rules for the deleted question
@@ -384,6 +439,7 @@ class DeleteSurveyQuestionEvent(Event):
     4. Removes the pseudo index entry
     5. Updates pseudo indices for remaining entries
     """
+
     index: int  # Index of question to delete
     question_name: str  # Question name for pseudo_index removal
 
@@ -391,10 +447,11 @@ class DeleteSurveyQuestionEvent(Event):
 @dataclass(frozen=True)
 class MoveSurveyQuestionEvent(Event):
     """Composite event for moving a question in a survey.
-    
+
     This is implemented as delete + insert, with all the associated
     rule and pseudo_index updates.
     """
+
     from_index: int
     to_index: int
     question_name: str
@@ -406,16 +463,17 @@ class MoveSurveyQuestionEvent(Event):
 # Event Dispatcher
 # =============================================================================
 
+
 def apply_event(event: Event, store: "Store") -> "Store":
     """Apply an event to a store, returning the modified store.
-    
+
     Args:
         event: The event to apply.
         store: The store to modify.
-        
+
     Returns:
         The modified store (same instance, mutated in-place).
-        
+
     Raises:
         ValueError: If the event type is unknown.
     """
@@ -439,7 +497,7 @@ def apply_event(event: Event, store: "Store") -> "Store":
             return store.reorder_entries(event.new_order)
         case KeepRowsByIndicesEvent():
             return store.keep_rows_by_indices(event.indices)
-        
+
         # Field Events
         case AddFieldToAllEntriesEvent():
             return store.add_field_to_all(event.field, event.value)
@@ -457,27 +515,33 @@ def apply_event(event: Event, store: "Store") -> "Store":
             return store.transform_field(event.field, event.new_field, event.new_values)
         case UniquifyFieldEvent():
             return store.uniquify_field(event.field, event.new_values)
-        
+
         # Nested Field Events
         case DropNestedFieldsEvent():
             return store.drop_nested_fields(event.parent_field, event.fields)
         case KeepNestedFieldsEvent():
             return store.keep_nested_fields(event.parent_field, event.fields)
         case RenameNestedFieldEvent():
-            return store.rename_nested_field(event.parent_field, event.old_name, event.new_name)
+            return store.rename_nested_field(
+                event.parent_field, event.old_name, event.new_name
+            )
         case AddNestedFieldByIndexEvent():
-            return store.add_nested_field_by_index(event.parent_field, event.field, event.values)
+            return store.add_nested_field_by_index(
+                event.parent_field, event.field, event.values
+            )
         case TranslateNestedValuesEvent():
             return store.translate_nested_values(event.parent_field, event.value_map)
         case NumberifyNestedFieldsEvent():
             return store.numberify_nested_fields(event.parent_field, event.conversions)
-        
+
         # Agent-Specific Events
         case SetAgentNamesEvent():
-            return store.set_field_by_index('name', event.names)
+            return store.set_field_by_index("name", event.names)
         case CollapseByFieldEvent():
-            return store.collapse_by_field(event.group_field, event.merge_field, event.result_entries)
-        
+            return store.collapse_by_field(
+                event.group_field, event.merge_field, event.result_entries
+            )
+
         # Survey-Specific Events
         case AddRuleEvent():
             return store.add_rule(event.rule_dict)
@@ -488,16 +552,20 @@ def apply_event(event: Event, store: "Store") -> "Store":
         case SetMemoryPlanEvent():
             return store.set_memory_plan(event.memory_plan_dict)
         case AddMemoryForQuestionEvent():
-            return store.add_memory_for_question(event.focal_question, event.prior_questions)
+            return store.add_memory_for_question(
+                event.focal_question, event.prior_questions
+            )
         case AddQuestionGroupEvent():
-            return store.add_question_group(event.group_name, event.start_index, event.end_index)
+            return store.add_question_group(
+                event.group_name, event.start_index, event.end_index
+            )
         case AddPseudoIndexEvent():
             return store.add_pseudo_index(event.entry_name, event.pseudo_index)
         case RemovePseudoIndexEvent():
             return store.remove_pseudo_index(event.entry_name)
         case UpdatePseudoIndicesEvent():
             return store.update_pseudo_indices(event.index_offset, event.from_index)
-        
+
         # Value Events
         case FillNaEvent():
             return store.fill_na(event.fill_value)
@@ -507,7 +575,7 @@ def apply_event(event: Event, store: "Store") -> "Store":
             return store.replace_values(event.replacements)
         case NumberifyEvent():
             return store.numberify(event.conversions)
-        
+
         # Meta Events
         case SetMetaEvent():
             return store.set_meta(event.key, event.value)
@@ -515,11 +583,11 @@ def apply_event(event: Event, store: "Store") -> "Store":
             return store.update_meta(event.updates)
         case RemoveMetaKeyEvent():
             return store.remove_meta_key(event.key)
-        
+
         # Composite Events
         case ReplaceEntriesAndMetaEvent():
             return store.replace_entries_and_meta(event.entries, event.meta_updates)
-        
+
         # Survey Composite Events
         case AddSurveyQuestionEvent():
             return store.add_survey_question(
@@ -528,22 +596,19 @@ def apply_event(event: Event, store: "Store") -> "Store":
                 event.rule_dict,
                 event.pseudo_index_name,
                 event.pseudo_index_value,
-                event.is_interior
+                event.is_interior,
             )
         case DeleteSurveyQuestionEvent():
-            return store.delete_survey_question(
-                event.index,
-                event.question_name
-            )
+            return store.delete_survey_question(event.index, event.question_name)
         case MoveSurveyQuestionEvent():
             return store.move_survey_question(
                 event.from_index,
                 event.to_index,
                 event.question_name,
                 event.question_row,
-                event.new_rule_dict
+                event.new_rule_dict,
             )
-        
+
         case _:
             raise ValueError(f"Unknown event type: {type(event)}")
 
@@ -555,17 +620,22 @@ def apply_event(event: Event, store: "Store") -> "Store":
 # Build registry mapping snake_case names to event classes
 EVENT_REGISTRY: Dict[str, type] = {}
 
+
 def _build_registry():
     """Build the event registry from all Event subclasses in this module."""
     import inspect
+
     for name, obj in globals().items():
-        if (inspect.isclass(obj)
+        if (
+            inspect.isclass(obj)
             and issubclass(obj, Event)
             and obj is not Event
-            and name.endswith('Event')):
+            and name.endswith("Event")
+        ):
             # Create instance to get the snake_case name
             # We need a dummy instance - use empty values
             EVENT_REGISTRY[obj.__name__] = obj
+
 
 _build_registry()
 
@@ -590,11 +660,13 @@ def get_event_class(event_name: str) -> type:
 
     # Try snake_case to class name conversion
     # append_row -> AppendRowEvent
-    class_name = ''.join(word.capitalize() for word in event_name.split('_')) + 'Event'
+    class_name = "".join(word.capitalize() for word in event_name.split("_")) + "Event"
     if class_name in EVENT_REGISTRY:
         return EVENT_REGISTRY[class_name]
 
-    raise ValueError(f"Unknown event: {event_name}. Available events: {list(EVENT_REGISTRY.keys())}")
+    raise ValueError(
+        f"Unknown event: {event_name}. Available events: {list(EVENT_REGISTRY.keys())}"
+    )
 
 
 def create_event(event_name: str, payload: Dict[str, Any]) -> Event:
@@ -645,20 +717,27 @@ def list_events() -> Dict[str, Dict[str, Any]]:
         Dictionary mapping event names to their schemas.
     """
     import dataclasses
+
     result = {}
     for class_name, event_class in EVENT_REGISTRY.items():
         # Get snake_case name
         name = class_name
         if name.endswith("Event"):
             name = name[:-5]
-        snake_name = ''.join(f'_{c.lower()}' if c.isupper() else c for c in name).lstrip('_')
+        snake_name = "".join(
+            f"_{c.lower()}" if c.isupper() else c for c in name
+        ).lstrip("_")
 
         # Get fields from dataclass
         fields = {}
         for field in dataclasses.fields(event_class):
             field_type = str(field.type)
             # Clean up type representation
-            field_type = field_type.replace("typing.", "").replace("<class '", "").replace("'>", "")
+            field_type = (
+                field_type.replace("typing.", "")
+                .replace("<class '", "")
+                .replace("'>", "")
+            )
             fields[field.name] = field_type
 
         result[snake_name] = {
@@ -667,4 +746,3 @@ def list_events() -> Dict[str, Dict[str, Any]]:
             "doc": event_class.__doc__ or "",
         }
     return result
-

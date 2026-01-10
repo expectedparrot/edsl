@@ -19,9 +19,9 @@ class ResultsML:
     This class encapsulates methods for ML-related operations on Results objects,
     such as creating train/test splits, providing a clean separation of ML logic
     from the main Results class.
-    
+
     Access via the `ml` property on Results::
-    
+
         results.ml.split(train_questions=['q1', 'q2'])
     """
 
@@ -152,7 +152,9 @@ class ResultsML:
                     "No questions left for test split after selecting train questions"
                 )
 
-            train_agent_list = AgentList.from_results(self.results, train_questions_list)
+            train_agent_list = AgentList.from_results(
+                self.results, train_questions_list
+            )
             test_agent_list = AgentList.from_results(self.results, test_questions_list)
 
             train_survey = self.results.survey.select(*train_questions_list)
@@ -292,4 +294,3 @@ class ResultsML:
             new_agent.name = repr(naming_dict)
             al.append(new_agent)
         return al
-
