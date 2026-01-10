@@ -92,15 +92,17 @@ class RuleManager:
         expression: str,
         next_question: Union["QuestionBase", str, int],
         before_rule: bool = False,
-    ) -> "Survey":
+    ) -> dict:
         """
-        Add a rule to a Question of the Survey with the appropriate priority.
+        Prepare a rule dict to add to a Question of the Survey.
 
         :param question: The question to add the rule to.
         :param expression: The expression to evaluate.
         :param next_question: The next question to go to if the rule is true.
         :param before_rule: Whether the rule is evaluated before the question is answered.
 
+        Returns:
+            dict: The rule dictionary ready to be used in an AddRuleEvent.
 
         - The last rule added for the question will have the highest priority.
         - If there are no rules, the rule added gets priority -1.
@@ -115,18 +117,16 @@ class RuleManager:
 
         new_priority = self._get_new_rule_priority(question_index, before_rule)  # fix
 
-        self.survey.rule_collection.add_rule(
-            Rule(
-                current_q=question_index,
-                expression=expression,
-                next_q=next_question_index,
-                question_name_to_index=self.survey.question_name_to_index,
-                priority=new_priority,
-                before_rule=before_rule,
-            )
+        new_rule = Rule(
+            current_q=question_index,
+            expression=expression,
+            next_q=next_question_index,
+            question_name_to_index=self.survey.question_name_to_index,
+            priority=new_priority,
+            before_rule=before_rule,
         )
-
-        return self.survey
+        
+        return new_rule.to_dict(add_edsl_version=False)
 
     def add_stop_rule(
         self, question: Union["QuestionBase", str], expression: str

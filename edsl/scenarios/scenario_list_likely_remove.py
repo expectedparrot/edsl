@@ -172,7 +172,7 @@ class ScenarioListLikelyRemove:
                 for k, v in scenario.items():
                     if k != "file":
                         new_data[k] = v
-                result.append(Scenario(new_data))
+                result = result.append(Scenario(new_data))  # Capture returned instance
             return result
 
         return sl

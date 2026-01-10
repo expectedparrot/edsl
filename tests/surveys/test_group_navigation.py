@@ -66,7 +66,7 @@ class TestGroupNavigation(unittest.TestCase):
     def test_create_allowable_groups_basic(self):
         """Test basic group creation without dependencies."""
         survey = Survey([self.q1, self.q2, self.q3, self.q4])
-        survey.create_allowable_groups("section", max_group_size=2)
+        survey = survey.create_allowable_groups("section", max_group_size=2)
 
         self.assertEqual(len(survey.question_groups), 2)
         self.assertIn("section_0", survey.question_groups)
@@ -77,7 +77,7 @@ class TestGroupNavigation(unittest.TestCase):
     def test_create_allowable_groups_max_size_one(self):
         """Test group creation with max size of 1."""
         survey = Survey([self.q1, self.q2, self.q3])
-        survey.create_allowable_groups("individual", max_group_size=1)
+        survey = survey.create_allowable_groups("individual", max_group_size=1)
 
         self.assertEqual(len(survey.question_groups), 3)
         self.assertEqual(survey.question_groups["individual_0"], (0, 0))
@@ -98,7 +98,7 @@ class TestGroupNavigation(unittest.TestCase):
     def test_get_question_group(self):
         """Test getting the group name for a question."""
         survey = Survey([self.q1, self.q2, self.q3, self.q4])
-        survey.create_allowable_groups("section", max_group_size=2)
+        survey = survey.create_allowable_groups("section", max_group_size=2)
 
         self.assertEqual(survey.get_question_group("experience"), "section_0")
         self.assertEqual(survey.get_question_group("role"), "section_0")
@@ -109,7 +109,7 @@ class TestGroupNavigation(unittest.TestCase):
     def test_next_question_group_no_skip(self):
         """Test next_question_group when no questions are skipped."""
         survey = Survey([self.q1, self.q2, self.q3, self.q4])
-        survey.create_allowable_groups("section", max_group_size=2)
+        survey = survey.create_allowable_groups("section", max_group_size=2)
 
         # Get first group
         result = survey.next_question_group()
@@ -137,12 +137,12 @@ class TestGroupNavigation(unittest.TestCase):
         """Test next_question_group when some questions are skipped."""
         survey = Survey([self.q1, self.q2, self.q3, self.q4, self.q5, self.q6])
 
-        # Add skip rules
-        survey.add_skip_rule("basic_question", "{{ experience.answer }} == 'expert'")
-        survey.add_skip_rule(
+        # Add skip rules (event-sourced methods return new Survey)
+        survey = survey.add_skip_rule("basic_question", "{{ experience.answer }} == 'expert'")
+        survey = survey.add_skip_rule(
             "advanced_question", "{{ experience.answer }} == 'beginner'"
         )
-        survey.add_skip_rule("expert_tools", "{{ experience.answer }} == 'beginner'")
+        survey = survey.add_skip_rule("expert_tools", "{{ experience.answer }} == 'beginner'")
 
         # Manually set groups to avoid validation issues with skip rules
         survey.question_groups = {
@@ -176,11 +176,11 @@ class TestGroupNavigation(unittest.TestCase):
         """Test when an entire group is skipped."""
         survey = Survey([self.q1, self.q2, self.q3, self.q4, self.q5])
 
-        # Skip entire middle section for certain users
-        survey.add_skip_rule(
+        # Skip entire middle section for certain users (event-sourced methods return new Survey)
+        survey = survey.add_skip_rule(
             "basic_question", "{{ experience.answer }} == 'skip_section'"
         )
-        survey.add_skip_rule(
+        survey = survey.add_skip_rule(
             "advanced_question", "{{ experience.answer }} == 'skip_section'"
         )
 
@@ -228,7 +228,7 @@ class TestGroupNavigation(unittest.TestCase):
     def test_group_visualization_integration(self):
         """Test that groups work with flow visualization."""
         survey = Survey([self.q1, self.q2, self.q3, self.q4])
-        survey.create_allowable_groups("demo", max_group_size=2)
+        survey = survey.create_allowable_groups("demo", max_group_size=2)
 
         # This should not raise an error
         try:
@@ -284,11 +284,11 @@ class TestGroupNavigation(unittest.TestCase):
             ]
         )
 
-        # Add complex skip logic
-        survey.add_skip_rule("dev_experience", "{{ is_developer.answer }} == 'no'")
-        survey.add_skip_rule("languages", "{{ is_developer.answer }} == 'no'")
-        survey.add_skip_rule("career_change", "{{ is_developer.answer }} == 'yes'")
-        survey.add_skip_rule("learning_plan", "{{ is_developer.answer }} == 'yes'")
+        # Add complex skip logic (event-sourced methods return new Survey)
+        survey = survey.add_skip_rule("dev_experience", "{{ is_developer.answer }} == 'no'")
+        survey = survey.add_skip_rule("languages", "{{ is_developer.answer }} == 'no'")
+        survey = survey.add_skip_rule("career_change", "{{ is_developer.answer }} == 'yes'")
+        survey = survey.add_skip_rule("learning_plan", "{{ is_developer.answer }} == 'yes'")
 
         # Set up groups manually
         survey.question_groups = {
@@ -335,7 +335,7 @@ class TestGroupNavigation(unittest.TestCase):
         survey = Survey([q1, q2, q3, q4])
 
         # Test that create_allowable_groups respects dependencies
-        survey.create_allowable_groups("smart", max_group_size=3)
+        survey = survey.create_allowable_groups("smart", max_group_size=3)
 
         # q3 should not be grouped with q1 and q2 due to dependencies
         # Verify the grouping makes sense
@@ -440,13 +440,13 @@ class TestAutomatedGroupCreation(unittest.TestCase):
         survey = Survey(questions)
 
         # Test with no size limit
-        survey.create_allowable_groups("unlimited")
+        survey = survey.create_allowable_groups("unlimited")
         self.assertEqual(len(survey.question_groups), 1)  # All in one group
         self.assertEqual(list(survey.question_groups.values())[0], (0, 5))
 
         # Test with size limit of 2
         survey = Survey(questions)
-        survey.create_allowable_groups("pairs", max_group_size=2)
+        survey = survey.create_allowable_groups("pairs", max_group_size=2)
         self.assertEqual(len(survey.question_groups), 3)  # 3 groups of 2 each
 
         expected_groups = [
@@ -462,7 +462,7 @@ class TestAutomatedGroupCreation(unittest.TestCase):
         survey = Survey([self.q_name, self.q_age, self.q_greeting, self.q_city])
 
         # Should automatically separate dependent questions
-        survey.create_allowable_groups("smart", max_group_size=3)
+        survey = survey.create_allowable_groups("smart", max_group_size=3)
 
         # Verify all groups are valid (no internal dependencies)
         self.assertTrue(len(survey.question_groups) >= 2)
@@ -480,7 +480,7 @@ class TestAutomatedGroupCreation(unittest.TestCase):
         q4 = QuestionFreeText(question_text="Independent", question_name="q4")
 
         survey = Survey([q1, q2, q3, q4])
-        survey.create_allowable_groups("chain", max_group_size=2)
+        survey = survey.create_allowable_groups("chain", max_group_size=2)
 
         # Should create multiple small groups due to dependencies
         # q1 alone, q2 alone, q3 alone, q4 could be with others or alone
@@ -489,7 +489,7 @@ class TestAutomatedGroupCreation(unittest.TestCase):
     def test_create_allowable_groups_preserve_contiguous(self):
         """Test that groups remain contiguous (no gaps)."""
         survey = Survey([self.q_name, self.q_age, self.q_city, self.q_greeting])
-        survey.create_allowable_groups("contiguous", max_group_size=2)
+        survey = survey.create_allowable_groups("contiguous", max_group_size=2)
 
         # Verify all groups are contiguous ranges
         all_indices = set()
@@ -509,21 +509,21 @@ class TestAutomatedGroupCreation(unittest.TestCase):
         survey = Survey([self.q_name, self.q_age, self.q_greeting])
 
         # Create groups automatically
-        survey.create_allowable_groups("auto")
+        survey = survey.create_allowable_groups("auto")
         auto_groups = dict(survey.question_groups)
 
-        # Clear and recreate manually to test validation
-        survey.question_groups.clear()
+        # Create a fresh survey to recreate manually and test validation
+        fresh_survey = Survey([self.q_name, self.q_age, self.q_greeting])
 
         for group_name, (start, end) in auto_groups.items():
-            start_q = survey.questions[start].question_name
-            end_q = survey.questions[end].question_name
+            start_q = fresh_survey.questions[start].question_name
+            end_q = fresh_survey.questions[end].question_name
 
             # This should not raise an exception if auto-creation was correct
-            survey.add_question_group(start_q, end_q, group_name)
+            fresh_survey = fresh_survey.add_question_group(start_q, end_q, group_name)
 
         # Should have same groups
-        self.assertEqual(survey.question_groups, auto_groups)
+        self.assertEqual(fresh_survey.question_groups, auto_groups)
 
     def test_suggest_vs_create_consistency(self):
         """Test that suggest and create methods are consistent."""
@@ -533,7 +533,7 @@ class TestAutomatedGroupCreation(unittest.TestCase):
         suggestions = survey.suggest_dependency_aware_groups("test")
 
         # Create automatically
-        survey.create_allowable_groups("test")
+        survey = survey.create_allowable_groups("test")
         created_groups = survey.question_groups
 
         # Should be identical
@@ -542,7 +542,7 @@ class TestAutomatedGroupCreation(unittest.TestCase):
     def test_empty_survey_automated_creation(self):
         """Test automated creation with empty survey."""
         survey = Survey([])
-        survey.create_allowable_groups("empty")
+        survey = survey.create_allowable_groups("empty")
 
         self.assertEqual(len(survey.question_groups), 0)
 
@@ -552,7 +552,7 @@ class TestAutomatedGroupCreation(unittest.TestCase):
     def test_single_question_automated_creation(self):
         """Test automated creation with single question."""
         survey = Survey([self.q_name])
-        survey.create_allowable_groups("single")
+        survey = survey.create_allowable_groups("single")
 
         self.assertEqual(len(survey.question_groups), 1)
         self.assertEqual(list(survey.question_groups.values())[0], (0, 0))
@@ -565,7 +565,7 @@ class TestAutomatedGroupCreation(unittest.TestCase):
         survey.add_targeted_memory("greeting", "age")
 
         # Should separate questions with memory dependencies
-        survey.create_allowable_groups("memory_aware", max_group_size=3)
+        survey = survey.create_allowable_groups("memory_aware", max_group_size=3)
 
         # Verify no validation errors (memory deps should be respected)
         self.assertTrue(len(survey.question_groups) >= 2)
@@ -575,7 +575,7 @@ class TestAutomatedGroupCreation(unittest.TestCase):
         survey = Survey([self.q_name, self.q_age])
 
         # Test custom prefix
-        survey.create_allowable_groups("custom_prefix", max_group_size=1)
+        survey = survey.create_allowable_groups("custom_prefix", max_group_size=1)
 
         group_names = list(survey.question_groups.keys())
         self.assertEqual(len(group_names), 2)
@@ -592,17 +592,17 @@ class TestAutomatedGroupCreation(unittest.TestCase):
 
         # Test max_group_size = 1
         survey = Survey(questions)
-        survey.create_allowable_groups("individual", max_group_size=1)
+        survey = survey.create_allowable_groups("individual", max_group_size=1)
         self.assertEqual(len(survey.question_groups), 5)  # Each question alone
 
         # Test max_group_size larger than survey
         survey = Survey(questions)
-        survey.create_allowable_groups("large", max_group_size=10)
+        survey = survey.create_allowable_groups("large", max_group_size=10)
         self.assertEqual(len(survey.question_groups), 1)  # All in one group
 
         # Test max_group_size = 0 (should behave like 1)
         survey = Survey(questions)
-        survey.create_allowable_groups("zero", max_group_size=0)
+        survey = survey.create_allowable_groups("zero", max_group_size=0)
         # Implementation should handle this gracefully
 
 
@@ -619,7 +619,7 @@ class TestGroupNavigationEdgeCases(unittest.TestCase):
         """Test navigation with single-question groups."""
         q1 = QuestionFreeText(question_text="Question 1", question_name="q1")
         survey = Survey([q1])
-        survey.create_allowable_groups("single", max_group_size=1)
+        survey = survey.create_allowable_groups("single", max_group_size=1)
 
         result = survey.next_question_group()
         self.assertIsNotNone(result)
@@ -684,7 +684,7 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
     def test_next_question_group_with_instructions_basic(self):
         """Test basic functionality with instructions before groups."""
         survey = Survey([self.intro_instruction, self.q1, self.q2, self.q3])
-        survey.create_allowable_groups("section", max_group_size=2)
+        survey = survey.create_allowable_groups("section", max_group_size=2)
 
         # Starting from instruction, should find first group
         result = survey.next_question_group_with_instructions(
@@ -700,7 +700,7 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
     def test_next_question_group_with_instructions_from_question(self):
         """Test finding next group when starting from a question."""
         survey = Survey([self.q1, self.q2, self.q3, self.q4])
-        survey.create_allowable_groups("section", max_group_size=2)
+        survey = survey.create_allowable_groups("section", max_group_size=2)
 
         # Starting from first question in first group
         result = survey.next_question_group_with_instructions("experience", {})
@@ -712,7 +712,7 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
     def test_next_question_group_with_instructions_instruction_between_groups(self):
         """Test handling instruction between question groups."""
         survey = Survey([self.q1, self.q2, self.middle_instruction, self.q3, self.q4])
-        survey.create_allowable_groups("section", max_group_size=2)
+        survey = survey.create_allowable_groups("section", max_group_size=2)
 
         # Starting from instruction between groups
         result = survey.next_question_group_with_instructions(
@@ -735,7 +735,7 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
     def test_next_question_group_with_instructions_end_of_survey(self):
         """Test behavior at end of survey."""
         survey = Survey([self.q1, self.q2, self.q3])
-        survey.create_allowable_groups("section", max_group_size=2)
+        survey = survey.create_allowable_groups("section", max_group_size=2)
 
         # Starting from last question
         result = survey.next_question_group_with_instructions("basic_question", {})
@@ -744,8 +744,8 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
     def test_next_question_group_with_instructions_with_skip_rules(self):
         """Test with skip rules that affect group contents."""
         survey = Survey([self.q1, self.q2, self.q3, self.q4])
-        survey.add_skip_rule("basic_question", "{{ experience.answer }} == 'expert'")
-        survey.add_skip_rule(
+        survey = survey.add_skip_rule("basic_question", "{{ experience.answer }} == 'expert'")
+        survey = survey.add_skip_rule(
             "advanced_question", "{{ experience.answer }} == 'beginner'"
         )
 
@@ -763,7 +763,7 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
     def test_next_question_group_with_instructions_string_input(self):
         """Test with string input for question/instruction names."""
         survey = Survey([self.intro_instruction, self.q1, self.q2, self.q3])
-        survey.create_allowable_groups("section", max_group_size=2)
+        survey = survey.create_allowable_groups("section", max_group_size=2)
 
         # Using instruction name as string
         result = survey.next_question_group_with_instructions("intro", {})
@@ -780,7 +780,7 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
     def test_next_question_group_with_instructions_invalid_name(self):
         """Test error handling for invalid item names."""
         survey = Survey([self.q1, self.q2])
-        survey.create_allowable_groups("section", max_group_size=2)
+        survey = survey.create_allowable_groups("section", max_group_size=2)
 
         with self.assertRaises(SurveyError):
             survey.next_question_group_with_instructions("nonexistent", {})
@@ -788,7 +788,7 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
     def test_next_questions_with_instructions_basic(self):
         """Test basic functionality returning list of questions and instructions."""
         survey = Survey([self.intro_instruction, self.q1, self.q2, self.q3])
-        survey.create_allowable_groups("section", max_group_size=2)
+        survey = survey.create_allowable_groups("section", max_group_size=2)
 
         # Get first group - should include instruction and questions
         result = survey.next_questions_with_instructions(None, {})
@@ -823,7 +823,7 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
     def test_next_questions_with_instructions_instruction_in_group(self):
         """Test when instruction is within a group's range."""
         survey = Survey([self.q1, self.middle_instruction, self.q2, self.q3])
-        survey.create_allowable_groups("section", max_group_size=3)
+        survey = survey.create_allowable_groups("section", max_group_size=3)
 
         # Get first group - should include instruction that falls within range
         result = survey.next_questions_with_instructions(None, {})
@@ -845,7 +845,7 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
     def test_next_questions_with_instructions_end_of_survey(self):
         """Test end of survey handling."""
         survey = Survey([self.q1, self.q2])
-        survey.create_allowable_groups("section", max_group_size=2)
+        survey = survey.create_allowable_groups("section", max_group_size=2)
 
         # At end of survey
         result = survey.next_questions_with_instructions("role", {})
@@ -855,8 +855,8 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
     def test_next_questions_with_instructions_with_skip_rules(self):
         """Test with skip rules affecting group contents."""
         survey = Survey([self.q1, self.q2, self.q3, self.q4])
-        survey.add_skip_rule("basic_question", "{{ experience.answer }} == 'expert'")
-        survey.add_skip_rule(
+        survey = survey.add_skip_rule("basic_question", "{{ experience.answer }} == 'expert'")
+        survey = survey.add_skip_rule(
             "advanced_question", "{{ experience.answer }} == 'beginner'"
         )
 
@@ -876,7 +876,7 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
     def test_next_questions_with_instructions_instruction_between_groups(self):
         """Test instruction between groups is handled correctly."""
         survey = Survey([self.q1, self.q2, self.middle_instruction, self.q3, self.q4])
-        survey.create_allowable_groups("section", max_group_size=2)
+        survey = survey.create_allowable_groups("section", max_group_size=2)
 
         # Starting from instruction between groups
         result = survey.next_questions_with_instructions(self.middle_instruction, {})
@@ -891,7 +891,7 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
     def test_next_questions_with_instructions_string_input(self):
         """Test with string input for current item."""
         survey = Survey([self.intro_instruction, self.q1, self.q2, self.q3])
-        survey.create_allowable_groups("section", max_group_size=2)
+        survey = survey.create_allowable_groups("section", max_group_size=2)
 
         # Using instruction name
         result = survey.next_questions_with_instructions("intro", {})
@@ -915,7 +915,7 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
                 self.end_instruction,
             ]
         )
-        survey.create_allowable_groups("section", max_group_size=2)
+        survey = survey.create_allowable_groups("section", max_group_size=2)
 
         # Start from beginning
         result = survey.next_questions_with_instructions(None, {})
@@ -948,8 +948,8 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
     def test_next_questions_with_instructions_entire_group_skipped(self):
         """Test when entire group is skipped."""
         survey = Survey([self.q1, self.q2, self.q3, self.q4])
-        survey.add_skip_rule("basic_question", "{{ experience.answer }} == 'skip_all'")
-        survey.add_skip_rule(
+        survey = survey.add_skip_rule("basic_question", "{{ experience.answer }} == 'skip_all'")
+        survey = survey.add_skip_rule(
             "advanced_question", "{{ experience.answer }} == 'skip_all'"
         )
 
@@ -983,7 +983,7 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
     def test_next_questions_with_instructions_preserves_order(self):
         """Test that items are returned in correct pseudo-index order."""
         survey = Survey([self.intro_instruction, self.q1, self.q2, self.q3])
-        survey.create_allowable_groups("section", max_group_size=2)
+        survey = survey.create_allowable_groups("section", max_group_size=2)
 
         result = survey.next_questions_with_instructions(None, {})
 
@@ -1006,7 +1006,7 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
     def test_next_question_group_with_instructions_none_input(self):
         """Test with None input to find first group."""
         survey = Survey([self.intro_instruction, self.q1, self.q2, self.q3])
-        survey.create_allowable_groups("section", max_group_size=2)
+        survey = survey.create_allowable_groups("section", max_group_size=2)
 
         result = survey.next_question_group_with_instructions(None, {})
         self.assertIsNotNone(result)
@@ -1016,7 +1016,7 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
     def test_next_questions_with_instructions_after_instruction_at_end(self):
         """Test when instruction is at the end of survey."""
         survey = Survey([self.q1, self.q2, self.end_instruction])
-        survey.create_allowable_groups("section", max_group_size=2)
+        survey = survey.create_allowable_groups("section", max_group_size=2)
 
         # Starting from last question
         result = survey.next_questions_with_instructions("role", {})

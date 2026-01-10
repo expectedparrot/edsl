@@ -35,7 +35,7 @@ class TestSurvey(unittest.TestCase):
     def test_simple_skip(self):
         s = self.gen_survey()
         q1, q2, q3 = s._questions
-        s.add_rule(q1, "{{ like_school.answer }} == 'no'", q3)
+        s = s.add_rule(q1, "{{ like_school.answer }} == 'no'", q3)
         self.assertEqual(q3, s.next_question("like_school", {"like_school.answer": "no"}))
 
     def test_skip_question(self):
@@ -49,7 +49,7 @@ class TestSurvey(unittest.TestCase):
     def test_add_memory(self):
         survey = self.gen_survey()
         # breakpoint()
-        survey.add_targeted_memory("favorite_subject", "like_school")
+        survey = survey.add_targeted_memory("favorite_subject", "like_school")
 
     def test_add_memory_wrong_order(self):
         survey = self.gen_survey()
@@ -63,7 +63,7 @@ class TestSurvey(unittest.TestCase):
 
     def test_add_memory_duplicate_question(self):
         survey = self.gen_survey()
-        survey.add_targeted_memory("favorite_subject", "like_school")
+        survey = survey.add_targeted_memory("favorite_subject", "like_school")
         with self.assertRaises(Exception):
             survey.add_targeted_memory("favorite_subject", "like_school")
 
@@ -71,7 +71,7 @@ class TestSurvey(unittest.TestCase):
         from edsl.surveys.memory import Memory
 
         survey = self.gen_survey()
-        survey.set_full_memory_mode()
+        survey = survey.set_full_memory_mode()
         self.assertEqual(
             survey.memory_plan.data,
             {
@@ -82,22 +82,13 @@ class TestSurvey(unittest.TestCase):
 
     def test_dag(self):
         survey = self.gen_survey()
-        survey.add_rule(
-            survey._questions[0], "{{ like_school.answer }} == 'no'", survey._questions[2]
-        )
-        survey.add_rule(
-            survey._questions[1], "{{ favorite_subject.answer }} == 'math'", survey._questions[2]
-        )
-        survey.add_rule(
-            survey._questions[1], "{{ favorite_subject.answer }} == 'science'", survey._questions[2]
-        )
-        survey.add_rule(
-            survey._questions[1], "{{ favorite_subject.answer }} == 'english'", survey._questions[2]
-        )
-        survey.add_rule(
-            survey._questions[1], "{{ favorite_subject.answer }} == 'history'", survey._questions[2]
-        )
-        survey.add_targeted_memory("favorite_subject", "like_school")
+        q0, q1, q2 = survey._questions
+        survey = survey.add_rule(q0, "{{ like_school.answer }} == 'no'", q2)
+        survey = survey.add_rule(q1, "{{ favorite_subject.answer }} == 'math'", q2)
+        survey = survey.add_rule(q1, "{{ favorite_subject.answer }} == 'science'", q2)
+        survey = survey.add_rule(q1, "{{ favorite_subject.answer }} == 'english'", q2)
+        survey = survey.add_rule(q1, "{{ favorite_subject.answer }} == 'history'", q2)
+        survey = survey.add_targeted_memory("favorite_subject", "like_school")
         # breakpoint()
         self.assertEqual(survey.dag(), {1: {0}, 2: {0, 1}})
 
@@ -150,7 +141,7 @@ class TestSurvey(unittest.TestCase):
             option_labels={0: "Not at all", 10: "Very much"},
         )
         survey = Survey(questions=[q1, q2])
-        survey.add_targeted_memory(q2, q1)
+        survey = survey.add_targeted_memory(q2, q1)
         d = survey.to_dict()
         newsurvey = Survey.from_dict(d)
         try:
@@ -181,7 +172,7 @@ class TestSurvey(unittest.TestCase):
     def test_insertion(self):
         survey = self.gen_survey()
         q1, q2, q3 = survey._questions
-        survey.add_rule(q1, "{{ like_school.answer }} == 'no'", q3)
+        survey = survey.add_rule(q1, "{{ like_school.answer }} == 'no'", q3)
 
         original_length = len(survey._questions)
         from edsl.questions import QuestionFreeText
@@ -191,17 +182,17 @@ class TestSurvey(unittest.TestCase):
         )
         # insert a new question at the begining
         insertion_index = 1
-        survey.add_question(new_q, index=insertion_index)
+        survey = survey.add_question(new_q, index=insertion_index)
         assert len(survey._questions) == original_length + 1
         assert survey._questions[insertion_index] == new_q
 
         path = survey.gen_path_through_survey()
-        survey._questions[0] = next(path)
+        first_q = next(path)
 
     def test_deletion(self):
         survey = self.gen_survey()
         q1, q2, q3 = survey._questions
-        survey.add_rule(q1, "{{ like_school.answer }} == 'no'", q3)
+        survey = survey.add_rule(q1, "{{ like_school.answer }} == 'no'", q3)
 
         original_length = len(survey._questions)
 

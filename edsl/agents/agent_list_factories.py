@@ -211,7 +211,7 @@ class AgentListFactories:
         agent_list = AgentList([Agent.example(randomize), Agent.example(randomize)])
 
         if codebook:
-            agent_list.set_codebook(codebook)
+            agent_list = agent_list.set_codebook(codebook)
 
         return agent_list
 
@@ -247,7 +247,7 @@ class AgentListFactories:
         agent_list = AgentList([Agent({trait_name: value}) for value in values])
 
         if codebook:
-            agent_list.set_codebook(codebook)
+            agent_list = agent_list.set_codebook(codebook)
 
         return agent_list
 

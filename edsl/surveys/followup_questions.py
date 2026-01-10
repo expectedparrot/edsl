@@ -140,9 +140,12 @@ class FollowupQuestionAdder:
         # the next question. We need to fix this so it points to the first followup.
         # Also, the default rules between followup questions point to wrong places.
         #
+        # Get the rule collection (we need to modify and save it back)
+        rc = modified_survey.rule_collection
+        
         # Fix the default rule from the reference question to point to first followup
         first_followup_index = insert_index
-        for rule in modified_survey.rule_collection:
+        for rule in rc:
             if (
                 rule.current_q == ref_index
                 and rule.expression == "True"
@@ -159,7 +162,7 @@ class FollowupQuestionAdder:
             current_followup_index = insert_index + i
             next_index = insert_index + i + 1
 
-            for rule in modified_survey.rule_collection:
+            for rule in rc:
                 if (
                     rule.current_q == current_followup_index
                     and rule.expression == "True"
@@ -169,6 +172,9 @@ class FollowupQuestionAdder:
                     # Update it to point to the next question in sequence
                     rule.next_q = next_index
                     break
+        
+        # Save the modified rule collection back to the survey
+        modified_survey.rule_collection = rc
 
         # Now add skip logic for each follow-up
         # Each follow-up should be skipped if the answer doesn't match its option

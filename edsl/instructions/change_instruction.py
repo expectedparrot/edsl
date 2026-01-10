@@ -26,17 +26,24 @@ class ChangeInstruction:
     def __str__(self):
         return self.text
 
+    def __eq__(self, other):
+        """Compare change instructions by name."""
+        if not isinstance(other, ChangeInstruction):
+            return False
+        return getattr(self, 'name', None) == getattr(other, 'name', None)
+
     def to_dict(self, add_edsl_version=True):
         d = {
             "keep": self.keep,
             "drop": self.drop,
+            "edsl_class_name": "ChangeInstruction",
         }
+        # Include name if it exists
+        if hasattr(self, 'name'):
+            d["name"] = self.name
         if add_edsl_version:
             from .. import __version__
-
             d["edsl_version"] = __version__
-            d["edsl_class_name"] = "ChangeInstruction"
-
         return d
 
     def __hash__(self) -> int:
@@ -48,4 +55,7 @@ class ChangeInstruction:
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data):
-        return cls(data["keep"], data["drop"])
+        instance = cls(data.get("keep"), data.get("drop"))
+        if "name" in data:
+            instance.name = data["name"]
+        return instance

@@ -6,12 +6,68 @@ Provides the event decorator and GitMixin class.
 
 from __future__ import annotations
 
+import re
 import warnings
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from .models import Commit, PushResult, Status
 from .protocols import Remote
 from .git_facade import ExpectedParrotGit, ObjectView, init_repo, clone_from_remote
+from .exceptions import InvalidAliasError, MissingAliasError
+
+
+# ----------------------------
+# Alias validation
+# ----------------------------
+
+def validate_alias(alias: str) -> str:
+    """Validate and normalize alias for URL safety.
+    
+    Rules:
+    - Lowercase only
+    - No spaces (use dashes)
+    - No underscores (use dashes)
+    - Alphanumeric and dashes only
+    - No leading/trailing dashes
+    
+    Args:
+        alias: The alias to validate (can be "name" or "owner/name")
+        
+    Returns:
+        Normalized lowercase alias
+        
+    Raises:
+        InvalidAliasError: If the alias format is invalid
+    """
+    if "/" in alias:
+        parts = alias.split("/")
+        if len(parts) != 2:
+            raise InvalidAliasError("Alias can only have one '/' for owner/name format")
+        owner, name = parts
+        return f"{_validate_alias_part(owner)}/{_validate_alias_part(name)}"
+    return _validate_alias_part(alias)
+
+
+def _validate_alias_part(part: str) -> str:
+    """Validate a single part (owner or name) of an alias.
+    
+    Strict validation - rejects invalid format rather than normalizing.
+    """
+    if not part:
+        raise InvalidAliasError("Alias cannot be empty")
+    if " " in part:
+        raise InvalidAliasError("Alias cannot contain spaces (use dashes instead)")
+    if "_" in part:
+        raise InvalidAliasError("Alias cannot contain underscores (use dashes instead)")
+    if part != part.lower():
+        raise InvalidAliasError("Alias must be lowercase")
+    if "--" in part:
+        raise InvalidAliasError("Alias cannot contain consecutive dashes")
+    if not re.match(r'^[a-z0-9]([a-z0-9-]*[a-z0-9])?$', part):
+        raise InvalidAliasError(
+            "Alias must be lowercase alphanumeric with dashes, no leading/trailing dashes"
+        )
+    return part
 
 
 # ----------------------------
@@ -84,7 +140,15 @@ class GitMixin:
             if event_handler is None:
                 raise ValueError(f"Event handler not found for class {self.__class__.__name__}")
 
-            new_store = event_handler(event_obj, current_store)
+            # Copy the store before applying the event to preserve immutability
+            # apply_event mutates in-place, so we need a fresh copy
+            store_class = getattr(self.__class__, '_store_class', dict)
+            if store_class is dict:
+                store_copy = dict(current_store)
+            else:
+                store_copy = store_class.from_dict(current_store.to_dict())
+            
+            new_store = event_handler(event_obj, store_copy)
             
             if isinstance(new_store, dict):
                 new_state = dict(new_store)
@@ -168,6 +232,43 @@ class GitMixin:
     def is_behind(self) -> bool:
         self._ensure_git_init()
         return self._git.view.is_behind()
+
+    # --- Info methods ---
+
+    def git_set_info(self, alias: str = None, description: str = None) -> "GitMixin":
+        """Store alias and description in meta['_info'] for use by git_push.
+        
+        This creates a staged change that should be committed before pushing.
+        """
+        self._ensure_git_init()
+        state = self._to_state()
+        
+        # Get or create _info dict inside meta
+        if "meta" not in state:
+            state["meta"] = {}
+        if "_info" not in state["meta"]:
+            state["meta"]["_info"] = {}
+        
+        if alias is not None:
+            state["meta"]["_info"]["alias"] = alias
+        if description is not None:
+            state["meta"]["_info"]["description"] = description
+        
+        # Update the store with new state
+        self._update_from_state(state)
+        
+        # Stage the change
+        new_git = self._git.apply_event("set_info", {"alias": alias, "description": description})
+        self._git = new_git
+        
+        return self
+
+    def git_get_info(self) -> Dict[str, Any]:
+        """Get stored _info from meta, or empty dict if not set."""
+        self._ensure_git_init()
+        state = self._to_state()
+        meta = state.get("meta", {})
+        return meta.get("_info", {})
 
     # --- Git operations (git_ prefix) ---
 
@@ -260,10 +361,18 @@ class GitMixin:
         
         return result
 
-    def git_add_remote(self, name: str, remote: Remote) -> "GitMixin":
-        """Add a remote repository. Mutates in place and returns self."""
+    def git_add_remote(self, name: str = "origin", url: Union[Remote, str] = None) -> "GitMixin":
+        """Add a remote repository. Optional - git_push creates 'origin' automatically.
+        
+        Args:
+            name: Remote name (default: "origin")
+            url: URL string or Remote object. Defaults to EDSL_GIT_SERVER from config.
+        """
         self._ensure_git_init()
-        new_git = self._git.add_remote(name, remote)
+        if url is None:
+            from edsl.config import CONFIG
+            url = CONFIG.get("EDSL_GIT_SERVER")
+        new_git = self._git.add_remote(name, url)
         return self._mutate(new_git)
 
     def git_remove_remote(self, name: str) -> "GitMixin":
@@ -273,9 +382,78 @@ class GitMixin:
         return self._mutate(new_git)
 
     def git_push(self, remote_name: str = "origin", ref_name: Optional[str] = None,
-                 *, force: bool = False) -> "GitMixin":
-        """Push to remote. Returns self for chaining. Result stored in last_push_result."""
+                 *, force: bool = False, alias: str = None, description: str = None,
+                 username: str = None) -> "GitMixin":
+        """Push to remote. Handles remote creation and _info automatically.
+        
+        On first push:
+        - If no remote exists, creates "origin" using EDSL_GIT_SERVER from config
+        - If _info empty, populates from kwargs and commits
+        - Creates repo on server, then pushes
+        
+        _info is source of truth once set (kwargs ignored after first push).
+        To change _info, use git_set_info() explicitly.
+        
+        Args:
+            remote_name: Name of remote (default: "origin")
+            ref_name: Branch to push (default: current branch)
+            force: Force push even if not fast-forward
+            alias: Alias for the repo (required on first push if not in _info)
+            description: Description for the repo (optional)
+            username: Username namespace (e.g., "john"). If not provided and alias 
+                     doesn't contain "/", will try to get from Coop profile.
+        """
         self._ensure_git_init()
+        
+        # Create remote if doesn't exist
+        remote = self._git._remotes.get(remote_name)
+        if remote is None:
+            from edsl.config import CONFIG
+            url = CONFIG.get("EDSL_GIT_SERVER")
+            self._git = self._git.add_remote(remote_name, url)
+            remote = url
+        
+        # Handle _info - it's the source of truth once set
+        info = self.git_get_info()
+        if info.get("alias"):
+            # _info is source of truth - use stored values
+            resolved_alias = info["alias"]
+            resolved_description = info.get("description")
+        elif alias is not None:
+            # First push with kwargs - validate and resolve alias
+            resolved_alias = validate_alias(alias)
+            if "/" not in resolved_alias:
+                # Prepend username namespace
+                if username is not None:
+                    resolved_alias = f"{validate_alias(username)}/{resolved_alias}"
+                else:
+                    # Try to get from Coop profile
+                    try:
+                        from edsl.coop import Coop
+                        profile = Coop().get_profile()
+                        resolved_alias = f"{profile['username']}/{resolved_alias}"
+                    except Exception:
+                        raise MissingAliasError(
+                            "Alias requires a username namespace. Either provide a fully-qualified "
+                            "alias (e.g., 'john/my-survey') or pass username='john'."
+                        )
+            resolved_description = description
+            # Populate _info and commit
+            self.git_set_info(alias=resolved_alias, description=resolved_description)
+            self.git_commit(f"Set info: {resolved_alias}")
+        else:
+            raise MissingAliasError()
+        
+        # Create repo on server if remote is URL string
+        if isinstance(remote, str):
+            from edsl.versioning.http_remote import HTTPRemote
+            real_remote = HTTPRemote.create_repo(
+                url=remote, 
+                alias=resolved_alias, 
+                description=resolved_description
+            )
+            self._git = self._git.remove_remote(remote_name).add_remote(remote_name, real_remote)
+        
         self._last_push_result = self._git.push(remote_name, ref_name, force=force)
         return self
 
@@ -296,8 +474,47 @@ class GitMixin:
         return self._git.fetch(remote_name)
 
     @classmethod
-    def git_clone(cls, remote: Remote, ref_name: str = "main") -> "GitMixin":
-        """Clone from a remote repository."""
+    def git_clone(cls, alias: str, url: str = None, ref_name: str = "main", 
+                  username: str = None) -> "GitMixin":
+        """Clone from a remote repository by alias.
+        
+        Args:
+            alias: Repository alias. Can be:
+                - Short: "my-survey" → resolves to "<username>/my-survey"
+                - Fully qualified: "john/my-survey" → uses as-is
+            url: Server URL. Defaults to EDSL_GIT_SERVER from config.
+            ref_name: Branch to clone (default: "main")
+            username: Username namespace for short aliases. If not provided and alias
+                     doesn't contain "/", will try to get from Coop profile.
+            
+        Returns:
+            New instance cloned from the remote repository.
+        """
+        # Get URL from config if not provided
+        if url is None:
+            from edsl.config import CONFIG
+            url = CONFIG.get("EDSL_GIT_SERVER")
+        
+        # Resolve short alias to fully qualified
+        resolved_alias = alias
+        if "/" not in alias:
+            if username is not None:
+                resolved_alias = f"{username}/{alias}"
+            else:
+                try:
+                    from edsl.coop import Coop
+                    profile = Coop().get_profile()
+                    resolved_alias = f"{profile['username']}/{alias}"
+                except Exception:
+                    raise MissingAliasError(
+                        "Short alias requires a username namespace. Either provide a fully-qualified "
+                        "alias (e.g., 'john/my-survey') or pass username='john'."
+                    )
+        
+        # Create remote from URL and alias
+        from edsl.versioning.http_remote import HTTPRemote
+        remote = HTTPRemote.from_alias(url=url, alias=resolved_alias)
+        
         view = clone_from_remote(remote, ref_name)
         git = ExpectedParrotGit(view)
         git = git.add_remote("origin", remote)

@@ -234,6 +234,7 @@ class QuestionFunctional(QuestionBase):
     def to_dict(self, add_edsl_version=True):
         d = {
             "question_name": self.question_name,
+            "question_text": self.question_text,
             "function_source_code": self.function_source_code,
             "question_type": "functional",
             "requires_loop": self.requires_loop,

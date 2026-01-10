@@ -602,13 +602,33 @@ class QuestionBase(
                 f"Error in deserialization: {str(e)}. The passed in dictionary was: {data}"
             )
 
+        # Filter local_data to only include parameters accepted by the target class
+        # This handles subclasses with limited __init__ parameters
+        import inspect
+        try:
+            init_signature = inspect.signature(question_class.__init__)
+            valid_params = set(init_signature.parameters.keys()) - {'self'}
+            # Check if the class accepts **kwargs
+            has_var_keyword = any(
+                p.kind == inspect.Parameter.VAR_KEYWORD 
+                for p in init_signature.parameters.values()
+            )
+            if not has_var_keyword:
+                # Filter to only valid params
+                filtered_data = {k: v for k, v in local_data.items() if k in valid_params}
+            else:
+                filtered_data = local_data
+        except (ValueError, TypeError):
+            # Fall back to using all data if we can't inspect
+            filtered_data = local_data
+
         if "model_instructions" in local_data:
-            model_instructions = local_data.pop("model_instructions")
-            new_q = question_class(**local_data)
+            model_instructions = filtered_data.pop("model_instructions", None) or local_data.get("model_instructions")
+            new_q = question_class(**filtered_data)
             new_q.model_instructions = model_instructions
             return new_q
 
-        return question_class(**local_data)
+        return question_class(**filtered_data)
 
     @classmethod
     def _get_test_model(cls, canned_response: Optional[str] = None) -> "LanguageModel":

@@ -87,7 +87,8 @@ class EditSurvey:
             for rule in self.survey.rule_collection:
                 if rule.current_q >= index:
                     rule.current_q += 1
-                if rule.next_q >= index:
+                # next_q can be EndOfSurvey, which can't be compared with int
+                if isinstance(rule.next_q, int) and rule.next_q >= index:
                     rule.next_q += 1
 
         # add a new rule

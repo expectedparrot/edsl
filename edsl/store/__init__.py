@@ -72,6 +72,10 @@ from .events import (
     RemoveMetaKeyEvent,
     # Composite Events
     ReplaceEntriesAndMetaEvent,
+    # Survey Composite Events
+    AddSurveyQuestionEvent,
+    DeleteSurveyQuestionEvent,
+    MoveSurveyQuestionEvent,
     apply_event,
     # Registry functions
     EVENT_REGISTRY,
@@ -135,6 +139,10 @@ __all__ = [
     "RemoveMetaKeyEvent",
     # Composite Events
     "ReplaceEntriesAndMetaEvent",
+    # Survey Composite Events
+    "AddSurveyQuestionEvent",
+    "DeleteSurveyQuestionEvent",
+    "MoveSurveyQuestionEvent",
     "apply_event",
     # Registry functions
     "EVENT_REGISTRY",

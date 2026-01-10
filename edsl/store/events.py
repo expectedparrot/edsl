@@ -352,6 +352,57 @@ class UpdatePseudoIndicesEvent(Event):
 
 
 # =============================================================================
+# Survey Composite Events
+# =============================================================================
+
+@dataclass(frozen=True)
+class AddSurveyQuestionEvent(Event):
+    """Composite event for adding a question to a survey.
+    
+    This event atomically:
+    1. Inserts/appends the question row to entries
+    2. Adds a default rule for the question
+    3. Updates rule indices if inserting in the middle
+    4. Adds the pseudo index entry
+    """
+    question_row: dict[str, Any]  # Encoded question
+    index: int  # Index to insert at (-1 means append)
+    rule_dict: dict[str, Any]  # The default rule for this question
+    pseudo_index_name: str  # Question name for pseudo_indices
+    pseudo_index_value: float  # The pseudo index value
+    is_interior: bool  # True if inserting in middle (needs index updates)
+
+
+@dataclass(frozen=True)
+class DeleteSurveyQuestionEvent(Event):
+    """Composite event for deleting a question from a survey.
+    
+    This event atomically:
+    1. Removes the question row from entries
+    2. Removes rules for the deleted question
+    3. Updates rule indices for remaining questions
+    4. Removes the pseudo index entry
+    5. Updates pseudo indices for remaining entries
+    """
+    index: int  # Index of question to delete
+    question_name: str  # Question name for pseudo_index removal
+
+
+@dataclass(frozen=True)
+class MoveSurveyQuestionEvent(Event):
+    """Composite event for moving a question in a survey.
+    
+    This is implemented as delete + insert, with all the associated
+    rule and pseudo_index updates.
+    """
+    from_index: int
+    to_index: int
+    question_name: str
+    question_row: dict[str, Any]  # The question being moved (encoded)
+    new_rule_dict: dict[str, Any]  # Rule for the question at new position
+
+
+# =============================================================================
 # Event Dispatcher
 # =============================================================================
 
@@ -468,6 +519,30 @@ def apply_event(event: Event, store: "Store") -> "Store":
         # Composite Events
         case ReplaceEntriesAndMetaEvent():
             return store.replace_entries_and_meta(event.entries, event.meta_updates)
+        
+        # Survey Composite Events
+        case AddSurveyQuestionEvent():
+            return store.add_survey_question(
+                event.question_row,
+                event.index,
+                event.rule_dict,
+                event.pseudo_index_name,
+                event.pseudo_index_value,
+                event.is_interior
+            )
+        case DeleteSurveyQuestionEvent():
+            return store.delete_survey_question(
+                event.index,
+                event.question_name
+            )
+        case MoveSurveyQuestionEvent():
+            return store.move_survey_question(
+                event.from_index,
+                event.to_index,
+                event.question_name,
+                event.question_row,
+                event.new_rule_dict
+            )
         
         case _:
             raise ValueError(f"Unknown event type: {type(event)}")
