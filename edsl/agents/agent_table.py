@@ -70,14 +70,14 @@ class AgentTable:
                 trait_description = self.agent.codebook[trait_name]
             else:
                 trait_description = trait_name
-            table_data.append(
+            table_data = table_data.append(
                 {"Trait": trait_name, "Description": trait_description, "Value": value}
             )
 
         # Handle empty traits case
         if not table_data:
             # Add empty row to avoid Dataset creation issues
-            table_data.append({"Trait": "", "Description": "", "Value": ""})
+            table_data = table_data.append({"Trait": "", "Description": "", "Value": ""})
 
         return table_data.to_dataset()
 

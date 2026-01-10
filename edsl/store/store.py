@@ -532,21 +532,22 @@ class Store:
         """Move a question within a survey atomically.
         
         Implemented as delete + insert with appropriate rule/index updates.
+        The to_index refers to the desired final position in the result.
         """
         # Delete from old position
         self.delete_survey_question(from_index, question_name)
         
-        # Adjust target index if needed (deletion shifts indices)
-        adjusted_to_index = to_index if to_index <= from_index else to_index - 1
+        # No adjustment needed - to_index refers to the final position
+        # After delete, inserting at to_index gives the correct final position
         
         # Add at new position
-        is_interior = adjusted_to_index < len(self.entries)
+        is_interior = to_index < len(self.entries)
         self.add_survey_question(
             question_row,
-            adjusted_to_index,
+            to_index,
             new_rule_dict,
             question_name,
-            float(adjusted_to_index),
+            float(to_index),
             is_interior
         )
         

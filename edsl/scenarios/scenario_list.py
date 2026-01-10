@@ -727,8 +727,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
             >>> from edsl.scenarios import Scenario, ScenarioList
             >>> s = Scenario({"text": "Template with {{variable}}"})
             >>> sl = ScenarioList([s])
-            >>> sl._convert_jinja_braces()
-            ScenarioList([Scenario({'text': 'Template with <<variable>>'})])
+            >>> sl = sl._convert_jinja_braces()
             >>> sl[0]["text"]
             'Template with <<variable>>'
 
@@ -1710,7 +1709,7 @@ class ScenarioList(GitMixin, MutableSequence, Base, ScenarioListOperationsMixin,
         """
         new_list = ScenarioList()
         for scenario in self.data:
-            new_list.append(scenario.copy())
+            new_list = new_list.append(scenario.copy())
         return new_list
 
     def offload(self, inplace: bool = False) -> "ScenarioList":
