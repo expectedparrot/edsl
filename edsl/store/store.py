@@ -29,6 +29,33 @@ class Store:
     def to_dict(self) -> dict[str, Any]:
         """Serialize the store to a dictionary."""
         return asdict(self)
+    
+    def copy(self) -> "Store":
+        """Create a copy of the store optimized for event operations.
+        
+        Entries are shallow-copied (new list, same dict refs) since individual
+        entry dicts are treated as immutable - we only append/remove/replace.
+        
+        Meta requires selective deep copying - only nested mutable structures
+        (rule_collection, pseudo_indices, question_groups, memory_plan) need
+        deep copies; other values can be shallow copied.
+        """
+        import copy
+        
+        # Start with shallow copy of meta
+        new_meta = dict(self.meta)
+        
+        # Deep copy only the nested structures that get mutated
+        mutable_keys = ("rule_collection", "pseudo_indices", "question_groups", 
+                        "memory_plan", "instruction_names_to_instructions")
+        for key in mutable_keys:
+            if key in new_meta:
+                new_meta[key] = copy.deepcopy(new_meta[key])
+        
+        return Store(
+            entries=list(self.entries),  # New list, same dict refs
+            meta=new_meta
+        )
 
     # =========================================================================
     # Row/Entry Operations

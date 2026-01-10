@@ -145,17 +145,27 @@ class GitMixin:
             store_class = getattr(self.__class__, '_store_class', dict)
             if store_class is dict:
                 store_copy = dict(current_store)
+            elif hasattr(current_store, 'copy'):
+                # Fast path: use Store.copy() which avoids deep copy
+                store_copy = current_store.copy()
             else:
                 store_copy = store_class.from_dict(current_store.to_dict())
             
             new_store = event_handler(event_obj, store_copy)
             
-            if isinstance(new_store, dict):
-                new_state = dict(new_store)
-            else:
-                new_state = new_store.to_dict()
             new_git = self._git.apply_event(event_obj.name, getattr(event_obj, 'payload', {}))
-            new_instance = self._from_state(new_state)
+            
+            # Fast path: if we have _from_store, use it to avoid dict round-trip
+            if hasattr(self.__class__, '_from_store') and not isinstance(new_store, dict):
+                new_instance = self.__class__._from_store(new_store)
+            else:
+                # Fallback: serialize to dict for _from_state
+                if isinstance(new_store, dict):
+                    new_state = dict(new_store)
+                else:
+                    new_state = new_store.to_dict()
+                new_instance = self._from_state(new_state)
+            
             new_instance._git = new_git
             new_instance._needs_git_init = False
             return new_instance
