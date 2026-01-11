@@ -443,6 +443,7 @@ class Results(
         "validated",
     ]
 
+
     def __setattr__(self, name: str, value: Any) -> None:
         """Restrict attribute setting to allowed attributes only.
 
@@ -704,18 +705,50 @@ class Results(
         """Set the created_columns for these results (returns new Results via event)."""
         return SetMetaEvent(key="created_columns", value=created_columns)
 
-    def analyze(self, *question_names: str) -> "QuestionAnalysis":
-        try:
-            from edsl.reports import Report
-        except ImportError:
-            raise ValueError(
-                "Please install edsl as edsl[viz] to use the analyze method."
-            )
-
-        if self._report is None:
-            self._report = Report(self)
-
-        return self._report.analyze(*question_names)
+    def analyze(self, *question_names: str, verbose: bool = False):
+        """Analyze answer distributions for specified questions.
+        
+        Provides statistical summaries and visualizations for questions in
+        the Results. Uses the answer_analysis service for computation.
+        
+        Args:
+            *question_names: Question names to analyze. If none provided,
+                            analyzes all questions.
+            verbose: Show progress messages. Default False.
+        
+        Returns:
+            AnalysisResult: Rich analysis with summaries and visualizations.
+            
+        Examples:
+            >>> r = Results.example()
+            >>> r.analyze('how_feeling')           # One question
+            >>> r.analyze('q1', 'q2')              # Multiple questions
+            >>> r.analyze()                        # All questions
+        """
+        from .analysis_result import AnalysisResult
+        from edsl.services import dispatch
+        
+        # Default to all questions if none specified
+        if not question_names:
+            question_names = tuple(self.question_names)
+        
+        # Serialize results for service
+        results_data = self.to_dict()
+        
+        # Call service for each question
+        analysis_results = {}
+        for q_name in question_names:
+            try:
+                pending = dispatch("answer_analysis", {
+                    "operation": "show",
+                    "results_data": results_data,
+                    "question": q_name,
+                })
+                analysis_results[q_name] = pending.result(verbose=verbose)
+            except Exception as e:
+                analysis_results[q_name] = {"status": "error", "error": str(e)}
+        
+        return AnalysisResult(analysis_results, self)
 
     def agent_answers_by_question(
         self, agent_key_fields: Optional[List[str]] = None, separator: str = ","

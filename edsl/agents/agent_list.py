@@ -95,7 +95,35 @@ class AgentCodec:
         return Agent.from_dict(data)
 
 
-class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
+class AgentListMeta(Base.__class__):
+    """Metaclass for AgentList that enables dynamic service accessor access.
+    
+    Inherits from Base's metaclass (RegisterSubclassesMeta) to avoid metaclass conflicts.
+    
+    This metaclass intercepts class-level attribute access (e.g., AgentList.vibes)
+    and returns service accessor instances from the edsl.services registry.
+    
+    Examples:
+        >>> accessor = AgentList.vibes  # Returns agent_vibes accessor
+    """
+    
+    def __getattr__(cls, name: str):
+        """Called when AgentList.{name} is accessed and {name} isn't found normally."""
+        # Lazy import to avoid circular dependencies
+        from edsl.services.accessors import get_service_accessor
+        
+        # Map 'vibes' to 'agent_vibes' service
+        service_name = f"agent_{name}" if name == "vibes" else name
+        
+        accessor = get_service_accessor(service_name, owner_class=cls)
+        if accessor is not None:
+            return accessor
+        
+        # Standard AttributeError
+        raise AttributeError(f"type object 'AgentList' has no attribute '{name}'")
+
+
+class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin, metaclass=AgentListMeta):
     """A list of Agents with additional functionality for manipulation and analysis.
 
     The AgentList class uses an event-sourcing architecture where all mutations are
@@ -139,6 +167,29 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin):
             "_last_push_result",
         }
     )
+
+    def __getattr__(self, name: str):
+        """Intercept attribute access to provide service accessor instances.
+        
+        This method is called when an attribute isn't found normally on the instance.
+        It checks if the attribute name matches a registered service and returns
+        the appropriate accessor bound to this AgentList instance.
+        
+        Examples:
+            >>> al = AgentList.example()
+            >>> al.vibes  # Returns agent_vibes accessor bound to this instance
+        """
+        # Lazy import to avoid circular dependencies
+        from edsl.services.accessors import get_service_accessor
+        
+        # Map 'vibes' to 'agent_vibes' service
+        service_name = f"agent_{name}" if name == "vibes" else name
+        
+        accessor = get_service_accessor(service_name, instance=self)
+        if accessor is not None:
+            return accessor
+        
+        raise AttributeError(f"'AgentList' object has no attribute '{name}'")
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Restrict attribute setting to allowed attributes only.
