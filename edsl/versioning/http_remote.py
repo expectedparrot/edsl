@@ -265,6 +265,16 @@ class HTTPRemote:
         resp = self._request("GET", f"/commits/{commit_id}/state_id")
         return resp.json()["state_id"]
 
+    def get_commit_data(self, commit_id: str) -> Dict[str, Any]:
+        """
+        Get materialized state at a specific commit.
+        
+        The server will replay events if needed to reconstruct the state.
+        Returns dict with 'entries' and 'meta' keys.
+        """
+        resp = self._request("GET", f"/commits/{commit_id}/data")
+        return resp.json()
+
     # --- Ref operations ---
 
     def has_ref(self, name: str) -> bool:
