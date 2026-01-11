@@ -538,11 +538,19 @@ class GitMixin:
 
     def git_pull(
         self, remote_name: str = "origin", ref_name: Optional[str] = None
-    ) -> "GitMixin":
-        """Pull from remote. Mutates in place and returns self for chaining."""
+    ) -> None:
+        """Pull from remote. Mutates in place."""
         self._ensure_git_init()
-        new_git = self._git.pull(remote_name, ref_name)
-        return self._mutate(new_git, from_git=True)
+        new_git, pull_result = self._git.pull(remote_name, ref_name)
+        
+        # Print pull summary
+        if pull_result.commits_fetched == 0:
+            print("Already up to date.")
+        else:
+            commit_word = "commit" if pull_result.commits_fetched == 1 else "commits"
+            print(f"Pulled {pull_result.commits_fetched} {commit_word} from {remote_name}/{pull_result.ref_name}")
+        
+        self._mutate(new_git, from_git=True)
 
     def git_fetch(self, remote_name: str = "origin") -> Dict[str, int]:
         """Fetch from remote without merging."""

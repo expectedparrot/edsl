@@ -7,7 +7,7 @@ Provides BaseObjectStore base class and in-memory implementations.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Set, Literal
+from typing import Any, Dict, List, Optional, Set, Literal
 import json
 import uuid
 
@@ -50,7 +50,7 @@ class BaseObjectStore:
         if state_id is not None:
             self._commit_to_state[commit.commit_id] = state_id
 
-    def get_commit_state_id(self, commit_id: str) -> str:
+    def get_commit_state_id(self, commit_id: str) -> Optional[str]:
         """Get state_id for a commit. Returns None if no snapshot exists."""
         return self._commit_to_state.get(commit_id)
 

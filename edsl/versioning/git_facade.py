@@ -55,7 +55,56 @@ class ObjectView:
     def get_base_state(self) -> List[Dict[str, Any]]:
         cid = self._resolve_base_commit()
         sid = self.repo.get_commit_state_id(cid)
-        return self.repo.get_state(sid)
+        
+        if sid is not None and self.repo.has_state(sid):
+            # Direct snapshot exists and is available
+            return self.repo.get_state(sid)
+        
+        # No direct snapshot - need to materialize via event replay
+        snapshot_commit_id, state_id, events_to_replay = self.repo.find_nearest_snapshot(cid)
+        
+        if state_id is None:
+            raise ValueError(
+                f"No snapshot found in ancestry of commit {cid}. "
+                "The repository state may be corrupted or incomplete."
+            )
+        
+        if not self.repo.has_state(state_id):
+            raise ValueError(
+                f"Snapshot {state_id} for commit {snapshot_commit_id} not found in local repo. "
+                "Try fetching the repository state again."
+            )
+        
+        # Load the base snapshot
+        state = self.repo.get_state(state_id)
+        
+        if not events_to_replay:
+            return state
+        
+        # Replay events to reach target commit
+        # Import here to avoid circular imports
+        from edsl.store import Store, create_event, apply_event
+        
+        # Convert state list to Store format
+        state_dict = state[0] if isinstance(state, list) else state
+        store = Store(
+            entries=list(state_dict.get("entries", [])),
+            meta=dict(state_dict.get("meta", {})),
+        )
+        
+        for event_name, event_payload in events_to_replay:
+            if event_name == "batch":
+                # Unpack batch events and apply each sub-event
+                sub_events = event_payload.get("events", [])
+                for sub in sub_events:
+                    sub_event = create_event(sub["event_name"], sub["event_payload"])
+                    apply_event(sub_event, store)
+            else:
+                event = create_event(event_name, event_payload)
+                apply_event(event, store)
+        
+        # Convert Store back to state format
+        return [{"entries": store.entries, "meta": store.meta}]
 
     def is_behind(self) -> bool:
         if self.head_ref is None:
@@ -339,7 +388,9 @@ class ExpectedParrotGit:
 
     def pull(
         self, remote_name: str = "origin", ref_name: Optional[str] = None
-    ) -> "ExpectedParrotGit":
+    ) -> Tuple["ExpectedParrotGit", "PullResult"]:
+        from .models import PullResult
+        
         if self._view.has_staged:
             raise StagedChangesError("pull")
         if remote_name not in self._remotes:
@@ -363,17 +414,44 @@ class ExpectedParrotGit:
         if repo.has_ref(ref_name):
             old_commit = repo.get_ref(ref_name).commit_id
             if old_commit == remote_commit_id:
-                return self
+                # Already up to date
+                result = PullResult(
+                    remote_name=remote_name,
+                    ref_name=ref_name,
+                    old_commit=old_commit,
+                    new_commit=remote_commit_id,
+                    commits_fetched=0,
+                    states_fetched=0,
+                    fast_forward=True,
+                )
+                return self, result
 
         commits_to_fetch = self._collect_missing_commits_from_remote(
             remote_commit_id, remote, repo
         )
+        states_fetched = 0
         for commit in reversed(commits_to_fetch):
             state_id = remote.get_commit_state_id(commit.commit_id)
-            if not repo.has_state(state_id):
+            if state_id is not None and not repo.has_state(state_id):
                 state_bytes = remote.get_state_bytes(state_id)
                 repo.put_state_bytes(state_id, state_bytes)
+                states_fetched += 1
             repo.put_commit(commit, state_id)
+
+        # Ensure we can reconstruct state at the new HEAD
+        # If no local snapshot exists in the ancestry, fetch materialized state from server
+        snapshot_commit_id, snapshot_state_id, _ = repo.find_nearest_snapshot(remote_commit_id)
+        if snapshot_state_id is None or not repo.has_state(snapshot_state_id):
+            # No usable local snapshot - get materialized state from server
+            data = remote.get_commit_data(remote_commit_id)
+            state_list = [{"entries": data["entries"], "meta": data["meta"]}]
+            state_bytes = _stable_dumps(state_list)
+            state_id = _sha256(state_bytes)
+            repo.put_state_bytes(state_id, state_bytes)
+            # Update the HEAD commit to have this state_id
+            head_commit = repo.get_commit(remote_commit_id)
+            repo.put_commit(head_commit, state_id)
+            states_fetched += 1
 
         fast_forward = old_commit is None or self._is_ancestor(
             old_commit, remote_commit_id
@@ -385,7 +463,17 @@ class ExpectedParrotGit:
         new_view = ObjectView(
             repo=repo, head_ref=ref_name, base_commit=remote_commit_id
         )
-        return self._with_view(new_view)
+        
+        result = PullResult(
+            remote_name=remote_name,
+            ref_name=ref_name,
+            old_commit=old_commit,
+            new_commit=remote_commit_id,
+            commits_fetched=len(commits_to_fetch),
+            states_fetched=states_fetched,
+            fast_forward=fast_forward,
+        )
+        return self._with_view(new_view), result
 
     def fetch(self, remote_name: str = "origin") -> Dict[str, int]:
         if remote_name not in self._remotes:
@@ -401,10 +489,22 @@ class ExpectedParrotGit:
             )
             for commit in reversed(commits_to_fetch):
                 state_id = remote.get_commit_state_id(commit.commit_id)
-                if not repo.has_state(state_id):
+                if state_id is not None and not repo.has_state(state_id):
                     state_bytes = remote.get_state_bytes(state_id)
                     repo.put_state_bytes(state_id, state_bytes)
                 repo.put_commit(commit, state_id)
+
+            # Ensure we can reconstruct state at this ref's HEAD
+            snapshot_commit_id, snapshot_state_id, _ = repo.find_nearest_snapshot(remote_ref.commit_id)
+            if snapshot_state_id is None or not repo.has_state(snapshot_state_id):
+                # No usable local snapshot - get materialized state from server
+                data = remote.get_commit_data(remote_ref.commit_id)
+                state_list = [{"entries": data["entries"], "meta": data["meta"]}]
+                state_bytes = _stable_dumps(state_list)
+                state_id = _sha256(state_bytes)
+                repo.put_state_bytes(state_id, state_bytes)
+                head_commit = repo.get_commit(remote_ref.commit_id)
+                repo.put_commit(head_commit, state_id)
 
             tracking_ref = f"{remote_name}/{remote_ref.name}"
             repo.upsert_ref(tracking_ref, remote_ref.commit_id, kind=remote_ref.kind)
