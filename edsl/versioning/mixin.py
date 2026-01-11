@@ -319,6 +319,96 @@ class GitMixin:
         new_git = self._git.discard()
         return self._mutate(new_git, from_git=True)
 
+    def replace_with(
+        self,
+        new_data: Any,
+        *,
+        operation: str = "service",
+        params: Optional[Dict[str, Any]] = None,
+        author: str = "service",
+    ) -> "GitMixin":
+        """Create a new instance with new data and commit.
+        
+        This is used by versioned services to create a new version
+        while preserving git history. The original object is NOT modified.
+        
+        Args:
+            new_data: The new data to use. Can be:
+                - A dict (will be used to create new instance)
+                - An instance of the same type (data will be extracted)
+                - A list of entries (for list-based objects)
+            operation: Name of the operation that produced this data
+            params: Parameters used in the operation (for audit trail)
+            author: Author of the change
+            
+        Returns:
+            A new instance with the changes committed (original unchanged)
+        """
+        self._ensure_git_init()
+        
+        # Preserve original meta (contains _info with alias, codebook, etc.)
+        original_state = self._to_state()
+        original_meta = original_state.get("meta", {})
+        
+        # Extract state from new_data
+        if isinstance(new_data, type(self)):
+            # Same type - extract its state
+            new_state = new_data._to_state()
+        elif isinstance(new_data, dict):
+            # Dict - assume it's a valid state dict
+            if "entries" in new_data and "meta" in new_data:
+                new_state = new_data
+            else:
+                # Wrap as entries if it looks like a single entry
+                new_state = {"entries": [new_data], "meta": {}}
+        elif isinstance(new_data, list):
+            # List of entries
+            new_state = {"entries": new_data, "meta": {}}
+        else:
+            raise TypeError(
+                f"replace_with() expects dict, list, or {type(self).__name__}, "
+                f"got {type(new_data).__name__}"
+            )
+        
+        # Merge metadata: preserve original _info (alias, etc.) while allowing
+        # new meta to override other fields
+        merged_meta = dict(original_meta)
+        new_meta = new_state.get("meta", {})
+        for key, value in new_meta.items():
+            if key != "_info":  # Never overwrite _info from new data
+                merged_meta[key] = value
+        new_state["meta"] = merged_meta
+        
+        # Create a NEW instance from the new state
+        new_instance = self._from_state(new_state)
+        
+        # Copy the git state to the new instance
+        new_instance._git = self._git
+        new_instance._needs_git_init = False
+        
+        # Build commit message
+        param_str = ""
+        if params:
+            param_items = [f"{k}={repr(v)[:50]}" for k, v in list(params.items())[:3]]
+            param_str = f" ({', '.join(param_items)})"
+        message = f"{operation}{param_str}"
+        
+        # Add a synthetic event so commit() has something to commit
+        # This records the service operation in the event history
+        event_payload = {
+            "operation": operation,
+            "params": params or {},
+            "entries_count": len(new_state.get("entries", [])),
+        }
+        new_instance._git = new_instance._git.apply_event("replace", event_payload)
+        
+        # Commit the change on the new instance
+        current_state = [new_instance._to_state()]
+        new_git = new_instance._git.commit(message, author=author, force=False, state=current_state)
+        new_instance._git = new_git
+        
+        return new_instance
+
     def git_branch(self, name: str) -> "GitMixin":
         """Create and checkout a new branch. Mutates in place and returns self."""
         self._ensure_git_init()

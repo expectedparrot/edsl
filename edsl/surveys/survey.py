@@ -72,7 +72,6 @@ if TYPE_CHECKING:
     from ..results import Results, Result
     from ..scenarios import ScenarioList
     from ..buckets.bucket_collection import BucketCollection
-    from .vibes.vibe_accessor import SurveyVibeAccessor
     from ..key_management.key_lookup import KeyLookup
     from ..scenarios import FileStore
 
@@ -108,7 +107,38 @@ from .exceptions import (
 )
 
 
-class Survey(GitMixin, Base):
+class SurveyMeta(Base.__class__):
+    """Metaclass for Survey that enables dynamic service accessor access.
+    
+    Inherits from Base's metaclass (RegisterSubclassesMeta) to avoid metaclass conflicts.
+    
+    This metaclass intercepts class-level attribute access (e.g., Survey.vibes)
+    and returns service accessor instances from the edsl.services registry.
+    
+    Examples:
+        >>> accessor = Survey.vibes  # Returns survey_vibes accessor
+    """
+    
+    def __getattr__(cls, name: str):
+        """Called when Survey.{name} is accessed and {name} isn't found normally."""
+        # Lazy import to avoid circular dependencies
+        from edsl.services.accessors import get_service_accessor
+        
+        # Map 'vibes' or 'vibe' to 'survey_vibes' service
+        if name in ("vibes", "vibe"):
+            service_name = "survey_vibes"
+        else:
+            service_name = name
+        
+        accessor = get_service_accessor(service_name, owner_class=cls)
+        if accessor is not None:
+            return accessor
+        
+        # Standard AttributeError
+        raise AttributeError(f"type object 'Survey' has no attribute '{name}'")
+
+
+class Survey(GitMixin, Base, metaclass=SurveyMeta):
     """A collection of questions with logic for navigating between them.
 
     Survey is the main class for creating, modifying, and running surveys. It supports:
@@ -4058,25 +4088,31 @@ class Survey(GitMixin, Base):
             verbose,
         )
 
-    @property
-    def vibe(self) -> "SurveyVibeAccessor":
-        """Access vibe-based survey editing methods.
-
-        Returns a SurveyVibeAccessor that provides natural language methods
-        for editing, adding questions, and describing the survey.
-
-        Returns:
-            SurveyVibeAccessor: Accessor for vibe methods
-
+    def __getattr__(self, name: str):
+        """Intercept attribute access to provide service accessor instances.
+        
+        This method is called when an attribute isn't found normally on the instance.
+        It checks if the attribute name matches a registered service and returns
+        the appropriate accessor bound to this Survey instance.
+        
         Examples:
-            >>> survey = Survey.from_vibes("Customer satisfaction")  # doctest: +SKIP
-            >>> survey.vibe.edit("Translate to Spanish")  # doctest: +SKIP
-            >>> survey.vibe.add("Add age question")  # doctest: +SKIP
-            >>> survey.vibe.describe()  # doctest: +SKIP
+            >>> s = Survey.example()
+            >>> s.vibe  # Returns survey_vibes accessor bound to this instance  # doctest: +SKIP
         """
-        from .vibes.vibe_accessor import SurveyVibeAccessor
-
-        return SurveyVibeAccessor(self)
+        # Lazy import to avoid circular dependencies
+        from edsl.services.accessors import get_service_accessor
+        
+        # Map 'vibes' or 'vibe' to 'survey_vibes' service
+        if name in ("vibes", "vibe"):
+            service_name = "survey_vibes"
+        else:
+            service_name = name
+        
+        accessor = get_service_accessor(service_name, instance=self)
+        if accessor is not None:
+            return accessor
+        
+        raise AttributeError(f"'Survey' object has no attribute '{name}'")
 
     @classmethod
     @with_spinner("Generating survey from description...")
@@ -4139,26 +4175,25 @@ class Survey(GitMixin, Base):
             ... )  # doctest: +SKIP
 
         Notes:
-            - Local mode requires OPENAI_API_KEY environment variable to be set
-            - Remote mode requires EXPECTED_PARROT_API_KEY and network access to server
-            - If no OPENAI_API_KEY is available, automatically uses remote generation
+            - Requires OPENAI_API_KEY environment variable to be set
             - The generator will select from available question types: free_text,
               multiple_choice, checkbox, numerical, likert_five, linear_scale,
               yes_no, rank, budget, list, matrix
             - Questions are automatically given appropriate names and options
         """
-        from .vibes.vibes_dispatcher import default_dispatcher
-
-        return default_dispatcher.dispatch(
-            target="survey",
-            method="from_vibes",
-            survey_cls=cls,
-            description=description,
-            num_questions=num_questions,
-            model=model,
-            temperature=temperature,
-            remote=remote,
-        )
+        from edsl.services import dispatch
+        
+        # Dispatch to survey_vibes service with 'from_vibes' operation
+        pending = dispatch("survey_vibes", {
+            "operation": "from_vibes",
+            "description": description,
+            "num_questions": num_questions,
+            "model": model,
+            "temperature": temperature,
+        })
+        
+        # Get result (which is already a Survey)
+        return pending.result()
 
     @classmethod
     def _infer_question_types(
