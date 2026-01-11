@@ -511,7 +511,7 @@ class GitMixin:
             from edsl.versioning.http_remote import HTTPRemote
 
             if isinstance(remote, HTTPRemote):
-                server_url = remote._base_url
+                server_url = remote.url
 
         self._last_push_result = self._git.push(remote_name, ref_name, force=force)
 

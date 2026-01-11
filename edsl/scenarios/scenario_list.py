@@ -521,7 +521,7 @@ class ScenarioList(
         # Lazy import to avoid circular dependencies
         from edsl.services.accessors import get_service_accessor
         
-        accessor = get_service_accessor(name, scenario_list=self)
+        accessor = get_service_accessor(name, instance=self)
         if accessor is not None:
             return accessor
         

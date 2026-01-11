@@ -589,9 +589,16 @@ def clone_from_remote(remote: Remote, ref_name: str = "main") -> ObjectView:
 
     for commit in reversed(commits_to_copy):
         state_id = remote.get_commit_state_id(commit.commit_id)
-        if not local_repo.has_state(state_id):
+        if state_id is not None and not local_repo.has_state(state_id):
             state_bytes = remote.get_state_bytes(state_id)
             local_repo.put_state_bytes(state_id, state_bytes)
+        elif state_id is None:
+            # No snapshot for this commit - fetch materialized state from server
+            commit_data = remote.get_commit_data(commit.commit_id)
+            if commit_data:
+                # commit_data has {entries, meta, ...} - wrap as single row for Store format
+                store_data = {"entries": commit_data.get("entries", []), "meta": commit_data.get("meta", {})}
+                state_id = local_repo.put_state([store_data])
         local_repo.put_commit(commit, state_id)
 
     local_repo.upsert_ref(ref_name, target_commit_id, kind=remote_ref.kind)
