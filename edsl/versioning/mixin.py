@@ -304,20 +304,38 @@ class GitMixin:
 
     def git_commit(
         self, message: str, *, author: str = "unknown", force: bool = False
-    ) -> "GitMixin":
-        """Commit pending events. Mutates in place and returns self for chaining."""
+    ) -> None:
+        """Commit pending events. Mutates in place.
+        
+        Args:
+            message: Commit message
+            author: Author name (default: "unknown")
+            force: Force commit even if behind (default: False)
+        """
         self._ensure_git_init()
         current_state = [self._to_state()]
         new_git = self._git.commit(
             message, author=author, force=force, state=current_state
         )
-        return self._mutate(new_git)
+        self._mutate(new_git)
+        
+        # Print git-style status
+        branch = new_git.view.head_ref or "HEAD"
+        commit_id = new_git.view.commit_hash[:8]
+        print(f"[{branch} {commit_id}] {message}")
 
-    def git_discard(self) -> "GitMixin":
+    def git_discard(self) -> None:
         """Discard all pending events and restore to base state. Mutates in place."""
         self._ensure_git_init()
+        pending_count = len(self._git.view.pending_events)
         new_git = self._git.discard()
-        return self._mutate(new_git, from_git=True)
+        self._mutate(new_git, from_git=True)
+        
+        # Print git-style status
+        if pending_count > 0:
+            print(f"Discarded {pending_count} pending change(s)")
+        else:
+            print("Nothing to discard (working tree clean)")
 
     def replace_with(
         self,
@@ -409,24 +427,41 @@ class GitMixin:
         
         return new_instance
 
-    def git_branch(self, name: str) -> "GitMixin":
-        """Create and checkout a new branch. Mutates in place and returns self."""
+    def git_branch(self, name: str) -> None:
+        """Create and checkout a new branch. Mutates in place.
+        
+        Args:
+            name: Name of the new branch to create
+        """
         self._ensure_git_init()
+        old_branch = self._git.view.head_ref or "HEAD"
         new_git = self._git.branch(name)
-        return self._mutate(new_git)
+        self._mutate(new_git)
+        
+        # Print git-style status
+        print(f"Switched to a new branch '{name}'")
 
-    def git_delete_branch(self, name: str) -> "GitMixin":
-        """Delete a branch. Mutates in place and returns self."""
+    def git_delete_branch(self, name: str) -> None:
+        """Delete a branch. Mutates in place.
+        
+        Args:
+            name: Name of the branch to delete
+        """
         self._ensure_git_init()
         new_git = self._git.delete_branch(name)
-        return self._mutate(new_git)
+        self._mutate(new_git)
+        
+        # Print git-style status
+        print(f"Deleted branch {name}")
 
     def git_checkout(
         self, rev: Optional[str] = None, *, force: bool = False
-    ) -> "GitMixin":
-        """Checkout a branch or commit. Mutates in place and returns self.
+    ) -> None:
+        """Checkout a branch or commit. Mutates in place.
 
-        If rev is not provided, shows available branches and recent commits.
+        Args:
+            rev: Branch name or commit hash. If not provided, shows available options.
+            force: Force checkout even with uncommitted changes (default: False)
         """
         self._ensure_git_init()
 
@@ -473,19 +508,15 @@ class GitMixin:
             raise ValueError("\n".join(lines))
 
         new_git = self._git.checkout(rev, force=force)
-        result = self._mutate(new_git, from_git=True)
+        self._mutate(new_git, from_git=True)
 
-        # Warn if entering detached HEAD state
-        if new_git.view.head_ref is None:
-            warnings.warn(
-                f"You are in 'detached HEAD' state at {new_git.view.commit_hash[:8]}. "
-                "You can look around and make changes, but commits made here won't belong "
-                "to any branch. To keep changes, create a branch with git_branch('name').",
-                UserWarning,
-                stacklevel=2,
-            )
-
-        return result
+        # Print git-style status
+        if new_git.view.head_ref is not None:
+            print(f"Switched to branch '{new_git.view.head_ref}'")
+        else:
+            # Detached HEAD state
+            print(f"HEAD is now at {new_git.view.commit_hash[:8]}")
+            print("You are in 'detached HEAD' state. Create a branch with git_branch('name') to keep changes.")
 
     def git_add_remote(
         self, name: str = "origin", url: Union[Remote, str] = None
