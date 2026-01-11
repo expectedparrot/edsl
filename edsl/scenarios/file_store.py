@@ -69,6 +69,49 @@ class FileStore(Scenario):
     _cached_api_key = None
     _client_lock = None
 
+    @staticmethod
+    def _looks_like_coop_address(path: str) -> bool:
+        """
+        Check if a string looks like a Coop address rather than a file path.
+
+        Coop addresses can be:
+        - Full URLs: "https://www.expectedparrot.com/content/username/alias"
+        - Short form: "username/alias" (exactly one slash, no path-like prefixes)
+
+        File paths typically:
+        - Start with "/" (absolute Unix path)
+        - Start with "./" or "../" (relative path)
+        - Start with "~" (home directory)
+        - Contain ":" after a drive letter (Windows path like "C:\\")
+        - Have file extensions with periods
+        """
+        if not path:
+            return False
+
+        # URLs are handled separately but are also Coop addresses
+        if path.startswith("http://") or path.startswith("https://"):
+            return "expectedparrot.com/content/" in path
+
+        # Definitely a file path
+        if path.startswith("/") or path.startswith("./") or path.startswith("../"):
+            return False
+        if path.startswith("~"):
+            return False
+        # Windows paths
+        if len(path) > 1 and path[1] == ":":
+            return False
+
+        # Check for username/alias pattern: exactly one slash, no dots (which suggest file extensions)
+        parts = path.split("/")
+        if len(parts) == 2:
+            username, alias = parts
+            # Both parts should be non-empty and look like valid identifiers
+            # (alphanumeric, dashes, underscores - no dots suggesting file extensions)
+            if username and alias and "." not in path:
+                return True
+
+        return False
+
     def __init__(
         self,
         path: Optional[str] = None,
@@ -88,7 +131,7 @@ class FileStore(Scenario):
         like MIME type, extracts text content when possible, and manages file encoding.
 
         Args:
-            path: Path to the file to load. Can be a local file path or URL.
+            path: Path to the file to load. Can be a local file path, URL, or Coop address.
             mime_type: MIME type of the file. If not provided, will be auto-detected.
             binary: Whether the file is binary. Defaults to False.
             suffix: File extension. If not provided, will be extracted from the path.
@@ -103,7 +146,8 @@ class FileStore(Scenario):
 
         Note:
             If path is a URL (starts with http:// or https://), the file will be
-            downloaded automatically.
+            downloaded automatically. If path looks like a Coop address (e.g.,
+            "username/alias"), the object will be pulled from Coop.
         """
         # Initialize parent class first to ensure self.data exists.
         # This prevents "'FileStore' object has no attribute 'data'" errors
@@ -112,6 +156,21 @@ class FileStore(Scenario):
 
         if path is None and "filename" in kwargs:
             path = kwargs["filename"]
+
+        # Check if path looks like a Coop address and handle pull
+        if path and base64_string is None and self._looks_like_coop_address(path):
+            pulled_filestore = self.pull(path)
+            # Copy all attributes from the pulled FileStore
+            self._path = pulled_filestore._path
+            self._temp_path = pulled_filestore._temp_path
+            self.suffix = pulled_filestore.suffix
+            self.binary = pulled_filestore.binary
+            self.mime_type = pulled_filestore.mime_type
+            self.base64_string = pulled_filestore.base64_string
+            self.external_locations = pulled_filestore.external_locations
+            self.extracted_text = pulled_filestore.extracted_text
+            self.data.update(pulled_filestore.data)
+            return
 
         # Check if path is a URL and handle download
         if path and (path.startswith("http://") or path.startswith("https://")):

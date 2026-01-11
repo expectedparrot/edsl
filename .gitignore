@@ -54,5 +54,6 @@ edsl/conjure/examples/*
 edsl/conjure/raw_data/*
 edsl/assistants/examples/*
 benchmark_logs/*
+notebook_errors/
 performance.yml
 edsl/assistants/edsl_output/

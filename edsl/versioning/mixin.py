@@ -260,9 +260,10 @@ class GitMixin:
     # --- Info methods ---
 
     def git_set_info(self, alias: str = None, description: str = None) -> "GitMixin":
-        """Store alias and description in meta['_info'] for use by git_push.
+        """Store alias, description, and class name in meta['_info'] for use by git_push.
 
         This creates a staged change that should be committed before pushing.
+        The EDSL class name is automatically included.
         """
         self._ensure_git_init()
         state = self._to_state()
@@ -272,6 +273,9 @@ class GitMixin:
             state["meta"] = {}
         if "_info" not in state["meta"]:
             state["meta"]["_info"] = {}
+
+        # Always include the EDSL class name
+        state["meta"]["_info"]["edsl_class_name"] = self.__class__.__name__
 
         if alias is not None:
             state["meta"]["_info"]["alias"] = alias
@@ -283,7 +287,7 @@ class GitMixin:
 
         # Stage the change
         new_git = self._git.apply_event(
-            "set_info", {"alias": alias, "description": description}
+            "set_info", {"alias": alias, "description": description, "edsl_class_name": self.__class__.__name__}
         )
         self._git = new_git
 

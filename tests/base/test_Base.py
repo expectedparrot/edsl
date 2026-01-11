@@ -130,6 +130,7 @@ def create_test_function(child_class):
                 "FileStore",
                 "AgentTraits",
                 "RegisterSubclassesMeta",
+                "ScenarioListMeta",
             ]:
                 assert eval(repr(e), d) == e
         except:
