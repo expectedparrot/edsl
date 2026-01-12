@@ -2,10 +2,6 @@ import os
 from typing import Any, Optional, List, TYPE_CHECKING
 from urllib.parse import urlparse, parse_qs
 
-from azure.ai.inference.aio import ChatCompletionsClient
-from azure.core.credentials import AzureKeyCredential
-from azure.ai.inference.models import SystemMessage, UserMessage
-
 from ..inference_service_abc import InferenceServiceABC
 from ..decorators import report_errors_async
 from .service_enums import OPENAI_REASONING_MODELS
@@ -13,6 +9,64 @@ from .service_enums import OPENAI_REASONING_MODELS
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
     from ...scenarios.file_store import FileStore
+
+# Lazy imports for Azure AI - only loaded when actually used
+_ChatCompletionsClient = None
+_AzureKeyCredential = None
+_SystemMessage = None
+_UserMessage = None
+
+
+def _get_azure_client():
+    """Lazy import of Azure ChatCompletionsClient."""
+    global _ChatCompletionsClient
+    if _ChatCompletionsClient is None:
+        try:
+            from azure.ai.inference.aio import ChatCompletionsClient
+
+            _ChatCompletionsClient = ChatCompletionsClient
+        except ImportError:
+            raise ImportError(
+                "The 'azure-ai-inference' package is required to use Azure AI models. "
+                "Please install it with: pip install edsl[azure] "
+                "or: pip install azure-ai-inference"
+            )
+    return _ChatCompletionsClient
+
+
+def _get_azure_credential():
+    """Lazy import of AzureKeyCredential."""
+    global _AzureKeyCredential
+    if _AzureKeyCredential is None:
+        try:
+            from azure.core.credentials import AzureKeyCredential
+
+            _AzureKeyCredential = AzureKeyCredential
+        except ImportError:
+            raise ImportError(
+                "The 'azure-ai-inference' package is required to use Azure AI models. "
+                "Please install it with: pip install edsl[azure] "
+                "or: pip install azure-ai-inference"
+            )
+    return _AzureKeyCredential
+
+
+def _get_azure_messages():
+    """Lazy import of Azure message types."""
+    global _SystemMessage, _UserMessage
+    if _SystemMessage is None:
+        try:
+            from azure.ai.inference.models import SystemMessage, UserMessage
+
+            _SystemMessage = SystemMessage
+            _UserMessage = UserMessage
+        except ImportError:
+            raise ImportError(
+                "The 'azure-ai-inference' package is required to use Azure AI models. "
+                "Please install it with: pip install edsl[azure] "
+                "or: pip install azure-ai-inference"
+            )
+    return _SystemMessage, _UserMessage
 
 
 def json_handle_none(value: Any) -> Any:
@@ -305,17 +359,19 @@ class AzureAIService(InferenceServiceABC):
                 # Create client with optional api_version
                 client_kwargs = {
                     "endpoint": endpoint,
-                    "credential": AzureKeyCredential(api_key),
+                    "credential": _get_azure_credential()(api_key),
                 }
 
                 # Add api_version if available (required for some models)
                 if api_version:
                     client_kwargs["api_version"] = api_version
 
+                ChatCompletionsClient = _get_azure_client()
                 client = ChatCompletionsClient(**client_kwargs)
 
                 try:
                     # Build messages
+                    SystemMessage, UserMessage = _get_azure_messages()
                     messages = []
                     if system_prompt:
                         messages.append(SystemMessage(content=system_prompt))

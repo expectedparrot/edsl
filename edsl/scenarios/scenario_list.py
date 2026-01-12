@@ -62,7 +62,6 @@ if TYPE_CHECKING:
     from ..questions import QuestionBase, Question
     from ..agents import Agent
     from typing import Sequence
-    from .scenarioml.prediction import Prediction
 
 
 from ..base import Base
@@ -98,7 +97,6 @@ TableFormat: TypeAlias = Literal[
     "tsv",
 ]
 
-from .scenario_list_likely_remove import ScenarioListLikelyRemove
 from .scenario_list_to import ScenarioListTo
 from .scenario_list_joins import ScenarioListJoin
 
@@ -189,7 +187,6 @@ class ScenarioList(
     MutableSequence,
     Base,
     ScenarioListOperationsMixin,
-    ScenarioListLikelyRemove,
     metaclass=ScenarioListMeta,
 ):
     """

@@ -180,7 +180,7 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin, metac
         
         Examples:
             >>> al = AgentList.example()
-            >>> al.vibes  # Returns agent_vibes accessor bound to this instance
+            >>> _ = al.vibes  # Returns agent_vibes accessor bound to this instance
         """
         # Lazy import to avoid circular dependencies
         from edsl.services.accessors import get_service_accessor

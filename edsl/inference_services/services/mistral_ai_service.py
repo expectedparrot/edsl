@@ -1,6 +1,5 @@
 import os
 from typing import Any, List, Optional, TYPE_CHECKING
-from mistralai import Mistral
 
 
 from ..inference_service_abc import InferenceServiceABC
@@ -10,6 +9,26 @@ from ..decorators import report_errors_async
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
     from ...scenarios.file_store import FileStore
+
+# Lazy import for mistralai - only loaded when actually used
+_Mistral = None
+
+
+def _get_mistral():
+    """Lazy import of Mistral client."""
+    global _Mistral
+    if _Mistral is None:
+        try:
+            from mistralai import Mistral
+
+            _Mistral = Mistral
+        except ImportError:
+            raise ImportError(
+                "The 'mistralai' package is required to use Mistral models. "
+                "Please install it with: pip install edsl[mistral] "
+                "or: pip install mistralai"
+            )
+    return _Mistral
 
 
 class MistralAIService(InferenceServiceABC):
@@ -26,8 +45,9 @@ class MistralAIService(InferenceServiceABC):
     _sync_client_instance = None
     _async_client_instance = None
 
-    _sync_client = Mistral
-    _async_client = Mistral
+    # These are lazily loaded
+    _sync_client = None
+    _async_client = None
 
     @classmethod
     def get_model_info(cls):
@@ -36,6 +56,7 @@ class MistralAIService(InferenceServiceABC):
         if not api_key:
             raise ValueError("MISTRAL_API_KEY environment variable not set.")
 
+        Mistral = _get_mistral()
         client = Mistral(api_key=api_key)
         models_response = client.models.list()
         return models_response.data
@@ -49,7 +70,8 @@ class MistralAIService(InferenceServiceABC):
     @classmethod
     def sync_client(cls):
         if cls._sync_client_instance is None:
-            cls._sync_client_instance = cls._sync_client(
+            Mistral = _get_mistral()
+            cls._sync_client_instance = Mistral(
                 api_key=os.getenv(cls._env_key_name_)
             )
         return cls._sync_client_instance
@@ -57,7 +79,8 @@ class MistralAIService(InferenceServiceABC):
     @classmethod
     def async_client(cls):
         if cls._async_client_instance is None:
-            cls._async_client_instance = cls._async_client(
+            Mistral = _get_mistral()
+            cls._async_client_instance = Mistral(
                 api_key=os.getenv(cls._env_key_name_)
             )
         return cls._async_client_instance

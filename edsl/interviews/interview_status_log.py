@@ -48,53 +48,6 @@ class InterviewStatusLog(UserDict):
         index_to_names = {i: name for i, name in enumerate(status_dicts.keys())}
         return matrix, index_to_names
 
-    def visualize(self, num_periods: int = 10) -> None:
-        """Visualize the status matrix with outlined squares."""
-        import matplotlib.pyplot as plt
-        import numpy as np
-        from matplotlib.colors import ListedColormap
-        from matplotlib.patches import Rectangle
-
-        # Define your custom colormap
-        custom_cmap = ListedColormap(list(status_colors.values()))
-
-        # Generate the matrix
-        matrix, index_to_names = self.numerical_matrix(num_periods)
-
-        # Create the figure and axes
-        plt.figure(figsize=(10, 5))
-        ax = plt.gca()
-
-        # Display the matrix and keep a reference to the imshow object
-        im = ax.imshow(matrix, aspect="auto", cmap=custom_cmap)
-
-        # Adding color bar, now correctly associating it with 'im'
-        cbar = plt.colorbar(im, ticks=range(len(status_colors)), label="Task Status")
-
-        cbar_labels = [status.name for status in status_colors.keys()]
-        # breakpoint()
-        cbar.set_ticklabels(cbar_labels)  # Setting the custom labels for the colorbar
-
-        im.set_clim(
-            -0.5, len(status_colors) - 0.5
-        )  # Setting color limits directly on the imshow object
-
-        # Outline each cell by drawing rectangles
-        for (j, i), val in np.ndenumerate(matrix):
-            ax.add_patch(
-                Rectangle(
-                    (i - 0.5, j - 0.5), 1, 1, fill=False, edgecolor="black", lw=0.5
-                )
-            )
-
-        # Set custom y-axis ticks and labels
-        yticks = list(index_to_names.keys())
-        yticklabels = list(index_to_names.values())
-        plt.yticks(ticks=yticks, labels=yticklabels)
-
-        # Show the plot
-        plt.show()
-
 
 if __name__ == "__main__":
     import doctest

@@ -419,41 +419,6 @@ class TokenBucket:
         """
         return self.log
 
-    def visualize(self):
-        """Visualize the token bucket usage over time as a line chart.
-
-        Creates and displays a matplotlib plot showing token levels over time.
-        This can be useful for analyzing rate limit behavior and usage patterns.
-
-        Note:
-            Requires matplotlib to be installed
-
-        Example:
-            >>> bucket = TokenBucket(bucket_name="api", bucket_type="test", capacity=100, refill_rate=10)
-            >>> # In practice, you would use the bucket and then visualize:
-            >>> # import asyncio
-            >>> # for i in range(5):
-            >>> #     asyncio.run(bucket.get_tokens(10))
-            >>> #     asyncio.sleep(0.2)
-            >>> # bucket.visualize()  # This would display a matplotlib chart
-        """
-        times, tokens = zip(*self.get_log())
-        start_time = times[0]
-        times = [t - start_time for t in times]  # Normalize time to start from 0
-        from matplotlib import pyplot as plt
-
-        plt.figure(figsize=(10, 6))
-        plt.plot(times, tokens, label="Tokens Available")
-        plt.xlabel("Time (seconds)", fontsize=12)
-        plt.ylabel("Number of Tokens", fontsize=12)
-        details = f"{self.bucket_name} ({self.bucket_type}) Bucket Usage Over Time\nCapacity: {self.capacity:.1f}, Refill Rate: {self.refill_rate:.1f}/second"
-        plt.title(details, fontsize=14)
-
-        plt.legend()
-        plt.grid(True)
-        plt.tight_layout()
-        plt.show()
-
     def get_throughput(self, time_window: Optional[float] = None) -> float:
         """Calculate the empirical bucket throughput in tokens per minute.
 

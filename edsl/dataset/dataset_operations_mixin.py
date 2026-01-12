@@ -20,7 +20,6 @@ from typing import Optional, Tuple, Union, List, TYPE_CHECKING  # Callable not u
 if TYPE_CHECKING:
     from ..scenarios import FileStore
 from functools import wraps
-from .r.ggplot import GGPlotMethod
 from .exceptions import (
     DatasetKeyError,
     DatasetValueError,
@@ -69,99 +68,6 @@ class DataOperationsBase:
     These operations are designed to be applied fluently in sequence, enabling
     expressive data manipulation pipelines.
     """
-
-    def ggplot2(
-        self,
-        ggplot_code: str,
-        shape: str = "wide",
-        sql: Optional[str] = None,
-        remove_prefix: bool = True,
-        debug: bool = False,
-        height: float = 4,
-        width: float = 6,
-        factor_orders: Optional[dict] = None,
-    ):
-        """
-        Create visualizations using R's ggplot2 library.
-
-        This method provides a bridge to R's powerful ggplot2 visualization library,
-        allowing you to create sophisticated plots directly from EDSL data structures.
-
-        Parameters:
-            ggplot_code: R code string containing ggplot2 commands
-            shape: Data shape to use ("wide" or "long")
-            sql: Optional SQL query to transform data before visualization
-            remove_prefix: Whether to remove prefixes (like "answer.") from column names
-            debug: Whether to display debugging information
-            height: Plot height in inches
-            width: Plot width in inches
-            factor_orders: Dictionary mapping factor variables to their desired order
-
-        Returns:
-            A plot object that renders in Jupyter notebooks
-
-        Notes:
-            - Requires R and the ggplot2 package to be installed
-            - Data is automatically converted to a format suitable for ggplot2
-            - The ggplot2 code should reference column names as they appear after
-              any transformations from the shape and remove_prefix parameters
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> r = Results.example()
-            >>> # The following would create a plot if R is installed (not shown in doctest):
-            >>> # r.ggplot2('''
-            >>> #     ggplot(df, aes(x=how_feeling)) +
-            >>> #     geom_bar() +
-            >>> #     labs(title="Distribution of Feelings")
-            >>> # ''')
-        """
-        return GGPlotMethod(self).ggplot2(
-            ggplot_code, shape, sql, remove_prefix, debug, height, width, factor_orders
-        )
-
-    def plot(
-        self,
-        ggplot_code: str,
-        shape: str = "wide",
-        sql: Optional[str] = None,
-        remove_prefix: bool = True,
-        debug: bool = False,
-        height: float = 4,
-        width: float = 6,
-        factor_orders: Optional[dict] = None,
-    ):
-        """
-        Create visualizations using R's ggplot2 library.
-
-        This is an alias for the ggplot2 method, provided for symmetry with vibe_plot.
-
-        Parameters:
-            ggplot_code: R code string containing ggplot2 commands
-            shape: Data shape to use ("wide" or "long")
-            sql: Optional SQL query to transform data before visualization
-            remove_prefix: Whether to remove prefixes (like "answer.") from column names
-            debug: Whether to display debugging information
-            height: Plot height in inches
-            width: Plot width in inches
-            factor_orders: Dictionary mapping factor variables to their desired order
-
-        Returns:
-            A plot object that renders in Jupyter notebooks
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> r = Results.example()
-            >>> # The following would create a plot if R is installed (not shown in doctest):
-            >>> # r.plot('''
-            >>> #     ggplot(df, aes(x=how_feeling)) +
-            >>> #     geom_bar() +
-            >>> #     labs(title="Distribution of Feelings")
-            >>> # ''')
-        """
-        return self.ggplot2(
-            ggplot_code, shape, sql, remove_prefix, debug, height, width, factor_orders
-        )
 
     def relevant_columns(
         self, data_type: Optional[str] = None, remove_prefix: bool = False
@@ -929,7 +835,6 @@ class DataOperationsBase:
         import os
         import tempfile
         from ..utilities.utilities import is_notebook
-        from IPython.display import HTML, display
 
         df = self.to_pandas()
 
@@ -943,9 +848,13 @@ class DataOperationsBase:
             f.write(df.to_html())
 
         if is_notebook():
-            html_url = f"/files/{filename}"
-            html_link = f'<a href="{html_url}" target="_blank">{cta}</a>'
-            display(HTML(html_link))
+            try:
+                from IPython.display import HTML, display
+                html_url = f"/files/{filename}"
+                html_link = f'<a href="{html_url}" target="_blank">{cta}</a>'
+                display(HTML(html_link))
+            except ImportError:
+                print(f"Saved to {filename}")
         else:
             print(f"Saved to {filename}")
             import webbrowser

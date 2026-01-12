@@ -19,9 +19,16 @@ def _get_genai():
     """Lazy import of google.genai module."""
     global _genai
     if _genai is None:
-        from google import genai
+        try:
+            from google import genai
 
-        _genai = genai
+            _genai = genai
+        except ImportError:
+            raise ImportError(
+                "The 'google-genai' package is required to use Google/Gemini models. "
+                "Please install it with: pip install edsl[google] "
+                "or: pip install google-genai"
+            )
     return _genai
 
 
@@ -29,9 +36,16 @@ def _get_types():
     """Lazy import of google.genai.types module."""
     global _types
     if _types is None:
-        from google.genai import types
+        try:
+            from google.genai import types
 
-        _types = types
+            _types = types
+        except ImportError:
+            raise ImportError(
+                "The 'google-genai' package is required to use Google/Gemini models. "
+                "Please install it with: pip install edsl[google] "
+                "or: pip install google-genai"
+            )
     return _types
 
 

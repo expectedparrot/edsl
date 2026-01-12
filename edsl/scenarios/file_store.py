@@ -447,8 +447,15 @@ class FileStore(Scenario):
         return os.path.getsize(self.path)
 
     def upload_google(self, refresh: bool = False) -> None:
-        from google import genai
-        from google.genai.types import UploadFileConfig
+        try:
+            from google import genai
+            from google.genai.types import UploadFileConfig
+        except ImportError:
+            raise ImportError(
+                "The 'google-genai' package is required to upload files to Google. "
+                "Please install it with: pip install edsl[google] "
+                "or: pip install google-genai"
+            )
         import time
 
         method_start = time.time()
@@ -526,8 +533,15 @@ class FileStore(Scenario):
         Raises:
             Exception: If upload fails or file activation fails
         """
-        from google import genai
-        from google.genai.types import UploadFileConfig
+        try:
+            from google import genai
+            from google.genai.types import UploadFileConfig
+        except ImportError:
+            raise ImportError(
+                "The 'google-genai' package is required to upload files to Google. "
+                "Please install it with: pip install edsl[google] "
+                "or: pip install google-genai"
+            )
         import asyncio
 
         # Check if already uploaded and refresh not requested

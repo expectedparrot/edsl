@@ -7,7 +7,7 @@ API rate limits are respected while allowing models from the same service to
 share the same rate limit buckets.
 """
 
-from typing import TYPE_CHECKING, Dict, List, Tuple
+from typing import TYPE_CHECKING, Dict, List
 from collections import UserDict
 from threading import RLock
 
@@ -18,7 +18,6 @@ from .token_bucket import TokenBucket
 from .model_buckets import ModelBuckets
 
 if TYPE_CHECKING:
-    from matplotlib.figure import Figure
     from ..language_models import LanguageModel
     from ..key_management import KeyLookup
 
@@ -267,30 +266,6 @@ class BucketCollection(UserDict):
                         remote_url=self.remote_url,
                     )
                     self.services_to_buckets[service].tokens_bucket = new_tokens_bucket
-
-    def visualize(self) -> Dict["LanguageModel", Tuple["Figure", "Figure"]]:
-        """
-        Visualize the token and request buckets for all models.
-
-        This method generates visualization plots for each model's token and
-        request buckets, which can be useful for monitoring rate limit usage
-        and debugging rate limiting issues.
-
-        Returns:
-            Dictionary mapping language models to tuples of (request_plot, token_plot)
-
-        Example:
-            >>> bucket_collection = BucketCollection()
-            >>> # Add some models
-            >>> plots = bucket_collection.visualize()
-            >>> # Now you can display or save these plots
-        """
-        # Import Figure only for type checking when the function is called
-
-        plots = {}
-        for model in self:
-            plots[model] = self[model].visualize()
-        return plots
 
 
 # Examples and doctests

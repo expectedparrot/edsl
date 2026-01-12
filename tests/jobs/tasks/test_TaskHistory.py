@@ -157,16 +157,6 @@ def test_exceptions_by_model_property(sample_task_history):
     assert len(exceptions_by_model) > 0
 
 
-def test_plotting_data_method(sample_task_history):
-    plot_data = sample_task_history.plotting_data(num_periods=50)
-    assert isinstance(plot_data, list)
-    assert len(plot_data) == 50
-    assert all(isinstance(d, dict) for d in plot_data)
-    # Check that each dictionary has TaskStatus keys, even if there are no updates
-    assert all(
-        all(isinstance(status, TaskStatus) for status in d.keys()) for d in plot_data
-    )
-
-
-# Additional tests can be added for methods like plot(), html(), etc.
-# These methods might require more complex setup or mocking of external dependencies.
+# Note: test_plotting_data_method was removed because plotting_data() method
+# was removed from TaskHistory as part of removing matplotlib from EDSL core.
+# Visualization functionality is now available through services.

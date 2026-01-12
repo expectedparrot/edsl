@@ -24,21 +24,21 @@ openai = "^1.4.0"
 jinja2 = "^3.1.2"
 rich = "^13.7.0"
 simpleeval = "^0.9.13"
-jupyter = "^1.0.0"
+# jupyter is optional - only needed for notebook environments
 pandas = "^2.1.4"
 tenacity = "^8.2.3"
 python-docx = "^1.1.0"
 nest-asyncio = "^1.5.9"
 aiohttp = "^3.9.1"
 pydot = "^2.0.0"
-anthropic = "^0.45.0"
+# anthropic is optional - only needed if using Anthropic models
 pygments = "^2.17.2"
 restrictedpython = "^7.1"
-groq = "0.23.1"
-boto3 = "^1.34.161"
-azure-ai-inference = "^1.0.0b3"
+# groq is optional - only needed if using Groq models
+# boto3 is optional - only needed if using AWS Bedrock models
+# azure-ai-inference is optional - only needed if using Azure AI models
 json-repair = "^0.28.4"
-mistralai = "^1.0.2"
+# mistralai is optional - only needed if using Mistral models
 urllib3 = ">=1.25.4,<1.27"
 tabulate = "^0.9.0"
 pypdf2 = "^3.0.1"
@@ -46,7 +46,7 @@ platformdirs = "^4.3.6"
 rank-bm25 = "^0.2.2"
 pydantic-settings = "^2.10.1"
 anywidget = "^0.9.18"
-google-genai = "^1.30.0"
+# google-genai is optional - only needed if using Google/Gemini models
 mammoth = "^1.11.0"
 
 [tool.poetry.dependencies.altair]
@@ -146,14 +146,60 @@ optional = true
 version = "^1.5.2"
 optional = true
 
+[tool.poetry.dependencies.anthropic]
+version = "^0.45.0"
+optional = true
+
+[tool.poetry.dependencies.groq]
+version = "0.23.1"
+optional = true
+
+[tool.poetry.dependencies.boto3]
+version = "^1.34.161"
+optional = true
+
+[tool.poetry.dependencies."azure-ai-inference"]
+version = "^1.0.0b3"
+optional = true
+
+[tool.poetry.dependencies.mistralai]
+version = "^1.0.2"
+optional = true
+
+[tool.poetry.dependencies."google-genai"]
+version = "^1.30.0"
+optional = true
+
+[tool.poetry.dependencies.jupyter]
+version = "^1.0.0"
+optional = true
+
+[tool.poetry.dependencies.ipython]
+version = ">=7.0.0"
+optional = true
+
 [tool.poetry.extras]
-full = ["playwright", "fastapi", "uvicorn", "altair", "nbformat", "nbclient", "pyyaml", "pyreadstat", "psutil", "requests", "sentence-transformers", "seaborn", "termplotlib", "qrcode", "scipy", "scikit-learn", "matplotlib", "openpyxl", "python-pptx", "joblib"]
+# Full installation - everything including all LLM providers and notebook support
+full = ["playwright", "fastapi", "uvicorn", "altair", "nbformat", "nbclient", "pyyaml", "pyreadstat", "psutil", "requests", "sentence-transformers", "seaborn", "termplotlib", "qrcode", "scipy", "scikit-learn", "matplotlib", "openpyxl", "python-pptx", "joblib", "anthropic", "groq", "boto3", "azure-ai-inference", "mistralai", "google-genai", "jupyter", "ipython"]
+
+# LLM Provider SDKs (OpenAI is always included by default)
+# Use: pip install edsl[llm_providers]  - for all providers
+# Or install individually: pip install edsl[anthropic] edsl[google] etc.
+llm_providers = ["anthropic", "groq", "boto3", "azure-ai-inference", "mistralai", "google-genai"]
+anthropic = ["anthropic"]
+groq = ["groq"]
+bedrock = ["boto3"]
+azure = ["azure-ai-inference"]
+mistral = ["mistralai"]
+google = ["google-genai"]
 screenshots = ["playwright"]
 services = ["fastapi", "uvicorn"]
-viz = ["altair", "nbformat", "nbclient", "pyyaml", "termplotlib", "matplotlib"]
+viz = ["altair", "nbformat", "nbclient", "pyyaml", "termplotlib"]
+# Notebook support - for Jupyter/IPython environments
+notebook = ["jupyter", "ipython"]
 conjure = ["pyreadstat", "psutil", "requests"]
-agent_building = ["sentence-transformers", "seaborn"]
-analysis = ["scipy", "scikit-learn", "matplotlib", "openpyxl", "python-pptx", "joblib"]
+# Service dependencies - loaded dynamically by services when needed
+service_deps = ["scipy", "scikit-learn", "matplotlib", "seaborn", "openpyxl", "python-pptx", "joblib", "qrcode", "sentence-transformers"]
 
 [tool.poetry.group.dev.dependencies]
 click = "^8.0.0"

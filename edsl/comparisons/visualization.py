@@ -1,21 +1,14 @@
 from __future__ import annotations
 
-"""Rendering helpers: rich tables and Matplotlib heat-maps."""
+"""Rendering helpers: rich tables."""
 
-from typing import Sequence, List, Callable, Optional, Any, TYPE_CHECKING
+from typing import Sequence, List, Optional, TYPE_CHECKING
 from rich.table import Table
 
 from .metrics.metrics_abc import ComparisonFunction
 from .answer_comparison import AnswerComparison
-from .factory import ComparisonFactory
 
-# Lazy imports for heavy dependencies
-if TYPE_CHECKING:
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-
-__all__ = ["render_comparison_table", "render_metric_heatmap"]
+__all__ = ["render_comparison_table"]
 
 
 # ---------------------------------------------------------------------------
@@ -60,67 +53,3 @@ def render_comparison_table(
         )
         table.add_row(*row)
     return table
-
-
-# ---------------------------------------------------------------------------
-# Heat-map
-# ---------------------------------------------------------------------------
-
-
-def render_metric_heatmap(
-    results: Sequence,
-    metric_name: str,
-    comparison_factory: ComparisonFactory | None = None,
-    agg_func: Callable[[List[float]], float] | None = None,
-    title: str | None = None,
-    ax: Optional[Any] = None,
-):
-    # Lazy imports for heavy dependencies
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    
-    if comparison_factory is None:
-        comparison_factory = ComparisonFactory()
-
-    if agg_func is None:
-
-        def agg_func(vals: List[float]):
-            arr = np.array([v for v in vals if v is not None], dtype=float)
-            return float(np.nan) if arr.size == 0 else float(np.mean(arr))
-
-    n = len(results)
-    labels = [getattr(r.model, "model", f"model_{i}") for i, r in enumerate(results)]
-    matrix = np.full((n, n), np.nan, dtype=float)
-
-    for i in range(n):
-        for j in range(i, n):
-            if i == j:
-                matrix[i, j] = 0.0
-            else:
-                comp = comparison_factory.compare_results(
-                    results[i], results[j]
-                ).comparisons
-                vals: List[float] = [
-                    float(ac[metric_name])
-                    for ac in comp.values()
-                    if ac[metric_name] is not None
-                ]
-                matrix[i, j] = matrix[j, i] = agg_func(vals)
-
-    if ax is None:
-        _, ax = plt.subplots(figsize=(1 + n, 0.8 + n))
-
-    sns.heatmap(
-        matrix,
-        annot=True,
-        fmt=".2f",
-        cmap="viridis",
-        square=True,
-        xticklabels=labels,
-        yticklabels=labels,
-        ax=ax,
-    )
-    ax.set_title(title or metric_name.replace("_", " ").title())
-    plt.tight_layout()
-    return ax
