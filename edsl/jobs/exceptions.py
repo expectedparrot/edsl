@@ -34,26 +34,6 @@ class JobsRunError(JobsErrors):
     relevant_doc = "https://docs.expectedparrot.com/en/latest/jobs.html"
 
 
-class MissingRemoteInferenceError(JobsErrors):
-    """
-    Exception raised when remote inference is required but not configured.
-
-    This exception occurs when:
-    - A job requires remote inference capabilities but they're not available
-    - Credentials for remote inference are missing or invalid
-
-    To fix this error:
-    1. Set up remote inference configuration in your environment
-    2. Provide valid API keys for the required inference service
-
-    Note: This exception is defined but not currently used in the codebase.
-    It raises Exception("not used") to indicate this state.
-    """
-
-    def __init__(self, message="Remote inference configuration is missing", **kwargs):
-        super().__init__(message, **kwargs)
-
-
 class InterviewError(JobsErrors):
     """
     Base exception class for all interview-related errors.
@@ -167,24 +147,6 @@ class JobsImplementationError(JobsErrors):
     def __init__(
         self, message="Required method or feature is not implemented", **kwargs
     ):
-        super().__init__(message, **kwargs)
-
-
-class RemoteInferenceError(JobsErrors):
-    """
-    Exception raised when there are issues with remote inference.
-
-    This exception indicates problems with remote inference configuration,
-    connection, or execution. It can occur when a remote job fails to create
-    or execute properly.
-
-    To fix this error:
-    1. Check your remote inference configuration
-    2. Verify API keys and authentication are correct
-    3. Ensure the remote service is available and responsive
-    """
-
-    def __init__(self, message="Remote inference operation failed", **kwargs):
         super().__init__(message, **kwargs)
 
 
