@@ -687,7 +687,7 @@ class Jobs(Base):
 
         if has_dependencies or has_post_methods:
             # Use the Jobs flow visualisation service
-            from edsl.services.builtin.job_visualization_service import JobVisualizationService
+            from edsl_services.job_visualization_service import JobVisualizationService
             
             if verbose:
                 print("[job_visualization] Generating job flow diagram...")

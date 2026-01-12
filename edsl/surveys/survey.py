@@ -628,7 +628,7 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
         Returns:
             FileStore containing the PNG image, or displays inline.
         """
-        from edsl.services.builtin.flow_visualization_service import FlowVisualizationService
+        from edsl_services.flow_visualization_service import FlowVisualizationService
         
         if verbose:
             print("[flow_visualization] Generating survey flow diagram...")

@@ -176,7 +176,7 @@ class DataOperationsBase:
             >>> # Custom dimensions:
             >>> # plot = r.vibe_plot("scatter plot of age vs income", height=8, width=10)
         """
-        from edsl.services.builtin.dataset_vibes.viz import GGPlotGenerator
+        from edsl_services.dataset_vibes.viz import GGPlotGenerator
 
         gen = GGPlotGenerator(model="gpt-4o", temperature=0.1)
 
@@ -247,7 +247,7 @@ class DataOperationsBase:
             >>> # Aggregation query:
             >>> # result = r.vibe_sql("Average age by city")
         """
-        from edsl.services.builtin.dataset_vibes.sql import VibeSQLGenerator
+        from edsl_services.dataset_vibes.sql import VibeSQLGenerator
 
         gen = VibeSQLGenerator(model="gpt-4o", temperature=0.1)
 
