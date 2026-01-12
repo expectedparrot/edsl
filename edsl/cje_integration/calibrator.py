@@ -3,6 +3,7 @@
 Wraps CJE's analyze_dataset() function with EDSL-specific conveniences.
 """
 
+import warnings
 from typing import Optional, Dict, Any, List, TYPE_CHECKING
 
 from .data_adapters import results_to_fresh_draws, get_oracle_coverage
@@ -137,12 +138,14 @@ class CJECalibrator:
             print(f"Calibrating with {total_oracle}/{total_samples} oracle labels")
             print(f"Policies: {list(fresh_draws.keys())}")
 
-        # Run CJE analysis
-        cje_result = analyze_dataset(
-            fresh_draws_data=fresh_draws,
-            estimator="direct",
-            verbose=self.verbose,
-        )
+        # Run CJE analysis (suppress internal CJE messages for cleaner UX)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*mismatch.*")
+            cje_result = analyze_dataset(
+                fresh_draws_data=fresh_draws,
+                estimator="direct",
+                verbose=False,  # We handle our own messaging
+            )
 
         # Extract policies from metadata
         policies = cje_result.metadata.get("target_policies", list(fresh_draws.keys()))
