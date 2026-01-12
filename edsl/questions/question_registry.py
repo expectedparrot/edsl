@@ -64,7 +64,7 @@ Generate questions from natural language<br><br>
             >>> print(q.question_type)  # doctest: +SKIP
             multiple_choice
         """
-        from edsl.services.builtin.question_vibes.service import QuestionVibesService
+        from edsl_services.question_vibes.service import QuestionVibesService
         
         if verbose:
             print(f"[question_vibes] Generating question...")

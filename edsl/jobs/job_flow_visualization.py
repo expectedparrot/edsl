@@ -38,7 +38,7 @@ class JobsFlowVisualization:
         Returns:
             FileStore containing the PNG image.
         """
-        from edsl.services.builtin.job_visualization_service import JobVisualizationService
+        from edsl_services.job_visualization_service import JobVisualizationService
         
         if verbose:
             print("[job_visualization] Generating job flow diagram...")
