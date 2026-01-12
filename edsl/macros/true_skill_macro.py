@@ -1,8 +1,10 @@
-from typing import Optional, Sequence
+from typing import Optional, Sequence, TYPE_CHECKING
 from .macro import Macro
-from ..questions import QuestionMultipleChoice, QuestionEDSLObject
 from .output_formatter import OutputFormatter, ScenarioAttachmentFormatter
-from ..surveys import Survey
+
+if TYPE_CHECKING:
+    from ..questions import QuestionMultipleChoice, QuestionEDSLObject
+    from ..surveys import Survey
 
 
 class TrueSkillRating:
@@ -22,7 +24,7 @@ class TrueSkillRating:
 
 
 def create_true_skill_macro(
-    ranking_question: QuestionMultipleChoice,
+    ranking_question: "QuestionMultipleChoice",
     option_fields: Sequence[str],
     application_name: Optional[str] = None,
     description: Optional[str] = None,
@@ -55,6 +57,9 @@ def create_true_skill_macro(
     Returns:
         A Macro instance configured for TrueSkill ranking.
     """
+    from ..surveys import Survey
+    from ..questions import QuestionEDSLObject
+
     # Create a minimal Jobs object around this question
     survey = Survey([ranking_question])
     jobs_object = survey.to_jobs()

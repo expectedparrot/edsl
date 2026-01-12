@@ -5,13 +5,35 @@ Provides a base class for all EDSL-based widgets that handles common functionali
 such as asset loading, naming conventions, and integration with the coop system.
 """
 
-import anywidget
 import os
 import re
 from typing import Optional, Tuple
 
+# anywidget is optional - only needed for Jupyter widget functionality
+try:
+    import anywidget
+    _ANYWIDGET_AVAILABLE = True
+except ImportError:
+    anywidget = None
+    _ANYWIDGET_AVAILABLE = False
 
-class EDSLBaseWidget(anywidget.AnyWidget):
+
+def _get_base_class():
+    """Get the appropriate base class depending on anywidget availability."""
+    if _ANYWIDGET_AVAILABLE:
+        return anywidget.AnyWidget
+    else:
+        # Return a stub class that raises an error on instantiation
+        class AnyWidgetStub:
+            def __init__(self, *args, **kwargs):
+                raise ImportError(
+                    "anywidget is required for EDSL widgets. "
+                    "Install it with: pip install edsl[widgets] or pip install anywidget"
+                )
+        return AnyWidgetStub
+
+
+class EDSLBaseWidget(_get_base_class()):
     """
     Base class for all EDSL-based widgets.
 

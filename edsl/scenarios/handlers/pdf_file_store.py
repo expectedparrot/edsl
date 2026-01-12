@@ -8,7 +8,13 @@ class PdfMethods(FileMethods):
     suffix = "pdf"
 
     def extract_text(self):
-        from PyPDF2 import PdfReader
+        try:
+            from PyPDF2 import PdfReader
+        except ImportError:
+            raise ImportError(
+                "PyPDF2 is required for PDF text extraction. "
+                "Install it with: pip install edsl[pdf] or pip install PyPDF2"
+            )
 
         # Create a PDF reader object
         reader = PdfReader(self.path)

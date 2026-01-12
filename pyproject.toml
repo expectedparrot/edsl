@@ -1,6 +1,6 @@
 [build-system]
 build-backend = "poetry.core.masonry.api"
-requires = ["poetry-core", "setuptools<72.0"]
+requires = ["poetry-core"]
 
 [tool.poetry]
 authors = ["John Horton <info@expectedparrot.com>"]
@@ -9,6 +9,16 @@ description = "Create and analyze LLM-based surveys"
 documentation = "https://docs.expectedparrot.com"
 homepage = "https://www.expectedparrot.com/"
 include = ["edsl/questions/templates/**/*", "edsl/assistants/EDSL_SPECIFICATION.md"]
+exclude = [
+    "edsl/server/frontend/node_modules",
+    "edsl/object_versions/frontend/node_modules",
+    "edsl/unused",
+    "edsl/conjure/unused",
+    "edsl/conjure/qualtrics/examples",
+    "**/*.zip",
+    "**/*.ipynb",
+    "**/node_modules",
+]
 keywords = ["LLM", "social science", "surveys", "user research"]
 license = "MIT"
 name = "edsl"
@@ -17,23 +27,21 @@ version = "1.0.5.dev1"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.14"
-setuptools = "<72.0"
-sqlalchemy = "^2.0.23"
 python-dotenv = "^1.0.0"
 openai = "^1.4.0"
 jinja2 = "^3.1.2"
 rich = "^13.7.0"
 simpleeval = "^0.9.13"
 # jupyter is optional - only needed for notebook environments
-pandas = "^2.1.4"
+# pandas is optional - only needed for DataFrame operations, merge, Excel reading
 tenacity = "^8.2.3"
 python-docx = "^1.1.0"
 nest-asyncio = "^1.5.9"
 aiohttp = "^3.9.1"
 requests = "^2.32.0"
-pydot = "^2.0.0"
+# pydot is optional - only needed for flow visualization
 # anthropic is optional - only needed if using Anthropic models
-pygments = "^2.17.2"
+# pygments is optional - only needed for syntax highlighting
 restrictedpython = "^7.1"
 # groq is optional - only needed if using Groq models
 # boto3 is optional - only needed if using AWS Bedrock models
@@ -42,13 +50,13 @@ json-repair = "^0.28.4"
 # mistralai is optional - only needed if using Mistral models
 urllib3 = ">=1.25.4,<1.27"
 tabulate = "^0.9.0"
-pypdf2 = "^3.0.1"
+# pypdf2 is optional - only needed for PDF text extraction
 platformdirs = "^4.3.6"
 rank-bm25 = "^0.2.2"
 pydantic-settings = "^2.10.1"
-anywidget = "^0.9.18"
+# anywidget is optional - only needed for Jupyter widgets
 # google-genai is optional - only needed if using Google/Gemini models
-mammoth = "^1.11.0"
+# mammoth is optional - only needed for DOCX to HTML conversion
 
 [tool.poetry.dependencies.altair]
 version = "^5.0.0"
@@ -95,6 +103,34 @@ version = "^6.0"
 optional = true
 
 # requests is now a required dependency (moved above)
+
+[tool.poetry.dependencies.pygments]
+version = "^2.17.2"
+optional = true
+
+[tool.poetry.dependencies.pypdf2]
+version = "^3.0.1"
+optional = true
+
+[tool.poetry.dependencies.anywidget]
+version = "^0.9.18"
+optional = true
+
+[tool.poetry.dependencies.mammoth]
+version = "^1.11.0"
+optional = true
+
+[tool.poetry.dependencies.pydot]
+version = "^2.0.0"
+optional = true
+
+[tool.poetry.dependencies.pandas]
+version = "^2.1.4"
+optional = true
+
+[tool.poetry.dependencies.sqlalchemy]
+version = "^2.0.23"
+optional = true
 
 [tool.poetry.dependencies.seaborn]
 version = "^0.13.2"
@@ -179,7 +215,7 @@ optional = true
 
 [tool.poetry.extras]
 # Full installation - everything including all LLM providers and notebook support
-full = ["playwright", "fastapi", "uvicorn", "altair", "nbformat", "nbclient", "pyyaml", "pyreadstat", "psutil", "sentence-transformers", "seaborn", "termplotlib", "qrcode", "scipy", "scikit-learn", "matplotlib", "openpyxl", "python-pptx", "joblib", "anthropic", "groq", "boto3", "azure-ai-inference", "mistralai", "google-genai", "jupyter", "ipython"]
+full = ["playwright", "fastapi", "uvicorn", "altair", "nbformat", "nbclient", "pyyaml", "pyreadstat", "psutil", "sentence-transformers", "seaborn", "termplotlib", "qrcode", "scipy", "scikit-learn", "matplotlib", "openpyxl", "python-pptx", "joblib", "anthropic", "groq", "boto3", "azure-ai-inference", "mistralai", "google-genai", "jupyter", "ipython", "pygments", "pypdf2", "anywidget", "mammoth", "pandas", "sqlalchemy", "pydot"]
 
 # LLM Provider SDKs (OpenAI is always included by default)
 # Use: pip install edsl[llm_providers]  - for all providers
@@ -199,6 +235,18 @@ notebook = ["jupyter", "ipython"]
 conjure = ["pyreadstat", "psutil"]
 # Service dependencies - loaded dynamically by services when needed
 service_deps = ["scipy", "scikit-learn", "matplotlib", "seaborn", "openpyxl", "python-pptx", "joblib", "qrcode", "sentence-transformers"]
+
+# Optional file handling and display
+pdf = ["pypdf2"]
+widgets = ["anywidget"]
+highlighting = ["pygments"]
+docx_view = ["mammoth"]
+# Data processing - for DataFrame operations, merge, Excel reading
+pandas = ["pandas"]
+# SQL-based caching - for persistent cache storage
+caching = ["sqlalchemy"]
+# Flow visualization - for show_flow() diagrams
+visualization = ["pydot"]
 
 [tool.poetry.group.dev.dependencies]
 click = "^8.0.0"

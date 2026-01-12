@@ -29,10 +29,11 @@ class CompositeMacroVisualization:
         try:
             import pydot
         except ImportError:
-            print(
-                "pydot is required for visualization. Install with: pip install pydot"
+            raise ImportError(
+                "The 'pydot' package is required for flow visualization.\n"
+                "Install it with: pip install edsl[visualization]\n"
+                "Or: pip install pydot"
             )
-            return
 
         FONT_SIZE = "10"
         graph = pydot.Dot(graph_type="digraph", rankdir="LR", fontsize=FONT_SIZE)

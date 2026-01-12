@@ -33,13 +33,19 @@ class PyMethods(FileMethods):
     def view_notebook(self):
         """Display the Python file with syntax highlighting in a notebook."""
         from IPython.display import FileLink, display, HTML
-        import pygments
-        from pygments.lexers import PythonLexer
-        from pygments.formatters import HtmlFormatter
 
         try:
             with open(self.path, "r", encoding="utf-8") as f:
                 content = f.read()
+        except Exception as e:
+            print(f"Error reading Python file: {e}")
+            return
+
+        # Try to use pygments for syntax highlighting, fall back to plain text
+        try:
+            import pygments
+            from pygments.lexers import PythonLexer
+            from pygments.formatters import HtmlFormatter
 
             # Create custom CSS for better visibility in both light and dark themes
             custom_css = """
@@ -71,9 +77,10 @@ class PyMethods(FileMethods):
             css = formatter.get_style_defs(".highlight") + custom_css
 
             display(HTML(f"<style>{css}</style>{highlighted_python}"))
-            display(FileLink(self.path))
-        except Exception as e:
-            print(f"Error displaying Python: {e}")
+        except ImportError:
+            # Pygments not installed, display plain text
+            display(HTML(f"<pre>{content}</pre>"))
+        display(FileLink(self.path))
 
     def format_python(self) -> bool:
         """Format the Python file using black."""

@@ -56,8 +56,6 @@ if TYPE_CHECKING:
     from ..dataset import Dataset
     from ..caching import Cache
     from .results_transcript import Transcripts
-    from .vibes import ResultsVibeAnalysis
-    from .vibes.vibe_accessor import ResultsVibeAccessor
 
 
 from ..utilities import dict_hash

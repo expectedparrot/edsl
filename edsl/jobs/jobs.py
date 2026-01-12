@@ -665,7 +665,7 @@ class Jobs(Base):
                 self, cache=self.run_config.environment.cache
             ).create_interviews(include_expression=self._include_expression)
 
-    def show_flow(self, filename: Optional[str] = None) -> None:
+    def show_flow(self, filename: Optional[str] = None, verbose: bool = True) -> None:
         """Visualize either the *Job* dependency/post-processing flow **or** the underlying survey flow.
 
         The method automatically decides which flow to render:
@@ -673,34 +673,46 @@ class Jobs(Base):
         1. If the job has dependencies created via :py:meth:`Jobs.to` (i.e.
            ``_depends_on`` is not *None*) **or** has post-run methods queued in
            ``_post_run_methods``, the *job* flow (dependencies → post-processing
-           chain) is rendered using :class:`edsl.jobs.job_flow_visualization.JobsFlowVisualization`.
+           chain) is rendered.
         2. Otherwise, it falls back to the original behaviour and shows the
-           survey question flow using
-           :class:`edsl.surveys.survey_flow_visualization.SurveyFlowVisualization`.
+           survey question flow.
 
         >>> from edsl.jobs import Jobs
         >>> job = Jobs.example()
-        >>> job.show_flow()  # Visualises survey flow (no deps/post-run methods)
-        >>> job2 = job.select('how_feeling').to_pandas()  # add post-run methods
-        >>> job2.show_flow()  # Now visualises job flow
+        >>> job.show_flow()  # doctest: +SKIP
         """
         # Decide which visualisation to use
         has_dependencies = getattr(self, "_depends_on", None) is not None
         has_post_methods = bool(getattr(self, "_post_run_methods", []))
 
         if has_dependencies or has_post_methods:
-            # Use the new Jobs flow visualisation
-            from .job_flow_visualization import JobsFlowVisualization
-
-            JobsFlowVisualization(self).show_flow(filename=filename)
+            # Use the Jobs flow visualisation service
+            from edsl.services.builtin.job_visualization_service import JobVisualizationService
+            
+            if verbose:
+                print("[job_visualization] Generating job flow diagram...")
+            
+            params = {
+                "operation": "flow",
+                "data": self.to_dict(),
+                "filename": filename,
+            }
+            
+            result = JobVisualizationService.execute(params)
+            fs = JobVisualizationService.parse_result(result)
+            
+            if verbose:
+                print("[job_visualization] ✓ Flow diagram created")
+            
+            if filename is None:
+                fs.view()
+            else:
+                print(f"Flowchart saved to {filename}")
+            
+            return fs
         else:
             # Fallback to survey flow visualisation
-            from ..surveys import SurveyFlowVisualization
-
-            scenario = self.scenarios[0] if self.scenarios else None
-            SurveyFlowVisualization(
-                self.survey, scenario=scenario, agent=None
-            ).show_flow(filename=filename)
+            return self.survey.show_flow(filename=filename, verbose=verbose)
 
     def push(self, *args, **kwargs) -> None:
         """Push the job to the remote server, in pieces."""

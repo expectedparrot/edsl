@@ -176,7 +176,7 @@ class DataOperationsBase:
             >>> # Custom dimensions:
             >>> # plot = r.vibe_plot("scatter plot of age vs income", height=8, width=10)
         """
-        from .vibes.vibe_viz import GGPlotGenerator
+        from edsl.services.builtin.dataset_vibes.viz import GGPlotGenerator
 
         gen = GGPlotGenerator(model="gpt-4o", temperature=0.1)
 
@@ -247,7 +247,7 @@ class DataOperationsBase:
             >>> # Aggregation query:
             >>> # result = r.vibe_sql("Average age by city")
         """
-        from .vibes.vibe_sql import VibeSQLGenerator
+        from edsl.services.builtin.dataset_vibes.sql import VibeSQLGenerator
 
         gen = VibeSQLGenerator(model="gpt-4o", temperature=0.1)
 
@@ -507,43 +507,77 @@ class DataOperationsBase:
         Examples:
             >>> from sqlalchemy import text
             >>> from edsl import Results
-            >>> engine = Results.example()._db()
-            >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
+            >>> conn = Results.example()._db()
+            >>> len(conn.execute("SELECT * FROM self").fetchall())
             4
-            >>> engine = Results.example()._db(shape = "long")
-            >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
+            >>> conn = Results.example()._db(shape = "long")
+            >>> len(conn.execute("SELECT * FROM self").fetchall())
             200
         """
-        # Import needed for database connection
-        from sqlalchemy import create_engine
+        import sqlite3
+        import csv
 
-        engine = create_engine("sqlite:///:memory:")
+        conn = sqlite3.connect(":memory:")
+        
+        # Get CSV data from the dataset
         if remove_prefix and shape == "wide":
-            df = self.remove_prefix().to_pandas(lists_as_strings=True)
+            csv_string = self.remove_prefix().to_csv().text
         else:
-            df = self.to_pandas(lists_as_strings=True)
-
+            csv_string = self.to_csv().text
+        
+        # Parse CSV
+        reader = csv.DictReader(io.StringIO(csv_string))
+        rows = list(reader)
+        
+        if not rows:
+            # Create empty table
+            conn.execute("CREATE TABLE self (empty TEXT)")
+            return conn
+        
+        columns = list(rows[0].keys())
+        
         if shape == "long":
-            # Melt the dataframe to convert it to long format
-            df = df.melt(var_name="key", value_name="value")
-            # Add a row number column for reference
-            df.insert(0, "row_number", range(1, len(df) + 1))
-
-            # Split the key into data_type and key
-            df["data_type"] = df["key"].apply(
-                lambda x: x.split(".")[0] if "." in x else None
+            # Melt the data to long format
+            long_rows = []
+            row_number = 1
+            for row in rows:
+                for key, value in row.items():
+                    data_type = key.split(".")[0] if "." in key else None
+                    key_name = ".".join(key.split(".")[1:]) if "." in key else key
+                    long_rows.append({
+                        "row_number": row_number,
+                        "key": key_name,
+                        "value": value,
+                        "data_type": data_type
+                    })
+                    row_number += 1
+            
+            # Create long format table
+            conn.execute("""
+                CREATE TABLE self (
+                    row_number INTEGER,
+                    key TEXT,
+                    value TEXT,
+                    data_type TEXT
+                )
+            """)
+            conn.executemany(
+                "INSERT INTO self VALUES (?, ?, ?, ?)",
+                [(r["row_number"], r["key"], r["value"], r["data_type"]) for r in long_rows]
             )
-            df["key"] = df["key"].apply(
-                lambda x: ".".join(x.split(".")[1:]) if "." in x else x
-            )
-
-        df.to_sql(
-            "self",
-            engine,
-            index=False,
-            if_exists="replace",
-        )
-        return engine.connect()
+        else:
+            # Create wide format table
+            # Sanitize column names for SQL
+            safe_columns = [f'"{col}"' for col in columns]
+            create_sql = f"CREATE TABLE self ({', '.join(f'{col} TEXT' for col in safe_columns)})"
+            conn.execute(create_sql)
+            
+            placeholders = ", ".join(["?" for _ in columns])
+            insert_sql = f"INSERT INTO self VALUES ({placeholders})"
+            conn.executemany(insert_sql, [tuple(row.values()) for row in rows])
+        
+        conn.commit()
+        return conn
 
     def sql(
         self,
@@ -599,22 +633,46 @@ class DataOperationsBase:
             >>> len(r.sql("SELECT * FROM self", shape="long"))
             200
         """
-        import pandas as pd
-
-        conn = self._db(remove_prefix=remove_prefix, shape=shape)
-        df = pd.read_sql_query(query, conn)
-
-        # Transpose the DataFrame if transpose is True
-        if transpose or transpose_by:
-            df = pd.DataFrame(df)
-            if transpose_by:
-                df = df.set_index(transpose_by)
-            else:
-                df = df.set_index(df.columns[0])
-            df = df.transpose()
         from .dataset import Dataset
 
-        return Dataset.from_pandas_dataframe(df)
+        conn = self._db(remove_prefix=remove_prefix, shape=shape)
+        cursor = conn.execute(query)
+        columns = [description[0] for description in cursor.description]
+        rows = cursor.fetchall()
+        
+        if not rows:
+            return Dataset([])
+        
+        # Convert row-oriented data to column-oriented format for Dataset
+        # Dataset format: [{'col1': [val1, val2, ...]}, {'col2': [val1, val2, ...]}]
+        column_data = {col: [] for col in columns}
+        for row in rows:
+            for col, val in zip(columns, row):
+                column_data[col].append(val)
+        
+        # Handle transpose
+        if transpose or transpose_by:
+            # Determine index column
+            index_col = transpose_by if transpose_by else columns[0]
+            
+            # Create transposed data - rows become columns
+            new_columns = column_data[index_col]  # These become the new column names
+            other_cols = [c for c in columns if c != index_col]
+            
+            # Build transposed column data
+            transposed_data = []
+            # First add the index column (original column names become values)
+            transposed_data.append({"index": other_cols})
+            # Then add each row as a column
+            for i, new_col_name in enumerate(new_columns):
+                col_values = [column_data[c][i] for c in other_cols]
+                transposed_data.append({str(new_col_name): col_values})
+            
+            return Dataset(transposed_data)
+        
+        # Create Dataset in column-oriented format
+        dataset_data = [{col: values} for col, values in column_data.items()]
+        return Dataset(dataset_data)
 
     def to_pandas(self, remove_prefix: bool = False, lists_as_strings=False):
         """Convert the results to a pandas DataFrame, ensuring that lists remain as lists.
@@ -638,14 +696,20 @@ class DataOperationsBase:
         Examples:
             >>> from edsl.results import Results
             >>> r = Results.example()
-            >>> r.select('how_feeling').to_pandas()
+            >>> r.select('how_feeling').to_pandas()  # doctest: +SKIP
               answer.how_feeling
             0                 OK
             1              Great
             2           Terrible
             3                 OK
         """
-        import pandas as pd
+        try:
+            import pandas as pd
+        except ImportError:
+            raise ImportError(
+                "pandas is required for to_pandas(). "
+                "Install with: pip install edsl[pandas] or pip install pandas"
+            )
 
         # Handle empty dataset case
         if not self.data:
@@ -679,7 +743,13 @@ class DataOperationsBase:
         Returns:
             A Polars DataFrame.
         """
-        import polars as pl
+        try:
+            import polars as pl
+        except ImportError:
+            raise ImportError(
+                "polars is required for to_polars(). "
+                "Install with: pip install polars"
+            )
 
         csv_string = self.to_csv(remove_prefix=remove_prefix).text
         df = pl.read_csv(io.StringIO(csv_string))

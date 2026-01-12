@@ -225,7 +225,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             - Uses the dataset's built-in filter() method for safe evaluation
             - Use show_expression=True to see the generated filter logic
         """
-        from .vibes.vibe_filter import VibeFilter
+        from edsl.services.builtin.dataset_vibes.filter import VibeFilter
 
         # Get column names and sample data
         columns = self.relevant_columns()
@@ -819,19 +819,32 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     def merge(self, other: Dataset, by_x, by_y) -> Dataset:
         """Merge the dataset with another dataset on the given keys.
 
+        Requires pandas to be installed.
+
         Examples:
             >>> d1 = Dataset([{'key': [1, 2, 3]}, {'value1': ['a', 'b', 'c']}])
             >>> d2 = Dataset([{'key': [2, 3, 4]}, {'value2': ['x', 'y', 'z']}])
-            >>> merged = d1.merge(d2, 'key', 'key')
-            >>> len(merged.data[0]['key'])
+            >>> merged = d1.merge(d2, 'key', 'key')  # doctest: +SKIP
+            >>> len(merged.data[0]['key'])  # doctest: +SKIP
             3
 
             >>> d1 = Dataset([{'id': [1, 2]}, {'name': ['Alice', 'Bob']}])
             >>> d2 = Dataset([{'id': [2, 3]}, {'age': [25, 30]}])
-            >>> merged = d1.merge(d2, 'id', 'id')
-            >>> len(merged.data[0]['id'])
+            >>> merged = d1.merge(d2, 'id', 'id')  # doctest: +SKIP
+            >>> len(merged.data[0]['id'])  # doctest: +SKIP
             2
+        
+        Raises:
+            ImportError: If pandas is not installed.
         """
+        try:
+            import pandas as pd
+        except ImportError:
+            raise ImportError(
+                "pandas is required for merge(). "
+                "Install with: pip install edsl[pandas] or pip install pandas"
+            )
+        
         df1 = self.to_pandas()
         df2 = other.to_pandas()
         merged_df = df1.merge(df2, how="left", left_on=by_x, right_on=by_y)

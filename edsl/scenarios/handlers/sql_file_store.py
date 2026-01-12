@@ -29,21 +29,29 @@ class SqlMethods(FileMethods):
 
     def view_notebook(self):
         from IPython.display import FileLink, display, HTML
-        import pygments
-        from pygments.lexers import SqlLexer
-        from pygments.formatters import HtmlFormatter
 
         try:
             with open(self.path, "r", encoding="utf-8") as f:
                 content = f.read()
 
+        except Exception as e:
+            print(f"Error reading SQL file: {e}")
+            return
+
+        # Try to use pygments for syntax highlighting, fall back to plain text
+        try:
+            import pygments
+            from pygments.lexers import SqlLexer
+            from pygments.formatters import HtmlFormatter
+
             formatter = HtmlFormatter(style="monokai")
             highlighted_sql = pygments.highlight(content, SqlLexer(), formatter)
             css = formatter.get_style_defs(".highlight")
             display(HTML(f"<style>{css}</style>{highlighted_sql}"))
-            display(FileLink(self.path))
-        except Exception as e:
-            print(f"Error displaying SQL: {e}")
+        except ImportError:
+            # Pygments not installed, display plain text
+            display(HTML(f"<pre>{content}</pre>"))
+        display(FileLink(self.path))
 
     def _format_keywords(self, sql: str) -> str:
         """Capitalize SQL keywords."""

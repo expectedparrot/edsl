@@ -3,6 +3,18 @@ from ..file_methods import FileMethods
 import os
 
 
+def _require_pandas():
+    """Helper to check pandas availability with helpful error message."""
+    try:
+        import pandas as pd
+        return pd
+    except ImportError:
+        raise ImportError(
+            "pandas is required for Excel file operations. "
+            "Install with: pip install edsl[pandas] or pip install pandas openpyxl"
+        )
+
+
 class XlsxMethods(FileMethods):
     suffix = "xlsx"
 
@@ -14,7 +26,7 @@ class XlsxMethods(FileMethods):
 
     def extract_text(self):
         """Extract text content from Excel file."""
-        import pandas as pd
+        pd = _require_pandas()
 
         # Read all sheets from the Excel file
         excel_file = pd.read_excel(self.path, sheet_name=None)
@@ -45,7 +57,7 @@ class XlsxMethods(FileMethods):
             print("Excel file was not found.")
 
     def view_notebook(self):
-        import pandas as pd
+        pd = _require_pandas()
         from IPython.display import display, HTML
 
         # Read all sheets from the Excel file
@@ -57,7 +69,7 @@ class XlsxMethods(FileMethods):
             display(df)
 
     def example(self):
-        import pandas as pd
+        pd = _require_pandas()
 
         # Create sample data
         data = {
@@ -79,8 +91,11 @@ class XlsxMethods(FileMethods):
 
         Returns:
             dict: Dictionary of sheet names to DataFrames, or single DataFrame if only one sheet
+        
+        Raises:
+            ImportError: If pandas is not installed
         """
-        import pandas as pd
+        pd = _require_pandas()
 
         excel_file = pd.read_excel(self.path, sheet_name=None)
 
