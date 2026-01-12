@@ -3,6 +3,7 @@
 Wraps CJE's analyze_dataset() function with EDSL-specific conveniences.
 """
 
+import logging
 import warnings
 from typing import Optional, Dict, Any, List, TYPE_CHECKING
 
@@ -139,13 +140,18 @@ class CJECalibrator:
             print(f"Policies: {list(fresh_draws.keys())}")
 
         # Run CJE analysis (suppress internal CJE messages for cleaner UX)
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message=".*mismatch.*")
+        # Temporarily suppress CJE logger warnings
+        cje_logger = logging.getLogger("cje")
+        original_level = cje_logger.level
+        cje_logger.setLevel(logging.ERROR)
+        try:
             cje_result = analyze_dataset(
                 fresh_draws_data=fresh_draws,
                 estimator="direct",
                 verbose=False,  # We handle our own messaging
             )
+        finally:
+            cje_logger.setLevel(original_level)
 
         # Extract policies from metadata
         policies = cje_result.metadata.get("target_policies", list(fresh_draws.keys()))
