@@ -259,8 +259,17 @@ class TestCJECalibrator:
             )
 
 
+def _cje_available():
+    """Check if CJE is installed."""
+    try:
+        import cje
+        return True
+    except ImportError:
+        return False
+
+
 @pytest.mark.skipif(
-    True,  # Skip by default since cje-eval may not be installed
+    not _cje_available(),
     reason="Requires cje-eval to be installed"
 )
 class TestEndToEnd:
@@ -317,3 +326,70 @@ class TestEndToEnd:
         # Verify estimates are reasonable
         assert 0 < cal_result.estimates["gpt-4o"] < 1
         assert 0 < cal_result.estimates["claude-3-5-sonnet"] < 1
+
+        # Test compare() method
+        comparison = cal_result.compare("gpt-4o", "claude-3-5-sonnet")
+        assert comparison.policy_a == "gpt-4o"
+        assert comparison.policy_b == "claude-3-5-sonnet"
+        assert isinstance(comparison.difference, float)
+        assert isinstance(comparison.p_value, float)
+        assert 0 <= comparison.p_value <= 1
+
+    def test_oracle_labels_shorter_than_results(self):
+        """Test that shorter oracle_labels list is handled correctly."""
+        from edsl.cje_integration import calibrate
+
+        np.random.seed(42)
+        mock_results = []
+
+        for i in range(40):
+            result = MagicMock()
+            result.model = MagicMock()
+            result.model.model = "gpt-4o"
+            result.__getitem__ = lambda self, key: {"answer": {"q": 0.5}}.get(key, {})
+            result.scenario = MagicMock()
+            result.scenario.to_dict = lambda i=i: {"id": i}
+            mock_results.append(result)
+
+        # Only 15 oracle labels for 40 results - CJE needs >= 10 for CV
+        oracle_labels = [0.4 + 0.02 * i for i in range(15)]
+
+        cal_result = calibrate(
+            mock_results,
+            question_name="q",
+            oracle_labels=oracle_labels,
+        )
+
+        assert cal_result.n_oracle == 15
+        assert cal_result.n_total == 40
+
+    def test_oracle_labels_with_mixed_none(self):
+        """Test sparse oracle labels with None values interspersed."""
+        from edsl.cje_integration import calibrate
+
+        np.random.seed(42)
+        mock_results = []
+
+        for i in range(50):
+            result = MagicMock()
+            result.model = MagicMock()
+            result.model.model = "policy_a" if i < 25 else "policy_b"
+            score = 0.6 if i < 25 else 0.4
+            result.__getitem__ = lambda self, key, s=score: {"answer": {"q": s}}.get(key, {})
+            result.scenario = MagicMock()
+            result.scenario.to_dict = lambda i=i: {"id": i}
+            mock_results.append(result)
+
+        # Sparse labels: only every 4th sample has a label (gives 13 labels)
+        # Keep values in [0, 1] range
+        oracle_labels = [0.3 + 0.01 * i if i % 4 == 0 else None for i in range(50)]
+
+        cal_result = calibrate(
+            mock_results,
+            question_name="q",
+            oracle_labels=oracle_labels,
+        )
+
+        # Should have 13 oracle labels (0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48)
+        assert cal_result.n_oracle == 13
+        assert cal_result.n_total == 50
