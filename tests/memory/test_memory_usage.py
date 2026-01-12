@@ -1,8 +1,12 @@
 import pytest
-from memory_profiler import memory_usage
+import os
+
+# Skip all tests in this module if memory_profiler is not installed
+memory_profiler = pytest.importorskip("memory_profiler", reason="memory_profiler not installed")
+memory_usage = memory_profiler.memory_usage
+
 from edsl import FileStore, Scenario, Survey, Model
 from edsl import QuestionFreeText, QuestionList
-import os 
 @pytest.fixture
 def sample_image():
     """Fixture to provide a sample image for testing."""
