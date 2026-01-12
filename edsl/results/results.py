@@ -129,8 +129,34 @@ class AgentListSplit:
 from .results_likely_remove import ResultsLikelyRemoveMixin
 
 
+class ResultsMeta(Base.__class__):
+    """Metaclass for Results that enables dynamic service accessor access.
+    
+    Inherits from Base's metaclass (RegisterSubclassesMeta) to avoid metaclass conflicts.
+    
+    This metaclass intercepts class-level attribute access (e.g., Results.charts)
+    and returns service accessor instances from the edsl.services registry.
+    
+    Examples:
+        >>> accessor = Results.charts  # Returns charts accessor
+    """
+    
+    def __getattr__(cls, name: str):
+        """Called when Results.{name} is accessed and {name} isn't found normally."""
+        # Lazy import to avoid circular dependencies
+        from edsl.services.accessors import get_service_accessor
+        
+        accessor = get_service_accessor(name, owner_class=cls)
+        if accessor is not None:
+            return accessor
+        
+        # Standard AttributeError
+        raise AttributeError(f"type object 'Results' has no attribute '{name}'")
+
+
 class Results(
-    GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRemoveMixin, Base
+    GitMixin, MutableSequence, ResultsOperationsMixin, ResultsLikelyRemoveMixin, Base,
+    metaclass=ResultsMeta
 ):
     """A collection of Result objects with powerful data analysis capabilities.
 
@@ -461,6 +487,26 @@ class Results(
                 f"Cannot set attribute '{name}' on Results. "
                 f"Results is immutable - use event-based methods to modify data."
             )
+
+    def __getattr__(self, name: str):
+        """Intercept attribute access to provide service accessor instances.
+        
+        This method is called when an attribute isn't found normally on the instance.
+        It checks if the attribute name matches a registered service and returns
+        the appropriate accessor bound to this Results instance.
+        
+        Examples:
+            >>> r = Results.example()
+            >>> r.charts  # Returns charts accessor bound to this instance
+        """
+        # Lazy import to avoid circular dependencies
+        from edsl.services.accessors import get_service_accessor
+        
+        accessor = get_service_accessor(name, instance=self)
+        if accessor is not None:
+            return accessor
+        
+        raise AttributeError(f"'Results' object has no attribute '{name}'")
 
     def __init__(
         self,
