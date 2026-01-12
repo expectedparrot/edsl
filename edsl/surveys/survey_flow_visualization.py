@@ -312,9 +312,18 @@ class SurveyFlowVisualization:
                     return img
                 else:
                     # Jupyter/Colab: use IPython display
-                    from IPython.display import Image, display
-
-                    display(Image(tmp_file.name))
+                    try:
+                        from IPython.display import Image, display
+                        display(Image(tmp_file.name))
+                    except ImportError:
+                        # Fall back to opening the file directly
+                        import os
+                        if os.name == "nt":
+                            os.system(f"start {tmp_file.name}")
+                        elif sys.platform == "darwin":
+                            os.system(f"open {tmp_file.name}")
+                        else:
+                            os.system(f"xdg-open {tmp_file.name}")
             else:
                 import os
 

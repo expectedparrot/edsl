@@ -6,11 +6,10 @@ and tokens-per-minute rate limits for language model API services. Each ModelBuc
 instance contains two TokenBucket instances - one for requests and one for tokens.
 """
 
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .token_bucket import TokenBucket
-    from matplotlib.figure import Figure
 
 
 class ModelBuckets:
@@ -147,28 +146,6 @@ class ModelBuckets:
                 refill_rate=float("inf"),
             ),
         )
-
-    def visualize(self) -> Tuple["Figure", "Figure"]:
-        """
-        Create visualizations of token usage over time for both buckets.
-
-        This method generates matplotlib plots showing token usage over time
-        for both the request bucket and token bucket, which can be useful for
-        monitoring and debugging rate limit issues.
-
-        Returns:
-            A tuple containing two matplotlib Figures (requests_plot, tokens_plot)
-
-        Example:
-            >>> ## buckets = ModelBuckets.infinity_bucket("test")
-            >>> ## request_plot, token_plot = buckets.visualize()
-            >>> ## Now you can display or save these plots
-        """
-        # Import Figure only for type checking when the function is called
-
-        plot1 = self.requests_bucket.visualize()
-        plot2 = self.tokens_bucket.visualize()
-        return plot1, plot2
 
     def __repr__(self) -> str:
         """

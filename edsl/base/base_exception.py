@@ -125,7 +125,12 @@ class BaseException(Exception):
     @classmethod
     def _install_ipython_hook(cls):
         """Use IPython's recommended approach for a custom exception handler."""
-        from IPython.core.interactiveshell import InteractiveShell
+        try:
+            from IPython.core.interactiveshell import InteractiveShell
+        except ImportError:
+            # If IPython not installed, fall back to sys.excepthook
+            cls._install_sys_excepthook()
+            return
 
         shell = InteractiveShell.instance()
 

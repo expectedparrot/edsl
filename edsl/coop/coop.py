@@ -3924,9 +3924,12 @@ class Coop(CoopFunctionsMixin):
         else:
             # Running in an interactive environment (e.g., Jupyter Notebook)
             # Use IPython HTML display
-            from IPython.display import HTML, display
-
-            display(HTML(html_content))
+            try:
+                from IPython.display import HTML, display
+                display(HTML(html_content))
+            except ImportError:
+                # Fall back to terminal display if IPython not available
+                rich_print(f"[#38bdf8][link={url}]{url}[/link][/#38bdf8]")
 
         print("Logging in will activate the following features:")
         print("  - Remote inference: Runs jobs remotely on the Expected Parrot server.")

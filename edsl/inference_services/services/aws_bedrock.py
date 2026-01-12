@@ -1,6 +1,6 @@
 import os
 from typing import Any, List, Optional, TYPE_CHECKING
-import boto3
+
 from ..inference_service_abc import InferenceServiceABC
 from ..decorators import report_errors_async
 
@@ -8,6 +8,26 @@ from ..decorators import report_errors_async
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
     from ...scenarios.file_store import FileStore
+
+# Lazy import for boto3 - only loaded when actually used
+_boto3 = None
+
+
+def _get_boto3():
+    """Lazy import of boto3 module."""
+    global _boto3
+    if _boto3 is None:
+        try:
+            import boto3
+
+            _boto3 = boto3
+        except ImportError:
+            raise ImportError(
+                "The 'boto3' package is required to use AWS Bedrock models. "
+                "Please install it with: pip install edsl[bedrock] "
+                "or: pip install boto3"
+            )
+    return _boto3
 
 
 class AwsBedrockService(InferenceServiceABC):
@@ -25,6 +45,7 @@ class AwsBedrockService(InferenceServiceABC):
     @classmethod
     def get_model_info(cls):
         """Get raw model info from AWS Bedrock."""
+        boto3 = _get_boto3()
         region = os.getenv("AWS_REGION", "us-east-1")
         client = boto3.client("bedrock", region_name=region)
         return client.list_foundation_models()["modelSummaries"]
@@ -111,6 +132,7 @@ class AwsBedrockService(InferenceServiceABC):
                 # Ensure credentials are available
                 _ = self.api_token  # call to check if env variables are set.
 
+                boto3 = _get_boto3()
                 region = os.getenv("AWS_REGION", "us-east-1")
                 client = boto3.client("bedrock-runtime", region_name=region)
 

@@ -1,8 +1,27 @@
 import os
 from typing import Any, Optional, List, TYPE_CHECKING
-from anthropic import AsyncAnthropic
 
 from ..inference_service_abc import InferenceServiceABC
+
+# Lazy import for anthropic - only loaded when actually used
+_AsyncAnthropic = None
+
+
+def _get_async_anthropic():
+    """Lazy import of AsyncAnthropic client."""
+    global _AsyncAnthropic
+    if _AsyncAnthropic is None:
+        try:
+            from anthropic import AsyncAnthropic
+
+            _AsyncAnthropic = AsyncAnthropic
+        except ImportError:
+            raise ImportError(
+                "The 'anthropic' package is required to use Anthropic models. "
+                "Please install it with: pip install edsl[anthropic] "
+                "or: pip install anthropic"
+            )
+    return _AsyncAnthropic
 from ..decorators import report_errors_async
 from .message_builder import MessageBuilder
 
@@ -172,6 +191,7 @@ class AnthropicService(InferenceServiceABC):
                                     "text": f"[Unsupported file '{filename}' of type '{file_entry.mime_type}'. File content cannot be processed.]",
                                 }
                             )
+                AsyncAnthropic = _get_async_anthropic()
                 client = AsyncAnthropic(api_key=self.api_token)
 
                 response = await client.messages.create(

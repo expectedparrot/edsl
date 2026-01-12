@@ -28,12 +28,17 @@ class JpegMethods(FileMethods):
         display(Image(filename=self.path))
 
     def example(self):
-        import matplotlib.pyplot as plt
-        import numpy as np
-
-        x = np.linspace(0, 10, 100)
-        y = np.sin(x)
-        plt.plot(x, y)
+        """Create a simple example JPEG using PIL."""
+        from PIL import Image, ImageDraw
+        
+        # Create a simple gradient image
+        img = Image.new('RGB', (200, 200), color='white')
+        draw = ImageDraw.Draw(img)
+        for i in range(200):
+            color = (255 - i, 100, i)
+            draw.line([(0, i), (200, i)], fill=color)
+        draw.text((50, 90), "Example", fill='black')
+        
         with tempfile.NamedTemporaryFile(delete=False, suffix=".jpeg") as f:
-            plt.savefig(f.name)
+            img.save(f.name, "JPEG")
         return f.name

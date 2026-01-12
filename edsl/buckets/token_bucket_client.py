@@ -7,13 +7,10 @@ operations to a remote server, enabling distributed rate limiting across
 multiple processes or machines.
 """
 
-from typing import Union, Optional, Dict, Any, TYPE_CHECKING
+from typing import Union, Optional, Dict, Any
 import asyncio
 import time
 import aiohttp
-
-if TYPE_CHECKING:
-    from matplotlib.figure import Figure
 
 from .exceptions import BucketError, TokenBucketClientError
 
@@ -423,47 +420,6 @@ class TokenBucketClient:
     # def wait_time(self, num_tokens: Union[int, float]) -> float:
     #     """Server-side wait time calculation (future implementation)"""
     #     return 0  # TODO - Need to implement this on the server side
-
-    def visualize(self) -> "Figure":
-        """
-        Visualize the token bucket usage over time as a matplotlib figure.
-
-        This method generates a plot showing the available tokens over time,
-        which can be useful for monitoring and debugging rate limit issues.
-
-        Returns:
-            A matplotlib Figure object that can be displayed or saved
-
-        Example:
-            >>> client = TokenBucketClient(bucket_name="test", bucket_type="test",
-            ...                           capacity=100, refill_rate=10)
-            >>> # Do some operations with the bucket
-            >>> plot = client.visualize()
-            >>> # Now you can display or save the plot
-        """
-        # Get the bucket history from the server
-        status = asyncio.run(self._get_status())
-        times, tokens = zip(*status["log"])
-
-        # Normalize times to start at 0
-        start_time = times[0]
-        times = [t - start_time for t in times]
-
-        # Import here to avoid loading matplotlib until needed
-        from matplotlib import pyplot as plt
-
-        # Create the plot
-        fig = plt.figure(figsize=(10, 6))
-        plt.plot(times, tokens, label="Tokens Available")
-        plt.xlabel("Time (seconds)", fontsize=12)
-        plt.ylabel("Number of Tokens", fontsize=12)
-        details = f"{self.bucket_name} ({self.bucket_type}) Bucket Usage Over Time\nCapacity: {self.capacity:.1f}, Refill Rate: {self.refill_rate:.1f}/second"
-        plt.title(details, fontsize=14)
-        plt.legend()
-        plt.grid(True)
-        plt.tight_layout()
-
-        return fig
 
 
 # Examples and doctests

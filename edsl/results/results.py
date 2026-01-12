@@ -86,7 +86,6 @@ from .results_ml import ResultsML
 from .results_transformer import ResultsTransformer
 from .results_properties import ResultsProperties
 from .results_grouper import ResultsGrouper
-from .results_weighting import ResultsWeighting
 
 from .exceptions import (
     ResultsError,
@@ -497,7 +496,7 @@ class Results(
         
         Examples:
             >>> r = Results.example()
-            >>> r.charts  # Returns charts accessor bound to this instance
+            >>> _ = r.charts  # Returns charts accessor bound to this instance
         """
         # Lazy import to avoid circular dependencies
         from edsl.services.accessors import get_service_accessor
@@ -765,11 +764,11 @@ class Results(
         Returns:
             AnalysisResult: Rich analysis with summaries and visualizations.
             
-        Examples:
-            >>> r = Results.example()
-            >>> r.analyze('how_feeling')           # One question
-            >>> r.analyze('q1', 'q2')              # Multiple questions
-            >>> r.analyze()                        # All questions
+        Example:
+            r = Results.example()
+            analysis = r.analyze('how_feeling')   # One question
+            analysis = r.analyze('q1', 'q2')      # Multiple questions  
+            analysis = r.analyze()                # All questions
         """
         from .analysis_result import AnalysisResult
         from edsl.services import dispatch
