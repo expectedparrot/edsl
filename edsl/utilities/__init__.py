@@ -23,7 +23,7 @@ from .utilities import (
 )
 
 # Decorator utilities
-from .decorators import sync_wrapper, jupyter_nb_handler, memory_profile
+from .decorators import sync_wrapper, jupyter_nb_handler
 
 # Spinner utilities
 from .spinner import with_spinner, silent_spinner
@@ -53,7 +53,6 @@ __all__ = [
     "sanitize_jinja_syntax",
     "sync_wrapper",
     "jupyter_nb_handler",
-    "memory_profile",
     "with_spinner",
     "silent_spinner",
     "is_notebook",
