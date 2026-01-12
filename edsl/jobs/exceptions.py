@@ -191,3 +191,49 @@ class JobTerminationError(JobsErrors):
     def __init__(self, message: str, cause: Exception = None):
         super().__init__(message)
         self.cause = cause
+
+
+class RemoteInferenceError(JobsErrors):
+    """
+    Exception raised when remote inference fails.
+
+    This exception indicates that a job running on the Expected Parrot
+    remote inference service has failed, typically during job creation
+    or execution on the remote server.
+
+    Common causes:
+    - Remote job creation failed
+    - Network connectivity issues with the remote service
+    - Remote server returned an error
+
+    To fix this error:
+    1. Check your network connection
+    2. Verify your API credentials are valid
+    3. Check the Expected Parrot service status
+    4. Retry the operation after a brief delay
+    """
+
+    def __init__(self, message: str = "Remote inference operation failed"):
+        super().__init__(message)
+
+
+class MissingRemoteInferenceError(JobsErrors):
+    """
+    Exception raised when remote inference results are missing.
+
+    This exception indicates that expected results from a remote inference
+    job could not be found or retrieved.
+
+    Common causes:
+    - Job was not properly created on the remote server
+    - Results expired before retrieval
+    - Job UUID is invalid or does not exist
+
+    To fix this error:
+    1. Verify the job was successfully created
+    2. Check if the job UUID is correct
+    3. Retry the job submission
+    """
+
+    def __init__(self, message: str = "Remote inference results not found"):
+        super().__init__(message)
