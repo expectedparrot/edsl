@@ -201,7 +201,7 @@ class PersistenceMixin:
             - In terminal: Returns formatted string
             - Works with any EDSL class that inherits from Base
         """
-        from ..dataset.vibes.vibe_help import VibeHelp
+        from ..services.builtin.help_service import VibeHelp
 
         # Create an example instance to provide context
         try:

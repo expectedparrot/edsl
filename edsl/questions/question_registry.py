@@ -7,6 +7,89 @@ from typing import Any, Optional, Union
 from .question_base import RegisterQuestionsMeta
 
 
+class QuestionVibesAccessor:
+    """Accessor for Question vibes service operations.
+    
+    Provides a clean interface for generating questions from natural language.
+    
+    Example:
+        >>> q = Question.vibes.generate("Ask about favorite color")  # doctest: +SKIP
+        >>> q = Question.vibes.create("A satisfaction question")  # doctest: +SKIP
+    """
+    
+    def __repr__(self) -> str:
+        return (
+            "QuestionVibesAccessor - Generate questions from natural language\n\n"
+            "Methods:\n"
+            "  .generate(description) - Generate a question from description\n"
+            "  .create(description)   - Alias for generate\n\n"
+            "Example:\n"
+            "  >>> q = Question.vibes.generate('Ask about favorite color')\n"
+            "  >>> q.question_type\n"
+            "  'multiple_choice'"
+        )
+    
+    def _repr_html_(self) -> str:
+        return """
+<div style="font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
+<b style="color: #3498db;">QuestionVibesAccessor</b><br>
+Generate questions from natural language<br><br>
+<b>Methods:</b> <code>.generate()</code>, <code>.create()</code><br><br>
+<b>Example:</b><br>
+<code>q = Question.vibes.generate("Ask about favorite color")</code>
+</div>
+"""
+    
+    def generate(
+        self,
+        description: str,
+        *,
+        model: str = "gpt-4o",
+        temperature: float = 0.7,
+        verbose: bool = True,
+    ):
+        """Generate a question from a natural language description.
+        
+        Args:
+            description: Natural language description of the question
+            model: OpenAI model to use (default: gpt-4o)
+            temperature: Temperature for generation (default: 0.7)
+            verbose: Show progress messages (default: True)
+            
+        Returns:
+            A Question instance of the appropriate type
+            
+        Example:
+            >>> q = Question.vibes.generate("Ask what their favorite color is")  # doctest: +SKIP
+            >>> print(q.question_type)  # doctest: +SKIP
+            multiple_choice
+        """
+        from edsl.services.builtin.question_vibes.service import QuestionVibesService
+        
+        if verbose:
+            print(f"[question_vibes] Generating question...")
+        
+        params = QuestionVibesService.create_task(
+            description=description,
+            model=model,
+            temperature=temperature,
+        )
+        result = QuestionVibesService.execute(params)
+        question = QuestionVibesService.parse_result(result)
+        
+        if verbose:
+            print(f"[question_vibes] ✓ Created {question.question_type} question: '{question.question_name}'")
+        
+        return question
+    
+    # Alias
+    create = generate
+
+
+# Singleton instance
+_question_vibes_accessor = QuestionVibesAccessor()
+
+
 class Meta(type):
     """Metaclass for QuestionBase that provides a __repr__ method that lists all available questions."""
 
@@ -31,6 +114,15 @@ class Meta(type):
             )
             s += line_info + "\n"
         return s
+    
+    @property
+    def vibes(cls) -> "QuestionVibesAccessor":
+        """Access question generation via vibes service.
+        
+        Example:
+            >>> q = Question.vibes.generate("Ask about favorite color")  # doctest: +SKIP
+        """
+        return _question_vibes_accessor
 
 
 class Question(metaclass=Meta):
@@ -176,6 +268,7 @@ class Question(metaclass=Meta):
         *,
         model: str = "gpt-4o",
         temperature: float = 0.7,
+        verbose: bool = True,
     ):
         """Generate a question from a natural language description.
 
@@ -187,6 +280,7 @@ class Question(metaclass=Meta):
             description: Natural language description of what the question should ask
             model: OpenAI model to use for generation (default: "gpt-4o")
             temperature: Temperature for generation (default: 0.7)
+            verbose: Show progress messages (default: True)
 
         Returns:
             QuestionBase: A new Question instance with the appropriate type
@@ -205,10 +299,12 @@ class Question(metaclass=Meta):
             >>> print(q.question_type)  # doctest: +SKIP
             yes_no
         """
-        from .vibes import generate_question_from_vibes
-
-        return generate_question_from_vibes(
-            cls, description, model=model, temperature=temperature
+        # Delegate to vibes accessor for consistent service behavior
+        return cls.vibes.generate(
+            description,
+            model=model,
+            temperature=temperature,
+            verbose=verbose,
         )
 
 

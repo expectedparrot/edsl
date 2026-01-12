@@ -10,18 +10,24 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Literal
 import json
 
-from sqlalchemy import (
-    create_engine,
-    Column,
-    String,
-    Text,
-    DateTime,
-    ForeignKey,
-    LargeBinary,
-    Index,
-)
-from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
-from sqlalchemy.pool import StaticPool
+try:
+    from sqlalchemy import (
+        create_engine,
+        Column,
+        String,
+        Text,
+        DateTime,
+        ForeignKey,
+        LargeBinary,
+        Index,
+    )
+    from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
+    from sqlalchemy.pool import StaticPool
+except ImportError:
+    raise ImportError(
+        "SQLAlchemy is required to run the versioning server. "
+        "Install it with: pip install edsl[caching] or pip install sqlalchemy"
+    )
 
 from .models import Commit, Ref
 from .utils import _utcnow

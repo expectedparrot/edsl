@@ -17,7 +17,13 @@ def _get_base():
     """Lazily create and return the SQLAlchemy Base class."""
     global _Base
     if _Base is None:
-        from sqlalchemy.orm import declarative_base
+        try:
+            from sqlalchemy.orm import declarative_base
+        except ImportError:
+            raise ImportError(
+                "SQLAlchemy is required for SQL-based caching. "
+                "Install it with: pip install edsl[caching] or pip install sqlalchemy"
+            )
 
         _Base = declarative_base()
     return _Base

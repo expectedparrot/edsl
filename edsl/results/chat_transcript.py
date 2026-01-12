@@ -4,12 +4,11 @@ This module contains the ChatTranscript class for displaying conversation result
 The ChatTranscript class provides a rich, formatted view of questions asked to an agent
 and their corresponding responses, making it easy to review interview conversations
 in a chat-like format.
+
+Rich library imports are lazy-loaded to speed up module import time.
 """
 
 from typing import TYPE_CHECKING
-from rich.console import Console
-from rich.panel import Panel
-from rich.text import Text
 
 if TYPE_CHECKING:
     from .result import Result
@@ -32,7 +31,15 @@ class ChatTranscript:
             result: A Result object containing the conversation data
         """
         self.result = result
-        self.console = Console()
+        self._console = None
+
+    @property
+    def console(self):
+        """Lazy-load the rich Console."""
+        if self._console is None:
+            from rich.console import Console
+            self._console = Console()
+        return self._console
 
     def view(self, show_options: bool = True, show_agent_info: bool = True) -> None:
         """
@@ -67,6 +74,9 @@ class ChatTranscript:
 
     def _display_agent_info(self) -> None:
         """Display agent information at the top of the transcript."""
+        from rich.panel import Panel
+        from rich.text import Text
+
         agent = self.result.agent
 
         # Create agent info text
@@ -117,6 +127,9 @@ class ChatTranscript:
         self, question_name: str, question_data: dict, show_options: bool
     ) -> None:
         """Display a question with its text and options."""
+        from rich.panel import Panel
+        from rich.text import Text
+
         question_text = question_data.get("question_text", question_name)
         question_type = question_data.get("question_type", "unknown")
         question_options = question_data.get("question_options", None)
@@ -153,6 +166,9 @@ class ChatTranscript:
 
     def _display_answer(self, answer) -> None:
         """Display the agent's answer."""
+        from rich.panel import Panel
+        from rich.text import Text
+
         # Format the answer based on its type
         if isinstance(answer, dict):
             answer_text = self._format_dict_answer(answer)
@@ -195,6 +211,9 @@ class ChatTranscript:
 
     def summary(self) -> None:
         """Display a brief summary of the conversation."""
+        from rich.panel import Panel
+        from rich.text import Text
+
         num_questions = len(self.result.answer)
         agent_name = getattr(self.result.agent, "name", "Unnamed Agent")
 

@@ -261,7 +261,7 @@ trio = ["trio (>=0.31.0)", "trio (>=0.32.0)"]
 name = "anywidget"
 version = "0.9.21"
 description = "custom jupyter widgets made easy"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "anywidget-0.9.21-py3-none-any.whl", hash = "sha256:78c268e0fbdb1dfd15da37fb578f9cf0a0df58a430e68d9156942b7a9391a761"},
@@ -871,7 +871,7 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 name = "cobble"
 version = "0.1.4"
 description = "Create data objects"
-optional = false
+optional = true
 python-versions = ">=3.5"
 files = [
     {file = "cobble-0.1.4-py3-none-any.whl", hash = "sha256:36c91b1655e599fd428e2b95fdd5f0da1ca2e9f1abb0bc871dec21a0e78a2b44"},
@@ -893,7 +893,7 @@ files = [
 name = "comm"
 version = "0.2.3"
 description = "Jupyter Python Comm implementation, for usage in ipykernel, xeus-python etc."
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "comm-0.2.3-py3-none-any.whl", hash = "sha256:c615d91d75f7f04f095b30d1c1711babd43bdc6419c1be9886a85f2f4e489417"},
@@ -2004,7 +2004,7 @@ test-extra = ["curio", "ipython[test]", "jupyter_ai", "matplotlib (!=3.2.0)", "n
 name = "ipywidgets"
 version = "8.1.8"
 description = "Jupyter interactive widgets"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "ipywidgets-8.1.8-py3-none-any.whl", hash = "sha256:ecaca67aed704a338f88f67b1181b58f821ab5dc89c1f0f5ef99db43c1c2921e"},
@@ -2563,7 +2563,7 @@ test = ["hatch", "ipykernel", "openapi-core (>=0.18.0,<0.19.0)", "openapi-spec-v
 name = "jupyterlab-widgets"
 version = "3.0.16"
 description = "Jupyter interactive widgets for JupyterLab"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "jupyterlab_widgets-3.0.16-py3-none-any.whl", hash = "sha256:45fa36d9c6422cf2559198e4db481aa243c7a32d9926b500781c830c80f7ecf8"},
@@ -2941,7 +2941,7 @@ htmlsoup = ["BeautifulSoup4"]
 name = "mammoth"
 version = "1.11.0"
 description = "Convert Word documents from docx to simple and clean HTML and Markdown"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "mammoth-1.11.0-py2.py3-none-any.whl", hash = "sha256:c077ab0d450bd7c0c6ecd529a23bf7e0fa8190c929e28998308ff4eada3f063b"},
@@ -4142,7 +4142,7 @@ files = [
 name = "pandas"
 version = "2.3.3"
 description = "Powerful data structures for data analysis, time series, and statistics"
-optional = false
+optional = true
 python-versions = ">=3.9"
 files = [
     {file = "pandas-2.3.3-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:376c6446ae31770764215a6c937f72d917f214b43560603cd60da6408f183b6c"},
@@ -4683,7 +4683,7 @@ test = ["pytest", "pytest-xdist", "setuptools"]
 name = "psygnal"
 version = "0.15.0"
 description = "Fast python callback/event system modeled after Qt Signals"
-optional = false
+optional = true
 python-versions = ">=3.10"
 files = [
     {file = "psygnal-0.15.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:3c33a022d2bdfa68c71f6fe964fb316b8cff36a936a6075bb14378823b5bd28d"},
@@ -5071,7 +5071,7 @@ diagrams = ["jinja2", "railroad-diagrams"]
 name = "pypdf2"
 version = "3.0.1"
 description = "A pure-python PDF library capable of splitting, merging, cropping, and transforming PDF files"
-optional = false
+optional = true
 python-versions = ">=3.6"
 files = [
     {file = "PyPDF2-3.0.1.tar.gz", hash = "sha256:a74408f69ba6271f71b9352ef4ed03dc53a31aa404d29b5d31f53bfecfee1440"},
@@ -5354,7 +5354,7 @@ XlsxWriter = ">=0.5.7"
 name = "pytz"
 version = "2025.2"
 description = "World timezone definitions, modern and historical"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "pytz-2025.2-py2.py3-none-any.whl", hash = "sha256:5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00"},
@@ -7378,7 +7378,7 @@ files = [
 name = "widgetsnbextension"
 version = "4.0.15"
 description = "Jupyter interactive widgets for Jupyter Notebook"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "widgetsnbextension-4.0.15-py3-none-any.whl", hash = "sha256:8156704e4346a571d9ce73b84bee86a29906c9abfd7223b7228a28899ccf3366"},
@@ -7545,18 +7545,23 @@ anthropic = ["anthropic"]
 azure = ["azure-ai-inference"]
 bedrock = ["boto3"]
 conjure = ["psutil", "pyreadstat"]
-full = ["altair", "anthropic", "azure-ai-inference", "boto3", "fastapi", "google-genai", "groq", "ipython", "joblib", "jupyter", "matplotlib", "mistralai", "nbclient", "nbformat", "openpyxl", "playwright", "psutil", "pyreadstat", "python-pptx", "pyyaml", "qrcode", "scikit-learn", "scipy", "seaborn", "sentence-transformers", "termplotlib", "uvicorn"]
+docx-view = ["mammoth"]
+full = ["altair", "anthropic", "anywidget", "azure-ai-inference", "boto3", "fastapi", "google-genai", "groq", "ipython", "joblib", "jupyter", "mammoth", "matplotlib", "mistralai", "nbclient", "nbformat", "openpyxl", "pandas", "playwright", "psutil", "pygments", "pypdf2", "pyreadstat", "python-pptx", "pyyaml", "qrcode", "scikit-learn", "scipy", "seaborn", "sentence-transformers", "termplotlib", "uvicorn"]
 google = ["google-genai"]
 groq = ["groq"]
+highlighting = ["pygments"]
 llm-providers = ["anthropic", "azure-ai-inference", "boto3", "google-genai", "groq", "mistralai"]
 mistral = ["mistralai"]
 notebook = ["ipython", "jupyter"]
+pandas = ["pandas"]
+pdf = ["pypdf2"]
 screenshots = ["playwright"]
 service-deps = ["joblib", "matplotlib", "openpyxl", "python-pptx", "qrcode", "scikit-learn", "scipy", "seaborn", "sentence-transformers"]
 services = ["fastapi", "uvicorn"]
 viz = ["altair", "nbclient", "nbformat", "pyyaml", "termplotlib"]
+widgets = ["anywidget"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.14"
-content-hash = "c3c2c21686313e4a9bfcad6c457e4d075aa88f89513abd28b0a864173dc06667"
+content-hash = "5d11e7b14bc42da77b39ed438c95563a2424c3554a5c4e6b09360cea53133252"

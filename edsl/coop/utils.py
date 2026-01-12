@@ -1,35 +1,33 @@
 import math
 from typing import Literal, Optional, Type, Union, TYPE_CHECKING
 
-from ..agents import Agent, AgentList
-from ..notebooks import Notebook
-from ..results import Results
-from ..scenarios import Scenario, ScenarioList
-from ..surveys import Survey
-from ..macros.macro import Macro
-from ..macros.composite_macro import CompositeMacro
-
-from ..questions import QuestionBase
-
 if TYPE_CHECKING:
+    from ..agents import Agent, AgentList
+    from ..notebooks import Notebook
+    from ..results import Results
+    from ..scenarios import Scenario, ScenarioList
+    from ..surveys import Survey
+    from ..macros.macro import Macro
+    from ..macros.composite_macro import CompositeMacro
+    from ..questions import QuestionBase
     from ..caching import Cache
     from ..language_models import ModelList
     from ..language_models import LanguageModel
 
 EDSLObject = Union[
-    Agent,
-    AgentList,
+    "Agent",
+    "AgentList",
     "Cache",
     "LanguageModel",
     "ModelList",
-    Notebook,
-    Type[QuestionBase],
-    Results,
-    Scenario,
-    ScenarioList,
-    Survey,
-    Macro,
-    CompositeMacro,
+    "Notebook",
+    Type["QuestionBase"],
+    "Results",
+    "Scenario",
+    "ScenarioList",
+    "Survey",
+    "Macro",
+    "CompositeMacro",
 ]
 
 ObjectType = Literal[
@@ -89,7 +87,15 @@ class ObjectRegistry:
 
     @classmethod
     def _get_objects(cls):
-        """Lazy import of language models and cache to avoid circular imports"""
+        """Lazy import of all EDSL classes to avoid circular imports and speed up module load"""
+        from ..agents import Agent, AgentList
+        from ..notebooks import Notebook
+        from ..results import Results
+        from ..scenarios import Scenario, ScenarioList
+        from ..surveys import Survey
+        from ..macros.macro import Macro
+        from ..macros.composite_macro import CompositeMacro
+        from ..questions import QuestionBase
         from ..language_models import LanguageModel, ModelList
         from ..caching import Cache
 
@@ -161,6 +167,7 @@ class ObjectRegistry:
         }
         object_type = edsl_class_to_object_type.get(edsl_class_name)
 
+        from ..scenarios import Scenario
         if isinstance(edsl_object, Scenario):
             return "scenario"
 

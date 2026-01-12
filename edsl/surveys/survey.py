@@ -92,7 +92,7 @@ from ..instructions import ChangeInstruction
 from .base import EndOfSurvey, EndOfSurveyParent
 from .descriptors import QuestionsDescriptor
 from .memory import MemoryPlan
-from .survey_flow_visualization import SurveyFlowVisualization
+# SurveyFlowVisualization moved to service - see show_flow() method
 from ..instructions import InstructionHandler
 from .edit_survey import EditSurvey
 from .survey_simulator import Simulator
@@ -615,9 +615,43 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
         """Return instructions that are relevant to the question."""
         return self._relevant_instructions_dict[question]
 
-    def show_flow(self, filename: Optional[str] = None):
-        """Show the flow of the survey."""
-        return SurveyFlowVisualization(self).show_flow(filename=filename)
+    def show_flow(self, filename: Optional[str] = None, verbose: bool = True):
+        """Show the flow of the survey.
+        
+        Creates a flowchart visualization showing question flow, skip logic,
+        and parameter dependencies.
+        
+        Args:
+            filename: Optional path to save the PNG. If None, displays inline.
+            verbose: Whether to show progress messages.
+            
+        Returns:
+            FileStore containing the PNG image, or displays inline.
+        """
+        from edsl.services.builtin.flow_visualization_service import FlowVisualizationService
+        
+        if verbose:
+            print("[flow_visualization] Generating survey flow diagram...")
+        
+        params = {
+            "operation": "flow",
+            "data": self.to_dict(),
+            "filename": filename,
+        }
+        
+        result = FlowVisualizationService.execute(params)
+        fs = FlowVisualizationService.parse_result(result)
+        
+        if verbose:
+            print("[flow_visualization] ✓ Flow diagram created")
+        
+        # If no filename, display the result
+        if filename is None:
+            fs.view()
+        else:
+            print(f"Flowchart saved to {filename}")
+        
+        return fs
 
     def add_instruction(
         self, instruction: Union["Instruction", "ChangeInstruction"]

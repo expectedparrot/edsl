@@ -34,27 +34,83 @@ __all__ = [
     "show_settings",
 ]
 
-# Define modules for lazy loading
-_LAZY_MODULES = {
-    "dataset",
+# Direct mapping of common exports to their modules for fast lookup
+# This avoids importing all modules when looking for a specific class
+_EXPORT_MAP = {
+    # agents
+    "Agent": "agents",
+    "AgentList": "agents",
+    # scenarios
+    "Scenario": "scenarios",
+    "ScenarioList": "scenarios",
+    "FileStore": "scenarios",
+    # instructions
+    "Instruction": "instructions",
+    # caching
+    "Cache": "caching",
+    "CacheEntry": "caching",
+    # dataset
+    "Dataset": "dataset",
+    # results
+    "Results": "results",
+    "Result": "results",
+    # language_models
+    "Model": "language_models",
+    "LanguageModel": "language_models",
+    "ModelList": "language_models",
+    # surveys
+    "Survey": "surveys",
+    # jobs
+    "Jobs": "jobs",
+    # questions - common ones
+    "QuestionBase": "questions",
+    "QuestionFreeText": "questions",
+    "QuestionMultipleChoice": "questions",
+    "QuestionCheckBox": "questions",
+    "QuestionLinearScale": "questions",
+    "QuestionNumerical": "questions",
+    "QuestionList": "questions",
+    "QuestionYesNo": "questions",
+    "QuestionLikertFive": "questions",
+    "QuestionRank": "questions",
+    "QuestionBudget": "questions",
+    "QuestionExtract": "questions",
+    "QuestionFunctional": "questions",
+    "QuestionMatrix": "questions",
+    "QuestionDict": "questions",
+    "QuestionDropdown": "questions",
+    "QuestionTopK": "questions",
+    # coop
+    "Coop": "coop",
+    # notebooks
+    "Notebook": "notebooks",
+    # conversation
+    "Conversation": "conversation",
+    # macros
+    "Macro": "macros",
+}
+
+# Fallback modules for linear search (only used if not in _EXPORT_MAP)
+_LAZY_MODULES = (
     "agents",
+    "scenarios",
+    "instructions",
+    "caching",
+    "base",
+    "dataset",
+    "results",
+    "language_models",
     "surveys",
     "questions",
-    "scenarios",
-    "language_models",
-    "results",
-    "caching",
-    "notebooks",
     "coop",
-    "instructions",
-    "jobs",
-    "base",
+    "notebooks",
     "conversation",
-    "extensions",
     "macros",
     "comparisons",
     "assistants",
-}
+    "extensions",
+    "jobs",
+)
 
 # Cache for lazy-loaded modules
 _module_cache = {}
@@ -63,7 +119,6 @@ _module_cache = {}
 def __getattr__(name):
     """Lazy loading of EDSL modules and their exports."""
     # First check if the attribute exists in the current module's globals
-    # This handles functions/classes defined directly in __init__.py
     import sys
 
     current_module = sys.modules[__name__]
@@ -71,7 +126,16 @@ def __getattr__(name):
     if name in current_module_dict:
         return current_module_dict[name]
 
-    # Check if it's a module we should lazy-load
+    # Fast path: check direct mapping first
+    if name in _EXPORT_MAP:
+        module_name = _EXPORT_MAP[name]
+        module = _module_cache.get(module_name)
+        if module is None:
+            module = importlib.import_module(f".{module_name}", package="edsl")
+            _module_cache[module_name] = module
+        return getattr(module, name)
+
+    # Slow path: linear search through all modules
     for module_name in _LAZY_MODULES:
         try:
             module = _module_cache.get(module_name)
@@ -79,7 +143,6 @@ def __getattr__(name):
                 module = importlib.import_module(f".{module_name}", package="edsl")
                 _module_cache[module_name] = module
 
-            # Check if the requested name is in this module
             if hasattr(module, name):
                 return getattr(module, name)
         except ImportError:

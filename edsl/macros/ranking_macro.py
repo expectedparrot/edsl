@@ -1,10 +1,12 @@
-from typing import Optional, Sequence
+from typing import Optional, Sequence, TYPE_CHECKING
 from .macro import Macro
-from ..questions import QuestionMultipleChoice
+
+if TYPE_CHECKING:
+    from ..questions import QuestionMultipleChoice
 
 
 def create_ranking_macro(
-    ranking_question: QuestionMultipleChoice,
+    ranking_question: "QuestionMultipleChoice",
     option_fields: Sequence[str],
     application_name: Optional[str] = None,
     description: Optional[str] = None,

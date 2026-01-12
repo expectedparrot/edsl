@@ -70,9 +70,15 @@ class SQLiteDict:
             True
             >>> import os; os.unlink(temp_db_path)  # Clean up the temp file after the test
         """
-        from sqlalchemy.exc import SQLAlchemyError
-        from sqlalchemy.orm import sessionmaker
-        from sqlalchemy import create_engine
+        try:
+            from sqlalchemy.exc import SQLAlchemyError
+            from sqlalchemy.orm import sessionmaker
+            from sqlalchemy import create_engine
+        except ImportError:
+            raise ImportError(
+                "SQLAlchemy is required for SQL-based caching. "
+                "Install it with: pip install edsl[caching] or pip install sqlalchemy"
+            )
 
         self.db_path = db_path or CONFIG.get("EDSL_DATABASE_PATH")
         if not self.db_path.startswith("sqlite:///"):
