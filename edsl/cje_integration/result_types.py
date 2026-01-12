@@ -110,54 +110,40 @@ class CalibrationResult:
     def __repr__(self) -> str:
         return self.summary()
 
-    def plot(self, title: str = "Calibrated Policy Estimates", figsize: tuple = (8, 4)):
+    def plot(
+        self,
+        figsize: tuple = (10, 6),
+        policy_labels: Optional[Dict[str, str]] = None,
+        save_path: Optional[str] = None,
+    ):
         """Create a forest plot of policy estimates with confidence intervals.
 
+        Uses CJE's built-in visualization for consistent styling.
+
         Args:
-            title: Plot title
             figsize: Figure size as (width, height)
+            policy_labels: Optional dict mapping policy names to display labels
+            save_path: Optional path to save the figure
 
         Returns:
             matplotlib Figure object
         """
         try:
-            import matplotlib.pyplot as plt
+            from cje.visualization import plot_policy_estimates
         except ImportError:
             raise ImportError(
-                "matplotlib is required for plotting. "
-                "Install with: pip install matplotlib"
+                "cje-eval is required for plotting. "
+                "Install with: pip install cje-eval"
             )
 
-        policies = self.ranking()
-        estimates = [self.estimates[p] for p in policies]
-        ci_lower = [self.confidence_intervals[p][0] for p in policies]
-        ci_upper = [self.confidence_intervals[p][1] for p in policies]
-
-        fig, ax = plt.subplots(figsize=figsize)
-
-        y_positions = range(len(policies))
-
-        # Plot confidence intervals as horizontal lines
-        for i, (policy, est, lo, hi) in enumerate(zip(policies, estimates, ci_lower, ci_upper)):
-            ax.plot([lo, hi], [i, i], color='steelblue', linewidth=2, solid_capstyle='butt')
-            ax.plot(est, i, 'o', color='steelblue', markersize=8)
-
-        # Add vertical reference line at mean estimate
-        mean_est = sum(estimates) / len(estimates)
-        ax.axvline(x=mean_est, color='gray', linestyle='--', alpha=0.5, label=f'Mean: {mean_est:.2f}')
-
-        ax.set_yticks(list(y_positions))
-        ax.set_yticklabels(policies)
-        ax.set_xlabel('Calibrated Estimate')
-        ax.set_title(title)
-        ax.legend(loc='lower right')
-
-        # Add subtle grid
-        ax.grid(axis='x', alpha=0.3)
-        ax.set_axisbelow(True)
-
-        plt.tight_layout()
-        return fig
+        return plot_policy_estimates(
+            estimates=self.estimates,
+            standard_errors=self.standard_errors,
+            base_policy=None,  # No base policy for EDSL calibration
+            policy_labels=policy_labels,
+            figsize=figsize,
+            save_path=save_path,
+        )
 
     def _repr_html_(self) -> str:
         """Rich HTML display for Jupyter notebooks."""
