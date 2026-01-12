@@ -567,3 +567,35 @@ integration-job-running: # DOES NOT WORK!
 
 integration-tricky-questions: # DOES NOT WORK!
 	pytest -v --log-cli-level=INFO integration/test_tricky_questions.py
+
+###############
+##@Pyodide 🌐
+###############
+PYODIDE_DIR := .pyodide
+PYODIDE_HTML := $(PYODIDE_DIR)/index.html
+PYODIDE_TEMPLATE := scripts/pyodide_template.html
+
+pyodide: ## Build wheel and create Pyodide test page (use 'make pyodide-serve' to also start server)
+	@echo "Building wheel..."
+	@poetry build
+	@mkdir -p $(PYODIDE_DIR)
+	@cp dist/*.whl $(PYODIDE_DIR)/
+	@WHEEL_NAME=$$(ls -1 dist/*.whl | head -1 | xargs basename); \
+	VERSION=$$(grep "^version =" pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/'); \
+	echo "Creating Pyodide HTML page for edsl version $$VERSION ($$WHEEL_NAME)..."; \
+	sed -e "s/{{WHEEL_NAME}}/$$WHEEL_NAME/g" -e "s/{{VERSION}}/$$VERSION/g" $(PYODIDE_TEMPLATE) > $(PYODIDE_HTML)
+	@echo ""
+	@echo "✅ Pyodide test page created at $(PYODIDE_HTML)"
+	@echo "   Wheel copied to $(PYODIDE_DIR)/"
+	@echo ""
+	@echo "To test, run: make pyodide-serve"
+	@echo "Then open: http://localhost:8000"
+
+pyodide-serve: pyodide ## Build and serve Pyodide test page
+	@echo "Starting HTTP server at http://localhost:8000 ..."
+	@echo "Press Ctrl+C to stop"
+	@cd $(PYODIDE_DIR) && python -m http.server 8000
+
+pyodide-clean: ## Clean Pyodide build artifacts
+	@rm -rf $(PYODIDE_DIR)
+	@echo "Cleaned Pyodide artifacts"

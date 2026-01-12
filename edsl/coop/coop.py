@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import sys
 import time
 
 # Lazy import for requests to speed up module import time

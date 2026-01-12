@@ -512,10 +512,17 @@ def create_app(db_url: Optional[str] = None):
 
     app = FastAPI(title="Object Versions Remote Server")
 
-    # Add CORS middleware for SSE from different ports (e.g., Vite dev server)
+    # Add CORS middleware for cross-origin requests (Vite dev server, Pyodide, etc.)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_origins=[
+            "http://localhost:3000", 
+            "http://127.0.0.1:3000",
+            "http://localhost:8000",  # Pyodide dev server
+            "http://127.0.0.1:8000",
+            "http://localhost:8080",
+            "http://127.0.0.1:8080",
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

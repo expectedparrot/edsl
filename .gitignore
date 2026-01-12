@@ -26,6 +26,7 @@ _build/*
 .coverage
 .edsl_cache
 .env
+.pyodide
 .ipynb_checkpoints/
 .mypy_cache
 .pytest_cache
