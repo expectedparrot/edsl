@@ -7,10 +7,12 @@ metrics between answer distributions from different survey populations.
 from __future__ import annotations
 from typing import TYPE_CHECKING, Dict, Any, Callable
 from collections import Counter
-import numpy as np
 
 if TYPE_CHECKING:
+    import numpy as np
     from ..reports.report import QuestionAnalysis
+
+
 
 
 class AnswersCompare:
@@ -180,6 +182,8 @@ class AnswersCompare:
             >>> compare.kl_divergence(reverse=True)  # D_KL(qa2||qa1)
             0.198
         """
+        import numpy as np
+        
         dist1, dist2 = self._get_distributions()
 
         if reverse:
@@ -208,6 +212,8 @@ class AnswersCompare:
             >>> compare.jensen_shannon_divergence()
             0.145
         """
+        import numpy as np
+        
         dist1, dist2 = self._get_distributions()
 
         # Compute average distribution
@@ -241,6 +247,8 @@ class AnswersCompare:
             >>> compare.hellinger_distance()
             0.289
         """
+        import numpy as np
+        
         dist1, dist2 = self._get_distributions()
 
         sum_sqrt_products = sum(np.sqrt(dist1[k] * dist2[k]) for k in dist1.keys())
@@ -301,6 +309,8 @@ class AnswersCompare:
             >>> compare.bhattacharyya_distance()
             0.156
         """
+        import numpy as np
+        
         dist1, dist2 = self._get_distributions()
 
         bc = sum(np.sqrt(dist1[k] * dist2[k]) for k in dist1.keys())

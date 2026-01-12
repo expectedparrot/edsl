@@ -439,7 +439,8 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin, metac
             agents.append(agent)
         return agents
 
-    def append(self, item: "Agent") -> "AgentList":
+    @event
+    def append(self, item: "Agent") -> AppendRowEvent:
         """Add an agent to the list.
 
         If the list is empty, the agent's codebook, traits_presentation_template, and
@@ -451,7 +452,7 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin, metac
                 instruction differs from the list's canonical values.
 
         Returns:
-            AgentList: A new AgentList with the agent added.
+            AgentList: Self with the agent added.
         """
         is_first_agent = len(self.store.entries) == 0
 
@@ -462,10 +463,6 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin, metac
             self._validate_agent_consistency(
                 item, expected_codebook, expected_template, expected_instruction
             )
-
-        # Apply the append event
-        append_event = AppendRowEvent(row=self._codec.encode(item))
-        apply_event(append_event, self.store)
 
         # If this was the first agent, update meta with its values
         if is_first_agent:
@@ -478,7 +475,8 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin, metac
         # Invalidate cache since we modified the store
         self._agent_cache = None
 
-        return self
+        # Return the event - @event decorator handles applying to store AND tracking for git
+        return AppendRowEvent(row=self._codec.encode(item))
 
     # Required MutableSequence abstract methods
     def __getitem__(self, index):

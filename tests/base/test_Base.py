@@ -131,6 +131,9 @@ def create_test_function(child_class):
                 "AgentTraits",
                 "RegisterSubclassesMeta",
                 "ScenarioListMeta",
+                "AgentListMeta",
+                "ResultsMeta",
+                "SurveyMeta",
             ]:
                 assert eval(repr(e), d) == e
         except:

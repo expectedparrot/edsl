@@ -217,11 +217,29 @@ class GitMixin:
     def _mutate(
         self, new_git: ExpectedParrotGit, *, from_git: bool = False
     ) -> "GitMixin":
-        """Update this instance in place and return self for chaining."""
+        """Update this instance in place and return self for chaining.
+        
+        When from_git=True, preserves _info (alias, description) across branches,
+        since this is repository-level metadata (like git remote URLs).
+        """
         if from_git:
+            # Preserve _info before loading new state (it's repo-level, not branch-level)
+            current_state = self._to_state()
+            current_info = current_state.get("meta", {}).get("_info", {})
+            
             # Update internal data from git state
             rows = new_git.view.get_base_state()
             state = rows[0] if rows else {}
+            
+            # Merge preserved _info into new state
+            if current_info:
+                if "meta" not in state:
+                    state["meta"] = {}
+                # Merge: keep existing _info, but allow new state to override specific fields
+                new_info = state.get("meta", {}).get("_info", {})
+                merged_info = {**current_info, **new_info}
+                state["meta"]["_info"] = merged_info
+            
             self._update_from_state(state)
         self._git = new_git
         return self
@@ -742,6 +760,27 @@ class GitMixin:
         """Get current status."""
         self._ensure_git_init()
         return self._git.status()
+
+    def git_branches(self) -> List[str]:
+        """List all branches. Current branch is marked with '*'.
+        
+        Returns:
+            List of branch names, with current branch prefixed by '* '
+        """
+        self._ensure_git_init()
+        repo = self._git.view.repo
+        refs = repo.list_refs()
+        current_ref = self._git.view.head_ref
+        
+        branches = []
+        for ref in refs:
+            if ref.kind == "branch":
+                if ref.name == current_ref:
+                    branches.append(f"* {ref.name}")
+                else:
+                    branches.append(f"  {ref.name}")
+        
+        return branches
 
     def git_pending(self) -> List[Tuple[str, Dict[str, Any]]]:
         """Get pending events."""

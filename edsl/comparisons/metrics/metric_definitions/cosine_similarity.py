@@ -2,9 +2,11 @@ from __future__ import annotations
 
 """Cosine similarity comparison metric for EDSL answers."""
 
-from typing import List, Any
-import numpy as np
+from typing import List, Any, TYPE_CHECKING
 from ..metrics_abc import ComparisonFunction, optional_import
+
+if TYPE_CHECKING:
+    import numpy as np
 
 
 # Defer imports until needed - check availability without importing
@@ -132,6 +134,8 @@ class CosineSimilarity(ComparisonFunction):
         answers_A_str = [to_string(a) for a in answers_A]
         answers_B_str = [to_string(b) for b in answers_B]
 
+        import numpy as np
+        
         all_sentences = answers_A_str + answers_B_str
         embeddings = self.model.encode(all_sentences)
         n = len(answers_A)

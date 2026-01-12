@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Any
-import pandas as pd
-import numpy as np
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from pydantic import BaseModel, Field
 import os
 import json
@@ -11,6 +9,10 @@ from dotenv import load_dotenv
 from pathlib import Path
 import html
 from ...base.openai_utils import create_openai_client
+
+if TYPE_CHECKING:
+    import pandas as pd
+    import numpy as np
 
 
 def find_dotenv_upwards(start_path: Optional[str] = None) -> Optional[Path]:
@@ -67,11 +69,14 @@ class GGPlotReply(BaseModel):
 
 # ---------- 2) DataFrame → compact schema summary ----------
 def summarize_df_for_llm(
-    df: pd.DataFrame, max_levels: int = 12, sample_n: int = 0
+    df: "pd.DataFrame", max_levels: int = 12, sample_n: int = 0
 ) -> Dict[str, Any]:
     """
     Produce a compact, *non-sensitive* schema for the LLM (no full data).
     """
+    import pandas as pd
+    import numpy as np
+    
     cols: List[Dict[str, Any]] = []
     for name in df.columns:
         s = df[name]

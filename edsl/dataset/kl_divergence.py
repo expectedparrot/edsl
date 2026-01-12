@@ -6,9 +6,11 @@ between distributions defined by groups in a ScenarioList.
 """
 
 from __future__ import annotations
-from typing import Optional, Union, Dict, Any
+from typing import Optional, Union, Dict, Any, TYPE_CHECKING
 from collections import Counter
-import numpy as np
+
+if TYPE_CHECKING:
+    import numpy as np
 
 
 class KLDivergenceCalculator:
@@ -108,6 +110,8 @@ class KLDivergenceCalculator:
         self, grouped_data: Dict[Any, list]
     ) -> Dict[Any, Dict[Any, float]]:
         """Bin continuous data and create probability distributions."""
+        import numpy as np
+        
         distributions = {}
 
         # Determine bins across all data
@@ -167,6 +171,8 @@ class KLDivergenceCalculator:
         # Get all possible values
         all_values = set(p_dist.keys()) | set(q_dist.keys())
 
+        import numpy as np
+        
         kl = 0.0
         for value in all_values:
             p = p_dist.get(value, 0) + self.laplace_smooth
