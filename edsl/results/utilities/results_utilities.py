@@ -1,55 +1,15 @@
 """Utility classes and decorators for Results functionality.
 
 This module contains utility classes and decorators that support the Results module,
-including database handling, method decorators for remote data fetching, and 
-helper classes for managing not-ready states.
+including method decorators for remote data fetching and helper classes for 
+managing not-ready states.
 """
 
-import json
 from typing import Any, Callable, TYPE_CHECKING
 from functools import wraps
 
 if TYPE_CHECKING:
     pass
-
-from ...db_list.sqlite_list import SQLiteList
-
-
-class ResultsSQLList(SQLiteList):
-    """SQLite-backed list implementation for Results data storage.
-
-    This class extends SQLiteList to provide specific serialization and
-    deserialization methods for Result objects, enabling efficient storage
-    and retrieval of large Results collections.
-    """
-
-    def serialize(self, obj):
-        """Serialize a Result object to JSON string.
-
-        Args:
-            obj: The object to serialize, typically a Result object
-
-        Returns:
-            str: JSON string representation of the object
-        """
-        return json.dumps(obj.to_dict()) if hasattr(obj, "to_dict") else json.dumps(obj)
-
-    def deserialize(self, data):
-        """Deserialize JSON string back to a Result object.
-
-        Args:
-            data: JSON string to deserialize
-
-        Returns:
-            Result: Deserialized Result object or raw data if deserialization fails
-        """
-        from ..result import Result
-
-        return (
-            Result.from_dict(json.loads(data))
-            if hasattr(Result, "from_dict")
-            else json.loads(data)
-        )
 
 
 def ensure_fetched(method: Callable) -> Callable:

@@ -257,12 +257,11 @@ class ResultsSerializer:
             raise ResultsError(f"Error moving results from shelf to memory: {str(e)}")
 
     def to_disk(self, filepath: str) -> None:
-        """Serialize the Results object to a zip file, preserving the SQLite database.
+        """Serialize the Results object to a zip file.
 
         This method creates a zip file containing:
-        1. The SQLite database file from the data container
+        1. A data.json file with the serialized Result objects
         2. A metadata.json file with the survey, created_columns, and other non-data info
-        3. The cache data if present
 
         Args:
             filepath: Path where the zip file should be saved
@@ -272,37 +271,18 @@ class ResultsSerializer:
         """
         import zipfile
         import json
-        import os
         import tempfile
         from pathlib import Path
-        import shutil
-        from .utilities import ResultsSQLList
-
-        data_class = ResultsSQLList
 
         try:
             # Create a temporary directory to store files before zipping
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_path = Path(temp_dir)
 
-                # 1. Handle the SQLite database
-                db_path = temp_path / "results.db"
-
-                if isinstance(self.results.data, list):
-                    # If data is a list, create a new SQLiteList
-                    new_db = data_class()
-                    new_db.extend(self.results.data)
-                    shutil.copy2(new_db.db_path, db_path)
-                elif hasattr(self.results.data, "db_path") and os.path.exists(
-                    self.results.data.db_path
-                ):
-                    # If data is already a SQLiteList, copy its database
-                    shutil.copy2(self.results.data.db_path, db_path)
-                else:
-                    # If no database exists, create a new one
-                    new_db = data_class()
-                    new_db.extend(self.results.data)
-                    shutil.copy2(new_db.db_path, db_path)
+                # 1. Serialize data to JSON
+                data_path = temp_path / "data.json"
+                data_list = [result.to_dict() for result in self.results.data]
+                data_path.write_text(json.dumps(data_list))
 
                 # 2. Create metadata.json
                 metadata = {
@@ -350,7 +330,7 @@ class ResultsSerializer:
         """Load a Results object from a zip file.
 
         This method:
-        1. Extracts the SQLite database file
+        1. Extracts the data and metadata files
         2. Loads the metadata
         3. Creates a new Results instance with the restored data
 
@@ -370,9 +350,7 @@ class ResultsSerializer:
         from ..surveys import Survey
         from ..caching import Cache
         from ..tasks import TaskHistory
-        from .utilities import ResultsSQLList
-
-        data_class = ResultsSQLList
+        from .result import Result
 
         try:
             # Import here to avoid circular imports
@@ -390,15 +368,23 @@ class ResultsSerializer:
                 metadata_path = temp_path / "metadata.json"
                 metadata = json.loads(metadata_path.read_text())
 
-                # 2. Load data from the SQLite database if it exists
+                # 2. Load data from JSON file or legacy SQLite database
+                data_path = temp_path / "data.json"
                 db_path = temp_path / "results.db"
                 result_data = []
-                if db_path.exists():
-                    # Create a temporary ResultsSQLList to read the data
-                    temp_db = data_class()
-                    temp_db.copy_from(str(db_path))
-                    # Extract all Result objects from the database
-                    result_data = list(temp_db)
+                
+                if data_path.exists():
+                    # New format: JSON file
+                    data_list = json.loads(data_path.read_text())
+                    result_data = [Result.from_dict(d) for d in data_list]
+                elif db_path.exists():
+                    # Legacy format: SQLite database - read directly
+                    import sqlite3
+                    conn = sqlite3.connect(str(db_path))
+                    cursor = conn.execute("SELECT value FROM list_data ORDER BY idx")
+                    for row in cursor:
+                        result_data.append(Result.from_dict(json.loads(row[0])))
+                    conn.close()
 
                 # 3. Create a new Results instance with the loaded data
                 results = Results(

@@ -387,11 +387,6 @@ class Agent(Base):
                     raise AgentErrors(f"Trait {trait_key} not found in agent traits")
                 self.trait_categories[category_name].append(trait_key)
 
-    def chat(self):
-        from .agent_chat import AgentChat
-
-        return AgentChat(self).run()
-
     def drop(self, *field_names: Union[str, List[str]]) -> "Agent":
         """Drop field(s) from the agent.
 
