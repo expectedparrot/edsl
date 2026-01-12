@@ -2,15 +2,18 @@ from __future__ import annotations
 
 """Rendering helpers: rich tables and Matplotlib heat-maps."""
 
-from typing import Sequence, List, Callable, Optional, Any
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
+from typing import Sequence, List, Callable, Optional, Any, TYPE_CHECKING
 from rich.table import Table
 
 from .metrics.metrics_abc import ComparisonFunction
 from .answer_comparison import AnswerComparison
 from .factory import ComparisonFactory
+
+# Lazy imports for heavy dependencies
+if TYPE_CHECKING:
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import seaborn as sns
 
 __all__ = ["render_comparison_table", "render_metric_heatmap"]
 
@@ -72,6 +75,11 @@ def render_metric_heatmap(
     title: str | None = None,
     ax: Optional[Any] = None,
 ):
+    # Lazy imports for heavy dependencies
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    
     if comparison_factory is None:
         comparison_factory = ComparisonFactory()
 
