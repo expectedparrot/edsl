@@ -15,14 +15,14 @@ Basic Usage:
     >>> # Run survey with AI agents
     >>> results = survey.by([Model("gpt-4o"), Model("claude-3-5-sonnet")]).run()
 
-    >>> # Add human ratings for ~10% of samples
-    >>> results = results.add_column("human_rating", human_labels)
+    >>> # Collect human ratings for ~10% of samples (None = no label)
+    >>> human_labels = [5, None, 3, None, 4, ...]
 
     >>> # Calibrate and get estimates
     >>> cal_result = calibrate(
     ...     results,
     ...     question_name="sentiment_score",
-    ...     oracle_column="human_rating",
+    ...     oracle_labels=human_labels,
     ... )
 
     >>> print(cal_result.estimates)

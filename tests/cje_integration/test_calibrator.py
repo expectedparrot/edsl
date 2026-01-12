@@ -61,14 +61,16 @@ class TestDataAdapters:
         result.__getitem__ = lambda self, key: {
             "answer": {"sentiment": 0.7}
         }.get(key, {})
-        result.combined_dict = {"human_rating": 0.8}
         result.scenario = MagicMock()
         result.scenario.to_dict = lambda: {"id": 1}
+
+        # Pass oracle labels as a list
+        oracle_labels = [0.8]
 
         fresh_draws = results_to_fresh_draws(
             [result],
             question_name="sentiment",
-            oracle_column="human_rating",
+            oracle_labels=oracle_labels,
         )
 
         record = fresh_draws["gpt-4o"][0]
@@ -204,7 +206,7 @@ class TestResultsCalibrateMethod:
                 calibrate_method(
                     mock_results,
                     question_name="q",
-                    oracle_column="oracle",
+                    oracle_labels=[0.5],
                 )
 
 
@@ -224,7 +226,6 @@ class TestCJECalibrator:
         mock_results[0].__getitem__ = lambda self, key: {"answer": {"q": 0.5}}.get(key, {})
         mock_results[0].scenario = MagicMock()
         mock_results[0].scenario.to_dict = lambda: {"id": 1}
-        mock_results[0].combined_dict = {"oracle": 0.6}
 
         # Patch cje import to fail
         with patch.dict("sys.modules", {"cje": None}):
@@ -232,7 +233,7 @@ class TestCJECalibrator:
                 calibrator.calibrate(
                     mock_results,
                     question_name="q",
-                    oracle_column="oracle",
+                    oracle_labels=[0.6],
                 )
 
     def test_no_oracle_labels_error(self):
@@ -248,13 +249,13 @@ class TestCJECalibrator:
         mock_results[0].__getitem__ = lambda self, key: {"answer": {"q": 0.5}}.get(key, {})
         mock_results[0].scenario = MagicMock()
         mock_results[0].scenario.to_dict = lambda: {"id": 1}
-        mock_results[0].combined_dict = {}  # No oracle
 
+        # Pass all None oracle labels
         with pytest.raises(ValueError, match="No oracle labels found"):
             calibrator.calibrate(
                 mock_results,
                 question_name="q",
-                oracle_column="oracle",
+                oracle_labels=[None],  # No valid oracle labels
             )
 
 
@@ -272,6 +273,7 @@ class TestEndToEnd:
         # Create synthetic results
         np.random.seed(42)
         mock_results = []
+        oracle_labels = []
 
         for i in range(100):
             result = MagicMock()
@@ -293,9 +295,9 @@ class TestEndToEnd:
             if np.random.random() < 0.1:
                 oracle_label = true_quality + np.random.normal(0, 0.05)
                 oracle_label = np.clip(oracle_label, 0, 1)
-                result.combined_dict = {"human_rating": oracle_label}
+                oracle_labels.append(oracle_label)
             else:
-                result.combined_dict = {}
+                oracle_labels.append(None)
 
             mock_results.append(result)
 
@@ -303,7 +305,7 @@ class TestEndToEnd:
         cal_result = calibrate(
             mock_results,
             question_name="sentiment",
-            oracle_column="human_rating",
+            oracle_labels=oracle_labels,
         )
 
         # Verify structure
