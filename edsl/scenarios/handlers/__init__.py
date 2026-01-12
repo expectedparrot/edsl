@@ -16,6 +16,7 @@ __all__ = [
     "JpegMethods",
     "Mp4Methods",
     "WebmMethods",
+    "SvgMethods",
 ]
 
 from .pdf_file_store import PdfMethods
@@ -35,3 +36,4 @@ from .sqlite_file_store import SQLiteMethods
 from .jpeg_file_store import JpegMethods
 from .mp4_file_store import Mp4Methods
 from .webm_file_store import WebmMethods
+from .svg_file_store import SvgMethods
