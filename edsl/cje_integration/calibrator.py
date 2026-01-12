@@ -29,15 +29,15 @@ class CJECalibrator:
         >>> # Run survey
         >>> results = survey.by([Model("gpt-4o"), Model("claude-3-5-sonnet")]).run()
 
-        >>> # Add human labels for 10% of samples
-        >>> results = results.add_column("human_rating", human_labels)
+        >>> # Collect human labels for some samples (None = no label)
+        >>> human_labels = [5, None, 3, None, 4, ...]
 
         >>> # Calibrate
         >>> calibrator = CJECalibrator()
         >>> cal_result = calibrator.calibrate(
         ...     results,
         ...     question_name="sentiment_score",
-        ...     oracle_column="human_rating",
+        ...     oracle_labels=human_labels,
         ... )
 
         >>> print(cal_result.estimates)
@@ -65,7 +65,7 @@ class CJECalibrator:
         self,
         results: "Results",
         question_name: str,
-        oracle_column: str,
+        oracle_labels: List[Any],
         policy_column: str = "model",
         score_transform: Optional[callable] = None,
         min_oracle_fraction: float = 0.01,
@@ -75,7 +75,8 @@ class CJECalibrator:
         Args:
             results: EDSL Results object containing survey responses
             question_name: Name of question containing judge scores
-            oracle_column: Name of column containing oracle (human) labels
+            oracle_labels: List of oracle (human) labels, same length as results.
+                Use None for samples without labels.
             policy_column: How to identify policies ("model", "agent", or column name)
             score_transform: Optional function to transform scores to [0,1]
             min_oracle_fraction: Minimum fraction of oracle labels required
@@ -99,7 +100,7 @@ class CJECalibrator:
         fresh_draws = results_to_fresh_draws(
             results,
             question_name=question_name,
-            oracle_column=oracle_column,
+            oracle_labels=oracle_labels,
             policy_column=policy_column,
             score_transform=score_transform,
         )
@@ -120,8 +121,8 @@ class CJECalibrator:
 
         if total_oracle == 0:
             raise ValueError(
-                f"No oracle labels found in column '{oracle_column}'. "
-                "Add human labels before calibration."
+                "No oracle labels found. "
+                "Provide human labels (use None for unlabeled samples)."
             )
 
         oracle_fraction = total_oracle / total_samples
@@ -184,7 +185,7 @@ class CJECalibrator:
 def calibrate(
     results: "Results",
     question_name: str,
-    oracle_column: str,
+    oracle_labels: List[Any],
     policy_column: str = "model",
     score_transform: Optional[callable] = None,
     verbose: bool = False,
@@ -196,17 +197,18 @@ def calibrate(
 
     Example:
         >>> from edsl.cje_integration import calibrate
+        >>> human_labels = [5, None, 3, None, ...]
         >>> result = calibrate(
         ...     results,
         ...     question_name="sentiment",
-        ...     oracle_column="human_rating",
+        ...     oracle_labels=human_labels,
         ... )
     """
     calibrator = CJECalibrator(verbose=verbose)
     return calibrator.calibrate(
         results,
         question_name=question_name,
-        oracle_column=oracle_column,
+        oracle_labels=oracle_labels,
         policy_column=policy_column,
         score_transform=score_transform,
     )

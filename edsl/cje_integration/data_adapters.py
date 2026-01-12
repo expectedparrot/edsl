@@ -32,7 +32,7 @@ def _make_prompt_id(result: Any, index: int) -> str:
 def results_to_fresh_draws(
     results: "Results",
     question_name: str,
-    oracle_column: Optional[str] = None,
+    oracle_labels: Optional[List[Any]] = None,
     policy_column: str = "model",
     score_transform: Optional[callable] = None,
 ) -> Dict[str, List[Dict[str, Any]]]:
@@ -45,8 +45,8 @@ def results_to_fresh_draws(
         results: EDSL Results object containing survey responses
         question_name: Name of the question containing judge scores.
             The answer to this question will be used as the judge_score.
-        oracle_column: Optional name of a created column containing oracle labels.
-            If None, no oracle labels are included.
+        oracle_labels: Optional list of oracle labels (same length as results).
+            Use None for samples without oracle labels.
         policy_column: How to identify policies. Options:
             - "model": Use the model name (default)
             - "agent": Use agent persona
@@ -67,17 +67,20 @@ def results_to_fresh_draws(
 
     Example:
         >>> results = survey.by(models).run()
-        >>> results = results.add_column("human_rating", human_labels)
+        >>> human_labels = [5, None, 3, None, ...]  # Sparse oracle labels
         >>> fresh_draws = results_to_fresh_draws(
         ...     results,
         ...     question_name="sentiment_score",
-        ...     oracle_column="human_rating",
+        ...     oracle_labels=human_labels,
         ... )
         >>> # Pass to CJE
         >>> from cje import analyze_dataset
         >>> cje_result = analyze_dataset(fresh_draws_data=fresh_draws)
     """
     fresh_draws: Dict[str, List[Dict[str, Any]]] = {}
+
+    # Convert oracle_labels to list if provided
+    oracle_list = list(oracle_labels) if oracle_labels is not None else None
 
     for i, result in enumerate(results):
         # Get policy identifier
@@ -135,20 +138,9 @@ def results_to_fresh_draws(
         }
 
         # Add oracle label if available
-        if oracle_column is not None:
-            oracle_label = None
-            if hasattr(result, "combined_dict") and oracle_column in result.combined_dict:
-                oracle_label = result.combined_dict[oracle_column]
-            elif hasattr(result, "__getitem__"):
-                try:
-                    val = result[oracle_column]
-                    # Only use if it's a number (not a dict or other type)
-                    if isinstance(val, (int, float)):
-                        oracle_label = val
-                except (KeyError, TypeError):
-                    pass
-
-            if oracle_label is not None:
+        if oracle_list is not None and i < len(oracle_list):
+            oracle_label = oracle_list[i]
+            if oracle_label is not None and isinstance(oracle_label, (int, float)):
                 if score_transform is not None:
                     oracle_label = score_transform(oracle_label)
                 record["oracle_label"] = float(oracle_label)

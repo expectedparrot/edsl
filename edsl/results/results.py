@@ -2179,7 +2179,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def calibrate(
         self,
         question_name: str,
-        oracle_column: str,
+        oracle_labels: list,
         policy_column: str = "model",
         score_transform: Optional[Callable] = None,
         verbose: bool = False,
@@ -2196,8 +2196,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Args:
             question_name: Name of the question containing judge scores.
                 The answer to this question will be used as the judge_score.
-            oracle_column: Name of a column containing oracle (human) labels.
-                Use results.add_column() to add human ratings before calling.
+            oracle_labels: List of oracle (human) labels, same length as results.
+                Use None for samples without labels.
             policy_column: How to identify policies. Options:
                 - "model": Use the model name (default)
                 - "agent": Use agent persona
@@ -2216,10 +2216,10 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         Examples:
             >>> from edsl.results import Results
             >>> r = Results.example()
-            >>> # Add human labels for 10% of samples
-            >>> r = r.add_column("human_rating", human_labels)
+            >>> # Collect human labels (None = no label for that sample)
+            >>> human_labels = [5, None, 3, None, 4, ...]
             >>> # Calibrate
-            >>> cal = r.calibrate("sentiment_score", "human_rating")
+            >>> cal = r.calibrate("sentiment_score", human_labels)
             >>> print(cal.estimates)
             {'gpt-4o': 0.72, 'claude-3-5-sonnet': 0.68}
             >>> print(cal.confidence_intervals)
@@ -2233,7 +2233,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         return cje_calibrate(
             self,
             question_name=question_name,
-            oracle_column=oracle_column,
+            oracle_labels=oracle_labels,
             policy_column=policy_column,
             score_transform=score_transform,
             verbose=verbose,
