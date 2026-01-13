@@ -206,3 +206,42 @@ def parse_question_from_dict(
     question_data = dict(result.get("question_data", {}))
     question_type = question_data.pop("question_type", "free_text")
     return Question(question_type, **question_data)
+
+
+@ResultParser.register_parser("survey_from_dict")
+def parse_survey_from_dict(result: Dict[str, Any], field: Optional[str] = None) -> Any:
+    """
+    Parse result as a Survey object.
+
+    Expected format: {"questions": [...], "rules": [...], ...}
+
+    Uses QuestionBase.from_dict() which defines the canonical question format.
+    """
+    from edsl.surveys import Survey
+    from edsl.questions import QuestionBase
+
+    questions = []
+    for q in result.get("questions", []):
+        # QuestionBase.from_dict() handles the canonical format
+        questions.append(QuestionBase.from_dict(q))
+
+    # Build survey from questions
+    survey = Survey(questions=questions)
+
+    # TODO: Apply rules if present in result
+
+    return survey
+
+
+@ResultParser.register_parser("agent_list")
+def parse_agent_list(result: Dict[str, Any], field: Optional[str] = None) -> Any:
+    """
+    Parse result as an AgentList object.
+
+    Expected format: {"agents": [...]} or list of agent dicts
+    """
+    from edsl.agents import AgentList
+
+    data_field = field or "agents"
+    agents = result.get(data_field, result if isinstance(result, list) else [])
+    return AgentList.from_list(agents)

@@ -606,12 +606,17 @@ class QuestionBase(
             question_type = local_data.pop("question_type")
             if question_type == "linear_scale":
                 # This is a fix for issue https://github.com/expectedparrot/edsl/issues/165
+                # Convert option_labels keys from strings to ints
                 options_labels = local_data.get("option_labels", None)
                 if options_labels:
                     options_labels = {
                         int(key): value for key, value in options_labels.items()
                     }
                     local_data["option_labels"] = options_labels
+                # Convert question_options from strings to ints (may come as strings from JSON)
+                question_options = local_data.get("question_options", None)
+                if question_options:
+                    local_data["question_options"] = [int(opt) for opt in question_options]
         except Exception as e:
             raise QuestionSerializationError(
                 f"Error in deserialization: {str(e)}. Data does not have a 'question_type' field (got {data})."
