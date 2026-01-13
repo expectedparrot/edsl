@@ -162,6 +162,7 @@ class TestSurvey(unittest.TestCase):
 
     @pytest.mark.linux_only
     def test_visualization_for_flow(self):
+        pytest.importorskip("edsl_services")
         s = self.gen_survey()
         # make sure doesn't crash
         import tempfile

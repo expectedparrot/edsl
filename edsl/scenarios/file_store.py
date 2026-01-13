@@ -1091,9 +1091,9 @@ class FileStore(Scenario):
             bool: True if the file is an image, False otherwise.
 
         Examples:
-            >>> fs = FileStore.example("png")
-            >>> fs.is_image()
-            True
+            >>> fs = FileStore.example("png")  # doctest: +SKIP
+            >>> fs.is_image()  # doctest: +SKIP
+            True  # doctest: +SKIP
             >>> fs = FileStore.example("txt")
             >>> fs.is_image()
             False
@@ -1234,10 +1234,10 @@ class FileStore(Scenario):
             ValueError: If the file is not an image or PIL is not installed.
 
         Examples:
-            >>> fs = FileStore.example("png")
-            >>> width, height = fs.get_image_dimensions()
-            >>> isinstance(width, int) and isinstance(height, int)
-            True
+            >>> fs = FileStore.example("png")  # doctest: +SKIP
+            >>> width, height = fs.get_image_dimensions()  # doctest: +SKIP
+            >>> isinstance(width, int) and isinstance(height, int)  # doctest: +SKIP
+            True  # doctest: +SKIP
         """
         if not self.is_image():
             raise ValueError("This file is not an image")

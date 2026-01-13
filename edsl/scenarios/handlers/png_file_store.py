@@ -29,7 +29,13 @@ class PngMethods(FileMethods):
 
     def example(self):
         """Create a simple example PNG using PIL."""
-        from PIL import Image, ImageDraw
+        try:
+            from PIL import Image, ImageDraw
+        except ImportError:
+            raise ImportError(
+                "PIL (Pillow) is required to create PNG examples. "
+                "Install it with: pip install pillow"
+            )
         
         # Create a simple gradient image
         img = Image.new('RGB', (200, 200), color='white')

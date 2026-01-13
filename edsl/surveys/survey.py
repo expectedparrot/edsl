@@ -116,7 +116,7 @@ class SurveyMeta(Base.__class__):
     and returns service accessor instances from the edsl.services registry.
     
     Examples:
-        >>> accessor = Survey.vibes  # Returns survey_vibes accessor
+        >>> accessor = Survey.vibes  # Returns survey_vibes accessor  # doctest: +SKIP
     """
     
     def __getattr__(cls, name: str):

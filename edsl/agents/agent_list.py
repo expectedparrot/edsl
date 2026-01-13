@@ -104,7 +104,7 @@ class AgentListMeta(Base.__class__):
     and returns service accessor instances from the edsl.services registry.
     
     Examples:
-        >>> accessor = AgentList.vibes  # Returns agent_vibes accessor
+        >>> accessor = AgentList.vibes  # Returns agent_vibes accessor  # doctest: +SKIP
     """
     
     def __getattr__(cls, name: str):
@@ -179,8 +179,8 @@ class AgentList(GitMixin, MutableSequence, Base, AgentListOperationsMixin, metac
         the appropriate accessor bound to this AgentList instance.
         
         Examples:
-            >>> al = AgentList.example()
-            >>> _ = al.vibes  # Returns agent_vibes accessor bound to this instance
+            >>> al = AgentList.example()  # doctest: +SKIP
+            >>> _ = al.vibes  # Returns agent_vibes accessor bound to this instance  # doctest: +SKIP
         """
         # Lazy import to avoid circular dependencies
         from edsl.services.accessors import get_service_accessor

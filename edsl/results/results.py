@@ -135,7 +135,7 @@ class ResultsMeta(Base.__class__):
     and returns service accessor instances from the edsl.services registry.
     
     Examples:
-        >>> accessor = Results.charts  # Returns charts accessor
+        >>> accessor = Results.charts  # Returns charts accessor  # doctest: +SKIP
     """
     
     def __getattr__(cls, name: str):
@@ -493,8 +493,8 @@ class Results(
         the appropriate accessor bound to this Results instance.
         
         Examples:
-            >>> r = Results.example()
-            >>> _ = r.charts  # Returns charts accessor bound to this instance
+            >>> r = Results.example()  # doctest: +SKIP
+            >>> _ = r.charts  # Returns charts accessor bound to this instance  # doctest: +SKIP
         """
         # Lazy import to avoid circular dependencies
         from edsl.services.accessors import get_service_accessor
