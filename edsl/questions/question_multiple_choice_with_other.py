@@ -156,7 +156,7 @@ class MultipleChoiceWithOtherResponseValidator(MultipleChoiceResponseValidator):
         try:
             validated_response = super().validate(response_dict, verbose)
             return validated_response
-        except Exception as _:
+        except Exception:
             # If validation fails but the answer matches our pattern, accept it anyway
             if matches_pattern:
                 if verbose:
