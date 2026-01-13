@@ -1664,7 +1664,7 @@ files = [
 name = "greenlet"
 version = "3.3.0"
 description = "Lightweight in-process concurrent programming"
-optional = true
+optional = false
 python-versions = ">=3.10"
 files = [
     {file = "greenlet-3.3.0-cp310-cp310-macosx_11_0_universal2.whl", hash = "sha256:6f8496d434d5cb2dce025773ba5597f71f5410ae499d5dd9533e0653258cdb3d"},
@@ -6524,7 +6524,7 @@ test = ["pytest"]
 name = "sqlalchemy"
 version = "2.0.44"
 description = "Database Abstraction Library"
-optional = true
+optional = false
 python-versions = ">=3.7"
 files = [
     {file = "SQLAlchemy-2.0.44-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:471733aabb2e4848d609141a9e9d56a427c0a038f4abf65dd19d7a21fd563632"},
@@ -7566,4 +7566,4 @@ widgets = ["anywidget"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.14"
-content-hash = "dda5c25c22b021909be9e8e9df7a63f24a4acd05efddc17899ab13c50d7e2d99"
+content-hash = "572120d361a4b973578ff799c1dd75285ef8953abb876bb839a68e40cb6ed898"

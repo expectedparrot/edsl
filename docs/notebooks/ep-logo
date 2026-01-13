@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html class="h-full dark:bg-primary-dark-bg dark:text-primary-dark-text" lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Security headers via meta tags (fallback for CSP) -->
+  <!-- Note: HTTP headers in server.js take precedence over these meta tags -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://checkout.stripe.com https://connect-js.stripe.com https://js.stripe.com https://*.js.stripe.com; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://fonts.googleapis.com sha256-0hAheEzaMe6uXIKV4EehS9pu1am1lj/KnnzrOYqckXk=; img-src 'self' data: https: blob: https://*.stripe.com; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self' https://*.expectedparrot.com https://expectedparrot.com https://*.posthog.com https://posthog.com https://eu.i.posthog.com https://eu-assets.i.posthog.com https://storage.googleapis.com http://localhost:* ws://localhost:* https://checkout.stripe.com https://api.stripe.com; frame-src 'self' https://storage.googleapis.com https://app.arcade.software https://www.youtube.com https://checkout.stripe.com https://connect-js.stripe.com https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com; base-uri 'self'; object-src 'self' https://storage.googleapis.com; media-src 'self' https://storage.googleapis.com blob:">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="DENY">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
+  <link rel="icon" href="/assets/favicon-P6Wj0nF9.ico" type="image/x-icon">
+  <title>Expected Parrot</title>
+  <script type="module" crossorigin src="/assets/index-401juMRN.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/react-vendor-M7Pjwsqd.js">
+  <link rel="modulepreload" crossorigin href="/assets/ui-vendor-D1qTVTxg.js">
+  <link rel="modulepreload" crossorigin href="/assets/query-vendor-Djm9UODx.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-BwQWXcP7.css">
+</head>
+<body class="h-full">
+  <div id="root" class="h-full"></div>
+</body>
+</html>
+
