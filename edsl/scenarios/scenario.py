@@ -22,21 +22,18 @@ import copy
 from collections import UserDict
 from typing import Union, List, Optional, TYPE_CHECKING, Dict, Any, Iterable, Mapping
 
-from ..base import Base
+from edsl.base import Base
 from .exceptions import ScenarioError
-from ..display.utils import smart_truncate
+from edsl.display.utils import smart_truncate
 
 if TYPE_CHECKING:
     from .scenario_list import ScenarioList
-    from ..dataset import Dataset
-    from ..agents.agent_list import AgentList
-    from ..jobs import Jobs
-    from ..questions import QuestionBase as Question
-    from ..surveys import Survey
-    from .qr_code import QRCodeList
-
-
-from .firecrawl_scenario import FirecrawlRequest
+    from edsl.dataset import Dataset
+    from edsl.agents.agent_list import AgentList
+    from edsl.jobs import Jobs
+    from edsl.questions import QuestionBase as Question
+    from edsl.surveys import Survey
+    from .scenario_helpers.qr_code import QRCodeList
 
 
 class Scenario(Base, UserDict):
@@ -77,8 +74,6 @@ class Scenario(Base, UserDict):
         >>> import os
         >>> os.unlink(data_path) # Clean up temp file
     """
-
-    firecrawl = FirecrawlRequest()
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/scenarios.html"
 
@@ -496,7 +491,7 @@ class Scenario(Base, UserDict):
             >>> s["base64_string"]
             'offloaded'
         """
-        from .scenario_offloader import ScenarioOffloader
+        from .scenario_helpers.scenario_offloader import ScenarioOffloader
 
         return ScenarioOffloader(self).offload(inplace)
 
@@ -523,7 +518,7 @@ class Scenario(Base, UserDict):
             ValueError: If no uploadable content found or content is offloaded
             requests.RequestException: If any upload fails
         """
-        from .scenario_gcs import ScenarioGCS
+        from .scenario_helpers.scenario_gcs import ScenarioGCS
 
         return ScenarioGCS(self).save_to_gcs_bucket(signed_url_or_dict)
 
@@ -545,7 +540,7 @@ class Scenario(Base, UserDict):
 
 
         """
-        from .scenario_gcs import ScenarioGCS
+        from .scenario_helpers.scenario_gcs import ScenarioGCS
 
         return ScenarioGCS(self).get_filestore_info()
 
@@ -644,7 +639,7 @@ class Scenario(Base, UserDict):
             DeprecationWarning,
             stacklevel=2,
         )
-        from .qr_code import QRCode, QRCodeList, extract_urls_from_scenario
+        from .scenario_helpers.qr_code import QRCode, QRCodeList, extract_urls_from_scenario
 
         urls = extract_urls_from_scenario(self)
 
@@ -674,7 +669,7 @@ class Scenario(Base, UserDict):
         {'food': 'wood chips'}
 
         """
-        from .scenario_serializer import ScenarioSerializer
+        from .scenario_helpers.scenario_serializer import ScenarioSerializer
 
         return ScenarioSerializer(self).to_dict(add_edsl_version, offload_base64)
 
@@ -692,7 +687,7 @@ class Scenario(Base, UserDict):
             return self._cached_hash
 
         # Compute hash for first time and cache it in the object
-        from .scenario_serializer import ScenarioSerializer
+        from .scenario_helpers.scenario_serializer import ScenarioSerializer
 
         serializer = ScenarioSerializer(self)
         self._cached_hash = serializer.compute_hash()
@@ -803,7 +798,7 @@ class Scenario(Base, UserDict):
         >>> s.to_dataset()
         Dataset([{'key': ['food']}, {'value': ['wood chips']}])
         """
-        from .scenario_serializer import ScenarioSerializer
+        from .scenario_helpers.scenario_serializer import ScenarioSerializer
 
         return ScenarioSerializer(self).to_dataset()
 
@@ -840,7 +835,7 @@ class Scenario(Base, UserDict):
             >>> s.select("food")
             Scenario({'food': 'wood chips'})
         """
-        from .scenario_selector import ScenarioSelector
+        from .scenario_helpers.scenario_selector import ScenarioSelector
 
         return ScenarioSelector(self).select(*args)
 
@@ -876,7 +871,7 @@ class Scenario(Base, UserDict):
             >>> s.drop("drink")
             Scenario({'food': 'wood chips', 'dessert': 'cookies'})
         """
-        from .scenario_selector import ScenarioSelector
+        from .scenario_helpers.scenario_selector import ScenarioSelector
 
         return ScenarioSelector(self).drop(*args)
 
@@ -908,7 +903,7 @@ class Scenario(Base, UserDict):
             >>> s.keep("food", "drink")
             Scenario({'food': 'wood chips', 'drink': 'water'})
         """
-        from .scenario_selector import ScenarioSelector
+        from .scenario_helpers.scenario_selector import ScenarioSelector
 
         return ScenarioSelector(self).keep(*args)
 
@@ -1022,7 +1017,7 @@ class Scenario(Base, UserDict):
             - If these packages are not available, it falls back to basic requests.
             - When using BeautifulSoup, it extracts text from paragraph and heading tags.
         """
-        from .scenario_factory import ScenarioFactory
+        from .scenario_helpers.scenario_factory import ScenarioFactory
 
         return ScenarioFactory.from_url(url, field_name, testing)
 
@@ -1059,7 +1054,7 @@ class Scenario(Base, UserDict):
             - FileStore provides methods to access file content, extract text,
               and manage file operations appropriate to the file type
         """
-        from .scenario_factory import ScenarioFactory
+        from .scenario_helpers.scenario_factory import ScenarioFactory
 
         return ScenarioFactory.from_file(file_path, field_name)
 
@@ -1098,7 +1093,7 @@ class Scenario(Base, UserDict):
             - Supported image formats include JPG, PNG, GIF, etc.
             - The image is stored as a base64-encoded string for portability
         """
-        from .scenario_factory import ScenarioFactory
+        from .scenario_helpers.scenario_factory import ScenarioFactory
 
         return ScenarioFactory.from_image(image_path, image_name)
 
@@ -1132,7 +1127,7 @@ class Scenario(Base, UserDict):
             - PDF extraction requires the PyMuPDF library
             - The extraction process parses the PDF to maintain structure where possible
         """
-        from .scenario_factory import ScenarioFactory
+        from .scenario_helpers.scenario_factory import ScenarioFactory
 
         return ScenarioFactory.from_pdf(pdf_path)
 
@@ -1171,7 +1166,7 @@ class Scenario(Base, UserDict):
             - Provides a more comprehensive representation than from_url
             - Useful when the HTML structure or specific elements are needed
         """
-        from .scenario_factory import ScenarioFactory
+        from .scenario_helpers.scenario_factory import ScenarioFactory
 
         return ScenarioFactory.from_html(url, field_name)
 
@@ -1211,7 +1206,7 @@ class Scenario(Base, UserDict):
             - Images are stored in FileStore objects for easy display and handling
             - Images are created in a temporary directory which is automatically cleaned up
         """
-        from .scenario_factory import ScenarioFactory
+        from .scenario_helpers.scenario_factory import ScenarioFactory
 
         return ScenarioFactory.from_pdf_to_image(pdf_path, image_format)
 
@@ -1263,7 +1258,7 @@ class Scenario(Base, UserDict):
             - The extraction process attempts to maintain document structure
             - Requires the python-docx library to be installed
         """
-        from .scenario_factory import ScenarioFactory
+        from .scenario_helpers.scenario_factory import ScenarioFactory
 
         return ScenarioFactory.from_docx(docx_path)
 
@@ -1283,7 +1278,7 @@ class Scenario(Base, UserDict):
         large text documents in manageable pieces, such as for summarization, analysis,
         or when working with models that have token limits.
         """
-        from .document_chunker import DocumentChunker
+        from .scenario_helpers.document_chunker import DocumentChunker
 
         if unit == "word":
             num_words = self[chunk_size_field]
@@ -1359,7 +1354,7 @@ class Scenario(Base, UserDict):
             - When include_original is True, the original text is preserved in each chunk
             - The hash_original option is useful to save space while maintaining traceability
         """
-        from .document_chunker import DocumentChunker
+        from .scenario_helpers.document_chunker import DocumentChunker
 
         return DocumentChunker(self).chunk(
             field, num_words, num_lines, include_original, hash_original
@@ -1397,7 +1392,7 @@ class Scenario(Base, UserDict):
             - EDSL version information is automatically removed by the @remove_edsl_version decorator
             - This method is commonly used when deserializing scenarios from JSON or other formats
         """
-        from .scenario_serializer import ScenarioSerializer
+        from .scenario_helpers.scenario_serializer import ScenarioSerializer
 
         return ScenarioSerializer.from_dict(d)
 
@@ -1443,7 +1438,7 @@ class Scenario(Base, UserDict):
             >>> s1.data != s2.data  # Should be different due to randomization
             True
         """
-        from .scenario_factory import ScenarioFactory
+        from .scenario_helpers.scenario_factory import ScenarioFactory
 
         return ScenarioFactory.example(randomize)
 

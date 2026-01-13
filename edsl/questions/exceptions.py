@@ -77,27 +77,6 @@ class QuestionAnswerValidationError(QuestionErrors):
         self.model = model
         super().__init__(self.message)
 
-        # Log validation failure for analysis
-        try:
-            from .validation_logger import log_validation_failure
-
-            # Get question type and name if available
-            question_type = getattr(model, "question_type", "unknown")
-            question_name = getattr(model, "question_name", "unknown")
-
-            # Log the validation failure
-            log_validation_failure(
-                question_type=question_type,
-                question_name=question_name,
-                error_message=str(message),
-                invalid_data=data,
-                model_schema=model.model_json_schema(),
-                question_dict=getattr(model, "to_dict", lambda: None)(),
-            )
-        except Exception:
-            # Silently ignore logging errors to not disrupt normal operation
-            pass
-
     def __str__(self):
         if isinstance(self.message, ValidationError):
             # If it's a ValidationError, just return the core error message

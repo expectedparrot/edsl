@@ -1,8 +1,7 @@
 import pytest
 
 from edsl.scenarios import FileStore
-
-from edsl.scenarios.file_methods import FileMethods
+from edsl.scenarios.file_store_helpers.file_methods import FileMethods
 
 file_types = FileMethods.supported_file_types()
 

@@ -27,7 +27,6 @@ Technical Details:
 2. Inheritance Hierarchy:
    - PersistenceMixin: Provides serialization and deserialization via to_dict/from_dict
    - RepresentationMixin: Provides string representation via __repr__
-   - SimpleAskMixin: Provides the basic asking functionality to interact with models
    - QuestionBasePromptsMixin: Handles template-based prompt generation
    - QuestionBaseGenMixin: Connects questions to language models for response generation
    - AnswerValidatorMixin: Handles validation of answers using response validators
@@ -62,7 +61,6 @@ from typing import (
 from .descriptors import QuestionNameDescriptor, QuestionTextDescriptor
 from .answer_validator_mixin import AnswerValidatorMixin
 from .register_questions_meta import RegisterQuestionsMeta
-from .simple_ask_mixin import SimpleAskMixin
 from .question_base_prompts_mixin import QuestionBasePromptsMixin
 from .question_base_gen_mixin import QuestionBaseGenMixin
 from .exceptions import QuestionSerializationError
@@ -91,7 +89,6 @@ if TYPE_CHECKING:
 class QuestionBase(
     PersistenceMixin,
     RepresentationMixin,
-    SimpleAskMixin,
     QuestionBasePromptsMixin,
     QuestionBaseGenMixin,
     ABC,
@@ -108,7 +105,6 @@ class QuestionBase(
     The class inherits from multiple mixins to provide different capabilities:
     - PersistenceMixin: Serialization and deserialization
     - RepresentationMixin: String representation
-    - SimpleAskMixin: Basic asking functionality
     - QuestionBasePromptsMixin: Template-based prompt generation
     - QuestionBaseGenMixin: Generate responses with language models
     - AnswerValidatorMixin: Response validation

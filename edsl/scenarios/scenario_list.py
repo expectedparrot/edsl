@@ -53,32 +53,32 @@ try:
 except ImportError:
     from typing_extensions import TypeAlias
 
-from ..config import CONFIG
+from edsl.config import CONFIG
 
 if TYPE_CHECKING:
-    from ..dataset import Dataset
-    from ..jobs import Jobs, Job
-    from ..surveys import Survey
-    from ..questions import QuestionBase, Question
-    from ..agents import Agent
+    from edsl.dataset import Dataset
+    from edsl.jobs import Jobs, Job
+    from edsl.surveys import Survey
+    from edsl.questions import QuestionBase, Question
+    from edsl.agents import Agent
     from typing import Sequence
 
 
-from ..base import Base
-from ..utilities import (
+from edsl.base import Base
+from edsl.utilities import (
     remove_edsl_version,
     sanitize_string,
     is_valid_variable_name,
     dict_hash,
     list_split,
 )
-from ..display.utils import smart_truncate
-from ..dataset import ScenarioListOperationsMixin
+from edsl.display.utils import smart_truncate
+from edsl.dataset import ScenarioListOperationsMixin
 from .exceptions import ScenarioError
 from .scenario import Scenario
 
 if TYPE_CHECKING:
-    from ..dataset import Dataset
+    from edsl.dataset import Dataset
 
 TableFormat: TypeAlias = Literal[
     "plain",
@@ -97,8 +97,8 @@ TableFormat: TypeAlias = Literal[
     "tsv",
 ]
 
-from .scenario_list_to import ScenarioListTo
-from .scenario_list_joins import ScenarioListJoin
+from .scenario_helpers.scenario_list_to import ScenarioListTo
+from .scenario_helpers.scenario_list_joins import ScenarioListJoin
 
 from edsl.versioning import GitMixin
 from edsl.versioning import event
@@ -1897,7 +1897,7 @@ class ScenarioList(
     def from_urls(
         cls, urls: list[str], field_name: Optional[str] = "text"
     ) -> ScenarioList:
-        from .scenario_source import URLSource
+        from .scenario_helpers.sources.url_source import URLSource
 
         return URLSource(urls, field_name).to_scenario_list()
 
@@ -1910,7 +1910,7 @@ class ScenarioList(
         >>> ScenarioList.from_list('text', ['a', 'b', 'c'])
         ScenarioList([Scenario({'text': 'a'}), Scenario({'text': 'b'}), Scenario({'text': 'c'})])
         """
-        from .scenario_source import ListSource
+        from .scenario_helpers.sources.list_source import ListSource
 
         return ListSource(field_name, values, use_indexes).to_scenario_list()
 
@@ -2266,7 +2266,7 @@ class ScenarioList(
             >>> sorted(s[0].keys())
             ['_123field', 'user_name', 'valid_key']
         """
-        from .scenario_snakifier import ScenarioSnakifier
+        from .scenario_helpers.scenario_snakifier import ScenarioSnakifier
 
         replacement_dict = ScenarioSnakifier(self).create_key_mapping()
         return RenameFieldsEvent(rename_map=tuple(replacement_dict.items()))
@@ -2327,7 +2327,7 @@ class ScenarioList(
             d["codebook"] = self.codebook
 
         if add_edsl_version:
-            from .. import __version__
+            from edsl import __version__
 
             d["edsl_version"] = __version__
             d["edsl_class_name"] = self.__class__.__name__
@@ -2373,8 +2373,8 @@ class ScenarioList(
         >>> isinstance(ScenarioList.example().to(Survey.example()), Jobs)  # doctest: +SKIP
         True
         """
-        from ..surveys import Survey
-        from ..questions import QuestionBase
+        from edsl.surveys import Survey
+        from edsl.questions import QuestionBase
 
         if isinstance(survey, QuestionBase):
             return Survey([survey]).by(self)
@@ -2632,7 +2632,7 @@ class ScenarioList(
         from importlib import import_module
 
         ScenarioCombinator = import_module(
-            "edsl.scenarios.scenario_combinator"
+            "edsl.scenarios.scenario_helpers.scenario_combinator"
         ).ScenarioCombinator
         return ScenarioCombinator.iter_choose_k(self, k=k, order_matters=order_matters)
 
@@ -2945,8 +2945,8 @@ class ScenarioList(
             >>> 'First Name' in sl[0]
             True
         """
-        from .scenario_source import ScenarioSource
-        from .scenario_source_inferrer import ScenarioSourceInferrer
+        from .scenario_helpers.scenario_source import ScenarioSource
+        from .scenario_helpers.scenario_source_inferrer import ScenarioSourceInferrer
 
         # If no additional positional args, assume user wants auto-detection
         if len(args) == 0:

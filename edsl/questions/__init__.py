@@ -142,18 +142,6 @@ from .question_pydantic import QuestionPydantic
 
 from .exceptions import QuestionScenarioRenderError
 
-# Import validation modules
-from .validation_logger import (
-    log_validation_failure,
-    get_validation_failure_logs,
-    clear_validation_logs,
-)
-from .validation_analysis import (
-    get_validation_failure_stats,
-    suggest_fix_improvements,
-    export_improvements_report,
-)
-from .validation_html_report import generate_html_report, generate_and_open_report
 
 __all__ = [
     # Exceptions
@@ -191,13 +179,4 @@ __all__ = [
     "QuestionFileUpload",
     "QuestionEDSLObject",
     "QuestionPydantic",
-    # Validation utilities
-    "log_validation_failure",
-    "get_validation_failure_logs",
-    "clear_validation_logs",
-    "get_validation_failure_stats",
-    "suggest_fix_improvements",
-    "export_improvements_report",
-    "generate_html_report",
-    "generate_and_open_report",
 ]

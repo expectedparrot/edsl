@@ -8,8 +8,8 @@ functionality provided by ScenarioSourceInferrer.
 import tempfile
 import os
 import pytest
-from edsl.scenarios import ScenarioSourceInferrer, from_any
-from edsl.scenarios.scenario_list import ScenarioList
+from edsl.scenarios.scenario_helpers.scenario_source_inferrer import ScenarioSourceInferrer, from_any
+from edsl.scenarios import ScenarioList
 from edsl.scenarios.exceptions import ScenarioError
 
 

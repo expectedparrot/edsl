@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from .scenario_list import ScenarioList
-from .dimension import Dimension
-from ..base.base_class import Base
+from .agent_blueprint_helpers.dimension import Dimension
+from edsl.base.base_class import Base
 import math
 
 
@@ -454,7 +454,7 @@ class AgentBlueprint(Base):
         the sum of log probabilities for its dimension values.
         """
 
-        from ..agents import Agent
+        from edsl.agents import Agent
 
         for combo_idx in self._permutation_stream():
             traits = self._index_to_traits(combo_idx)
@@ -498,7 +498,7 @@ class AgentBlueprint(Base):
         if isinstance(n, str):
             n = int(n)
 
-        from ..agents import Agent, AgentList
+        from edsl.agents import Agent, AgentList
         import random
 
         if strategy not in {"permutation", "probability"}:
@@ -932,7 +932,7 @@ class AgentBlueprint(Base):
         """
 
         # Lazy import to avoid circular dependency
-        from ..agents import Agent as _Agent  # type: ignore
+        from edsl.agents import Agent as _Agent  # type: ignore
         from typing import Mapping, Any
 
         if isinstance(agent_or_traits, _Agent):
@@ -964,7 +964,7 @@ class AgentBlueprint(Base):
             contains a key for **every** dimension in this blueprint.
         """
         import math
-        from ..agents import Agent as _Agent  # type: ignore
+        from edsl.agents import Agent as _Agent  # type: ignore
         from typing import Mapping, Any
 
         if isinstance(agent_or_traits, _Agent):

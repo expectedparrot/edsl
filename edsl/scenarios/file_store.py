@@ -11,8 +11,8 @@ import time
 from typing import List, Literal, TYPE_CHECKING
 
 from .scenario import Scenario
-from ..utilities import remove_edsl_version
-from .file_methods import FileMethods
+from edsl.utilities import remove_edsl_version
+from .file_store_helpers.file_methods import FileMethods
 
 if TYPE_CHECKING:
     from .scenario_list import ScenarioList
@@ -237,7 +237,7 @@ class FileStore(Scenario):
 
         # Request download URL from backend
         try:
-            from ..coop import Coop
+            from edsl.coop import Coop
 
             coop = Coop()
 
@@ -664,13 +664,13 @@ class FileStore(Scenario):
 
     def _repr_html_(self):
         parent_html = super()._repr_html_()
-        from .construct_download_link import ConstructDownloadLink
+        from .file_store_helpers.construct_download_link import ConstructDownloadLink
 
         link = ConstructDownloadLink(self).html_create_link(self.path, style=None)
         return f"{parent_html}<br>{link}"
 
     def download_link(self):
-        from .construct_download_link import ConstructDownloadLink
+        from .file_store_helpers.construct_download_link import ConstructDownloadLink
 
         return ConstructDownloadLink(self).html_create_link(self.path, style=None)
 
@@ -974,7 +974,7 @@ class FileStore(Scenario):
         return cls(download_path, mime_type=mime_type)
 
     def create_link(self, custom_filename=None, style=None):
-        from .construct_download_link import ConstructDownloadLink
+        from .file_store_helpers.construct_download_link import ConstructDownloadLink
 
         return ConstructDownloadLink(self).create_link(custom_filename, style)
 
@@ -1005,7 +1005,7 @@ class FileStore(Scenario):
 
         import os
         import tempfile
-        from ..utilities.markdown_to_pdf import MarkdownToPDF
+        from edsl.utilities.markdown_to_pdf import MarkdownToPDF
 
         # Determine output path
         if output_path is None:
@@ -1049,7 +1049,7 @@ class FileStore(Scenario):
 
         import os
         import tempfile
-        from ..utilities.markdown_to_docx import MarkdownToDocx
+        from edsl.utilities.markdown_to_docx import MarkdownToDocx
 
         # Determine output path
         if output_path is None:

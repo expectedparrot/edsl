@@ -8,7 +8,7 @@ that can occur when working with Scenarios, ScenarioLists, and related component
 
 import re
 
-from ..base import BaseException
+from edsl.base import BaseException
 
 
 class AgentListError(BaseException):

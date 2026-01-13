@@ -6,8 +6,9 @@ source types in the system. It uses the Source registry to automatically
 test all available source types.
 """
 
-from edsl.scenarios.scenario_source import Source
-from edsl.scenarios.scenario_list import ScenarioList
+from edsl.scenarios.scenario_helpers.scenario_source import ScenarioSource
+from edsl.scenarios.scenario_helpers.sources.base import Source
+from edsl.scenarios import ScenarioList
 
 
 def test_all_source_types():

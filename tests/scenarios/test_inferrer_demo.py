@@ -10,7 +10,7 @@ import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from edsl.scenarios import from_any
+from edsl.scenarios.scenario_helpers.scenario_source_inferrer import from_any
 
 
 def test_dict_source():
