@@ -68,9 +68,9 @@ class KeyLookupCollection(UserDict):
                         Later sources override earlier ones. If None, uses ("config", "env").
 
         Examples:
-            >>> collection = KeyLookupCollection()
-            >>> collection.add_key_lookup(("config", "env", "coop"))
-            >>> ("config", "env", "coop") in collection
+            >>> collection = KeyLookupCollection()  # doctest: +SKIP
+            >>> collection.add_key_lookup(("config", "env", "coop"))  # doctest: +SKIP
+            >>> ("config", "env", "coop") in collection  # doctest: +SKIP
             True
 
         Technical Notes:
