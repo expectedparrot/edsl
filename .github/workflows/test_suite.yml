@@ -45,6 +45,11 @@ jobs:
         shell: bash
         run: poetry install --with dev
 
+      - name: Install Jupyter kernel
+        if: matrix.python-version == '3.10'
+        shell: bash
+        run: poetry run python -m ipykernel install --user --name python3
+
       - name: Run starter tutorial integration test
         if: matrix.python-version == '3.10'
         shell: bash

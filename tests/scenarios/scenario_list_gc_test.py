@@ -4,10 +4,14 @@ Test script to investigate garbage collection behavior with ScenarioList.
 
 import gc
 import os
-import psutil
 import pickle
 import tracemalloc
 from typing import Dict, List, Any
+
+import pytest
+
+# Skip all tests in this module if psutil is not installed
+psutil = pytest.importorskip("psutil", reason="psutil not installed")
 
 
 def get_memory_usage() -> float:

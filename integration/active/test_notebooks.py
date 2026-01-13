@@ -2,8 +2,19 @@ import os
 import pytest
 import glob
 
-import nbformat
+# Skip module if notebook execution dependencies aren't installed
+nbformat = pytest.importorskip("nbformat", reason="nbformat not installed")
+nbconvert = pytest.importorskip("nbconvert", reason="nbconvert not installed")
+
 from nbconvert.preprocessors import ExecutePreprocessor, CellExecutionError
+
+# Check if python3 kernel is available
+try:
+    from jupyter_client.kernelspec import find_kernel_specs
+    if "python3" not in find_kernel_specs():
+        pytest.skip("python3 kernel not available", allow_module_level=True)
+except ImportError:
+    pytest.skip("jupyter_client not installed", allow_module_level=True)
 
 
 class SkipTaggedCells(ExecutePreprocessor):
