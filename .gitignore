@@ -58,3 +58,8 @@ benchmark_logs/*
 notebook_errors/
 performance.yml
 edsl/assistants/edsl_output/
+.cache/
+node_modules/
+*.zip
+unused/
+
