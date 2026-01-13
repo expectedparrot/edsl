@@ -330,7 +330,7 @@ class ServiceMetadataResponse(BaseModel):
     result_pattern: str
     result_field: Optional[str] = None
     required_keys: List[str]
-    operations: List[str]
+    operations: Dict[str, Dict[str, Any]]  # operation_name -> {input_param, defaults}
     extends: List[str]
 
 
@@ -368,7 +368,13 @@ async def list_services():
                 result_pattern=meta.result_pattern,
                 result_field=meta.result_field,
                 required_keys=service_class.get_required_keys(),
-                operations=list(meta.operations.keys()),
+                operations={
+                    op_name: {
+                        "input_param": op_schema.input_param,
+                        "defaults": op_schema.defaults,
+                    }
+                    for op_name, op_schema in meta.operations.items()
+                },
                 extends=meta.extends,
             )
 
@@ -402,7 +408,13 @@ async def get_service(service_name: str):
         result_pattern=meta.result_pattern,
         result_field=meta.result_field,
         required_keys=service_class.get_required_keys(),
-        operations=list(meta.operations.keys()),
+        operations={
+            op_name: {
+                "input_param": op_schema.input_param,
+                "defaults": op_schema.defaults,
+            }
+            for op_name, op_schema in meta.operations.items()
+        },
         extends=meta.extends,
     )
 

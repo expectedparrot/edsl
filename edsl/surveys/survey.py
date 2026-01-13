@@ -628,10 +628,7 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
         Returns:
             FileStore containing the PNG image, or displays inline.
         """
-        from edsl_services.flow_visualization_service import FlowVisualizationService
-
-        if verbose:
-            print("[flow_visualization] Generating survey flow diagram...")
+        from edsl.services import dispatch
 
         params = {
             "operation": "flow",
@@ -639,16 +636,13 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
             "filename": filename,
         }
 
-        result = FlowVisualizationService.execute(params)
-        fs = FlowVisualizationService.parse_result(result)
-
-        if verbose:
-            print("[flow_visualization] ✓ Flow diagram created")
+        pending = dispatch("flow_visualization", params)
+        fs = pending.result(verbose=verbose)
 
         # If no filename, display the result
-        if filename is None:
+        if filename is None and hasattr(fs, "view"):
             fs.view()
-        else:
+        elif filename:
             print(f"Flowchart saved to {filename}")
 
         return fs

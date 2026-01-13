@@ -27,7 +27,7 @@ class RemoteServiceInfo:
     description: str = ""
     version: str = "1.0.0"
     required_keys: List[str] = field(default_factory=list)
-    operations: List[str] = field(default_factory=list)
+    operations: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # op_name -> {input_param, defaults}
     extends: List[str] = field(default_factory=list)
     fetched_at: float = 0.0
 

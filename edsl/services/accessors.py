@@ -2380,6 +2380,167 @@ def get_embeddings_accessor() -> EmbeddingsAccessor:
 
 
 # =============================================================================
+# Remote Service Accessor (for services only available on remote server)
+# =============================================================================
+
+
+class RemoteServiceAccessor:
+    """
+    Accessor for services that exist only on the remote server.
+
+    This accessor is used when a service is not registered locally but
+    is available via RemoteMetadataCache. It provides a similar interface
+    to ServiceAccessor but works without a local service class.
+    """
+
+    def __init__(
+        self,
+        service_name: str,
+        remote_info: "RemoteServiceInfo",
+        instance: Any = None,
+    ):
+        self._service_name = service_name
+        self._remote_info = remote_info
+        self._instance = instance
+
+    def __repr__(self) -> str:
+        info = self._remote_info
+        lines = [
+            f"{self._service_name.title()}Accessor (remote) - {info.description}",
+            "",
+        ]
+        if info.operations:
+            lines.append("Methods: " + ", ".join(f".{m}()" for m in info.operations.keys()))
+        if info.required_keys:
+            lines.append("Required keys: " + ", ".join(info.required_keys))
+        return "\n".join(lines)
+
+    def _repr_html_(self) -> str:
+        info = self._remote_info
+        methods_html = (
+            ", ".join(f"<code>.{m}()</code>" for m in info.operations.keys())
+            if info.operations
+            else "Any method name is forwarded to the service"
+        )
+        keys_html = (
+            "<br>".join(f"• {k}" for k in info.required_keys)
+            if info.required_keys
+            else "None"
+        )
+        return f"""
+<div style="font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
+<b style="color: #3498db;">{self._service_name.title()}Accessor</b> (remote)<br>
+{info.description}<br><br>
+<b>Methods:</b> {methods_html}<br><br>
+<b>Required Keys:</b><br>{keys_html}
+</div>
+"""
+
+    def __getattr__(self, method_name: str):
+        """Dynamically handle method calls by dispatching to the remote service."""
+        if method_name.startswith("_"):
+            raise AttributeError(
+                f"'{type(self).__name__}' object has no attribute '{method_name}'"
+            )
+
+        def method_wrapper(*args, verbose: bool = True, **kwargs):
+            """Dispatch the method call to the remote service."""
+            from . import dispatch
+
+            # Ensure worker is available
+            _ensure_service_worker(self._service_name)
+
+            # Build params
+            timeout = kwargs.pop("timeout", None)
+            poll_interval = kwargs.pop("poll_interval", None)
+
+            params = {"operation": method_name}
+            params.update(kwargs)
+
+            # Get operation schema if available
+            op_schema = self._remote_info.operations.get(method_name, {})
+            input_param = op_schema.get("input_param")
+            defaults = op_schema.get("defaults", {})
+
+            # Apply defaults first (kwargs will override)
+            if defaults:
+                for key, value in defaults.items():
+                    if key not in params:
+                        params[key] = value
+
+            # Handle positional args using input_param from schema
+            if args:
+                first_arg = args[0]
+                if input_param:
+                    # Use the schema-defined parameter name
+                    params[input_param] = first_arg
+                else:
+                    # Fallback for services without schema
+                    if method_name in ("scrape", "crawl", "extract", "parse"):
+                        params["url"] = first_arg
+                    elif method_name in ("search", "query"):
+                        params["query"] = first_arg
+                    elif method_name in ("load", "get"):
+                        params["name"] = first_arg
+                    elif method_name in ("generate", "from_vibes", "create"):
+                        params["description"] = first_arg
+                    else:
+                        params["input"] = first_arg
+
+                if len(args) > 1:
+                    params["args"] = args[1:]
+
+            # Include instance data if available
+            if self._instance is not None:
+                if hasattr(self._instance, "to_dict"):
+                    params["data"] = self._instance.to_dict()
+                    params["data_type"] = type(self._instance).__name__.lower()
+
+            # Dispatch and wait for result
+            pending = dispatch(self._service_name, params)
+
+            result_kwargs = {"verbose": verbose}
+            if timeout is not None:
+                result_kwargs["timeout"] = timeout
+            if poll_interval is not None:
+                result_kwargs["poll_interval"] = poll_interval
+
+            raw_result = pending.result(**result_kwargs)
+
+            # If result is already parsed (not a dict), return it directly
+            if not isinstance(raw_result, dict):
+                return raw_result
+
+            # Parse the result using the pattern from remote metadata
+            from .result_parsers import ResultParser
+
+            # Extract the inner result if wrapped
+            if "result" in raw_result:
+                result_to_parse = raw_result["result"]
+            else:
+                result_to_parse = raw_result
+
+            # If inner result is also not a dict, return it directly
+            if not isinstance(result_to_parse, dict):
+                return result_to_parse
+
+            return ResultParser.parse(
+                result_to_parse,
+                self._remote_info.result_pattern,
+                self._remote_info.result_field,
+            )
+
+        return method_wrapper
+
+    def __dir__(self):
+        """Support tab completion for service methods."""
+        base = ["_service_name", "_instance", "_remote_info"]
+        if self._remote_info.operations:
+            return base + list(self._remote_info.operations.keys())
+        return base + ["generate", "search", "scrape", "load", "get"]
+
+
+# =============================================================================
 # Unified Service Discovery
 # =============================================================================
 
@@ -2540,12 +2701,20 @@ def get_service_accessor(name: str, instance: Any = None, owner_class: type = No
     from .accessor import get_accessor
     from .registry import ServiceRegistry
 
-    # Check if service exists in registry
-    if not ServiceRegistry.exists(name):
-        return None
+    # Check if service exists in local registry
+    if ServiceRegistry.exists(name):
+        # Use the generic ServiceAccessor which handles everything
+        return get_accessor(name, instance=instance, owner_class=owner_class)
 
-    # Use the generic ServiceAccessor which handles everything
-    return get_accessor(name, instance=instance, owner_class=owner_class)
+    # Not in local registry - check remote metadata cache for server-side services
+    from .remote_metadata import RemoteMetadataCache
+
+    remote_info = RemoteMetadataCache.get_instance().get(name)
+    if remote_info is not None:
+        # Service exists on remote server - create a RemoteServiceAccessor
+        return RemoteServiceAccessor(name, remote_info, instance=instance)
+
+    return None
 
 
 def list_available_services() -> List[str]:

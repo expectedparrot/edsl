@@ -478,8 +478,15 @@ class PendingResult:
         if self._result_pattern is not None:
             from .result_parsers import ResultParser
 
+            # Services wrap results as {"operation": "...", "result": {...}}
+            # Extract the inner result for parsing
+            if isinstance(result_dict, dict) and "result" in result_dict:
+                result_to_parse = result_dict["result"]
+            else:
+                result_to_parse = result_dict
+
             return ResultParser.parse(
-                result_dict,
+                result_to_parse,
                 self._result_pattern,
                 self._result_field,
             )
