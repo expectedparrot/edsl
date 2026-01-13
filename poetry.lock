@@ -280,7 +280,7 @@ dev = ["watchfiles (>=0.18.0)"]
 name = "appnope"
 version = "0.1.4"
 description = "Disable App Nap on macOS >= 10.9"
-optional = true
+optional = false
 python-versions = ">=3.6"
 files = [
     {file = "appnope-0.1.4-py2.py3-none-any.whl", hash = "sha256:502575ee11cd7a28c0205f379b525beefebab9d161b7c964670864014ed7213c"},
@@ -893,7 +893,7 @@ files = [
 name = "comm"
 version = "0.2.3"
 description = "Jupyter Python Comm implementation, for usage in ipykernel, xeus-python etc."
-optional = true
+optional = false
 python-versions = ">=3.8"
 files = [
     {file = "comm-0.2.3-py3-none-any.whl", hash = "sha256:c615d91d75f7f04f095b30d1c1711babd43bdc6419c1be9886a85f2f4e489417"},
@@ -1102,7 +1102,7 @@ tests = ["pytest", "pytest-cov", "pytest-xdist"]
 name = "debugpy"
 version = "1.8.17"
 description = "An implementation of the Debug Adapter Protocol for Python"
-optional = true
+optional = false
 python-versions = ">=3.8"
 files = [
     {file = "debugpy-1.8.17-cp310-cp310-macosx_15_0_x86_64.whl", hash = "sha256:c41d2ce8bbaddcc0009cc73f65318eedfa3dbc88a8298081deb05389f1ab5542"},
@@ -1664,7 +1664,7 @@ files = [
 name = "greenlet"
 version = "3.3.0"
 description = "Lightweight in-process concurrent programming"
-optional = false
+optional = true
 python-versions = ">=3.10"
 files = [
     {file = "greenlet-3.3.0-cp310-cp310-macosx_11_0_universal2.whl", hash = "sha256:6f8496d434d5cb2dce025773ba5597f71f5410ae499d5dd9533e0653258cdb3d"},
@@ -1931,13 +1931,13 @@ files = [
 
 [[package]]
 name = "ipykernel"
-version = "7.1.0"
+version = "6.31.0"
 description = "IPython Kernel for Jupyter"
-optional = true
-python-versions = ">=3.10"
+optional = false
+python-versions = ">=3.9"
 files = [
-    {file = "ipykernel-7.1.0-py3-none-any.whl", hash = "sha256:763b5ec6c5b7776f6a8d7ce09b267693b4e5ce75cb50ae696aaefb3c85e1ea4c"},
-    {file = "ipykernel-7.1.0.tar.gz", hash = "sha256:58a3fc88533d5930c3546dc7eac66c6d288acde4f801e2001e65edc5dc9cf0db"},
+    {file = "ipykernel-6.31.0-py3-none-any.whl", hash = "sha256:abe5386f6ced727a70e0eb0cf1da801fa7c5fa6ff82147747d5a0406cd8c94af"},
+    {file = "ipykernel-6.31.0.tar.gz", hash = "sha256:2372ce8bc1ff4f34e58cafed3a0feb2194b91fc7cad0fc72e79e47b45ee9e8f6"},
 ]
 
 [package.dependencies]
@@ -1957,7 +1957,7 @@ traitlets = ">=5.4.0"
 
 [package.extras]
 cov = ["coverage[toml]", "matplotlib", "pytest-cov", "trio"]
-docs = ["intersphinx-registry", "myst-parser", "pydata-sphinx-theme", "sphinx (<8.2.0)", "sphinx-autodoc-typehints", "sphinxcontrib-github-alt", "sphinxcontrib-spelling", "trio"]
+docs = ["intersphinx-registry", "myst-parser", "pydata-sphinx-theme", "sphinx", "sphinx-autodoc-typehints", "sphinxcontrib-github-alt", "sphinxcontrib-spelling", "trio"]
 pyqt5 = ["pyqt5"]
 pyside6 = ["pyside6"]
 test = ["flaky", "ipyparallel", "pre-commit", "pytest (>=7.0,<9)", "pytest-asyncio (>=0.23.5)", "pytest-cov", "pytest-timeout"]
@@ -4653,7 +4653,7 @@ files = [
 name = "psutil"
 version = "6.1.1"
 description = "Cross-platform lib for process and system monitoring in Python."
-optional = true
+optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,>=2.7"
 files = [
     {file = "psutil-6.1.1-cp27-cp27m-macosx_10_9_x86_64.whl", hash = "sha256:9ccc4316f24409159897799b83004cb1e24f9819b0dcf9c0b68bdcb6cefee6a8"},
@@ -4978,7 +4978,7 @@ toml = ["tomli (>=1.2.3)"]
 name = "pydot"
 version = "2.0.0"
 description = "Python interface to Graphviz's Dot"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "pydot-2.0.0-py3-none-any.whl", hash = "sha256:408a47913ea7bd5d2d34b274144880c1310c4aee901f353cf21fe2e526a4ea28"},
@@ -5057,7 +5057,7 @@ testutils = ["gitpython (>3)"]
 name = "pyparsing"
 version = "3.2.5"
 description = "pyparsing - Classes and methods to define and execute parsing grammars"
-optional = false
+optional = true
 python-versions = ">=3.9"
 files = [
     {file = "pyparsing-3.2.5-py3-none-any.whl", hash = "sha256:e38a4f02064cf41fe6593d328d0512495ad1f3d8a91c4f73fc401b3079a59a5e"},
@@ -6249,7 +6249,7 @@ dev = ["pre-commit", "pytest", "ruff (>=0.3.0)"]
 name = "setuptools"
 version = "71.1.0"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "setuptools-71.1.0-py3-none-any.whl", hash = "sha256:33874fdc59b3188304b2e7c80d9029097ea31627180896fb549c578ceb8a0855"},
@@ -6524,7 +6524,7 @@ test = ["pytest"]
 name = "sqlalchemy"
 version = "2.0.44"
 description = "Database Abstraction Library"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "SQLAlchemy-2.0.44-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:471733aabb2e4848d609141a9e9d56a427c0a038f4abf65dd19d7a21fd563632"},
@@ -7544,9 +7544,10 @@ propcache = ">=0.2.1"
 anthropic = ["anthropic"]
 azure = ["azure-ai-inference"]
 bedrock = ["boto3"]
+caching = ["sqlalchemy"]
 conjure = ["psutil", "pyreadstat"]
 docx-view = ["mammoth"]
-full = ["altair", "anthropic", "anywidget", "azure-ai-inference", "boto3", "fastapi", "google-genai", "groq", "ipython", "joblib", "jupyter", "mammoth", "matplotlib", "mistralai", "nbclient", "nbformat", "openpyxl", "pandas", "playwright", "psutil", "pygments", "pypdf2", "pyreadstat", "python-pptx", "pyyaml", "qrcode", "scikit-learn", "scipy", "seaborn", "sentence-transformers", "termplotlib", "uvicorn"]
+full = ["altair", "anthropic", "anywidget", "azure-ai-inference", "boto3", "fastapi", "google-genai", "groq", "ipython", "joblib", "jupyter", "mammoth", "matplotlib", "mistralai", "nbclient", "nbformat", "openpyxl", "pandas", "playwright", "psutil", "pydot", "pygments", "pypdf2", "pyreadstat", "python-pptx", "pyyaml", "qrcode", "scikit-learn", "scipy", "seaborn", "sentence-transformers", "sqlalchemy", "termplotlib", "uvicorn"]
 google = ["google-genai"]
 groq = ["groq"]
 highlighting = ["pygments"]
@@ -7558,10 +7559,11 @@ pdf = ["pypdf2"]
 screenshots = ["playwright"]
 service-deps = ["joblib", "matplotlib", "openpyxl", "python-pptx", "qrcode", "scikit-learn", "scipy", "seaborn", "sentence-transformers"]
 services = ["fastapi", "uvicorn"]
+visualization = ["pydot"]
 viz = ["altair", "nbclient", "nbformat", "pyyaml", "termplotlib"]
 widgets = ["anywidget"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.14"
-content-hash = "5d11e7b14bc42da77b39ed438c95563a2424c3554a5c4e6b09360cea53133252"
+content-hash = "dda5c25c22b021909be9e8e9df7a63f24a4acd05efddc17899ab13c50d7e2d99"
