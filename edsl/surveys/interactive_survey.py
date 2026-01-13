@@ -133,7 +133,7 @@ class InteractiveSurvey:
             )
 
             # End of survey
-            from .base import EndOfSurvey
+            from .navigation_markers import EndOfSurvey
 
             if next_item is EndOfSurvey:
                 break

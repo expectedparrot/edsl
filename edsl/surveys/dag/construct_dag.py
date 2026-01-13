@@ -1,4 +1,4 @@
-from ..base import EndOfSurvey
+from ..navigation_markers import EndOfSurvey
 from . import DAG
 from ..exceptions import SurveyError, SurveyPipingReferenceError
 

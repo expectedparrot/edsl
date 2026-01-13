@@ -25,7 +25,7 @@ based on previous answers.
 
 import unittest
 from edsl.surveys import Survey
-from edsl.surveys.base import EndOfSurvey
+from edsl.surveys.navigation_markers import EndOfSurvey
 from edsl.surveys.exceptions import SurveyCreationError, SurveyError
 from edsl.questions import QuestionMultipleChoice, QuestionFreeText, QuestionYesNo
 from edsl.instructions import Instruction

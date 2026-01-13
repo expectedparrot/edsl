@@ -7,7 +7,7 @@ representations of Survey objects using the Rich library.
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .survey import Survey
+    from ..survey import Survey
 
 
 def generate_summary_repr(
@@ -26,7 +26,7 @@ def generate_summary_repr(
     from rich.console import Console
     from rich.text import Text
     import io
-    from .base import EndOfSurvey
+    from ..navigation_markers import EndOfSurvey
     from edsl.config import RICH_STYLES
 
     # Build the Rich text

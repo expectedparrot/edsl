@@ -7,8 +7,8 @@ based on multiple choice or checkbox question options.
 from typing import Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..questions import QuestionBase
-    from .survey import Survey
+    from ...questions import QuestionBase
+    from ..survey import Survey
 
 
 class FollowupQuestionAdder:
@@ -193,7 +193,7 @@ class FollowupQuestionAdder:
                     next_followup = modified_survey.questions[next_index]
                 else:
                     # No more questions, skip to end of survey
-                    from edsl.surveys.base import EndOfSurvey
+                    from edsl.surveys.navigation_markers import EndOfSurvey
 
                     next_followup = EndOfSurvey
 

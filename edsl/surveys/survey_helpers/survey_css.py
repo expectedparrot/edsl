@@ -1,5 +1,5 @@
 from typing import Optional
-from ..utilities.remove_edsl_version import remove_edsl_version
+from ...utilities.remove_edsl_version import remove_edsl_version
 
 
 class CSSRuleMeta(type):
@@ -73,7 +73,7 @@ class CSSRule(metaclass=CSSRuleMeta):
         d = {"selector": self.selector, "properties": self.properties}
 
         if add_esl_version:
-            from .. import __version__
+            from ... import __version__
 
             d["edsl_version"] = __version__
             d["edsl_class_name"] = self.__class__.__name__
@@ -233,7 +233,7 @@ class SurveyCSS:
         """
         d = {"rules": [rule.to_dict() for rule in self.rules.values()]}
         if add_edsl_version:
-            from .. import __version__
+            from ... import __version__
 
             d["edsl_version"] = __version__
             d["edsl_class_name"] = self.__class__.__name__

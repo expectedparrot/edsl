@@ -8,7 +8,7 @@ for combining multiple choice questions into matrix questions.
 import pytest
 from edsl import Survey, QuestionMultipleChoice, QuestionFreeText
 from edsl.questions import QuestionMatrix
-from edsl.surveys.matrix_combiner import combine_multiple_choice_to_matrix, _find_common_prefix_and_items
+from edsl.surveys.survey_helpers.matrix_combiner import combine_multiple_choice_to_matrix, _find_common_prefix_and_items
 
 
 class TestMatrixCombiner:

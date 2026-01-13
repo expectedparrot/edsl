@@ -60,7 +60,7 @@ from ..store import (
     MoveSurveyQuestionEvent,
     apply_event,
 )
-from .survey_codec import SurveyCodec
+from .survey_helpers.survey_codec import SurveyCodec
 
 if TYPE_CHECKING:
     from ..questions import QuestionBase
@@ -89,19 +89,18 @@ from ..instructions import InstructionCollection
 from ..instructions import Instruction
 from ..instructions import ChangeInstruction
 
-from .base import EndOfSurvey, EndOfSurveyParent
+from .navigation_markers import EndOfSurvey, EndOfSurveyParent
 from .descriptors import QuestionsDescriptor
 from .memory import MemoryPlan
 
 # SurveyFlowVisualization moved to service - see show_flow() method
 from ..instructions import InstructionHandler
-from .edit_survey import EditSurvey
-from .survey_simulator import Simulator
+from .survey_helpers.survey_simulator import Simulator
 from .memory import MemoryManagement
 from .rules import RuleManager, RuleCollection
-from .survey_export import SurveyExport
-from .pseudo_indices import PseudoIndices
-from .survey_navigator import SurveyNavigator
+from .survey_helpers.survey_export import SurveyExport
+from .survey_helpers.pseudo_indices import PseudoIndices
+from .survey_helpers.survey_navigator import SurveyNavigator
 from .exceptions import (
     SurveyCreationError,
     SurveyError,
@@ -361,7 +360,7 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
             rc = rule_collection
         else:
             from .rules.rule import Rule
-            from .base import RulePriority
+            from .navigation_markers import RulePriority
 
             rc = RuleCollection(
                 num_questions=len(true_questions) if true_questions else None
@@ -1046,7 +1045,7 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
         import tempfile
         import urllib.request
         import urllib.parse
-        from .qsf_parser import QSFParser
+        from .survey_helpers.qsf_parser import QSFParser
 
         # Check if qsf_path is a URL
         if isinstance(qsf_path, str) and (
@@ -1586,7 +1585,7 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
         ['q1', 'q2', 'q0']
         """
         from .rules.rule import Rule
-        from .base import RulePriority
+        from .navigation_markers import RulePriority
 
         # Resolve the identifier to an index
         if isinstance(identifier, str):
@@ -1690,7 +1689,7 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
         # Adding a question with a duplicate name would raise SurveyCreationError
         """
         from .rules.rule import Rule
-        from .base import RulePriority
+        from .navigation_markers import RulePriority
 
         # Validation - check for duplicate names
         if question.question_name in self.question_names:
@@ -1805,7 +1804,7 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
             ...     # matrix items will be ["A freelancer without AI", "A freelancer with AI"]
             ... )
         """
-        from .matrix_combiner import combine_multiple_choice_to_matrix
+        from .survey_helpers.matrix_combiner import combine_multiple_choice_to_matrix
 
         return combine_multiple_choice_to_matrix(
             survey=self,
@@ -2747,7 +2746,7 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
 
             Add a rule to end the survey conditionally:
 
-            >>> from edsl.surveys.base import EndOfSurvey
+            >>> from edsl.surveys.navigation_markers import EndOfSurvey
             >>> s = Survey.example().add_rule("q0", "{{ q0.answer }} == 'end'", EndOfSurvey)
         """
         from edsl.store.events import AddRuleEvent
@@ -2821,7 +2820,7 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
             - "Why do you like Chinese?"
             - "Why do you like Mexican?"
         """
-        from .followup_questions import FollowupQuestionAdder
+        from .survey_helpers.followup_questions import FollowupQuestionAdder
 
         return FollowupQuestionAdder.add_followup_questions(
             self, reference_question, followup_template, answer_template_var
@@ -3559,7 +3558,7 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
             max_text_preview: Maximum characters to show for question text previews
             max_items: Maximum number of items to show in lists before truncating
         """
-        from .survey_repr import generate_summary_repr
+        from .survey_helpers.survey_repr import generate_summary_repr
 
         return generate_summary_repr(self, max_text_preview, max_items)
 
@@ -4013,7 +4012,7 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
             >>> # Rules are also updated
             >>> s_renamed.show_rules()  # doctest: +SKIP
         """
-        from .question_renamer import QuestionRenamer
+        from .survey_helpers.question_renamer import QuestionRenamer
 
         return QuestionRenamer.with_renamed_question(self, old_name, new_name)
 
@@ -4037,91 +4036,6 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
     #         ) from e
 
     #     return SurveyInspectorWidget(self)
-
-    @classmethod
-    def generate_from_topic(
-        cls,
-        topic: str,
-        n_questions: int = 5,
-        model: Optional["LanguageModel"] = None,
-        scenario_keys: Optional[List[str]] = None,
-        verbose: bool = True,
-    ) -> "Survey":
-        """Generate a survey from a topic using an LLM.
-
-        This method uses a language model to generate a well-balanced survey
-        for the given topic with the specified number of questions.
-
-        Args:
-            topic: The topic to generate questions about
-            n_questions: Number of questions to generate (default: 5)
-            model: Language model to use for generation. If None, uses default model.
-            scenario_keys: Optional list of scenario keys to include in question texts.
-                          Each key will be added as {{ scenario.<key> }} in the questions.
-            verbose: Whether to show the underlying survey generation process (default: True)
-
-        Returns:
-            Survey: A new Survey instance with generated questions
-
-        Examples:
-            >>> survey = Survey.generate_from_topic("workplace satisfaction", n_questions=3)  # doctest: +SKIP
-            >>> survey = Survey.generate_from_topic("product feedback", scenario_keys=["product_name", "version"])  # doctest: +SKIP
-            >>> survey = Survey.generate_from_topic("feedback", verbose=False)  # doctest: +SKIP
-        """
-        from .survey_generator import SurveyGenerator
-
-        return SurveyGenerator.generate_from_topic(
-            cls, topic, n_questions, model, scenario_keys, verbose
-        )
-
-    @classmethod
-    def generate_from_questions(
-        cls,
-        question_texts: List[str],
-        question_types: Optional[List[str]] = None,
-        question_names: Optional[List[str]] = None,
-        model: Optional["LanguageModel"] = None,
-        scenario_keys: Optional[List[str]] = None,
-        verbose: bool = True,
-    ) -> "Survey":
-        """Generate a survey from a list of question texts.
-
-        This method takes a list of question texts and optionally infers question types
-        and generates question names using an LLM.
-
-        Args:
-            question_texts: List of question text strings
-            question_types: Optional list of question types corresponding to each text.
-                          If None, types will be inferred by the model.
-            question_names: Optional list of question names. If None, names will be generated.
-            model: Language model to use for inference. If None, uses default model.
-            scenario_keys: Optional list of scenario keys to include in question texts.
-                          Each key will be added as {{ scenario.<key> }} in the questions.
-            verbose: Whether to show the underlying survey generation process (default: True)
-
-        Returns:
-            Survey: A new Survey instance with the questions
-
-        Examples:
-            >>> texts = ["How satisfied are you?", "What is your age?"]
-            >>> survey = Survey.generate_from_questions(texts)  # doctest: +SKIP
-            >>> types = ["LinearScale", "Numerical"]
-            >>> names = ["satisfaction", "age"]
-            >>> survey = Survey.generate_from_questions(texts, types, names)  # doctest: +SKIP
-            >>> survey = Survey.generate_from_questions(texts, scenario_keys=["product_name"])  # doctest: +SKIP
-            >>> survey = Survey.generate_from_questions(texts, verbose=False)  # doctest: +SKIP
-        """
-        from .survey_generator import SurveyGenerator
-
-        return SurveyGenerator.generate_from_questions(
-            cls,
-            question_texts,
-            question_types,
-            question_names,
-            model,
-            scenario_keys,
-            verbose,
-        )
 
     def __getattr__(self, name: str):
         """Intercept attribute access to provide service accessor instances.
@@ -4232,24 +4146,6 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
 
         # Get result (which is already a Survey)
         return pending.result()
-
-    @classmethod
-    def _infer_question_types(
-        cls, question_data: List[Dict[str, Any]], model: "LanguageModel"
-    ) -> List[Dict[str, Any]]:
-        """Infer question types for question data using an LLM."""
-        from .survey_generator import SurveyGenerator
-
-        return SurveyGenerator._infer_question_types(question_data, model)
-
-    @classmethod
-    def _create_question_from_dict(
-        cls, data: Dict[str, Any], default_name: str
-    ) -> "QuestionBase":
-        """Create a question object from a dictionary."""
-        from .survey_generator import SurveyGenerator
-
-        return SurveyGenerator._create_question_from_dict(data, default_name)
 
 
 def main():

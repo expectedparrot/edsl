@@ -11,7 +11,7 @@ import re
 from typing import List, Optional, TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
-    from .survey import Survey
+    from ..survey import Survey
 
 
 def _find_common_prefix_and_items(question_texts: List[str]) -> Tuple[str, List[str]]:
@@ -159,7 +159,7 @@ def combine_multiple_choice_to_matrix(
 
     Examples:
         >>> from edsl import Survey, QuestionMultipleChoice
-        >>> from edsl.surveys.matrix_combiner import combine_multiple_choice_to_matrix
+        >>> from edsl.surveys.survey_helpers.matrix_combiner import combine_multiple_choice_to_matrix
 
         # Example 1: Explicit matrix question text
         >>> q1 = QuestionMultipleChoice("satisfaction_work", "How satisfied are you with work?", ["Very satisfied", "Somewhat satisfied", "Not satisfied"])
@@ -184,7 +184,7 @@ def combine_multiple_choice_to_matrix(
         ...     # matrix items will be ["A freelancer without AI", "A freelancer with AI"]
         ... )
     """
-    from ..questions import QuestionMultipleChoice, QuestionMatrix
+    from ...questions import QuestionMultipleChoice, QuestionMatrix
 
     # Validate that all question names exist
     question_names_in_survey = survey.question_names

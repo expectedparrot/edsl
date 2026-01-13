@@ -8,7 +8,7 @@ import re
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from .survey import Survey
+    from ..survey import Survey
 
 
 class QuestionRenamer:
@@ -23,8 +23,8 @@ class QuestionRenamer:
         Returns:
             Tuple of (new_entries, meta_updates) suitable for ReplaceEntriesAndMetaEvent
         """
-        from .exceptions import SurveyError
-        from .memory.memory import Memory
+        from ..exceptions import SurveyError
+        from ..memory.memory import Memory
 
         # Validate inputs
         if old_name not in survey.question_name_to_index:

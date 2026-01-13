@@ -10,8 +10,8 @@ from __future__ import annotations
 from typing import Any, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..questions import QuestionBase
-    from ..instructions import Instruction, ChangeInstruction
+    from ...questions import QuestionBase
+    from ...instructions import Instruction, ChangeInstruction
 
 
 class SurveyCodec:
@@ -48,8 +48,8 @@ class SurveyCodec:
         Returns:
             The reconstructed QuestionBase, Instruction, or ChangeInstruction object.
         """
-        from ..questions import QuestionBase
-        from ..instructions import Instruction, ChangeInstruction
+        from ...questions import QuestionBase
+        from ...instructions import Instruction, ChangeInstruction
 
         class_name = data.get("edsl_class_name", "QuestionBase")
 
@@ -58,7 +58,7 @@ class SurveyCodec:
         elif class_name == "ChangeInstruction":
             return ChangeInstruction.from_dict(data)
         elif class_name == "QuestionDict":
-            from ..questions import QuestionDict
+            from ...questions import QuestionDict
 
             return QuestionDict.from_dict(data)
         else:

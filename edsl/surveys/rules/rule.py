@@ -35,7 +35,7 @@ from ..exceptions import (
     SurveyRuleSkipLogicSyntaxError,
 )
 
-from ..base import EndOfSurvey
+from ..navigation_markers import EndOfSurvey
 from ...utilities import extract_variable_names, remove_edsl_version
 
 

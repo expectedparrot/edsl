@@ -16,7 +16,7 @@ from ..language_models.exceptions import (
     LanguageModelInsufficientCreditsError,
 )
 from ..questions.exceptions import QuestionAnswerValidationError
-from ..surveys.base import EndOfSurvey
+from ..surveys.navigation_markers import EndOfSurvey
 from ..tasks import TaskStatus
 from ..logger import get_logger
 from .exception_tracking import InterviewExceptionEntry

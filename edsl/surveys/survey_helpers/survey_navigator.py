@@ -8,12 +8,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
 
 if TYPE_CHECKING:
-    from ..questions import QuestionBase
-    from .survey import Survey
-    from ..instructions import Instruction
+    from ...questions import QuestionBase
+    from ..survey import Survey
+    from ...instructions import Instruction
 
-from .base import EndOfSurvey, EndOfSurveyParent
-from .exceptions import SurveyHasNoRulesError, SurveyError
+from ..navigation_markers import EndOfSurvey, EndOfSurveyParent
+from ..exceptions import SurveyHasNoRulesError, SurveyError
 
 
 class SurveyNavigator:

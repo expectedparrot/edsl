@@ -9,7 +9,7 @@ from ..exceptions import (
 )
 
 from .rule import Rule
-from ..base import EndOfSurvey
+from ..navigation_markers import EndOfSurvey
 from ..dag import DAG
 
 NextQuestion = namedtuple(
@@ -250,7 +250,7 @@ class RuleCollection(UserList):
         :return: True if survey should stop, False otherwise
 
         >>> rule_collection = RuleCollection()
-        >>> from ..base import EndOfSurvey
+        >>> from ..navigation_markers import EndOfSurvey
         >>> stop_rule = Rule(current_q=1, expression="{{ q1.answer }} != 'None'",
         ...                  next_q=EndOfSurvey, priority=0,
         ...                  question_name_to_index={'q1': 1}, before_rule=False)

@@ -7,9 +7,9 @@ The original pydot-based code has been moved to the service.
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..surveys.survey import Survey
-    from ..scenarios import Scenario
-    from ..agents import Agent
+    from ..survey import Survey
+    from ...scenarios import Scenario
+    from ...agents import Agent
 
 
 class SurveyFlowVisualization:

@@ -6,7 +6,7 @@ if TYPE_CHECKING:
 
 from ..exceptions import SurveyError, SurveyCreationError
 from .rule import Rule
-from ..base import RulePriority, EndOfSurvey
+from ..navigation_markers import RulePriority, EndOfSurvey
 
 
 class ValidatedString(str):
