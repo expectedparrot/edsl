@@ -112,16 +112,37 @@ class TaskDispatcher:
         Raises:
             ValueError: If service not found, validation fails, or no server configured
         """
-        # Get the service class
-        service_class = ServiceRegistry.get_or_raise(service)
+        # Try to get local service class
+        service_class = ServiceRegistry.get(service)
 
-        # Use the canonical service name (not alias) for task_type
-        # This ensures workers can find the handler
-        canonical_name = service_class.name
+        # Variables for remote fallback
+        result_pattern = None
+        result_field = None
+        canonical_name = service
 
-        # Validate parameters
-        if not service_class.validate_params(params):
-            raise ValueError(f"Invalid parameters for service '{service}'")
+        if service_class is not None:
+            # Use local service class
+            canonical_name = service_class.name
+
+            # Validate parameters
+            if not service_class.validate_params(params):
+                raise ValueError(f"Invalid parameters for service '{service}'")
+        else:
+            # No local service class - try remote metadata
+            from .remote_metadata import RemoteMetadataCache
+
+            remote_info = RemoteMetadataCache.get_instance().get(service)
+            if remote_info is None:
+                available = ", ".join(ServiceRegistry.list())
+                raise ValueError(
+                    f"Service '{service}' not found locally or on remote server. "
+                    f"Available locally: {available}"
+                )
+
+            canonical_name = remote_info.name
+            result_pattern = remote_info.result_pattern
+            result_field = remote_info.result_field
+            # Skip local validation - server will validate
 
         # Get server - if none configured, auto-start local server
         use_server = server or cls._default_server
@@ -155,6 +176,8 @@ class TaskDispatcher:
             params=params,
             server=use_server,
             service_class=service_class,
+            result_pattern=result_pattern,
+            result_field=result_field,
         )
 
     @classmethod

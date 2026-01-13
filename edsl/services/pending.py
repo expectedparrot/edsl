@@ -76,6 +76,8 @@ class PendingResult:
         params: Dict[str, Any],
         server: Optional[Any] = None,
         service_class: Optional[type] = None,
+        result_pattern: Optional[str] = None,
+        result_field: Optional[str] = None,
     ):
         """
         Initialize a PendingResult.
@@ -86,12 +88,16 @@ class PendingResult:
             params: Task parameters
             server: RemoteServer instance for status checks
             service_class: ExternalService class for result parsing
+            result_pattern: Pattern for generic parsing (when service_class is None)
+            result_field: Field to extract from result (when using generic parsing)
         """
         self.task_id = task_id
         self.service = service
         self.params = params
         self._server = server
         self._service_class = service_class
+        self._result_pattern = result_pattern
+        self._result_field = result_field
         self._cached_result: Optional[Any] = None
         self._cached_status: Optional[TaskStatus] = None
         self._created_at = datetime.now()
@@ -467,6 +473,16 @@ class PendingResult:
         # Use service class to parse if available
         if self._service_class is not None:
             return self._service_class.parse_result(result_dict)
+
+        # Use generic parser if result_pattern is specified
+        if self._result_pattern is not None:
+            from .result_parsers import ResultParser
+
+            return ResultParser.parse(
+                result_dict,
+                self._result_pattern,
+                self._result_field,
+            )
 
         # Return raw dict if no parser
         return result_dict

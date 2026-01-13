@@ -72,6 +72,7 @@ class LocalTaskRunner:
         from edsl.services import ServiceRegistry, KEYS
 
         worker_id = f"local-{threading.current_thread().name}"
+        first_poll = True
 
         while not self._stop_event.is_set():
             # Get list of task types to handle
@@ -80,6 +81,10 @@ class LocalTaskRunner:
             else:
                 # Handle all registered services
                 task_types = ServiceRegistry.list()
+
+            if first_poll:
+                print(f"[Worker {worker_id}] Polling for {len(task_types)} task types")
+                first_poll = False
 
             if not task_types:
                 self._stop_event.wait(timeout=0.5)
@@ -106,6 +111,9 @@ class LocalTaskRunner:
         task_id = task["task_id"]
         task_type = task["task_type"]
         params = task["params"]
+        short_id = task_id[:8]
+
+        print(f"[Worker] Claimed task {short_id} type={task_type}")
 
         try:
             # Update progress
@@ -121,6 +129,7 @@ class LocalTaskRunner:
 
             # Get API keys
             keys = KEYS.to_dict()
+            print(f"[Worker] Task {short_id}: executing {task_type}...")
 
             # Execute the service
             self.queue.update_unified_task_progress(
@@ -138,6 +147,7 @@ class LocalTaskRunner:
                 message="Completed",
                 progress=1.0,
             )
+            print(f"[Worker] Task {short_id}: completed successfully")
 
         except Exception as e:
             # Mark task as failed
@@ -147,6 +157,7 @@ class LocalTaskRunner:
                 task_id,
                 message=f"Failed: {str(e)}",
             )
+            print(f"[Worker] Task {short_id}: FAILED - {e}")
 
 
 class LocalServer:

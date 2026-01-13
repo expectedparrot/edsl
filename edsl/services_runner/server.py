@@ -23,15 +23,30 @@ Endpoints:
     GET  /api/tasks/{id}/progress - Get task progress events
     POST /api/groups          - Create a task group
     GET  /api/groups/{id}/status - Check if group is complete
+    GET  /api/services        - List all services with metadata
+    GET  /api/services/{name} - Get specific service metadata
 """
 
 from __future__ import annotations
 
 import argparse
+import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+
+# Load .env from this directory
+_server_dir = Path(__file__).parent
+_env_file = _server_dir / ".env"
+if _env_file.exists():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(_env_file)
+        print(f"[EDSL Service Runner] Loaded .env from {_env_file}")
+    except ImportError:
+        print("[EDSL Service Runner] Warning: python-dotenv not installed, .env not loaded")
 
 from .local import LocalServer
 
@@ -301,6 +316,98 @@ async def get_group_status(group_id: str):
 
 
 # ============================================================================
+# Service metadata endpoints
+# ============================================================================
+
+
+class ServiceMetadataResponse(BaseModel):
+    """Metadata for a single service."""
+
+    name: str
+    description: str
+    version: str
+    aliases: List[str]
+    result_pattern: str
+    result_field: Optional[str] = None
+    required_keys: List[str]
+    operations: List[str]
+    extends: List[str]
+
+
+class ServicesResponse(BaseModel):
+    """Response containing all available services."""
+
+    services: Dict[str, ServiceMetadataResponse]
+
+
+@app.get("/api/services", response_model=ServicesResponse)
+async def list_services():
+    """
+    List all available services with their metadata.
+
+    This endpoint allows clients to discover services and their
+    result parsing patterns without having edsl-services installed.
+    """
+    from edsl.services import ServiceRegistry
+    from edsl.services import _ensure_builtin_services
+
+    # Ensure services are loaded (triggers entry point discovery)
+    _ensure_builtin_services()
+
+    services = {}
+    for name in ServiceRegistry.list():
+        meta = ServiceRegistry.get_metadata(name)
+        service_class = ServiceRegistry.get(name)
+
+        if meta and service_class:
+            services[name] = ServiceMetadataResponse(
+                name=name,
+                description=getattr(service_class, "description", ""),
+                version=getattr(service_class, "version", "1.0.0"),
+                aliases=meta.aliases,
+                result_pattern=meta.result_pattern,
+                result_field=meta.result_field,
+                required_keys=service_class.get_required_keys(),
+                operations=list(meta.operations.keys()),
+                extends=meta.extends,
+            )
+
+    return ServicesResponse(services=services)
+
+
+@app.get("/api/services/{service_name}", response_model=ServiceMetadataResponse)
+async def get_service(service_name: str):
+    """
+    Get metadata for a specific service.
+
+    Args:
+        service_name: Service name or alias
+    """
+    from edsl.services import ServiceRegistry
+    from edsl.services import _ensure_builtin_services
+
+    _ensure_builtin_services()
+
+    meta = ServiceRegistry.get_metadata(service_name)
+    service_class = ServiceRegistry.get(service_name)
+
+    if not meta or not service_class:
+        raise HTTPException(status_code=404, detail=f"Service {service_name} not found")
+
+    return ServiceMetadataResponse(
+        name=meta.name,
+        description=getattr(service_class, "description", ""),
+        version=getattr(service_class, "version", "1.0.0"),
+        aliases=meta.aliases,
+        result_pattern=meta.result_pattern,
+        result_field=meta.result_field,
+        required_keys=service_class.get_required_keys(),
+        operations=list(meta.operations.keys()),
+        extends=meta.extends,
+    )
+
+
+# ============================================================================
 # Startup/shutdown events
 # ============================================================================
 
@@ -308,6 +415,19 @@ async def get_group_status(group_id: str):
 @app.on_event("startup")
 async def startup_event():
     """Initialize the server on startup."""
+    # Ensure services are loaded BEFORE starting workers
+    # This triggers entry point discovery so workers can find task types
+    from edsl.services import _ensure_builtin_services, ServiceRegistry, KEYS
+
+    _ensure_builtin_services()
+    service_count = len(ServiceRegistry.list())
+    print(f"[EDSL Service Runner] Loaded {service_count} services")
+
+    # Log available keys (for debugging)
+    available_keys = KEYS.to_dict()
+    key_names = list(available_keys.keys())
+    print(f"[EDSL Service Runner] Available API keys: {key_names}")
+
     # Pre-create the server to ensure workers are running
     get_server()
     print("[EDSL Service Runner] Server started with workers")

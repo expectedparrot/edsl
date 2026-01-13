@@ -55,6 +55,10 @@ class ServiceMetadata:
     operations: Dict[str, OperationSchema] = field(
         default_factory=dict
     )  # Operation schemas
+    # Pattern for parsing results on client side without edsl-services
+    result_pattern: str = "dict_passthrough"
+    # Optional field to extract from result (e.g., "rows", "data")
+    result_field: Optional[str] = None
 
 
 class ServiceRegistry:
@@ -86,6 +90,8 @@ class ServiceRegistry:
         extends: Optional[List[str]] = None,
         versioned: bool = False,
         operations: Optional[Dict[str, Dict[str, Any]]] = None,
+        result_pattern: str = "dict_passthrough",
+        result_field: Optional[str] = None,
     ) -> Union[
         Type["ExternalService"],
         Callable[[Type["ExternalService"]], Type["ExternalService"]],
@@ -136,6 +142,11 @@ class ServiceRegistry:
                                "search": {"input_param": "query", "defaults": {"mode": "search"}},
                                "tables": {"input_param": "url", "defaults": {"mode": "tables"}},
                            }
+            result_pattern: Pattern for parsing results on client side without
+                           edsl-services installed. Options: "scenario_list",
+                           "filestore_base64", "dict_passthrough", "string_field",
+                           "results_from_dict". Default: "dict_passthrough"
+            result_field: Optional field to extract from result dict (e.g., "rows")
 
         Returns:
             The service class (for decorator chaining)
@@ -169,6 +180,8 @@ class ServiceRegistry:
                 extends=extends or [],
                 versioned=versioned,
                 operations=parsed_operations,
+                result_pattern=result_pattern,
+                result_field=result_field,
             )
 
             # Register the service and metadata
