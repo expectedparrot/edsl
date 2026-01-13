@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .agent_list import AgentList
+    from ..agent_list import AgentList
 
 
 class AgentListCodeGenerator:
@@ -30,7 +30,7 @@ class AgentListCodeGenerator:
 
         Examples:
             >>> from edsl import AgentList
-            >>> from edsl.agents.agent_list_code_generator import AgentListCodeGenerator
+            >>> from edsl.agents.agent_list_helpers.agent_list_code_generator import AgentListCodeGenerator
             >>> al = AgentList.example()
             >>> code_lines = AgentListCodeGenerator.generate_code(al, string=False)
             >>> len(code_lines)

@@ -14,10 +14,10 @@ import inspect
 import warnings
 from typing import Optional, TYPE_CHECKING
 
-from ..utilities import create_restricted_function
+from edsl.utilities import create_restricted_function
 
 if TYPE_CHECKING:
-    from .agent import Agent, DirectAnswerMethod
+    from ..agent import Agent, DirectAnswerMethod
 
 
 class AgentDirectAnswering:
@@ -123,7 +123,7 @@ class AgentDirectAnswering:
             ...     print(f"Error: {type(e).__name__}")
             Error: AgentDirectAnswerFunctionError
         """
-        from .exceptions import AgentDirectAnswerFunctionError
+        from ..exceptions import AgentDirectAnswerFunctionError
 
         if self.has_method():
             warnings.warn(

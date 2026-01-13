@@ -1,7 +1,7 @@
 """This module contains the descriptors used to set the attributes of the Agent class."""
 
 from typing import Dict, Optional, Union
-from .exceptions import AgentNameError, AgentTraitKeyError
+from ..exceptions import AgentNameError, AgentTraitKeyError
 
 
 def convert_agent_name(x):
@@ -43,7 +43,7 @@ class TraitsDescriptor:
 
     def __set__(self, instance, traits_dict: Dict[str, str]) -> None:
         """Set the value of the attribute."""
-        from ..utilities.utilities import is_valid_variable_name
+        from edsl.utilities.utilities import is_valid_variable_name
 
         for key, value in traits_dict.items():
             if key == "name":
@@ -76,7 +76,7 @@ class Codebook(dict):
         super().__setitem__(key, value)
 
     def _repr_html_(self):
-        from ..scenarios import ScenarioList, Scenario
+        from edsl.scenarios import ScenarioList, Scenario
 
         sl = ScenarioList()
         for key, value in self.items():

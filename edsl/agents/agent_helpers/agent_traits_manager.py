@@ -10,12 +10,12 @@ import inspect
 from typing import Union, Optional, Any, Callable, TYPE_CHECKING
 from contextlib import contextmanager
 
-from ..utilities import sanitize_jinja_syntax, create_restricted_function
-from .exceptions import AgentErrors, AgentDynamicTraitsFunctionError
+from edsl.utilities import sanitize_jinja_syntax, create_restricted_function
+from ..exceptions import AgentErrors, AgentDynamicTraitsFunctionError
 
 if TYPE_CHECKING:
-    from .agent import Agent
-    from ..utilities.similarity_rank import RankableItems
+    from ..agent import Agent
+    from edsl.utilities.similarity_rank import RankableItems
 
 
 class AgentTraitsManager:
@@ -480,7 +480,7 @@ class AgentTraitsManager:
             >>> results2[0]["score"] == 1.0
             True
         """
-        from ..scenarios import ScenarioList, Scenario
+        from edsl.scenarios import ScenarioList, Scenario
 
         # Create list of trait information for searching
         trait_info = []

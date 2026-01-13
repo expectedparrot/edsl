@@ -5,7 +5,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .agent_list import AgentList
+    from ..agent_list import AgentList
 
 
 class AgentListJoiner:
@@ -33,7 +33,7 @@ class AgentListJoiner:
             AssertionError: If agents don't have names
             ValueError: If join_type is invalid
         """
-        from .agent_list import AgentList
+        from ..agent_list import AgentList
 
         assert all(
             [agent.name is not None for agent in left.data]
@@ -93,7 +93,7 @@ class AgentListJoiner:
 
         Examples:
             >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_joiner import AgentListJoiner
+            >>> from edsl.agents.agent_list_helpers.agent_list_joiner import AgentListJoiner
             >>> al1 = AgentList([Agent(name="John", traits={"age": 30})])
             >>> al2 = AgentList([Agent(name="John", traits={"height": 180})])
             >>> joined = AgentListJoiner.join_two(al1, al2)
@@ -120,7 +120,7 @@ class AgentListJoiner:
 
         Examples:
             >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_joiner import AgentListJoiner
+            >>> from edsl.agents.agent_list_helpers.agent_list_joiner import AgentListJoiner
             >>> al1 = AgentList([Agent(name="John", traits={"age": 30})])
             >>> al2 = AgentList([Agent(name="John", traits={"height": 180})])
             >>> al3 = AgentList([Agent(name="John", traits={"weight": 75})])

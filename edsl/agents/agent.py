@@ -54,12 +54,12 @@ from typing import (
     List,
 )
 
-from ..base import Base
+from edsl.base import Base
 
-# from ..scenarios import Scenario
-from ..data_transfer_models import AgentResponseDict
+# from edsl.scenarios import Scenario
+from edsl.data_transfer_models import AgentResponseDict
 
-from ..utilities import (
+from edsl.utilities import (
     sync_wrapper,
     dict_hash,
     remove_edsl_version,
@@ -69,7 +69,7 @@ from .exceptions import (
     AgentErrors,
 )
 
-from .descriptors import (
+from .agent_helpers.descriptors import (
     TraitsDescriptor,
     CodebookDescriptor,
     InstructionDescriptor,
@@ -78,20 +78,20 @@ from .descriptors import (
 
 
 if TYPE_CHECKING:
-    from ..caching import Cache
-    from ..surveys import Survey
-    from ..scenarios import Scenario
-    from ..language_models import LanguageModel
-    from ..surveys.memory import MemoryPlan
-    from ..questions import QuestionBase
-    from ..invigilators import InvigilatorBase
-    from ..prompts import Prompt
-    from ..key_management import KeyLookup
-    from .agent_delta import AgentDelta
-    from ..jobs import Jobs
-    from ..dataset import Dataset
-    from ..results import Result
-    from ..utilities.similarity_rank import RankableItems  # type: ignore[import-untyped]
+    from edsl.caching import Cache
+    from edsl.surveys import Survey
+    from edsl.scenarios import Scenario
+    from edsl.language_models import LanguageModel
+    from edsl.surveys.memory import MemoryPlan
+    from edsl.questions import QuestionBase
+    from edsl.invigilators import InvigilatorBase
+    from edsl.prompts import Prompt
+    from edsl.key_management import KeyLookup
+    from .agent_helpers.agent_delta import AgentDelta
+    from edsl.jobs import Jobs
+    from edsl.dataset import Dataset
+    from edsl.results import Result
+    from edsl.utilities.similarity_rank import RankableItems  # type: ignore[import-untyped]
 
 # Type alias for trait categories
 OrganizedTraits = dict[str, list[str]]
@@ -254,11 +254,11 @@ class Agent(Base):
         self.current_question = None
 
         # Initialize managers early
-        from .agent_direct_answering import AgentDirectAnswering
-        from .agent_traits_manager import AgentTraitsManager
-        from .agent_prompt import AgentPrompt
-        from .agent_instructions import AgentInstructions
-        from .agent_table import AgentTable
+        from .agent_helpers.agent_direct_answering import AgentDirectAnswering
+        from .agent_helpers.agent_traits_manager import AgentTraitsManager
+        from .agent_helpers.agent_prompt import AgentPrompt
+        from .agent_helpers.agent_instructions import AgentInstructions
+        from .agent_helpers.agent_table import AgentTable
 
         self.direct_answering = AgentDirectAnswering(self)
         # Lazy initialize invigilator to avoid importing language_models during Survey import
@@ -358,7 +358,7 @@ class Agent(Base):
     def invigilator(self):
         """Lazily initialize the invigilator to avoid importing language_models during Survey import"""
         if self._invigilator is None:
-            from .agent_invigilator import AgentInvigilator
+            from .agent_helpers.agent_invigilator import AgentInvigilator
 
             self._invigilator = AgentInvigilator(self)
         return self._invigilator
@@ -435,7 +435,7 @@ class Agent(Base):
             ...
             edsl.agents.exceptions.AgentErrors: ...
         """
-        from .agent_operations import AgentOperations
+        from .agent_helpers.agent_operations import AgentOperations
 
         return AgentOperations.drop(self, *field_names)
 
@@ -487,7 +487,7 @@ class Agent(Base):
             ...
             edsl.agents.exceptions.AgentErrors: ...
         """
-        from .agent_operations import AgentOperations
+        from .agent_helpers.agent_operations import AgentOperations
 
         return AgentOperations.keep(self, *field_names)
 
@@ -757,7 +757,7 @@ class Agent(Base):
             >>> newa.rename({'years': 'smage'}) == Agent(traits = {'smage': 10, 'hair': 'brown', 'height': 5.5})
             True
         """
-        from .agent_operations import AgentOperations
+        from .agent_helpers.agent_operations import AgentOperations
 
         return AgentOperations.rename(self, old_name_or_dict, new_name)
 
@@ -1008,7 +1008,7 @@ class Agent(Base):
             >>> a.select("height")
             Agent(traits = {'height': 5.5})
         """
-        from .agent_operations import AgentOperations
+        from .agent_helpers.agent_operations import AgentOperations
 
         return AgentOperations.select(self, *traits)
 
@@ -1044,7 +1044,7 @@ class Agent(Base):
         Agent
             A new agent containing the merged traits / codebooks.
         """
-        from .agent_combination import AgentCombination
+        from .agent_helpers.agent_combination import AgentCombination
 
         return AgentCombination.add(
             self, other_agent, conflict_strategy=conflict_strategy
@@ -1052,7 +1052,7 @@ class Agent(Base):
 
     def __add__(self, other_agent: Optional["Agent"] = None) -> "Agent":
         """Syntactic sugar – delegates to :pymeth:`add`."""
-        from .agent_combination import AgentCombination
+        from .agent_helpers.agent_combination import AgentCombination
 
         return AgentCombination.add_with_plus_operator(self, other_agent)
 
@@ -1350,7 +1350,7 @@ class Agent(Base):
             >>> 'traits' in data
             True
         """
-        from .agent_serialization import AgentSerialization
+        from .agent_helpers.agent_serialization import AgentSerialization
 
         return AgentSerialization.data(self)
 
@@ -1401,7 +1401,7 @@ class Agent(Base):
             >>> d['edsl_class_name']
             'Agent'
         """
-        from .agent_serialization import AgentSerialization
+        from .agent_helpers.agent_serialization import AgentSerialization
 
         return AgentSerialization.to_dict(self, add_edsl_version, full_dict)
 
@@ -1420,7 +1420,7 @@ class Agent(Base):
             >>> Agent.from_dict({'name': "Steve", 'traits': {'age': 10, 'hair': 'brown', 'height': 5.5}})
             Agent(name = \"""Steve\""", traits = {'age': 10, 'hair': 'brown', 'height': 5.5})
         """
-        from .agent_serialization import AgentSerialization
+        from .agent_helpers.agent_serialization import AgentSerialization
 
         return AgentSerialization.from_dict(agent_dict)
 
@@ -1667,7 +1667,7 @@ class Agent(Base):
             >>> # result = Result(...)
             >>> # agent = Agent.from_result(result)
         """
-        from .agent_from_result import AgentFromResult
+        from .agent_helpers.agent_from_result import AgentFromResult
 
         return AgentFromResult.from_result(result, name)
 
@@ -1681,8 +1681,8 @@ def main() -> None:
     Example:
         >>> main()  # doctest: +SKIP
     """
-    from ..agents import Agent
-    from ..questions import QuestionMultipleChoice
+    from edsl.agents import Agent
+    from edsl.questions import QuestionMultipleChoice
 
     # a simple agent
     agent = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})

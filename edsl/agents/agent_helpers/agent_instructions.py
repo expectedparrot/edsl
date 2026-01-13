@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .agent import Agent
+    from ..agent import Agent
 
 
 class AgentInstructions:

@@ -8,8 +8,8 @@ from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .agent import Agent
-    from ..prompts import Prompt
+    from ..agent import Agent
+    from edsl.prompts import Prompt
 
 
 class AgentPrompt:
@@ -44,7 +44,7 @@ class AgentPrompt:
             >>> isinstance(persona.text, str)
             True
         """
-        from ..prompts import Prompt
+        from edsl.prompts import Prompt
 
         return Prompt(text=self.agent.traits_presentation_template)
 
@@ -101,7 +101,7 @@ class AgentPrompt:
             >>> "Profile: 45 year old with brown hair" in prompt.text
             True
         """
-        from ..questions import QuestionScenarioRenderError
+        from edsl.questions import QuestionScenarioRenderError
 
         # If using the default template and the codebook has been updated since initialization,
         # recreate the template to use the current codebook

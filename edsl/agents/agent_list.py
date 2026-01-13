@@ -16,24 +16,24 @@ from collections import defaultdict
 from collections.abc import MutableSequence
 from itertools import product
 
-from ..base.decorators import polly_command
+from edsl.base.decorators import polly_command
 
 from typing import Any, Callable, List, Optional, Union, TYPE_CHECKING
 
 # simpleeval imports moved to agent_list_filter.py
 
-from ..base import Base
-from ..utilities import is_notebook, remove_edsl_version, dict_hash, list_split
-from ..dataset.dataset_operations_mixin import AgentListOperationsMixin
-from ..config import RICH_STYLES
+from edsl.base import Base
+from edsl.utilities import is_notebook, remove_edsl_version, dict_hash, list_split
+from edsl.dataset.dataset_operations_mixin import AgentListOperationsMixin
+from edsl.config import RICH_STYLES
 
 from .agent import Agent
 
 from .exceptions import AgentListError
 
 # Import event-sourcing infrastructure
-from ..versioning import GitMixin, event
-from ..store import (
+from edsl.versioning import GitMixin, event
+from edsl.store import (
     Store,
     Event,
     # Row/Entry Events
@@ -66,13 +66,13 @@ from ..store import (
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from ..agents import Agent
-    from ..jobs import Jobs
-    from ..questions import QuestionBase as Question
-    from ..surveys import Survey
-    from ..scenarios import ScenarioList
-    from ..results import Results
-    from .agent_list_deltas import AgentListDeltas
+    from edsl.agents import Agent
+    from edsl.jobs import Jobs
+    from edsl.questions import QuestionBase as Question
+    from edsl.surveys import Survey
+    from edsl.scenarios import ScenarioList
+    from edsl.results import Results
+    from .agent_list_helpers.agent_list_deltas import AgentListDeltas
 
 
 # is_iterable function moved to agent_list_trait_operations.py
@@ -760,12 +760,12 @@ class AgentList(
 
     @classmethod
     def manage(cls):
-        from ..widgets.agent_list_manager import AgentListManagerWidget
+        from edsl.widgets.agent_list_manager import AgentListManagerWidget
 
         return AgentListManagerWidget()
 
     def edit(self):
-        from ..widgets.agent_list_builder import AgentListBuilderWidget
+        from edsl.widgets.agent_list_builder import AgentListBuilderWidget
 
         return AgentListBuilderWidget(self)
 
@@ -1233,7 +1233,7 @@ class AgentList(
             other: The other AgentList to join
             join_type: The type of join to perform
         """
-        from .agent_list_joiner import AgentListJoiner
+        from .agent_list_helpers.agent_list_joiner import AgentListJoiner
 
         return AgentListJoiner._join_two(self, other, join_type=join_type)
 
@@ -1255,7 +1255,7 @@ class AgentList(
             >>> joined[0].traits
             {'age': 30, 'height': 180}
         """
-        from .agent_list_joiner import AgentListJoiner
+        from .agent_list_helpers.agent_list_joiner import AgentListJoiner
 
         return AgentListJoiner.join_two(self, other, join_type=join_type)
 
@@ -1286,7 +1286,7 @@ class AgentList(
             >>> joined[0].traits
             {'age': 30, 'height': 180, 'weight': 75}
         """
-        from .agent_list_joiner import AgentListJoiner
+        from .agent_list_helpers.agent_list_joiner import AgentListJoiner
 
         return AgentListJoiner.join_multiple(*agent_lists, join_type=join_type)
 
@@ -1415,7 +1415,7 @@ class AgentList(
         >>> al.all_traits
         ['age', 'hair']
         """
-        from .agent_list_trait_operations import AgentListTraitOperations
+        from .agent_list_helpers.agent_list_trait_operations import AgentListTraitOperations
 
         return AgentListTraitOperations.get_all_traits(self)
 
@@ -1479,7 +1479,7 @@ class AgentList(
             >>> #     instructions="You are this person"
             >>> # )
         """
-        from .agent_list_builder import AgentListBuilder
+        from .agent_list_helpers.agent_list_builder import AgentListBuilder
 
         return AgentListBuilder.from_source(
             source_type_or_data,
@@ -1520,7 +1520,7 @@ class AgentList(
         :param codebook: Optional dictionary mapping trait names to descriptions.
         :param instructions: Optional instructions to apply to all created agents.
         """
-        from .agent_list_factories import AgentListFactories
+        from .agent_list_helpers.agent_list_factories import AgentListFactories
 
         return AgentListFactories.from_csv(
             file_path,
@@ -1784,7 +1784,7 @@ class AgentList(
         Returns:
             AgentList: A new AgentList created from the Results
         """
-        from .agent_list_factories import AgentListFactories
+        from .agent_list_helpers.agent_list_factories import AgentListFactories
 
         return AgentListFactories.from_results(results, question_names)
 
@@ -1805,7 +1805,7 @@ class AgentList(
             FileNotFoundError: If the specified file path does not exist.
             csv.Error: If there is an error reading the CSV file.
         """
-        from .agent_list_factories import AgentListFactories
+        from .agent_list_helpers.agent_list_factories import AgentListFactories
 
         return AgentListFactories.get_codebook(file_path)
 
@@ -1819,9 +1819,9 @@ class AgentList(
         return dict_hash(self.to_dict(add_edsl_version=False, sorted=True))
 
     def to(self, target: Union["Question", "Jobs", "Survey"]) -> "Jobs":
-        from ..questions import QuestionBase
-        from ..surveys import Survey
-        from ..jobs import Jobs
+        from edsl.questions import QuestionBase
+        from edsl.surveys import Survey
+        from edsl.jobs import Jobs
 
         if isinstance(target, QuestionBase):
             return Survey([target]).by(self)
@@ -1855,7 +1855,7 @@ class AgentList(
         >>> result['instruction'] == example_instruction
         True
         """
-        from .agent_list_serializer import AgentListSerializer
+        from .agent_list_helpers.agent_list_serializer import AgentListSerializer
 
         return AgentListSerializer.to_dict(
             self, sorted=sorted, add_edsl_version=add_edsl_version, full_dict=full_dict
@@ -2108,7 +2108,7 @@ class AgentList(
             >>> al.to_dataset(traits_only=False)  # doctest: +NORMALIZE_WHITESPACE
             Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}, {'agent_parameters': [{'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None, 'traits_presentation_template': 'Your traits: {{traits}}'}, {'instruction': 'You are answering questions as if you were a human. Do not break character.', 'agent_name': None, 'traits_presentation_template': 'Your traits: {{traits}}'}]}])
         """
-        from ..dataset import Dataset
+        from edsl.dataset import Dataset
 
         agent_trait_keys = []
         for agent in self:
@@ -2154,7 +2154,7 @@ class AgentList(
         >>> al2.instruction == example_instruction
         True
         """
-        from .agent_list_factories import AgentListFactories
+        from .agent_list_helpers.agent_list_factories import AgentListFactories
 
         return AgentListFactories.from_dict(data)
 
@@ -2177,7 +2177,7 @@ class AgentList(
         >>> al[0].codebook
         {'age': 'Age in years'}
         """
-        from .agent_list_factories import AgentListFactories
+        from .agent_list_helpers.agent_list_factories import AgentListFactories
 
         return AgentListFactories.example(randomize=randomize, codebook=codebook)
 
@@ -2203,7 +2203,7 @@ class AgentList(
         >>> al[0].codebook
         {'age': 'Age in years'}
         """
-        from .agent_list_factories import AgentListFactories
+        from .agent_list_helpers.agent_list_factories import AgentListFactories
 
         return AgentListFactories.from_list(trait_name, values, codebook=codebook)
 
@@ -2253,7 +2253,7 @@ class AgentList(
         >>> 'AgentList' in code
         True
         """
-        from .agent_list_code_generator import AgentListCodeGenerator
+        from .agent_list_helpers.agent_list_code_generator import AgentListCodeGenerator
 
         return AgentListCodeGenerator.generate_code(self, string=string)
 
@@ -2277,7 +2277,7 @@ class AgentList(
             >>> al[0].traits['age']
             22
         """
-        from .agent_list_factories import AgentListFactories
+        from .agent_list_helpers.agent_list_factories import AgentListFactories
 
         return AgentListFactories.from_scenario_list(scenario_list)
 

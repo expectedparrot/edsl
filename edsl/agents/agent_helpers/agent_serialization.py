@@ -12,7 +12,7 @@ from typing import Union, TYPE_CHECKING
 from edsl.utilities import remove_edsl_version
 
 if TYPE_CHECKING:
-    from .agent import Agent
+    from ..agent import Agent
 
 
 class AgentSerialization:
@@ -88,26 +88,23 @@ class AgentSerialization:
             {'age': 10, 'hair': 'brown', 'height': 5.5}
         """
         # Import locally to avoid circular imports
-        from edsl.agents.agent import Agent
+        from ..agent import Agent
 
         if "traits" in agent_dict:
             if "trait_categories" in agent_dict:
                 trait_categories = agent_dict.pop("trait_categories", {})
             else:
                 trait_categories = {}
-            agent = Agent(
+            return Agent(
                 traits=agent_dict["traits"],
                 name=agent_dict.get("name", None),
                 instruction=agent_dict.get("instruction", None),
+                traits_presentation_template=agent_dict.get(
+                    "traits_presentation_template", None
+                ),
                 codebook=agent_dict.get("codebook", None),
                 trait_categories=trait_categories,
             )
-            # Set traits_presentation_template directly (not via constructor)
-            template = agent_dict.get("traits_presentation_template", None)
-            if template is not None:
-                agent._traits_presentation_template = template
-                agent.set_traits_presentation_template = True
-            return agent
         else:  # old-style agent - we used to only store the traits
             return Agent(**agent_dict)
 
@@ -167,17 +164,18 @@ class AgentSerialization:
             )  # in case answer_question_directly will appear with _ in agent.__dict__
             answer_question_directly_func = agent.answer_question_directly
 
-            if (
-                answer_question_directly_func
-                and raw_data.get("answer_question_directly_source_code", None)
-                is not None
-            ):
-                raw_data["answer_question_directly_source_code"] = inspect.getsource(
-                    answer_question_directly_func
-                )
-                raw_data["answer_question_directly_function_name"] = (
-                    agent.answer_question_directly_function_name
-                )
+            if answer_question_directly_func:
+                try:
+                    raw_data["answer_question_directly_source_code"] = (
+                        inspect.getsource(answer_question_directly_func)
+                    )
+                    raw_data["answer_question_directly_function_name"] = (
+                        agent.answer_question_directly_function_name
+                    )
+                except (OSError, TypeError):
+                    # Can't get source for closures, lambdas, or dynamically defined functions
+                    # The method won't survive serialization
+                    pass
         raw_data["traits"] = dict(raw_data["traits"])
 
         if hasattr(agent, "trait_categories"):

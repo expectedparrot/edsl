@@ -9,8 +9,8 @@ from __future__ import annotations
 from typing import Optional, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .agent import Agent
-    from ..results import Result
+    from ..agent import Agent
+    from edsl.results import Result
 
 
 class AgentFromResult:
@@ -57,7 +57,7 @@ class AgentFromResult:
         Examples:
             Create an agent from a result (basic example):
 
-            >>> from edsl.agents.agent_from_result import AgentFromResult
+            >>> from edsl.agents import AgentFromResult
             >>> # Assuming we have a result object
             >>> # result = some_result_object
             >>> # agent = AgentFromResult.from_result(result, name="Interview Subject")
@@ -76,7 +76,7 @@ class AgentFromResult:
         """
         # Import locally to avoid an import cycle when the agents module is
         # imported from results and vice-versa.
-        from ..results import result as _result_module  # local import by design
+        from edsl.results import result as _result_module  # local import by design
 
         if not isinstance(result, _result_module.Result):
             raise TypeError("from_result expects an edsl.results.Result object")
@@ -94,7 +94,7 @@ class AgentFromResult:
         agent_name = AgentFromResult._determine_name(result, name)
 
         # Create the agent
-        from .agent import Agent
+        from ..agent import Agent
 
         return Agent(
             traits=traits,
@@ -141,7 +141,7 @@ class AgentFromResult:
         question_attrs = getattr(result, "question_to_attributes", None)
 
         if question_attrs:
-            from ..prompts import Prompt
+            from edsl.prompts import Prompt
 
             for qname, attrs in question_attrs.items():
                 qtext_template = attrs.get("question_text", qname)

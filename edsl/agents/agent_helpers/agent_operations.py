@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Union, List, Optional, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .agent import Agent
+    from ..agent import Agent
 
 
 class AgentOperations:
@@ -58,7 +58,7 @@ class AgentOperations:
             >>> a_dropped.name is None
             True
         """
-        from .exceptions import AgentErrors
+        from ..exceptions import AgentErrors
 
         # Handle different input formats
         if len(field_names) == 1 and isinstance(field_names[0], list):
@@ -119,7 +119,7 @@ class AgentOperations:
             if not d["trait_categories"]:
                 d.pop("trait_categories", None)
 
-        from .agent import Agent
+        from ..agent import Agent
 
         return Agent.from_dict(d)
 
@@ -164,7 +164,7 @@ class AgentOperations:
             >>> a_kept.traits
             {'age': 30}
         """
-        from .exceptions import AgentErrors
+        from ..exceptions import AgentErrors
 
         # Handle different input formats
         if len(field_names) == 1 and isinstance(field_names[0], list):
@@ -229,7 +229,7 @@ class AgentOperations:
         if "edsl_class_name" in d:
             new_d["edsl_class_name"] = d["edsl_class_name"]
 
-        from .agent import Agent
+        from ..agent import Agent
 
         return Agent.from_dict(new_d)
 
@@ -267,7 +267,7 @@ class AgentOperations:
             >>> newa.traits
             {'years': 10, 'hair': 'brown', 'tall': 5.5}
         """
-        from .exceptions import AgentErrors
+        from ..exceptions import AgentErrors
 
         agent.traits_manager.check_before_modifying_traits()
 
@@ -300,7 +300,7 @@ class AgentOperations:
         Raises:
             AgentErrors: If any specified trait names don't exist
         """
-        from .exceptions import AgentErrors
+        from ..exceptions import AgentErrors
 
         try:
             assert all(k in agent.traits for k in renaming_dict.keys())
@@ -343,7 +343,7 @@ class AgentOperations:
         Raises:
             AgentErrors: If the specified trait name doesn't exist
         """
-        from .exceptions import AgentErrors
+        from ..exceptions import AgentErrors
 
         try:
             assert old_name in agent.traits
@@ -417,7 +417,7 @@ class AgentOperations:
 
         if not existing_traits:
             # If no valid traits specified, return agent with empty traits but preserve structure
-            from .agent import Agent
+            from ..agent import Agent
 
             return Agent(
                 traits={},
@@ -518,7 +518,7 @@ class AgentOperations:
             >>> "weight" in a_with_traits.traits and "eye_color" in a_with_traits.traits
             True
         """
-        from .exceptions import AgentErrors
+        from ..exceptions import AgentErrors
 
         if isinstance(trait_name_or_dict, dict) and value is None:
             newagent = agent.duplicate()

@@ -9,7 +9,7 @@ import copy
 from typing import Optional, TypeVar, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .agent import Agent
+    from ..agent import Agent
 
 # Type variable for the Agent class
 A = TypeVar("A", bound="Agent")
@@ -72,7 +72,7 @@ class AgentCombination:
             >>> combined.traits['age']
             [30, 25]
         """
-        from .exceptions import AgentCombinationError
+        from ..exceptions import AgentCombinationError
 
         if other_agent is None:
             return first_agent

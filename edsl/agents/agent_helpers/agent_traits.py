@@ -10,7 +10,7 @@ from typing import Any, TYPE_CHECKING
 from collections.abc import MutableMapping
 
 if TYPE_CHECKING:
-    from .agent import Agent
+    from ..agent import Agent
 
 
 class AgentTraits(MutableMapping):
@@ -55,7 +55,7 @@ class AgentTraits(MutableMapping):
             data: Dictionary of traits data
             parent: The parent Agent instance
         """
-        from ..scenarios import Scenario
+        from edsl.scenarios import Scenario
 
         self._store = Scenario(data)
         self._parent = parent

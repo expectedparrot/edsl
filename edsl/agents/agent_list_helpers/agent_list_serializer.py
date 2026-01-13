@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from .agent_list import AgentList
+    from ..agent_list import AgentList
 
 
 class AgentListSerializer:
@@ -36,7 +36,7 @@ class AgentListSerializer:
 
         Examples:
             >>> from edsl import AgentList
-            >>> from edsl.agents.agent_list_serializer import AgentListSerializer
+            >>> from edsl.agents.agent_list_helpers.agent_list_serializer import AgentListSerializer
             >>> al = AgentList.example()
             >>> result = AgentListSerializer.to_dict(al, add_edsl_version=False)
             >>> 'agent_list' in result
@@ -92,15 +92,15 @@ class AgentListSerializer:
 
         Examples:
             >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_serializer import AgentListSerializer
+            >>> from edsl.agents.agent_list_helpers.agent_list_serializer import AgentListSerializer
             >>> al = AgentList([Agent.example(), Agent.example()])
             >>> serialized = AgentListSerializer.to_dict(al)
             >>> al2 = AgentListSerializer.from_dict(serialized)
             >>> len(al2)
             2
         """
-        from .agent import Agent
-        from .agent_list import AgentList
+        from ..agent import Agent
+        from ..agent_list import AgentList
 
         agent_data = data.get("agent_list", None)
         if agent_data is None:

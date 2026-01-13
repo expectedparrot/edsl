@@ -2,13 +2,13 @@ import textwrap
 from collections import defaultdict
 from typing import List, Optional, TYPE_CHECKING
 
-from ..base import ItemCollection
-from .agent_list import AgentList
+from edsl.base import ItemCollection
+from ..agent_list import AgentList
 
 if TYPE_CHECKING:
-    from ..language_models import LanguageModel
-    from ..surveys import Survey
-    from ..results import Results
+    from edsl.language_models import LanguageModel
+    from edsl.surveys import Survey
+    from edsl.results import Results
 
 
 class PersonaGenerator:
@@ -70,7 +70,7 @@ class PersonaGenerator:
         collection_name = self._get_collection_name(source_collection)
 
         # Generate persona responses from all agents
-        from ..questions import QuestionFreeText
+        from edsl.questions import QuestionFreeText
 
         q = QuestionFreeText(
             question_text=self.agent_generation_prompt, question_name="persona"
@@ -178,8 +178,8 @@ class AgentListCollection(ItemCollection):
             ResultsList: A list of Results objects, one for each agent list in the collection.
                         Each Results object contains the survey responses from agents in that list.
         """
-        from ..language_models import Model
-        from ..results import Results, ResultsList
+        from edsl.language_models import Model
+        from edsl.results import Results, ResultsList
 
         if model is None:
             model = Model()

@@ -9,11 +9,11 @@ responses and can be used to systematically update agent personas.
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from ..base import Base
-from ..utilities import dict_hash, remove_edsl_version
+from edsl.base import Base
+from edsl.utilities import dict_hash, remove_edsl_version
 
 if TYPE_CHECKING:
-    from .agent import Agent
+    from ..agent import Agent
 
 
 class AgentDelta(Base):
@@ -108,7 +108,7 @@ class AgentDelta(Base):
             ...
             edsl.agents.exceptions.AgentErrors: ...
         """
-        from .exceptions import AgentErrors
+        from ..exceptions import AgentErrors
 
         # Check that all traits in the delta exist in the agent
         missing_traits = set(self.traits.keys()) - set(agent.traits.keys())

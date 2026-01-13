@@ -18,7 +18,7 @@ import warnings
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .agent_list import AgentList
+    from ..agent_list import AgentList
 
 
 class AgentListBuilder:
@@ -91,9 +91,9 @@ class AgentListBuilder:
             ...     instructions="You are this person"
             ... )
         """
-        from ..scenarios import ScenarioList
-        from .agent_list import AgentList
-        from .agent import Agent
+        from edsl.scenarios import ScenarioList
+        from ..agent_list import AgentList
+        from ..agent import Agent
 
         # Create ScenarioList from the source (it handles auto-detection)
         scenario_list = ScenarioList.from_source(source_type_or_data, *args, **kwargs)
@@ -195,8 +195,8 @@ class AgentListBuilder:
         """
         import csv
         import os
-        from ..utilities.naming_utilities import sanitize_string
-        from ..utilities.is_valid_variable_name import is_valid_variable_name
+        from edsl.utilities.naming_utilities import sanitize_string
+        from edsl.utilities.is_valid_variable_name import is_valid_variable_name
 
         if not os.path.exists(csv_path):
             raise FileNotFoundError(f"Codebook CSV file not found: {csv_path}")

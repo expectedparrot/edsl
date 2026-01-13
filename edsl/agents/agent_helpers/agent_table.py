@@ -9,8 +9,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .agent import Agent
-    from ..dataset import Dataset
+    from ..agent import Agent
+    from edsl.dataset import Dataset
 
 
 class AgentTable:
@@ -62,7 +62,7 @@ class AgentTable:
             >>> 'height' in dataset2[0]['Trait']
             True
         """
-        from ..scenarios import ScenarioList
+        from edsl.scenarios import ScenarioList
 
         table_data = ScenarioList([])
         for trait_name, value in self.agent.traits.items():

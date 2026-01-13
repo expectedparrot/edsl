@@ -8,12 +8,12 @@ where each agent gets its own set of trait updates.
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from ..base import Base
-from ..utilities import dict_hash, remove_edsl_version
+from edsl.base import Base
+from edsl.utilities import dict_hash, remove_edsl_version
 
 if TYPE_CHECKING:
-    from .agent_list import AgentList
-    from .agent_delta import AgentDelta
+    from ..agent_list import AgentList
+    from ..agent_helpers.agent_delta import AgentDelta
 
 
 class AgentListDeltas(Base):
@@ -99,7 +99,7 @@ class AgentListDeltas(Base):
             >>> updated[1].traits['age']
             26
         """
-        from .exceptions import AgentListError
+        from ..exceptions import AgentListError
 
         # Collect agent names from the list
         agent_names = set()
@@ -129,7 +129,7 @@ class AgentListDeltas(Base):
             raise AgentListError(" ".join(error_parts))
 
         # Apply deltas to each agent
-        from .agent_list import AgentList
+        from ..agent_list import AgentList
 
         updated_agents = []
         for agent in agent_list:
@@ -363,7 +363,7 @@ class AgentListDeltas(Base):
             >>> 'Alice' in deltas.deltas
             True
         """
-        from .agent_delta import AgentDelta
+        from ..agent_helpers.agent_delta import AgentDelta
 
         # Deserialize each delta
         deserialized_deltas = {}
@@ -407,7 +407,7 @@ class AgentListDeltas(Base):
             >>> 'Bob' in deltas.deltas
             True
         """
-        from .agent_delta import AgentDelta
+        from ..agent_helpers.agent_delta import AgentDelta
 
         return cls(
             deltas={

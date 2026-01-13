@@ -8,19 +8,19 @@ appropriate invigilator type and handling question answering workflows.
 from __future__ import annotations
 from typing import Optional, Type, TYPE_CHECKING
 
-from ..utilities import sync_wrapper
+from edsl.utilities import sync_wrapper
 
 if TYPE_CHECKING:
-    from .agent import Agent
-    from ..questions import QuestionBase
-    from ..scenarios import Scenario
-    from ..surveys import Survey
-    from ..language_models import LanguageModel
-    from ..surveys.memory import MemoryPlan
-    from ..caching import Cache
-    from ..key_management import KeyLookup
-    from ..invigilators import InvigilatorBase
-    from ..data_transfer_models import AgentResponseDict
+    from ..agent import Agent
+    from edsl.questions import QuestionBase
+    from edsl.scenarios import Scenario
+    from edsl.surveys import Survey
+    from edsl.language_models import LanguageModel
+    from edsl.surveys.memory import MemoryPlan
+    from edsl.caching import Cache
+    from edsl.key_management import KeyLookup
+    from edsl.invigilators import InvigilatorBase
+    from edsl.data_transfer_models import AgentResponseDict
 
 
 class AgentInvigilator:
@@ -70,7 +70,7 @@ class AgentInvigilator:
             >>> invigilator_class.__name__
             'InvigilatorHuman'
         """
-        from ..invigilators import (
+        from edsl.invigilators import (
             InvigilatorHuman,
             InvigilatorFunctional,
             InvigilatorAI,
@@ -120,14 +120,14 @@ class AgentInvigilator:
             >>> type(inv).__name__
             'InvigilatorAI'
         """
-        from ..language_models import Model
-        from ..scenarios import Scenario
+        from edsl.language_models import Model
+        from edsl.scenarios import Scenario
 
         model = model or Model()
         scenario = scenario or Scenario()
 
         if cache is None:
-            from ..caching import Cache
+            from edsl.caching import Cache
 
             cache = Cache()
 
@@ -194,8 +194,8 @@ class AgentInvigilator:
             An invigilator is an object that is responsible for administering a question to an agent and
             recording the responses.
         """
-        from ..language_models import Model
-        from ..scenarios import Scenario
+        from edsl.language_models import Model
+        from edsl.scenarios import Scenario
 
         # Set the current question context
         self.agent.current_question = question

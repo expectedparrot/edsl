@@ -10,10 +10,10 @@ import inspect
 from typing import Optional, Callable, Any, TYPE_CHECKING
 from contextlib import contextmanager
 
-from ..utilities import create_restricted_function
+from edsl.utilities import create_restricted_function
 
 if TYPE_CHECKING:
-    from .agent import Agent
+    from ..agent import Agent
 
 
 class AgentDynamicTraits:
@@ -133,7 +133,7 @@ class AgentDynamicTraits:
             ...     print(f"Error: {type(e).__name__}")
             Error: AgentDynamicTraitsFunctionError
         """
-        from .exceptions import AgentDynamicTraitsFunctionError
+        from ..exceptions import AgentDynamicTraitsFunctionError
 
         if self.has_function:
             sig = inspect.signature(self.function)
@@ -234,7 +234,7 @@ class AgentDynamicTraits:
             ...     print(f"Error: {type(e).__name__}")
             Error: AgentErrors
         """
-        from .exceptions import AgentErrors
+        from ..exceptions import AgentErrors
 
         if self.has_function:
             raise AgentErrors(
@@ -259,7 +259,7 @@ class AgentDynamicTraits:
             >>> agent.traits['age']
             31
         """
-        from .agent import AgentTraits
+        from .agent_traits import AgentTraits
 
         self.check_before_modifying_traits()
         try:

@@ -9,8 +9,8 @@ from __future__ import annotations
 from typing import Union, Optional, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .agent import Agent
-    from ..utilities.similarity_rank import RankableItems
+    from ..agent import Agent
+    from edsl.utilities.similarity_rank import RankableItems
 
 
 class AgentTraitManager:
@@ -43,7 +43,7 @@ class AgentTraitManager:
             Initialize with traits and codebook:
 
             >>> from edsl.agents import Agent
-            >>> from edsl.agents.agent_trait_manager import AgentTraitManager
+            >>> from edsl.agents.agent_helpers.agent_trait_manager import AgentTraitManager
             >>> # Create a minimal agent instance for testing
             >>> agent = Agent(traits={})  # Start with empty agent
             >>> agent.trait_manager.initialize({'age': 30}, {'age': 'Age in years'})
@@ -61,7 +61,7 @@ class AgentTraitManager:
             >>> agent2.codebook
             {}
         """
-        from ..utilities import sanitize_jinja_syntax
+        from edsl.utilities import sanitize_jinja_syntax
         from .agent_traits import AgentTraits
 
         # Sanitize traits and codebook for Jinja2 syntax
@@ -112,7 +112,7 @@ class AgentTraitManager:
             >>> results2[0]["score"] == 1.0
             True
         """
-        from ..scenarios import ScenarioList, Scenario
+        from edsl.scenarios import ScenarioList, Scenario
 
         # Create list of trait information for searching
         trait_info = []
@@ -207,7 +207,7 @@ class AgentTraitManager:
             >>> "weight" in a_with_traits.traits and "eye_color" in a_with_traits.traits
             True
         """
-        from .exceptions import AgentErrors
+        from ..exceptions import AgentErrors
 
         if isinstance(trait_name_or_dict, dict) and value is None:
             newagent = self.agent.duplicate()

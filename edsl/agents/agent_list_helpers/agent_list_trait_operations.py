@@ -5,10 +5,10 @@ import sys
 from typing import Union, List, Any, TYPE_CHECKING
 from collections.abc import Iterable
 
-from ..utilities import is_notebook
+from edsl.utilities import is_notebook
 
 if TYPE_CHECKING:
-    from .agent_list import AgentList
+    from ..agent_list import AgentList
 
 
 def is_iterable(obj):
@@ -41,13 +41,13 @@ class AgentListTraitOperations:
 
         Examples:
             >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
+            >>> from edsl.agents.agent_list_helpers.agent_list_trait_operations import AgentListTraitOperations
             >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
             >>> al_dropped = AgentListTraitOperations.drop(al, "age")
             >>> al_dropped[0].traits
             {'hair': 'brown', 'height': 5.5}
         """
-        from .agent_list import AgentList
+        from ..agent_list import AgentList
 
         return AgentList([a.drop(*field_names) for a in agent_list.data])
 
@@ -69,13 +69,13 @@ class AgentListTraitOperations:
 
         Examples:
             >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
+            >>> from edsl.agents.agent_list_helpers.agent_list_trait_operations import AgentListTraitOperations
             >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
             >>> al_kept = AgentListTraitOperations.keep(al, "age")
             >>> al_kept[0].traits
             {'age': 30}
         """
-        from .agent_list import AgentList
+        from ..agent_list import AgentList
 
         return AgentList([a.keep(*field_names) for a in agent_list.data])
 
@@ -93,13 +93,13 @@ class AgentListTraitOperations:
 
         Examples:
             >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
+            >>> from edsl.agents.agent_list_helpers.agent_list_trait_operations import AgentListTraitOperations
             >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1})])
             >>> al2 = AgentListTraitOperations.rename(al, 'a', 'c')
             >>> al2[0].traits
             {'c': 1, 'b': 1}
         """
-        from .agent_list import AgentList
+        from ..agent_list import AgentList
 
         newagents = []
         for agent in agent_list:
@@ -119,13 +119,13 @@ class AgentListTraitOperations:
 
         Examples:
             >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
+            >>> from edsl.agents.agent_list_helpers.agent_list_trait_operations import AgentListTraitOperations
             >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1})])
             >>> selected = AgentListTraitOperations.select(al, 'a')
             >>> selected[0].traits
             {'a': 1}
         """
-        from .agent_list import AgentList
+        from ..agent_list import AgentList
 
         if len(traits) == 1:
             traits_to_select = [list(traits)[0]]
@@ -146,7 +146,7 @@ class AgentListTraitOperations:
 
         Examples:
             >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
+            >>> from edsl.agents.agent_list_helpers.agent_list_trait_operations import AgentListTraitOperations
             >>> agent_1 = Agent(traits = {'age': 22})
             >>> agent_2 = Agent(traits = {'hair': 'brown'})
             >>> al = AgentList([agent_1, agent_2])
@@ -173,14 +173,14 @@ class AgentListTraitOperations:
 
         Examples:
             >>> from edsl import AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
+            >>> from edsl.agents.agent_list_helpers.agent_list_trait_operations import AgentListTraitOperations
             >>> al = AgentList.example()
             >>> codebook = {'hair': {'brown':'Secret word for green'}}
             >>> translated = AgentListTraitOperations.translate_traits(al, codebook)
             >>> len(translated)
             2
         """
-        from .agent_list import AgentList
+        from ..agent_list import AgentList
 
         new_agents = []
         for agent in agent_list.data:
@@ -200,13 +200,13 @@ class AgentListTraitOperations:
 
         Examples:
             >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
+            >>> from edsl.agents.agent_list_helpers.agent_list_trait_operations import AgentListTraitOperations
             >>> al = AgentList([Agent({'age': 22, 'hair': 'brown', 'height': 5.5})])
             >>> result = AgentListTraitOperations.remove_trait(al, 'age')
             >>> result[0].traits
             {'hair': 'brown', 'height': 5.5}
         """
-        from .agent_list import AgentList
+        from ..agent_list import AgentList
 
         agents = []
         new_al = agent_list.duplicate()
@@ -230,14 +230,14 @@ class AgentListTraitOperations:
 
         Examples:
             >>> from edsl import AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
+            >>> from edsl.agents.agent_list_helpers.agent_list_trait_operations import AgentListTraitOperations
             >>> al = AgentList.example()
             >>> new_al = AgentListTraitOperations.add_trait(al, 'new_trait', 1)
             >>> len(new_al)
             2
         """
-        from .agent_list import AgentList
-        from .exceptions import AgentListError
+        from ..agent_list import AgentList
+        from ..exceptions import AgentListError
 
         if not is_iterable(values):
             new_agents = []
@@ -283,7 +283,7 @@ class AgentListTraitOperations:
 
         Examples:
             >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
+            >>> from edsl.agents.agent_list_helpers.agent_list_trait_operations import AgentListTraitOperations
             >>> al = AgentList([
             ...     Agent(traits={'age': '30', 'height': '5.5', 'city': 'NYC'}),
             ...     Agent(traits={'age': '25', 'height': '6.0', 'city': 'LA'})
@@ -294,7 +294,7 @@ class AgentListTraitOperations:
             >>> al_numeric[1].traits
             {'age': 25, 'height': 6.0, 'city': 'LA'}
         """
-        from .agent_list import AgentList
+        from ..agent_list import AgentList
 
         def convert_to_number(value: Any) -> Any:
             """Convert a value to a number if possible."""
@@ -337,7 +337,7 @@ class AgentListTraitOperations:
                 key: convert_to_number(value) for key, value in agent.traits.items()
             }
             # Create a new agent with the converted traits
-            from .agent import Agent
+            from ..agent import Agent
 
             new_agent = Agent(
                 traits=new_traits,
@@ -374,7 +374,7 @@ class AgentListTraitOperations:
 
         Examples:
             >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
+            >>> from edsl.agents.agent_list_helpers.agent_list_trait_operations import AgentListTraitOperations
             >>> al = AgentList([
             ...     Agent(traits={'a': 1, 'b': 2}),
             ...     Agent(traits={'a': None, 'b': 3}),
@@ -407,7 +407,7 @@ class AgentListTraitOperations:
             >>> len(filtered)
             2
         """
-        from .agent_list import AgentList
+        from ..agent_list import AgentList
         import math
 
         def is_na(val):

@@ -7,9 +7,9 @@ import warnings
 from typing import Optional, List, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .agent_list import AgentList
-    from ..scenarios import ScenarioList
-    from ..results import Results
+    from ..agent_list import AgentList
+    from edsl.scenarios import ScenarioList
+    from edsl.results import Results
 
 
 class AgentListFactories:
@@ -41,7 +41,7 @@ class AgentListFactories:
         Examples:
             >>> import csv
             >>> import os
-            >>> from edsl.agents.agent_list_factories import AgentListFactories
+            >>> from edsl.agents.agent_list_helpers.agent_list_factories import AgentListFactories
             >>> with open('/tmp/test_agents.csv', 'w') as f:
             ...     writer = csv.writer(f)
             ...     _ = writer.writerow(['age', 'hair'])
@@ -51,8 +51,8 @@ class AgentListFactories:
             1
             >>> os.remove('/tmp/test_agents.csv')
         """
-        from .agent import Agent
-        from .agent_list import AgentList
+        from ..agent import Agent
+        from ..agent_list import AgentList
 
         agent_list = []
         with open(file_path, "r") as f:
@@ -93,14 +93,14 @@ class AgentListFactories:
             AgentList: A new AgentList created from the Results
 
         Examples:
-            >>> from edsl.agents.agent_list_factories import AgentListFactories
+            >>> from edsl.agents.agent_list_helpers.agent_list_factories import AgentListFactories
             >>> # This would work with actual Results object
             >>> # al = AgentListFactories.from_results(results)
             >>> # To include only specific questions:
             >>> # al = AgentListFactories.from_results(results, question_names=['age', 'preference'])
         """
-        from .agent import Agent
-        from .agent_list import AgentList
+        from ..agent import Agent
+        from ..agent_list import AgentList
 
         # Get question_text for each question from the Results metadata
         # Access the first result to get question_to_attributes
@@ -171,7 +171,7 @@ class AgentListFactories:
 
         Examples:
             >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_factories import AgentListFactories
+            >>> from edsl.agents.agent_list_helpers.agent_list_factories import AgentListFactories
             >>> al = AgentList([Agent.example()])
             >>> data = al.to_dict()
             >>> al2 = AgentListFactories.from_dict(data)
@@ -197,7 +197,7 @@ class AgentListFactories:
             AgentList: An example AgentList instance
 
         Examples:
-            >>> from edsl.agents.agent_list_factories import AgentListFactories
+            >>> from edsl.agents.agent_list_helpers.agent_list_factories import AgentListFactories
             >>> al = AgentListFactories.example()
             >>> len(al)
             2
@@ -205,8 +205,8 @@ class AgentListFactories:
             >>> al[0].codebook['age']
             'Age in years'
         """
-        from .agent import Agent
-        from .agent_list import AgentList
+        from ..agent import Agent
+        from ..agent_list import AgentList
 
         agent_list = AgentList([Agent.example(randomize), Agent.example(randomize)])
 
@@ -232,7 +232,7 @@ class AgentListFactories:
             AgentList: A new AgentList created from the list of values
 
         Examples:
-            >>> from edsl.agents.agent_list_factories import AgentListFactories
+            >>> from edsl.agents.agent_list_helpers.agent_list_factories import AgentListFactories
             >>> al = AgentListFactories.from_list('age', [22, 23])
             >>> len(al)
             2
@@ -241,8 +241,8 @@ class AgentListFactories:
             >>> al[1].traits['age']
             23
         """
-        from .agent import Agent
-        from .agent_list import AgentList
+        from ..agent import Agent
+        from ..agent_list import AgentList
 
         agent_list = AgentList([Agent({trait_name: value}) for value in values])
 
@@ -269,7 +269,7 @@ class AgentListFactories:
 
         Examples:
             >>> from edsl import ScenarioList, Scenario
-            >>> from edsl.agents.agent_list_factories import AgentListFactories
+            >>> from edsl.agents.agent_list_helpers.agent_list_factories import AgentListFactories
             >>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
             >>> al = AgentListFactories.from_scenario_list(s)
             >>> len(al)
@@ -277,8 +277,8 @@ class AgentListFactories:
             >>> al[0].traits
             {'age': 22, 'hair': 'brown', 'height': 5.5}
         """
-        from .agent import Agent
-        from .agent_list import AgentList
+        from ..agent import Agent
+        from ..agent_list import AgentList
 
         agents = []
         for scenario in scenario_list:
@@ -320,7 +320,7 @@ class AgentListFactories:
         Examples:
             >>> import csv
             >>> import os
-            >>> from edsl.agents.agent_list_factories import AgentListFactories
+            >>> from edsl.agents.agent_list_helpers.agent_list_factories import AgentListFactories
             >>> with open('/tmp/test_codebook.csv', 'w') as f:
             ...     writer = csv.writer(f)
             ...     _ = writer.writerow(['age', 'hair', 'height'])

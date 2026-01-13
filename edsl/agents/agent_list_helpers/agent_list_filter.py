@@ -5,11 +5,11 @@ import sys
 from typing import TYPE_CHECKING
 
 from simpleeval import EvalWithCompoundTypes, NameNotDefined
-from ..utilities import is_notebook
+from edsl.utilities import is_notebook
 
 if TYPE_CHECKING:
-    from .agent_list import AgentList
-    from .agent import Agent
+    from ..agent_list import AgentList
+    from ..agent import Agent
 
 
 class EmptyAgentList:
@@ -44,7 +44,7 @@ class AgentListFilter:
 
         Examples:
             >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_filter import AgentListFilter
+            >>> from edsl.agents.agent_list_helpers.agent_list_filter import AgentListFilter
             >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}),
             ...                Agent(traits = {'a': 1, 'b': 2})])
             >>> filtered = AgentListFilter.filter(al, "b == 2")
@@ -53,8 +53,8 @@ class AgentListFilter:
             >>> filtered[0].traits
             {'a': 1, 'b': 2}
         """
-        from .agent_list import AgentList
-        from .exceptions import AgentListError
+        from ..agent_list import AgentList
+        from ..exceptions import AgentListError
 
         def create_evaluator(agent: "Agent"):
             """Create an evaluator for the given agent."""
