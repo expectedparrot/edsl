@@ -833,7 +833,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             >>> merged = d1.merge(d2, 'id', 'id')  # doctest: +SKIP
             >>> len(merged.data[0]['id'])  # doctest: +SKIP
             2
-        
+
         Raises:
             ImportError: If pandas is not installed.
         """
@@ -844,7 +844,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
                 "pandas is required for merge(). "
                 "Install with: pip install edsl[pandas] or pip install pandas"
             )
-        
+
         df1 = self.to_pandas()
         df2 = other.to_pandas()
         merged_df = df1.merge(df2, how="left", left_on=by_x, right_on=by_y)

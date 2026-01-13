@@ -218,7 +218,7 @@ class GitMixin:
         self, new_git: ExpectedParrotGit, *, from_git: bool = False
     ) -> "GitMixin":
         """Update this instance in place and return self for chaining.
-        
+
         When from_git=True, preserves _info (alias, description) across branches,
         since this is repository-level metadata (like git remote URLs).
         """
@@ -226,11 +226,11 @@ class GitMixin:
             # Preserve _info before loading new state (it's repo-level, not branch-level)
             current_state = self._to_state()
             current_info = current_state.get("meta", {}).get("_info", {})
-            
+
             # Update internal data from git state
             rows = new_git.view.get_base_state()
             state = rows[0] if rows else {}
-            
+
             # Merge preserved _info into new state
             if current_info:
                 if "meta" not in state:
@@ -239,7 +239,7 @@ class GitMixin:
                 new_info = state.get("meta", {}).get("_info", {})
                 merged_info = {**current_info, **new_info}
                 state["meta"]["_info"] = merged_info
-            
+
             self._update_from_state(state)
         self._git = new_git
         return self
@@ -305,7 +305,12 @@ class GitMixin:
 
         # Stage the change
         new_git = self._git.apply_event(
-            "set_info", {"alias": alias, "description": description, "edsl_class_name": self.__class__.__name__}
+            "set_info",
+            {
+                "alias": alias,
+                "description": description,
+                "edsl_class_name": self.__class__.__name__,
+            },
         )
         self._git = new_git
 
@@ -324,7 +329,7 @@ class GitMixin:
         self, message: str, *, author: str = "unknown", force: bool = False
     ) -> None:
         """Commit pending events. Mutates in place.
-        
+
         Args:
             message: Commit message
             author: Author name (default: "unknown")
@@ -336,7 +341,7 @@ class GitMixin:
             message, author=author, force=force, state=current_state
         )
         self._mutate(new_git)
-        
+
         # Print git-style status
         branch = new_git.view.head_ref or "HEAD"
         commit_id = new_git.view.commit_hash[:8]
@@ -348,7 +353,7 @@ class GitMixin:
         pending_count = len(self._git.view.pending_events)
         new_git = self._git.discard()
         self._mutate(new_git, from_git=True)
-        
+
         # Print git-style status
         if pending_count > 0:
             print(f"Discarded {pending_count} pending change(s)")
@@ -364,10 +369,10 @@ class GitMixin:
         author: str = "service",
     ) -> "GitMixin":
         """Create a new instance with new data and commit.
-        
+
         This is used by versioned services to create a new version
         while preserving git history. The original object is NOT modified.
-        
+
         Args:
             new_data: The new data to use. Can be:
                 - A dict (will be used to create new instance)
@@ -376,16 +381,16 @@ class GitMixin:
             operation: Name of the operation that produced this data
             params: Parameters used in the operation (for audit trail)
             author: Author of the change
-            
+
         Returns:
             A new instance with the changes committed (original unchanged)
         """
         self._ensure_git_init()
-        
+
         # Preserve original meta (contains _info with alias, codebook, etc.)
         original_state = self._to_state()
         original_meta = original_state.get("meta", {})
-        
+
         # Extract state from new_data
         if isinstance(new_data, type(self)):
             # Same type - extract its state
@@ -405,7 +410,7 @@ class GitMixin:
                 f"replace_with() expects dict, list, or {type(self).__name__}, "
                 f"got {type(new_data).__name__}"
             )
-        
+
         # Merge metadata: preserve original _info (alias, etc.) while allowing
         # new meta to override other fields
         merged_meta = dict(original_meta)
@@ -414,21 +419,21 @@ class GitMixin:
             if key != "_info":  # Never overwrite _info from new data
                 merged_meta[key] = value
         new_state["meta"] = merged_meta
-        
+
         # Create a NEW instance from the new state
         new_instance = self._from_state(new_state)
-        
+
         # Copy the git state to the new instance
         new_instance._git = self._git
         new_instance._needs_git_init = False
-        
+
         # Build commit message
         param_str = ""
         if params:
             param_items = [f"{k}={repr(v)[:50]}" for k, v in list(params.items())[:3]]
             param_str = f" ({', '.join(param_items)})"
         message = f"{operation}{param_str}"
-        
+
         # Add a synthetic event so commit() has something to commit
         # This records the service operation in the event history
         event_payload = {
@@ -437,17 +442,19 @@ class GitMixin:
             "entries_count": len(new_state.get("entries", [])),
         }
         new_instance._git = new_instance._git.apply_event("replace", event_payload)
-        
+
         # Commit the change on the new instance
         current_state = [new_instance._to_state()]
-        new_git = new_instance._git.commit(message, author=author, force=False, state=current_state)
+        new_git = new_instance._git.commit(
+            message, author=author, force=False, state=current_state
+        )
         new_instance._git = new_git
-        
+
         return new_instance
 
     def git_branch(self, name: str) -> None:
         """Create and checkout a new branch. Mutates in place.
-        
+
         Args:
             name: Name of the new branch to create
         """
@@ -455,26 +462,24 @@ class GitMixin:
         old_branch = self._git.view.head_ref or "HEAD"
         new_git = self._git.branch(name)
         self._mutate(new_git)
-        
+
         # Print git-style status
         print(f"Switched to a new branch '{name}'")
 
     def git_delete_branch(self, name: str) -> None:
         """Delete a branch. Mutates in place.
-        
+
         Args:
             name: Name of the branch to delete
         """
         self._ensure_git_init()
         new_git = self._git.delete_branch(name)
         self._mutate(new_git)
-        
+
         # Print git-style status
         print(f"Deleted branch {name}")
 
-    def git_checkout(
-        self, rev: Optional[str] = None, *, force: bool = False
-    ) -> None:
+    def git_checkout(self, rev: Optional[str] = None, *, force: bool = False) -> None:
         """Checkout a branch or commit. Mutates in place.
 
         Args:
@@ -534,7 +539,9 @@ class GitMixin:
         else:
             # Detached HEAD state
             print(f"HEAD is now at {new_git.view.commit_hash[:8]}")
-            print("You are in 'detached HEAD' state. Create a branch with git_branch('name') to keep changes.")
+            print(
+                "You are in 'detached HEAD' state. Create a branch with git_branch('name') to keep changes."
+            )
 
     def git_add_remote(
         self, name: str = "origin", url: Union[Remote, str] = None
@@ -681,14 +688,16 @@ class GitMixin:
         """Pull from remote. Mutates in place."""
         self._ensure_git_init()
         new_git, pull_result = self._git.pull(remote_name, ref_name)
-        
+
         # Print pull summary
         if pull_result.commits_fetched == 0:
             print("Already up to date.")
         else:
             commit_word = "commit" if pull_result.commits_fetched == 1 else "commits"
-            print(f"Pulled {pull_result.commits_fetched} {commit_word} from {remote_name}/{pull_result.ref_name}")
-        
+            print(
+                f"Pulled {pull_result.commits_fetched} {commit_word} from {remote_name}/{pull_result.ref_name}"
+            )
+
         self._mutate(new_git, from_git=True)
 
     def git_fetch(self, remote_name: str = "origin") -> Dict[str, int]:
@@ -763,7 +772,7 @@ class GitMixin:
 
     def git_branches(self) -> List[str]:
         """List all branches. Current branch is marked with '*'.
-        
+
         Returns:
             List of branch names, with current branch prefixed by '* '
         """
@@ -771,7 +780,7 @@ class GitMixin:
         repo = self._git.view.repo
         refs = repo.list_refs()
         current_ref = self._git.view.head_ref
-        
+
         branches = []
         for ref in refs:
             if ref.kind == "branch":
@@ -779,7 +788,7 @@ class GitMixin:
                     branches.append(f"* {ref.name}")
                 else:
                     branches.append(f"  {ref.name}")
-        
+
         return branches
 
     def git_pending(self) -> List[Tuple[str, Dict[str, Any]]]:

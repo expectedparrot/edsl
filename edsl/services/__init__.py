@@ -121,14 +121,14 @@ _builtin_loaded = False
 
 def _ensure_builtin_services():
     """Load builtin services and discover entry point plugins.
-    
+
     This function is called lazily when services are first accessed.
     It loads both:
     1. Builtin services from edsl/services/builtin/
     2. Plugin services registered via entry points (edsl.services group)
-    
+
     Entry points allow external packages to register services:
-    
+
         [project.entry-points."edsl.services"]
         myservice = "mypackage.services:MyService"
     """
@@ -136,10 +136,10 @@ def _ensure_builtin_services():
     if not _builtin_loaded:
         # Load builtin services first (they take precedence)
         from . import builtin  # noqa: F401
-        
+
         # Discover entry point plugins
         ServiceRegistry._discover_entry_points()
-        
+
         _builtin_loaded = True
 
 
@@ -172,4 +172,3 @@ __all__ = [
     # Builtin services
     "builtin",
 ]
-

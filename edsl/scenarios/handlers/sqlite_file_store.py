@@ -93,25 +93,29 @@ class SQLiteMethods(FileMethods):
 
                 # Build HTML table
                 table_html = ['<div style="margin-bottom: 20px;">']
-                table_html.append(f'<h3>{table_name}</h3>')
-                table_html.append('<table border="1" style="border-collapse: collapse;">')
-                
+                table_html.append(f"<h3>{table_name}</h3>")
+                table_html.append(
+                    '<table border="1" style="border-collapse: collapse;">'
+                )
+
                 # Header row
-                table_html.append('<tr>')
+                table_html.append("<tr>")
                 for col in columns:
-                    table_html.append(f'<th style="padding: 5px; background: #f0f0f0;">{col}</th>')
-                table_html.append('</tr>')
-                
+                    table_html.append(
+                        f'<th style="padding: 5px; background: #f0f0f0;">{col}</th>'
+                    )
+                table_html.append("</tr>")
+
                 # Data rows
                 for row in rows:
-                    table_html.append('<tr>')
+                    table_html.append("<tr>")
                     for cell in row:
                         table_html.append(f'<td style="padding: 5px;">{cell}</td>')
-                    table_html.append('</tr>')
-                
-                table_html.append('</table>')
-                table_html.append('</div>')
-                html_parts.append(''.join(table_html))
+                    table_html.append("</tr>")
+
+                table_html.append("</table>")
+                table_html.append("</div>")
+                html_parts.append("".join(table_html))
 
             # Combine all tables into one scrollable div
             html = f"""

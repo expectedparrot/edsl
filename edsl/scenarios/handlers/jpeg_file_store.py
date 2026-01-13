@@ -30,15 +30,15 @@ class JpegMethods(FileMethods):
     def example(self):
         """Create a simple example JPEG using PIL."""
         from PIL import Image, ImageDraw
-        
+
         # Create a simple gradient image
-        img = Image.new('RGB', (200, 200), color='white')
+        img = Image.new("RGB", (200, 200), color="white")
         draw = ImageDraw.Draw(img)
         for i in range(200):
             color = (255 - i, 100, i)
             draw.line([(0, i), (200, i)], fill=color)
-        draw.text((50, 90), "Example", fill='black')
-        
+        draw.text((50, 90), "Example", fill="black")
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".jpeg") as f:
             img.save(f.name, "JPEG")
         return f.name

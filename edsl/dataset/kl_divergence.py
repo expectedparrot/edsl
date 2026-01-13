@@ -111,7 +111,7 @@ class KLDivergenceCalculator:
     ) -> Dict[Any, Dict[Any, float]]:
         """Bin continuous data and create probability distributions."""
         import numpy as np
-        
+
         distributions = {}
 
         # Determine bins across all data
@@ -172,7 +172,7 @@ class KLDivergenceCalculator:
         all_values = set(p_dist.keys()) | set(q_dist.keys())
 
         import numpy as np
-        
+
         kl = 0.0
         for value in all_values:
             p = p_dist.get(value, 0) + self.laplace_smooth

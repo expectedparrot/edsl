@@ -11,7 +11,7 @@ class CsvMethods(FileMethods):
         from ..scenario_list import ScenarioList
         from ..scenario import Scenario
 
-        with open(self.path, 'r', newline='', encoding='utf-8') as f:
+        with open(self.path, "r", newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             scenarios = [Scenario(dict(row)) for row in reader]
         return ScenarioList(scenarios)
@@ -39,34 +39,37 @@ class CsvMethods(FileMethods):
 
         try:
             import pandas as pd
+
             df = pd.read_csv(self.path)
             display(df)
         except ImportError:
             # Fallback to pure Python HTML table
-            with open(self.path, 'r', newline='', encoding='utf-8') as f:
+            with open(self.path, "r", newline="", encoding="utf-8") as f:
                 reader = csv.reader(f)
                 rows = list(reader)
-            
+
             if not rows:
                 display(HTML("<p>Empty CSV file</p>"))
                 return
-            
+
             # Build HTML table
             html = ['<table border="1" style="border-collapse: collapse;">']
             # Header row
-            html.append('<tr>')
+            html.append("<tr>")
             for cell in rows[0]:
-                html.append(f'<th style="padding: 5px; background: #f0f0f0;">{cell}</th>')
-            html.append('</tr>')
+                html.append(
+                    f'<th style="padding: 5px; background: #f0f0f0;">{cell}</th>'
+                )
+            html.append("</tr>")
             # Data rows
             for row in rows[1:]:
-                html.append('<tr>')
+                html.append("<tr>")
                 for cell in row:
                     html.append(f'<td style="padding: 5px;">{cell}</td>')
-                html.append('</tr>')
-            html.append('</table>')
-            
-            display(HTML(''.join(html)))
+                html.append("</tr>")
+            html.append("</table>")
+
+            display(HTML("".join(html)))
 
     def example(self):
         """Create an example CSV file using pure Python."""
@@ -75,7 +78,9 @@ class CsvMethods(FileMethods):
             {"A": "2", "B": "5"},
             {"A": "3", "B": "6"},
         ]
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv", mode='w', newline='') as f:
+        with tempfile.NamedTemporaryFile(
+            delete=False, suffix=".csv", mode="w", newline=""
+        ) as f:
             writer = csv.DictWriter(f, fieldnames=["A", "B"])
             writer.writeheader()
             writer.writerows(data)
@@ -87,7 +92,7 @@ class CsvMethods(FileMethods):
 
         Returns:
             pandas.DataFrame: The data from the CSV as a DataFrame
-        
+
         Raises:
             ImportError: If pandas is not installed
         """

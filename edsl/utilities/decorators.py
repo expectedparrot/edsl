@@ -8,6 +8,7 @@ from edsl import __version__ as edsl_version
 if "pyodide" not in sys.modules:
     try:
         import nest_asyncio
+
         nest_asyncio.apply()
     except (ImportError, ValueError):
         # nest_asyncio not available or can't patch this loop type

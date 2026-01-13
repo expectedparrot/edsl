@@ -92,6 +92,7 @@ from ..instructions import ChangeInstruction
 from .base import EndOfSurvey, EndOfSurveyParent
 from .descriptors import QuestionsDescriptor
 from .memory import MemoryPlan
+
 # SurveyFlowVisualization moved to service - see show_flow() method
 from ..instructions import InstructionHandler
 from .edit_survey import EditSurvey
@@ -109,31 +110,31 @@ from .exceptions import (
 
 class SurveyMeta(Base.__class__):
     """Metaclass for Survey that enables dynamic service accessor access.
-    
+
     Inherits from Base's metaclass (RegisterSubclassesMeta) to avoid metaclass conflicts.
-    
+
     This metaclass intercepts class-level attribute access (e.g., Survey.vibes)
     and returns service accessor instances from the edsl.services registry.
-    
+
     Examples:
         >>> accessor = Survey.vibes  # Returns survey_vibes accessor  # doctest: +SKIP
     """
-    
+
     def __getattr__(cls, name: str):
         """Called when Survey.{name} is accessed and {name} isn't found normally."""
         # Lazy import to avoid circular dependencies
         from edsl.services.accessors import get_service_accessor
-        
+
         # Map 'vibes' or 'vibe' to 'survey_vibes' service
         if name in ("vibes", "vibe"):
             service_name = "survey_vibes"
         else:
             service_name = name
-        
+
         accessor = get_service_accessor(service_name, owner_class=cls)
         if accessor is not None:
             return accessor
-        
+
         # Standard AttributeError
         raise AttributeError(f"type object 'Survey' has no attribute '{name}'")
 
@@ -617,40 +618,40 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
 
     def show_flow(self, filename: Optional[str] = None, verbose: bool = True):
         """Show the flow of the survey.
-        
+
         Creates a flowchart visualization showing question flow, skip logic,
         and parameter dependencies.
-        
+
         Args:
             filename: Optional path to save the PNG. If None, displays inline.
             verbose: Whether to show progress messages.
-            
+
         Returns:
             FileStore containing the PNG image, or displays inline.
         """
         from edsl_services.flow_visualization_service import FlowVisualizationService
-        
+
         if verbose:
             print("[flow_visualization] Generating survey flow diagram...")
-        
+
         params = {
             "operation": "flow",
             "data": self.to_dict(),
             "filename": filename,
         }
-        
+
         result = FlowVisualizationService.execute(params)
         fs = FlowVisualizationService.parse_result(result)
-        
+
         if verbose:
             print("[flow_visualization] ✓ Flow diagram created")
-        
+
         # If no filename, display the result
         if filename is None:
             fs.view()
         else:
             print(f"Flowchart saved to {filename}")
-        
+
         return fs
 
     def add_instruction(
@@ -4124,28 +4125,28 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
 
     def __getattr__(self, name: str):
         """Intercept attribute access to provide service accessor instances.
-        
+
         This method is called when an attribute isn't found normally on the instance.
         It checks if the attribute name matches a registered service and returns
         the appropriate accessor bound to this Survey instance.
-        
+
         Examples:
             >>> s = Survey.example()
             >>> s.vibe  # Returns survey_vibes accessor bound to this instance  # doctest: +SKIP
         """
         # Lazy import to avoid circular dependencies
         from edsl.services.accessors import get_service_accessor
-        
+
         # Map 'vibes' or 'vibe' to 'survey_vibes' service
         if name in ("vibes", "vibe"):
             service_name = "survey_vibes"
         else:
             service_name = name
-        
+
         accessor = get_service_accessor(service_name, instance=self)
         if accessor is not None:
             return accessor
-        
+
         raise AttributeError(f"'Survey' object has no attribute '{name}'")
 
     @classmethod
@@ -4216,16 +4217,19 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
             - Questions are automatically given appropriate names and options
         """
         from edsl.services import dispatch
-        
+
         # Dispatch to survey_vibes service with 'from_vibes' operation
-        pending = dispatch("survey_vibes", {
-            "operation": "from_vibes",
-            "description": description,
-            "num_questions": num_questions,
-            "model": model,
-            "temperature": temperature,
-        })
-        
+        pending = dispatch(
+            "survey_vibes",
+            {
+                "operation": "from_vibes",
+                "description": description,
+                "num_questions": num_questions,
+                "model": model,
+                "temperature": temperature,
+            },
+        )
+
         # Get result (which is already a Survey)
         return pending.result()
 

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 class JobsFlowVisualization:
     """Create a flowchart diagram for a :class:`edsl.jobs.jobs.Jobs` instance.
-    
+
     This class now delegates to the JobVisualizationService.
     """
 
@@ -34,30 +34,30 @@ class JobsFlowVisualization:
         Args:
             filename: Optional path to save the PNG. If None, displays inline.
             verbose: Whether to show progress messages.
-            
+
         Returns:
             FileStore containing the PNG image.
         """
         from edsl_services.job_visualization_service import JobVisualizationService
-        
+
         if verbose:
             print("[job_visualization] Generating job flow diagram...")
-        
+
         params = {
             "operation": "flow",
             "data": self.job.to_dict(),
             "filename": filename,
         }
-        
+
         result = JobVisualizationService.execute(params)
         fs = JobVisualizationService.parse_result(result)
-        
+
         if verbose:
             print("[job_visualization] ✓ Flow diagram created")
-        
+
         if filename is None:
             fs.view()
         else:
             print(f"Flowchart saved to {filename}")
-        
+
         return fs

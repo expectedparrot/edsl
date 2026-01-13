@@ -632,16 +632,17 @@ class Scenario(Base, UserDict):
             - Requires the qrcode library: pip install "qrcode[pil]"
             - URLs are extracted using regex pattern matching
             - Supports http://, https://, and ftp:// protocols
-        
+
         .. deprecated::
             Use ``ScenarioList([scenario]).qrcode.generate(field="url_field")`` instead.
             This method will be removed in a future version.
         """
         import warnings
+
         warnings.warn(
             "Scenario.qr_codes() is deprecated. Use ScenarioList([scenario]).qrcode.generate(field='url_field') instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         from .qr_code import QRCode, QRCodeList, extract_urls_from_scenario
 

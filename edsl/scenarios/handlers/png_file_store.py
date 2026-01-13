@@ -36,15 +36,15 @@ class PngMethods(FileMethods):
                 "PIL (Pillow) is required to create PNG examples. "
                 "Install it with: pip install pillow"
             )
-        
+
         # Create a simple gradient image
-        img = Image.new('RGB', (200, 200), color='white')
+        img = Image.new("RGB", (200, 200), color="white")
         draw = ImageDraw.Draw(img)
         for i in range(200):
             color = (i, 100, 255 - i)
             draw.line([(0, i), (200, i)], fill=color)
-        draw.text((50, 90), "EDSL", fill='black')
-        
+        draw.text((50, 90), "EDSL", fill="black")
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as f:
             img.save(f.name)
         return f.name

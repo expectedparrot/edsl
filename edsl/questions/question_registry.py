@@ -9,14 +9,14 @@ from .question_base import RegisterQuestionsMeta
 
 class QuestionVibesAccessor:
     """Accessor for Question vibes service operations.
-    
+
     Provides a clean interface for generating questions from natural language.
-    
+
     Example:
         >>> q = Question.vibes.generate("Ask about favorite color")  # doctest: +SKIP
         >>> q = Question.vibes.create("A satisfaction question")  # doctest: +SKIP
     """
-    
+
     def __repr__(self) -> str:
         return (
             "QuestionVibesAccessor - Generate questions from natural language\n\n"
@@ -28,7 +28,7 @@ class QuestionVibesAccessor:
             "  >>> q.question_type\n"
             "  'multiple_choice'"
         )
-    
+
     def _repr_html_(self) -> str:
         return """
 <div style="font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
@@ -39,7 +39,7 @@ Generate questions from natural language<br><br>
 <code>q = Question.vibes.generate("Ask about favorite color")</code>
 </div>
 """
-    
+
     def generate(
         self,
         description: str,
@@ -49,26 +49,26 @@ Generate questions from natural language<br><br>
         verbose: bool = True,
     ):
         """Generate a question from a natural language description.
-        
+
         Args:
             description: Natural language description of the question
             model: OpenAI model to use (default: gpt-4o)
             temperature: Temperature for generation (default: 0.7)
             verbose: Show progress messages (default: True)
-            
+
         Returns:
             A Question instance of the appropriate type
-            
+
         Example:
             >>> q = Question.vibes.generate("Ask what their favorite color is")  # doctest: +SKIP
             >>> print(q.question_type)  # doctest: +SKIP
             multiple_choice
         """
         from edsl_services.question_vibes.service import QuestionVibesService
-        
+
         if verbose:
             print(f"[question_vibes] Generating question...")
-        
+
         params = QuestionVibesService.create_task(
             description=description,
             model=model,
@@ -76,12 +76,14 @@ Generate questions from natural language<br><br>
         )
         result = QuestionVibesService.execute(params)
         question = QuestionVibesService.parse_result(result)
-        
+
         if verbose:
-            print(f"[question_vibes] ✓ Created {question.question_type} question: '{question.question_name}'")
-        
+            print(
+                f"[question_vibes] ✓ Created {question.question_type} question: '{question.question_name}'"
+            )
+
         return question
-    
+
     # Alias
     create = generate
 
@@ -114,11 +116,11 @@ class Meta(type):
             )
             s += line_info + "\n"
         return s
-    
+
     @property
     def vibes(cls) -> "QuestionVibesAccessor":
         """Access question generation via vibes service.
-        
+
         Example:
             >>> q = Question.vibes.generate("Ask about favorite color")  # doctest: +SKIP
         """

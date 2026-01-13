@@ -688,27 +688,27 @@ class Jobs(Base):
         if has_dependencies or has_post_methods:
             # Use the Jobs flow visualisation service
             from edsl_services.job_visualization_service import JobVisualizationService
-            
+
             if verbose:
                 print("[job_visualization] Generating job flow diagram...")
-            
+
             params = {
                 "operation": "flow",
                 "data": self.to_dict(),
                 "filename": filename,
             }
-            
+
             result = JobVisualizationService.execute(params)
             fs = JobVisualizationService.parse_result(result)
-            
+
             if verbose:
                 print("[job_visualization] ✓ Flow diagram created")
-            
+
             if filename is None:
                 fs.view()
             else:
                 print(f"Flowchart saved to {filename}")
-            
+
             return fs
         else:
             # Fallback to survey flow visualisation

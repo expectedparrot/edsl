@@ -18,19 +18,19 @@ MAX_NESTING = 100
 
 class PreserveUndefined(Undefined):
     """Custom Undefined that preserves template syntax for undefined variables.
-    
+
     When a variable is undefined, instead of raising an error, it returns
     the original template syntax (e.g., {{ var_name }}) so it can be
     rendered later or preserved in output.
     """
-    
+
     def __str__(self):
         return "{{ " + str(self._undefined_name) + " }}"
-    
+
     def __getattr__(self, name):
         # Chain attribute access: user_id_question.answer -> PreserveUndefined("user_id_question.answer")
         return PreserveUndefined(name=f"{self._undefined_name}.{name}")
-    
+
     def __getitem__(self, key):
         # Chain item access: var[0] or var['key'] -> PreserveUndefined("var[0]") or PreserveUndefined("var['key']")
         if isinstance(key, str):
@@ -62,20 +62,20 @@ class TemplateVars:
 
 class SafeSandboxedEnvironment(SandboxedEnvironment):
     """Sandboxed environment that gracefully handles missing attributes.
-    
+
     When accessing an attribute on a real object fails with AttributeError,
     returns a PreserveUndefined instead of crashing. This handles cases where
     user content contains template syntax referencing attributes that don't
     exist on the actual objects in the replacement dict.
     """
-    
+
     def getattr(self, obj, attribute):
         try:
             return super().getattr(obj, attribute)
         except AttributeError:
             # When attribute access fails on a real object, return PreserveUndefined
             # so the template renders without crashing
-            if hasattr(obj, '_undefined_name'):
+            if hasattr(obj, "_undefined_name"):
                 # obj is already a PreserveUndefined, chain the access
                 return PreserveUndefined(name=f"{obj._undefined_name}.{attribute}")
             else:
@@ -88,9 +88,9 @@ def make_env() -> SafeSandboxedEnvironment:
     """Create a fresh sandboxed Jinja environment each time.
 
     Uses SafeSandboxedEnvironment to:
-    - Prevent Server-Side Template Injection (SSTI) attacks by blocking access 
+    - Prevent Server-Side Template Injection (SSTI) attacks by blocking access
       to dangerous attributes like __class__, __mro__, __globals__, etc.
-    - Gracefully handle missing attributes on real objects by preserving 
+    - Gracefully handle missing attributes on real objects by preserving
       template syntax instead of raising AttributeError.
     """
     return SafeSandboxedEnvironment(undefined=PreserveUndefined)
@@ -438,7 +438,7 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
 
                 # Re-inject the vars object since cached template doesn't have it
                 template.globals["vars"] = template_vars
-                #breakpoint()
+                # breakpoint()
                 rendered_text = template.render(**all_replacements)
             else:
                 # No template syntax, use text as-is

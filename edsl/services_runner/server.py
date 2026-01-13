@@ -59,6 +59,7 @@ def get_server() -> LocalServer:
 # Pydantic models for request/response bodies
 # ============================================================================
 
+
 class CreateTaskRequest(BaseModel):
     task_type: str
     params: Dict[str, Any]
@@ -115,11 +116,12 @@ class GroupStatusResponse(BaseModel):
 # Health check endpoint
 # ============================================================================
 
+
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """
     Health check endpoint.
-    
+
     Returns server status for monitoring and client connection verification.
     """
     return HealthResponse(
@@ -133,15 +135,16 @@ async def health_check():
 # Task endpoints
 # ============================================================================
 
+
 @app.post("/api/tasks", response_model=CreateTaskResponse)
 async def create_task(request: CreateTaskRequest):
     """
     Create a new task.
-    
+
     The task will be queued for processing by a worker.
     """
     server = get_server()
-    
+
     task_id = server.create_unified_task(
         task_type=request.task_type,
         params=request.params,
@@ -152,7 +155,7 @@ async def create_task(request: CreateTaskRequest):
         priority=request.priority,
         meta=request.meta,
     )
-    
+
     return CreateTaskResponse(task_id=task_id)
 
 
@@ -160,18 +163,18 @@ async def create_task(request: CreateTaskRequest):
 async def claim_task(request: ClaimTaskRequest):
     """
     Claim the next available task for processing.
-    
+
     Workers call this to get tasks to process.
     Returns the claimed task or null if none available.
     """
     server = get_server()
-    
+
     task = server.claim_unified_task(
         task_types=request.task_types,
         worker_id=request.worker_id,
         bucket_id=request.bucket_id,
     )
-    
+
     return task  # May be None
 
 
@@ -179,16 +182,16 @@ async def claim_task(request: ClaimTaskRequest):
 async def get_task(task_id: str):
     """
     Get task status and result.
-    
+
     Returns the full task object including status, result (if complete),
     and error (if failed).
     """
     server = get_server()
-    
+
     task = server.get_unified_task(task_id)
     if task is None:
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
-    
+
     return task
 
 
@@ -196,20 +199,20 @@ async def get_task(task_id: str):
 async def complete_task(task_id: str, request: CompleteTaskRequest):
     """
     Mark a task as completed.
-    
+
     Workers call this when they've finished processing a task.
     """
     server = get_server()
-    
+
     success = server.complete_unified_task(
         task_id=task_id,
         result=request.result,
         result_ref=request.result_ref,
     )
-    
+
     if not success:
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
-    
+
     return {"status": "completed"}
 
 
@@ -217,16 +220,16 @@ async def complete_task(task_id: str, request: CompleteTaskRequest):
 async def fail_task(task_id: str, request: FailTaskRequest):
     """
     Mark a task as failed.
-    
+
     Workers call this when task processing fails.
     """
     server = get_server()
-    
+
     success = server.fail_unified_task(task_id=task_id, error=request.error)
-    
+
     if not success:
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
-    
+
     return {"status": "failed"}
 
 
@@ -234,21 +237,21 @@ async def fail_task(task_id: str, request: FailTaskRequest):
 async def update_progress(task_id: str, request: ProgressUpdateRequest):
     """
     Update task progress.
-    
+
     Workers call this to report progress during long-running tasks.
     """
     server = get_server()
-    
+
     success = server.update_unified_task_progress(
         task_id=task_id,
         message=request.message,
         progress=request.progress,
         data=request.data,
     )
-    
+
     if not success:
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
-    
+
     return {"status": "updated"}
 
 
@@ -256,13 +259,13 @@ async def update_progress(task_id: str, request: ProgressUpdateRequest):
 async def get_progress(task_id: str, since_index: int = 0):
     """
     Get task progress events.
-    
+
     Returns progress events since the given index for incremental updates.
     """
     server = get_server()
-    
+
     events = server.get_unified_task_progress(task_id=task_id, since_index=since_index)
-    
+
     return events
 
 
@@ -270,17 +273,18 @@ async def get_progress(task_id: str, since_index: int = 0):
 # Group endpoints
 # ============================================================================
 
+
 @app.post("/api/groups")
 async def create_group(request: CreateGroupRequest):
     """
     Create a task group.
-    
+
     Groups allow tracking multiple related tasks together.
     """
     server = get_server()
-    
+
     server.create_task_group(group_id=request.group_id, job_id=request.job_id)
-    
+
     return {"status": "created", "group_id": request.group_id}
 
 
@@ -290,15 +294,16 @@ async def get_group_status(group_id: str):
     Check if all tasks in a group are complete.
     """
     server = get_server()
-    
+
     complete = server.is_group_complete(group_id)
-    
+
     return GroupStatusResponse(group_id=group_id, complete=complete)
 
 
 # ============================================================================
 # Startup/shutdown events
 # ============================================================================
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -322,22 +327,25 @@ async def shutdown_event():
 # CLI entry point
 # ============================================================================
 
+
 def main():
     """Run the server from command line."""
     parser = argparse.ArgumentParser(description="EDSL Service Runner Server")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
     parser.add_argument("--port", type=int, default=8080, help="Port to listen on")
     parser.add_argument("--workers", type=int, default=4, help="Number of task workers")
-    parser.add_argument("--reload", action="store_true", help="Enable auto-reload for development")
-    
+    parser.add_argument(
+        "--reload", action="store_true", help="Enable auto-reload for development"
+    )
+
     args = parser.parse_args()
-    
+
     import uvicorn
-    
+
     print(f"[EDSL Service Runner] Starting server on {args.host}:{args.port}")
     print(f"[EDSL Service Runner] Workers: {args.workers}")
     print(f"[EDSL Service Runner] Health check: http://{args.host}:{args.port}/health")
-    
+
     uvicorn.run(
         "edsl.services_runner.server:app",
         host=args.host,
@@ -348,4 +356,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

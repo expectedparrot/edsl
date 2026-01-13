@@ -135,7 +135,7 @@ class CosineSimilarity(ComparisonFunction):
         answers_B_str = [to_string(b) for b in answers_B]
 
         import numpy as np
-        
+
         all_sentences = answers_A_str + answers_B_str
         embeddings = self.model.encode(all_sentences)
         n = len(answers_A)

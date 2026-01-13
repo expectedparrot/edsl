@@ -372,7 +372,7 @@ class ResultsSerializer:
                 data_path = temp_path / "data.json"
                 db_path = temp_path / "results.db"
                 result_data = []
-                
+
                 if data_path.exists():
                     # New format: JSON file
                     data_list = json.loads(data_path.read_text())
@@ -380,6 +380,7 @@ class ResultsSerializer:
                 elif db_path.exists():
                     # Legacy format: SQLite database - read directly
                     import sqlite3
+
                     conn = sqlite3.connect(str(db_path))
                     cursor = conn.execute("SELECT value FROM list_data ORDER BY idx")
                     for row in cursor:

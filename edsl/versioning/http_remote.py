@@ -268,7 +268,7 @@ class HTTPRemote:
     def get_commit_data(self, commit_id: str) -> Dict[str, Any]:
         """
         Get materialized state at a specific commit.
-        
+
         The server will replay events if needed to reconstruct the state.
         Returns dict with 'entries' and 'meta' keys.
         """
@@ -516,7 +516,7 @@ def create_app(db_url: Optional[str] = None):
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
-            "http://localhost:3000", 
+            "http://localhost:3000",
             "http://127.0.0.1:3000",
             "http://localhost:8000",  # Pyodide dev server
             "http://127.0.0.1:8000",

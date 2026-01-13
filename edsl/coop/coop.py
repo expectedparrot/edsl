@@ -3927,6 +3927,7 @@ class Coop(CoopFunctionsMixin):
             # Use IPython HTML display
             try:
                 from IPython.display import HTML, display
+
                 display(HTML(html_content))
             except ImportError:
                 # Fall back to terminal display if IPython not available

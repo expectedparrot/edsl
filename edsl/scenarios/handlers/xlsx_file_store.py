@@ -7,6 +7,7 @@ def _require_pandas():
     """Helper to check pandas availability with helpful error message."""
     try:
         import pandas as pd
+
         return pd
     except ImportError:
         raise ImportError(
@@ -91,7 +92,7 @@ class XlsxMethods(FileMethods):
 
         Returns:
             dict: Dictionary of sheet names to DataFrames, or single DataFrame if only one sheet
-        
+
         Raises:
             ImportError: If pandas is not installed
         """

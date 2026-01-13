@@ -55,43 +55,45 @@ class ObjectView:
     def get_base_state(self) -> List[Dict[str, Any]]:
         cid = self._resolve_base_commit()
         sid = self.repo.get_commit_state_id(cid)
-        
+
         if sid is not None and self.repo.has_state(sid):
             # Direct snapshot exists and is available
             return self.repo.get_state(sid)
-        
+
         # No direct snapshot - need to materialize via event replay
-        snapshot_commit_id, state_id, events_to_replay = self.repo.find_nearest_snapshot(cid)
-        
+        snapshot_commit_id, state_id, events_to_replay = (
+            self.repo.find_nearest_snapshot(cid)
+        )
+
         if state_id is None:
             raise ValueError(
                 f"No snapshot found in ancestry of commit {cid}. "
                 "The repository state may be corrupted or incomplete."
             )
-        
+
         if not self.repo.has_state(state_id):
             raise ValueError(
                 f"Snapshot {state_id} for commit {snapshot_commit_id} not found in local repo. "
                 "Try fetching the repository state again."
             )
-        
+
         # Load the base snapshot
         state = self.repo.get_state(state_id)
-        
+
         if not events_to_replay:
             return state
-        
+
         # Replay events to reach target commit
         # Import here to avoid circular imports
         from edsl.store import Store, create_event, apply_event
-        
+
         # Convert state list to Store format
         state_dict = state[0] if isinstance(state, list) else state
         store = Store(
             entries=list(state_dict.get("entries", [])),
             meta=dict(state_dict.get("meta", {})),
         )
-        
+
         for event_name, event_payload in events_to_replay:
             if event_name == "batch":
                 # Unpack batch events and apply each sub-event
@@ -102,7 +104,7 @@ class ObjectView:
             else:
                 event = create_event(event_name, event_payload)
                 apply_event(event, store)
-        
+
         # Convert Store back to state format
         return [{"entries": store.entries, "meta": store.meta}]
 
@@ -390,7 +392,7 @@ class ExpectedParrotGit:
         self, remote_name: str = "origin", ref_name: Optional[str] = None
     ) -> Tuple["ExpectedParrotGit", "PullResult"]:
         from .models import PullResult
-        
+
         if self._view.has_staged:
             raise StagedChangesError("pull")
         if remote_name not in self._remotes:
@@ -440,7 +442,9 @@ class ExpectedParrotGit:
 
         # Ensure we can reconstruct state at the new HEAD
         # If no local snapshot exists in the ancestry, fetch materialized state from server
-        snapshot_commit_id, snapshot_state_id, _ = repo.find_nearest_snapshot(remote_commit_id)
+        snapshot_commit_id, snapshot_state_id, _ = repo.find_nearest_snapshot(
+            remote_commit_id
+        )
         if snapshot_state_id is None or not repo.has_state(snapshot_state_id):
             # No usable local snapshot - get materialized state from server
             data = remote.get_commit_data(remote_commit_id)
@@ -463,7 +467,7 @@ class ExpectedParrotGit:
         new_view = ObjectView(
             repo=repo, head_ref=ref_name, base_commit=remote_commit_id
         )
-        
+
         result = PullResult(
             remote_name=remote_name,
             ref_name=ref_name,
@@ -495,7 +499,9 @@ class ExpectedParrotGit:
                 repo.put_commit(commit, state_id)
 
             # Ensure we can reconstruct state at this ref's HEAD
-            snapshot_commit_id, snapshot_state_id, _ = repo.find_nearest_snapshot(remote_ref.commit_id)
+            snapshot_commit_id, snapshot_state_id, _ = repo.find_nearest_snapshot(
+                remote_ref.commit_id
+            )
             if snapshot_state_id is None or not repo.has_state(snapshot_state_id):
                 # No usable local snapshot - get materialized state from server
                 data = remote.get_commit_data(remote_ref.commit_id)
@@ -597,7 +603,10 @@ def clone_from_remote(remote: Remote, ref_name: str = "main") -> ObjectView:
             commit_data = remote.get_commit_data(commit.commit_id)
             if commit_data:
                 # commit_data has {entries, meta, ...} - wrap as single row for Store format
-                store_data = {"entries": commit_data.get("entries", []), "meta": commit_data.get("meta", {})}
+                store_data = {
+                    "entries": commit_data.get("entries", []),
+                    "meta": commit_data.get("meta", {}),
+                }
                 state_id = local_repo.put_state([store_data])
         local_repo.put_commit(commit, state_id)
 

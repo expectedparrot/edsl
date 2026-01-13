@@ -71,18 +71,14 @@ class MistralAIService(InferenceServiceABC):
     def sync_client(cls):
         if cls._sync_client_instance is None:
             Mistral = _get_mistral()
-            cls._sync_client_instance = Mistral(
-                api_key=os.getenv(cls._env_key_name_)
-            )
+            cls._sync_client_instance = Mistral(api_key=os.getenv(cls._env_key_name_))
         return cls._sync_client_instance
 
     @classmethod
     def async_client(cls):
         if cls._async_client_instance is None:
             Mistral = _get_mistral()
-            cls._async_client_instance = Mistral(
-                api_key=os.getenv(cls._env_key_name_)
-            )
+            cls._async_client_instance = Mistral(api_key=os.getenv(cls._env_key_name_))
         return cls._async_client_instance
 
     @classmethod

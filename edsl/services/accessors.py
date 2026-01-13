@@ -27,20 +27,20 @@ _active_workers: Set[str] = set()
 
 def _ensure_service_worker(service_name: str) -> None:
     """Ensure a unified worker is running for the given service/task type.
-    
+
     Uses EXPECTED_PARROT_URL and EXPECTED_PARROT_API_KEY from environment.
     """
     global _active_workers
-    
+
     from . import TaskDispatcher
     from edsl.services_runner import require_client
-    
+
     # Get or create server
     server = TaskDispatcher.get_default_server()
     if server is None:
         server = require_client(purpose="service execution")
         TaskDispatcher.set_default_server(server)
-    
+
     # Workers are managed by the HTTP server, so we just mark this service as active
     # The server's internal worker pool handles task execution
     _active_workers.add(service_name)
@@ -86,12 +86,12 @@ def check_dependencies(service_name: str) -> None:
     """
     deps = SERVICE_DEPENDENCIES.get(service_name, [])
     missing = []
-    
+
     for module_name, pip_package, optional in deps:
         if importlib.util.find_spec(module_name) is None:
             if not optional:
                 missing.append(pip_package)
-    
+
     if missing:
         packages = " ".join(missing)
         raise ImportError(
@@ -103,16 +103,16 @@ def check_dependencies(service_name: str) -> None:
 class FirecrawlAccessor:
     """
     Accessor for Firecrawl operations on ScenarioList.
-    
+
     Usage:
         >>> sl = ScenarioList.firecrawl.scrape("https://example.com")
         >>> sl = ScenarioList.firecrawl.crawl("https://docs.python.org", limit=10)
         >>> sl = ScenarioList.firecrawl.search("python web scraping")
     """
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """FirecrawlAccessor - Web scraping and data extraction
 
@@ -131,7 +131,7 @@ Examples:
   sl = ScenarioList.firecrawl.extract(url, schema={"title": "string", "price": "number"})
 
 Requires: FIRECRAWL_API_KEY environment variable"""
-    
+
     def _repr_html_(self) -> str:
         return """
 <div style="font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
@@ -150,17 +150,18 @@ Requires: FIRECRAWL_API_KEY environment variable"""
 <i style="color: #888;">Requires: FIRECRAWL_API_KEY environment variable</i>
 </div>
 """
-    
+
     def _ensure_server(self):
         """Ensure a server and worker are running."""
         _ensure_service_worker("firecrawl")
-    
+
     def _dispatch_and_wait(self, params: dict, verbose: bool = True) -> "ScenarioList":
         """Dispatch task and wait for result."""
         from . import dispatch
+
         pending = dispatch("firecrawl", params)
         return pending.result(verbose=verbose)
-    
+
     def scrape(
         self,
         url: Union[str, List[str]],
@@ -169,12 +170,12 @@ Requires: FIRECRAWL_API_KEY environment variable"""
     ) -> "ScenarioList":
         """
         Scrape content from one or more URLs.
-        
+
         Args:
             url: Single URL or list of URLs to scrape
             verbose: Show progress updates
             **kwargs: Additional Firecrawl options
-            
+
         Returns:
             ScenarioList with scraped content
         """
@@ -187,7 +188,7 @@ Requires: FIRECRAWL_API_KEY environment variable"""
             {"operation": "scrape", "url": url, **kwargs},
             verbose=verbose,
         )
-    
+
     def crawl(
         self,
         url: str,
@@ -197,13 +198,13 @@ Requires: FIRECRAWL_API_KEY environment variable"""
     ) -> "ScenarioList":
         """
         Crawl a website and extract content from discovered pages.
-        
+
         Args:
             url: Base URL to start crawling from
             limit: Maximum pages to crawl
             verbose: Show progress updates
             **kwargs: Additional Firecrawl options
-            
+
         Returns:
             ScenarioList with crawled pages
         """
@@ -211,7 +212,7 @@ Requires: FIRECRAWL_API_KEY environment variable"""
             {"operation": "crawl", "url": url, "limit": limit, **kwargs},
             verbose=verbose,
         )
-    
+
     def search(
         self,
         query: Union[str, List[str]],
@@ -220,12 +221,12 @@ Requires: FIRECRAWL_API_KEY environment variable"""
     ) -> "ScenarioList":
         """
         Search the web and extract content from results.
-        
+
         Args:
             query: Search query or list of queries
             verbose: Show progress updates
             **kwargs: Additional Firecrawl options
-            
+
         Returns:
             ScenarioList with search results
         """
@@ -238,7 +239,7 @@ Requires: FIRECRAWL_API_KEY environment variable"""
             {"operation": "search", "query": query, **kwargs},
             verbose=verbose,
         )
-    
+
     def extract(
         self,
         url: Union[str, List[str]],
@@ -249,14 +250,14 @@ Requires: FIRECRAWL_API_KEY environment variable"""
     ) -> "ScenarioList":
         """
         Extract structured data from URLs using AI.
-        
+
         Args:
             url: URL or list of URLs to extract from
             schema: JSON schema for extraction
             prompt: Natural language prompt for extraction
             verbose: Show progress updates
             **kwargs: Additional Firecrawl options
-            
+
         Returns:
             ScenarioList with extracted data
         """
@@ -266,7 +267,7 @@ Requires: FIRECRAWL_API_KEY environment variable"""
         else:
             params["url"] = url
         return self._dispatch_and_wait(params, verbose=verbose)
-    
+
     def map_urls(
         self,
         url: str,
@@ -276,13 +277,13 @@ Requires: FIRECRAWL_API_KEY environment variable"""
     ) -> "ScenarioList":
         """
         Discover URLs from a website without scraping content.
-        
+
         Args:
             url: Base URL to discover links from
             limit: Maximum URLs to discover
             verbose: Show progress updates
             **kwargs: Additional Firecrawl options
-            
+
         Returns:
             ScenarioList with discovered URLs
         """
@@ -295,14 +296,14 @@ Requires: FIRECRAWL_API_KEY environment variable"""
 class ExaAccessor:
     """
     Accessor for Exa operations on ScenarioList.
-    
+
     Usage:
         >>> sl = ScenarioList.exa.search("AI researchers at Stanford")
     """
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """ExaAccessor - AI-powered web search
 
@@ -332,7 +333,7 @@ Examples:
   )
 
 Requires: EXA_API_KEY environment variable"""
-    
+
     def _repr_html_(self) -> str:
         return """
 <div style="font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
@@ -353,11 +354,11 @@ Requires: EXA_API_KEY environment variable"""
 <i style="color: #888;">Requires: EXA_API_KEY environment variable</i>
 </div>
 """
-    
+
     def _ensure_server(self):
         """Ensure a server and worker are running."""
         _ensure_service_worker("exa")
-    
+
     def search(
         self,
         query: str,
@@ -369,9 +370,9 @@ Requires: EXA_API_KEY environment variable"""
     ) -> "ScenarioList":
         """
         Search the web using Exa's fast semantic search.
-        
+
         This is the simple/cheap mode that uses Exa's regular search API.
-        
+
         Args:
             query: Search query
             num_results: Number of results to return (default 10)
@@ -379,23 +380,26 @@ Requires: EXA_API_KEY environment variable"""
             search_type: "auto", "neural", "keyword", or "deep" (default "auto")
             verbose: Show progress updates
             **kwargs: Additional Exa options
-            
+
         Returns:
             ScenarioList with search results
         """
         check_dependencies("exa")
         from . import dispatch
-        
-        pending = dispatch("exa", {
-            "query": query,
-            "mode": "simple",
-            "num_results": num_results,
-            "include_text": include_text,
-            "search_type": search_type,
-            **kwargs,
-        })
+
+        pending = dispatch(
+            "exa",
+            {
+                "query": query,
+                "mode": "simple",
+                "num_results": num_results,
+                "include_text": include_text,
+                "search_type": search_type,
+                **kwargs,
+            },
+        )
         return pending.result(verbose=verbose)
-    
+
     def webset_search(
         self,
         query: str,
@@ -407,9 +411,9 @@ Requires: EXA_API_KEY environment variable"""
     ) -> "ScenarioList":
         """
         Search using Exa's premium webset feature with structured extraction.
-        
+
         NOTE: This requires Exa credits and can take 1-2 minutes.
-        
+
         Args:
             query: Search query
             count: Number of results
@@ -417,35 +421,38 @@ Requires: EXA_API_KEY environment variable"""
             enrichments: List of enrichment specifications
             verbose: Show progress updates
             **kwargs: Additional Exa options
-            
+
         Returns:
             ScenarioList with enriched search results
         """
         check_dependencies("exa")
         from . import dispatch
-        
-        pending = dispatch("exa", {
-            "query": query,
-            "mode": "webset",
-            "count": count,
-            "criteria": criteria,
-            "enrichments": enrichments,
-            **kwargs,
-        })
+
+        pending = dispatch(
+            "exa",
+            {
+                "query": query,
+                "mode": "webset",
+                "count": count,
+                "criteria": criteria,
+                "enrichments": enrichments,
+                **kwargs,
+            },
+        )
         return pending.result(verbose=verbose)
 
 
 class HuggingFaceAccessor:
     """
     Accessor for HuggingFace operations on ScenarioList.
-    
+
     Usage:
         >>> sl = ScenarioList.huggingface.load("squad", split="train")
     """
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """HuggingFaceAccessor - Load datasets from Hugging Face Hub
 
@@ -464,7 +471,7 @@ Examples:
 
 Browse datasets: https://huggingface.co/datasets
 Optional: HUGGINGFACE_TOKEN for private datasets"""
-    
+
     def _repr_html_(self) -> str:
         return """
 <div style="font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
@@ -482,11 +489,11 @@ Optional: HUGGINGFACE_TOKEN for private datasets"""
 <i style="color: #888;">Optional: HUGGINGFACE_TOKEN for private datasets</i>
 </div>
 """
-    
+
     def _ensure_server(self):
         """Ensure a server and worker are running."""
         _ensure_service_worker("huggingface")
-    
+
     def load(
         self,
         dataset_name: str,
@@ -497,40 +504,43 @@ Optional: HUGGINGFACE_TOKEN for private datasets"""
     ) -> "ScenarioList":
         """
         Load a dataset from Hugging Face Hub.
-        
+
         Args:
             dataset_name: Name of the dataset (e.g., "squad", "glue")
             config_name: Configuration name if dataset has multiple
             split: Split to load (e.g., "train", "test")
             verbose: Show progress updates
             **kwargs: Additional load_dataset options
-            
+
         Returns:
             ScenarioList with dataset records
         """
         from . import dispatch
-        
-        pending = dispatch("huggingface", {
-            "dataset_name": dataset_name,
-            "config_name": config_name,
-            "split": split,
-            **kwargs,
-        })
+
+        pending = dispatch(
+            "huggingface",
+            {
+                "dataset_name": dataset_name,
+                "config_name": config_name,
+                "split": split,
+                **kwargs,
+            },
+        )
         return pending.result(verbose=verbose)
 
 
 class WikipediaAccessor:
     """
     Accessor for Wikipedia operations on ScenarioList.
-    
+
     Usage:
         >>> sl = ScenarioList.wikipedia.tables("https://en.wikipedia.org/wiki/...")
         >>> sl = ScenarioList.wikipedia.search("machine learning")
     """
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """WikipediaAccessor - Extract data from Wikipedia
 
@@ -560,7 +570,7 @@ Examples:
   sl = ScenarioList.wikipedia.summary("Python (programming language)")
 
 No API key required"""
-    
+
     def _repr_html_(self) -> str:
         return """
 <div style="font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
@@ -582,11 +592,11 @@ No API key required"""
 <i style="color: #888;">No API key required</i>
 </div>
 """
-    
+
     def _ensure_server(self):
         """Ensure a server and worker are running."""
         _ensure_service_worker("wikipedia")
-    
+
     def tables(
         self,
         url: str,
@@ -596,26 +606,29 @@ No API key required"""
     ) -> "ScenarioList":
         """
         Extract tables from a Wikipedia page.
-        
+
         Args:
             url: Wikipedia page URL
             table_index: Which table to extract (None = all tables)
             verbose: Show progress updates
             **kwargs: Additional options
-            
+
         Returns:
             ScenarioList with table rows
         """
         from . import dispatch
-        
-        pending = dispatch("wikipedia", {
-            "mode": "tables",
-            "url": url,
-            "table_index": table_index,
-            **kwargs,
-        })
+
+        pending = dispatch(
+            "wikipedia",
+            {
+                "mode": "tables",
+                "url": url,
+                "table_index": table_index,
+                **kwargs,
+            },
+        )
         return pending.result(verbose=verbose)
-    
+
     def _check_wikipedia_api(self) -> None:
         """Check if wikipedia-api is installed (required for search/summary/content)."""
         if importlib.util.find_spec("wikipediaapi") is None:
@@ -624,7 +637,7 @@ No API key required"""
                 "Install with: pip install wikipedia-api\n\n"
                 "Note: .tables() works without this dependency."
             )
-    
+
     def search(
         self,
         query: str,
@@ -635,29 +648,32 @@ No API key required"""
     ) -> "ScenarioList":
         """
         Search Wikipedia for articles.
-        
+
         Args:
             query: Search query
             num_results: Number of results to return
             language: Wikipedia language code
             verbose: Show progress updates
             **kwargs: Additional options
-            
+
         Returns:
             ScenarioList with search results
         """
         self._check_wikipedia_api()
         from . import dispatch
-        
-        pending = dispatch("wikipedia", {
-            "mode": "search",
-            "query": query,
-            "num_results": num_results,
-            "language": language,
-            **kwargs,
-        })
+
+        pending = dispatch(
+            "wikipedia",
+            {
+                "mode": "search",
+                "query": query,
+                "num_results": num_results,
+                "language": language,
+                **kwargs,
+            },
+        )
         return pending.result(verbose=verbose)
-    
+
     def summary(
         self,
         title: str,
@@ -667,27 +683,30 @@ No API key required"""
     ) -> "ScenarioList":
         """
         Get the summary of a Wikipedia article.
-        
+
         Args:
             title: Article title
             language: Wikipedia language code
             verbose: Show progress updates
             **kwargs: Additional options
-            
+
         Returns:
             ScenarioList with article summary
         """
         self._check_wikipedia_api()
         from . import dispatch
-        
-        pending = dispatch("wikipedia", {
-            "mode": "summary",
-            "title": title,
-            "language": language,
-            **kwargs,
-        })
+
+        pending = dispatch(
+            "wikipedia",
+            {
+                "mode": "summary",
+                "title": title,
+                "language": language,
+                **kwargs,
+            },
+        )
         return pending.result(verbose=verbose)
-    
+
     def content(
         self,
         title: str,
@@ -697,39 +716,42 @@ No API key required"""
     ) -> "ScenarioList":
         """
         Get the full content of a Wikipedia article.
-        
+
         Args:
             title: Article title
             language: Wikipedia language code
             verbose: Show progress updates
             **kwargs: Additional options
-            
+
         Returns:
             ScenarioList with full article content
         """
         self._check_wikipedia_api()
         from . import dispatch
-        
-        pending = dispatch("wikipedia", {
-            "mode": "content",
-            "title": title,
-            "language": language,
-            **kwargs,
-        })
+
+        pending = dispatch(
+            "wikipedia",
+            {
+                "mode": "content",
+                "title": title,
+                "language": language,
+                **kwargs,
+            },
+        )
         return pending.result(verbose=verbose)
 
 
 class ReductoAccessor:
     """
     Accessor for Reducto document processing on ScenarioList.
-    
+
     Usage:
         >>> sl = ScenarioList.reducto.parse("https://example.com/document.pdf")
     """
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """ReductoAccessor - AI-powered PDF and document parsing
 
@@ -755,7 +777,7 @@ Examples:
   )
 
 Requires: REDUCTO_API_KEY environment variable"""
-    
+
     def _repr_html_(self) -> str:
         return """
 <div style="font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
@@ -771,11 +793,11 @@ Requires: REDUCTO_API_KEY environment variable"""
 <i style="color: #888;">Requires: REDUCTO_API_KEY environment variable</i>
 </div>
 """
-    
+
     def _ensure_server(self):
         """Ensure a server and worker are running."""
         _ensure_service_worker("reducto")
-    
+
     def parse(
         self,
         document_url: Optional[str] = None,
@@ -785,26 +807,29 @@ Requires: REDUCTO_API_KEY environment variable"""
     ) -> "ScenarioList":
         """
         Parse a document and extract all content.
-        
+
         Args:
             document_url: URL of the document
             document_path: Local path to the document
             verbose: Show progress updates
             **kwargs: Additional Reducto options
-            
+
         Returns:
             ScenarioList with extracted content
         """
         from . import dispatch
-        
-        pending = dispatch("reducto", {
-            "mode": "parse",
-            "document_url": document_url,
-            "document_path": document_path,
-            **kwargs,
-        })
+
+        pending = dispatch(
+            "reducto",
+            {
+                "mode": "parse",
+                "document_url": document_url,
+                "document_path": document_path,
+                **kwargs,
+            },
+        )
         return pending.result(verbose=verbose)
-    
+
     def extract(
         self,
         document_url: Optional[str] = None,
@@ -815,35 +840,38 @@ Requires: REDUCTO_API_KEY environment variable"""
     ) -> "ScenarioList":
         """
         Extract structured data from a document using a schema.
-        
+
         Args:
             document_url: URL of the document
             document_path: Local path to the document
             schema: Extraction schema defining fields to extract
             verbose: Show progress updates
             **kwargs: Additional Reducto options
-            
+
         Returns:
             ScenarioList with extracted structured data
         """
         from . import dispatch
-        
-        pending = dispatch("reducto", {
-            "mode": "extract",
-            "document_url": document_url,
-            "document_path": document_path,
-            "schema": schema,
-            **kwargs,
-        })
+
+        pending = dispatch(
+            "reducto",
+            {
+                "mode": "extract",
+                "document_url": document_url,
+                "document_path": document_path,
+                "schema": schema,
+                **kwargs,
+            },
+        )
         return pending.result(verbose=verbose)
 
 
 class ArxivAccessor:
     """Accessor for arXiv academic paper search."""
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """ArxivAccessor - Search arXiv for academic papers
 
@@ -860,23 +888,28 @@ Examples:
 
 No API key required
 Requires: pip install arxiv"""
-    
+
     def _ensure_server(self):
         _ensure_service_worker("arxiv")
-    
-    def search(self, query: str, max_results: int = 10, verbose: bool = True, **kwargs) -> "ScenarioList":
+
+    def search(
+        self, query: str, max_results: int = 10, verbose: bool = True, **kwargs
+    ) -> "ScenarioList":
         check_dependencies("arxiv")
         from . import dispatch
-        pending = dispatch("arxiv", {"query": query, "max_results": max_results, **kwargs})
+
+        pending = dispatch(
+            "arxiv", {"query": query, "max_results": max_results, **kwargs}
+        )
         return pending.result(verbose=verbose)
 
 
 class SemanticScholarAccessor:
     """Accessor for Semantic Scholar academic paper search."""
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """SemanticScholarAccessor - Search academic papers with citations
 
@@ -892,22 +925,27 @@ Examples:
   sl = ScenarioList.semantic_scholar.search("NLP", year="2022-2024")
 
 Optional: SEMANTIC_SCHOLAR_API_KEY for higher rate limits"""
-    
+
     def _ensure_server(self):
         _ensure_service_worker("semantic_scholar")
-    
-    def search(self, query: str, limit: int = 20, verbose: bool = True, **kwargs) -> "ScenarioList":
+
+    def search(
+        self, query: str, limit: int = 20, verbose: bool = True, **kwargs
+    ) -> "ScenarioList":
         from . import dispatch
-        pending = dispatch("semantic_scholar", {"query": query, "limit": limit, **kwargs})
+
+        pending = dispatch(
+            "semantic_scholar", {"query": query, "limit": limit, **kwargs}
+        )
         return pending.result(verbose=verbose)
 
 
 class OpenAlexAccessor:
     """Accessor for OpenAlex scholarly data."""
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """OpenAlexAccessor - Open scholarly metadata (papers, authors, institutions)
 
@@ -925,32 +963,55 @@ Examples:
   sl = ScenarioList.openalex.authors("machine learning")
 
 No API key required"""
-    
+
     def _ensure_server(self):
         _ensure_service_worker("openalex")
-    
-    def works(self, search: str, per_page: int = 25, verbose: bool = True, **kwargs) -> "ScenarioList":
+
+    def works(
+        self, search: str, per_page: int = 25, verbose: bool = True, **kwargs
+    ) -> "ScenarioList":
         from . import dispatch
-        pending = dispatch("openalex", {"entity": "works", "search": search, "per_page": per_page, **kwargs})
+
+        pending = dispatch(
+            "openalex",
+            {"entity": "works", "search": search, "per_page": per_page, **kwargs},
+        )
         return pending.result(verbose=verbose)
-    
-    def authors(self, search: str, per_page: int = 25, verbose: bool = True, **kwargs) -> "ScenarioList":
+
+    def authors(
+        self, search: str, per_page: int = 25, verbose: bool = True, **kwargs
+    ) -> "ScenarioList":
         from . import dispatch
-        pending = dispatch("openalex", {"entity": "authors", "search": search, "per_page": per_page, **kwargs})
+
+        pending = dispatch(
+            "openalex",
+            {"entity": "authors", "search": search, "per_page": per_page, **kwargs},
+        )
         return pending.result(verbose=verbose)
-    
-    def institutions(self, search: str, per_page: int = 25, verbose: bool = True, **kwargs) -> "ScenarioList":
+
+    def institutions(
+        self, search: str, per_page: int = 25, verbose: bool = True, **kwargs
+    ) -> "ScenarioList":
         from . import dispatch
-        pending = dispatch("openalex", {"entity": "institutions", "search": search, "per_page": per_page, **kwargs})
+
+        pending = dispatch(
+            "openalex",
+            {
+                "entity": "institutions",
+                "search": search,
+                "per_page": per_page,
+                **kwargs,
+            },
+        )
         return pending.result(verbose=verbose)
 
 
 class YouTubeAccessor:
     """Accessor for YouTube transcript extraction."""
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """YouTubeAccessor - Extract transcripts from YouTube videos
 
@@ -967,13 +1028,20 @@ Examples:
 
 No API key required
 Requires: pip install youtube-transcript-api"""
-    
+
     def _ensure_server(self):
         _ensure_service_worker("youtube")
-    
-    def transcript(self, video: str, languages: Optional[List[str]] = None, verbose: bool = True, **kwargs) -> "ScenarioList":
+
+    def transcript(
+        self,
+        video: str,
+        languages: Optional[List[str]] = None,
+        verbose: bool = True,
+        **kwargs,
+    ) -> "ScenarioList":
         check_dependencies("youtube")
         from . import dispatch
+
         params = {"languages": languages or ["en"], **kwargs}
         if video.startswith("http"):
             params["video_url"] = video
@@ -985,10 +1053,10 @@ Requires: pip install youtube-transcript-api"""
 
 class RedditAccessor:
     """Accessor for Reddit data."""
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """RedditAccessor - Fetch posts and comments from Reddit
 
@@ -1007,29 +1075,42 @@ Examples:
 
 Requires: REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET
 Requires: pip install praw"""
-    
+
     def _ensure_server(self):
         _ensure_service_worker("reddit")
-    
-    def subreddit(self, name: str, sort: str = "hot", limit: int = 25, verbose: bool = True, **kwargs) -> "ScenarioList":
+
+    def subreddit(
+        self,
+        name: str,
+        sort: str = "hot",
+        limit: int = 25,
+        verbose: bool = True,
+        **kwargs,
+    ) -> "ScenarioList":
         check_dependencies("reddit")
         from . import dispatch
-        pending = dispatch("reddit", {"subreddit": name, "sort": sort, "limit": limit, **kwargs})
+
+        pending = dispatch(
+            "reddit", {"subreddit": name, "sort": sort, "limit": limit, **kwargs}
+        )
         return pending.result(verbose=verbose)
-    
-    def search(self, query: str, limit: int = 25, verbose: bool = True, **kwargs) -> "ScenarioList":
+
+    def search(
+        self, query: str, limit: int = 25, verbose: bool = True, **kwargs
+    ) -> "ScenarioList":
         check_dependencies("reddit")
         from . import dispatch
+
         pending = dispatch("reddit", {"search_query": query, "limit": limit, **kwargs})
         return pending.result(verbose=verbose)
 
 
 class FREDAccessor:
     """Accessor for Federal Reserve Economic Data."""
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """FREDAccessor - Federal Reserve Economic Data
 
@@ -1046,27 +1127,31 @@ Examples:
   sl = ScenarioList.fred.search("inflation")
 
 Requires: FRED_API_KEY (free at fred.stlouisfed.org)"""
-    
+
     def _ensure_server(self):
         _ensure_service_worker("fred")
-    
+
     def series(self, series_id: str, verbose: bool = True, **kwargs) -> "ScenarioList":
         from . import dispatch
+
         pending = dispatch("fred", {"series_id": series_id, **kwargs})
         return pending.result(verbose=verbose)
-    
-    def search(self, text: str, limit: int = 100, verbose: bool = True, **kwargs) -> "ScenarioList":
+
+    def search(
+        self, text: str, limit: int = 100, verbose: bool = True, **kwargs
+    ) -> "ScenarioList":
         from . import dispatch
+
         pending = dispatch("fred", {"search_text": text, "limit": limit, **kwargs})
         return pending.result(verbose=verbose)
 
 
 class WorldBankAccessor:
     """Accessor for World Bank data."""
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """WorldBankAccessor - Global development indicators
 
@@ -1082,27 +1167,33 @@ Examples:
   sl = ScenarioList.worldbank.indicator("NY.GDP.MKTP.CD", date="2010:2023")
 
 No API key required"""
-    
+
     def _ensure_server(self):
         _ensure_service_worker("worldbank")
-    
-    def indicator(self, indicator: str, country: str = "all", verbose: bool = True, **kwargs) -> "ScenarioList":
+
+    def indicator(
+        self, indicator: str, country: str = "all", verbose: bool = True, **kwargs
+    ) -> "ScenarioList":
         from . import dispatch
-        pending = dispatch("worldbank", {"indicator": indicator, "country": country, **kwargs})
+
+        pending = dispatch(
+            "worldbank", {"indicator": indicator, "country": country, **kwargs}
+        )
         return pending.result(verbose=verbose)
-    
+
     def search(self, text: str, verbose: bool = True, **kwargs) -> "ScenarioList":
         from . import dispatch
+
         pending = dispatch("worldbank", {"search_indicator": text, **kwargs})
         return pending.result(verbose=verbose)
 
 
 class CensusAccessor:
     """Accessor for US Census data."""
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """CensusAccessor - US Census Bureau demographic data
 
@@ -1122,22 +1213,33 @@ Examples:
   sl = ScenarioList.census.get(["NAME", "B01001_001E"], geography="county:*&in=state:06")
 
 Optional: CENSUS_API_KEY for higher rate limits"""
-    
+
     def _ensure_server(self):
         _ensure_service_worker("census")
-    
-    def get(self, variables: List[str], geography: str = "state:*", year: int = 2022, verbose: bool = True, **kwargs) -> "ScenarioList":
+
+    def get(
+        self,
+        variables: List[str],
+        geography: str = "state:*",
+        year: int = 2022,
+        verbose: bool = True,
+        **kwargs,
+    ) -> "ScenarioList":
         from . import dispatch
-        pending = dispatch("census", {"variables": variables, "geography": geography, "year": year, **kwargs})
+
+        pending = dispatch(
+            "census",
+            {"variables": variables, "geography": geography, "year": year, **kwargs},
+        )
         return pending.result(verbose=verbose)
 
 
 class CrunchbaseAccessor:
     """Accessor for Crunchbase company data."""
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """CrunchbaseAccessor - Startup and company data
 
@@ -1152,22 +1254,27 @@ Examples:
   sl = ScenarioList.crunchbase.search("fintech", limit=50)
 
 Requires: CRUNCHBASE_API_KEY"""
-    
+
     def _ensure_server(self):
         _ensure_service_worker("crunchbase")
-    
-    def search(self, query: str, limit: int = 25, verbose: bool = True, **kwargs) -> "ScenarioList":
+
+    def search(
+        self, query: str, limit: int = 25, verbose: bool = True, **kwargs
+    ) -> "ScenarioList":
         from . import dispatch
-        pending = dispatch("crunchbase", {"search_query": query, "limit": limit, **kwargs})
+
+        pending = dispatch(
+            "crunchbase", {"search_query": query, "limit": limit, **kwargs}
+        )
         return pending.result(verbose=verbose)
 
 
 class DiffbotAccessor:
     """Accessor for Diffbot structured data extraction."""
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """DiffbotAccessor - Extract structured data from URLs
 
@@ -1181,32 +1288,35 @@ Examples:
   sl = ScenarioList.diffbot.article("https://nytimes.com/...")
 
 Requires: DIFFBOT_TOKEN"""
-    
+
     def _ensure_server(self):
         _ensure_service_worker("diffbot")
-    
+
     def extract(self, url: str, verbose: bool = True, **kwargs) -> "ScenarioList":
         from . import dispatch
+
         pending = dispatch("diffbot", {"url": url, "api": "analyze", **kwargs})
         return pending.result(verbose=verbose)
-    
+
     def article(self, url: str, verbose: bool = True, **kwargs) -> "ScenarioList":
         from . import dispatch
+
         pending = dispatch("diffbot", {"url": url, "api": "article", **kwargs})
         return pending.result(verbose=verbose)
-    
+
     def product(self, url: str, verbose: bool = True, **kwargs) -> "ScenarioList":
         from . import dispatch
+
         pending = dispatch("diffbot", {"url": url, "api": "product", **kwargs})
         return pending.result(verbose=verbose)
 
 
 class ReplicateAccessor:
     """Accessor for Replicate ML models."""
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """ReplicateAccessor - Run ML models (image generation, etc.)
 
@@ -1223,29 +1333,37 @@ Examples:
 
 Requires: REPLICATE_API_TOKEN
 Requires: pip install replicate"""
-    
+
     def _ensure_server(self):
         _ensure_service_worker("replicate")
-    
-    def run(self, model: str, input: Dict[str, Any], verbose: bool = True, **kwargs) -> "ScenarioList":
+
+    def run(
+        self, model: str, input: Dict[str, Any], verbose: bool = True, **kwargs
+    ) -> "ScenarioList":
         check_dependencies("replicate")
         from . import dispatch
+
         pending = dispatch("replicate", {"model": model, "input": input, **kwargs})
         return pending.result(verbose=verbose)
-    
-    def generate_image(self, prompt: str, model: str = "flux", verbose: bool = True, **kwargs) -> "ScenarioList":
+
+    def generate_image(
+        self, prompt: str, model: str = "flux", verbose: bool = True, **kwargs
+    ) -> "ScenarioList":
         check_dependencies("replicate")
         from . import dispatch
-        pending = dispatch("replicate", {"model": model, "input": {"prompt": prompt}, **kwargs})
+
+        pending = dispatch(
+            "replicate", {"model": model, "input": {"prompt": prompt}, **kwargs}
+        )
         return pending.result(verbose=verbose)
 
 
 class FalAccessor:
     """Accessor for fal.ai image generation."""
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """FalAccessor - Fast image generation
 
@@ -1263,23 +1381,26 @@ Examples:
 
 Requires: FAL_KEY
 Requires: pip install fal-client"""
-    
+
     def _ensure_server(self):
         _ensure_service_worker("fal")
-    
-    def generate(self, prompt: str, model: str = "flux-schnell", verbose: bool = True, **kwargs) -> "ScenarioList":
+
+    def generate(
+        self, prompt: str, model: str = "flux-schnell", verbose: bool = True, **kwargs
+    ) -> "ScenarioList":
         check_dependencies("fal")
         from . import dispatch
+
         pending = dispatch("fal", {"prompt": prompt, "model": model, **kwargs})
         return pending.result(verbose=verbose)
 
 
 class DalleAccessor:
     """Accessor for OpenAI DALL-E image generation."""
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """DalleAccessor - OpenAI DALL-E image generation
 
@@ -1297,32 +1418,37 @@ Examples:
   sl = ScenarioList.dalle.generate("Oil painting", quality="hd", style="natural")
 
 Requires: OPENAI_API_KEY"""
-    
+
     def _ensure_server(self):
         _ensure_service_worker("openai_images")
-    
-    def generate(self, prompt: str, model: str = "dall-e-3", verbose: bool = True, **kwargs) -> "ScenarioList":
+
+    def generate(
+        self, prompt: str, model: str = "dall-e-3", verbose: bool = True, **kwargs
+    ) -> "ScenarioList":
         check_dependencies("openai_images")
         from . import dispatch
-        pending = dispatch("openai_images", {"prompt": prompt, "model": model, **kwargs})
+
+        pending = dispatch(
+            "openai_images", {"prompt": prompt, "model": model, **kwargs}
+        )
         return pending.result(verbose=verbose)
 
 
 class GoogleSheetsAccessor:
     """
     Accessor for Google Sheets operations on ScenarioList.
-    
+
     Uses OAuth2 browser-based authentication. First use will open a browser
     for Google login. Credentials are cached locally for future use.
-    
+
     Usage:
         >>> sl = ScenarioList.google_sheets.read("https://docs.google.com/spreadsheets/d/...")
         >>> sl = ScenarioList.google_sheets.read(spreadsheet_id, sheet_name="Sheet2")
     """
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """GoogleSheetsAccessor - Read data from Google Sheets
 
@@ -1356,7 +1482,7 @@ Authentication:
   Credentials are saved to ~/.config/gspread/
   
 Requires: pip install gspread"""
-    
+
     def _repr_html_(self) -> str:
         return """
 <div style="font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
@@ -1372,11 +1498,11 @@ Requires: pip install gspread"""
 <i style="color: #888;">First use opens browser for Google login. No API key setup needed!</i>
 </div>
 """
-    
+
     def _ensure_server(self):
         """Ensure a server and worker are running."""
         _ensure_service_worker("google_sheets")
-    
+
     def read(
         self,
         url: str,
@@ -1388,7 +1514,7 @@ Requires: pip install gspread"""
     ) -> "ScenarioList":
         """
         Read data from a Google Sheet.
-        
+
         Args:
             url: Google Sheets URL or spreadsheet ID
             sheet_name: Name of the sheet to read (default: first sheet)
@@ -1396,17 +1522,17 @@ Requires: pip install gspread"""
             header_row: Row number to use as headers (0-indexed)
             verbose: Show progress updates
             **kwargs: Additional options
-            
+
         Returns:
             ScenarioList with sheet data (one Scenario per row)
-            
+
         Example:
             >>> sl = ScenarioList.google_sheets.read(
             ...     "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
             ... )
         """
         from . import dispatch
-        
+
         params = {
             "url": url,
             "sheet_name": sheet_name,
@@ -1414,34 +1540,35 @@ Requires: pip install gspread"""
             "header_row": header_row,
             **kwargs,
         }
-        
+
         pending = dispatch("google_sheets", params)
         return pending.result(verbose=verbose)
-    
+
     def logout(self):
         """
         Clear saved Google credentials.
-        
+
         Use this to switch Google accounts or revoke access.
         """
         from .builtin.google_sheets import GoogleSheetsService
+
         GoogleSheetsService.logout()
 
 
 class PerplexityAccessor:
     """
     Accessor for Perplexity AI search on ScenarioList.
-    
+
     Perplexity provides AI-powered search with citations - answers
     grounded in real sources from the web.
-    
+
     Usage:
         >>> sl = ScenarioList.perplexity.search("What are the latest AI breakthroughs?")
     """
-    
+
     def __init__(self):
         self._ensure_server()
-    
+
     def __repr__(self) -> str:
         return """PerplexityAccessor - AI-powered search with citations
 
@@ -1475,7 +1602,7 @@ Returns ScenarioList with:
   - citation_count: Number of sources used
 
 Requires: PERPLEXITY_API_KEY (get at perplexity.ai/settings/api)"""
-    
+
     def _repr_html_(self) -> str:
         return """
 <div style="font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
@@ -1491,11 +1618,11 @@ Requires: PERPLEXITY_API_KEY (get at perplexity.ai/settings/api)"""
 <i style="color: #888;">Requires: PERPLEXITY_API_KEY</i>
 </div>
 """
-    
+
     def _ensure_server(self):
         """Ensure a server and worker are running."""
         _ensure_service_worker("perplexity")
-    
+
     def search(
         self,
         query: str,
@@ -1507,7 +1634,7 @@ Requires: PERPLEXITY_API_KEY (get at perplexity.ai/settings/api)"""
     ) -> "ScenarioList":
         """
         Search using Perplexity AI.
-        
+
         Args:
             query: The question or search query
             model: Model to use (sonar, sonar-pro, sonar-reasoning)
@@ -1515,12 +1642,12 @@ Requires: PERPLEXITY_API_KEY (get at perplexity.ai/settings/api)"""
             search_recency_filter: Filter by time: "day", "week", "month", "year"
             verbose: Show progress updates
             **kwargs: Additional options
-            
+
         Returns:
             ScenarioList with answer and citations
         """
         from . import dispatch
-        
+
         params = {
             "query": query,
             "model": model,
@@ -1528,7 +1655,7 @@ Requires: PERPLEXITY_API_KEY (get at perplexity.ai/settings/api)"""
             "search_recency_filter": search_recency_filter,
             **kwargs,
         }
-        
+
         pending = dispatch("perplexity", params)
         return pending.result(verbose=verbose)
 
@@ -1700,18 +1827,19 @@ def get_perplexity_accessor() -> PerplexityAccessor:
 # Survey Import Accessor
 # =============================================================================
 
+
 class SurveyImportAccessor:
     """
     Accessor for importing survey data from Qualtrics and SurveyMonkey.
-    
+
     This accessor is attached to the Results class and provides methods
     for importing survey exports via the worker framework.
-    
+
     Usage:
         >>> results = Results.import_.qualtrics("qualtrics_export.csv")
         >>> results = Results.import_.survey_monkey("survey_export.xlsx")
     """
-    
+
     def __repr__(self) -> str:
         return """SurveyImportAccessor - Import survey data via worker framework
 
@@ -1732,7 +1860,7 @@ Options:
   order_options_semantically=True  Reorder options logically (SurveyMonkey)
 
 Requires: pandas (for Excel support)"""
-    
+
     def _repr_html_(self) -> str:
         return """
 <div style="font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
@@ -1746,11 +1874,11 @@ Requires: pandas (for Excel support)"""
 <i style="color: #888;">Requires: pandas (for Excel)</i>
 </div>
 """
-    
+
     def _ensure_server(self):
         """Ensure a server and worker are running for survey import operations."""
         _ensure_service_worker("survey_import")
-    
+
     def qualtrics(
         self,
         filepath: str,
@@ -1761,10 +1889,10 @@ Requires: pandas (for Excel support)"""
         disable_remote_inference: bool = True,
     ) -> "Results":
         """Import from a Qualtrics CSV or tab-delimited export.
-        
+
         This method imports a Qualtrics export (CSV or tab with 3-row headers)
         and generates a Results object by running agents through the reconstructed survey.
-        
+
         Args:
             filepath: Path to the Qualtrics export file (CSV, .tab, or .tsv)
             verbose: Print progress information during parsing
@@ -1773,10 +1901,10 @@ Requires: pandas (for Excel support)"""
             vibe_config: Enable AI-powered question cleanup and enhancement.
                 Set to False to disable.
             disable_remote_inference: Run locally without remote API calls (default True)
-        
+
         Returns:
             Results: A Results object containing the imported survey responses
-            
+
         Examples:
             >>> results = Results.import_.qualtrics("qualtrics_export.csv")
             >>> results = Results.import_.qualtrics(
@@ -1787,17 +1915,17 @@ Requires: pandas (for Excel support)"""
         """
         import base64
         import os
-        
+
         from . import dispatch
-        
+
         self._ensure_server()
-        
+
         # Read file and encode as base64
         with open(filepath, "rb") as f:
             file_content = base64.b64encode(f.read()).decode("utf-8")
-        
+
         filename = os.path.basename(filepath)
-        
+
         pending = dispatch(
             "survey_import",
             {
@@ -1808,11 +1936,11 @@ Requires: pandas (for Excel support)"""
                 "create_semantic_names": create_semantic_names,
                 "vibe_config": vibe_config,
                 "disable_remote_inference": disable_remote_inference,
-            }
+            },
         )
-        
+
         return pending.result(verbose=verbose)
-    
+
     def survey_monkey(
         self,
         filepath: str,
@@ -1824,10 +1952,10 @@ Requires: pandas (for Excel support)"""
         disable_remote_inference: bool = True,
     ) -> "Results":
         """Import from a SurveyMonkey CSV or Excel export.
-        
+
         This method imports a SurveyMonkey export (CSV or Excel) and generates
         a Results object by running agents through the reconstructed survey.
-        
+
         Args:
             filepath: Path to the SurveyMonkey export file (.csv, .xlsx, .xls)
             verbose: Print progress information during parsing
@@ -1837,10 +1965,10 @@ Requires: pandas (for Excel support)"""
             order_options_semantically: Use LLM to reorder multiple choice
                 options in semantically correct order. Default True.
             disable_remote_inference: Run locally without remote API calls (default True)
-        
+
         Returns:
             Results: A Results object containing the imported survey responses
-            
+
         Examples:
             >>> results = Results.import_.survey_monkey("survey_results.csv")
             >>> results = Results.import_.survey_monkey(
@@ -1851,17 +1979,17 @@ Requires: pandas (for Excel support)"""
         """
         import base64
         import os
-        
+
         from . import dispatch
-        
+
         self._ensure_server()
-        
+
         # Read file and encode as base64
         with open(filepath, "rb") as f:
             file_content = base64.b64encode(f.read()).decode("utf-8")
-        
+
         filename = os.path.basename(filepath)
-        
+
         pending = dispatch(
             "survey_import",
             {
@@ -1873,45 +2001,45 @@ Requires: pandas (for Excel support)"""
                 "repair_excel_dates": repair_excel_dates,
                 "order_options_semantically": order_options_semantically,
                 "disable_remote_inference": disable_remote_inference,
-            }
+            },
         )
-        
+
         return pending.result(verbose=verbose)
 
 
 class EmbeddingsAccessor:
     """
     Accessor for embedding operations on ScenarioList.
-    
+
     Provides methods to generate embeddings, perform semantic search,
     and cluster scenarios by similarity.
-    
+
     Usage:
         # Generate embeddings for a column
         sl_with_embeddings = sl.embeddings.generate("text_column")
-        
+
         # Generate a single embedding
         embedding = ScenarioList.embeddings.embed("Hello world")
-        
+
         # Search for similar items
         results = sl.embeddings.search("query text", column="text_column", top_k=5)
-    
+
     Requires: OPENAI_API_KEY environment variable
     """
-    
+
     def __init__(self, scenario_list: Optional["ScenarioList"] = None):
         """
         Initialize the embeddings accessor.
-        
+
         Args:
             scenario_list: Optional ScenarioList to operate on
         """
         self._scenario_list = scenario_list
-    
+
     def _ensure_server(self) -> None:
         """Ensure the service worker is running."""
         _ensure_service_worker("embeddings")
-    
+
     def __repr__(self) -> str:
         return """EmbeddingsAccessor - Generate and work with text embeddings
 
@@ -1943,7 +2071,7 @@ Examples:
     
 Requires: OPENAI_API_KEY
 """
-    
+
     def _repr_html_(self) -> str:
         return """
         <div style="font-family: monospace; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
@@ -1968,7 +2096,7 @@ Requires: OPENAI_API_KEY
             </div>
         </div>
         """
-    
+
     def embed(
         self,
         text: str,
@@ -1979,16 +2107,16 @@ Requires: OPENAI_API_KEY
     ) -> "EmbeddingStore":
         """
         Generate an embedding for a single text.
-        
+
         Args:
             text: The text to embed
             model: The embedding model to use
             dimensions: Optional reduced dimensions (for v3 models only)
             verbose: Show progress spinner
-            
+
         Returns:
             EmbeddingStore object with the embedding and similarity methods
-            
+
         Examples:
             >>> emb = ScenarioList.embeddings.embed("Hello world")
             >>> emb.dimensions
@@ -1998,9 +2126,9 @@ Requires: OPENAI_API_KEY
         """
         check_dependencies("embeddings")
         self._ensure_server()
-        
+
         from . import dispatch
-        
+
         pending = dispatch(
             "embeddings",
             {
@@ -2008,11 +2136,11 @@ Requires: OPENAI_API_KEY
                 "texts": [text],
                 "model": model,
                 "dimensions": dimensions,
-            }
+            },
         )
-        
+
         return pending.result(verbose=verbose)
-    
+
     def generate(
         self,
         column: str,
@@ -2024,17 +2152,17 @@ Requires: OPENAI_API_KEY
     ) -> "ScenarioList":
         """
         Generate embeddings for all texts in a column.
-        
+
         Args:
             column: Name of the column containing texts to embed
             model: The embedding model to use
             dimensions: Optional reduced dimensions (for v3 models only)
             output_column: Name for the new column with embeddings
             verbose: Show progress spinner
-            
+
         Returns:
             New ScenarioList with an additional column containing EmbeddingStore objects
-            
+
         Examples:
             >>> sl = ScenarioList([
             ...     Scenario({"text": "Python is great"}),
@@ -2046,19 +2174,19 @@ Requires: OPENAI_API_KEY
         """
         if self._scenario_list is None:
             raise ValueError("No ScenarioList attached. Use sl.embeddings.generate()")
-        
+
         check_dependencies("embeddings")
         self._ensure_server()
-        
+
         from . import dispatch
         from edsl.scenarios import ScenarioList, Scenario
-        
+
         # Extract texts from the column
         texts = [s.get(column, "") for s in self._scenario_list]
-        
+
         if not texts:
             return self._scenario_list
-        
+
         # Generate embeddings
         pending = dispatch(
             "embeddings",
@@ -2067,28 +2195,28 @@ Requires: OPENAI_API_KEY
                 "texts": texts,
                 "model": model,
                 "dimensions": dimensions,
-            }
+            },
         )
-        
+
         result = pending.result(verbose=verbose)
-        
+
         # Get the embedding list
         from edsl.scenarios.embedding_store import EmbeddingList
-        
+
         if isinstance(result, EmbeddingList):
             embeddings = result.embeddings
         else:
             embeddings = [result]
-        
+
         # Create new ScenarioList with embeddings added
         new_scenarios = []
         for scenario, embedding in zip(self._scenario_list, embeddings):
             new_data = dict(scenario)
             new_data[output_column] = embedding
             new_scenarios.append(Scenario(new_data))
-        
+
         return ScenarioList(new_scenarios)
-    
+
     def search(
         self,
         query: str,
@@ -2100,18 +2228,18 @@ Requires: OPENAI_API_KEY
     ) -> "ScenarioList":
         """
         Find the most similar items using semantic search.
-        
+
         Args:
             query: The search query
             column: Name of the column to search through
             top_k: Number of results to return
             model: The embedding model to use
             verbose: Show progress spinner
-            
+
         Returns:
             ScenarioList of the top_k most similar items, with added
             "similarity_score" column
-            
+
         Examples:
             >>> results = sl.embeddings.search(
             ...     "machine learning frameworks",
@@ -2123,19 +2251,19 @@ Requires: OPENAI_API_KEY
         """
         if self._scenario_list is None:
             raise ValueError("No ScenarioList attached. Use sl.embeddings.search()")
-        
+
         check_dependencies("embeddings_search")
         _ensure_service_worker("embeddings_search")
-        
+
         from . import dispatch
         from edsl.scenarios import ScenarioList, Scenario
-        
+
         # Extract texts from the column
         texts = [s.get(column, "") for s in self._scenario_list]
-        
+
         if not texts:
             return ScenarioList([])
-        
+
         # Perform search
         pending = dispatch(
             "embeddings_search",
@@ -2144,25 +2272,27 @@ Requires: OPENAI_API_KEY
                 "texts": texts,
                 "top_k": top_k,
                 "model": model,
-            }
+            },
         )
-        
+
         results = pending.result(verbose=verbose)
-        
+
         # Build result ScenarioList with similarity scores
         result_scenarios = []
         for sim_result in results:
-            original_idx = sim_result.embedding.get("metadata", {}).get("original_index", 0)
+            original_idx = sim_result.embedding.get("metadata", {}).get(
+                "original_index", 0
+            )
             original_scenario = self._scenario_list[original_idx]
-            
+
             # Add similarity score to scenario
             new_data = dict(original_scenario)
             new_data["similarity_score"] = sim_result.score
             new_data["embedding"] = sim_result.embedding
             result_scenarios.append(Scenario(new_data))
-        
+
         return ScenarioList(result_scenarios)
-    
+
     def cluster(
         self,
         column: str,
@@ -2173,19 +2303,19 @@ Requires: OPENAI_API_KEY
     ) -> "ScenarioList":
         """
         Cluster scenarios by embedding similarity.
-        
+
         First generates embeddings for the column, then uses k-means
         to cluster them.
-        
+
         Args:
             column: Name of the column to embed and cluster
             n_clusters: Number of clusters
             model: The embedding model to use
             verbose: Show progress spinner
-            
+
         Returns:
             ScenarioList with added "cluster" column
-            
+
         Examples:
             >>> clustered = sl.embeddings.cluster("description", n_clusters=5)
             >>> clustered.filter("cluster == 0")
@@ -2193,40 +2323,36 @@ Requires: OPENAI_API_KEY
         """
         if self._scenario_list is None:
             raise ValueError("No ScenarioList attached")
-        
+
         # First generate embeddings
-        sl_with_embeddings = self.generate(
-            column, 
-            model=model, 
-            verbose=verbose
-        )
-        
+        sl_with_embeddings = self.generate(column, model=model, verbose=verbose)
+
         # Extract embeddings for clustering
         from edsl.scenarios.embedding_store import EmbeddingList
-        
+
         embeddings = [s["embedding"] for s in sl_with_embeddings]
         embedding_list = EmbeddingList(embeddings)
-        
+
         # Cluster
         clusters = embedding_list.cluster(n_clusters=n_clusters)
-        
+
         # Add cluster labels back to scenarios
         from edsl.scenarios import ScenarioList, Scenario
-        
+
         # Create index -> cluster mapping
         idx_to_cluster = {}
         for cluster_id, cluster_embeddings in clusters.items():
             for emb in cluster_embeddings:
                 idx = emb.get("metadata", {}).get("index", 0)
                 idx_to_cluster[idx] = cluster_id
-        
+
         # Build result
         new_scenarios = []
         for i, scenario in enumerate(sl_with_embeddings):
             new_data = dict(scenario)
             new_data["cluster"] = idx_to_cluster.get(i, 0)
             new_scenarios.append(Scenario(new_data))
-        
+
         return ScenarioList(new_scenarios)
 
 
@@ -2261,67 +2387,163 @@ def get_embeddings_accessor() -> EmbeddingsAccessor:
 def get_service_accessor(name: str, instance: Any = None, owner_class: type = None):
     """
     Get a service accessor by name using automatic discovery from ServiceRegistry.
-    
+
     This function automatically discovers services registered in ServiceRegistry
     and returns a generic ServiceAccessor that works with any registered service.
-    
+
     Args:
         name: The service name (e.g., 'firecrawl', 'wikipedia', 'exa', 'answer_analysis')
         instance: Optional EDSL object instance for instance-level access
         owner_class: Optional class type for class-level access
-        
+
     Returns:
         ServiceAccessor instance, or None if service not found
-        
+
     Examples:
         >>> accessor = get_service_accessor('firecrawl')
         >>> accessor  # Shows helpful repr with available methods
-        
+
         >>> accessor = get_service_accessor('exa')
         >>> accessor.search("AI research")  # Dispatches to ExaService
-        
+
         >>> accessor = get_service_accessor('answer_analysis', results_instance)
         >>> accessor.summary(question='how_feeling')  # Dispatches to AnswerAnalysisService
     """
     # Quick check: Skip common Python methods/attributes to avoid loading all services
     # These are never service names
-    _SKIP_NAMES = frozenset({
-        # Python internals
-        '__class__', '__dict__', '__doc__', '__module__', '__weakref__',
-        '__init__', '__new__', '__del__', '__repr__', '__str__', '__hash__',
-        '__eq__', '__ne__', '__lt__', '__le__', '__gt__', '__ge__',
-        '__getattr__', '__setattr__', '__delattr__', '__getattribute__',
-        '__iter__', '__next__', '__len__', '__getitem__', '__setitem__',
-        '__delitem__', '__contains__', '__call__', '__enter__', '__exit__',
-        '__add__', '__sub__', '__mul__', '__div__', '__truediv__',
-        '__bool__', '__int__', '__float__', '__index__', '__neg__',
-        '_repr_html_', '_ipython_display_', '_ipython_canary_method_should_not_exist_',
-        # Common EDSL method names that aren't services
-        'select', 'filter', 'sort', 'table', 'to_dict', 'to_list', 'to_pandas',
-        'to_scenario_list', 'to_dataset', 'example', 'from_dict', 'from_list',
-        'append', 'extend', 'insert', 'remove', 'pop', 'clear', 'copy',
-        'keys', 'values', 'items', 'get', 'set', 'update',
-        'save', 'load', 'push', 'pull', 'rich_print', 'print', 'show',
-        'data', 'store', 'codebook', 'metadata', 'name', 'description',
-        'report_from_template', 'long_view', 'augment_agents', 'agents',
-        'expand', 'to_markdown', 'flip', 'to_string', 'view', 'to_docx',
-        'to_survey', 'rename', 'zip', 'string_cat', 'string_cat_if',
-        'if_', 'when', 'add_value', 'to_ranked_scenario_list', 'to_true_skill_ranked_list',
-        'to_agent_blueprint', 'add_scenario_reference', 'choose_k', 'full_replace',
-        'then', 'else_', 'otherwise', 'end', 'unpack_dict', 'to_excel',
-        'chunk_text', 'replace_value', 'sample', 'add_weighted_linear_scale_sum',
-    })
-    
-    if name in _SKIP_NAMES or name.startswith('_'):
+    _SKIP_NAMES = frozenset(
+        {
+            # Python internals
+            "__class__",
+            "__dict__",
+            "__doc__",
+            "__module__",
+            "__weakref__",
+            "__init__",
+            "__new__",
+            "__del__",
+            "__repr__",
+            "__str__",
+            "__hash__",
+            "__eq__",
+            "__ne__",
+            "__lt__",
+            "__le__",
+            "__gt__",
+            "__ge__",
+            "__getattr__",
+            "__setattr__",
+            "__delattr__",
+            "__getattribute__",
+            "__iter__",
+            "__next__",
+            "__len__",
+            "__getitem__",
+            "__setitem__",
+            "__delitem__",
+            "__contains__",
+            "__call__",
+            "__enter__",
+            "__exit__",
+            "__add__",
+            "__sub__",
+            "__mul__",
+            "__div__",
+            "__truediv__",
+            "__bool__",
+            "__int__",
+            "__float__",
+            "__index__",
+            "__neg__",
+            "_repr_html_",
+            "_ipython_display_",
+            "_ipython_canary_method_should_not_exist_",
+            # Common EDSL method names that aren't services
+            "select",
+            "filter",
+            "sort",
+            "table",
+            "to_dict",
+            "to_list",
+            "to_pandas",
+            "to_scenario_list",
+            "to_dataset",
+            "example",
+            "from_dict",
+            "from_list",
+            "append",
+            "extend",
+            "insert",
+            "remove",
+            "pop",
+            "clear",
+            "copy",
+            "keys",
+            "values",
+            "items",
+            "get",
+            "set",
+            "update",
+            "save",
+            "load",
+            "push",
+            "pull",
+            "rich_print",
+            "print",
+            "show",
+            "data",
+            "store",
+            "codebook",
+            "metadata",
+            "name",
+            "description",
+            "report_from_template",
+            "long_view",
+            "augment_agents",
+            "agents",
+            "expand",
+            "to_markdown",
+            "flip",
+            "to_string",
+            "view",
+            "to_docx",
+            "to_survey",
+            "rename",
+            "zip",
+            "string_cat",
+            "string_cat_if",
+            "if_",
+            "when",
+            "add_value",
+            "to_ranked_scenario_list",
+            "to_true_skill_ranked_list",
+            "to_agent_blueprint",
+            "add_scenario_reference",
+            "choose_k",
+            "full_replace",
+            "then",
+            "else_",
+            "otherwise",
+            "end",
+            "unpack_dict",
+            "to_excel",
+            "chunk_text",
+            "replace_value",
+            "sample",
+            "add_weighted_linear_scale_sum",
+        }
+    )
+
+    if name in _SKIP_NAMES or name.startswith("_"):
         return None
-    
+
     from .accessor import get_accessor
     from .registry import ServiceRegistry
-    
+
     # Check if service exists in registry
     if not ServiceRegistry.exists(name):
         return None
-    
+
     # Use the generic ServiceAccessor which handles everything
     return get_accessor(name, instance=instance, owner_class=owner_class)
 
@@ -2329,10 +2551,10 @@ def get_service_accessor(name: str, instance: Any = None, owner_class: type = No
 def list_available_services() -> List[str]:
     """
     Return a sorted list of available service names from ServiceRegistry.
-    
+
     Returns:
         List of service names that can be accessed via ScenarioList.{name}
-        
+
     Examples:
         >>> services = list_available_services()
         >>> 'firecrawl' in services
@@ -2341,5 +2563,5 @@ def list_available_services() -> List[str]:
         True
     """
     from .registry import ServiceRegistry
-    return sorted(ServiceRegistry.list())
 
+    return sorted(ServiceRegistry.list())

@@ -168,6 +168,7 @@ class ObjectRegistry:
         object_type = edsl_class_to_object_type.get(edsl_class_name)
 
         from ..scenarios import Scenario
+
         if isinstance(edsl_object, Scenario):
             return "scenario"
 

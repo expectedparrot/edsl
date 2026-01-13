@@ -13,8 +13,6 @@ if TYPE_CHECKING:
     from ..reports.report import QuestionAnalysis
 
 
-
-
 class AnswersCompare:
     """Compare answer distributions between two QuestionAnalysis objects.
 
@@ -183,7 +181,7 @@ class AnswersCompare:
             0.198
         """
         import numpy as np
-        
+
         dist1, dist2 = self._get_distributions()
 
         if reverse:
@@ -213,7 +211,7 @@ class AnswersCompare:
             0.145
         """
         import numpy as np
-        
+
         dist1, dist2 = self._get_distributions()
 
         # Compute average distribution
@@ -248,7 +246,7 @@ class AnswersCompare:
             0.289
         """
         import numpy as np
-        
+
         dist1, dist2 = self._get_distributions()
 
         sum_sqrt_products = sum(np.sqrt(dist1[k] * dist2[k]) for k in dist1.keys())
@@ -310,7 +308,7 @@ class AnswersCompare:
             0.156
         """
         import numpy as np
-        
+
         dist1, dist2 = self._get_distributions()
 
         bc = sum(np.sqrt(dist1[k] * dist2[k]) for k in dist1.keys())

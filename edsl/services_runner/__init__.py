@@ -48,39 +48,41 @@ _local_client = None
 
 class ServiceRunnerConnectionError(Exception):
     """Raised when the remote service runner is not reachable."""
+
     pass
 
 
 def require_client(purpose: str = "") -> "TaskQueueClient":
     """
     Get or create a task queue client.
-    
+
     If EXPECTED_PARROT_SERVICE_RUNNER_URL is set, connects to that remote server.
     The server must be reachable (health check must pass) or an exception is raised.
-    
+
     If the URL is not set, starts a local in-process server.
-    
+
     Args:
         purpose: Optional description of why client is needed (for logging)
-        
+
     Returns:
         TaskQueueClient connected to either remote or local server
-        
+
     Raises:
         ServiceRunnerConnectionError: If remote URL is set but server is not reachable
-        
+
     Example:
         >>> client = require_client(purpose="firecrawl scrape")
         >>> task_id = client.create_unified_task("firecrawl", {"url": "..."})
     """
     global _local_server, _local_client
-    
+
     # Check for remote URL first (separate from EXPECTED_PARROT_URL)
     remote_url = os.getenv("EXPECTED_PARROT_SERVICE_RUNNER_URL")
     if remote_url:
         from .client import TaskQueueClient
+
         client = TaskQueueClient(remote_url)
-        
+
         # Verify server is reachable - raise exception if not
         if not client.health_check():
             raise ServiceRunnerConnectionError(
@@ -89,15 +91,16 @@ def require_client(purpose: str = "") -> "TaskQueueClient":
                 f"to use local execution."
             )
         return client
-    
+
     # Use local server
     if _local_client is None:
         from .local import start_local_server
+
         _local_server, _local_client = start_local_server()
-        
+
         # Register cleanup on exit
         atexit.register(_cleanup_local_server)
-    
+
     return _local_client
 
 
@@ -123,4 +126,3 @@ __all__ = [
     "get_local_server",
     "ServiceRunnerConnectionError",
 ]
-

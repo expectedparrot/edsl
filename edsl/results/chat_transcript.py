@@ -38,6 +38,7 @@ class ChatTranscript:
         """Lazy-load the rich Console."""
         if self._console is None:
             from rich.console import Console
+
             self._console = Console()
         return self._console
 
