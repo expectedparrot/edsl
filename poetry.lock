@@ -4142,7 +4142,7 @@ files = [
 name = "pandas"
 version = "2.3.3"
 description = "Powerful data structures for data analysis, time series, and statistics"
-optional = true
+optional = false
 python-versions = ">=3.9"
 files = [
     {file = "pandas-2.3.3-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:376c6446ae31770764215a6c937f72d917f214b43560603cd60da6408f183b6c"},
@@ -5354,7 +5354,7 @@ XlsxWriter = ">=0.5.7"
 name = "pytz"
 version = "2025.2"
 description = "World timezone definitions, modern and historical"
-optional = true
+optional = false
 python-versions = "*"
 files = [
     {file = "pytz-2025.2-py2.py3-none-any.whl", hash = "sha256:5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00"},
@@ -7566,4 +7566,4 @@ widgets = ["anywidget"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.14"
-content-hash = "572120d361a4b973578ff799c1dd75285ef8953abb876bb839a68e40cb6ed898"
+content-hash = "0d20af4f9c0cb9eaf3bd369d4af190ce772bcc6eb5382d1cc405328e2c8383ac"
