@@ -258,12 +258,12 @@ class TestResults(unittest.TestCase):
         """Test error handling for loading from invalid file format."""
         import tempfile
         import os
-        
+
         # Create a temporary file with invalid content
         with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp:
             filepath = tmp.name
             tmp.write(b'invalid content')
-        
+
         try:
             with self.assertRaises(ResultsError):
                 Results.from_disk(filepath)

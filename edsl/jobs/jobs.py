@@ -177,10 +177,17 @@ class Jobs(GitMixin, Base):
         self.store = Store(
             entries=[],  # Jobs doesn't use entries, only meta
             meta={
+                # Component refs (commit_hashes)
                 "survey_ref": None,
                 "agents_ref": None,
                 "models_ref": None,
                 "scenarios_ref": None,
+                # Component aliases (for pulling from Coop)
+                "survey_alias": None,
+                "agents_alias": None,
+                "models_alias": None,
+                "scenarios_alias": None,
+                # Configuration
                 "where_clauses": [],
                 "include_expression": None,
                 "post_run_methods": [],
@@ -296,6 +303,69 @@ class Jobs(GitMixin, Base):
         instance._depends_on = None  # Would need to be resolved from depends_on_ref
 
         return instance
+
+    def _get_related_objects(self) -> list:
+        """Return related objects that should be pushed/pulled with this Jobs.
+
+        Jobs is a manifest that references its four components by commit_hash.
+        When pushing Jobs, all components are pushed first so their refs can
+        be resolved when the Jobs is pulled.
+
+        Returns:
+            List of (name, object) tuples for Survey, AgentList, ModelList, ScenarioList.
+        """
+        return [
+            ("survey", self._survey),
+            ("agents", self._agents),
+            ("models", self._models),
+            ("scenarios", self._scenarios),
+        ]
+
+    def _store_related_aliases(self, aliases: dict) -> None:
+        """Store component aliases in store.meta for later resolution during pull.
+
+        Args:
+            aliases: Dictionary mapping component names to their Coop aliases.
+        """
+        # Map component names to store.meta keys
+        name_to_key = {
+            "survey": "survey_alias",
+            "agents": "agents_alias",
+            "models": "models_alias",
+            "scenarios": "scenarios_alias",
+        }
+        for name, alias in aliases.items():
+            if name in name_to_key:
+                self.store.meta[name_to_key[name]] = alias
+
+    def _resolve_related_objects_after_pull(self) -> None:
+        """Pull and resolve component objects after Jobs has been pulled.
+
+        Uses the component aliases stored in store.meta to clone each component
+        from Coop and set the live component references.
+        """
+        from ..surveys import Survey
+        from ..agents import AgentList
+        from ..language_models import ModelList
+        from ..scenarios import ScenarioList
+
+        # Map alias keys to (component class, attribute name)
+        alias_to_info = {
+            "survey_alias": (Survey, "_survey"),
+            "agents_alias": (AgentList, "_agents"),
+            "models_alias": (ModelList, "_models"),
+            "scenarios_alias": (ScenarioList, "_scenarios"),
+        }
+
+        for alias_key, (cls, attr_name) in alias_to_info.items():
+            alias = self.store.meta.get(alias_key)
+            if alias:
+                print(f"Pulling {cls.__name__} from '{alias}'...")
+                try:
+                    obj = cls.git_clone(alias)
+                    setattr(self, attr_name, obj)
+                except Exception as e:
+                    print(f"Warning: Could not pull {cls.__name__}: {e}")
 
     def add_running_env(self, running_env: RunEnvironment) -> Jobs:
         """Add a running environment to the job.
@@ -2535,19 +2605,16 @@ class Jobs(GitMixin, Base):
         """
         return Jobs.from_dict(self.to_dict())
 
-    def to_dict(self, add_edsl_version=True, full_dict=None, include_refs=False):
+    def to_dict(self, add_edsl_version=True, full_dict=None):
         """Convert the Jobs instance to a dictionary representation.
 
-        The output format includes full component data for backward compatibility.
-        Optionally includes component refs (commit_hashes) for versioning.
+        The output format includes full component data (the "realized" view).
+        Versioning metadata (refs, aliases) is handled separately by GitMixin.
 
         Args:
         ----
             add_edsl_version: Whether to include EDSL version information.
             full_dict: Additional dictionary to merge (currently unused).
-            include_refs: Whether to include component refs (_refs) in output.
-                         Refs are versioning metadata and change on reconstruction,
-                         so they're excluded by default for serialization equality.
 
         Returns:
         -------
@@ -2570,16 +2637,6 @@ class Jobs(GitMixin, Base):
                 for scenario in self.scenarios
             ],
         }
-
-        # Optionally add component refs for versioning (excluded by default
-        # since refs change on component reconstruction)
-        if include_refs:
-            d["_refs"] = {
-                "survey_ref": self.store.meta.get("survey_ref"),
-                "agents_ref": self.store.meta.get("agents_ref"),
-                "models_ref": self.store.meta.get("models_ref"),
-                "scenarios_ref": self.store.meta.get("scenarios_ref"),
-            }
 
         # Add where_clauses if not empty
         if self._where_clauses:

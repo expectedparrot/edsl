@@ -366,3 +366,26 @@ class MissingAliasError(VersioningError):
         if message is None:
             message = "alias required: pass as kwarg or call git_set_info() first"
         super().__init__(message, **kwargs)
+
+
+class InvalidEPFileError(VersioningError):
+    """
+    Exception raised when loading an invalid .ep file.
+
+    This occurs when trying to load a file that is not a valid .ep file
+    (compressed JSON with git repository data).
+
+    To fix this error:
+    1. Verify the file was created with to_disk()
+    2. Check the file is not corrupted
+    3. Ensure the file has .ep extension and correct format
+    """
+
+    def __init__(self, path: str, reason: str = None, **kwargs):
+        self.path = path
+        self.reason = reason
+        if reason:
+            message = f"Invalid .ep file '{path}': {reason}"
+        else:
+            message = f"Invalid .ep file '{path}'"
+        super().__init__(message, **kwargs)

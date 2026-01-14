@@ -7,12 +7,64 @@ Provides BaseObjectStore base class and in-memory implementations.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Literal
 import json
 import uuid
 
 from .utils import _stable_dumps, _sha256
 from .models import Commit, Ref
+
+
+# ----------------------------
+# Serialization helpers
+# ----------------------------
+
+
+def _commit_to_dict(c: Commit) -> Dict[str, Any]:
+    """Serialize a Commit to a dict."""
+    return {
+        "commit_id": c.commit_id,
+        "parents": list(c.parents),
+        "timestamp": c.timestamp.isoformat(),
+        "message": c.message,
+        "event_name": c.event_name,
+        "event_payload": c.event_payload,
+        "author": c.author,
+    }
+
+
+def _commit_from_dict(d: Dict[str, Any]) -> Commit:
+    """Deserialize a Commit from a dict."""
+    return Commit(
+        commit_id=d["commit_id"],
+        parents=tuple(d["parents"]),
+        timestamp=datetime.fromisoformat(d["timestamp"]),
+        message=d["message"],
+        event_name=d["event_name"],
+        event_payload=d["event_payload"],
+        author=d.get("author", "unknown"),
+    )
+
+
+def _ref_to_dict(r: Ref) -> Dict[str, Any]:
+    """Serialize a Ref to a dict."""
+    return {
+        "name": r.name,
+        "commit_id": r.commit_id,
+        "kind": r.kind,
+        "updated_at": r.updated_at.isoformat(),
+    }
+
+
+def _ref_from_dict(d: Dict[str, Any]) -> Ref:
+    """Deserialize a Ref from a dict."""
+    return Ref(
+        name=d["name"],
+        commit_id=d["commit_id"],
+        kind=d.get("kind", "branch"),
+        updated_at=datetime.fromisoformat(d["updated_at"]) if "updated_at" in d else datetime.now(),
+    )
 
 
 # ----------------------------
@@ -195,6 +247,40 @@ class InMemoryRepo(BaseObjectStore):
 
     def list_all_commit_ids(self) -> List[str]:
         return list(self._commits.keys())
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize repo to dict for disk persistence.
+
+        Returns:
+            Dict containing all repo data needed to reconstruct the repo.
+        """
+        return {
+            "repo_id": self.repo_id,
+            "states": {k: v.decode("utf-8") for k, v in self._states.items()},
+            "commits": {cid: _commit_to_dict(c) for cid, c in self._commits.items()},
+            "commit_to_state": dict(self._commit_to_state),
+            "refs": {name: _ref_to_dict(r) for name, r in self._refs.items()},
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "InMemoryRepo":
+        """Deserialize repo from dict.
+
+        Args:
+            data: Dict from to_dict()
+
+        Returns:
+            InMemoryRepo with all data restored.
+        """
+        repo = cls.__new__(cls)
+        repo.repo_id = data["repo_id"]
+        repo._states = {k: v.encode("utf-8") for k, v in data["states"].items()}
+        repo._commits = {
+            cid: _commit_from_dict(c) for cid, c in data["commits"].items()
+        }
+        repo._commit_to_state = dict(data["commit_to_state"])
+        repo._refs = {name: _ref_from_dict(r) for name, r in data["refs"].items()}
+        return repo
 
 
 # ----------------------------

@@ -6,6 +6,9 @@ Provides the event decorator and GitMixin class.
 
 from __future__ import annotations
 
+import gzip
+import json
+import os
 import re
 import warnings
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -13,7 +16,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from .models import Commit, PushResult, Status
 from .protocols import Remote
 from .git_facade import ExpectedParrotGit, ObjectView, init_repo, clone_from_remote
-from .exceptions import InvalidAliasError, MissingAliasError
+from .storage import InMemoryRepo
+from .exceptions import InvalidAliasError, MissingAliasError, StagedChangesError, InvalidEPFileError
 
 
 # ----------------------------
@@ -107,6 +111,11 @@ class GitMixin:
     Store requirements:
     - to_dict() -> dict
     - from_dict(data: dict) -> Store (classmethod)
+
+    Optional overrides for composite objects:
+    - _get_related_objects(): Returns list of (name, object) tuples for objects
+      that should be pushed/pulled together with this object.
+    - _resolve_related_objects(refs): Resolves refs back to objects after pull.
     """
 
     _git: ExpectedParrotGit
@@ -252,6 +261,55 @@ class GitMixin:
         else:
             store = store_class.from_dict(state)
         setattr(self, self.__class__._versioned, store)
+
+    # --- Related objects (for composite objects like Jobs) ---
+
+    def _get_related_objects(self) -> List[Tuple[str, "GitMixin"]]:
+        """Return list of (name, object) tuples for related objects.
+
+        Override this method in classes that compose other GitMixin objects
+        (like Jobs which contains Survey, AgentList, ModelList, ScenarioList).
+        Related objects will be automatically pushed before this object.
+
+        Returns:
+            List of (name, object) tuples. Name is used for auto-generating aliases.
+        """
+        return []
+
+    def _resolve_related_objects(self, refs: Dict[str, str]) -> Dict[str, "GitMixin"]:
+        """Resolve refs to related objects after pull.
+
+        Override this method to resolve component refs back to live objects.
+        Called after git_pull to reconstruct related objects from refs.
+
+        Args:
+            refs: Dictionary mapping ref names to commit_hashes.
+
+        Returns:
+            Dictionary mapping names to resolved objects.
+        """
+        return {}
+
+    def _resolve_related_objects_after_pull(self) -> None:
+        """Hook called after git_pull to resolve related objects.
+
+        Override this method in composite classes to pull and resolve
+        related objects after the main object has been pulled.
+
+        Default implementation does nothing.
+        """
+        pass
+
+    def _store_related_aliases(self, aliases: Dict[str, str]) -> None:
+        """Store aliases of pushed related objects in store.meta.
+
+        Override this method in composite classes to store component aliases
+        for later resolution during pull.
+
+        Args:
+            aliases: Dictionary mapping object names to their aliases.
+        """
+        pass
 
     # --- Properties ---
 
@@ -588,6 +646,9 @@ class GitMixin:
 
         Prints git-style output showing the push result and view URL.
 
+        For composite objects (like Jobs), automatically pushes related objects
+        first by calling _get_related_objects().
+
         Args:
             remote_name: Name of remote (default: "origin")
             ref_name: Branch to push (default: current branch)
@@ -598,6 +659,45 @@ class GitMixin:
                      doesn't contain "/", will try to get from Coop profile.
         """
         self._ensure_git_init()
+
+        # Push related objects first (for composite objects like Jobs)
+        related_objects = self._get_related_objects()
+        pushed_aliases = {}  # Track aliases of pushed objects
+        if related_objects:
+            for name, obj in related_objects:
+                if obj is not None and hasattr(obj, "git_push"):
+                    # Check if object already has an alias set
+                    obj_info = obj.git_get_info() if hasattr(obj, "git_get_info") else {}
+                    if not obj_info.get("alias"):
+                        # Auto-generate alias based on parent alias
+                        if alias:
+                            obj_alias = f"{alias}-{name.lower()}"
+                            print(f"Pushing {name} as '{obj_alias}'...")
+                            try:
+                                obj.git_push(
+                                    remote_name=remote_name,
+                                    force=force,
+                                    alias=obj_alias,
+                                    username=username,
+                                )
+                                # Capture the resolved alias after push
+                                pushed_info = obj.git_get_info()
+                                if pushed_info.get("alias"):
+                                    pushed_aliases[name] = pushed_info["alias"]
+                            except Exception as e:
+                                print(f"Warning: Could not push {name}: {e}")
+                    else:
+                        # Object already has alias, just push
+                        print(f"Pushing {name} ('{obj_info.get('alias')}')...")
+                        try:
+                            obj.git_push(remote_name=remote_name, force=force)
+                            pushed_aliases[name] = obj_info["alias"]
+                        except Exception as e:
+                            print(f"Warning: Could not push {name}: {e}")
+
+            # Store pushed aliases in store.meta for later resolution
+            if pushed_aliases:
+                self._store_related_aliases(pushed_aliases)
 
         # Create remote if doesn't exist
         remote = self._git._remotes.get(remote_name)
@@ -685,7 +785,11 @@ class GitMixin:
     def git_pull(
         self, remote_name: str = "origin", ref_name: Optional[str] = None
     ) -> None:
-        """Pull from remote. Mutates in place."""
+        """Pull from remote. Mutates in place.
+
+        For composite objects (like Jobs), automatically resolves related objects
+        after pulling by calling _resolve_related_objects().
+        """
         self._ensure_git_init()
         new_git, pull_result = self._git.pull(remote_name, ref_name)
 
@@ -699,6 +803,10 @@ class GitMixin:
             )
 
         self._mutate(new_git, from_git=True)
+
+        # Resolve related objects (for composite objects like Jobs)
+        # Get refs from the store and resolve them to live objects
+        self._resolve_related_objects_after_pull()
 
     def git_fetch(self, remote_name: str = "origin") -> Dict[str, int]:
         """Fetch from remote without merging."""
@@ -795,3 +903,127 @@ class GitMixin:
         """Get pending events."""
         self._ensure_git_init()
         return list(self._git.view.pending_events)
+
+    # --- Disk persistence (.ep format) ---
+
+    def to_ep(self, path: str) -> None:
+        """Save object with full git history to disk in .ep format.
+
+        Creates a .ep file (compressed JSON) containing the complete git repository,
+        including all commits, branches, and state snapshots. This allows round-trip
+        serialization that preserves full history.
+
+        Args:
+            path: File path (will add .ep extension if not present)
+
+        Raises:
+            StagedChangesError: If there are uncommitted changes. Commit first.
+
+        Example:
+            >>> sl = ScenarioList([Scenario({"a": 1})])
+            >>> sl.git_commit("initial")
+            >>> sl.to_ep("/tmp/mydata")  # Creates /tmp/mydata.ep
+        """
+        self._ensure_git_init()
+
+        # Require clean working state
+        if self._git.view.has_staged:
+            raise StagedChangesError("to_disk (commit changes first)")
+
+        # Ensure .ep extension
+        if not path.endswith(".ep"):
+            path = path + ".ep"
+
+        # Import version here to avoid circular imports
+        from edsl import __version__
+
+        data = {
+            "edsl_class_name": self.__class__.__name__,
+            "edsl_version": __version__,
+            "git": {
+                "repo": self._git.view.repo.to_dict(),
+                "head_ref": self._git.view.head_ref,
+                "base_commit": self._git.view.base_commit,
+            },
+        }
+
+        # Write compressed JSON
+        with gzip.open(path, "wt", encoding="utf-8") as f:
+            json.dump(data, f)
+
+        print(f"Saved to {path}")
+
+    @classmethod
+    def from_ep(cls, path: str, ref: str = "main") -> "GitMixin":
+        """Load object with full git history from disk in .ep format.
+
+        Loads a .ep file and reconstructs the object at the specified ref (branch,
+        tag, or commit). The full git history is preserved, allowing checkout to
+        any point in history.
+
+        Args:
+            path: File path (.ep extension auto-added if missing)
+            ref: Branch, tag, or commit hash to checkout (default: "main")
+
+        Returns:
+            Instance at the specified ref with full history preserved.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+            InvalidEPFileError: If the file is not a valid .ep file.
+
+        Example:
+            >>> sl = ScenarioList.from_ep("/tmp/mydata")  # Loads at main
+            >>> sl = ScenarioList.from_ep("/tmp/mydata", ref="feature")  # Loads at feature branch
+            >>> sl = ScenarioList.from_ep("/tmp/mydata", ref="abc123")  # Loads at specific commit
+        """
+        # Try with .ep extension if not present and file doesn't exist
+        if not path.endswith(".ep") and not os.path.exists(path):
+            path = path + ".ep"
+
+        try:
+            with gzip.open(path, "rt", encoding="utf-8") as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            raise  # Re-raise FileNotFoundError as-is
+        except gzip.BadGzipFile:
+            raise InvalidEPFileError(path, "not a valid gzip file")
+        except json.JSONDecodeError as e:
+            raise InvalidEPFileError(path, f"invalid JSON: {e}")
+        except Exception as e:
+            raise InvalidEPFileError(path, str(e))
+
+        # Validate required structure
+        if "git" not in data:
+            raise InvalidEPFileError(path, "missing 'git' key")
+        if "repo" not in data["git"]:
+            raise InvalidEPFileError(path, "missing 'git.repo' key")
+
+        # Reconstruct repo
+        try:
+            repo = InMemoryRepo.from_dict(data["git"]["repo"])
+        except Exception as e:
+            raise InvalidEPFileError(path, f"invalid repo data: {e}")
+
+        # Reconstruct view at specified ref
+        if repo.has_ref(ref):
+            head_ref = ref
+            base_commit = repo.get_ref(ref).commit_id
+        else:
+            # Try as commit hash
+            head_ref = None
+            if repo.has_commit(ref):
+                base_commit = ref
+            else:
+                # Fall back to saved base_commit
+                base_commit = data["git"]["base_commit"]
+
+        view = ObjectView(repo=repo, head_ref=head_ref, base_commit=base_commit)
+
+        # Create instance from current state
+        state = view.get_base_state()
+        instance = cls._from_state(state[0] if state else {})
+        instance._git = ExpectedParrotGit(view)
+        instance._needs_git_init = False
+
+        return instance
