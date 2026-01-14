@@ -1415,7 +1415,9 @@ class AgentList(
         >>> al.all_traits
         ['age', 'hair']
         """
-        from .agent_list_helpers.agent_list_trait_operations import AgentListTraitOperations
+        from .agent_list_helpers.agent_list_trait_operations import (
+            AgentListTraitOperations,
+        )
 
         return AgentListTraitOperations.get_all_traits(self)
 

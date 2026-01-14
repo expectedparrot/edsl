@@ -649,7 +649,10 @@ class DataOperationsBase:
         except sqlite3.OperationalError as e:
             raise DatasetValueError(f"Error executing SQL query: {e}; query: {query}")
             from traceback import format_exc
-            raise DatasetValueError(f"Error executing SQL query: {e}; query: {query}; traceback: {format_exc()}")
+
+            raise DatasetValueError(
+                f"Error executing SQL query: {e}; query: {query}; traceback: {format_exc()}"
+            )
 
         columns = [description[0] for description in cursor.description]
         rows = cursor.fetchall()

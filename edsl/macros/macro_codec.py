@@ -155,9 +155,7 @@ class MacroCodec:
         try:
             return cls.pull(ref)
         except Exception as e:
-            raise ValueError(
-                f"Failed to pull {class_name} with ref {ref}: {e}"
-            ) from e
+            raise ValueError(f"Failed to pull {class_name} with ref {ref}: {e}") from e
 
     def decode_all_components(
         self,

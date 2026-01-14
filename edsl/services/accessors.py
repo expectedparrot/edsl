@@ -2410,7 +2410,9 @@ class RemoteServiceAccessor:
             "",
         ]
         if info.operations:
-            lines.append("Methods: " + ", ".join(f".{m}()" for m in info.operations.keys()))
+            lines.append(
+                "Methods: " + ", ".join(f".{m}()" for m in info.operations.keys())
+            )
         if info.required_keys:
             lines.append("Required keys: " + ", ".join(info.required_keys))
         return "\n".join(lines)

@@ -183,4 +183,5 @@ class ScenarioSerializer:
 
         # Import here to avoid circular imports
         from ..scenario import Scenario
+
         return Scenario(data_copy)

@@ -17,7 +17,12 @@ from .models import Commit, PushResult, Status
 from .protocols import Remote
 from .git_facade import ExpectedParrotGit, ObjectView, init_repo, clone_from_remote
 from .storage import InMemoryRepo
-from .exceptions import InvalidAliasError, MissingAliasError, StagedChangesError, InvalidEPFileError
+from .exceptions import (
+    InvalidAliasError,
+    MissingAliasError,
+    StagedChangesError,
+    InvalidEPFileError,
+)
 
 
 # ----------------------------
@@ -667,7 +672,9 @@ class GitMixin:
             for name, obj in related_objects:
                 if obj is not None and hasattr(obj, "git_push"):
                     # Check if object already has an alias set
-                    obj_info = obj.git_get_info() if hasattr(obj, "git_get_info") else {}
+                    obj_info = (
+                        obj.git_get_info() if hasattr(obj, "git_get_info") else {}
+                    )
                     if not obj_info.get("alias"):
                         # Auto-generate alias based on parent alias
                         if alias:

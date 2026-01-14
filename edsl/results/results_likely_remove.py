@@ -71,6 +71,7 @@ class ResultsLikelyRemoveMixin:
             Results: A new Results object containing the sampled data.
         """
         from .results_sampler import ResultsSampler
+
         sampler = ResultsSampler(self)
         return sampler.sample(
             n=n, frac=frac, with_replacement=with_replacement, seed=seed

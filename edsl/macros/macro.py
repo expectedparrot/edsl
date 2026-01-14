@@ -352,7 +352,9 @@ class Macro(GitMixin, BaseMacro):
         # Store serialized formatters in meta
         formatters_dict = {}
         for name, formatter in ofs.mapping.items():
-            formatter_data = formatter.to_dict() if hasattr(formatter, "to_dict") else {}
+            formatter_data = (
+                formatter.to_dict() if hasattr(formatter, "to_dict") else {}
+            )
             formatters_dict[name] = formatter_data
         self.store.meta["output_formatters"] = formatters_dict
 

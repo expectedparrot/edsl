@@ -104,8 +104,10 @@ class ServiceAccessor:
                 non_empty = [l for l in docstring_lines if l.strip()]
                 if non_empty:
                     min_indent = min(len(l) - len(l.lstrip()) for l in non_empty)
-                    docstring_lines = [l[min_indent:] if len(l) > min_indent else l.strip()
-                                       for l in docstring_lines]
+                    docstring_lines = [
+                        l[min_indent:] if len(l) > min_indent else l.strip()
+                        for l in docstring_lines
+                    ]
                 lines.extend(docstring_lines)
 
             return "\n".join(lines)
@@ -202,8 +204,10 @@ class ServiceAccessor:
                 non_empty = [l for l in docstring_lines if l.strip()]
                 if non_empty:
                     min_indent = min(len(l) - len(l.lstrip()) for l in non_empty)
-                    docstring_lines = [l[min_indent:] if len(l) > min_indent else l.strip()
-                                       for l in docstring_lines]
+                    docstring_lines = [
+                        l[min_indent:] if len(l) > min_indent else l.strip()
+                        for l in docstring_lines
+                    ]
                 cleaned = "\n".join(docstring_lines)
                 docstring_html = f"<br><br><b>Documentation:</b><br><pre style='background: #fff; padding: 8px; border-radius: 4px; overflow-x: auto;'>{html.escape(cleaned)}</pre>"
 
@@ -576,7 +580,7 @@ def get_accessor(
     if class_name is not None:
         class_lower = class_name.lower()
         prefixed_names = [
-            f"{class_lower}_{service_name}",   # e.g., results_vibe
+            f"{class_lower}_{service_name}",  # e.g., results_vibe
             f"{class_lower}_{service_name}s",  # e.g., results_vibes
         ]
 

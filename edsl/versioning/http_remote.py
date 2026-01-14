@@ -518,24 +518,28 @@ def build_related_objects_section(metadata: dict) -> str:
         if key.endswith("_ref") and isinstance(value, str) and len(value) >= 8:
             # Extract the object type from the key (e.g., "initial_survey_ref" -> "initial_survey")
             obj_type = key[:-4].replace("_", " ").title()
-            ref_items.append({
-                "type": obj_type,
-                "key": key,
-                "value": value,
-                "kind": "ref",
-                "display": value[:12] + "..." if len(value) > 12 else value,
-            })
+            ref_items.append(
+                {
+                    "type": obj_type,
+                    "key": key,
+                    "value": value,
+                    "kind": "ref",
+                    "display": value[:12] + "..." if len(value) > 12 else value,
+                }
+            )
 
         # Check for alias keys
         elif key.endswith("_alias") and isinstance(value, str) and value:
             obj_type = key[:-6].replace("_", " ").title()
-            ref_items.append({
-                "type": obj_type,
-                "key": key,
-                "value": value,
-                "kind": "alias",
-                "display": value,
-            })
+            ref_items.append(
+                {
+                    "type": obj_type,
+                    "key": key,
+                    "value": value,
+                    "kind": "alias",
+                    "display": value,
+                }
+            )
 
     if not ref_items:
         return ""

@@ -43,10 +43,13 @@ _env_file = _server_dir / ".env"
 if _env_file.exists():
     try:
         from dotenv import load_dotenv
+
         load_dotenv(_env_file)
         print(f"[EDSL Service Runner] Loaded .env from {_env_file}")
     except ImportError:
-        print("[EDSL Service Runner] Warning: python-dotenv not installed, .env not loaded")
+        print(
+            "[EDSL Service Runner] Warning: python-dotenv not installed, .env not loaded"
+        )
 
 from .local import LocalServer
 

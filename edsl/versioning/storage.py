@@ -63,7 +63,11 @@ def _ref_from_dict(d: Dict[str, Any]) -> Ref:
         name=d["name"],
         commit_id=d["commit_id"],
         kind=d.get("kind", "branch"),
-        updated_at=datetime.fromisoformat(d["updated_at"]) if "updated_at" in d else datetime.now(),
+        updated_at=(
+            datetime.fromisoformat(d["updated_at"])
+            if "updated_at" in d
+            else datetime.now()
+        ),
     )
 
 

@@ -616,7 +616,9 @@ class QuestionBase(
                 # Convert question_options from strings to ints (may come as strings from JSON)
                 question_options = local_data.get("question_options", None)
                 if question_options:
-                    local_data["question_options"] = [int(opt) for opt in question_options]
+                    local_data["question_options"] = [
+                        int(opt) for opt in question_options
+                    ]
         except Exception as e:
             raise QuestionSerializationError(
                 f"Error in deserialization: {str(e)}. Data does not have a 'question_type' field (got {data})."

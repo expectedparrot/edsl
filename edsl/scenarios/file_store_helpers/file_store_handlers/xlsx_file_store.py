@@ -26,6 +26,7 @@ def _require_pandas():
     """Helper to check pandas availability (for backwards compat)."""
     try:
         import pandas as pd
+
         return pd
     except ImportError:
         raise ImportError(

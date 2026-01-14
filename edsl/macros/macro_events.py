@@ -122,14 +122,18 @@ class SetDefaultFormatterEvent(Event):
 class SetAttachmentFormattersEvent(Event):
     """Event that sets the attachment formatters."""
 
-    formatters: Tuple[Tuple[Tuple[str, Any], ...], ...]  # Tuple of serialized formatter dicts
+    formatters: Tuple[
+        Tuple[Tuple[str, Any], ...], ...
+    ]  # Tuple of serialized formatter dicts
 
 
 @dataclass(frozen=True)
 class ReplaceAllOutputFormattersEvent(Event):
     """Event that replaces all output formatters."""
 
-    formatters: Tuple[Tuple[str, Tuple[Tuple[str, Any], ...]], ...]  # Tuple of (name, formatter_data) tuples as dict items
+    formatters: Tuple[
+        Tuple[str, Tuple[Tuple[str, Any], ...]], ...
+    ]  # Tuple of (name, formatter_data) tuples as dict items
 
 
 # =============================================================================
@@ -169,8 +173,12 @@ class InitializeMacroEvent(Event):
     long_description: str
     initial_survey_ref: Optional[str]
     jobs_object_ref: Optional[str]
-    output_formatters: Tuple[Tuple[str, Tuple[Tuple[str, Any], ...]], ...]  # Tuple of (name, formatter_data)
-    attachment_formatters: Tuple[Tuple[Tuple[str, Any], ...], ...]  # Tuple of serialized formatter dicts
+    output_formatters: Tuple[
+        Tuple[str, Tuple[Tuple[str, Any], ...]], ...
+    ]  # Tuple of (name, formatter_data)
+    attachment_formatters: Tuple[
+        Tuple[Tuple[str, Any], ...], ...
+    ]  # Tuple of serialized formatter dicts
     default_params: Tuple[Tuple[str, Any], ...]
     fixed_params: Tuple[Tuple[str, Any], ...]
     default_formatter_name: Optional[str]
@@ -238,7 +246,9 @@ def apply_macro_event(event: Event, store: "Store") -> "Store":
         case AddOutputFormatterEvent():
             if "output_formatters" not in store.meta:
                 store.meta["output_formatters"] = {}
-            store.meta["output_formatters"][event.formatter_name] = dict(event.formatter_data)
+            store.meta["output_formatters"][event.formatter_name] = dict(
+                event.formatter_data
+            )
             return store
 
         case RemoveOutputFormatterEvent():
@@ -256,8 +266,7 @@ def apply_macro_event(event: Event, store: "Store") -> "Store":
 
         case ReplaceAllOutputFormattersEvent():
             store.meta["output_formatters"] = {
-                name: dict(data)
-                for name, data in event.formatters
+                name: dict(data) for name, data in event.formatters
             }
             return store
 
@@ -272,24 +281,27 @@ def apply_macro_event(event: Event, store: "Store") -> "Store":
 
         # Composite Events
         case InitializeMacroEvent():
-            store.meta.update({
-                "application_name": event.application_name,
-                "display_name": event.display_name,
-                "short_description": event.short_description,
-                "long_description": event.long_description,
-                "initial_survey_ref": event.initial_survey_ref,
-                "jobs_object_ref": event.jobs_object_ref,
-                "output_formatters": {
-                    name: dict(data)
-                    for name, data in event.output_formatters
-                },
-                "attachment_formatters": [dict(f) for f in event.attachment_formatters],
-                "default_params": dict(event.default_params),
-                "fixed_params": dict(event.fixed_params),
-                "default_formatter_name": event.default_formatter_name,
-                "client_mode": event.client_mode,
-                "pseudo_run": event.pseudo_run,
-            })
+            store.meta.update(
+                {
+                    "application_name": event.application_name,
+                    "display_name": event.display_name,
+                    "short_description": event.short_description,
+                    "long_description": event.long_description,
+                    "initial_survey_ref": event.initial_survey_ref,
+                    "jobs_object_ref": event.jobs_object_ref,
+                    "output_formatters": {
+                        name: dict(data) for name, data in event.output_formatters
+                    },
+                    "attachment_formatters": [
+                        dict(f) for f in event.attachment_formatters
+                    ],
+                    "default_params": dict(event.default_params),
+                    "fixed_params": dict(event.fixed_params),
+                    "default_formatter_name": event.default_formatter_name,
+                    "client_mode": event.client_mode,
+                    "pseudo_run": event.pseudo_run,
+                }
+            )
             return store
 
         case _:

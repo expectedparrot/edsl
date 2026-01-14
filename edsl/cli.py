@@ -21,6 +21,7 @@ from .plugins.cli_typer import app as plugins_app
 # Add the plugins subcommand
 app.add_typer(plugins_app, name="plugins")
 
+
 @app.callback()
 def callback():
     """

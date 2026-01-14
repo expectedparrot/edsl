@@ -639,7 +639,11 @@ class Scenario(Base, UserDict):
             DeprecationWarning,
             stacklevel=2,
         )
-        from .scenario_helpers.qr_code import QRCode, QRCodeList, extract_urls_from_scenario
+        from .scenario_helpers.qr_code import (
+            QRCode,
+            QRCodeList,
+            extract_urls_from_scenario,
+        )
 
         urls = extract_urls_from_scenario(self)
 

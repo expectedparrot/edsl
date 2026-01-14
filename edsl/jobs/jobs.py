@@ -2691,7 +2691,9 @@ class Jobs(GitMixin, Base):
         survey = Survey.from_dict(data["survey"])
         agents = AgentList([Agent.from_dict(agent) for agent in data["agents"]])
         models = ModelList([LanguageModel.from_dict(model) for model in data["models"]])
-        scenarios = ScenarioList([Scenario.from_dict(scenario) for scenario in data["scenarios"]])
+        scenarios = ScenarioList(
+            [Scenario.from_dict(scenario) for scenario in data["scenarios"]]
+        )
 
         # Create the base Jobs instance
         job = cls(
