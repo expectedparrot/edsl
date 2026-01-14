@@ -73,8 +73,18 @@ class ServiceAccessor:
             # Get available methods/operations
             methods = self._get_available_methods()
 
+            # Create a clean display name
+            # For services like "results_vibes", extract "Vibes" as the display name
+            display_name = self._service_name
+            if "_" in display_name:
+                # Take the part after the last underscore and capitalize
+                parts = display_name.split("_")
+                # Check if first part is a class name prefix (lowercase class name)
+                if len(parts) >= 2:
+                    display_name = parts[-1]  # e.g., "vibes" from "results_vibes"
+
             lines = [
-                f"{self._service_name.title()}Accessor - {desc}",
+                f"{display_name.title()}Accessor - {desc}",
                 "",
             ]
 
@@ -153,6 +163,13 @@ class ServiceAccessor:
             keys = info.get("required_keys", [])
             methods = self._get_available_methods()
 
+            # Create a clean display name (same logic as __repr__)
+            display_name = self._service_name
+            if "_" in display_name:
+                parts = display_name.split("_")
+                if len(parts) >= 2:
+                    display_name = parts[-1]
+
             methods_html = (
                 ", ".join(f"<code>.{m}()</code>" for m in methods)
                 if methods
@@ -163,7 +180,7 @@ class ServiceAccessor:
 
             return f"""
 <div style="font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
-<b style="color: #3498db;">{self._service_name.title()}Accessor</b><br>
+<b style="color: #3498db;">{display_name.title()}Accessor</b><br>
 {desc}<br><br>
 <b>Methods:</b> {methods_html}<br><br>
 <b>Dependencies:</b><br>{deps_html}<br><br>
@@ -507,23 +524,37 @@ def get_accessor(
     """
     from .registry import ServiceRegistry
 
-    # Check if service exists
-    if not ServiceRegistry.exists(service_name):
-        return None
+    # Determine the class name we're looking for
+    class_name = None
+    if instance is not None:
+        class_name = type(instance).__name__
+    elif owner_class is not None:
+        class_name = owner_class.__name__
 
-    # Check if service extends this instance's class or owner class
-    meta = ServiceRegistry.get_metadata(service_name)
-    if meta:
-        if instance is not None:
-            instance_type = type(instance).__name__
-            if meta.extends and instance_type not in meta.extends:
-                return None
-        elif owner_class is not None:
-            class_name = owner_class.__name__
-            if meta.extends and class_name not in meta.extends:
-                return None
+    # Check if service exists and extends the target class
+    if ServiceRegistry.exists(service_name):
+        meta = ServiceRegistry.get_metadata(service_name)
+        if meta:
+            # If no class constraint or service extends the class, use it
+            if class_name is None or not meta.extends or class_name in meta.extends:
+                return ServiceAccessor(service_name, instance)
 
-    return ServiceAccessor(service_name, instance)
+    # If direct lookup didn't work, try class-prefixed service names
+    # This handles cases like "vibe" -> "results_vibe" for Results
+    if class_name is not None:
+        class_lower = class_name.lower()
+        prefixed_names = [
+            f"{class_lower}_{service_name}",   # e.g., results_vibe
+            f"{class_lower}_{service_name}s",  # e.g., results_vibes
+        ]
+
+        for prefixed in prefixed_names:
+            if ServiceRegistry.exists(prefixed):
+                meta = ServiceRegistry.get_metadata(prefixed)
+                if meta and (not meta.extends or class_name in meta.extends):
+                    return ServiceAccessor(prefixed, instance)
+
+    return None
 
 
 def get_class_accessor(service_name: str, cls: type) -> Optional[ServiceAccessor]:

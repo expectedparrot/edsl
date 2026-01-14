@@ -15,6 +15,7 @@ fluid operations across different parts of the EDSL ecosystem.
 import io
 import warnings
 import textwrap
+import sqlite3
 from typing import Optional, Tuple, Union, List, TYPE_CHECKING  # Callable not used
 
 if TYPE_CHECKING:
@@ -643,7 +644,13 @@ class DataOperationsBase:
         from .dataset import Dataset
 
         conn = self._db(remove_prefix=remove_prefix, shape=shape)
-        cursor = conn.execute(query)
+        try:
+            cursor = conn.execute(query)
+        except sqlite3.OperationalError as e:
+            raise DatasetValueError(f"Error executing SQL query: {e}; query: {query}")
+            from traceback import format_exc
+            raise DatasetValueError(f"Error executing SQL query: {e}; query: {query}; traceback: {format_exc()}")
+
         columns = [description[0] for description in cursor.description]
         rows = cursor.fetchall()
 

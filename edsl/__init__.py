@@ -88,6 +88,8 @@ _EXPORT_MAP = {
     "Conversation": "conversation",
     # macros
     "Macro": "macros",
+    # services
+    "service_directory": "services",
 }
 
 # Fallback modules for linear search (only used if not in _EXPORT_MAP)

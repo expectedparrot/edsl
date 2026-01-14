@@ -193,3 +193,51 @@ class RemoteMetadataCache:
     def is_remote_configured(self) -> bool:
         """Check if remote server is configured."""
         return self._get_server_url() is not None
+
+    def get_for_class(
+        self, service_name: str, class_name: str
+    ) -> Optional[RemoteServiceInfo]:
+        """
+        Get metadata for a service that extends a specific class.
+
+        This enables context-aware alias resolution. For example, "vibe" will
+        resolve to "vibes" for ScenarioList but "results_vibes" for Results.
+
+        Args:
+            service_name: Service name or alias to look up
+            class_name: Class name the service should extend (e.g., "Results")
+
+        Returns:
+            RemoteServiceInfo for a matching service, or None
+        """
+        # First try direct lookup
+        info = self.get(service_name)
+        if info is not None and class_name in info.extends:
+            return info
+
+        # If direct lookup doesn't extend the right class,
+        # search for a service that has this name/alias AND extends the class
+        self.fetch_all_services()
+
+        for svc_name, svc_info in self._cache.items():
+            if class_name not in svc_info.extends:
+                continue
+            # Check if service_name matches the service name or any alias
+            if svc_name == service_name or service_name in svc_info.aliases:
+                return svc_info
+
+        # Fallback: try class-prefixed patterns like "results_vibe" for "vibe"
+        # This handles the common pattern where vibe services are named
+        # {class}_vibes with alias {class}_vibe
+        class_lower = class_name.lower()
+        prefixed_names = [
+            f"{class_lower}_{service_name}",  # e.g., results_vibe
+            f"{class_lower}_{service_name}s",  # e.g., results_vibes
+        ]
+
+        for prefixed in prefixed_names:
+            info = self.get(prefixed)
+            if info is not None and class_name in info.extends:
+                return info
+
+        return None

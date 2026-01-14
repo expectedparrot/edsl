@@ -2704,12 +2704,26 @@ def get_service_accessor(name: str, instance: Any = None, owner_class: type = No
     # Check if service exists in local registry
     if ServiceRegistry.exists(name):
         # Use the generic ServiceAccessor which handles everything
-        return get_accessor(name, instance=instance, owner_class=owner_class)
+        accessor = get_accessor(name, instance=instance, owner_class=owner_class)
+        if accessor is not None:
+            return accessor
+        # If local registry has the service but it doesn't extend the instance's class,
+        # fall through to check remote cache for a class-appropriate service
 
-    # Not in local registry - check remote metadata cache for server-side services
+    # Check remote metadata cache for server-side services
     from .remote_metadata import RemoteMetadataCache
 
-    remote_info = RemoteMetadataCache.get_instance().get(name)
+    cache = RemoteMetadataCache.get_instance()
+
+    # If we have an instance, use context-aware lookup to find a service
+    # that extends the instance's class. This handles cases like "vibe"
+    # resolving to "vibes" for ScenarioList but "results_vibes" for Results.
+    if instance is not None:
+        class_name = instance.__class__.__name__
+        remote_info = cache.get_for_class(name, class_name)
+    else:
+        remote_info = cache.get(name)
+
     if remote_info is not None:
         # Service exists on remote server - create a RemoteServiceAccessor
         return RemoteServiceAccessor(name, remote_info, instance=instance)
@@ -2734,3 +2748,55 @@ def list_available_services() -> List[str]:
     from .registry import ServiceRegistry
 
     return sorted(ServiceRegistry.list())
+
+
+def service_directory(force_refresh: bool = False) -> "ScenarioList":
+    """
+    Return all available services from the remote server as a ScenarioList.
+
+    Each scenario contains metadata about one service including its name,
+    description, required API keys, and available operations.
+
+    Args:
+        force_refresh: If True, bypass cache and fetch fresh data
+
+    Returns:
+        ScenarioList with one scenario per service
+
+    Example:
+        >>> from edsl import service_directory
+        >>> services = service_directory()
+        >>> services.select('name', 'description')  # doctest: +SKIP
+    """
+    from edsl.scenarios import ScenarioList
+    from .remote_metadata import RemoteMetadataCache
+
+    cache = RemoteMetadataCache.get_instance()
+
+    if not cache.is_remote_configured():
+        raise RuntimeError(
+            "Remote service runner not configured. "
+            "Set EXPECTED_PARROT_SERVICE_RUNNER_URL environment variable."
+        )
+
+    services = cache.fetch_all_services(force=force_refresh)
+
+    if not services:
+        return ScenarioList([])
+
+    service_dicts = [
+        {
+            "name": info.name,
+            "description": info.description,
+            "version": info.version,
+            "aliases": info.aliases,
+            "required_keys": info.required_keys,
+            "operations": info.operations,
+            "extends": info.extends,
+            "result_pattern": info.result_pattern,
+            "result_field": info.result_field,
+        }
+        for info in services.values()
+    ]
+
+    return ScenarioList.from_list_of_dicts(service_dicts)

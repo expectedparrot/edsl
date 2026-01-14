@@ -112,7 +112,7 @@ from .unified_worker import (
 )
 from .dependency_manager import DependencyManager, ensure_dependencies
 from .accessor import ServiceAccessor, get_accessor
-from .accessors import list_available_services, get_service_accessor
+from .accessors import list_available_services, get_service_accessor, service_directory
 
 # Builtin services are loaded lazily when first accessed
 # to avoid importing all ~100 service modules at startup
@@ -164,6 +164,7 @@ __all__ = [
     "get_accessor",
     "get_service_accessor",
     "list_available_services",
+    "service_directory",
     # Unified worker
     "UnifiedWorker",
     "start_unified_worker",

@@ -170,6 +170,22 @@ class ServiceRegistry:
                         input_param=op_config.get("input_param"),
                         defaults=op_config.get("defaults", {}),
                     )
+            else:
+                # Auto-extract operations from class attributes if not provided
+                # First check OPERATION_SCHEMAS (preferred - has full metadata)
+                if hasattr(svc_cls, "OPERATION_SCHEMAS"):
+                    for op_name, op_config in svc_cls.OPERATION_SCHEMAS.items():
+                        if isinstance(op_config, dict):
+                            parsed_operations[op_name] = OperationSchema(
+                                input_param=op_config.get("input_param"),
+                                defaults=op_config.get("defaults", {}),
+                            )
+                        else:
+                            parsed_operations[op_name] = OperationSchema()
+                # Fall back to OPERATIONS list (just operation names)
+                elif hasattr(svc_cls, "OPERATIONS"):
+                    for op_name in svc_cls.OPERATIONS:
+                        parsed_operations[op_name] = OperationSchema()
 
             # Create metadata
             meta = ServiceMetadata(
