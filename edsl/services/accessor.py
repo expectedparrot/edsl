@@ -67,6 +67,7 @@ class ServiceAccessor:
 
         if info:
             desc = info.get("description", "No description")
+            docstring = info.get("docstring")
             deps = info.get("dependencies", [])
             keys = info.get("required_keys", [])
 
@@ -93,6 +94,19 @@ class ServiceAccessor:
 
             lines.append("Dependencies: " + (", ".join(deps) if deps else "None"))
             lines.append("Required keys: " + (", ".join(keys) if keys else "None"))
+
+            # Add docstring if available (trimmed for display)
+            if docstring:
+                lines.append("")
+                # Clean up the docstring - remove leading/trailing whitespace from each line
+                docstring_lines = docstring.strip().split("\n")
+                # Find minimum indentation (excluding empty lines)
+                non_empty = [l for l in docstring_lines if l.strip()]
+                if non_empty:
+                    min_indent = min(len(l) - len(l.lstrip()) for l in non_empty)
+                    docstring_lines = [l[min_indent:] if len(l) > min_indent else l.strip()
+                                       for l in docstring_lines]
+                lines.extend(docstring_lines)
 
             return "\n".join(lines)
 
@@ -154,11 +168,13 @@ class ServiceAccessor:
 
     def _repr_html_(self) -> str:
         from .registry import ServiceRegistry
+        import html
 
         info = ServiceRegistry.info(self._service_name)
 
         if info:
             desc = info.get("description", "No description")
+            docstring = info.get("docstring")
             deps = info.get("dependencies", [])
             keys = info.get("required_keys", [])
             methods = self._get_available_methods()
@@ -178,13 +194,26 @@ class ServiceAccessor:
             deps_html = "<br>".join(f"• {d}" for d in deps) if deps else "None"
             keys_html = "<br>".join(f"• {k}" for k in keys) if keys else "None"
 
+            # Format docstring for HTML display
+            docstring_html = ""
+            if docstring:
+                # Clean up the docstring
+                docstring_lines = docstring.strip().split("\n")
+                non_empty = [l for l in docstring_lines if l.strip()]
+                if non_empty:
+                    min_indent = min(len(l) - len(l.lstrip()) for l in non_empty)
+                    docstring_lines = [l[min_indent:] if len(l) > min_indent else l.strip()
+                                       for l in docstring_lines]
+                cleaned = "\n".join(docstring_lines)
+                docstring_html = f"<br><br><b>Documentation:</b><br><pre style='background: #fff; padding: 8px; border-radius: 4px; overflow-x: auto;'>{html.escape(cleaned)}</pre>"
+
             return f"""
 <div style="font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
 <b style="color: #3498db;">{display_name.title()}Accessor</b><br>
-{desc}<br><br>
+{html.escape(desc)}<br><br>
 <b>Methods:</b> {methods_html}<br><br>
 <b>Dependencies:</b><br>{deps_html}<br><br>
-<b>Required Keys:</b><br>{keys_html}
+<b>Required Keys:</b><br>{keys_html}{docstring_html}
 </div>
 """
         return f"<code>&lt;ServiceAccessor({self._service_name})&gt;</code>"
@@ -287,11 +316,14 @@ class ServiceAccessor:
 
         def method_wrapper(*args, verbose: bool = True, **kwargs) -> Any:
             """Dispatch the method call to the service."""
-            # Ensure dependencies are available
+            import os
             from .dependency_manager import DependencyManager
             from .registry import ServiceRegistry
 
-            DependencyManager.ensure_available(self._service_name)
+            # Only check local dependencies if NOT using a remote server
+            # When using remote server, execution happens server-side
+            if not os.getenv("EXPECTED_PARROT_SERVICE_RUNNER_URL"):
+                DependencyManager.ensure_available(self._service_name)
 
             # Build params dict
             timeout = kwargs.pop("timeout", None)

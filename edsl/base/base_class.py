@@ -1378,11 +1378,17 @@ class Base(
             None or list: If show_docstrings is True, prints methods and returns None.
                          If show_docstrings is False, returns a list of method names.
         """
-        public_methods_with_docstrings = [
-            (method, getattr(self, method).__doc__)
-            for method in dir(self)
-            if callable(getattr(self, method)) and not method.startswith("_")
-        ]
+        public_methods_with_docstrings = []
+        for method in dir(self):
+            if method.startswith("_"):
+                continue
+            try:
+                attr = getattr(self, method)
+                if callable(attr):
+                    public_methods_with_docstrings.append((method, attr.__doc__))
+            except Exception:
+                # Skip methods/properties that raise exceptions when accessed
+                pass
         if show_docstrings:
             for method, documentation in public_methods_with_docstrings:
                 print(f"{method}: {documentation}")

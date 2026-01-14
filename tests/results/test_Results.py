@@ -2,11 +2,7 @@ import os
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
-from edsl.results.exceptions import (
-    ResultsBadMutationstringError,
-    ResultsInvalidNameError,
-    ResultsError,
-)
+from edsl.results.exceptions import ResultsError
 
 from edsl.results import Results
 from edsl.language_models import LanguageModel
@@ -22,23 +18,6 @@ class TestResults(unittest.TestCase):
     def test_parse_column_exception(self):
         with self.assertRaises(Exception):
             self.example_results.select("poop")
-
-    def test_bad_mutate(self):
-        with self.assertRaises(ResultsBadMutationstringError):
-            self.example_results.mutate('how_feeling_two -> how_feeling + "!!"')
-
-    def test_invalid_name(self):
-        with self.assertRaises(ResultsInvalidNameError):
-            self.example_results.mutate('class = how_feeling + "!!"')
-
-    def test_mutate(self):
-        self.assertEqual(
-            self.example_results.mutate("how_feeling_two = how_feeling + '!!'")
-            .select("how_feeling_two")
-            .first()
-            .endswith("!!"),
-            True,
-        )
 
     def test_csv_export(self):
         # Just prints to screen
@@ -153,11 +132,6 @@ class TestResults(unittest.TestCase):
             self.example_results.get_answers("how_feeling"),
             [result.answer.get("how_feeling") for result in self.example_results.data],
         )
-
-    def test_shuffle(self):
-        # Just check that no exceptions are thrown
-        shuffled = self.example_results.shuffle()
-        shuffled2 = self.example_results.select("answer.*").shuffle()
 
     def test_cache_control(self):
         d = self.example_results.to_dict(include_cache=True)

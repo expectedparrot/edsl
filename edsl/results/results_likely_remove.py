@@ -16,190 +16,40 @@ class ResultsLikelyRemoveMixin:
     @property
     def _shelve_path(self) -> str:
         """Get shelve path, creating if needed."""
-        if not hasattr(self, "_shelve_path_cache"):
-            import tempfile
-            import os
-
-            object.__setattr__(
-                self,
-                "_shelve_path_cache",
-                os.path.join(tempfile.gettempdir(), f"edsl_results_{os.getpid()}"),
-            )
-        return self._shelve_path_cache
+        raise NotImplementedError("_shelve_path is deprecated and will be removed")
 
     @property
     def _shelf_keys(self) -> set:
         """Get shelf keys set, creating if needed."""
-        if not hasattr(self, "_shelf_keys_cache"):
-            object.__setattr__(self, "_shelf_keys_cache", set())
-        return self._shelf_keys_cache
+        raise NotImplementedError("_shelf_keys is deprecated and will be removed")
 
     def view(self) -> None:
         """View the results in a Jupyter notebook."""
-        from ..widgets.results_viewer import ResultsViewerWidget
-
-        return ResultsViewerWidget(results=self)
+        raise NotImplementedError("view() is deprecated and will be removed")
 
     def transcripts(self, show_comments: bool = True) -> "Transcripts":
-        """Return a Transcripts object for viewing interview responses across multiple respondents.
-
-        This method creates a carousel-style viewer that allows navigation across different
-        Result objects (respondents) while keeping the same question in focus. This is useful
-        for comparing how different respondents answered the same question.
-
-        The Transcripts viewer provides:
-        - Navigation between respondents (Result objects)
-        - Navigation between questions
-        - Agent name display for each respondent
-        - Synchronized question viewing across respondents
-        - Copy button for plain text export
-
-        In HTML/Jupyter, displays as an interactive carousel with:
-        - "Prev/Next Respondent" buttons to navigate between agents
-        - "Prev Q/Next Q" buttons to navigate between questions
-
-        In terminal, displays Rich formatted output with agent headers and Q&A pairs.
-
-        Args:
-            show_comments: Whether to include respondent comments in the transcripts.
-                Defaults to True.
-
-        Returns:
-            A Transcripts object that adapts its display to the environment.
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> results = Results.example()
-            >>> transcripts = results.transcripts()
-            >>> # In Jupyter: Interactive carousel navigation
-            >>> # In terminal: Rich formatted display
-            >>> # As string: Plain text format
-
-            >>> # Without comments
-            >>> transcripts_no_comments = results.transcripts(show_comments=False)
-        """
-        from .results_transcript import Transcripts
-
-        return Transcripts(self, show_comments=show_comments)
+        """Return a Transcripts object for viewing interview responses across multiple respondents."""
+        raise NotImplementedError("transcripts() is deprecated and will be removed")
 
     def extend_sorted(self, other) -> "Results":
-        """Extend the Results by appending items from another iterable, preserving order.
-
-        This method creates a new Results instance with all items from both
-        this Results and the other iterable, sorted by 'order' attribute if present,
-        otherwise by 'iteration' attribute. Results is immutable.
-
-        Args:
-            other: Iterable of Result objects to append.
-
-        Returns:
-            Results: A new Results instance with the sorted, extended data.
-        """
-        from .results import Results
-
-        # Collect all items (existing and new)
-        all_items = list(self.data)
-        all_items.extend(other)
-
-        # Sort combined list by order attribute if available, otherwise by iteration
-        def get_sort_key(item):
-            if hasattr(item, "order"):
-                return (0, item.order)  # Order attribute takes precedence
-            return (1, item.data["iteration"])  # Iteration is secondary
-
-        all_items.sort(key=get_sort_key)
-
-        return Results(
-            survey=self.survey,
-            data=all_items,
-            name=self.name,
-            created_columns=self.created_columns,
-            cache=self.cache,
-            job_uuid=self._job_uuid,
-            total_results=self._total_results,
-            task_history=self.task_history,
-            sort_by_iteration=False,  # Already sorted
-        )
+        """Extend the Results by appending items from another iterable, preserving order."""
+        raise NotImplementedError("extend_sorted() is deprecated and will be removed")
 
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict] = None
     ) -> "Results":
-        """Create a new column based on a computational expression.
-
-        This method delegates to the ResultsTransformer class to handle the mutation operation.
-
-        Args:
-            new_var_string: A string containing an assignment expression in the form
-                "new_column_name = expression". The expression can reference
-                any existing column and use standard Python syntax.
-            functions_dict: Optional dictionary of custom functions that can be used in
-                the expression. Keys are function names, values are function objects.
-
-        Returns:
-            A new Results object with the additional column.
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> r = Results.example()
-
-            >>> # Create a simple derived column
-            >>> r.mutate('how_feeling_x = how_feeling + "x"').select('how_feeling_x')
-            Dataset([{'answer.how_feeling_x': ['OKx', 'Greatx', 'Terriblex', 'OKx']}])
-
-            >>> # Create a binary indicator column
-            >>> r.mutate('is_great = 1 if how_feeling == "Great" else 0').select('is_great')
-            Dataset([{'answer.is_great': [0, 1, 0, 0]}])
-
-            >>> # Create a column with custom functions
-            >>> def sentiment(text):
-            ...     return len(text) > 5
-            >>> r.mutate('is_long = sentiment(how_feeling)',
-            ...          functions_dict={'sentiment': sentiment}).select('is_long')
-            Dataset([{'answer.is_long': [False, False, True, False]}])
-        """
-        from .results_transformer import ResultsTransformer
-
-        transformer = ResultsTransformer(self)
-        return transformer.mutate(new_var_string, functions_dict)
+        """Create a new column based on a computational expression."""
+        raise NotImplementedError("mutate() is deprecated and will be removed")
 
     @ensure_ready
     def rename(self, old_name: str, new_name: str) -> "Results":
-        """Rename an answer column in a Results object.
-
-        This method delegates to the ResultsTransformer class to handle the renaming operation.
-
-        Args:
-            old_name: The current name of the column to rename
-            new_name: The new name for the column
-
-        Returns:
-            Results: A new Results object with the column renamed
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> s = Results.example()
-            >>> s.rename('how_feeling', 'how_feeling_new').select('how_feeling_new')  # doctest: +SKIP
-            Dataset([{'answer.how_feeling_new': ['OK', 'Great', 'Terrible', 'OK']}])
-        """
-        from .results_transformer import ResultsTransformer
-
-        transformer = ResultsTransformer(self)
-        return transformer.rename(old_name, new_name)
+        """Rename an answer column in a Results object."""
+        raise NotImplementedError("rename() is deprecated and will be removed")
 
     @ensure_ready
     def shuffle(self, seed: Optional[str] = "edsl") -> "Results":
-        """Return a shuffled copy of the results using Fisher-Yates algorithm.
-
-        Args:
-            seed: Random seed for reproducibility.
-
-        Returns:
-            Results: A new Results object with shuffled data.
-        """
-        from .results_sampler import ResultsSampler
-
-        sampler = ResultsSampler(self)
-        return sampler.shuffle(seed)
+        """Return a shuffled copy of the results using Fisher-Yates algorithm."""
+        raise NotImplementedError("shuffle() is deprecated and will be removed")
 
     @ensure_ready
     def sample(
@@ -221,7 +71,6 @@ class ResultsLikelyRemoveMixin:
             Results: A new Results object containing the sampled data.
         """
         from .results_sampler import ResultsSampler
-
         sampler = ResultsSampler(self)
         return sampler.sample(
             n=n, frac=frac, with_replacement=with_replacement, seed=seed

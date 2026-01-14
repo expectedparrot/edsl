@@ -36,6 +36,12 @@ from .check_survey_scenario_compatibility import CheckSurveyScenarioCompatibilit
 from .decorators import with_config
 from ..coop.exceptions import CoopServerResponseError
 
+# Event-sourcing infrastructure
+from ..versioning import GitMixin, event
+from ..store import Store
+from .jobs_events import apply_jobs_event, InitializeJobsEvent
+from .jobs_codec import JobsCodec
+
 
 def get_bucket_collection():
     """Get the BucketCollection class from the buckets module.
@@ -79,7 +85,7 @@ if TYPE_CHECKING:
 VisibilityType = Literal["private", "public", "unlisted"]
 
 
-class Jobs(Base):
+class Jobs(GitMixin, Base):
     """A collection of agents, scenarios, models, and a survey that orchestrates interviews.
 
     The Jobs class is the central component for running large-scale experiments or simulations
@@ -102,10 +108,20 @@ class Jobs(Base):
 
     Jobs implements a fluent interface pattern, where methods return self to allow
     method chaining for concise, readable configuration.
+
+    Jobs is event-sourced and tracks references to its four components (Survey, AgentList,
+    ModelList, ScenarioList) via commit_hashes rather than storing component data directly.
+    This enables lightweight serialization and independent versioning of components.
     """
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/jobs.html"
     _logger = get_logger(__name__)
+
+    # Event-sourcing configuration
+    _versioned = "store"
+    _store_class = Store
+    _event_handler = apply_jobs_event
+    _codec = JobsCodec()
 
     def __init__(
         self,
@@ -154,11 +170,33 @@ class Jobs(Base):
             - Upon initialization, a RunConfig is created with default environment and parameters
 
         """
+        # Initialize GitMixin
+        super().__init__()
+
+        # Initialize the store with empty meta (refs will be populated as components are set)
+        self.store = Store(
+            entries=[],  # Jobs doesn't use entries, only meta
+            meta={
+                "survey_ref": None,
+                "agents_ref": None,
+                "models_ref": None,
+                "scenarios_ref": None,
+                "where_clauses": [],
+                "include_expression": None,
+                "post_run_methods": [],
+                "depends_on_ref": None,
+            },
+        )
+
         self.run_config = RunConfig(
             environment=RunEnvironment(), parameters=RunParameters()
         )
 
-        self.survey = survey
+        # Store live component references (survey is required, others optional)
+        self._survey = survey
+        self._update_survey_ref()
+
+        # These trigger setters which also update store.meta refs
         self.agents: AgentList = agents
         self.scenarios: ScenarioList = scenarios
         self.models: ModelList = models
@@ -170,16 +208,94 @@ class Jobs(Base):
         self._depends_on = None
 
         try:
-            assert self.survey.question_names_valid()
+            assert self._survey.question_names_valid()
         except Exception:
             invalid_question_names = [
                 q.question_name
-                for q in self.survey.questions
+                for q in self._survey.questions
                 if not q.is_valid_question_name()
             ]
             raise JobsValueError(
                 f"At least some question names are not valid: {invalid_question_names}"
             )
+
+    def _update_survey_ref(self) -> None:
+        """Update the survey ref in store.meta."""
+        if self._survey is not None and hasattr(self._survey, "commit_hash"):
+            self.store.meta["survey_ref"] = self._survey.commit_hash
+        else:
+            self.store.meta["survey_ref"] = None
+
+    def _update_agents_ref(self) -> None:
+        """Update the agents ref in store.meta."""
+        if self._agents is not None and hasattr(self._agents, "commit_hash"):
+            self.store.meta["agents_ref"] = self._agents.commit_hash
+        else:
+            self.store.meta["agents_ref"] = None
+
+    def _update_models_ref(self) -> None:
+        """Update the models ref in store.meta."""
+        if self._models is not None and hasattr(self._models, "commit_hash"):
+            self.store.meta["models_ref"] = self._models.commit_hash
+        else:
+            self.store.meta["models_ref"] = None
+
+    def _update_scenarios_ref(self) -> None:
+        """Update the scenarios ref in store.meta."""
+        if self._scenarios is not None and hasattr(self._scenarios, "commit_hash"):
+            self.store.meta["scenarios_ref"] = self._scenarios.commit_hash
+        else:
+            self.store.meta["scenarios_ref"] = None
+
+    @property
+    def survey(self) -> "Survey":
+        """Get the survey associated with this job."""
+        return self._survey
+
+    @survey.setter
+    def survey(self, value: "Survey") -> None:
+        """Set the survey and update the ref in store."""
+        self._survey = value
+        if hasattr(self, "store"):
+            self._update_survey_ref()
+
+    @classmethod
+    def _from_store(cls, store: Store) -> "Jobs":
+        """Create a Jobs instance from a Store (used by GitMixin for event replay).
+
+        This method reconstructs a Jobs from its store representation.
+        Since the store only contains refs, we need to resolve them to live components.
+
+        Note: This creates a Jobs without live component references. For full
+        reconstruction, use from_dict with embedded component data.
+        """
+        instance = object.__new__(cls)
+
+        # Set the store
+        instance.store = store
+
+        # Initialize GitMixin attributes
+        instance._git = None
+        instance._needs_git_init = False
+
+        # Initialize run_config
+        instance.run_config = RunConfig(
+            environment=RunEnvironment(), parameters=RunParameters()
+        )
+
+        # Initialize component references as None (they need to be resolved)
+        instance._survey = None
+        instance._agents = None
+        instance._models = None
+        instance._scenarios = None
+
+        # Restore configuration from store.meta
+        instance._where_clauses = list(store.meta.get("where_clauses", []))
+        instance._include_expression = store.meta.get("include_expression")
+        instance._post_run_methods = list(store.meta.get("post_run_methods", []))
+        instance._depends_on = None  # Would need to be resolved from depends_on_ref
+
+        return instance
 
     def add_running_env(self, running_env: RunEnvironment) -> Jobs:
         """Add a running environment to the job.
@@ -336,6 +452,10 @@ class Jobs(Base):
                 self.create_bucket_collection()
             )
 
+        # Update ref in store
+        if hasattr(self, "store"):
+            self._update_models_ref()
+
     @property
     def agents(self):
         """Get the agents associated with this job.
@@ -358,6 +478,10 @@ class Jobs(Base):
                 self._agents = value
         else:
             self._agents = AgentList([])
+
+        # Update ref in store
+        if hasattr(self, "store"):
+            self._update_agents_ref()
 
     def where(self, expression: str) -> Jobs:
         """Filter the agents, scenarios, and models based on a condition.
@@ -443,13 +567,17 @@ class Jobs(Base):
         else:
             self._scenarios = ScenarioList([])
 
+        # Update ref in store
+        if hasattr(self, "store"):
+            self._update_scenarios_ref()
+
         # Validate that scenario fields are used in the survey
-        if hasattr(self, "survey") and self.survey is not None:
+        if hasattr(self, "_survey") and self._survey is not None:
             from .check_survey_scenario_compatibility import (
                 CheckSurveyScenarioCompatibility,
             )
 
-            checker = CheckSurveyScenarioCompatibility(self.survey, self._scenarios)
+            checker = CheckSurveyScenarioCompatibility(self._survey, self._scenarios)
             checker.check()
 
     def by(
@@ -2407,19 +2535,26 @@ class Jobs(Base):
         """
         return Jobs.from_dict(self.to_dict())
 
-    def to_dict(self, add_edsl_version=True, full_dict=None):
+    def to_dict(self, add_edsl_version=True, full_dict=None, include_refs=False):
         """Convert the Jobs instance to a dictionary representation.
+
+        The output format includes full component data for backward compatibility.
+        Optionally includes component refs (commit_hashes) for versioning.
 
         Args:
         ----
             add_edsl_version: Whether to include EDSL version information.
             full_dict: Additional dictionary to merge (currently unused).
+            include_refs: Whether to include component refs (_refs) in output.
+                         Refs are versioning metadata and change on reconstruction,
+                         so they're excluded by default for serialization equality.
 
         Returns:
         -------
             dict: Dictionary representation of this Jobs instance.
 
         """
+        # Include full component data for backward compatibility
         d = {
             "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
             "agents": [
@@ -2435,6 +2570,24 @@ class Jobs(Base):
                 for scenario in self.scenarios
             ],
         }
+
+        # Optionally add component refs for versioning (excluded by default
+        # since refs change on component reconstruction)
+        if include_refs:
+            d["_refs"] = {
+                "survey_ref": self.store.meta.get("survey_ref"),
+                "agents_ref": self.store.meta.get("agents_ref"),
+                "models_ref": self.store.meta.get("models_ref"),
+                "scenarios_ref": self.store.meta.get("scenarios_ref"),
+            }
+
+        # Add where_clauses if not empty
+        if self._where_clauses:
+            d["_where_clauses"] = self._where_clauses
+
+        # Add include_expression if set
+        if self._include_expression is not None:
+            d["_include_expression"] = self._include_expression
 
         # Add _post_run_methods if not empty
         if self._post_run_methods:
@@ -2467,27 +2620,51 @@ class Jobs(Base):
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data: dict) -> Jobs:
-        """Create a Jobs instance from a dictionary."""
+        """Create a Jobs instance from a dictionary.
+
+        Supports both old format (full component dicts) and new format (refs + embedded data).
+        When loading, always uses the embedded component data for reconstruction.
+        """
         from ..surveys import Survey
-        from ..agents import Agent
-        from ..language_models import LanguageModel
-        from ..scenarios import Scenario
+        from ..agents import Agent, AgentList
+        from ..language_models import LanguageModel, ModelList
+        from ..scenarios import Scenario, ScenarioList
+
+        # Reconstruct components from embedded data
+        survey = Survey.from_dict(data["survey"])
+        agents = AgentList([Agent.from_dict(agent) for agent in data["agents"]])
+        models = ModelList([LanguageModel.from_dict(model) for model in data["models"]])
+        scenarios = ScenarioList([Scenario.from_dict(scenario) for scenario in data["scenarios"]])
 
         # Create the base Jobs instance
         job = cls(
-            survey=Survey.from_dict(data["survey"]),
-            agents=[Agent.from_dict(agent) for agent in data["agents"]],
-            models=[LanguageModel.from_dict(model) for model in data["models"]],
-            scenarios=[Scenario.from_dict(scenario) for scenario in data["scenarios"]],
+            survey=survey,
+            agents=agents,
+            models=models,
+            scenarios=scenarios,
         )
+
+        # Restore _where_clauses if present
+        if "_where_clauses" in data:
+            job._where_clauses = data["_where_clauses"]
+            job.store.meta["where_clauses"] = data["_where_clauses"]
+
+        # Restore _include_expression if present
+        if "_include_expression" in data:
+            job._include_expression = data["_include_expression"]
+            job.store.meta["include_expression"] = data["_include_expression"]
 
         # Restore _post_run_methods if present
         if "_post_run_methods" in data:
             job._post_run_methods = data["_post_run_methods"]
+            job.store.meta["post_run_methods"] = data["_post_run_methods"]
 
         # Restore _depends_on if present
         if "_depends_on" in data:
             job._depends_on = cls.from_dict(data["_depends_on"])
+            # Store the ref if the dependent job has one
+            if hasattr(job._depends_on, "commit_hash"):
+                job.store.meta["depends_on_ref"] = job._depends_on.commit_hash
 
         return job
 

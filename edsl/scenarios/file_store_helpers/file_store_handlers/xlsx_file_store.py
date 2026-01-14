@@ -3,11 +3,29 @@ from ..file_methods import FileMethods
 import os
 
 
-def _require_pandas():
-    """Helper to check pandas availability with helpful error message."""
+def _require_pandas_and_openpyxl():
+    """Helper to check pandas and openpyxl availability with helpful error message."""
     try:
         import pandas as pd
+    except ImportError:
+        raise ImportError(
+            "pandas is required for Excel file operations. "
+            "Install with: pip install edsl[pandas] or pip install pandas openpyxl"
+        )
+    try:
+        import openpyxl  # noqa: F401
+    except ImportError:
+        raise ImportError(
+            "openpyxl is required for Excel file operations. "
+            "Install with: pip install openpyxl"
+        )
+    return pd
 
+
+def _require_pandas():
+    """Helper to check pandas availability (for backwards compat)."""
+    try:
+        import pandas as pd
         return pd
     except ImportError:
         raise ImportError(
@@ -27,7 +45,11 @@ class XlsxMethods(FileMethods):
 
     def extract_text(self):
         """Extract text content from Excel file."""
-        pd = _require_pandas()
+        try:
+            pd = _require_pandas_and_openpyxl()
+        except ImportError:
+            # If pandas or openpyxl not available, skip text extraction
+            return None
 
         # Read all sheets from the Excel file
         excel_file = pd.read_excel(self.path, sheet_name=None)
@@ -58,7 +80,7 @@ class XlsxMethods(FileMethods):
             print("Excel file was not found.")
 
     def view_notebook(self):
-        pd = _require_pandas()
+        pd = _require_pandas_and_openpyxl()
         from IPython.display import display, HTML
 
         # Read all sheets from the Excel file
@@ -70,7 +92,7 @@ class XlsxMethods(FileMethods):
             display(df)
 
     def example(self):
-        pd = _require_pandas()
+        pd = _require_pandas_and_openpyxl()
 
         # Create sample data
         data = {
@@ -94,9 +116,9 @@ class XlsxMethods(FileMethods):
             dict: Dictionary of sheet names to DataFrames, or single DataFrame if only one sheet
 
         Raises:
-            ImportError: If pandas is not installed
+            ImportError: If pandas or openpyxl is not installed
         """
-        pd = _require_pandas()
+        pd = _require_pandas_and_openpyxl()
 
         excel_file = pd.read_excel(self.path, sheet_name=None)
 

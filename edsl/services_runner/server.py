@@ -332,6 +332,7 @@ class ServiceMetadataResponse(BaseModel):
     required_keys: List[str]
     operations: Dict[str, Dict[str, Any]]  # operation_name -> {input_param, defaults}
     extends: List[str]
+    docstring: Optional[str] = None  # Class docstring for self-documentation
 
 
 class ServicesResponse(BaseModel):
@@ -376,6 +377,7 @@ async def list_services():
                     for op_name, op_schema in meta.operations.items()
                 },
                 extends=meta.extends,
+                docstring=meta.docstring,
             )
 
     return ServicesResponse(services=services)
@@ -416,6 +418,7 @@ async def get_service(service_name: str):
             for op_name, op_schema in meta.operations.items()
         },
         extends=meta.extends,
+        docstring=meta.docstring,
     )
 
 

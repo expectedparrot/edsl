@@ -2788,6 +2788,7 @@ def service_directory(force_refresh: bool = False) -> "ScenarioList":
         {
             "name": info.name,
             "description": info.description,
+            "docstring": info.docstring,
             "version": info.version,
             "aliases": info.aliases,
             "required_keys": info.required_keys,

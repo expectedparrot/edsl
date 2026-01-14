@@ -29,6 +29,7 @@ class RemoteServiceInfo:
     required_keys: List[str] = field(default_factory=list)
     operations: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # op_name -> {input_param, defaults}
     extends: List[str] = field(default_factory=list)
+    docstring: Optional[str] = None  # Class docstring for self-documentation
     fetched_at: float = 0.0
 
 
@@ -123,6 +124,7 @@ class RemoteMetadataCache:
                     required_keys=info.get("required_keys", []),
                     operations=info.get("operations", []),
                     extends=info.get("extends", []),
+                    docstring=info.get("docstring"),
                     fetched_at=now,
                 )
                 # Index aliases

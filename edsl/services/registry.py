@@ -59,6 +59,8 @@ class ServiceMetadata:
     result_pattern: str = "dict_passthrough"
     # Optional field to extract from result (e.g., "rows", "data")
     result_field: Optional[str] = None
+    # Class docstring for self-documenting services
+    docstring: Optional[str] = None
 
 
 class ServiceRegistry:
@@ -198,6 +200,7 @@ class ServiceRegistry:
                 operations=parsed_operations,
                 result_pattern=result_pattern,
                 result_field=result_field,
+                docstring=svc_cls.__doc__,
             )
 
             # Register the service and metadata
@@ -467,6 +470,7 @@ class ServiceRegistry:
         return {
             "name": service.name,
             "description": service.description,
+            "docstring": meta.docstring if meta else None,
             "version": service.version,
             "required_keys": service.get_required_keys(),
             "dependencies": meta.dependencies if meta else [],
