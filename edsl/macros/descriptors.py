@@ -137,6 +137,7 @@ class ApplicationNameDescriptor:
     """Descriptor that validates Macro.application_name as a valid Python identifier.
 
     Used for the 'alias' in deployment; must be a valid Python identifier.
+    Also syncs to store.meta for event-sourcing support.
     """
 
     def __set_name__(self, owner, name):
@@ -168,6 +169,10 @@ class ApplicationNameDescriptor:
 
         setattr(instance, self.private_name, value)
 
+        # Sync to store.meta for event-sourcing
+        if hasattr(instance, "store") and instance.store is not None:
+            instance.store.meta["application_name"] = value
+
     @staticmethod
     def _to_identifier(name: str) -> str:
         """Convert a name to a valid Python identifier.
@@ -192,7 +197,10 @@ class ApplicationNameDescriptor:
 
 
 class DisplayNameDescriptor:
-    """Descriptor for Macro.display_name - human-readable name (no constraints)."""
+    """Descriptor for Macro.display_name - human-readable name (no constraints).
+
+    Also syncs to store.meta for event-sourcing support.
+    """
 
     MAX_LENGTH = 100
 
@@ -219,9 +227,16 @@ class DisplayNameDescriptor:
 
         setattr(instance, self.private_name, value.strip())
 
+        # Sync to store.meta for event-sourcing
+        if hasattr(instance, "store") and instance.store is not None:
+            instance.store.meta["display_name"] = value.strip()
+
 
 class ShortDescriptionDescriptor:
-    """Descriptor for Macro.short_description - one sentence description."""
+    """Descriptor for Macro.short_description - one sentence description.
+
+    Also syncs to store.meta for event-sourcing support.
+    """
 
     def __set_name__(self, owner, name):
         self.private_name = f"_{name}"
@@ -253,9 +268,16 @@ class ShortDescriptionDescriptor:
 
         setattr(instance, self.private_name, value)
 
+        # Sync to store.meta for event-sourcing
+        if hasattr(instance, "store") and instance.store is not None:
+            instance.store.meta["short_description"] = value
+
 
 class LongDescriptionDescriptor:
-    """Descriptor for Macro.long_description - longer description."""
+    """Descriptor for Macro.long_description - longer description.
+
+    Also syncs to store.meta for event-sourcing support.
+    """
 
     def __set_name__(self, owner, name):
         self.private_name = f"_{name}"
@@ -275,6 +297,10 @@ class LongDescriptionDescriptor:
 
         setattr(instance, self.private_name, value.strip())
 
+        # Sync to store.meta for event-sourcing
+        if hasattr(instance, "store") and instance.store is not None:
+            instance.store.meta["long_description"] = value.strip()
+
 
 # New: Descriptor to manage Macro.fixed_params with normalization and survey pruning
 class FixedParamsDescriptor:
@@ -282,6 +308,7 @@ class FixedParamsDescriptor:
 
     - Stores a normalized dict on the instance
     - Prunes overlapping question names from the instance.initial_survey
+    - Also syncs to store.meta for event-sourcing support
     """
 
     def __set_name__(self, owner, name):
@@ -302,6 +329,10 @@ class FixedParamsDescriptor:
             raise TypeError("fixed_params must be a dict[str, Any] if provided")
 
         setattr(instance, self.private_name, normalized)
+
+        # Sync to store.meta for event-sourcing
+        if hasattr(instance, "store") and instance.store is not None:
+            instance.store.meta["fixed_params"] = dict(normalized)
 
         # If there are fixed params, prune overlapping questions from the initial_survey
         if normalized:

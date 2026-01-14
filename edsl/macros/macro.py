@@ -15,6 +15,12 @@ from ..scenarios import Scenario
 from ..surveys import Survey
 from .base_macro import BaseMacro
 
+# Event-sourcing infrastructure
+from ..versioning import GitMixin
+from ..store import Store
+from .macro_events import apply_macro_event
+from .macro_codec import MacroCodec
+
 if TYPE_CHECKING:
     from ..surveys import Survey
     from ..jobs import Jobs
@@ -75,12 +81,18 @@ def disabled_in_client_mode(method) -> Callable:
     return wrapper
 
 
-class Macro(BaseMacro):
+class Macro(GitMixin, BaseMacro):
     # Subclass registry managed via descriptor
     _registry = MacroTypeRegistryDescriptor()
 
     # Each subclass should set a unique application_type
     application_type: str = "base"
+
+    # Event-sourcing configuration
+    _versioned = "store"
+    _store_class = Store
+    _event_handler = apply_macro_event
+    _codec = MacroCodec()
 
     def __init_subclass__(cls, **kwargs):
         if cls is Macro:
@@ -216,25 +228,62 @@ class Macro(BaseMacro):
                     "Macro.__init__() missing required argument: 'initial_survey'"
                 )
 
-        self.jobs_object = jobs_object
+        # Initialize GitMixin
+        super().__init__()
+
+        # Initialize the store with all state in meta (Macro is config, not row data)
+        self.store = Store(
+            entries=[],  # Not used - Macro stores everything in meta
+            meta={
+                # Component refs (commit_hashes)
+                "initial_survey_ref": None,
+                "jobs_object_ref": None,
+                # Component aliases (for pulling from Coop)
+                "initial_survey_alias": None,
+                "jobs_object_alias": None,
+                # Embedded formatters
+                "output_formatters": {},  # {name: serialized_formatter}
+                "attachment_formatters": [],
+                # Scalar metadata
+                "application_name": None,
+                "display_name": None,
+                "short_description": None,
+                "long_description": None,
+                "default_params": {},
+                "fixed_params": {},
+                "default_formatter_name": None,
+                "client_mode": client_mode,
+                "pseudo_run": pseudo_run,
+            },
+        )
+
+        # Store live component references
+        self._jobs_object = jobs_object
+        self._update_jobs_object_ref()
+
         # Set via descriptors (handles validation)
         self.application_name = application_name
         self.display_name = display_name
         self.short_description = short_description
         self.long_description = long_description
-        # Validation is handled by descriptor
+        # Validation is handled by descriptor - also updates store.meta
         self.initial_survey = initial_survey
-        # Enforce default_output_formatter contract
+        self._update_initial_survey_ref()
 
         # Normalize and validate via descriptor
         self.output_formatters = output_formatters
         if default_formatter_name is not None:
             self.output_formatters.set_default(default_formatter_name)
+        self._store_output_formatters()
 
         # Normalize via descriptor
         self.attachment_formatters = attachment_formatters
+        self._store_attachment_formatters()
+
         # Defaults for initial_survey params keyed by question_name
         self._default_params: dict[str, Any] = dict(default_params or {})
+        self.store.meta["default_params"] = dict(self._default_params)
+
         # Fixed params override any provided params at runtime
         # Normalize and assign via descriptor (handles pruning on assignment)
         self.fixed_params = dict(fixed_params or {})
@@ -259,6 +308,216 @@ class Macro(BaseMacro):
 
         # Mark as initialized to prevent re-initialization
         self._initialized = True
+
+    # =========================================================================
+    # Event-sourcing support methods
+    # =========================================================================
+
+    @property
+    def jobs_object(self) -> Optional["Jobs"]:
+        """Get the jobs object associated with this macro."""
+        return getattr(self, "_jobs_object", None)
+
+    @jobs_object.setter
+    def jobs_object(self, value: Optional["Jobs"]) -> None:
+        """Set the jobs object and update the ref in store."""
+        self._jobs_object = value
+        if hasattr(self, "store"):
+            self._update_jobs_object_ref()
+
+    def _update_initial_survey_ref(self) -> None:
+        """Update the initial_survey ref in store.meta."""
+        survey = getattr(self, "_initial_survey", None)
+        if survey is not None and hasattr(survey, "commit_hash"):
+            self.store.meta["initial_survey_ref"] = survey.commit_hash
+        else:
+            self.store.meta["initial_survey_ref"] = None
+
+    def _update_jobs_object_ref(self) -> None:
+        """Update the jobs_object ref in store.meta."""
+        jobs = getattr(self, "_jobs_object", None)
+        if jobs is not None and hasattr(jobs, "commit_hash"):
+            self.store.meta["jobs_object_ref"] = jobs.commit_hash
+        else:
+            self.store.meta["jobs_object_ref"] = None
+
+    def _store_output_formatters(self) -> None:
+        """Store output formatters in store.meta."""
+        if not hasattr(self, "store"):
+            return
+        ofs = getattr(self, "_output_formatters", None)
+        if ofs is None:
+            return
+
+        # Store serialized formatters in meta
+        formatters_dict = {}
+        for name, formatter in ofs.mapping.items():
+            formatter_data = formatter.to_dict() if hasattr(formatter, "to_dict") else {}
+            formatters_dict[name] = formatter_data
+        self.store.meta["output_formatters"] = formatters_dict
+
+        # Store default formatter name in meta
+        self.store.meta["default_formatter_name"] = ofs.default
+
+    def _store_attachment_formatters(self) -> None:
+        """Store attachment formatters in store.meta."""
+        if not hasattr(self, "store"):
+            return
+        afs = getattr(self, "_attachment_formatters", None) or []
+        serialized = []
+        for formatter in afs:
+            if hasattr(formatter, "to_dict"):
+                serialized.append(formatter.to_dict())
+            else:
+                serialized.append({})
+        self.store.meta["attachment_formatters"] = serialized
+
+    @classmethod
+    def _from_store(cls, store: Store) -> "Macro":
+        """Create a Macro instance from a Store (used by GitMixin for event replay).
+
+        This method reconstructs a Macro from its store representation.
+        Since the store only contains refs for Survey and Jobs, we need to
+        resolve them to live components for full reconstruction.
+
+        Note: This creates a Macro without live component references. For full
+        reconstruction, use from_dict with embedded component data.
+        """
+        instance = object.__new__(cls)
+
+        # Set the store
+        instance.store = store
+
+        # Initialize GitMixin attributes
+        instance._git = None
+        instance._needs_git_init = False
+
+        # Initialize component references as None (they need to be resolved)
+        instance._initial_survey = None
+        instance._jobs_object = None
+
+        # Rebuild output formatters from store.meta
+        instance._output_formatters = cls._rebuild_output_formatters(store.meta)
+
+        # Rebuild attachment formatters from store.meta
+        instance._attachment_formatters = cls._rebuild_attachment_formatters(
+            store.meta.get("attachment_formatters", [])
+        )
+
+        # Restore scalar metadata
+        instance._application_name = store.meta.get("application_name")
+        instance._display_name = store.meta.get("display_name")
+        instance._short_description = store.meta.get("short_description")
+        instance._long_description = store.meta.get("long_description")
+        instance._default_params = dict(store.meta.get("default_params", {}))
+        instance._fixed_params = dict(store.meta.get("fixed_params", {}))
+        instance.client_mode = store.meta.get("client_mode", False)
+        instance.pseudo_run = store.meta.get("pseudo_run", False)
+
+        # Other cached state
+        instance._generated_results = {}
+        instance._set_params = None
+        instance._initialized = True
+
+        return instance
+
+    @classmethod
+    def _rebuild_output_formatters(cls, meta: dict) -> "OutputFormatters":
+        """Rebuild OutputFormatters from store.meta."""
+        from .output_formatter import OutputFormatters, OutputFormatter
+
+        formatter_map = {}
+        formatters_dict = meta.get("output_formatters", {})
+        for name, data in formatters_dict.items():
+            if name and data:
+                try:
+                    formatter = OutputFormatter.from_dict(data)
+                    formatter_map[name] = formatter
+                except Exception:
+                    # Skip formatters that can't be deserialized
+                    pass
+
+        ofs = OutputFormatters(formatter_map)
+        default_name = meta.get("default_formatter_name")
+        if default_name and default_name in formatter_map:
+            ofs.set_default(default_name)
+
+        return ofs
+
+    @classmethod
+    def _rebuild_attachment_formatters(cls, serialized: list) -> list:
+        """Rebuild attachment formatters from serialized data."""
+        from .output_formatter import ObjectFormatter
+
+        formatters = []
+        for data in serialized:
+            if data:
+                try:
+                    formatter = ObjectFormatter.from_dict(data)
+                    formatters.append(formatter)
+                except Exception:
+                    # Skip formatters that can't be deserialized
+                    pass
+        return formatters
+
+    # =========================================================================
+    # Related objects support (for git push/pull)
+    # =========================================================================
+
+    def _get_related_objects(self) -> list:
+        """Return related objects that should be pushed/pulled with this Macro.
+
+        Macro references its components (Survey, Jobs) by commit_hash.
+        When pushing Macro, all components are pushed first so their refs can
+        be resolved when the Macro is pulled.
+
+        Returns:
+            List of (name, object) tuples for Survey and Jobs.
+        """
+        return [
+            ("initial-survey", self._initial_survey),
+            ("jobs", self._jobs_object),
+        ]
+
+    def _store_related_aliases(self, aliases: dict) -> None:
+        """Store component aliases in store.meta for later resolution during pull.
+
+        Args:
+            aliases: Dictionary mapping component names to their Coop aliases.
+        """
+        # Map component names to store.meta keys
+        name_to_key = {
+            "initial-survey": "initial_survey_alias",
+            "jobs": "jobs_object_alias",
+        }
+        for name, alias in aliases.items():
+            if name in name_to_key:
+                self.store.meta[name_to_key[name]] = alias
+
+    def _resolve_related_objects_after_pull(self) -> None:
+        """Pull and resolve component objects after Macro has been pulled.
+
+        Uses the component aliases stored in store.meta to clone each component
+        from Coop and set the live component references.
+        """
+        from ..surveys import Survey
+        from ..jobs import Jobs
+
+        # Map alias keys to (component class, attribute name)
+        alias_to_info = {
+            "initial_survey_alias": (Survey, "_initial_survey"),
+            "jobs_object_alias": (Jobs, "_jobs_object"),
+        }
+
+        for alias_key, (component_cls, attr_name) in alias_to_info.items():
+            alias = self.store.meta.get(alias_key)
+            if alias:
+                print(f"Pulling {component_cls.__name__} from '{alias}'...")
+                try:
+                    obj = component_cls.git_clone(alias)
+                    setattr(self, attr_name, obj)
+                except Exception as e:
+                    print(f"Warning: Could not pull {component_cls.__name__}: {e}")
 
     @disabled_in_client_mode
     def push(self, *args, force: bool = False, **kwargs) -> dict:

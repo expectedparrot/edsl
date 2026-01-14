@@ -493,6 +493,85 @@ class RepoStorage:
 # ----------------------------
 
 
+def build_related_objects_section(metadata: dict) -> str:
+    """Build HTML section for related objects (refs) found in metadata.
+
+    Looks for keys ending with '_ref' or '_alias' that contain commit hashes
+    or alias references to other objects. Renders them as clickable links.
+
+    Args:
+        metadata: The store.meta dictionary from a versioned object.
+
+    Returns:
+        HTML string for the related objects section, or empty string if no refs found.
+    """
+    if not metadata:
+        return ""
+
+    # Find ref and alias keys
+    ref_items = []
+    for key, value in metadata.items():
+        if value is None:
+            continue
+
+        # Check for ref keys (commit hashes)
+        if key.endswith("_ref") and isinstance(value, str) and len(value) >= 8:
+            # Extract the object type from the key (e.g., "initial_survey_ref" -> "initial_survey")
+            obj_type = key[:-4].replace("_", " ").title()
+            ref_items.append({
+                "type": obj_type,
+                "key": key,
+                "value": value,
+                "kind": "ref",
+                "display": value[:12] + "..." if len(value) > 12 else value,
+            })
+
+        # Check for alias keys
+        elif key.endswith("_alias") and isinstance(value, str) and value:
+            obj_type = key[:-6].replace("_", " ").title()
+            ref_items.append({
+                "type": obj_type,
+                "key": key,
+                "value": value,
+                "kind": "alias",
+                "display": value,
+            })
+
+    if not ref_items:
+        return ""
+
+    # Build the HTML
+    items_html = ""
+    for item in ref_items:
+        if item["kind"] == "alias":
+            # Link to the aliased object
+            link = f'<a href="/{item["value"]}" class="text-decoration-none">{item["display"]}</a>'
+            badge = '<span class="badge bg-primary ms-2">alias</span>'
+        else:
+            # For refs, we'd need to look up by commit hash - for now show as code
+            # Could potentially link to a search or lookup endpoint
+            link = f'<code>{item["display"]}</code>'
+            badge = '<span class="badge bg-secondary ms-2">ref</span>'
+
+        items_html += f"""
+        <div class="d-flex align-items-center mb-2">
+            <span class="me-2" style="min-width: 150px;"><strong>{item["type"]}:</strong></span>
+            {link}
+            {badge}
+        </div>
+        """
+
+    return f"""
+    <!-- Related Objects Section -->
+    <div id="relatedObjectsSection" class="mb-4">
+        <h3>Related Objects <small class="text-muted">({len(ref_items)} references)</small></h3>
+        <div class="bg-light p-3 rounded">
+            {items_html}
+        </div>
+    </div>
+    """
+
+
 def create_app(db_url: Optional[str] = None):
     """
     Create FastAPI application.
@@ -2080,6 +2159,8 @@ def create_app(db_url: Optional[str] = None):
                         <pre id="metaContent" style="margin: 0; font-size: 0.85em;"><code>{json.dumps(metadata, indent=2, default=str) if metadata else '{}'}</code></pre>
                     </div>
                 </div>
+
+                {build_related_objects_section(metadata)}
 
                 <!-- Data Table -->
                 <h3>Data <small class="text-muted">({len(rows)} entries)</small></h3>
