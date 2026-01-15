@@ -2112,20 +2112,67 @@ class Coop(CoopFunctionsMixin):
         include_json_string: Optional[bool] = False,
     ) -> Union[RemoteInferenceResponse, List[RemoteInferenceResponse]]:
         """
-        Get the status and details of one or more remote inference jobs.
+        Get the status and details of a remote inference job or jobs.
 
-        Args:
-            job_uuid: The UUID(s) of the remote job(s) to check. Can be a single string or a list of strings.
-            results_uuid: The UUID of the results associated with the job (if you only have the results UUID).
-            include_json_string: Whether to include the full job JSON string in the response.
+        This method retrieves the current status and information about one or more remote jobs,
+        including links to results if the jobs have completed successfully.
+
+        Parameters:
+            job_uuid (str or list of str, optional): The UUID(s) of the remote job(s) to check
+            results_uuid (str, optional): The UUID of the results associated with the job
+                (can be used if you only have the results UUID)
+            include_json_string (bool, optional): If True, include the json string for the job in the response
 
         Returns:
-            A dictionary (or list of dictionaries) containing job details like status, results URL, 
-            and execution metadata.
+            RemoteInferenceResponse or list of RemoteInferenceResponse: Information about the job(s) including:
+                job_uuid: The unique identifier for the job
+                results_uuid: The UUID of the results
+                results_url: URL to access the results
+                status: Current status ("queued", "running", "completed", "failed")
+                version: EDSL version used for the job
+                job_json_string: The json string for the job (if include_json_string is True)
+                latest_job_run_details: Metadata about the job status
+                    interview_details: Metadata about the job interview status (for jobs that have reached running status)
+                        total_interviews: The total number of interviews in the job
+                        completed_interviews: The number of completed interviews
+                        interviews_with_exceptions: The number of completed interviews that have exceptions
+                        exception_counters: A list of exception counts for the job
+                            exception_type: The type of exception
+                            inference_service: The inference service
+                            model: The model
+                            question_name: The name of the question
+                            exception_count: The number of exceptions
+                    failure_reason: The reason the job failed (failed jobs only)
+                    failure_description: The description of the failure (failed jobs only)
+                    error_report_uuid: The UUID of the error report (partially failed jobs only)
+                    cost_credits: The cost of the job run in credits
+                    cost_usd: The cost of the job run in USD
+                    expenses: The expenses incurred by the job run
+                        service: The service
+                        model: The model
+                        token_type: The type of token (input or output)
+                        price_per_million_tokens: The price per million tokens
+                        tokens_count: The number of tokens consumed
+                        cost_credits: The cost of the service/model/token type combination in credits
+                        cost_usd: The cost of the service/model/token type combination in USD
 
-        Examples:
-            >>> coop.new_remote_inference_get("uuid-123")  # Get details for one job
-            >>> coop.new_remote_inference_get(["uuid1", "uuid2"])  # Get details for multiple jobs
+        Raises:
+            ValueError: If neither job_uuid nor results_uuid is provided
+            CoopServerResponseError: If there's an error communicating with the server
+
+        Notes:
+            - Either job_uuid or results_uuid must be provided
+            - If both are provided, job_uuid takes precedence
+            - For completed jobs, you can use the results_url to view or download results
+            - For failed jobs, check the latest_error_report_url for debugging information
+
+        Example:
+            >>> job_status = coop.new_remote_inference_get("9f8484ee-b407-40e4-9652-4133a7236c9c")
+            >>> print(f"Job status: {job_status['status']}")
+            >>> if job_status['status'] == 'completed':
+            ...     print(f"Results available at: {job_status['results_url']}")
+            >>> # Example with list of UUIDs
+            >>> multi_status = coop.new_remote_inference_get(["uuid1", "uuid2"])
         """
         if isinstance(job_uuid, list):
             return [
