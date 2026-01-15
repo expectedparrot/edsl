@@ -133,10 +133,11 @@ class Status:
         else:
             lines.append(f"On branch {self.head_ref}")
 
-        # Behind status
+        # Behind status (local branch has advanced since this object was created)
         if self.is_behind:
-            lines.append("Your branch is behind the remote.")
-            lines.append('  (use "git_pull()" to update your local branch)')
+            lines.append(f"Your view is behind '{self.head_ref}' (branch has new commits).")
+            lines.append(f'  (use "git_checkout(\'{self.head_ref}\')" to update)')
+            lines.append(f'  (use "git_branch(\'name\')" to branch from here)')
 
         # Staged changes
         if self.has_staged:

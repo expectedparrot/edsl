@@ -6,10 +6,12 @@ Provides the event decorator and GitMixin class.
 
 from __future__ import annotations
 
+import difflib
 import gzip
 import json
 import os
 import re
+import sys
 import warnings
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -23,6 +25,19 @@ from .exceptions import (
     StagedChangesError,
     InvalidEPFileError,
 )
+
+
+# ----------------------------
+# Helper functions
+# ----------------------------
+
+
+def _truncate(value: Any, max_len: int = 30) -> str:
+    """Truncate a value for display purposes."""
+    s = repr(value) if not isinstance(value, str) else value
+    if len(s) > max_len:
+        return s[: max_len - 3] + "..."
+    return s
 
 
 # ----------------------------
@@ -888,6 +903,133 @@ class GitMixin:
         """Get current status."""
         self._ensure_git_init()
         return self._git.status()
+
+    def git_diff(
+        self,
+        *,
+        color: bool = True,
+        context: int = 3,
+        porcelain: bool = False,
+    ) -> Optional[Dict[str, Any]]:
+        """Show diff between staged changes and committed version.
+
+        Displays a git-style unified diff showing what would change if the
+        current staged changes were committed. The diff is shown as JSON
+        to properly represent the Store object structure.
+
+        Args:
+            color: Enable ANSI color output (default: True, auto-disabled if not TTY)
+            context: Number of context lines around changes (default: 3)
+            porcelain: If True, return dict with diff data instead of printing
+
+        Returns:
+            If porcelain=True, returns dict with:
+                - 'has_changes': bool - whether there are staged changes
+                - 'pending_events': list of (event_name, payload) tuples
+                - 'diff_lines': list of diff lines (without color codes)
+                - 'base_state': the committed state
+                - 'current_state': the state with staged changes
+            Otherwise returns None and prints colorized diff to stdout.
+
+        Example:
+            >>> sl = ScenarioList([Scenario({"a": 1})])
+            >>> sl.git_commit("initial")
+            >>> sl = sl.add(Scenario({"b": 2}))
+            >>> sl.git_diff()  # Shows colorized diff
+        """
+        self._ensure_git_init()
+
+        # Check if there are staged changes
+        if not self._git.view.has_staged:
+            if porcelain:
+                return {
+                    "has_changes": False,
+                    "pending_events": [],
+                    "diff_lines": [],
+                    "base_state": None,
+                    "current_state": None,
+                }
+            print("No staged changes (working tree clean)")
+            return None
+
+        # Get base (committed) state and current (with pending) state
+        base_state_list = self._git.view.get_base_state()
+        base_state = base_state_list[0] if base_state_list else {}
+        current_state = self._to_state()
+
+        # Get pending events for summary
+        pending_events = list(self._git.view.pending_events)
+
+        # Format states as JSON for diff
+        def format_json(obj: Dict[str, Any]) -> List[str]:
+            """Format object as pretty-printed JSON lines."""
+            return json.dumps(obj, indent=2, sort_keys=True, default=str).splitlines()
+
+        base_lines = format_json(base_state)
+        current_lines = format_json(current_state)
+
+        # Generate unified diff
+        diff_lines = list(
+            difflib.unified_diff(
+                base_lines,
+                current_lines,
+                fromfile="committed",
+                tofile="staged",
+                lineterm="",
+                n=context,
+            )
+        )
+
+        if porcelain:
+            return {
+                "has_changes": True,
+                "pending_events": pending_events,
+                "diff_lines": diff_lines,
+                "base_state": base_state,
+                "current_state": current_state,
+            }
+
+        # Print colorized output
+        use_color = color and sys.stdout.isatty()
+
+        # ANSI color codes
+        RED = "\033[31m" if use_color else ""
+        GREEN = "\033[32m" if use_color else ""
+        CYAN = "\033[36m" if use_color else ""
+        YELLOW = "\033[33m" if use_color else ""
+        RESET = "\033[0m" if use_color else ""
+        BOLD = "\033[1m" if use_color else ""
+
+        # Print pending events summary
+        print(f"{BOLD}Staged changes:{RESET}")
+        for event_name, payload in pending_events:
+            # Show compact payload summary
+            if payload:
+                payload_summary = ", ".join(
+                    f"{k}={_truncate(v, 30)}" for k, v in list(payload.items())[:3]
+                )
+                if len(payload) > 3:
+                    payload_summary += ", ..."
+                print(f"  {YELLOW}{event_name}{RESET}: {payload_summary}")
+            else:
+                print(f"  {YELLOW}{event_name}{RESET}")
+        print()
+
+        # Print diff
+        print(f"{BOLD}Diff (committed → staged):{RESET}")
+        for line in diff_lines:
+            if line.startswith("+++") or line.startswith("---"):
+                print(f"{BOLD}{line}{RESET}")
+            elif line.startswith("@@"):
+                print(f"{CYAN}{line}{RESET}")
+            elif line.startswith("+"):
+                print(f"{GREEN}{line}{RESET}")
+            elif line.startswith("-"):
+                print(f"{RED}{line}{RESET}")
+            else:
+                print(line)
+
+        return None
 
     def git_branches(self) -> List[str]:
         """List all branches. Current branch is marked with '*'.
