@@ -15,12 +15,13 @@ import sys
 import warnings
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from .models import Commit, PushResult, Status
+from .models import Commit, MergePrepareResult, PushResult, Status
 from .protocols import Remote
 from .git_facade import ExpectedParrotGit, ObjectView, init_repo, clone_from_remote
 from .storage import InMemoryRepo
 from .exceptions import (
     InvalidAliasError,
+    MergeConflictError,
     MissingAliasError,
     StagedChangesError,
     InvalidEPFileError,
@@ -514,18 +515,46 @@ class GitMixin:
 
         return new_instance
 
-    def git_branch(self, name: str) -> None:
-        """Create and checkout a new branch. Mutates in place.
+    def git_branch(self, name: Optional[str] = None) -> None:
+        """List branches or create a new branch.
+
+        When called with no arguments, lists all branches with the current
+        branch highlighted (like `git branch`).
+
+        When called with a name, creates and checks out a new branch
+        (like `git checkout -b`).
 
         Args:
-            name: Name of the new branch to create
+            name: Name of new branch to create. If None, lists all branches.
         """
         self._ensure_git_init()
-        old_branch = self._git.view.head_ref or "HEAD"
+
+        if name is None:
+            # List all branches (like `git branch` with no args)
+            repo = self._git.view.repo
+            refs = repo.list_refs()
+            current_ref = self._git.view.head_ref
+
+            # ANSI color codes
+            use_color = sys.stdout.isatty()
+            GREEN = "\033[32m" if use_color else ""
+            RESET = "\033[0m" if use_color else ""
+
+            branches = [ref for ref in refs if ref.kind == "branch"]
+            if not branches:
+                print("No branches found.")
+                return
+
+            for ref in sorted(branches, key=lambda r: r.name):
+                if ref.name == current_ref:
+                    print(f"{GREEN}* {ref.name}{RESET}")
+                else:
+                    print(f"  {ref.name}")
+            return
+
+        # Create new branch
         new_git = self._git.branch(name)
         self._mutate(new_git)
-
-        # Print git-style status
         print(f"Switched to a new branch '{name}'")
 
     def git_delete_branch(self, name: str) -> None:
@@ -875,13 +904,14 @@ class GitMixin:
         return instance
 
     def git_log(
-        self, limit: int = 20, *, porcelain: bool = False
+        self, limit: int = 20, *, porcelain: bool = False, color: bool = True
     ) -> Optional[List[Commit]]:
         """Display commit history in git-style format.
 
         Args:
             limit: Maximum number of commits to show (default: 20)
             porcelain: If True, return list of Commit objects instead of printing
+            color: Enable ANSI color output (default: True, auto-disabled if not TTY)
 
         Returns:
             List of Commit objects if porcelain=True, otherwise None
@@ -892,11 +922,68 @@ class GitMixin:
         if porcelain:
             return commits
 
-        # Print git-style log output
+        # Build map of commit_id -> list of refs for decorations
+        repo = self._git.view.repo
+        refs = repo.list_refs()
+        head_ref = self._git.view.head_ref
+        head_commit = self._git.view.commit_hash
+
+        commit_to_refs: Dict[str, List[str]] = {}
+        for ref in refs:
+            if ref.commit_id not in commit_to_refs:
+                commit_to_refs[ref.commit_id] = []
+            commit_to_refs[ref.commit_id].append(ref.name)
+
+        # ANSI color codes
+        use_color = color and sys.stdout.isatty()
+        YELLOW = "\033[33m" if use_color else ""
+        GREEN = "\033[32m" if use_color else ""
+        CYAN = "\033[36m" if use_color else ""
+        RESET = "\033[0m" if use_color else ""
+        BOLD = "\033[1m" if use_color else ""
+
+        # Print git-style log output with decorations
         for i, commit in enumerate(commits):
             if i > 0:
                 print()  # Blank line between commits
-            print(commit)
+
+            # Build decoration string like "(HEAD -> main, origin/main)"
+            decorations = []
+            if commit.commit_id == head_commit and head_ref:
+                decorations.append(f"{BOLD}{CYAN}HEAD -> {GREEN}{head_ref}{RESET}")
+            elif commit.commit_id in commit_to_refs:
+                for ref_name in sorted(commit_to_refs[commit.commit_id]):
+                    if ref_name != head_ref:  # Don't duplicate if already shown with HEAD
+                        decorations.append(f"{GREEN}{ref_name}{RESET}")
+                    elif commit.commit_id != head_commit:
+                        # Show branch name without HEAD -> prefix
+                        decorations.append(f"{GREEN}{ref_name}{RESET}")
+
+            # Add any other refs for this commit (not the head ref)
+            if commit.commit_id in commit_to_refs:
+                for ref_name in sorted(commit_to_refs[commit.commit_id]):
+                    ref_str = f"{GREEN}{ref_name}{RESET}"
+                    # Avoid duplicates
+                    if ref_str not in decorations and f"{BOLD}{CYAN}HEAD -> {GREEN}{ref_name}{RESET}" not in decorations:
+                        decorations.append(ref_str)
+
+            # Format commit line
+            decoration_str = ""
+            if decorations:
+                decoration_str = f" {CYAN}({RESET}{', '.join(decorations)}{CYAN}){RESET}"
+
+            print(f"{YELLOW}commit {commit.commit_id}{RESET}{decoration_str}")
+            print(f"Author: {commit.author}")
+
+            # Format timestamp like git
+            ts_str = commit.timestamp.strftime("%a %b %d %H:%M:%S %Y %z")
+            print(f"Date:   {ts_str}")
+            print()
+
+            # Indent message like git does
+            for msg_line in commit.message.split("\n"):
+                print(f"    {msg_line}")
+
         return None
 
     def git_status(self) -> Status:
@@ -1030,6 +1117,131 @@ class GitMixin:
                 print(line)
 
         return None
+
+    def git_merge(
+        self,
+        source_branch: str,
+        *,
+        message: Optional[str] = None,
+        author: str = "unknown",
+    ) -> None:
+        """Merge source branch into current branch. Mutates in place.
+
+        Uses a commutativity test on **materialized EDSL objects**:
+        1. Get events from merge-base to current branch
+        2. Get events from merge-base to source branch
+        3. Apply events in order: current→source, materialize object, get hash
+        4. Apply events in order: source→current, materialize object, get hash
+        5. If hashes match, operations commute and merge succeeds
+        6. If hashes differ, raise MergeConflictError
+
+        This ensures semantic equality of the final EDSL objects, not just
+        internal state representations.
+
+        Args:
+            source_branch: Name of branch to merge into current branch
+            message: Custom merge commit message (default: auto-generated)
+            author: Author of the merge commit
+
+        Raises:
+            StagedChangesError: If there are uncommitted changes
+            DetachedHeadError: If in detached HEAD state
+            RefNotFoundError: If source_branch doesn't exist
+            NoMergeBaseError: If branches have no common ancestor
+            MergeConflictError: If operations don't commute
+
+        Example:
+            >>> sl = ScenarioList([Scenario({"a": 1})])
+            >>> sl.git_branch("feature")
+            >>> sl = sl.append(Scenario({"b": 2}))
+            >>> sl.git_commit("feature work")
+            >>> sl.git_checkout("main")
+            >>> sl = sl.append(Scenario({"c": 3}))
+            >>> sl.git_commit("main work")
+            >>> sl.git_merge("feature")
+            Merge made by 'commutativity' strategy.
+        """
+        self._ensure_git_init()
+
+        # Get merge info from git layer
+        prep = self._git.prepare_merge(source_branch)
+
+        # Handle already up to date case
+        if prep.already_up_to_date:
+            print("Already up to date.")
+            return
+
+        # Handle fast-forward case
+        if prep.is_fast_forward:
+            old_commit = self.commit_hash
+            new_git = self._git.finalize_merge(prep, [], message=message, author=author)
+            new_commit = new_git.view.commit_hash
+            self._mutate(new_git, from_git=True)
+            print(f"Updating {old_commit[:8]}..{new_commit[:8]}")
+            print("Fast-forward")
+            return
+
+        # Three-way merge - perform commutativity test on EDSL objects
+        from edsl.store import Store, create_event, apply_event
+
+        def apply_events_to_state(
+            base_state: Tuple[Dict[str, Any], ...],
+            events: Tuple[Tuple[str, Dict[str, Any]], ...],
+        ) -> Dict[str, Any]:
+            """Apply events to state and return the final state dict."""
+            state_dict = base_state[0] if base_state else {}
+            store = Store(
+                entries=list(state_dict.get("entries", [])),
+                meta=dict(state_dict.get("meta", {})),
+            )
+
+            for event_name, event_payload in events:
+                if event_name == "batch":
+                    sub_events = event_payload.get("events", [])
+                    for sub in sub_events:
+                        sub_event = create_event(
+                            sub["event_name"], sub["event_payload"]
+                        )
+                        apply_event(sub_event, store)
+                else:
+                    event = create_event(event_name, event_payload)
+                    apply_event(event, store)
+
+            return {"entries": store.entries, "meta": store.meta}
+
+        # Test 1: current events then source events
+        state1 = apply_events_to_state(
+            prep.base_state, prep.current_events + prep.source_events
+        )
+        obj1 = self._from_state(state1)
+        hash1 = hash(obj1)
+
+        # Test 2: source events then current events
+        state2 = apply_events_to_state(
+            prep.base_state, prep.source_events + prep.current_events
+        )
+        obj2 = self._from_state(state2)
+        hash2 = hash(obj2)
+
+        # Check commutativity
+        if hash1 != hash2:
+            raise MergeConflictError(
+                current_branch=prep.current_branch,
+                source_branch=prep.source_branch,
+                merge_base=prep.merge_base_id,
+                hash_current_then_source=hash1,
+                hash_source_then_current=hash2,
+                current_events=list(prep.current_events),
+                source_events=list(prep.source_events),
+            )
+
+        # Hashes match - finalize merge using obj1's state (either would work)
+        final_state = [obj1._to_state()]
+        new_git = self._git.finalize_merge(
+            prep, final_state, message=message, author=author
+        )
+        self._mutate(new_git, from_git=True)
+        print("Merge made by 'commutativity' strategy.")
 
     def git_branches(self) -> List[str]:
         """List all branches. Current branch is marked with '*'.

@@ -6,9 +6,10 @@ Contains Event protocol and core data classes.
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Optional, Protocol, Tuple, Literal
+from typing import Any, Dict, List, Optional, Protocol, Tuple, Literal
 
 from .utils import _utcnow
 
@@ -125,6 +126,11 @@ class Status:
 
     def __repr__(self) -> str:
         """Format status similar to git status output."""
+        # ANSI color codes (only if TTY)
+        use_color = sys.stdout.isatty()
+        RED = "\033[31m" if use_color else ""
+        RESET = "\033[0m" if use_color else ""
+
         lines = []
 
         # HEAD info
@@ -135,7 +141,9 @@ class Status:
 
         # Behind status (local branch has advanced since this object was created)
         if self.is_behind:
-            lines.append(f"Your view is behind '{self.head_ref}' (branch has new commits).")
+            lines.append(
+                f"Your view is behind '{self.head_ref}' (branch has new commits)."
+            )
             lines.append(f'  (use "git_checkout(\'{self.head_ref}\')" to update)')
             lines.append(f'  (use "git_branch(\'name\')" to branch from here)')
 
@@ -145,9 +153,31 @@ class Status:
             lines.append("Changes to be committed:")
             lines.append('  (use "git_discard()" to unstage)')
             for event_name in self.staged_events:
-                lines.append(f"        {event_name}")
+                lines.append(f"        {RED}{event_name}{RESET}")
         else:
             lines.append("")
             lines.append("nothing to commit, working tree clean")
 
         return "\n".join(lines)
+
+
+@dataclass(frozen=True)
+class MergePrepareResult:
+    """Result of prepare_merge() - data needed for commutativity test.
+
+    Contains all information needed by GitMixin.git_merge() to:
+    1. Materialize EDSL objects in both event orders
+    2. Compare hashes for commutativity test
+    3. Finalize the merge commit if successful
+    """
+
+    source_branch: str
+    current_branch: str
+    merge_base_id: str
+    base_state: Tuple[Dict[str, Any], ...]
+    current_events: Tuple[Tuple[str, Dict[str, Any]], ...]
+    source_events: Tuple[Tuple[str, Dict[str, Any]], ...]
+    current_commit_id: str
+    source_commit_id: str
+    is_fast_forward: bool
+    already_up_to_date: bool

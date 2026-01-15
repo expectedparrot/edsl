@@ -389,3 +389,84 @@ class InvalidEPFileError(VersioningError):
         else:
             message = f"Invalid .ep file '{path}'"
         super().__init__(message, **kwargs)
+
+
+class MergeConflictError(VersioningError):
+    """
+    Exception raised when a merge cannot be completed automatically.
+
+    This occurs when the operations on both branches do not commute -
+    applying them in different orders produces different final EDSL objects.
+
+    The merge uses a commutativity test:
+    - Apply current branch events, then source branch events → object A
+    - Apply source branch events, then current branch events → object B
+    - If hash(A) != hash(B), operations don't commute → conflict
+
+    To fix this error:
+    1. Review the changes on both branches to understand the conflict
+    2. Manually resolve conflicts by choosing which changes to keep
+    3. Consider rebasing or cherry-picking specific changes
+    """
+
+    def __init__(
+        self,
+        current_branch: str,
+        source_branch: str,
+        merge_base: str,
+        hash_current_then_source: int,
+        hash_source_then_current: int,
+        current_events: list = None,
+        source_events: list = None,
+        **kwargs,
+    ):
+        self.current_branch = current_branch
+        self.source_branch = source_branch
+        self.merge_base = merge_base
+        self.hash_current_then_source = hash_current_then_source
+        self.hash_source_then_current = hash_source_then_current
+        self.current_events = current_events or []
+        self.source_events = source_events or []
+
+        # Format event summaries for message
+        current_summary = ", ".join(e[0] for e in self.current_events[:3])
+        if len(self.current_events) > 3:
+            current_summary += f", ... ({len(self.current_events)} total)"
+
+        source_summary = ", ".join(e[0] for e in self.source_events[:3])
+        if len(self.source_events) > 3:
+            source_summary += f", ... ({len(self.source_events)} total)"
+
+        message = (
+            f"Merge conflict: cannot automatically merge '{source_branch}' into "
+            f"'{current_branch}'.\n"
+            f"Operations do not commute (applying in different orders produces "
+            f"different EDSL objects).\n"
+            f"  Merge base: {merge_base[:10]}\n"
+            f"  Current branch events: [{current_summary}]\n"
+            f"  Source branch events: [{source_summary}]\n"
+            f"Manual resolution required."
+        )
+        super().__init__(message, **kwargs)
+
+
+class NoMergeBaseError(VersioningError):
+    """
+    Exception raised when no common ancestor exists for merge.
+
+    This typically indicates the branches have unrelated histories,
+    which shouldn't happen in normal usage.
+
+    To fix this error:
+    1. Verify both branches exist
+    2. Check that the branches share common history
+    """
+
+    def __init__(self, branch_a: str, branch_b: str, **kwargs):
+        self.branch_a = branch_a
+        self.branch_b = branch_b
+        message = (
+            f"Cannot merge '{branch_a}' and '{branch_b}': "
+            f"no common ancestor found (unrelated histories)"
+        )
+        super().__init__(message, **kwargs)

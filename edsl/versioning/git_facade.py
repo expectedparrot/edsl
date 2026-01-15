@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Set, Union
 
 from .utils import _utcnow, _sha256, _stable_dumps
-from .models import Commit, PushResult, Status
+from .models import Commit, MergePrepareResult, PushResult, Status
 from .protocols import Repo, Remote
 from .storage import InMemoryRepo
 from .exceptions import (
@@ -28,6 +28,7 @@ from .exceptions import (
     PullConflictError,
     CommitBehindError,
     InvalidHeadStateError,
+    NoMergeBaseError,
 )
 
 
@@ -568,6 +569,311 @@ class ExpectedParrotGit:
             missing.append(commit)
             to_visit.extend(commit.parents)
         return missing
+
+    # ----------------------------
+    # Merge helpers
+    # ----------------------------
+
+    def _find_merge_base(self, commit_a: str, commit_b: str) -> Optional[str]:
+        """Find the lowest common ancestor (merge base) of two commits.
+
+        Uses BFS to find ancestors of commit_a, then BFS from commit_b
+        to find the first commit that's also an ancestor of commit_a.
+        """
+        repo = self._view.repo
+
+        # Build set of all ancestors of commit_a (including itself)
+        ancestors_a: Set[str] = set()
+        to_visit = [commit_a]
+        while to_visit:
+            current = to_visit.pop()
+            if current in ancestors_a:
+                continue
+            ancestors_a.add(current)
+            if repo.has_commit(current):
+                commit = repo.get_commit(current)
+                to_visit.extend(commit.parents)
+
+        # BFS from commit_b to find first common ancestor
+        visited: Set[str] = set()
+        to_visit = [commit_b]
+        while to_visit:
+            current = to_visit.pop(0)  # BFS - use queue (pop from front)
+            if current in ancestors_a:
+                return current  # Found the merge base
+            if current in visited:
+                continue
+            visited.add(current)
+            if repo.has_commit(current):
+                commit = repo.get_commit(current)
+                to_visit.extend(commit.parents)
+
+        return None  # No common ancestor
+
+    def _collect_events_between(
+        self, ancestor_id: str, descendant_id: str
+    ) -> List[Tuple[str, Dict[str, Any]]]:
+        """Collect events from ancestor to descendant in application order.
+
+        Returns list of (event_name, event_payload) tuples ordered from
+        oldest to newest (ancestor side to descendant side).
+
+        Excludes the ancestor's event (we start from its state).
+        """
+        repo = self._view.repo
+        events: List[Tuple[str, Dict[str, Any]]] = []
+
+        # Walk from descendant back to ancestor, collecting events
+        current_id = descendant_id
+        while current_id and current_id != ancestor_id:
+            commit = repo.get_commit(current_id)
+            # Skip init events as they represent initial state, not a change
+            if commit.event_name != "init":
+                events.append((commit.event_name, commit.event_payload))
+            # Follow first parent (main line)
+            current_id = commit.parents[0] if commit.parents else None
+
+        # Reverse to get chronological order (oldest first)
+        events.reverse()
+        return events
+
+    def _get_state_at_commit(self, commit_id: str) -> List[Dict[str, Any]]:
+        """Get materialized state at a specific commit.
+
+        Uses the same approach as ObjectView.get_base_state() but for
+        an arbitrary commit rather than the current HEAD.
+        """
+        repo = self._view.repo
+
+        # Check for direct snapshot first
+        sid = repo.get_commit_state_id(commit_id)
+        if sid is not None and repo.has_state(sid):
+            return repo.get_state(sid)
+
+        # No direct snapshot - need to materialize via event replay
+        snapshot_commit_id, state_id, events_to_replay = repo.find_nearest_snapshot(
+            commit_id
+        )
+
+        if state_id is None:
+            raise ValueError(
+                f"No snapshot found in ancestry of commit {commit_id}. "
+                "The repository state may be corrupted or incomplete."
+            )
+
+        # Load the base snapshot
+        state = repo.get_state(state_id)
+
+        if not events_to_replay:
+            return state
+
+        # Replay events to reach target commit
+        from edsl.store import Store, create_event, apply_event
+
+        state_dict = state[0] if isinstance(state, list) else state
+        store = Store(
+            entries=list(state_dict.get("entries", [])),
+            meta=dict(state_dict.get("meta", {})),
+        )
+
+        for event_name, event_payload in events_to_replay:
+            if event_name == "batch":
+                sub_events = event_payload.get("events", [])
+                for sub in sub_events:
+                    sub_event = create_event(sub["event_name"], sub["event_payload"])
+                    apply_event(sub_event, store)
+            else:
+                event = create_event(event_name, event_payload)
+                apply_event(event, store)
+
+        return [{"entries": store.entries, "meta": store.meta}]
+
+    def prepare_merge(self, source_ref: str) -> MergePrepareResult:
+        """Prepare data for merge commutativity test.
+
+        This method gathers all the information needed for GitMixin.git_merge()
+        to perform the commutativity test on materialized EDSL objects.
+
+        Args:
+            source_ref: Branch name or commit hash to merge from
+
+        Returns:
+            MergePrepareResult containing:
+            - Base state at merge base
+            - Events from both branches
+            - Commit IDs
+            - Fast-forward / already-up-to-date flags
+
+        Raises:
+            StagedChangesError: If there are uncommitted changes
+            DetachedHeadError: If in detached HEAD state
+            RefNotFoundError: If source_ref doesn't exist
+            NoMergeBaseError: If branches have no common ancestor
+        """
+        # Precondition checks
+        if self._view.has_staged:
+            raise StagedChangesError("merge")
+
+        if self._view.head_ref is None:
+            raise DetachedHeadError("merge")
+
+        repo = self._view.repo
+        current_branch = self._view.head_ref
+
+        # Resolve source ref to commit
+        if repo.has_ref(source_ref):
+            source_commit_id = repo.get_ref(source_ref).commit_id
+            source_branch_name = source_ref
+        else:
+            source_commit_id = _resolve_commit_prefix(repo, source_ref)
+            source_branch_name = source_ref[:10]
+
+        current_commit_id = self._view.commit_hash
+
+        # Already up to date?
+        if current_commit_id == source_commit_id:
+            return MergePrepareResult(
+                source_branch=source_branch_name,
+                current_branch=current_branch,
+                merge_base_id=current_commit_id,
+                base_state=(),
+                current_events=(),
+                source_events=(),
+                current_commit_id=current_commit_id,
+                source_commit_id=source_commit_id,
+                is_fast_forward=False,
+                already_up_to_date=True,
+            )
+
+        # Find merge base
+        merge_base_id = self._find_merge_base(current_commit_id, source_commit_id)
+        if merge_base_id is None:
+            raise NoMergeBaseError(current_branch, source_branch_name)
+
+        # Fast-forward check: if current is ancestor of source
+        if merge_base_id == current_commit_id:
+            return MergePrepareResult(
+                source_branch=source_branch_name,
+                current_branch=current_branch,
+                merge_base_id=merge_base_id,
+                base_state=(),
+                current_events=(),
+                source_events=(),
+                current_commit_id=current_commit_id,
+                source_commit_id=source_commit_id,
+                is_fast_forward=True,
+                already_up_to_date=False,
+            )
+
+        # If source is ancestor of current, already up to date
+        if merge_base_id == source_commit_id:
+            return MergePrepareResult(
+                source_branch=source_branch_name,
+                current_branch=current_branch,
+                merge_base_id=merge_base_id,
+                base_state=(),
+                current_events=(),
+                source_events=(),
+                current_commit_id=current_commit_id,
+                source_commit_id=source_commit_id,
+                is_fast_forward=False,
+                already_up_to_date=True,
+            )
+
+        # Three-way merge needed - collect data for commutativity test
+        current_events = self._collect_events_between(merge_base_id, current_commit_id)
+        source_events = self._collect_events_between(merge_base_id, source_commit_id)
+        merge_base_state = self._get_state_at_commit(merge_base_id)
+
+        return MergePrepareResult(
+            source_branch=source_branch_name,
+            current_branch=current_branch,
+            merge_base_id=merge_base_id,
+            base_state=tuple(merge_base_state),
+            current_events=tuple(current_events),
+            source_events=tuple(source_events),
+            current_commit_id=current_commit_id,
+            source_commit_id=source_commit_id,
+            is_fast_forward=False,
+            already_up_to_date=False,
+        )
+
+    def finalize_merge(
+        self,
+        prep: MergePrepareResult,
+        final_state: List[Dict[str, Any]],
+        *,
+        message: Optional[str] = None,
+        author: str = "unknown",
+    ) -> "ExpectedParrotGit":
+        """Finalize merge after commutativity test passes.
+
+        Creates a merge commit with two parents pointing to the current
+        and source branches.
+
+        Args:
+            prep: The MergePrepareResult from prepare_merge()
+            final_state: The materialized state to commit
+            message: Custom merge commit message (auto-generated if None)
+            author: Author of the merge commit
+
+        Returns:
+            New ExpectedParrotGit with merge commit as HEAD
+        """
+        repo = self._view.repo
+        current_branch = self._view.head_ref
+
+        # Handle fast-forward case
+        if prep.is_fast_forward:
+            repo.upsert_ref(current_branch, prep.source_commit_id, kind="branch")
+            new_view = ObjectView(
+                repo=repo, head_ref=current_branch, base_commit=prep.source_commit_id
+            )
+            return self._with_view(new_view)
+
+        # Auto-generate message if not provided
+        if message is None:
+            message = f"Merge branch '{prep.source_branch}' into {current_branch}"
+
+        # Store the final state
+        state_id = repo.put_state(final_state)
+
+        # Create merge commit with two parents
+        merge_commit_id = _make_commit_id(
+            repo_id=repo.repo_id,
+            parents=(prep.current_commit_id, prep.source_commit_id),
+            event_name="merge",
+            event_payload={
+                "source_branch": prep.source_branch,
+                "target_branch": current_branch,
+                "merge_base": prep.merge_base_id,
+            },
+            state_id=state_id,
+            message=message,
+            author=author,
+        )
+
+        merge_commit = Commit(
+            commit_id=merge_commit_id,
+            parents=(prep.current_commit_id, prep.source_commit_id),
+            timestamp=_utcnow(),
+            message=message,
+            event_name="merge",
+            event_payload={
+                "source_branch": prep.source_branch,
+                "target_branch": current_branch,
+                "merge_base": prep.merge_base_id,
+            },
+            author=author,
+        )
+
+        repo.put_commit(merge_commit, state_id)
+        repo.upsert_ref(current_branch, merge_commit_id, kind="branch")
+
+        new_view = ObjectView(
+            repo=repo, head_ref=current_branch, base_commit=merge_commit_id
+        )
+        return self._with_view(new_view)
 
 
 # ----------------------------
