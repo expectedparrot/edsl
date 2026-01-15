@@ -78,6 +78,55 @@ SERVICE_DEPENDENCIES: Dict[str, List[tuple]] = {
     "embeddings_search": [("openai", "openai", False)],  # for semantic search
 }
 
+# Services that should use replace_with() for versioned results
+# Maps service name to list of class names it extends
+VERSIONED_SERVICES: Dict[str, List[str]] = {
+    "agent_vibes": ["AgentList"],
+    "survey_vibes": ["Survey"],
+    "results_vibes": ["Results"],
+    "scenario_vibes": ["ScenarioList"],
+    "dataset_vibes": ["Dataset"],
+}
+
+_versioned_services_registered = False
+
+
+def _register_versioned_services() -> None:
+    """Register metadata for versioned services.
+
+    This allows services that run remotely to be marked as versioned,
+    so the accessor knows to use replace_with() for results.
+
+    Called lazily to avoid circular imports.
+
+    Note: We only register metadata, not a stub service class.
+    This is because services run remotely and the dispatcher should
+    use result_pattern parsing, not a local parse_result method.
+    """
+    global _versioned_services_registered
+    if _versioned_services_registered:
+        return
+    _versioned_services_registered = True
+
+    from .registry import ServiceRegistry, ServiceMetadata
+
+    for service_name, extends in VERSIONED_SERVICES.items():
+        # Only register metadata if not already present
+        # Don't register a service class - let the remote server handle execution
+        if service_name not in ServiceRegistry._metadata:
+            ServiceRegistry._metadata[service_name] = ServiceMetadata(
+                name=service_name,
+                service_class=None,  # No local class - runs remotely
+                extends=extends,
+                versioned=True,
+            )
+            # Update extends index for accessor lookup
+            for class_name in extends:
+                if class_name not in ServiceRegistry._extends_index:
+                    ServiceRegistry._extends_index[class_name] = []
+                if service_name not in ServiceRegistry._extends_index[class_name]:
+                    ServiceRegistry._extends_index[class_name].append(service_name)
+
 
 def check_dependencies(service_name: str) -> None:
     """
@@ -2700,11 +2749,15 @@ def get_service_accessor(name: str, instance: Any = None, owner_class: type = No
     if name in _SKIP_NAMES or name.startswith("_"):
         return None
 
+    # Ensure versioned services are registered before checking registry
+    _register_versioned_services()
+
     from .accessor import get_accessor
     from .registry import ServiceRegistry
 
-    # Check if service exists in local registry
-    if ServiceRegistry.exists(name):
+    # Check if service exists in local registry (either as class or metadata-only)
+    service_exists = ServiceRegistry.exists(name) or name in ServiceRegistry._metadata
+    if service_exists:
         # Use the generic ServiceAccessor which handles everything
         accessor = get_accessor(name, instance=instance, owner_class=owner_class)
         if accessor is not None:

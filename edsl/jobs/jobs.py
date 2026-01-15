@@ -37,9 +37,9 @@ from .decorators import with_config
 from ..coop.exceptions import CoopServerResponseError
 
 # Event-sourcing infrastructure
-from ..versioning import GitMixin, event
+from ..versioning import GitMixin
 from ..store import Store
-from .jobs_events import apply_jobs_event, InitializeJobsEvent
+from .jobs_events import apply_jobs_event
 from .jobs_codec import JobsCodec
 
 

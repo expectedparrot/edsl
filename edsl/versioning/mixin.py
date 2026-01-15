@@ -429,12 +429,12 @@ class GitMixin:
         *,
         operation: str = "service",
         params: Optional[Dict[str, Any]] = None,
-        author: str = "service",
     ) -> "GitMixin":
-        """Create a new instance with new data and commit.
+        """Create a new instance with new data as a staged change.
 
         This is used by versioned services to create a new version
         while preserving git history. The original object is NOT modified.
+        The change is staged but NOT committed - call git_commit() to commit.
 
         Args:
             new_data: The new data to use. Can be:
@@ -443,10 +443,9 @@ class GitMixin:
                 - A list of entries (for list-based objects)
             operation: Name of the operation that produced this data
             params: Parameters used in the operation (for audit trail)
-            author: Author of the change
 
         Returns:
-            A new instance with the changes committed (original unchanged)
+            A new instance with staged changes (original unchanged)
         """
         self._ensure_git_init()
 
@@ -490,28 +489,13 @@ class GitMixin:
         new_instance._git = self._git
         new_instance._needs_git_init = False
 
-        # Build commit message
-        param_str = ""
-        if params:
-            param_items = [f"{k}={repr(v)[:50]}" for k, v in list(params.items())[:3]]
-            param_str = f" ({', '.join(param_items)})"
-        message = f"{operation}{param_str}"
-
-        # Add a synthetic event so commit() has something to commit
-        # This records the service operation in the event history
+        # Stage the change (don't commit - user can review and commit)
         event_payload = {
             "operation": operation,
             "params": params or {},
             "entries_count": len(new_state.get("entries", [])),
         }
         new_instance._git = new_instance._git.apply_event("replace", event_payload)
-
-        # Commit the change on the new instance
-        current_state = [new_instance._to_state()]
-        new_git = new_instance._git.commit(
-            message, author=author, force=False, state=current_state
-        )
-        new_instance._git = new_git
 
         return new_instance
 
@@ -875,10 +859,30 @@ class GitMixin:
         instance._git = git
         return instance
 
-    def git_log(self, limit: int = 20) -> List[Commit]:
-        """Get commit history."""
+    def git_log(
+        self, limit: int = 20, *, porcelain: bool = False
+    ) -> Optional[List[Commit]]:
+        """Display commit history in git-style format.
+
+        Args:
+            limit: Maximum number of commits to show (default: 20)
+            porcelain: If True, return list of Commit objects instead of printing
+
+        Returns:
+            List of Commit objects if porcelain=True, otherwise None
+        """
         self._ensure_git_init()
-        return self._git.log(limit=limit)
+        commits = self._git.log(limit=limit)
+
+        if porcelain:
+            return commits
+
+        # Print git-style log output
+        for i, commit in enumerate(commits):
+            if i > 0:
+                print()  # Blank line between commits
+            print(commit)
+        return None
 
     def git_status(self) -> Status:
         """Get current status."""

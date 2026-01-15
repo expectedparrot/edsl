@@ -7,7 +7,7 @@ API rate limits are respected while allowing models from the same service to
 share the same rate limit buckets.
 """
 
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING, List
 from collections import UserDict
 from threading import RLock
 

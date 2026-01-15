@@ -5,7 +5,6 @@ that humans can complete via a web interface.
 """
 
 from __future__ import annotations
-import time
 from typing import Optional, Dict, Any, List, TYPE_CHECKING
 
 if TYPE_CHECKING:

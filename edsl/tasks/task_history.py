@@ -11,12 +11,10 @@ from typing import List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..interviews import Interview
-from io import BytesIO
-import base64
 import os
 import tempfile
 
-from .task_status_enum import TaskStatus
+from .task_status_enum import TaskStatus  # noqa: F401
 from ..base import RepresentationMixin
 
 

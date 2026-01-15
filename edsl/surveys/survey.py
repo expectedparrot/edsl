@@ -36,24 +36,11 @@ from ..utilities import remove_edsl_version, with_spinner
 from ..versioning import GitMixin, event
 from ..store import (
     Store,
-    Event,
-    AppendRowEvent,
-    InsertRowEvent,
-    RemoveRowsEvent,
-    ReorderEntriesEvent,
-    ReplaceAllEntriesEvent,
-    SetMetaEvent,
-    UpdateMetaEvent,
     # Survey-specific events
     AddRuleEvent,
-    RemoveRulesForQuestionEvent,
-    UpdateRuleIndicesEvent,
     SetMemoryPlanEvent,
     AddMemoryForQuestionEvent,
     AddQuestionGroupEvent,
-    AddPseudoIndexEvent,
-    RemovePseudoIndexEvent,
-    UpdatePseudoIndicesEvent,
     # Survey composite events
     AddSurveyQuestionEvent,
     DeleteSurveyQuestionEvent,
@@ -1578,7 +1565,6 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
         >>> s.move_question("q0", 2).question_names
         ['q1', 'q2', 'q0']
         """
-        from .rules.rule import Rule
         from .navigation_markers import RulePriority
 
         # Resolve the identifier to an index
@@ -1604,7 +1590,6 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
 
         # Build the new rule for the question at its new position
         # After move, compute what the name_to_index would look like
-        num_questions = len(self.questions)
         adjusted_to_index = new_index if new_index <= from_index else new_index - 1
 
         new_rule_dict = {
@@ -1682,7 +1667,6 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
 
         # Adding a question with a duplicate name would raise SurveyCreationError
         """
-        from .rules.rule import Rule
         from .navigation_markers import RulePriority
 
         # Validation - check for duplicate names

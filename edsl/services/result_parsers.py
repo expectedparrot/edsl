@@ -240,8 +240,10 @@ def parse_agent_list(result: Dict[str, Any], field: Optional[str] = None) -> Any
 
     Expected format: {"agents": [...]} or list of agent dicts
     """
-    from edsl.agents import AgentList
+    from edsl.agents import Agent, AgentList
 
     data_field = field or "agents"
-    agents = result.get(data_field, result if isinstance(result, list) else [])
-    return AgentList.from_list(agents)
+    agent_dicts = result.get(data_field, result if isinstance(result, list) else [])
+    # Convert each dict to an Agent object, then create AgentList
+    agents = [Agent.from_dict(d) for d in agent_dicts]
+    return AgentList(agents)

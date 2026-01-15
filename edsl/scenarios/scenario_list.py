@@ -35,13 +35,10 @@ from typing import (
     Literal,
     TYPE_CHECKING,
 )
-import warnings
 import csv
 import random
-import os
 from collections.abc import Iterable, MutableSequence
 import json
-import pickle
 
 
 # Import for refactoring to Source classes
@@ -53,15 +50,12 @@ try:
 except ImportError:
     from typing_extensions import TypeAlias
 
-from edsl.config import CONFIG
 
 if TYPE_CHECKING:
     from edsl.dataset import Dataset
     from edsl.jobs import Jobs, Job
     from edsl.surveys import Survey
     from edsl.questions import QuestionBase, Question
-    from edsl.agents import Agent
-    from typing import Sequence
 
 
 from edsl.base import Base
@@ -105,15 +99,12 @@ from edsl.versioning import event
 
 # Import event-sourcing infrastructure from edsl.store
 from edsl.store import (
-    Codec,
     Store,
-    Event,
     # Row/Entry Events
     AppendRowEvent,
     UpdateRowEvent,
     RemoveRowsEvent,
     InsertRowEvent,
-    UpdateEntryFieldEvent,
     ClearEntriesEvent,
     ReplaceAllEntriesEvent,
     ReorderEntriesEvent,
@@ -132,10 +123,6 @@ from edsl.store import (
     StringCatFieldEvent,
     ReplaceValuesEvent,
     NumberifyEvent,
-    # Meta Events
-    SetMetaEvent,
-    UpdateMetaEvent,
-    RemoveMetaKeyEvent,
     # Composite Events
     ReplaceEntriesAndMetaEvent,
     apply_event,
@@ -172,10 +159,7 @@ class ScenarioListMeta(Base.__class__):
     def __getattr__(cls, name: str):
         """Called when ScenarioList.{name} is accessed and {name} isn't found normally."""
         # Lazy import to avoid circular dependencies
-        from edsl.services.accessors import (
-            get_service_accessor,
-            list_available_services,
-        )
+        from edsl.services.accessors import get_service_accessor
 
         accessor = get_service_accessor(name)
         if accessor is not None:

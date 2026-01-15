@@ -56,7 +56,7 @@ class TestEventDecorator:
         sl.git_commit("batch commit")
 
         # Should be one commit with batched events
-        log = sl.git_log()
+        log = sl.git_log(porcelain=True)
         assert log[0].message == "batch commit"
 
 
@@ -209,7 +209,7 @@ class TestHistoryIntegrity:
             sl = sl.append(Scenario({"a": i + 10}))
             sl.git_commit(f"commit {i}")
 
-        log = sl.git_log()
+        log = sl.git_log(porcelain=True)
         commit_ids = [c.commit_id for c in log]
 
         assert len(commit_ids) == len(set(commit_ids))
@@ -224,7 +224,7 @@ class TestHistoryIntegrity:
         sl = sl.append(Scenario({"a": 3}))
         sl.git_commit("third")
 
-        log = sl.git_log()
+        log = sl.git_log(porcelain=True)
 
         # Each commit should have the previous as parent
         assert log[0].parents[0] == log[1].commit_id
@@ -238,7 +238,7 @@ class TestHistoryIntegrity:
             sl = sl.append(Scenario({"a": i + 10}))
             sl.git_commit(f"commit {i}")
 
-        log = sl.git_log()
+        log = sl.git_log(porcelain=True)
 
         # Timestamps should be in descending order (most recent first)
         for i in range(len(log) - 1):

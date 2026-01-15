@@ -8,7 +8,7 @@ For production use, prefer ModelList which has git-like versioning support.
 """
 
 from __future__ import annotations
-from typing import Optional, List, TYPE_CHECKING, Any
+from typing import Optional, List, TYPE_CHECKING
 from collections import UserList
 
 if TYPE_CHECKING:

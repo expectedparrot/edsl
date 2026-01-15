@@ -53,6 +53,23 @@ class Commit:
     event_payload: Dict[str, Any]
     author: str = "unknown"
 
+    def __str__(self) -> str:
+        """Format commit similar to git log output."""
+        lines = []
+        lines.append(f"commit {self.commit_id}")
+        lines.append(f"Author: {self.author}")
+        # Format timestamp like git: "Wed Jan 15 01:25:35 2026 +0000"
+        ts_str = self.timestamp.strftime("%a %b %d %H:%M:%S %Y %z")
+        if not ts_str.endswith("+0000") and self.timestamp.tzinfo is not None:
+            # Ensure timezone is shown
+            ts_str = self.timestamp.strftime("%a %b %d %H:%M:%S %Y %z")
+        lines.append(f"Date:   {ts_str}")
+        lines.append("")
+        # Indent message like git does
+        for msg_line in self.message.split("\n"):
+            lines.append(f"    {msg_line}")
+        return "\n".join(lines)
+
 
 @dataclass(frozen=True)
 class Ref:
@@ -105,3 +122,31 @@ class Status:
     has_staged: bool
     staged_events: Tuple[str, ...]
     is_behind: bool
+
+    def __repr__(self) -> str:
+        """Format status similar to git status output."""
+        lines = []
+
+        # HEAD info
+        if self.is_detached:
+            lines.append(f"HEAD detached at {self.head_commit[:8]}")
+        else:
+            lines.append(f"On branch {self.head_ref}")
+
+        # Behind status
+        if self.is_behind:
+            lines.append("Your branch is behind the remote.")
+            lines.append('  (use "git_pull()" to update your local branch)')
+
+        # Staged changes
+        if self.has_staged:
+            lines.append("")
+            lines.append("Changes to be committed:")
+            lines.append('  (use "git_discard()" to unstage)')
+            for event_name in self.staged_events:
+                lines.append(f"        {event_name}")
+        else:
+            lines.append("")
+            lines.append("nothing to commit, working tree clean")
+
+        return "\n".join(lines)

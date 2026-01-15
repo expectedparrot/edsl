@@ -84,10 +84,8 @@ class SQLiteDict:
         if not self.db_path.startswith("sqlite:///"):
             self.db_path = f"sqlite:///{self.db_path}"
         try:
-            from .orm import (
-                Base,
-                Data,
-            )  # Import Data to register it with Base before create_all
+            from .orm import Base  # noqa: F401 - Data import needed for registration
+            from .orm import Data  # noqa: F401
 
             self.engine = create_engine(self.db_path, echo=False, future=True)
             Base.metadata.create_all(self.engine)

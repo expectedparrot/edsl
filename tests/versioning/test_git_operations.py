@@ -31,7 +31,7 @@ class TestGitCommit:
         sl = sl.append(Scenario({"a": 2}))
         sl.git_commit("my custom message")
 
-        log = sl.git_log()
+        log = sl.git_log(porcelain=True)
         assert log[0].message == "my custom message"
 
     def test_commit_with_author(self):
@@ -40,7 +40,7 @@ class TestGitCommit:
         sl = sl.append(Scenario({"a": 2}))
         sl.git_commit("test", author="john")
 
-        log = sl.git_log()
+        log = sl.git_log(porcelain=True)
         assert log[0].author == "john"
 
     def test_commit_nothing_raises_error(self):
@@ -73,7 +73,7 @@ class TestGitCommit:
         sl = sl.append(Scenario({"a": 4}))
         sl.git_commit("fourth")
 
-        log = sl.git_log()
+        log = sl.git_log(porcelain=True)
         # Should have 4 commits: init + 3 we made
         assert len(log) == 4
         assert log[0].message == "fourth"
@@ -151,13 +151,17 @@ class TestGitBranch:
         assert sl.branch_name == "feature-1-sub"
         assert len(sl) == 2
 
-    def test_branch_with_staged_changes_raises(self):
-        """Test branching with staged changes raises error."""
+    def test_branch_with_staged_changes_allowed(self):
+        """Test branching with staged changes is allowed (like real git)."""
         sl = ScenarioList([Scenario({"a": 1})])
         sl = sl.append(Scenario({"a": 2}))  # Staged change
 
-        with pytest.raises(StagedChangesError):
-            sl.git_branch("feature")
+        # Should work - staged changes come with you to new branch
+        sl.git_branch("feature")
+
+        assert sl.branch_name == "feature"
+        assert sl.has_staged  # Changes still staged
+        assert len(sl) == 2  # Data preserved
 
 
 class TestGitCheckout:
@@ -323,7 +327,7 @@ class TestGitLog:
         sl = sl.append(Scenario({"a": 2}))
         sl.git_commit("second")
 
-        log = sl.git_log()
+        log = sl.git_log(porcelain=True)
 
         assert len(log) >= 2
         assert all(hasattr(c, "commit_id") for c in log)
@@ -339,7 +343,7 @@ class TestGitLog:
         sl = sl.append(Scenario({"a": 3}))
         sl.git_commit("third")
 
-        log = sl.git_log()
+        log = sl.git_log(porcelain=True)
 
         assert log[0].message == "third"
         assert log[1].message == "second"
@@ -353,10 +357,10 @@ class TestGitLog:
             sl.git_commit(f"commit {i}")
 
         # Should have 11 commits total (init + 10)
-        full_log = sl.git_log(limit=100)
+        full_log = sl.git_log(limit=100, porcelain=True)
         assert len(full_log) == 11
 
-        limited_log = sl.git_log(limit=3)
+        limited_log = sl.git_log(limit=3, porcelain=True)
         assert len(limited_log) == 3
 
 

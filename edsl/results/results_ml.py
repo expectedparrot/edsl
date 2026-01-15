@@ -10,6 +10,7 @@ from typing import Optional, List, TYPE_CHECKING
 if TYPE_CHECKING:
     from . import Results
     from ..agents.agent_list_split import AgentListSplit
+    from ..agents import AgentList
 
 
 class ResultsML:

@@ -10,7 +10,7 @@ from typing import Optional, Union, Dict, Any, TYPE_CHECKING
 from collections import Counter
 
 if TYPE_CHECKING:
-    import numpy as np
+    pass
 
 
 class KLDivergenceCalculator:

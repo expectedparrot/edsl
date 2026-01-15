@@ -21,7 +21,6 @@ if TYPE_CHECKING:
     from edsl.agents import AgentList
     from edsl.language_models import ModelList
     from edsl.scenarios import ScenarioList
-    from edsl.jobs import Jobs
 
 
 class JobsCodec:

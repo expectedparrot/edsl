@@ -115,10 +115,10 @@ class AnalysisResult:
                 continue
 
             question_type = result.get("question_type", "unknown")
-            summary = result.get("summary", result.get("summary_text", "")).replace(
+            _summary = result.get("summary", result.get("summary_text", "")).replace(
                 "\n", "<br>"
             )
-            viz = result.get("visualization", result.get("visualization_text", ""))
+            _viz = result.get("visualization", result.get("visualization_text", ""))
 
             # Format distribution if available
             distribution_html = ""

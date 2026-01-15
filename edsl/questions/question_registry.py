@@ -67,7 +67,7 @@ Generate questions from natural language<br><br>
         from edsl_services.question_vibes.service import QuestionVibesService
 
         if verbose:
-            print(f"[question_vibes] Generating question...")
+            print("[question_vibes] Generating question...")
 
         params = QuestionVibesService.create_task(
             description=description,

@@ -6,7 +6,6 @@ This module provides the InterviewTupleFilter class which generates
 """
 
 from typing import Generator, Tuple, Optional, Any, Sequence
-from itertools import product
 
 from jinja2 import Environment
 

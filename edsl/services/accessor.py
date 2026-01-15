@@ -53,11 +53,12 @@ class ServiceAccessor:
         self._service_name = service_name
         self._instance = instance
 
-        # Cache service class reference
+        # Cache service class reference (may be None for metadata-only services)
         from .registry import ServiceRegistry
 
         self._service_class = ServiceRegistry.get(service_name)
-        if self._service_class is None:
+        # Allow metadata-only services (service_class=None but metadata exists)
+        if self._service_class is None and service_name not in ServiceRegistry._metadata:
             raise ValueError(f"Service '{service_name}' not found in registry")
 
     def __repr__(self) -> str:
@@ -490,7 +491,7 @@ class ServiceAccessor:
             # Check if this is a versioned service
             meta = ServiceRegistry.get_metadata(self._service_name)
             if meta and meta.versioned and self._instance is not None:
-                # Versioned service: use replace_with() to create new version
+                # Versioned service: use replace_with() to create new instance with staged change
                 if hasattr(self._instance, "replace_with"):
                     # Build audit params (filter out large data)
                     audit_params = {
@@ -567,8 +568,13 @@ def get_accessor(
     elif owner_class is not None:
         class_name = owner_class.__name__
 
-    # Check if service exists and extends the target class
-    if ServiceRegistry.exists(service_name):
+    # Check if service exists (either as class or metadata-only) and extends the target class
+    # Check both _services and _metadata since some services are metadata-only (remote services)
+    service_exists = (
+        ServiceRegistry.exists(service_name)
+        or service_name in ServiceRegistry._metadata
+    )
+    if service_exists:
         meta = ServiceRegistry.get_metadata(service_name)
         if meta:
             # If no class constraint or service extends the class, use it
@@ -585,7 +591,11 @@ def get_accessor(
         ]
 
         for prefixed in prefixed_names:
-            if ServiceRegistry.exists(prefixed):
+            prefixed_exists = (
+                ServiceRegistry.exists(prefixed)
+                or prefixed in ServiceRegistry._metadata
+            )
+            if prefixed_exists:
                 meta = ServiceRegistry.get_metadata(prefixed)
                 if meta and (not meta.extends or class_name in meta.extends):
                     return ServiceAccessor(prefixed, instance)

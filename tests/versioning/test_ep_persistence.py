@@ -177,14 +177,14 @@ class TestRoundTrip:
         sl = sl.append(Scenario({"a": 3}))
         sl.git_commit("added third")
 
-        log_before = sl.git_log()
+        log_before = sl.git_log(porcelain=True)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "test.ep")
             sl.to_ep(path)
             sl2 = ScenarioList.from_ep(path)
 
-            log_after = sl2.git_log()
+            log_after = sl2.git_log(porcelain=True)
 
             assert len(log_before) == len(log_after)
             for b, a in zip(log_before, log_after):

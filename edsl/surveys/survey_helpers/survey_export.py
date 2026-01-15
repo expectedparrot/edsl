@@ -8,7 +8,7 @@ in edsl-services. Use the service accessors on Survey objects instead:
     survey.code.generate()
 """
 
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ...scenarios import ScenarioList

@@ -211,12 +211,16 @@ class ExpectedParrotGit:
         return self._with_view(new_view)
 
     def branch(self, name: str) -> "ExpectedParrotGit":
-        if self._view.has_staged:
-            raise StagedChangesError("branch")
         repo = self._view.repo
         current_commit = self._view.commit_hash
         repo.upsert_ref(name, current_commit, kind="branch")
-        new_view = ObjectView(repo=repo, head_ref=name, base_commit=current_commit)
+        # Preserve pending events when switching to new branch (like real git)
+        new_view = ObjectView(
+            repo=repo,
+            head_ref=name,
+            base_commit=current_commit,
+            pending_events=self._view.pending_events,
+        )
         return self._with_view(new_view)
 
     def delete_branch(self, name: str) -> "ExpectedParrotGit":

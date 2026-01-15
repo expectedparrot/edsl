@@ -35,7 +35,6 @@ from .exceptions import AgentListError
 from edsl.versioning import GitMixin, event
 from edsl.store import (
     Store,
-    Event,
     # Row/Entry Events
     AppendRowEvent,
     UpdateRowEvent,
@@ -45,9 +44,6 @@ from edsl.store import (
     ReplaceAllEntriesEvent,
     ReorderEntriesEvent,
     KeepRowsByIndicesEvent,
-    # Field Events
-    AddFieldToAllEntriesEvent,
-    AddFieldByIndexEvent,
     # Nested Field Events (for traits)
     DropNestedFieldsEvent,
     KeepNestedFieldsEvent,
@@ -244,15 +240,15 @@ class AgentList(
         agent_template = agent.traits_presentation_template
         if agent_template != expected_template:
             raise AgentListError(
-                f"Agent traits_presentation_template differs from AgentList template. "
-                f"All agents in an AgentList must have the same traits_presentation_template."
+                "Agent traits_presentation_template differs from AgentList template. "
+                "All agents in an AgentList must have the same traits_presentation_template."
             )
 
         agent_instruction = agent.instruction
         if agent_instruction != expected_instruction:
             raise AgentListError(
-                f"Agent instruction differs from AgentList instruction. "
-                f"All agents in an AgentList must have the same instruction."
+                "Agent instruction differs from AgentList instruction. "
+                "All agents in an AgentList must have the same instruction."
             )
 
     def __init__(
@@ -358,16 +354,16 @@ class AgentList(
                         and agent.traits_presentation_template != canonical_template
                     ):
                         raise AgentListError(
-                            f"Agent traits_presentation_template differs from AgentList template. "
-                            f"All agents in an AgentList must have the same traits_presentation_template."
+                            "Agent traits_presentation_template differs from AgentList template. "
+                            "All agents in an AgentList must have the same traits_presentation_template."
                         )
                     if (
                         not instruction_provided
                         and agent.instruction != canonical_instruction
                     ):
                         raise AgentListError(
-                            f"Agent instruction differs from AgentList instruction. "
-                            f"All agents in an AgentList must have the same instruction."
+                            "Agent instruction differs from AgentList instruction. "
+                            "All agents in an AgentList must have the same instruction."
                         )
 
             for item in agents_list:

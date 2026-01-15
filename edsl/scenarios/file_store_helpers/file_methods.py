@@ -34,9 +34,7 @@ class FileMethods(ABC):
     def load_plugins(cls):
         """Load all file handler plugins including built-ins and external plugins."""
 
-        from . import (
-            file_store_handlers,
-        )  # noqa: F401 - import needed for handler registration
+        from . import file_store_handlers  # noqa: F401
 
         # Then load any external plugins
         try:

@@ -1,7 +1,15 @@
-from typing import Optional, Callable
+from typing import Optional, Callable, TYPE_CHECKING
 import warnings
 
 from .utilities import ensure_ready
+
+if TYPE_CHECKING:
+    from .results import Results
+    from .results_transcript import Transcripts
+    from .result import Result
+    from .results_analyzer import ResultsAnalyzer
+    from .results_serializer import ResultsSerializer
+    from ..language_models import ModelList
 
 
 class ResultsLikelyRemoveMixin:

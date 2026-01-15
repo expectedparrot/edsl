@@ -838,7 +838,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             ImportError: If pandas is not installed.
         """
         try:
-            import pandas as pd
+            import pandas as pd  # noqa: F401
         except ImportError:
             raise ImportError(
                 "pandas is required for merge(). "

@@ -5,7 +5,7 @@ import logging
 import time
 from functools import lru_cache
 import jinja2
-from jinja2 import Environment, meta, Undefined
+from jinja2 import meta, Undefined
 from jinja2.sandbox import SandboxedEnvironment
 
 from .exceptions import TemplateRenderError, PromptValueError, PromptImplementationError

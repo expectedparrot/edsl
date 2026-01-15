@@ -39,7 +39,7 @@ from __future__ import annotations
 import json
 import warnings
 from dataclasses import dataclass
-from typing import Optional, Callable, Any, Union, List, Dict, TYPE_CHECKING
+from typing import Optional, Any, Union, List, Dict, TYPE_CHECKING
 from collections.abc import MutableSequence
 
 from ..base import Base
@@ -48,14 +48,12 @@ if TYPE_CHECKING:
     from ..interviews import Interview
     from ..surveys import Survey
     from ..agents import AgentList
-    from ..reports.report import QuestionAnalysis
     from ..scenarios import ScenarioList
     from ..results import Result
     from ..tasks import TaskHistory
     from ..language_models import ModelList
     from ..dataset import Dataset
     from ..caching import Cache
-    from .results_transcript import Transcripts
 
 
 from ..utilities import dict_hash
@@ -77,7 +75,6 @@ from .utilities import ensure_ready
 from .job_cost_calculator import JobCostCalculator
 from .results_sampler import ResultsSampler
 from .data_type_cache_manager import DataTypeCacheManager
-from .results_analyzer import ResultsAnalyzer
 from .results_remote_fetcher import ResultsRemoteFetcher
 from .results_scorer import ResultsScorer
 from .results_ml import ResultsML
