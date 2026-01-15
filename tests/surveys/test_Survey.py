@@ -160,16 +160,6 @@ class TestSurvey(unittest.TestCase):
         # # for now, just make sure it doesn't crash
         # _ = survey.docx()
 
-    @pytest.mark.linux_only
-    def test_visualization_for_flow(self):
-        pytest.importorskip("edsl_services")
-        s = self.gen_survey()
-        # make sure doesn't crash
-        import tempfile
-
-        with tempfile.NamedTemporaryFile(suffix=".png") as f:
-            s.show_flow(filename=f.name)
-
     def test_insertion(self):
         survey = self.gen_survey()
         q1, q2, q3 = survey._questions

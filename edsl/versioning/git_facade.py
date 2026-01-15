@@ -6,6 +6,7 @@ Provides ObjectView, ExpectedParrotGit, and bootstrapping functions.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Set, Union
 
@@ -163,6 +164,64 @@ def _resolve_commit_prefix(repo: Repo, prefix: str) -> str:
     raise UnknownRevisionError(prefix)
 
 
+_ANCESTOR_PATTERN = re.compile(r"^(.+)~(\d+)$")
+
+
+def _resolve_ancestor_ref(
+    repo: Repo, rev: str, current_commit: str
+) -> Optional[str]:
+    """Resolve ancestor references like HEAD~1, HEAD~2, main~3, etc.
+
+    Args:
+        repo: The repository to resolve against
+        rev: The revision string (e.g., "HEAD~1", "main~2")
+        current_commit: The current HEAD commit ID (used when rev starts with HEAD)
+
+    Returns:
+        The resolved commit ID, or None if rev is not an ancestor reference
+    """
+    # Handle plain "HEAD"
+    if rev == "HEAD":
+        return current_commit
+
+    # Check for ~N suffix pattern
+    match = _ANCESTOR_PATTERN.match(rev)
+    if not match:
+        return None
+
+    base_ref = match.group(1)
+    generations = int(match.group(2))
+
+    # Resolve the base reference
+    if base_ref == "HEAD":
+        commit_id = current_commit
+    elif repo.has_ref(base_ref):
+        commit_id = repo.get_ref(base_ref).commit_id
+    elif repo.has_commit(base_ref):
+        commit_id = base_ref
+    else:
+        # Try prefix matching for base ref
+        all_commit_ids = repo.list_all_commit_ids()
+        matches = [cid for cid in all_commit_ids if cid.startswith(base_ref)]
+        if len(matches) == 1:
+            commit_id = matches[0]
+        elif len(matches) > 1:
+            raise AmbiguousRevisionError(base_ref)
+        else:
+            raise UnknownRevisionError(base_ref)
+
+    # Walk up the parent chain
+    for _ in range(generations):
+        if not repo.has_commit(commit_id):
+            raise UnknownRevisionError(rev)
+        commit = repo.get_commit(commit_id)
+        if not commit.parents:
+            raise UnknownRevisionError(rev)
+        commit_id = commit.parents[0]  # Follow first parent
+
+    return commit_id
+
+
 # ----------------------------
 # ExpectedParrotGit facade
 # ----------------------------
@@ -206,6 +265,11 @@ class ExpectedParrotGit:
         if repo.has_ref(rev):
             cid = repo.get_ref(rev).commit_id
             new_view = ObjectView(repo=repo, head_ref=rev, base_commit=cid)
+            return self._with_view(new_view)
+        # Try ancestor reference (HEAD~1, main~2, etc.)
+        ancestor_cid = _resolve_ancestor_ref(repo, rev, self._view.commit_hash)
+        if ancestor_cid is not None:
+            new_view = ObjectView(repo=repo, head_ref=None, base_commit=ancestor_cid)
             return self._with_view(new_view)
         cid = _resolve_commit_prefix(repo, rev)
         new_view = ObjectView(repo=repo, head_ref=None, base_commit=cid)
@@ -725,8 +789,16 @@ class ExpectedParrotGit:
             source_commit_id = repo.get_ref(source_ref).commit_id
             source_branch_name = source_ref
         else:
-            source_commit_id = _resolve_commit_prefix(repo, source_ref)
-            source_branch_name = source_ref[:10]
+            # Try ancestor reference (HEAD~1, main~2, etc.)
+            ancestor_cid = _resolve_ancestor_ref(
+                repo, source_ref, self._view.commit_hash
+            )
+            if ancestor_cid is not None:
+                source_commit_id = ancestor_cid
+                source_branch_name = source_ref
+            else:
+                source_commit_id = _resolve_commit_prefix(repo, source_ref)
+                source_branch_name = source_ref[:10]
 
         current_commit_id = self._view.commit_hash
 

@@ -123,12 +123,14 @@ class Status:
     has_staged: bool
     staged_events: Tuple[str, ...]
     is_behind: bool
+    is_stale: bool = False  # True when object's data diverged from git state
 
     def __repr__(self) -> str:
         """Format status similar to git status output."""
         # ANSI color codes (only if TTY)
         use_color = sys.stdout.isatty()
         RED = "\033[31m" if use_color else ""
+        YELLOW = "\033[33m" if use_color else ""
         RESET = "\033[0m" if use_color else ""
 
         lines = []
@@ -136,6 +138,8 @@ class Status:
         # HEAD info
         if self.is_detached:
             lines.append(f"HEAD detached at {self.head_commit[:8]}")
+            lines.append('  (use "git_checkout()" to see available branches)')
+            lines.append('  (use "git_branch(\'name\')" to create a new branch here)')
         else:
             lines.append(f"On branch {self.head_ref}")
 
@@ -146,6 +150,13 @@ class Status:
             )
             lines.append(f'  (use "git_checkout(\'{self.head_ref}\')" to update)')
             lines.append(f'  (use "git_branch(\'name\')" to branch from here)')
+
+        # Stale status (data diverged from git state due to shared mutation)
+        if self.is_stale:
+            lines.append("")
+            lines.append(f"{YELLOW}warning:{RESET} object data has diverged from git state")
+            lines.append("  (another reference modified the shared data)")
+            lines.append(f'  (use "git_checkout(\'{self.head_ref or "HEAD"}\')" to refresh)')
 
         # Staged changes
         if self.has_staged:

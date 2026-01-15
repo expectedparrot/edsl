@@ -989,7 +989,31 @@ class GitMixin:
     def git_status(self) -> Status:
         """Get current status."""
         self._ensure_git_init()
-        return self._git.status()
+        base_status = self._git.status()
+
+        # Detect stale state: data diverged from git state due to shared mutation
+        # This happens when another reference modified the shared Store
+        is_stale = False
+        if not base_status.has_staged:
+            # Only check if we don't have staged changes (otherwise data is expected to differ)
+            committed_state = self._git.view.get_base_state()
+            current_state = [self._to_state()]
+            if committed_state != current_state:
+                is_stale = True
+
+        if is_stale:
+            # Return a new Status with is_stale set
+            return Status(
+                repo_id=base_status.repo_id,
+                head_commit=base_status.head_commit,
+                head_ref=base_status.head_ref,
+                is_detached=base_status.is_detached,
+                has_staged=base_status.has_staged,
+                staged_events=base_status.staged_events,
+                is_behind=base_status.is_behind,
+                is_stale=True,
+            )
+        return base_status
 
     def git_diff(
         self,

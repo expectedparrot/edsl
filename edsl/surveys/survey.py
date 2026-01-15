@@ -28,13 +28,12 @@ from typing import (
     Tuple,
 )
 from typing_extensions import Literal
-from ..base import Base
-from ..scenarios import Scenario
-from ..utilities import remove_edsl_version, with_spinner
 
-# Import event-sourcing infrastructure
-from ..versioning import GitMixin, event
-from ..store import (
+from edsl.base import Base
+from edsl.scenarios import Scenario
+from edsl.utilities import remove_edsl_version, with_spinner
+from edsl.versioning import GitMixin, event
+from edsl.store import (
     Store,
     # Survey-specific events
     AddRuleEvent,
@@ -51,16 +50,16 @@ from .survey_helpers.survey_codec import SurveyCodec
 
 if TYPE_CHECKING:
     from ..questions import QuestionBase
-    from ..agents import Agent, AgentList
+    from edsl.agents import Agent, AgentList
     from .dag import DAG
-    from ..language_models import LanguageModel, ModelList
-    from ..caching import Cache
-    from ..jobs import Jobs
-    from ..results import Results, Result
-    from ..scenarios import ScenarioList
-    from ..buckets.bucket_collection import BucketCollection
-    from ..key_management.key_lookup import KeyLookup
-    from ..scenarios import FileStore
+    from edsl.language_models import LanguageModel, ModelList
+    from edsl.caching import Cache
+    from edsl.jobs import Jobs
+    from edsl.results import Results, Result
+    from edsl.scenarios import ScenarioList
+    from edsl.buckets.bucket_collection import BucketCollection
+    from edsl.key_management.key_lookup import KeyLookup
+    from edsl.scenarios import FileStore
 
     # Define types for documentation purpose only
     VisibilityType = Literal["unlisted", "public", "private"]
@@ -72,7 +71,7 @@ if TYPE_CHECKING:
     QuestionGroupType = Dict[str, Tuple[int, int]]
 
 
-from ..instructions import InstructionCollection
+from edsl.instructions import InstructionCollection, InstructionHandler
 from ..instructions import Instruction
 from ..instructions import ChangeInstruction
 
@@ -81,7 +80,6 @@ from .descriptors import QuestionsDescriptor
 from .memory import MemoryPlan
 
 # SurveyFlowVisualization moved to service - see show_flow() method
-from ..instructions import InstructionHandler
 from .survey_helpers.survey_simulator import Simulator
 from .memory import MemoryManagement
 from .rules import RuleManager, RuleCollection

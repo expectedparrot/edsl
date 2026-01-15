@@ -520,3 +520,169 @@ class TestBranchName:
         sl.git_checkout(commit_hash)
 
         assert sl.branch_name is None
+
+
+class TestGitCheckoutAncestorRef:
+    """Tests for git_checkout with HEAD~N and similar ancestor references."""
+
+    def test_checkout_head_tilde_1(self):
+        """Test checking out HEAD~1 goes to parent commit."""
+        sl = ScenarioList([Scenario({"a": 1})])
+        initial_hash = sl.commit_hash
+
+        sl = sl.append(Scenario({"a": 2}))
+        sl.git_commit("second")
+
+        sl.git_checkout("HEAD~1")
+
+        assert sl.commit_hash == initial_hash
+        assert sl.branch_name is None  # Detached HEAD
+        assert len(sl) == 1
+
+    def test_checkout_head_tilde_2(self):
+        """Test checking out HEAD~2 goes to grandparent commit."""
+        sl = ScenarioList([Scenario({"a": 1})])
+        initial_hash = sl.commit_hash
+
+        sl = sl.append(Scenario({"a": 2}))
+        sl.git_commit("second")
+
+        sl = sl.append(Scenario({"a": 3}))
+        sl.git_commit("third")
+
+        sl.git_checkout("HEAD~2")
+
+        assert sl.commit_hash == initial_hash
+        assert len(sl) == 1
+
+    def test_checkout_head_tilde_0(self):
+        """Test HEAD~0 stays at current commit."""
+        sl = ScenarioList([Scenario({"a": 1})])
+
+        sl = sl.append(Scenario({"a": 2}))
+        sl.git_commit("second")
+        current_hash = sl.commit_hash
+
+        sl.git_checkout("HEAD~0")
+
+        assert sl.commit_hash == current_hash
+
+    def test_checkout_plain_head(self):
+        """Test checking out HEAD stays at current commit."""
+        sl = ScenarioList([Scenario({"a": 1})])
+
+        sl = sl.append(Scenario({"a": 2}))
+        sl.git_commit("second")
+        current_hash = sl.commit_hash
+
+        sl.git_checkout("HEAD")
+
+        assert sl.commit_hash == current_hash
+        assert sl.branch_name is None  # Detached HEAD
+
+    def test_checkout_branch_tilde_n(self):
+        """Test checking out branch~N goes to Nth ancestor of branch."""
+        sl = ScenarioList([Scenario({"a": 1})])
+        initial_hash = sl.commit_hash
+
+        sl = sl.append(Scenario({"a": 2}))
+        sl.git_commit("second")
+
+        sl = sl.append(Scenario({"a": 3}))
+        sl.git_commit("third")
+
+        # main~2 should go to initial commit
+        sl.git_checkout("main~2")
+
+        assert sl.commit_hash == initial_hash
+        assert len(sl) == 1
+
+    def test_checkout_head_tilde_beyond_history_raises(self):
+        """Test HEAD~N beyond history raises UnknownRevisionError."""
+        sl = ScenarioList([Scenario({"a": 1})])
+        # Only init commit exists
+
+        with pytest.raises(UnknownRevisionError):
+            sl.git_checkout("HEAD~10")
+
+    def test_checkout_head_tilde_exact_boundary(self):
+        """Test HEAD~N at exact boundary of history."""
+        sl = ScenarioList([Scenario({"a": 1})])
+        initial_hash = sl.commit_hash
+
+        sl = sl.append(Scenario({"a": 2}))
+        sl.git_commit("second")
+
+        # HEAD~1 should work (goes to init)
+        sl.git_checkout("HEAD~1")
+        assert sl.commit_hash == initial_hash
+
+        # HEAD~1 from init should fail (no more history)
+        with pytest.raises(UnknownRevisionError):
+            sl.git_checkout("HEAD~1")
+
+    def test_checkout_head_tilde_preserves_data(self):
+        """Test HEAD~N correctly restores data from ancestor."""
+        sl = ScenarioList([Scenario({"a": 1})])
+
+        sl = sl.append(Scenario({"a": 2}))
+        sl.git_commit("added a=2")
+
+        sl = sl.append(Scenario({"a": 3}))
+        sl.git_commit("added a=3")
+
+        # Should have 3 entries now
+        assert len(sl) == 3
+
+        # Go back one commit
+        sl.git_checkout("HEAD~1")
+        assert len(sl) == 2
+        assert sl[0]["a"] == 1
+        assert sl[1]["a"] == 2
+
+        # Go back one more
+        sl.git_checkout("HEAD~1")
+        assert len(sl) == 1
+        assert sl[0]["a"] == 1
+
+    def test_checkout_head_tilde_with_force(self):
+        """Test HEAD~N with force discards staged changes."""
+        sl = ScenarioList([Scenario({"a": 1})])
+
+        sl = sl.append(Scenario({"a": 2}))
+        sl.git_commit("second")
+        parent_hash = sl.commit_hash
+
+        sl = sl.append(Scenario({"a": 3}))
+        sl.git_commit("third")
+
+        # Stage a change
+        sl = sl.append(Scenario({"a": 999}))
+        assert sl.has_staged
+
+        # Checkout HEAD~1 with force should work
+        sl.git_checkout("HEAD~1", force=True)
+
+        assert sl.commit_hash == parent_hash
+        assert not sl.has_staged
+        assert len(sl) == 2
+
+    def test_checkout_head_tilde_with_staged_raises(self):
+        """Test HEAD~N with staged changes raises error without force."""
+        sl = ScenarioList([Scenario({"a": 1})])
+
+        sl = sl.append(Scenario({"a": 2}))
+        sl.git_commit("second")
+
+        # Stage a change
+        sl = sl.append(Scenario({"a": 999}))
+
+        with pytest.raises(StagedChangesError):
+            sl.git_checkout("HEAD~1")
+
+    def test_checkout_nonexistent_branch_tilde_raises(self):
+        """Test checkout of nonexistent branch~N raises error."""
+        sl = ScenarioList([Scenario({"a": 1})])
+
+        with pytest.raises(UnknownRevisionError):
+            sl.git_checkout("nonexistent~1")

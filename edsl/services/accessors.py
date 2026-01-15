@@ -2743,6 +2743,12 @@ def get_service_accessor(name: str, instance: Any = None, owner_class: type = No
             "replace_value",
             "sample",
             "add_weighted_linear_scale_sum",
+            # Job execution runtime attributes (set via Results.__setattr__)
+            "bucket_collection",
+            "jobs_runner_status",
+            "key_lookup",
+            "order",
+            "job_info",
         }
     )
 
