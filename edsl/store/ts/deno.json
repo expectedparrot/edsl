@@ -1,0 +1,14 @@
+{
+  "name": "@edsl/store",
+  "version": "1.0.0",
+  "exports": "./index.ts",
+  "tasks": {
+    "test": "deno run --allow-read tests/parity.test.ts",
+    "test:watch": "deno run --watch --allow-read tests/parity.test.ts",
+    "generate-fixtures": "cd tests && python generate_fixtures.py",
+    "check": "deno check *.ts tests/*.ts"
+  },
+  "compilerOptions": {
+    "strict": true
+  }
+}

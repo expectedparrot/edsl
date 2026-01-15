@@ -1,0 +1,21 @@
+{
+  "name": "@edsl/store",
+  "version": "1.0.0",
+  "description": "TypeScript implementation of EDSL Store events",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "tsx tests/parity.test.ts",
+    "test:watch": "tsx watch tests/parity.test.ts",
+    "generate-fixtures": "python tests/generate_fixtures.py"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  },
+  "files": [
+    "dist"
+  ]
+}
